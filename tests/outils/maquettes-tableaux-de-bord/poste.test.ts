@@ -1,0 +1,160 @@
+// T-EXT-51a : tests du jugement du poste de capture. AUCUN navigateur lancé, aucun réseau.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { MESSAGE_ENVIRONNEMENT_INTERDIT } from "../../../outils/maquettes-tableaux-de-bord/capture/garde";
+import {
+  EXIGENCES_POSTE,
+  empreintePoste,
+  jugerPoste,
+  lireEncodeurs,
+  lireFiltres,
+  lireVersionFfmpeg,
+  posteJson,
+  type SondesPoste,
+} from "../../../outils/maquettes-tableaux-de-bord/poste/poste";
+
+const FILTRES_TXT = `Filters:
+  T.. = Timeline support
+ ... abench            A->A       Benchmark part of a filtergraph.
+ ... blackdetect       V->V       Detect video intervals that are (almost) black.
+ T.. freezedetect      V->V       Detect frozen video input.
+ T.. ssim              VV->V      Calculate the SSIM between two video streams.
+ ... anullsrc          |->A       Null audio source.
+`;
+const ENCODEURS_TXT = `Encoders:
+ V....D libx264              libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (codec h264)
+ V....D libx264rgb           libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 RGB (codec h264)
+ A....D aac                  AAC (Advanced Audio Coding)
+`;
+
+function poste(sur: Partial<SondesPoste> = {}): SondesPoste {
+  return {
+    plateforme: "linux",
+    env: { CLAUDE_CODE_REMOTE: "true" },
+    playwright: EXIGENCES_POSTE.playwright,
+    chromium: { chemin: "/opt/pw-browsers/chromium-1243/chrome", version: "141.0.7390.37" },
+    ffmpeg: { version: "8.1.1", encodeurs: lireEncodeurs(ENCODEURS_TXT), filtres: lireFiltres(FILTRES_TXT) },
+    ffprobe: "8.1.1",
+    policeSha256: "a".repeat(64),
+    espaceLibreMo: 5000,
+    ...sur,
+  };
+}
+
+describe("lecture des sorties de FFmpeg", () => {
+  it("version", () => {
+    expect(lireVersionFfmpeg("ffmpeg version 8.1.1-static https://johnvansickle.com/ffmpeg/  Copyright")).toBe("8.1.1");
+    expect(lireVersionFfmpeg("ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023")).toBe("6.1.1");
+    expect(lireVersionFfmpeg("n'importe quoi")).toBeUndefined();
+  });
+  it("filtres, avec et sans ssim", () => {
+    const f = lireFiltres(FILTRES_TXT);
+    expect(f).toEqual(expect.arrayContaining(["ssim", "freezedetect", "blackdetect"]));
+    expect(lireFiltres(FILTRES_TXT.replace(/.*ssim.*\n/, ""))).not.toContain("ssim");
+  });
+  it("encodeurs, avec et sans libx264", () => {
+    expect(lireEncodeurs(ENCODEURS_TXT)).toContain("libx264");
+    expect(lireEncodeurs("Encoders:\n V..... = Video\n V....D libx264 H.264")).toEqual(["libx264"]);
+    expect(lireEncodeurs(ENCODEURS_TXT.replace(/ V....D libx264 .*\n/, ""))).not.toContain("libx264");
+  });
+});
+
+describe("jugerPoste", () => {
+  it("poste complet en cloud → ok", () => {
+    const j = jugerPoste(poste());
+    expect(j).toMatchObject({ ok: true, manques: [] });
+  });
+  it("poste complet en CI → ok", () => {
+    expect(jugerPoste(poste({ env: { CI: "true" } })).ok).toBe(true);
+  });
+  it("sans CI ni CLAUDE_CODE_REMOTE → refus avec la phrase de garde.ts", () => {
+    const j = jugerPoste(poste({ env: {} }));
+    expect(j.ok).toBe(false);
+    expect(j.manques).toContain(MESSAGE_ENVIRONNEMENT_INTERDIT);
+  });
+  it("win32 et darwin → refus", () => {
+    expect(jugerPoste(poste({ plateforme: "win32", env: { CI: "true" } })).ok).toBe(false);
+    const d = jugerPoste(poste({ plateforme: "darwin" }));
+    expect(d.ok).toBe(false);
+    expect(d.manques.join(" ")).toContain("darwin");
+  });
+  it("Playwright 1.62.0 → refus", () => {
+    expect(jugerPoste(poste({ playwright: "1.62.0" })).ok).toBe(false);
+  });
+  it("Chromium introuvable → refus", () => {
+    const sans = { ...poste(), chromium: undefined };
+    expect(jugerPoste(sans).manques.join(" ")).toContain("Chromium");
+  });
+  it("FFmpeg absent ou 5.1 → refus", () => {
+    const sans = { ...poste(), ffmpeg: undefined };
+    expect(jugerPoste(sans).ok).toBe(false);
+    const j = jugerPoste(poste({ ffmpeg: { version: "5.1", encodeurs: ["libx264"], filtres: lireFiltres(FILTRES_TXT) } }));
+    expect(j.ok).toBe(false);
+  });
+  it("ssim absent → refus nommant ssim", () => {
+    const j = jugerPoste(poste({ ffmpeg: { version: "8.1.1", encodeurs: ["libx264"], filtres: ["freezedetect", "blackdetect"] } }));
+    expect(j.ok).toBe(false);
+    expect(j.manques.join(" ")).toContain("ssim");
+  });
+  it("libx264 absent → refus nommant libx264", () => {
+    const j = jugerPoste(poste({ ffmpeg: { version: "8.1.1", encodeurs: [], filtres: lireFiltres(FILTRES_TXT) } }));
+    expect(j.manques.join(" ")).toContain("libx264");
+  });
+  it("police absente → refus", () => {
+    const sans = { ...poste(), policeSha256: undefined };
+    expect(jugerPoste(sans).manques.join(" ")).toContain("Police");
+  });
+  it("1 500 Mo libres → refus", () => {
+    expect(jugerPoste(poste({ espaceLibreMo: 1500 })).ok).toBe(false);
+  });
+  it("ne lève jamais, même sur une entrée vide", () => {
+    expect(() => jugerPoste({} as SondesPoste)).not.toThrow();
+    expect(jugerPoste({} as SondesPoste).ok).toBe(false);
+  });
+});
+
+describe("EXIGENCES_POSTE", () => {
+  it("Playwright = la version verrouillée dans pnpm-lock.yaml", () => {
+    const lock = readFileSync(resolve(__dirname, "../../../pnpm-lock.yaml"), "utf8");
+    const m = /'@playwright\/test':\s*\n\s*specifier: [^\n]+\n\s*version: (\d+\.\d+\.\d+)/.exec(lock);
+    expect(m?.[1]).toBe(EXIGENCES_POSTE.playwright);
+  });
+});
+
+describe("empreintePoste et poste.json", () => {
+  it("stable ; change avec FFmpeg ou Chromium ; ignore le chemin de Chromium", () => {
+    const base = empreintePoste(poste());
+    expect(empreintePoste(poste())).toBe(base);
+    expect(empreintePoste(poste({ ffmpeg: { version: "8.1.2", encodeurs: [], filtres: [] } }))).not.toBe(base);
+    expect(empreintePoste(poste({ chromium: { chemin: "/opt/pw-browsers/chromium-1243/chrome", version: "142.0.1" } }))).not.toBe(base);
+    expect(empreintePoste(poste({ chromium: { chemin: "/autre/chemin", version: "141.0.7390.37" } }))).toBe(base);
+    expect(empreintePoste(poste({ espaceLibreMo: 1 }))).toBe(base);
+  });
+  it("posteJson : version, type, sans env, empreinte", () => {
+    const s = poste();
+    const j = posteJson(s, jugerPoste(s));
+    expect(j).toMatchObject({ version: "poste-capture.v1", type: "routine-cloud", ok: true, empreinte: empreintePoste(s) });
+    expect(j).not.toHaveProperty("env");
+    expect(posteJson(poste({ env: { CI: "true" } }), { ok: true, manques: [], remarques: [] }).type).toBe("ci");
+    expect(posteJson(poste({ env: { CI: "true", CAPTURE_CONTENEUR: "true" } }), { ok: true, manques: [], remarques: [] }).type).toBe("conteneur");
+    expect(posteJson(poste({ env: { CLAUDE_CODE_REMOTE: "true", CAPTURE_CONTENEUR: "oui" } }), { ok: true, manques: [], remarques: [] }).type).toBe("routine-cloud");
+  });
+});
+
+describe("texte de verifier-poste.mts", () => {
+  const src = readFileSync(resolve(__dirname, "../../../outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts"), "utf8");
+  it("environnementAutorise est appelé avant toute sonde", () => {
+    const garde = src.indexOf("environnementAutorise(process.env");
+    expect(garde).toBeGreaterThan(0);
+    for (const sonde of ["lancer(\"ffmpeg\"", "lirePlaywright()", "sondeChromium()", "readFileSync(join(RACINE_DEPOT, EXIGENCES"]) {
+      expect(src.indexOf(sonde, src.indexOf("function main"))).toBeGreaterThan(garde);
+    }
+  });
+  it("aucun lancement de navigateur, aucun http, spawnSync sans shell", () => {
+    expect(src).not.toMatch(/\.launch\s*\(/);
+    expect(src).not.toMatch(/http/i);
+    expect(src).not.toMatch(/shell\s*:\s*true/);
+    expect(src).toContain("spawnSync");
+  });
+});
