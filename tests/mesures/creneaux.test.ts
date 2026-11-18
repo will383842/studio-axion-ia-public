@@ -40,6 +40,10 @@ describe("classerCreneaux", () => {
     expect(r[0].nonMesures).toBe(1);
     expect(r[0].cases[0]).toMatchObject({ nombre: 3, mediane: 0.7 });
   });
+  it("date absente ou illisible : exclue et comptée non mesurée, sans exception", () => {
+    const r = classerCreneaux([c("", 0.5), c("pas une date", 0.5)]);
+    expect(r).toEqual([{ reseau: "tiktok", type: "video", cases: [], nonMesures: 2 }]);
+  });
   it("vidéo et carrousel sont séparés, réseaux aussi", () => {
     const r = classerCreneaux([c(mardi8h(0), 0.5), c(mardi8h(1), 0.5, "tiktok", "carrousel"), c(mardi8h(2), 0.5, "instagram")]);
     expect(r).toHaveLength(3);
