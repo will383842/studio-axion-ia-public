@@ -28,15 +28,17 @@ import {
 } from "@/domaine/mesures-rangs";
 import { type Id, type Publication, type ReseauDeclinaison, type ScriptMaitre, type StatsPublication, type VarianteReseau, videoIdSure } from "@/domaine/types";
 import { trouverFormat } from "@/formats";
-import { JOUR_MS } from "@/lib/dates";
+import { cleJour, JOUR_MS } from "@/lib/dates";
+import { ajouterJoursParis } from "@/lib/horloge-paris";
 import { creerLecteurBuffer, type LecteurStatsBuffer } from "@/fournisseurs/mesures/buffer";
 import { ErreurMesure } from "@/fournisseurs/mesures/commun";
 import { creerLecteurZernio, type LecteurStatsZernio } from "@/fournisseurs/mesures/zernio";
 import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
 import { creerLecteurPlausible, type LecteurVisites } from "@/fournisseurs/mesures/plausible";
-import { depots, filtreExemples, journaliser } from "./_commun";
+import { depots, filtreExemples, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import { bufferGele } from "./buffer-gel";
+import { lireStatistiquesPeriode, type StatistiquesLues } from "./lecteur-statistiques";
 import { cleZernioPresente, clientZernio } from "./zernio";
 import { versionsExemplesAvantPublication, videosExemplesMesurees } from "./mesures-exemples";
 
@@ -94,6 +96,21 @@ async function publicationsDeVersions(): Promise<Publication[]> {
   return depots().publications.lister((p) => ex(p) && !!p.varianteId && p.via !== "simulation" && !!videoIdSure(p) && !archivees.has(videoIdSure(p)!));
 }
 
+/**
+ * Publications de visuels (carrousels) lisibles chez le diffuseur : `visuelId`, idExterne, via « zernio » (jamais un essai),
+ * hors exemples, visuel présent et hors corbeille. Lues seulement quand `mesures.lecture_par_liste` est allumé.
+ */
+async function publicationsDeVisuels(): Promise<Publication[]> {
+  const ex = await filtreExemples<Publication>();
+  const candidates = await depots().publications.lister((p) => ex(p) && !!p.visuelId && !p.videoId && p.via === "zernio" && !!p.idExterne);
+  const r: Publication[] = [];
+  for (const p of candidates) {
+    const v = await depots().visuels.obtenir(p.visuelId!);
+    if (v && !v.corbeilleLe) r.push(p);
+  }
+  return r;
+}
+
 /** Exemples de démonstration : seulement sur un poste de développement ET demandés (`STUDIO_APERCU_MESURES=1`). */
 export function exemplesActifs(env: Record<string, string | undefined> = process.env): boolean {
   return env.NODE_ENV !== "production" && env.STUDIO_APERCU_MESURES === "1";
@@ -140,10 +157,32 @@ export const LIBELLE_NON_LISIBLE = "Non lisible : Zernio ne donne pas ces chiffr
 /* Import : Buffer et liens suivis                                     */
 /* ------------------------------------------------------------------ */
 
+/** L8-02b : interrupteur de la lecture par liste (ÉTEINT par défaut ; la clé est écrite en littéral à la lecture). */
+export const INTERRUPTEUR_LECTURE_PAR_LISTE = "mesures.lecture_par_liste";
+/** Éteint : lectures unitaires chez le diffuseur au plus par clic (le reste au clic suivant). */
+export const LECTURES_UNITAIRES_MAX_PAR_CLIC = 40;
+/** Allumé : lectures unitaires au plus, après la liste, pour les publications non retrouvées. */
+export const LECTURES_UNITAIRES_APRES_LISTE = 10;
+/** Allumé : pages de liste au plus par clic (donc 3 + 10 = 13 requêtes au plus). */
+export const PAGES_LISTE_PAR_CLIC = 3;
+/** Jours remontés au plus par la lecture par liste. */
+const JOURS_LISTE_MAX = 90;
+export const LIBELLE_PROCHAIN_CLIC = "Une partie des chiffres sera lue au prochain clic.";
+
+async function lectureParListeAllumee(): Promise<boolean> {
+  try {
+    const reglage = await lireParametre<boolean>("mesures.lecture_par_liste", false);
+    return reglage === true;
+  } catch {
+    return false;
+  }
+}
+
 export interface BilanImport {
   buffer: { essai: boolean; lues: number; ajoutees: number; erreurs: number; message?: string };
   visites: { essai: boolean; lues: number; ajoutees: number; message?: string };
-  zernio: { essai: boolean; lues: number; ajoutees: number; pasPretes: number; nonLisibles: number; message?: string };
+  /** `requetes` : toutes les requêtes du clic chez le diffuseur, échecs compris. */
+  zernio: { essai: boolean; lues: number; ajoutees: number; pasPretes: number; nonLisibles: number; requetes: number; message?: string };
 }
 
 const memes = (a: Partial<StatsPublication> | undefined, b: Partial<StatsPublication>) => Object.entries(b).every(([k, v]) => (a as Record<string, unknown> | undefined)?.[k] === v);
@@ -163,6 +202,20 @@ async function ajouterReleve(p: Publication, source: "buffer" | "zernio" | "api"
   const jour = Math.max(0, Math.floor((instant.getTime() - new Date(p.date).getTime()) / JOUR_MS));
   await depots().publications.modifier(p.id, { releves: [...(p.releves ?? []), { le: instant.toISOString(), jour, source, valeurs: stats, definitions }], stats });
   return true;
+}
+
+/**
+ * Écrit un relevé « zernio » depuis des statistiques déjà lues (liste ou lecture seule), SANS session : la relecture
+ * automatique l'appellera depuis la boucle. Seuls vues, portée, réactions, commentaires, partages non absents sont
+ * gardés ; clics, enregistrements et taux ne sont PAS écrits (champs de `types.ts`, propriété de L1-03). Rien d'utile → false.
+ */
+export async function appliquerStatistiquesLues(p: Publication, s: StatistiquesLues, instant: Date): Promise<boolean> {
+  const valeurs: Partial<StatsPublication> & { portee?: number } = {};
+  const lu = { vues: s.vues, portee: s.portee, likes: s.reactions, commentaires: s.commentaires, partages: s.partages };
+  for (const [k, v] of Object.entries(lu)) if (v !== null && v !== undefined) (valeurs as Record<string, number>)[k] = v;
+  if (!Object.keys(valeurs).length) return false;
+  if (valeurs.partages !== undefined && valeurs.portee) valeurs.partagesParPortee = Math.round((valeurs.partages / valeurs.portee) * 10_000) / 100;
+  return ajouterReleve(p, "zernio", valeurs, { ...DEFINITIONS_ZERNIO }, instant);
 }
 
 const messageDe = (e: unknown) => (e instanceof ErreurMesure ? e.message : "Lecture impossible pour l'instant.");
@@ -187,23 +240,18 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
   const bilan: BilanImport = {
     buffer: { essai: lecteurBuffer.mode === "simulation", lues: 0, ajoutees: 0, erreurs: 0 },
     visites: { essai: lecteurVisites.mode === "simulation", lues: 0, ajoutees: 0 },
-    zernio: { essai: lecteurZernio.mode === "simulation", lues: 0, ajoutees: 0, pasPretes: 0, nonLisibles: 0 },
+    zernio: { essai: lecteurZernio.mode === "simulation", lues: 0, ajoutees: 0, pasPretes: 0, nonLisibles: 0, requetes: 0 },
   };
   const d = depots();
   const publications = await publicationsDeVersions();
+  const parListe = await lectureParListeAllumee();
+  const aLire = parListe ? [...publications, ...(await publicationsDeVisuels())] : publications;
+  const zernioALire: Publication[] = [];
 
-  for (const p of publications) {
+  for (const p of aLire) {
     if (!estChezUnOutil(p) || !p.idExterne) continue;
     if (outilDe(p) === "zernio") {
-      if (lecteurZernio.mode === "simulation") continue;
-      const m = await lecteurZernio.lire(p.idExterne);
-      if (m.etat === "pas-encore-pretes") bilan.zernio.pasPretes++;
-      else if (m.etat === "non-lisible") bilan.zernio.nonLisibles++;
-      else {
-        bilan.zernio.lues++;
-        const frais = (await d.publications.obtenir(p.id)) ?? p;
-        if (await ajouterReleve(frais, "zernio", m.valeurs, { ...DEFINITIONS_ZERNIO }, instant)) bilan.zernio.ajoutees++;
-      }
+      if (lecteurZernio.mode !== "simulation") zernioALire.push(p);
       continue;
     }
     if (gele) continue;
@@ -219,6 +267,57 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
       bilan.buffer.message = messageDe(e);
     }
   }
+
+  // Zernio : celles dont le dernier relevé est le plus ancien (ou absent) d'abord, pour qu'aucune ne soit oubliée.
+  const anciennete = (p: Publication) => dernierReleve(p, "zernio")?.le ?? "";
+  zernioALire.sort((a, b) => anciennete(a).localeCompare(anciennete(b)));
+  let reste = false;
+  const lireUnePar = async (p: Publication) => {
+    bilan.zernio.requetes++;
+    const m = await lecteurZernio.lire(p.idExterne!);
+    if (m.etat === "pas-encore-pretes") bilan.zernio.pasPretes++;
+    else if (m.etat === "non-lisible") bilan.zernio.nonLisibles++;
+    else {
+      bilan.zernio.lues++;
+      const frais = (await d.publications.obtenir(p.id)) ?? p;
+      if (await ajouterReleve(frais, "zernio", m.valeurs, { ...DEFINITIONS_ZERNIO }, instant)) bilan.zernio.ajoutees++;
+    }
+  };
+  let aPart: Publication[] = zernioALire;
+  if (parListe && zernioALire.length && cleZernioPresente()) {
+    aPart = [];
+    const dates = zernioALire.map((p) => Date.parse(p.date)).filter((t) => Number.isFinite(t));
+    const au = cleJour(instant);
+    const plusAncien = dates.length ? cleJour(new Date(Math.min(...dates))) : au;
+    const du = [plusAncien, ajouterJoursParis(au, -JOURS_LISTE_MAX)].reduce((a, b) => (a > b ? a : b));
+    const liste = await lireStatistiquesPeriode(clientZernio(), { du: du > au ? au : du, au, pagesMax: PAGES_LISTE_PAR_CLIC });
+    bilan.zernio.requetes += liste.requetes;
+    const parId = new Map<string, StatistiquesLues>();
+    const parUrl = new Map<string, StatistiquesLues>();
+    for (const l of liste.lignes) {
+      if (l.idPostStudio && !parId.has(l.idPostStudio)) parId.set(l.idPostStudio, l);
+      if (l.urlPubliee && !parUrl.has(l.urlPubliee)) parUrl.set(l.urlPubliee, l);
+    }
+    for (const p of zernioALire) {
+      const l = parId.get(p.idExterne!) ?? (p.urlPubliee ? parUrl.get(p.urlPubliee) : undefined);
+      if (!l) {
+        aPart.push(p);
+        continue;
+      }
+      bilan.zernio.lues++;
+      const frais = (await d.publications.obtenir(p.id)) ?? p;
+      if (await appliquerStatistiquesLues(frais, l, instant)) bilan.zernio.ajoutees++;
+    }
+    const plafond = LECTURES_UNITAIRES_APRES_LISTE;
+    if (aPart.length > plafond) {
+      reste = true;
+      aPart = aPart.slice(0, plafond);
+    }
+  } else if (zernioALire.length > LECTURES_UNITAIRES_MAX_PAR_CLIC) {
+    reste = true;
+    aPart = zernioALire.slice(0, LECTURES_UNITAIRES_MAX_PAR_CLIC);
+  }
+  for (const p of aPart) await lireUnePar(p);
 
   try {
     const lignes = await lecteurVisites.lire({ periode: "90d" });
@@ -243,10 +342,11 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
     bilan.visites.message = messageDe(e);
   }
 
-  if (bilan.zernio.pasPretes) bilan.zernio.message = LIBELLE_PAS_PRETES;
+  if (reste) bilan.zernio.message = LIBELLE_PROCHAIN_CLIC;
+  else if (bilan.zernio.pasPretes) bilan.zernio.message = LIBELLE_PAS_PRETES;
   else if (bilan.zernio.nonLisibles) bilan.zernio.message = LIBELLE_NON_LISIBLE;
   if (gele) bilan.buffer.message = "L'ancien outil est gelé : ses chiffres ne sont plus relus (les relevés déjà gardés restent).";
-  if (bilan.buffer.ajoutees || bilan.visites.ajoutees || bilan.zernio.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par Buffer, ${bilan.zernio.ajoutees} lus chez Zernio, ${bilan.visites.ajoutees} par lien suivi`);
+  if (bilan.buffer.ajoutees || bilan.visites.ajoutees || bilan.zernio.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par Buffer, ${bilan.zernio.ajoutees} lus chez Zernio, ${bilan.visites.ajoutees} par lien suivi, ${bilan.zernio.requetes} requêtes chez le diffuseur`);
   return bilan;
 }
 

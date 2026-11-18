@@ -101,7 +101,7 @@ describe("constantes et interrupteur", () => {
 
   it("la clé est écrite en littéral, défaut false, jugée par === true", () => {
     const src = readFileSync("src/services/mesures-completes.ts", "utf8");
-    expect(src).toMatch(/lireParametre<boolean>\("mesures\.lecture_par_liste", false\) === true/);
+    expect(src).toMatch(/lireParametre<boolean>\("mesures\.lecture_par_liste", false\);\s+return reglage === true/);
   });
 
   it("recensée « eteint » dans l'inventaire", () => {
@@ -121,7 +121,7 @@ describe("constantes et interrupteur", () => {
 });
 
 describe("éteint : plafond de 40 lectures unitaires", () => {
-  it("60 publications : 40 requêtes, message « prochain clic » ; second clic : les 20 restantes", async () => {
+  it("60 publications : 40 requêtes, message « prochain clic » ; second clic : les 20 restantes passent d'abord", async () => {
     await publications(60);
     const un = await lancer();
     expect(un.appels).toHaveLength(40);
@@ -130,8 +130,10 @@ describe("éteint : plafond de 40 lectures unitaires", () => {
     expect(un.bilan.zernio.lues).toBe(40);
     expect(un.bilan.zernio.message).toBe("Une partie des chiffres sera lue au prochain clic.");
     const deux = await lancer();
-    expect(deux.appels).toHaveLength(20);
-    expect(deux.bilan.zernio.message).toBeUndefined();
+    // Le plafond reste 40 : les 20 jamais lues passent d'abord, puis les 20 relevés les plus anciens.
+    expect(deux.appels).toHaveLength(40);
+    const lus = new Set(deux.unitaires().map((a) => a.query!.postId));
+    expect(lus.size).toBe(40);
     const sansReleve = [];
     for (let i = 0; i < 60; i++) if (!(await publi(`exemple-pub-${i}`)).releves?.length) sansReleve.push(i);
     expect(sansReleve).toEqual([]);
@@ -295,7 +297,7 @@ describe("valeurs et écritures", () => {
     await publications(1);
     await allumer();
     await lancer();
-    const v = (await publi("exemple-pub-0")).releves![0].valeurs as Record<string, unknown>;
+    const v = (await publi("exemple-pub-0")).releves![0].valeurs as unknown as Record<string, unknown>;
     expect(Object.keys(v).sort()).toEqual(["commentaires", "likes", "partages", "partagesParPortee", "portee", "vues"]);
     expect((await publi("exemple-pub-0")).stats).not.toHaveProperty("clics");
   });
