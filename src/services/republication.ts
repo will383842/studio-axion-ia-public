@@ -113,7 +113,7 @@ async function creerSousVerrou(deps: DepsRepublication, demande: DemandeNouvelle
     const instant = c.heuresParReseau[reseau];
     if (instant) existants.push({ id: c.id, reseau, ...enParis(instant), statut: c.statut });
   }
-  for (const p of await deps.publications.lister((x) => x.reseau === reseau && x.statut === "publiee")) {
+  for (const p of await deps.publications.lister((x) => x.reseau === reseau && x.statut !== "brouillon")) {
     existants.push({ id: p.id, reseau, ...enParis(p.date), statut: p.statut, simulee: p.via === "simulation" });
   }
   const placement = verifierPlacement({
