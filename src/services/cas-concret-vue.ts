@@ -25,6 +25,7 @@ import { formaterMontant } from "@/lib/montants";
 import { casDesEntrees, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { texteDuCorps } from "@/moteurs/montage-cas-concret/fiche";
 import { FIN_AUCUNE, planDesFins, RAISON_SUITE_REDUITE } from "@/moteurs/montage-cas-concret/fins";
+import { CONSIGNE_SANS_FIN } from "@/moteurs/montage-cas-concret/publication";
 import { depots, fournisseur } from "./_commun";
 import { exigerSession } from "./auth";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "./cas-concret-reglages";
@@ -190,8 +191,11 @@ export async function vueCasConcret(videoId: Id, dependances: DependancesVueCasC
     if (!fin) return [];
     const fiche = fichiers.find((f) => f.cleStockage === fin.fichierCle);
     const dimensions = dimensionsDe(fin.mesures?.largeur, fin.mesures?.hauteur) ?? dimensionsDe(fiche?.largeur, fiche?.hauteur);
-    const fait = rejoue.get(reseau);
     const publication = textes.get(reseau);
+    const faitRejoue = rejoue.get(reseau);
+    // 18/11 (relecteur B, FIX-CC-FIN-NON-CHOISIE) : une vidéo fabriquée AVANT « sans choix, aucune fin » a gardé une publication qui annonce un lien (consigne autre que `CONSIGNE_SANS_FIN`) : son fichier porte l'ancienne fin. On ne dit alors rien de la fin plutôt qu'« aucune (votre choix) ».
+    const ancienneFin = faitRejoue?.types.length === 0 && texteNonVide(publication?.consigneLien) && publication.consigneLien !== CONSIGNE_SANS_FIN;
+    const fait = ancienneFin ? undefined : faitRejoue;
     const lien = texteNonVide(liens[reseau]) ? (liens[reseau] as string) : undefined;
     const url = urls.get(fin.fichierCle);
     return [{

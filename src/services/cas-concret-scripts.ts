@@ -182,7 +182,8 @@ async function finsDeLApercu(videoId: Id, casId: string): Promise<ApercuScriptCa
     const plan = regrouperFins(planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC }));
     return plan.fins.map((f) =>
       f.appels.length
-        ? { reseaux: f.reseaux.join("-"), dit: f.ecrans.map((e) => e.texteDit.trim()).join(" "), ecrits: apercuDesEcrans(f.ecrans).flatMap((e) => e.affiches) }
+        // 18/11 (relecteur A) : les écrits de la fin = les lignes `ecran` de la table posées (ce que `contenuEcran` découpe en invite / mot / suite).
+        ? { reseaux: f.reseaux.join("-"), dit: f.ecrans.map((e) => e.texteDit.trim()).join(" "), ecrits: f.appels.map((x) => x.ecran.trim()).filter(Boolean) }
         : { reseaux: f.reseaux.join("-"), dit: FIN_AUCUNE, ecrits: [] },
     );
   } catch {

@@ -33,9 +33,18 @@ const VIDEO = "v-03";
 const CAS = "contact-vers-crm";
 const RESEAUX = ["facebook", "instagram", "tiktok", "linkedin"] as const;
 
+const demandesRendu: Array<{ idRendu: string; proprietes?: unknown } & Record<string, unknown>> = [];
+
 function renduImmediat() {
   let t = 0;
-  return { service: creerServiceRenduSimule(() => (t += 60_000)), simule: true };
+  const service = creerServiceRenduSimule(() => (t += 60_000));
+  // 18/11 : on garde les demandes de rendu (ce que la vidéo dessine vraiment), sans rien changer au service.
+  const soumettre = service.soumettre.bind(service);
+  service.soumettre = async (demande) => {
+    demandesRendu.push(demande as unknown as (typeof demandesRendu)[number]);
+    return soumettre(demande);
+  };
+  return { service, simule: true };
 }
 
 function commande(casId = CAS): CommandeFabrication {
@@ -126,10 +135,13 @@ describe("FIX-CC-FIN-NON-CHOISIE · T4 · aperçu = fabrication (chemin réel)",
     await rangerTravail(arrete, c);
 
     const apercu = (await scripts.apercuScriptCasConcret(VIDEO))!;
+    demandesRendu.length = 0;
     expect(apercu.fins).toHaveLength(2);
     const fb = apercu.fins.find((f) => f.reseaux === "facebook")!;
     const autres = apercu.fins.find((f) => f.reseaux !== "facebook")!;
     expect(fb.dit).toBe(DIT_FACEBOOK);
+    // 18/11 (relecteur A) : l'écrit montré = l'écrit de la ligne de table (invite + mot + suite), pas seulement le mot.
+    expect(fb.ecrits).toEqual(["Écrivez CRM en commentaire", "Je vous envoie la structure complète"]);
     expect(autres).toEqual({ reseaux: "instagram-tiktok-linkedin", dit: FIN_AUCUNE, ecrits: [] });
 
     await scripts.validerScriptCasConcret(VIDEO, { maintenant: Date.UTC(2026, 10, 18) });
@@ -144,6 +156,13 @@ describe("FIX-CC-FIN-NON-CHOISIE · T4 · aperçu = fabrication (chemin réel)",
     expect(lus.filter((t) => t.includes("Écrivez"))).toEqual(dits);
     expect(lus).toHaveLength(1 + dits.length);
     expect(lus.join(" ")).not.toMatch(/diagnostic|quelques minutes|lien/i);
+    // Les écrits montrés sont ceux des écrans de fin réellement passés au rendu (invite / mot / suite ; invite / cadeau / ligne ; balises `*` retirées).
+    const sansBalise = (t: unknown) => String(t ?? "").replace(/\*/g, "").trim();
+    const propsFin = demandesRendu
+      .map((x) => (x as { parametres?: { proprietes?: Record<string, unknown> } }).parametres?.proprietes)
+      .filter((p): p is Record<string, unknown> => !!p && (p.type === "appel-mot" || p.type === "promesse"));
+    const dessines = propsFin.map((p) => (p.type === "appel-mot" ? [p.invite, p.mot, p.suite] : [p.invite, p.cadeau, p.ligne]).map(sansBalise).filter(Boolean).join(" "));
+    expect(dessines).toEqual(fb.ecrits);
 
     // Les fichiers fabriqués ont les réseaux des lignes de l'aperçu.
     const fichiers = ((fini.parametres as { casConcret?: { journal?: unknown } }).casConcret ?? {}) as { journal?: { montage?: Record<string, unknown> } };

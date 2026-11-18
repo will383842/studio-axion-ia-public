@@ -16,6 +16,7 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { ecrireParametre } = await import("@/services/_commun");
 const auth = await import("@/services/auth");
 const { vueCasConcret, phraseDeFin, dimensionsDe } = await import("@/services/cas-concret-vue");
+const { CONSIGNE_SANS_FIN } = await import("@/moteurs/montage-cas-concret/publication");
 
 const MDP = "cas-concret-vue";
 const VIDEO = "v-03";
@@ -36,15 +37,18 @@ beforeEach(async () => {
 const urlDeCle = async (cle: string) => `https://stockage.test/${cle}?signature=abc`;
 
 /** v-03 devient une vidéo « Cas concret MD » terminée : un fichier par suite de fin, un lien par réseau. */
-async function videoCasConcret(options: { casId?: string; essai?: boolean; avecMot?: boolean; motSur?: readonly string[]; reseaux?: readonly string[]; projet?: boolean; mesures?: boolean } = {}) {
-  const { casId = "recrutement-apporteurs", essai = false, avecMot = true, motSur = [], reseaux = RESEAUX, projet = true, mesures = true } = options;
+async function videoCasConcret(options: { casId?: string; essai?: boolean; avecMot?: boolean; motSur?: readonly string[]; reseaux?: readonly string[]; projet?: boolean; mesures?: boolean; sansFin?: boolean } = {}) {
+  const { casId = "recrutement-apporteurs", essai = false, avecMot = true, motSur = [], reseaux = RESEAUX, projet = true, mesures = true, sansFin = false } = options;
   const d = depots();
   const video = (await d.videos.obtenir(VIDEO))!;
   const version = (await d.versions.obtenir(video.versionChoisieId!))!;
   const fins = reseaux.map((r) => ({ id: `fin-${r}`, reseaux: [r], fichierCle: `studio/test/video/${VIDEO}/${r}.mp4`, dureeSec: 52.4 }));
   for (const f of fins) await d.fichiers.enregistrer({ id: `f-${f.id}`, cleStockage: f.fichierCle, nom: `${f.id}.mp4`, mime: "video/mp4", taille: 1, ...(mesures ? { largeur: 1080, hauteur: 1920 } : {}), origine: "fabrication", statut: "pret", creeLe: "2026-10-12T08:00:00.000Z", modifieLe: "2026-10-12T08:00:00.000Z" } as never);
   const liens = Object.fromEntries(reseaux.map((r) => [r, `https://axion-ia.com/fr/diagnostic?utm_source=${r}&utm_campaign=cc-${casId}-abc123`]));
-  const publication = reseaux.map((r) => ({ reseau: r, texte: `Texte pour ${r}.`, ouPoserLeLien: "premier-commentaire", premierCommentaire: `Votre diagnostic gratuit, en quelques minutes : ${liens[r]}`, consigneLien: "Poser ce lien en premier commentaire, juste après la publication." }));
+  // 18/11 (relecteur B) : `sansFin` = publication d'une vidéo fabriquée APRÈS « sans choix, aucune fin » (texte du haut, aucun lien) ; sinon l'ancienne publication « diagnostic ».
+  const publication = reseaux.map((r) => (sansFin
+    ? { reseau: r, texte: `Texte pour ${r}.`, ouPoserLeLien: "aucun", consigneLien: CONSIGNE_SANS_FIN }
+    : { reseau: r, texte: `Texte pour ${r}.`, ouPoserLeLien: "premier-commentaire", premierCommentaire: `Votre diagnostic gratuit, en quelques minutes : ${liens[r]}`, consigneLien: "Poser ce lien en premier commentaire, juste après la publication." }));
   await d.videos.modifier(VIDEO, { formatId: "cas-concret", estDemo: false });
   await d.versions.modifier(version.id, {
     estDemo: false,
@@ -91,7 +95,7 @@ describe("vueCasConcret", () => {
   });
 
   it("mot coché mais branché nulle part : « Fin : diagnostic et lien » et sa raison", async () => {
-    await videoCasConcret({ casId: "compte-rendu-dicte" });
+    await videoCasConcret({ casId: "compte-rendu-dicte", sansFin: true });
     const v = (await vueCasConcret(VIDEO, { urlDeCle }))!;
     const fb = v.fichiers.find((f) => f.reseau === "facebook")!;
     // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
@@ -101,7 +105,7 @@ describe("vueCasConcret", () => {
   });
 
   it("sans le mot : la phrase de la fin et sa raison le disent", async () => {
-    await videoCasConcret({ avecMot: false });
+    await videoCasConcret({ avecMot: false, sansFin: true });
     const v = (await vueCasConcret(VIDEO, { urlDeCle }))!;
     for (const f of v.fichiers) {
       // 17/11 (Williams) : sans choix, aucune fin ; la phrase de la fin n'est plus « diagnostic et lien » mais « Fin : aucune… » (la raison, figée, reste dite).
@@ -111,8 +115,28 @@ describe("vueCasConcret", () => {
     }
   });
 
+  it("vidéo fabriquée AVANT « sans choix, aucune fin » (publication « diagnostic » gardée) : la fin n'est pas dite « aucune » ; avec la publication sans fin, elle l'est", async () => {
+    // 18/11 (relecteur B) : l'écran ne doit pas dire « aucune (votre choix) » d'un fichier qui porte l'ancienne fin et dont le texte garde le lien.
+    await videoCasConcret({ avecMot: false });
+    const ancienne = (await vueCasConcret(VIDEO, { urlDeCle }))!;
+    for (const f of ancienne.fichiers) {
+      expect(f.phraseFin).toBeUndefined();
+      expect(f.raisonFin).toBeUndefined();
+      expect(f.premierCommentaire).toContain("diagnostic");
+    }
+    reinitialiserDepots();
+    await auth.seConnecter(MDP, false);
+    await videoCasConcret({ avecMot: false, sansFin: true });
+    const neuve = (await vueCasConcret(VIDEO, { urlDeCle }))!;
+    for (const f of neuve.fichiers) {
+      expect(f.phraseFin).toContain("Fin : aucune");
+      expect(f.consigneLien).toBe(CONSIGNE_SANS_FIN);
+      expect(f.premierCommentaire).toBeUndefined();
+    }
+  });
+
   it("mot branché sur Instagram : « Fin : mot et envoi » là seulement, document à préparer", async () => {
-    await videoCasConcret({ motSur: ["instagram"] });
+    await videoCasConcret({ motSur: ["instagram"], sansFin: true });
     const v = (await vueCasConcret(VIDEO, { urlDeCle }))!;
     const phrase = (r: string) => v.fichiers.find((f) => f.reseau === r)!;
     expect(phrase("instagram").phraseFin).toBe("Fin : mot et envoi");
