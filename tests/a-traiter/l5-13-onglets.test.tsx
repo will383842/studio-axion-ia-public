@@ -137,7 +137,7 @@ describe("geste « déjà traitées »", () => {
     const ecrire = vi.spyOn(depot, "ecrire");
     const l = await G.gesteLireDejaTraitees({ env: { A_TRAITER_ENABLED: "1" }, depot });
     expect(l.map((c) => c.statut).sort()).toEqual(["fait", "ignore"]);
-    expect(Object.keys(l[0]).sort()).toEqual(["creeLe", "extrait", "idEvenement", "reseau", "statut"]);
+    expect(Object.keys(l[0]).sort()).toEqual(["creeLe", "extrait", "idEvenement", "post", "reseau", "statut"]);
     expect(ecrire).not.toHaveBeenCalled();
     expect(await depot.lire()).toHaveLength(3);
   });
