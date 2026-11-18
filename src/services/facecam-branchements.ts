@@ -57,8 +57,8 @@ async function imageRvb(cle: string): Promise<ImageRvb | null> {
 // fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
 brancherServicesFacecam({
   planScenes: async () => {
-    const [{ planScenesActif }, { lireParametre }] = await Promise.all([import("@/briques/plan-scenes-generateurs/reglage"), import("./_commun")]);
-    return (await planScenesActif("facecam", lireParametre)) ? {} : undefined;
+    const [{ planScenesActif }, { dessinFacecamReglage }, { lireParametre }] = await Promise.all([import("@/briques/plan-scenes-generateurs/reglage"), import("@/briques/plan-scenes-generateurs/dessin-facecam-porte"), import("./_commun")]);
+    return (await planScenesActif("facecam", lireParametre)) ? { ...((await dessinFacecamReglage(lireParametre)) ? { dessin: true as const } : {}) } : undefined;
   },
 });
 
