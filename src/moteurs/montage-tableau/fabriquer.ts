@@ -617,6 +617,9 @@ export const PROFIL_SON_TABLEAU: ValeurProfilSon = Object.freeze({
   tonPieceDb: [-66, -66] as [number, number],
 });
 
+/** FIX-RENDU-IMAGE-FIGEE : durée (s) d'immobilité de l'image à partir de laquelle un passage compte comme « figé » (une page peut rester fixe le temps d'une phrase). */
+export const SEUIL_FIGE_TABLEAU_SEC = 4;
+
 /** Recette de composition du tableau : page de la charte, ni grain, ni vignette, ni LUT, ni fondu. */
 export const RECETTE_COMPOSITION_TABLEAU: RecetteComposition = {
   id: FORMAT_TABLEAU,
@@ -633,6 +636,8 @@ export const RECETTE_COMPOSITION_TABLEAU: RecetteComposition = {
   exportBordsSurs: true,
   // 14/10 : fin propre commune (image finale tenue puis fondu image + son).
   finPropre: FIN_PROPRE_COMMUNE,
+  // FIX-RENDU-IMAGE-FIGEE : images figées mesurées sur le fichier exporté (plus de « Non vérifié »).
+  exportFiges: { seuilSec: SEUIL_FIGE_TABLEAU_SEC },
 };
 
 /** Réseaux du registre qui ont une zone protégée pour ce ratio (largeur des sous-titres hors du 9:16). */
