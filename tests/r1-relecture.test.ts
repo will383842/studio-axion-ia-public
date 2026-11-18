@@ -267,12 +267,7 @@ describe("R1 relecture — sécurité et simplicité (voie Zernio)", () => {
     expect(JSON.stringify(await depots().notifications.lister())).not.toMatch(/X-Amz|Signature=|cloudflarestorage/);
   });
 
-  // ÉCART CONNU, signalé au fondateur (voir la PR) : sur la voie Zernio, le message brut du diffuseur est recopié dans le journal du studio
-  // (`Outil de publication, envoi sur … : refus (… <message>)`, publications.ts) et dans `erreur` de la publication à la synchronisation
-  // (`etatDepuisPost`, services/zernio.ts), sans filtre d'adresse signée. L'exigence du test 5 d'origine (rien de signé dans la publication ni
-  // le journal) n'est donc PAS tenue là. `it.fails` garde l'exigence écrite : il passe tant que l'écart existe et devient rouge dès
-  // qu'il est corrigé, il faut alors le remplacer par un `it` ordinaire.
-  it.fails("5 bis. [ÉCART CONNU] rien de signé dans le journal du studio ni dans l'erreur d'une publication en échec", async () => {
+  it("5 bis. rien de signé dans le journal du studio ni dans l'erreur d'une publication en échec", async () => {
     const { apres } = await refusEtEchecAvecAdresseSignee();
     lisiblePourWill(apres.erreur ?? "");
     lisiblePourWill(await journal());
