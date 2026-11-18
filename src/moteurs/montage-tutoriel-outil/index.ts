@@ -19,8 +19,13 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
+import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { cibleSon, rapportSon } from "./finitions";
-import { avancerEtape, ErreurTutoriel, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
+import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
+import { scriptRetenu } from "./script";
+import { lireEntreesTutoriel } from "./entrees";
+import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
+import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -28,6 +33,9 @@ export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine"
 export const ID_MOTEUR_TUTORIEL_OUTIL = "montage-tutoriel-outil";
 export const CODE_OUTILS_NON_RELIES = "TO_OUTILS_NON_RELIES";
 export const PHRASE_OUTILS_NON_RELIES = "Le tutoriel d'outil attend ses outils de fabrication (voix, rendu) : votre demande est gardée, rien n'a échoué.";
+export const CODE_DEVIS_A_ACCEPTER = "TO_DEVIS_A_ACCEPTER";
+export const PHRASE_DEVIS_A_ACCEPTER = "Le devis de cette vidéo attend votre accord : ouvrez l'écran de validation.";
+export const CODE_DEVIS_ATTEINT = "TO_DEVIS_ATTEINT";
 const RESEAUX_CONSEILLES = ["linkedin", "instagram", "youtube-shorts"] as const;
 
 /* ------------------------------------------------------------------ */
@@ -244,6 +252,48 @@ export interface DependancesMoteurTutoriel {
 
 const RATIOS_TUTORIEL: Ratio[] = ["4:5", "9:16", "1:1", "16:9"];
 
+/**
+ * T-EXT-42 : garde du devis. `null` : pas de devis (éteint) ou étape sans dépense. Sinon une promesse de la pause à poser
+ * (`null` = accord valide et plafond respecté, l'étape peut avancer). Jamais un échec, jamais un appel.
+ * `accordExige` du moteur reste `false` et le format reste `sansPrix` : l'accord du tutoriel passe par SON devis en
+ * quantités (écran de validation, T-EXT-24), pas par l'écran de prix, qui n'existe plus.
+ */
+function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<{ code: string; message: string } | null> | null {
+  const port = outils.devis;
+  if (!port) return null;
+  const idee = !etat.script && !etat.proposition && "aEcrire" in scriptRetenu(commande.script.texteComplet, lireEntreesTutoriel(commande.entrees));
+  const depense = cle === "script" ? idee : cle === "voix" || cle === "plan" || cle === "montage" || cle === "exports";
+  if (!depense) return null;
+  return (async () => {
+    const texte = etat.script?.texte ?? commande.script.texteComplet ?? "";
+    const lit = !!outils.voix && commande.distribution.length > 0 && !!etat.script;
+    const parent = etat.parent?.audio;
+    // Le devis reste le même du premier au dernier pas : seule la voix d'une version d'avant, reprise telle quelle, est « déjà payée ».
+    const payee = (!!parent?.fichierCle && !!etat.script && parent.empreinte === empreinteAudioMaitre({ ...commande, script: { ...commande.script, texteComplet: etat.script.texte } }));
+    // La voix compte le texte RÉELLEMENT lu (prononciations appliquées), à chaque prise : le devis couvre toutes les lectures permises.
+    const lu = lit ? outilsVoixMaitre(outils.voix!, commande, texte).texte() : "";
+    const lectures = lit ? lecturesVoixMax(outils.voix!.ressemblance) : 0;
+    const devis = etablirDevis({
+      roles: port.roles,
+      caracteresScript: lu.length * lectures,
+      texteScript: etat.script ? texte : "",
+      motsScript: lu.split(/\s+/).filter(Boolean).length * lectures,
+      voixDejaPayee: payee,
+      ratios: etat.ratios,
+      essai: false,
+    });
+    if (!accordValide(devis, port.accord)) return { code: CODE_DEVIS_A_ACCEPTER, message: PHRASE_DEVIS_A_ACCEPTER };
+    // Avant chaque dépense : le déjà consommé PLUS ce que cette étape peut encore dépenser doit tenir dans le devis.
+    const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
+    const aVenir: Partial<Consommation> = {};
+    if (cle === "script") aVenir.appelsClaude = essais("script");
+    else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
+    else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
+    const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);
+    return reste.ok ? null : { code: CODE_DEVIS_ATTEINT, message: reste.message };
+  })();
+}
+
 export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): MoteurVideo {
   const fabriqueOutils = (): FabriqueOutilsTutoriel | undefined => deps.outils ?? servicesTutoriel().outils;
 
@@ -264,6 +314,13 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
       etat = { ...etat, echecSimuleFait: true };
       const erreur: ErreurTravail = { code: "TO_ECHEC_SIMULE", reessayable: true, messagePourWill: `Échec simulé de l'étape « ${etape.nom} » : « Réessayer » la reprend.` };
       return { travail: avecEtat({ ...base, statut: "echec", erreur, modifieLe: iso, etapes: base.etapes.map((e) => (e.cle === cle ? { ...e, statut: "echec" as const, erreur } : e)) }, etat) };
+    }
+
+    // T-EXT-42 : le devis en quantités, montré et accepté AVANT toute étape qui peut dépenser. Absent = comportement d'avant.
+    const arret = garderDevis(cle, etat, commande, outils);
+    if (arret) {
+      const pause = await arret;
+      if (pause) return { travail: { ...base, statut: "en_file", modifieLe: iso, parametres: { ...base.parametres, pause } } };
     }
 
     let pas;

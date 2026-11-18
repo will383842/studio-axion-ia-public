@@ -19,6 +19,10 @@ async function envoiActif(): Promise<boolean> {
   }
 }
 
+export async function demoFacecamOuverte(): Promise<boolean> {
+  return envoiActif();
+}
+
 export async function creerDemoFacecam(formulaire: {
   titre: string;
   demoFacecam: Record<string, unknown>;

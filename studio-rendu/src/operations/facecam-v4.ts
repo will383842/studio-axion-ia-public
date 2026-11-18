@@ -27,6 +27,7 @@ import { CACHE_VIDEO_RENDU_OCTETS, paquetCompositions, racinePaquet, REGLAGES_RE
 import { servirDossier } from "../composition/serveur-fichiers.js";
 import { controlerMediasPlaquettesV4, telechargerVideosIllustrationV4 } from "./medias-plaquettes-v4.js";
 import { mesurerFichier } from "../son/mesure.js";
+import { filtreZoomPrise, type FenetreZoomRendu } from "../composition/zoom-prise.js";
 
 export const ID_COMPOSITION_FACECAM_V4 = "InterfaceClaireFaceCameraV4";
 /** Nom de la prise montée dans le dossier servi (le studio met `plan.prise.src` à cette valeur). */
@@ -51,6 +52,8 @@ export interface ParametresFacecamV4 {
   recadrage?: RecadrageMontageV4;
   /** GV2-34 : fin douce (fondu de sortie du son, micro-fondus aux raccords). Absent : filtre identique à la répétition validée. */
   finDouce?: boolean;
+  /** C8-Z08b : fenêtres calculées par le Studio (C8-Z09b), temps de la prise MONTÉE ; absent ou vide : filtre identique. */
+  zoomsPrise?: { fenetres: FenetreZoomRendu[]; largeur: number; hauteur: number };
 }
 
 export interface RecadrageMontageV4 {
@@ -76,13 +79,15 @@ const MEDIA = /\.(wav|mp4|woff2|ttf|png)$/i;
  * Filtre FFmpeg du montage de la prise (intervalles gardés, 30 i/s, voix comprise). Avec `recadrage` (prise horizontale) : la colonne
  * gardée, fixe, ramenée à la taille de sortie ; sans : identique à la répétition validée, au caractère près. PUR.
  */
-export function filtreMontageV4(gardes: readonly GardeV4[], recadrage?: RecadrageMontageV4, finDouce?: boolean): string {
+export function filtreMontageV4(gardes: readonly GardeV4[], recadrage?: RecadrageMontageV4, finDouce?: boolean, zooms?: ParametresFacecamV4["zoomsPrise"]): string {
   const coupes =
     gardes.map((g, i) => `[0:v]trim=start=${g.debutSec}:end=${g.finSec},setpts=PTS-STARTPTS,fps=30[v${i}];[0:a]atrim=start=${g.debutSec}:end=${g.finSec},asetpts=PTS-STARTPTS${finDouce ? fondusSegmentV4(g, i, gardes.length) : ""}[a${i}];`).join("") +
     gardes.map((_, i) => `[v${i}][a${i}]`).join("");
-  if (!recadrage) return coupes + `concat=n=${gardes.length}:v=1:a=1[v][a]`;
+  // C8-Z08b : zoom de prise sur la sortie vidéo finale, juste avant [v] ; absent ou sans fenêtre : chaîne identique au caractère.
+  const zoom = zooms?.fenetres.length ? filtreZoomPrise(zooms.fenetres, zooms.largeur, zooms.hauteur) : "";
+  if (!recadrage) return coupes + `concat=n=${gardes.length}:v=1:a=1${zoom ? `[vz][a];[vz]${zoom}[v]` : "[v][a]"}`;
   const r = recadrage;
-  return coupes + `concat=n=${gardes.length}:v=1:a=1[vc][a];[vc]crop=${r.largeur}:${r.hauteur}:${r.x}:0,scale=${r.sortieLargeur}:${r.sortieHauteur}:flags=lanczos,setsar=1[v]`;
+  return coupes + `concat=n=${gardes.length}:v=1:a=1[vc][a];[vc]crop=${r.largeur}:${r.hauteur}:${r.x}:0,scale=${r.sortieLargeur}:${r.sortieHauteur}:flags=lanczos,setsar=1${zoom ? `[vr];[vr]${zoom}` : ""}[v]`;
 }
 
 /** GV2-34 : fondus du son d'un segment (réglage allumé) : 10 ms aux raccords, 0,15 s de sortie sur le dernier. Segment trop court : aucun micro-fondu. PUR. */
@@ -105,6 +110,16 @@ export function lireRecadrageV4(x: unknown): RecadrageMontageV4 | undefined {
   const valide = entiers.every((v) => Number.isInteger(v) && (v as number) >= 0 && (v as number) % 2 === 0) && (r.largeur as number) > 0 && (r.hauteur as number) > 0 && (r.sortieLargeur as number) > 0 && (r.sortieHauteur as number) > 0 && (r.largeur as number) < (r.hauteur as number);
   if (!valide) throw new ErreurRendu({ code: "refuse", reessayable: false, message: "Recadrage de la prise invalide." });
   return { x: r.x as number, largeur: r.largeur as number, hauteur: r.hauteur as number, sortieLargeur: r.sortieLargeur as number, sortieHauteur: r.sortieHauteur as number };
+}
+
+/** C8-Z08b : lit les zooms de prise ; absent, `null` ou sans fenêtre : `undefined` ; présent mais invalide : refus. PUR. */
+export function lireZoomsPriseV4(x: unknown, recadrage?: RecadrageMontageV4): ParametresFacecamV4["zoomsPrise"] {
+  if (x === undefined || x === null) return undefined;
+  const z = x as { fenetres?: unknown; largeur?: unknown; hauteur?: unknown };
+  const dims = [z.largeur, z.hauteur].every((v) => Number.isInteger(v) && (v as number) > 0 && (v as number) % 2 === 0) && (!recadrage || (z.largeur === recadrage.sortieLargeur && z.hauteur === recadrage.sortieHauteur));
+  const lues = Array.isArray(z.fenetres) && z.fenetres.every((f) => f && [f.debutSec, f.finSec, f.facteur].every(Number.isFinite) && f.debutSec >= 0 && f.finSec > f.debutSec && f.facteur <= 1.08) ? (z.fenetres as FenetreZoomRendu[]).map((f) => ({ debutSec: f.debutSec, finSec: f.finSec, facteur: f.facteur })).sort((a, b) => a.debutSec - b.debutSec) : null;
+  if (!dims || !lues || lues.some((f, i) => i > 0 && f.debutSec < lues[i - 1].finSec)) throw new ErreurRendu({ code: "refuse", reessayable: false, message: "Zooms de la prise invalides." });
+  return lues.length ? { fenetres: lues, largeur: z.largeur as number, hauteur: z.hauteur as number } : undefined;
 }
 
 /** Décision de Will (17/10/2026) : voix à -27,4 LUFS, « on entend à peine » → son final de CE format à -14 LUFS intégré, pic vrai ≤ -1,5 dBTP. */
@@ -190,9 +205,10 @@ export function lireParametresFacecamV4(p: Record<string, unknown>): ParametresF
   const m = p.master as { urlDepot?: unknown; cle?: unknown } | undefined;
   const master = m && typeof m.urlDepot === "string" && typeof m.cle === "string" ? { urlDepot: m.urlDepot, cle: m.cle } : undefined;
   const recadrage = lireRecadrageV4(p.recadrage);
+  const zoomsPrise = lireZoomsPriseV4(p.zoomsPrise, recadrage);
   // Refus précoce, avant tout téléchargement : une plaquette à vidéo sans ses médias ne se rend pas (phrase qui cite la plaquette et l'instant).
   controlerMediasPlaquettesV4(plan.elementsV4);
-  return { mode: "facecam-v4", plan, gardes, ...(recadrage ? { recadrage } : {}), ...(p.finDouce === true ? { finDouce: true } : {}), crf: typeof p.crf === "number" ? p.crf : undefined, debitMax: typeof p.debitMax === "string" && /^\d+k$/.test(p.debitMax) ? p.debitMax : undefined, ...(vignette ? { vignette } : {}), ...(master ? { master } : {}) };
+  return { mode: "facecam-v4", plan, gardes, ...(recadrage ? { recadrage } : {}), ...(p.finDouce === true ? { finDouce: true } : {}), crf: typeof p.crf === "number" ? p.crf : undefined, debitMax: typeof p.debitMax === "string" && /^\d+k$/.test(p.debitMax) ? p.debitMax : undefined, ...(vignette ? { vignette } : {}), ...(master ? { master } : {}), ...(zoomsPrise ? { zoomsPrise } : {}) };
 }
 
 /** Remplit `dossier` de liens vers les médias v4 (noms uniques : un doublon de nom est une erreur de déploiement). */
@@ -240,7 +256,7 @@ export async function compositionFacecamV4(demande: DemandeRendu, contexte: Cont
   const brute = join(dossier, "prise-brute.mp4");
   await telecharger(url, brute, contexte.signal);
   const script = join(dossier, "filtre-montage-v4.txt");
-  await writeFile(script, filtreMontageV4(p.gardes, p.recadrage, p.finDouce));
+  await writeFile(script, filtreMontageV4(p.gardes, p.recadrage, p.finDouce, p.zoomsPrise));
   const montee = join(medias, PRISE_MONTEE_V4);
   await executer(FFMPEG, ["-hide_banner", "-v", "error", "-y", "-i", brute, "-filter_complex_script", script, "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-crf", "17", "-preset", "fast", "-pix_fmt", "yuv420p", "-r", "30", "-g", "30", "-c:a", "aac", "-b:a", "160k", "-ar", "48000", montee], contexte.signal);
   const dureeMonteeSec = await dureeFichier(montee, contexte.signal);
@@ -293,7 +309,7 @@ export async function compositionFacecamV4(demande: DemandeRendu, contexte: Cont
       await deposer(p.master.urlDepot, rendu, "video/mp4", contexte.signal);
       tailleMaster = (await stat(rendu)).size;
     }
-    return { mesures: { images: choisie.durationInFrames, fps: choisie.fps, dureeSec: +dureeSec.toFixed(3), taille: size, dureeMonteeSec: +dureeMonteeSec.toFixed(3), gardes: p.gardes.length, medias: nombreMedias, illustrations: nombreIllustrations, lufs: son.lufs, picVraiDbtp: son.creteVraieDbtp, margePicDb: son.margeDb, ...(tailleMaster !== undefined ? { tailleMaster } : {}), ...temps } };
+    return { mesures: { images: choisie.durationInFrames, fps: choisie.fps, dureeSec: +dureeSec.toFixed(3), taille: size, dureeMonteeSec: +dureeMonteeSec.toFixed(3), gardes: p.gardes.length, medias: nombreMedias, illustrations: nombreIllustrations, lufs: son.lufs, picVraiDbtp: son.creteVraieDbtp, margePicDb: son.margeDb, ...(tailleMaster !== undefined ? { tailleMaster } : {}), ...(p.zoomsPrise ? { zooms: p.zoomsPrise.fenetres.length } : {}), ...temps } };
   } finally {
     await serveur.fermer();
   }
