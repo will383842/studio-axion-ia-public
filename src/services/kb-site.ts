@@ -13,7 +13,7 @@
  * `fetch` est injectable pour les tests : aucun test n'appelle le vrai site.
  */
 import "server-only";
-import { baseSiteValide, construireAdresseRecherche, faitSansMontant, nettoyerRecherche, validerReponseRecherche, type FaitSite } from "@/domaine/kb-site";
+import { baseMethodeValide, baseSiteValide, CHEMIN_METHODE_SITE, consigneSansMontant, construireAdresseRecherche, faitSansMontant, nettoyerRecherche, nettoyerSujet, validerReponseMethode, validerReponseRecherche, type ConsigneMethode, type FaitSite } from "@/domaine/kb-site";
 import { lireParametre } from "./_commun";
 
 /** Réglage « Lire la base du site » : faux tant que le fondateur ne l'a pas allumé. */
@@ -87,6 +87,91 @@ export async function chercherFaitsSite(q: string, options: OptionsLectureSite =
   } catch (e) {
     const delai = e instanceof Error && e.name === "AbortError";
     return rien("erreur", delai ? "Le site met trop de temps à répondre. Réessayez dans un instant." : "Le site n'a pas pu répondre à cette recherche. Réessayez dans un instant.");
+  } finally {
+    clearTimeout(minuteur);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Méthode du site (fiche KB-05c) : consignes internes, JAMAIS des preuves */
+/* ------------------------------------------------------------------ */
+
+/** Réglage « Lire la Méthode du site » : faux tant que le fondateur ne l'a pas allumé (distinct de la lecture des faits). */
+export const REGLAGE_METHODE_SITE = "kb_site.methode.actif";
+/** Variable d'environnement du serveur : secret partagé avec le site. Jamais en base, jamais à l'écran. */
+export const VARIABLE_SECRET_METHODE = "METHODE_STUDIO_SECRET";
+const SECRET_MIN = 32;
+
+export type EtatMethode = "ok" | "vide" | "eteinte" | "non-branchee" | "fermee" | "trop-rapide" | "erreur";
+export interface ResultatMethodeSite {
+  etat: EtatMethode;
+  consignes: ConsigneMethode[];
+  /** Phrase simple à afficher. */
+  message: string;
+}
+
+let appelsMethodeRecents: number[] = [];
+/** Pour les tests. */
+export function reinitialiserCadenceMethode(): void {
+  appelsMethodeRecents = [];
+}
+
+const aucune = (etat: EtatMethode, message: string): ResultatMethodeSite => ({ etat, consignes: [], message });
+
+async function methodeAllumee(): Promise<boolean> {
+  try {
+    return (await lireParametre<unknown>(REGLAGE_METHODE_SITE, false)) === true;
+  } catch {
+    return false; // lecture du réglage impossible : on reste éteint
+  }
+}
+
+const secretValide = (v: string | undefined): v is string => typeof v === "string" && v.length >= SECRET_MIN;
+
+/** Réglage, adresse https et secret : trois booléens pour l'écran. N'appelle jamais le site et ne rend jamais le secret. */
+export async function lectureMethodeDisponible(env: Record<string, string | undefined> = process.env): Promise<{ allumee: boolean; adresse: boolean; secret: boolean }> {
+  return { allumee: await methodeAllumee(), adresse: baseMethodeValide(env.SITE_KB_URL) !== null, secret: secretValide(env[VARIABLE_SECRET_METHODE]) };
+}
+
+/** Lit les consignes de la Méthode pour un sujet : un seul POST, lecture seule, jamais d'exception, aucun journal. */
+export async function lireMethodeSite(sujet: string, options: OptionsLectureSite = {}): Promise<ResultatMethodeSite> {
+  const env = options.env ?? process.env;
+  if (!(await methodeAllumee())) return aucune("eteinte", "Méthode éteinte.");
+  const base = baseMethodeValide(env.SITE_KB_URL);
+  const secret = env[VARIABLE_SECRET_METHODE];
+  if (!base || !secretValide(secret)) return aucune("non-branchee", "La Méthode n'est pas branchée : il manque l'adresse du site ou le secret sur le serveur.");
+
+  const texte = nettoyerSujet(sujet);
+  if (!texte) return aucune("vide", "Écrivez un sujet de 2 à 300 caractères.");
+
+  const maintenant = Date.now();
+  appelsMethodeRecents = appelsMethodeRecents.filter((t) => maintenant - t < FENETRE_MS);
+  if (appelsMethodeRecents.length >= MAX_APPELS_PAR_MINUTE) return aucune("trop-rapide", "Trop de lectures à la suite : réessayez dans une minute.");
+  appelsMethodeRecents.push(maintenant);
+
+  const f = options.fetchImpl ?? fetch;
+  const controle = new AbortController();
+  const minuteur = setTimeout(() => controle.abort(), options.delaiMs ?? DELAI_MS);
+  try {
+    const reponse = await f(new URL(CHEMIN_METHODE_SITE, base).toString(), {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json", "x-methode-secret": secret },
+      body: JSON.stringify({ sujet: texte }),
+      cache: "no-store",
+      redirect: "error",
+      signal: controle.signal,
+    });
+    if (reponse.status === 404) return aucune("fermee", "La Méthode n'est pas ouverte sur le site.");
+    if (reponse.status === 401 || reponse.status === 503) return aucune("non-branchee", "La Méthode n'est pas branchée : le site n'a pas reconnu le secret ou n'est pas prêt.");
+    if (reponse.status === 429) return aucune("trop-rapide", "Le site demande d'attendre : réessayez dans une minute.");
+    if (!reponse.ok) return aucune("erreur", "Le site n'a pas pu répondre. Réessayez dans un instant.");
+    const corps: unknown = await reponse.json();
+    if (!corps || typeof corps !== "object" || !Array.isArray((corps as { items?: unknown }).items)) return aucune("erreur", "Le site n'a pas pu répondre. Réessayez dans un instant.");
+    const consignes = validerReponseMethode(corps).map(consigneSansMontant);
+    return consignes.length ? { etat: "ok", consignes, message: "" } : aucune("vide", "Aucun passage trouvé pour ce sujet.");
+  } catch (e) {
+    const delai = e instanceof Error && e.name === "AbortError";
+    return aucune("erreur", delai ? "Le site met trop de temps à répondre. Réessayez dans un instant." : "Le site n'a pas pu répondre. Réessayez dans un instant.");
   } finally {
     clearTimeout(minuteur);
   }
