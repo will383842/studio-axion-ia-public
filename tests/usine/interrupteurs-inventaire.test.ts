@@ -148,6 +148,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "avocat.bandeauNom", etat: "eteint", appel: "src/services/bandeau-nom.ts", motif: /lireParametre<unknown>\(PARAM_BANDEAU_AVOCAT, false\)\) !== true/ },
   { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
   { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
+  { cle: "a_traiter.rappels_actifs", etat: "eteint", appel: "src/services/a-traiter-suivi.ts", motif: /REGLAGE_RAPPELS_ACTIFS, false\)\);\s*if \(\(await lireReglage\(\)\) !== true\)/ },
   // Montage avocat (voisin de zone interdite) : lecture du texte seulement, jamais d'import.
   {
     cle: "avocat.motionCommune",

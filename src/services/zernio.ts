@@ -15,6 +15,7 @@ import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { phraseLisible } from "@/lib/erreur-lisible";
 import { obtenirReseau } from "@/reseaux";
 import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou, creerVerrou } from "./_commun";
 import { exigerSession } from "./auth";
@@ -217,7 +218,7 @@ export function etatDepuisPost(post: PostZernio, p: Pick<Publication, "canalId">
   const lien = pf?.platformPostUrl || undefined;
   if (global === "cancelled") return { statut: "echec", note: "annulee", erreur: "Annulée chez Zernio." };
   if (pf?.status && ["published", "failed"].includes(pf.status)) {
-    return { statut: statutDepuisZernio(pf.status), lien, ...(pf.status === "failed" ? { erreur: pf.errorMessage ?? "Zernio n'a pas pu publier." } : {}) };
+    return { statut: statutDepuisZernio(pf.status), lien, ...(pf.status === "failed" ? { erreur: phraseLisible(pf.errorMessage) ? pf.errorMessage : "Zernio n'a pas pu publier." } : {}) };
   }
   if (global === "partial") return { statut: "echec", note: "partielle", erreur: "Publication partielle chez Zernio : voyez le détail dans Zernio." };
   return { statut: statutDepuisZernio(global), lien };

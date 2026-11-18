@@ -511,19 +511,21 @@ async function changerStatut(
     return { issue: "execute", raison: statut };
   });
 }
+/** Pose aussi `faitLe` (ISO). `horloge` : injectable pour les tests (défaut : l'heure du serveur). */
 export const marquerCarteFaite = (
   id: string,
-  o: { env?: Env; depot?: DepotATraiter } = {},
-) => changerStatut(id, "fait", o);
+  o: { env?: Env; depot?: DepotATraiter; horloge?: () => string } = {},
+) => changerStatut(id, "fait", o, { faitLe: (o.horloge ?? maintenant)() });
 /** La personne de cette carte a demandé l'arrêt : la carte n'offre plus aucun envoi. Rien n'est supprimé. */
 export const marquerCarteOpposee = (
   id: string,
   o: { env?: Env; depot?: DepotATraiter } = {},
 ) => changerStatut(id, "a_traiter", o, { opposee: true, kit: null });
+/** Pose aussi `ignoreLe` (ISO). */
 export const ignorerCarte = (
   id: string,
-  o: { env?: Env; depot?: DepotATraiter } = {},
-) => changerStatut(id, "ignore", o);
+  o: { env?: Env; depot?: DepotATraiter; horloge?: () => string } = {},
+) => changerStatut(id, "ignore", o, { ignoreLe: (o.horloge ?? maintenant)() });
 
 /**
  * STOP : déclenche la mise à l'écart de PV-3 (`poserStopCompte`) TOUJOURS en simulation (environnement vide imposé :

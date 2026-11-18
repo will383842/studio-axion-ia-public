@@ -64,6 +64,10 @@ export interface CarteATraiter {
   raisonSansMessage?: RaisonSansMessage;
   /** Instant (ISO 8601) où le message a été copié à la main, pour le plafond de 24 h. */
   copieLe?: string;
+  /** Instant (ISO 8601) où la carte a été marquée « fait » (ATR-02a), pour le délai de réponse. */
+  faitLe?: string;
+  /** Instant (ISO 8601) où la carte a été ignorée (ATR-02a). */
+  ignoreLe?: string;
 }
 
 export interface EntreeATraiter {
