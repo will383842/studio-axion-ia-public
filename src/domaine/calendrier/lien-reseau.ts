@@ -5,14 +5,14 @@
 
 export const LIBELLE_VOIR_SUR_RESEAU = "Voir sur le réseau";
 
-/** Marque posée en tête du texte d'une copie : la personne la relit et l'adapte au nouveau réseau avant de valider. */
-export const MARQUE_A_ADAPTER = "À adapter : ";
+/**
+ * Drapeau « À adapter » d'une copie : il est rangé À CÔTÉ du texte (jamais dedans). Le texte de la copie reste celui de l'original, sans marque :
+ * un clic Valider sans relecture ne publie donc jamais le mot « À adapter » sur un réseau. Valeur : `true` tant que la copie n'a pas été relue.
+ */
+export const LIBELLE_A_ADAPTER = "À adapter";
 
-/** Ajoute la marque une seule fois (une copie de copie ne la double pas). Un texte vide donne la marque seule. */
-export function marquerAAdapter(texte: string): string {
-  const propre = (texte ?? "").trim();
-  if (propre.startsWith(MARQUE_A_ADAPTER.trim())) return propre;
-  return propre ? `${MARQUE_A_ADAPTER}${propre}` : MARQUE_A_ADAPTER.trim();
+export function cleAAdapter(creneauIdCopie: string): string {
+  return `calendrier.copie-a-adapter.${creneauIdCopie}`;
 }
 
 /** Où le Studio range le lien d'une copie vers son original (la clé de fiche de l'original est la valeur). */

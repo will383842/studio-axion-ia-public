@@ -2,7 +2,7 @@
  * CAL-24 (écrite EN AVANCE, attend CAL-22, CAL-23 et RC-08a) : dupliquer une publication vers un autre réseau ou une autre date,
  * et lien « Voir sur le réseau ».
  * AUCUN appel réel : dépôts en mémoire, `fetch` espionné (il ne doit jamais être appelé), rien n'est allumé.
- * Règles : la copie naît « propose » (jamais programmée ni validée toute seule), son texte est marqué « À adapter », l'original ne change pas,
+ * Règles : la copie naît « propose » (jamais programmée ni validée toute seule), son « À adapter » est un drapeau à côté du texte (jamais dans le texte), l'original ne change pas,
  * rien n'est supprimé, une date passée avertit.
  */
 import { readFileSync } from "node:fs";
@@ -20,7 +20,7 @@ vi.mock("@/app/(studio)/calendrier/charger-comptes", () => ({ comptesCibles: asy
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("../aides/crochets-factices")).crochets }));
 
 const { dupliquerEntree, PHRASES_DUPLICATION } = await import("@/app/(studio)/calendrier/actions/dupliquer");
-const { LIBELLE_VOIR_SUR_RESEAU, MARQUE_A_ADAPTER, cleLienCopie, lienVoirSurReseau, marquerAAdapter } = await import("@/domaine/calendrier/lien-reseau");
+const { LIBELLE_VOIR_SUR_RESEAU, cleAAdapter, cleLienCopie, lienVoirSurReseau } = await import("@/domaine/calendrier/lien-reseau");
 const { monter, trouver, texteDe, attendre } = await import("../aides/crochets-factices");
 
 const MAINTENANT = "2026-12-10T10:00:00.000Z";
@@ -67,12 +67,16 @@ describe("CAL-24 · dupliquer un créneau", () => {
     expect(await tousLesCreneaux()).toHaveLength(2); // rien n'est supprimé
   });
 
-  it("le texte de la copie est marqué « À adapter », le texte d'origine est gardé après la marque", async () => {
-    await dupliquerEntree(saisie());
+  it("la copie est signalée « À adapter » par un drapeau ; son texte publiable est celui de l'original, sans marque", async () => {
+    const r = await dupliquerEntree(saisie());
+    if (!r.ok) throw new Error("attendu : ok");
     const [copie] = await copies();
     const t = (copie!.textes as Record<string, { texte: string; premierCommentaire: string }>).instagram!;
-    expect(t.texte.startsWith(MARQUE_A_ADAPTER)).toBe(true);
-    expect(t.texte).toContain("Le texte d'origine.");
+    expect(t.texte).toBe("Le texte d'origine.");
+    expect(t.texte).not.toMatch(/À adapter/i);
+    expect(await lireParametre(cleAAdapter(r.donnees.creneauId), false)).toBe(true);
+    const fiche = await lireParametre<{ texte?: string }>(`calendrier.fiche.${r.donnees.cle}`, {});
+    expect(fiche.texte).toBe("Le texte d'origine.");
   });
 
   it("jamais programmée ni validée toute seule : pas de date de validation, pas d'envoi planifié, aucun appel réseau", async () => {
@@ -179,7 +183,8 @@ describe("CAL-24 · dupliquer un créneau", () => {
     expect(await copies()).toHaveLength(1);
     expect(await lireParametre(cleLienCopie(rejeu.donnees.creneauId), null)).toBe(CLE_ORIGINALE);
     const fiche = await lireParametre<{ texte?: string } | null>(`calendrier.fiche.${rejeu.donnees.cle}`, null);
-    expect(fiche?.texte?.startsWith(MARQUE_A_ADAPTER)).toBe(true);
+    expect(fiche?.texte).toBe("Le texte d'origine.");
+    expect(await lireParametre(cleAAdapter(rejeu.donnees.creneauId), false)).toBe(true);
   });
 
   it("heure qui n'existe pas ce jour-là (changement d'heure) : la copie est créée et la phrase d'avertissement est rendue", async () => {
@@ -233,12 +238,16 @@ describe("CAL-24 · dupliquer un créneau", () => {
     expect(fiche.texte).toBe("Mon texte adapté.");
   });
 
-  it("DÉCISION DOCUMENTÉE : la marque « À adapter » est dans le texte ; elle est donc visible à la relecture, mais seule une garde de validation hors de cette fiche peut empêcher de l'envoyer", async () => {
-    await dupliquerEntree(saisie());
+  it("DÉCISION DOCUMENTÉE : « À adapter » est un drapeau à côté du texte ; aucun texte publiable ne porte la marque, donc un clic Valider sans relecture ne publie jamais « À adapter »", async () => {
+    const r = await dupliquerEntree(saisie());
+    if (!r.ok) throw new Error("attendu : ok");
     const [copie] = await copies();
-    const t = (copie!.textes as Record<string, { texte: string }>).instagram!.texte;
-    expect(t.startsWith(MARQUE_A_ADAPTER)).toBe(true);
-    expect(readFileSync("src/app/(studio)/calendrier/actions/dupliquer.ts", "utf8")).toContain("garde de validation hors de cette fiche");
+    for (const t of Object.values(copie!.textes as Record<string, { texte: string; premierCommentaire: string }>)) {
+      expect(t.texte).not.toMatch(/À adapter/i);
+      expect(t.premierCommentaire).not.toMatch(/À adapter/i);
+    }
+    expect(await lireParametre(cleAAdapter(r.donnees.creneauId), false)).toBe(true);
+    expect(readFileSync("src/app/(studio)/calendrier/actions/dupliquer.ts", "utf8")).not.toContain("marquerAAdapter");
   });
 
   it("sans session : l'action échoue avant toute lecture ou écriture", async () => {
@@ -265,7 +274,7 @@ describe("CAL-24 · dupliquer une publication déjà publiée", () => {
     expect(copie!.visuelId).toBe("vis_1");
     expect(copie!.compteCible).toBe("compte-studio"); // aucun compte relié pour ce réseau : repli
     const t = (copie!.textes as Record<string, { texte: string }>).facebook!;
-    expect(t.texte).toBe(`${MARQUE_A_ADAPTER}Texte publié.`);
+    expect(t.texte).toBe("Texte publié.");
     expect(JSON.stringify(await depots().publications.obtenir("pub_1"))).toBe(avant);
     expect(await depots().publications.lister()).toHaveLength(nombre);
     expect(fetchEspion).not.toHaveBeenCalled();
@@ -301,14 +310,6 @@ describe("CAL-24 · « Voir sur le réseau »", () => {
 
   it("adresse qui n'est pas une page web sûre : pas de lien", () => {
     for (const u of ["javascript:alert(1)", "data:text/html,x", "//exemple.fr/x", "linkedin.com/posts/1", "ftp://exemple.fr/x", "https://", "http://[::1"]) expect(lienVoirSurReseau(pub({ urlPubliee: u })), u).toBeNull();
-  });
-});
-
-describe("CAL-24 · marque « À adapter »", () => {
-  it("ajoute la marque une seule fois", () => {
-    expect(marquerAAdapter("Bonjour")).toBe(`${MARQUE_A_ADAPTER}Bonjour`);
-    expect(marquerAAdapter(marquerAAdapter("Bonjour"))).toBe(`${MARQUE_A_ADAPTER}Bonjour`);
-    expect(marquerAAdapter("").startsWith(MARQUE_A_ADAPTER.trim())).toBe(true);
   });
 });
 

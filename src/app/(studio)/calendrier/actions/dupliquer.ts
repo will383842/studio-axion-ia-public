@@ -2,14 +2,15 @@
 
 /**
  * CAL-24 (écrite EN AVANCE, attend CAL-22, CAL-23 et RC-08a) : dupliquer une publication vers un autre réseau ou une autre date.
- * Chaque action commence par exigerSession(). Rien ne part d'ici : aucun appel, aucun envoi n'est créé ; seule lecture : les comptes gardés au dernier « Tester » (charger-comptes).
- * La copie est une NOUVELLE entrée « propose » créée par le chemin normal du calendrier (creerCreneau), sans date de validation : elle attend
- * le clic Valider du fondateur. Son texte est marqué « À adapter » : ATTENTION, la marque est dans le texte lui-même ; une garde de validation hors de cette fiche doit refuser de valider ou d'envoyer un texte qui la porte encore (à décider par le pilotage). L'original n'est jamais modifié ni supprimé ; le lien vers lui est gardé.
+ * Chaque action commence par exigerSession(). Rien ne part d'ici : aucun envoi n'est créé. Seul accès hors du calendrier : une lecture, celle des comptes gardés
+ * au dernier « Tester » (charger-comptes, qui lit des modules du diffuseur sans rien envoyer) ; aucun module de publication n'est importé directement.
+ * La copie est une NOUVELLE entrée « propose » créée par le chemin normal du calendrier (creerCreneau), sans date de validation : elle attend le clic Valider du fondateur.
+ * Son « À adapter » est un DRAPEAU rangé à côté du texte (cleAAdapter), jamais écrit dans le texte : le texte publiable reste propre. L'original n'est jamais modifié ni supprimé ; le lien vers lui est gardé.
  * Une date dans le passé avertit et se confirme d'un clic (comme un ajout manuel).
  */
 import { revalidatePath } from "next/cache";
 import { lireCleFiche, type EntreeFiche } from "@/components/calendrier/FicheEntree";
-import { cleLienCopie, idCopie, marquerAAdapter } from "@/domaine/calendrier/lien-reseau";
+import { cleAAdapter, cleLienCopie, idCopie } from "@/domaine/calendrier/lien-reseau";
 import type { IdReseau } from "@/domaine/types";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
 import { RESEAUX } from "@/reseaux";
@@ -66,7 +67,7 @@ export const PHRASES_DUPLICATION = {
   autreDemande: "Ce formulaire a déjà créé une copie différente : rouvrez-le pour en faire une autre.",
   passe: "Cette date est passée : confirmez pour créer la copie quand même.",
   visuelVideoSeule: "Ce réseau ne publie que des vidéos : choisissez un autre réseau pour copier ce visuel.",
-  creee: "La copie est créée. Son texte est marqué « À adapter » : relisez-le, puis validez-la. Elle ne part pas toute seule.",
+  creee: "La copie est créée. Elle est signalée « À adapter » : relisez son texte, puis validez-la. Elle ne part pas toute seule.",
   impossible: "La copie n'a pas pu être créée. Réessayez.",
 } as const;
 
@@ -158,11 +159,14 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
         const lien = await lireParametre<string | null>(cleLienCopie(id), null);
         const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau && existant.heuresParReseau[saisie.reseau] === instant;
         if (!memeDemande) return refus(PHRASES_DUPLICATION.autreDemande);
-        // Rejeu après une écriture interrompue : on termine ce qui manque (fiche et lien), sans rien recréer.
+        // Rejeu après une écriture interrompue : on termine ce qui manque (drapeau, lien et fiche), sans rien recréer.
         const texte = existant.textes?.[saisie.reseau];
         // La fiche n'est réécrite que si elle n'a aucun texte : un texte déjà adapté n'est jamais écrasé.
         if (texte && !(await lireStockageFiche(cleCopie)).texte) await ecrireStockageFiche(cleCopie, texte);
-        if (lien === null) await ecrireParametre(cleLienCopie(id), saisie.cle);
+        if (lien === null) {
+          await ecrireParametre(cleAAdapter(id), true);
+          await ecrireParametre(cleLienCopie(id), saisie.cle);
+        }
         return retour();
       }
       if (saisie.reseau === fiche.entree.reseau && saisie.jour === fiche.entree.jour) return refus(PHRASES_DUPLICATION.identique);
@@ -175,8 +179,9 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
         if (v) return { ok: false as const, message: "Proximité ou quota : à confirmer.", aConfirmer: v.type, avertissement: v.message };
       }
       const textes = texteOriginal(fiche.entree, original, fiche.entree.reseau);
-      const copieTexte = { texte: marquerAAdapter(textes.texte), premierCommentaire: textes.premierCommentaire };
-      // Le lien et le texte de la fiche sont écrits AVANT la copie : une copie n'existe jamais sans lien ni texte visible, et un rejeu reprend là où l'écriture s'est arrêtée.
+      const copieTexte = { texte: textes.texte, premierCommentaire: textes.premierCommentaire };
+      // Le drapeau, le lien et le texte de la fiche sont écrits AVANT la copie : une copie n'existe jamais sans eux, et un rejeu reprend là où l'écriture s'est arrêtée.
+      await ecrireParametre(cleAAdapter(id), true);
       await ecrireParametre(cleLienCopie(id), saisie.cle);
       await ecrireStockageFiche(cleCopie, copieTexte);
       await creerCreneau(

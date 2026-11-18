@@ -2,7 +2,7 @@
 
 /**
  * CAL-24 : bouton « Dupliquer » d'une publication (autre réseau ou autre jour) et lien « Voir sur le réseau ».
- * Rien ne part d'ici : la copie naît en attente, son texte est marqué « À adapter », et elle attend votre validation.
+ * Rien ne part d'ici : la copie naît en attente, elle est signalée « À adapter », et elle attend votre validation.
  * Anti double clic : le bouton se désactive pendant l'envoi et la clé du formulaire reste la même jusqu'au succès.
  */
 import { useState } from "react";
@@ -14,7 +14,7 @@ import { RESEAUX } from "@/reseaux";
 const BOUTON = "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] border border-trait-fort bg-surface-2 px-3 py-1.5 text-sm font-bold text-texte hover:bg-surface-3 disabled:opacity-60";
 const CHAMP = "mt-1 block min-h-[44px] w-full rounded-[10px] border border-trait-fort bg-surface-1 px-3 text-sm text-texte";
 
-export const PHRASE_DUPLIQUER = "La copie est une nouvelle publication, en attente. Son texte est marqué « À adapter » : relisez-le, puis validez-la. Elle ne part pas toute seule, et l'original ne change pas.";
+export const PHRASE_DUPLIQUER = "La copie est une nouvelle publication, en attente. Elle est signalée « À adapter » : relisez son texte, puis validez-la. Elle ne part pas toute seule, et l'original ne change pas.";
 
 /** « Voir sur le réseau » : seulement pour une publication publiée dont l'adresse est connue ; sinon rien n'est affiché. */
 export function VoirSurLeReseau({ statut, urlPubliee }: { statut?: string; urlPubliee?: string | null }) {
