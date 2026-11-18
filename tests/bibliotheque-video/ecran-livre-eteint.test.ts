@@ -105,7 +105,8 @@ describe("C4-U4.13t : capacités écran livrées et éteintes", () => {
       }
     };
     parcourir("src");
-    expect(importeurs.filter((f) => f !== "src/services/extraits-maison-v4.ts")).toEqual([]);
+    // BR-TELEPHONE-b 18/11 (amendement pilote 10:30) : `telephone-extrait-v4.ts` est le seul autre importeur permis (branchement du téléphone qui joue un extrait) ; tout AUTRE importeur reste refusé.
+    expect(importeurs.filter((f) => f !== "src/services/extraits-maison-v4.ts" && f !== "src/services/telephone-extrait-v4.ts")).toEqual([]);
   });
 
   it("table complète : les ids testés = les lignes écran prevu ou eteint", () => {
