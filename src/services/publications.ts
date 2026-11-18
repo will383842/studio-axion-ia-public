@@ -1157,7 +1157,10 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
         // Toute erreur qui n'est pas un « non » net de Buffer est incertaine : on relira, on ne renverra pas.
         const { incertain, message, detail, doublon } = lireErreurEnvoi(outil, e);
         if (outil === "buffer") await noterErreurBuffer(`envoi sur ${p.nom}`, e, { type: "video", id: videoId });
-        else await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}${detail ? ` (${detail})` : ""}`, { type: "video", id: videoId });
+        else {
+          if (detail) console.warn(`[studio] outil de publication, envoi sur ${p.nom} : ${detail}`);
+          await journaliser("publication", `Outil de publication, envoi sur ${p.nom} : ${incertain ? "réponse perdue, à vérifier" : "refus"}`, { type: "video", id: videoId });
+        }
         const ecrite = await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
         // « À vérifier » reste rendue (elle peut être chez Buffer) ; une publication refusée n'est que dans `problemes`.
         if (incertain) publications.push(ecrite);
@@ -1203,7 +1206,8 @@ function lireErreurEnvoi(outil: OutilPublication, e: unknown): { incertain: bool
   const perdue = "L'outil de publication n'a pas répondu : l'envoi est à vérifier.";
   if (e instanceof ErreurStudio) return { incertain: false, message: e.message };
   if (e instanceof ErreurZernio) {
-    const detail = [e.code, e.statut, e.detailTechnique].filter((x) => x !== undefined && x !== "").join(" ");
+    // Le texte du fournisseur (peut contenir l'adresse signée du média) ne va JAMAIS au journal : code et statut seulement, comme l'ancienne voie (phrase au journal, code court à la console serveur).
+    const detail = [e.code, e.statut].filter((x) => x !== undefined).join(" ");
     // Doublon : un contenu identique existe déjà (le fournisseur a déjà relu et comparé la clé) : toujours à vérifier ici.
     // Le détail technique d'un doublon ne va NI à l'écran NI au journal (visible) : seul le code court reste.
     if (e.code === "doublon") return { incertain: true, doublon: true, message: MESSAGE_DOUBLON, detail: "doublon" };
