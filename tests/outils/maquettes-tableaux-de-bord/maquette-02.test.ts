@@ -52,6 +52,27 @@ describe("maquette 02 · Espace démo · Projets", () => {
     expect(declares).toEqual(ids);
   });
 
+  it("n'utilise aucun émoji en couleur (signes monochromes seulement)", () => {
+    const couleur = /[\p{Emoji_Presentation}\uFE0F\u26A1\u{1F6A8}]/u;
+    for (const f of fichiers) {
+      const trouves = [...f.contenu].filter((c) => couleur.test(c));
+      expect({ fichier: f.chemin, trouves }).toEqual({ fichier: f.chemin, trouves: [] });
+    }
+  });
+
+  it("n'emploie pas l'orange en texte sur fond clair et garde un en-tête opaque", () => {
+    const css = fichiers.find((f) => f.chemin === "styles.css")!.contenu;
+    expect(css).not.toMatch(/[;{]color:(#D97757|var\(--orange\)|var\(--warning\))/i);
+    expect(css).toMatch(/\.topbar\{[^}]*background:var\(--ivoire\)/);
+    expect(css).not.toMatch(/font-size:(9|10)px/);
+  });
+
+  it("reinitialiser() repart sans message", () => {
+    const app = fichiers.find((f) => f.chemin === "app.js")!.contenu;
+    expect(app).toMatch(/reinitialiser\(\)\{reset\(true\)\}/);
+    expect(app).toMatch(/if\(!silent\)notify\('Démo réinitialisée/);
+  });
+
   it("PROVENANCE.md cite le chemin source et « données fictives »", () => {
     expect(provenance).toContain("sources-packs/02_GESTION_PROJETS/02_GESTION_PROJETS/90_SOURCES_PROJET_ORIGINAL/01_INTERFACE");
     expect(provenance).toContain("données fictives");
