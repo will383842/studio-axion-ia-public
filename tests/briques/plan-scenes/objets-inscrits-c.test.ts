@@ -59,6 +59,17 @@ describe("(b) éteint = identique", () => {
   });
 });
 
+describe("(b bis) objetsPermis absent : requête et plan identiques (toEqual)", () => {
+  it("clé absente = clé undefined : même requête envoyée à Claude, même résultat", async () => {
+    const v1: RequeteClaude[] = [];
+    const v2: RequeteClaude[] = [];
+    const r1 = await adapterPlan(base, { appeler: claudeSimule(v1) });
+    const r2 = await adapterPlan({ ...base, objetsPermis: undefined }, { appeler: claudeSimule(v2) });
+    expect(v2).toEqual(v1);
+    expect(r2).toEqual(r1);
+  });
+});
+
 describe("(c) inscription et capacités", () => {
   it("6 objets de plus, toiles écrites en dur identiques aux définitions, capacité connue du profil du cas concret", () => {
     const profil = JSON.stringify(PROFILS_DU_CODE["cas-concret"]);
