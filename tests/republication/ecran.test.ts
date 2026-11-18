@@ -152,9 +152,11 @@ describe("garde statique", () => {
     const src = lire(FICHIERS_NEUFS[0]);
     expect(src).toContain('dynamic = "force-dynamic"');
     expect(src).toContain("exigerSession()");
-    expect(src).toContain("Contenus à relancer");
+    expect(src).toContain("LIBELLES_A_RELANCER.titre");
     expect(src).toContain("comptesCibles(");
-    expect(src).toContain("Rien à relancer pour l'instant");
+    expect(src).toContain("EtatVide");
+    expect(LIBELLES_A_RELANCER.titre).toBe("Contenus à relancer");
+    expect(LIBELLES_A_RELANCER.videTitre).toBe("Rien à relancer pour l'instant");
   });
 });
 
