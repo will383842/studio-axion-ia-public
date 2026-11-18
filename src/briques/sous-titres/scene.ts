@@ -8,6 +8,7 @@ import { progres } from "../motion/courbes";
 import { largeurLigne, largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
 import { PAVE } from "./pave";
+import type { ZoneSureEscalier } from "./escalier";
 import { bandeauActif, type BandeauNomRendu } from "./bandeau-nom";
 import { ETIQUETTE, ETIQUETTE_AUTONOME, type EtiquetteOutilPosee } from "./noms-outils";
 import { estNombre, MOTS_FORTS, normaliser } from "./typographie";
@@ -93,6 +94,8 @@ export interface DonneesCalque {
   etiquettesOutils?: EtiquetteOutilPosee[];
   /** C2-U19 (AM-08) : sortie animée des groupes (fondu 0,2 s, glissement court), seulement si `SORTIE_ACTIVE`. Absent : le groupe disparaît net, comme avant. */
   sortie?: SortieGroupe;
+  /** BR-ESCALIER : absent = rien ne change. */
+  escalier?: { zone: ZoneSureEscalier; taillePx: number };
 }
 
 /** Bande de fond derrière les sous-titres : couleur (jeton `fond` de la marque), opacité, place (px du calque), fondu haut. */
@@ -295,6 +298,22 @@ export function sceneAuTemps(d: DonneesCalque, t: number): ElementDessine | null
     return { ...el, opacite: el.opacite * etat.opacite, decalageYPx: el.decalageYPx + etat.decalageYPx * echelleDe(d) };
   }
   return elementDe(d, s, t);
+}
+
+/**
+ * BR-ESCALIER : lignes de l'escalier à l'instant t (le groupe actif et les précédents de la même phrase, 6 au plus).
+ * `null` si le champ `escalier` est absent ou si aucun groupe n'est actif. Pure, ne lève jamais.
+ */
+export function escalierAuTemps(d: DonneesCalque, t: number): { lignes: string[]; ligneActive: number } | null {
+  if (!d.escalier) return null;
+  const segments = d.segments;
+  const i = segments.findIndex((s) => t >= s.debutSec && t < s.finSec);
+  if (i < 0) return null;
+  const texte = (s: SegmentSousTitres) => s.mots.map((m) => m.mot).join(" ").trim();
+  let debut = i;
+  while (debut > 0 && i - debut < 5 && !/[.!?…]["»”’')\]]*$/.test(texte(segments[debut - 1]))) debut--;
+  const lignes = segments.slice(debut, i + 1).map(texte);
+  return { lignes, ligneActive: lignes.length - 1 };
 }
 
 /** Dessin d'un groupe donné à l'instant t (aperçu d'un groupe touché, captures). */

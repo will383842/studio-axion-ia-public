@@ -6,8 +6,10 @@
 import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import { bandeauAuTemps, cssBandeauNom } from "../../../src/briques/sous-titres/bandeau-nom";
 import { pastilleEnManrope } from "../../../src/briques/sous-titres/pastille";
-import { cssBandeFond, cssElement, cssEtiquetteOutil, etiquetteAuTemps, opaciteBandeFond, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { cssBandeFond, cssElement, cssEtiquetteOutil, escalierAuTemps, etiquetteAuTemps, opaciteBandeFond, sceneAuTemps, type DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { geometrieEscalier } from "../../../src/briques/sous-titres/escalier";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
+import { LigneEscalier } from "./LigneEscalier";
 import { chargerPolices, FAMILLES } from "./polices";
 
 export type ProprietesCalque = {
@@ -53,6 +55,10 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
     </div>
   ) : null;
   if (!el) return <AbsoluteFill>{bande}{bandeauNom}{etiquetteOutil}</AbsoluteFill>;
+  // BR-ESCALIER : champ présent, lignes et place suffisantes : l'escalier remplace le bloc ci-dessous ; sinon rendu d'avant.
+  const esc = donnees.escalier ? escalierAuTemps(donnees, t) : null;
+  const geo = donnees.escalier && esc ? geometrieEscalier(esc.lignes, donnees.largeur, donnees.hauteur, donnees.escalier.zone, donnees.escalier.taillePx) : null;
+  if (geo && esc) return <AbsoluteFill>{bande}{bandeauNom}{etiquetteOutil}<LigneEscalier geometrie={geo} couleur={donnees.couleurs.texte} fond={donnees.couleurs.contour} ligneActive={esc.ligneActive} /></AbsoluteFill>;
   const css = cssElement(el, donnees, `"${donnees.encre || (donnees.pastille && !pastilleManrope) ? FAMILLE_TITRE : FAMILLES[el.police]}"`);
   return (
     <AbsoluteFill>

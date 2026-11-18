@@ -85,10 +85,11 @@ describe("C2-U20b-a : LigneEscalier", () => {
 });
 
 describe("C2-U20b-a : éteint = identique", () => {
-  it("rien n'importe LigneEscalier (src, studio-rendu/src, studio-rendu/compositions)", () => {
+  // BR-ESCALIER-a 17/11 : liste fermée à égalité exacte (seul le calque des sous-titres l'importe).
+  it("importeurs de LigneEscalier = exactement CalqueSousTitres.tsx (src, studio-rendu/src, studio-rendu/compositions)", () => {
     const hors = [...sources("src"), ...sources("studio-rendu/src"), ...sources("studio-rendu/compositions")].filter(
       (f) => !f.endsWith("sous-titres/LigneEscalier.tsx") && /(from|import)\s*\(?\s*["'][^"']*LigneEscalier["']/.test(readFileSync(f, "utf8")),
     );
-    expect(hors).toEqual([]);
+    expect(hors.map((f) => f.replace(/\\/g, "/"))).toEqual(["studio-rendu/compositions/sous-titres/CalqueSousTitres.tsx"]);
   });
 });
