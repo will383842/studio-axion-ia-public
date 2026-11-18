@@ -174,6 +174,7 @@ export interface OptionsVerification {
   interdites?: readonly string[];
   /** Plan v4 : les erreurs D17 (répétition des vidéos récentes) deviennent des avertissements (dernier essai du réalisateur, version simple). */
   repetitionEnAvertissement?: boolean;
+  /** BR-TELEPHONE-c : réglage facecamAnimee.telephoneVideo allumé : la fiche du téléphone est ouverte (D0). Absent : comme avant. */ telephoneVideo?: boolean;
 }
 
 export interface MesuresPlan {
@@ -901,7 +902,7 @@ export function verifierPlan(planBrut: unknown, mots: readonly MotTranscrit[], o
   // Plan v4 (17/10) : les 26 plaquettes REMPLACENT cartes, fenêtres, calques et motions ; seules les règles v4 (`regles-v4.ts`) le jugent.
   if (plan.elementsV4?.length) {
     const motsV4 = [...mots].sort((x, y) => x.a - y.a);
-    const d4 = controlerDiversiteV4(plan, { mots: motsV4, ...(options.interdites?.length ? { interdites: options.interdites } : {}), ...(options.historique?.length ? { historique: options.historique } : {}), ...(options.repetitionEnAvertissement ? { repetitionEnAvertissement: true } : {}) });
+    const d4 = controlerDiversiteV4(plan, { mots: motsV4, ...(options.interdites?.length ? { interdites: options.interdites } : {}), ...(options.historique?.length ? { historique: options.historique } : {}), ...(options.repetitionEnAvertissement ? { repetitionEnAvertissement: true } : {}), ...(options.telephoneVideo === true ? { telephoneVideo: true } : {}) });
     return { erreurs: d4.erreurs, avertissements: d4.avertissements, mesures: mesuresVides(), rendable: estRendable(d4.erreurs) };
   }
   const erreurs: string[] = [];
