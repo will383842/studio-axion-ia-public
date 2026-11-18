@@ -163,6 +163,7 @@ describe("CAL-24 · dupliquer une publication déjà publiée", () => {
 
   it("crée une copie « propose » à partir de la publication ; la publication ne change pas", async () => {
     await depots().publications.enregistrer(publication());
+    const nombre = (await depots().publications.lister()).length;
     const avant = JSON.stringify(await depots().publications.obtenir("pub_1"));
     const r = await dupliquerEntree(saisie({ cle: "publication:pub_1|linkedin", reseau: "facebook", jour: "2026-12-18" }));
     expect(r.ok).toBe(true);
@@ -172,7 +173,7 @@ describe("CAL-24 · dupliquer une publication déjà publiée", () => {
     const t = (copie!.textes as Record<string, { texte: string }>).facebook!;
     expect(t.texte).toBe(`${MARQUE_A_ADAPTER}Texte publié.`);
     expect(JSON.stringify(await depots().publications.obtenir("pub_1"))).toBe(avant);
-    expect(await depots().publications.lister()).toHaveLength(1);
+    expect(await depots().publications.lister()).toHaveLength(nombre);
     expect(fetchEspion).not.toHaveBeenCalled();
   });
 });
@@ -221,7 +222,7 @@ describe("CAL-24 · écran DupliquerEntree", () => {
     expect(repos).not.toContain("Créer la copie");
     (trouver(m.rendre(), (e) => e.type === "button")[0]!.props.onClick as () => void)();
     const ouvert = lisible(rendre(m.rendre()));
-    for (const mot of ["Réseau", "Jour", "Créer la copie", "Annuler", "à adapter", "validiez", "ne part pas"]) expect(ouvert.toLowerCase(), mot).toContain(mot.toLowerCase());
+    for (const mot of ["Réseau", "Jour", "Créer la copie", "Annuler", "à adapter", "validez-la", "ne part pas"]) expect(ouvert.toLowerCase(), mot).toContain(mot.toLowerCase());
     for (const motif of INTERDITS) expect(ouvert, String(motif)).not.toMatch(motif);
   });
 
@@ -254,8 +255,8 @@ describe("CAL-24 · écran DupliquerEntree", () => {
     const { DupliquerEntree } = await import("@/components/calendrier/DupliquerEntree");
     const m = monter(DupliquerEntree, { cle: CLE_ORIGINALE, reseau: "linkedin", jour: "2026-12-15" });
     (trouver(m.rendre(), (e) => e.type === "button")[0]!.props.onClick as () => void)();
-    const envoyer = trouver(m.rendre(), (e) => e.type === "button" && texteDe(e).includes("Créer la copie"))[0]!;
-    (envoyer.props.onClick as () => void)();
+    const formulaire = trouver(m.rendre(), (e) => e.type === "form")[0]!;
+    (formulaire.props.onSubmit as (e: { preventDefault(): void }) => void)({ preventDefault() {} });
     await attendre();
     expect(appels).toHaveLength(1);
     expect(appels[0]).toMatchObject({ cle: CLE_ORIGINALE });
