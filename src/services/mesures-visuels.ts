@@ -25,7 +25,7 @@ export async function ceQuiMarcheVisuels(maintenant: Date = new Date()): Promise
   await exigerSession();
   const d = depots();
   const ex = await filtreExemples<Publication>();
-  const publications = await d.publications.lister((p) => ex(p) && !!p.visuelId && !p.videoId && p.via !== "simulation");
+  const publications = await d.publications.lister((p) => ex(p) && !!p.visuelId && !p.videoId && p.via !== "simulation" && p.statut === "publiee");
   const etats: EtatsVisuels = { mesure: 0, pasEncore: 0, nonDisponible: 0 };
   const mesures: VideoMesuree[] = [];
   for (const p of publications) {

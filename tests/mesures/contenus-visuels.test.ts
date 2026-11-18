@@ -201,6 +201,15 @@ describe("ceQuiMarcheVisuels (dépôts en mémoire)", () => {
     expect(r.classement.reseaux).toEqual([]);
   });
 
+  it("une publication en échec ou programmée (jamais partie) n'est comptée dans aucun état", async () => {
+    await visuel("v1");
+    await publicationVisuel("p-echec", "v1", { statut: "echec", date: jourAvant(8) });
+    await visuel("v2");
+    await publicationVisuel("p-prog", "v2", { statut: "programmee", date: jourAvant(-2) });
+    const r = await mv.ceQuiMarcheVisuels(MAINTENANT);
+    expect(r.etats).toEqual({ mesure: 0, pasEncore: 0, nonDisponible: 0 });
+  });
+
   it("une publication de vidéo n'est jamais lue ici", async () => {
     await depots().publications.enregistrer({ id: "pv", videoId: "v-02", reseau: "instagram", statut: "publiee", via: "zernio", date: jourAvant(3), texte: "", stats: stats(100, 5), creeLe: jourAvant(3), modifieLe: jourAvant(3) } as never);
     const r = await mv.ceQuiMarcheVisuels(MAINTENANT);
