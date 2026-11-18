@@ -18,7 +18,7 @@ const pub = (id: string, vues: number, extra: Partial<Publication> = {}): Public
     texte: `Texte d'origine ${id}`,
     videoId: `v-${id}`,
     stats: { vues },
-    releves: [{ le: ilYa(20), jour: 1, source: "saisie", valeurs: { vues }, definitions: {} }],
+    releves: [{ le: ilYa(20), jour: 1, source: "saisie", valeurs: { vues } as never, definitions: {} }],
     creeLe: ilYa(60),
     modifieLe: ilYa(60),
     ...extra,
@@ -68,7 +68,7 @@ describe("qui est listé", () => {
     expect(await ids([...trio(), pub("deux", 800, { visuelId: "x" })])).toEqual(["a", "b", "c"]);
   });
   it("écarte une publication mesurée depuis 3 jours", async () => {
-    const recente = pub("recente", 950, { releves: [{ le: ilYa(3), jour: 1, source: "saisie", valeurs: { vues: 950 }, definitions: {} }] });
+    const recente = pub("recente", 950, { releves: [{ le: ilYa(3), jour: 1, source: "saisie", valeurs: { vues: 950 } as never, definitions: {} }] });
     expect(await ids([...trio(), recente])).toEqual(["a", "b", "c"]);
   });
   it("écarte une publication jamais mesurée (aucun relevé) : ce n'est pas un zéro", async () => {
@@ -80,7 +80,7 @@ describe("qui est listé", () => {
   });
   it("écarte une publication notée dont le délai de republication est trop court (L8-08)", async () => {
     // 20 jours de publication sur Instagram (30 jours minimum) ; mesurée depuis 10 jours : notée mais trop tôt.
-    const tot = pub("tot", 950, { date: ilYa(20), releves: [{ le: ilYa(10), jour: 1, source: "saisie", valeurs: { vues: 950 }, definitions: {} }] });
+    const tot = pub("tot", 950, { date: ilYa(20), releves: [{ le: ilYa(10), jour: 1, source: "saisie", valeurs: { vues: 950 } as never, definitions: {} }] });
     expect(await ids([...trio(), tot])).toEqual(["a", "b", "c"]);
   });
   it("une publication sans aucun chiffre n'apparaît pas", async () => {
