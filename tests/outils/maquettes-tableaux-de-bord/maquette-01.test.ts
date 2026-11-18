@@ -71,4 +71,17 @@ describe("maquette 01 · Espace démo · Courriels", () => {
     expect(provenance).toContain(SOURCE);
     expect(provenance).toContain("données fictives");
   });
+  it("n'emploie aucun émoji en couleur (signes monochromes seulement)", () => {
+    expect(tout.match(/\p{Emoji_Presentation}|\uFE0F/gu) ?? []).toEqual([]);
+  });
+  it("capture déterministe : toasts silencieux, console masquée, id inconnu refusé, polices >= 11 px", () => {
+    const app = fichiers.find((f) => f.chemin === "app.js")!.contenu;
+    const css = fichiers.find((f) => f.chemin === "styles.css")!.contenu;
+    expect(app).toMatch(/if\(silencieux\)return/);
+    expect(app).toMatch(/replaceChildren\(\)/);
+    expect(app).toMatch(/aller\(id\)\{[^]*?throw new Error/);
+    expect(app).toMatch(/aller\(id\)\{[^]*?\$\('#demo-console'\)\.classList\.add\('hidden'\);return true/);
+    expect(css).toMatch(/\.demo-console span\{color:var\(--orange\)\}/);
+    for (const m of css.matchAll(/font-size:(\d+)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(11);
+  });
 });

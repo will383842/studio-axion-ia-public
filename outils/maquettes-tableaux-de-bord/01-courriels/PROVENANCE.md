@@ -23,3 +23,5 @@ Repris du parcours automatique d'origine (7 étapes, même ordre) :
 boite-saturee, messages-arrivent, analyse-classement, urgence-expliquee, brouillon-propose, validation-humaine, decision-tracee
 
 `aller(id)` rejoue les étapes précédentes depuis les données d'origine : l'état est déterministe. `reinitialiser()` repart des données d'origine.
+
+Correctifs de relecture : pendant `aller(id)` et `reinitialiser()` aucun message (toast) n'est émis et `#toast-root` est vidé ; `#demo-console` reste masquée ; un id inconnu lève une erreur ; plus aucun émoji en couleur ; polices d'au moins 11 px ; `.demo-console span` en orange.
