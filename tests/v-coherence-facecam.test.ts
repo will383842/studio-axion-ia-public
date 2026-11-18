@@ -59,7 +59,7 @@ describe("mission V · le monteur face caméra connaît L, F3 et K ensemble", ()
   it("vocabulaire : 13 modèles, 3 effets 3D puis l'effet réaliste IA en fin ; catalogue et « Que puis-je demander ? » cohérents", () => {
     expect(MODELES_CARTE).toHaveLength(13);
     // Test en prod du 11/10 : le titre de couverture (sans montage) vient ensuite, en toute fin.
-    expect(TYPES_OPERATION_FACECAM.slice(-5)).toEqual(["objetMain", "vitreBrisee", "transitionEcran", "effetRealisteIA", "changerTitreCouverture"]);
+    expect(TYPES_OPERATION_FACECAM.slice(-6)).toEqual(["objetMain", "vitreBrisee", "transitionEcran", "effetRealisteIA", "changerTitreCouverture", "modifierCarte"]);
     const texte = catalogueTexte();
     for (const m of ["graphique", "check-list", "titre-plein-ecran", "documentaire"]) expect(texte).toContain(m);
     for (const t of ["objetMain", "vitreBrisee", "transitionEcran", "effetRealisteIA"]) expect(texte).toContain(`- ${t} (`);

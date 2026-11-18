@@ -195,6 +195,9 @@ export const schemaChangerTitreCouverture = z.object({
   texte: z.string(),
 });
 
+/** S-09a : changer le modèle d'animation d'une carte déjà posée (même id, même moment, mêmes textes). */
+export const schemaModifierCarte = z.object({ type: z.literal("modifierCarte"), passageId: z.string(), modele: z.enum(MODELES_CARTE) });
+
 export const SCHEMAS_OPERATION = [
   schemaAjouterCarte,
   schemaZoom,
@@ -218,6 +221,7 @@ export const SCHEMAS_OPERATION = [
   schemaEffetRealisteIA,
   // Test en prod du 11/10 : la couverture (fin de liste : l'ordre des opérations existantes ne change pas).
   schemaChangerTitreCouverture,
+  schemaModifierCarte,
 ] as const;
 
 export const schemaOperationFacecam = z.union(SCHEMAS_OPERATION);
