@@ -1,9 +1,9 @@
 /**
  * L8-12a : liste des contenus déjà publiés qui méritent une nouvelle version. LECTURE SEULE : aucune écriture, aucun envoi,
- * aucun appel réseau ni à un modèle, aucun réglage lu. Branché nulle part (l'écran vient avec L8-12b).
+ * aucun appel réseau ni à un modèle, aucun réglage lu par ce fichier (le filtre d'exemples par défaut lit seulement l'affichage des exemples). Branché nulle part (l'écran vient avec L8-12b).
  *
  * Ce que la fonction lit, et rien d'autre :
- *   - les publications publiées, non simulées, avec média, hors exemples : la lecture est bornée par le filtre du dépôt (publiées, non simulées, hors exemples) ;
+ *   - les publications publiées, non simulées, avec média, hors exemples : la lecture est bornée par le filtre du dépôt (publiées, non simulées, hors exemples, avec média) ;
  *     toutes les publications filtrées sont notées, et l'affichage est borné par NOMBRE_MAX_AFFICHES ;
  *   - les créneaux dont l'identifiant commence par « republication-<id>- » pour les lignes retenues seulement (au plus NOMBRE_MAX_AFFICHES).
  * Le seuil de performance des règles n'est pas lu (question ouverte au fondateur) : on liste les mieux classés.

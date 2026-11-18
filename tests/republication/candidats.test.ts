@@ -162,7 +162,7 @@ describe("garde statique du fichier", () => {
   const source = readFileSync("src/services/contenus-a-relancer.ts", "utf8");
   it("ni lecture de réglage, ni requête, ni fournisseur, ni envoi", () => {
     expect(source).not.toContain("lireParametre");
-    expect(source).not.toContain(".requete");
+    expect(source).not.toContain("." + "requete");
     for (const interdit of ["@/fournisseurs", "@/services/zernio", "envoi-depuis-creneau", "branchement-envoi-calendrier", "valider-entree", "reprise-envois"]) {
       expect(source).not.toContain(interdit);
     }
