@@ -128,6 +128,22 @@ describe("completerManque : une proposition lue par son lecteur", () => {
 describe("description-maquette : refus, chacun avec son message en français", () => {
   const messages = (r: ReturnType<typeof lireDescriptionMaquette>) => (r.ok ? [] : r.erreurs.join(" | "));
   it("accepte la description simulée", () => expect(refuse(() => {}).ok).toBe(true));
+  const deuxEcrans = (d: Obj) => {
+    const second = structuredClone(d.ecrans[0]);
+    second.id = "deux";
+    d.ecrans.push(second);
+  };
+  it("refuse une zone au même id sur deux écrans", () => {
+    const r = refuse((d) => deuxEcrans(d));
+    expect(r.ok).toBe(false);
+    expect(messages(r)).toContain("identifiant déjà utilisé");
+  });
+  it("refuse un écran nommé « avant » ou « maintenant »", () => {
+    expect(messages(refuse((d) => (d.ecrans[0].id = "avant")))).toContain("réservé aux états");
+    expect(messages(refuse((d) => (d.ecrans[0].id = "maintenant")))).toContain("réservé aux états");
+  });
+  it("refuse une zone nommée « avant »", () => expect(messages(refuse((d) => (d.ecrans[0].zones[0].id = "avant")))).toContain("réservé aux états"));
+  it("refuse une zone qui porte l'id d'un écran", () => expect(messages(refuse((d) => (d.ecrans[0].zones[0].id = d.ecrans[0].id)))).toContain("identifiant déjà utilisé"));
   it("montant « 1 200 € »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "1 200 € ce mois")))).toContain("montant d'argent refusé"));
   it("montant « euros »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "Mille euros")))).toContain("montant d'argent refusé"));
   it("nom non neutre « BlueFlow »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "BlueFlow")))).toContain("nom non neutre"));

@@ -24,17 +24,17 @@ const echapper = (t: string): string => t.replace(/&/g, "&amp;").replace(/</g, "
 const jsonSur = (v: unknown): string => JSON.stringify(v).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, (c) => "\\u" + c.charCodeAt(0).toString(16));
 
 function donneeHtml(d: DonneeExemple): string {
-  const etat = d.etat ? ` data-etat="${d.etat}"` : "";
-  return `<li class="donnee" data-donnee="${d.id}"${etat}><span class="donnee-libelle">${echapper(d.libelle)}</span> <span class="donnee-valeur">${echapper(String(d.valeur))}</span></li>`;
+  const etat = d.etat ? ` data-etat="${echapper(d.etat)}"` : "";
+  return `<li class="donnee" data-donnee="${echapper(d.id)}"${etat}><span class="donnee-libelle">${echapper(d.libelle)}</span> <span class="donnee-valeur">${echapper(String(d.valeur))}</span></li>`;
 }
 
 function zoneHtml(z: ZoneDecrite): string {
-  return `<section class="zone zone-${z.type}" data-zone="${z.id}"><h3>${echapper(z.libelle)}</h3><ul>${z.donnees.map(donneeHtml).join("")}</ul></section>`;
+  return `<section class="zone zone-${echapper(z.type)}" data-zone="${echapper(z.id)}"><h3>${echapper(z.libelle)}</h3><ul>${z.donnees.map(donneeHtml).join("")}</ul></section>`;
 }
 
 function ecranHtml(e: EcranDecrit, ressources: RessourcesConstructeur): string {
-  const modele = e.modele !== "tableau-de-bord" && ressources.ecrans[e.modele] ? `<div class="modele-ecran" data-modele="${e.modele}">${ressources.ecrans[e.modele]}</div>` : "";
-  return `<article class="ecran" id="ecran-${e.id}" data-ecran="${e.id}" hidden><h2>${echapper(e.titre)}</h2><p class="mention-ecran">${MENTION_ECRAN}</p>${modele}<div class="zones">${e.zones.map(zoneHtml).join("")}</div></article>`;
+  const modele = e.modele !== "tableau-de-bord" && ressources.ecrans[e.modele] ? `<div class="modele-ecran" data-modele="${echapper(e.modele)}">${ressources.ecrans[e.modele]}</div>` : "";
+  return `<article class="ecran" id="ecran-${echapper(e.id)}" data-ecran="${echapper(e.id)}" hidden><h2>${echapper(e.titre)}</h2><p class="mention-ecran">${MENTION_ECRAN}</p>${modele}<div class="zones">${e.zones.map(zoneHtml).join("")}</div></article>`;
 }
 
 const STYLES = `

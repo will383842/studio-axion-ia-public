@@ -80,6 +80,15 @@ describe("construireMaquette", () => {
     expect(donnees.etats.avant).toContain("Avant");
   });
 
+  it("échappe aussi les identifiants placés dans les attributs (défense en profondeur)", () => {
+    const d = description();
+    d.ecrans[0]!.id = 'a"onload="x';
+    d.ecrans[0]!.zones[0]!.id = 'z"><i>';
+    const { fichiers: f } = construireMaquette(d, ressources);
+    expect(f["index.html"]).not.toContain('a"onload');
+    expect(f["index.html"]).not.toContain("<i>");
+  });
+
   it("échappe tout texte (jamais une balise dans le HTML)", () => {
     const d = description();
     d.ecrans[0]!.titre = 'A<b>"x"';

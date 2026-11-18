@@ -287,6 +287,18 @@ export function lireDescriptionMaquette(brut: unknown, options: OptionsLecture):
         ids.add(r.id);
         ecrans.push(r);
       });
+      // Unicité GLOBALE : un seul ensemble d'identifiants pour écrans et zones, sinon `aller` filme le mauvais endroit.
+      const vus = new Set<string>(["avant", "maintenant"]);
+      ecrans.forEach((e) => {
+        if (e.id === "avant" || e.id === "maintenant") erreurs.push(`Écran « ${e.id} » : cet identifiant est réservé aux états « avant » et « maintenant ».`);
+        else if (vus.has(e.id)) erreurs.push(`Écran « ${e.id} » : identifiant déjà utilisé par un autre écran ou une autre zone.`);
+        vus.add(e.id);
+        e.zones.forEach((z) => {
+          if (z.id === "avant" || z.id === "maintenant") erreurs.push(`Zone « ${z.id} » : cet identifiant est réservé aux états « avant » et « maintenant ».`);
+          else if (vus.has(z.id)) erreurs.push(`Zone « ${z.id} » (écran « ${e.id} ») : identifiant déjà utilisé par un autre écran ou une autre zone.`);
+          vus.add(z.id);
+        });
+      });
     }
     let etats: DescriptionMaquette["etats"] | undefined;
     if (!estObjet(brut.etats)) erreurs.push("« etats » doit contenir « avant » et « maintenant ».");
