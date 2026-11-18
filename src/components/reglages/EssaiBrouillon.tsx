@@ -35,7 +35,16 @@ export function EssaiBrouillon() {
     }
   }
   useEffect(() => {
-    void recharger();
+    let vivant = true;
+    lireEssaiZernioAction().then(
+      (r) => {
+        if (vivant && r.ok) setEtat(r.donnees);
+      },
+      () => undefined,
+    );
+    return () => {
+      vivant = false;
+    };
   }, []);
 
   function geste(f: () => ReturnType<typeof poserEssaiZernioAction>, succes: string) {
