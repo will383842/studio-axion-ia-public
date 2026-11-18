@@ -77,3 +77,11 @@ describe("la vidéo part par une adresse de stockage signée courte", () => {
     expect(readFileSync(join(racine, "src/services/publications.ts"), "utf8")).not.toMatch(/adresseRelaisBuffer/);
   });
 });
+
+describe("l'adresse est signée juste avant chaque téléversement", () => {
+  it("la source de l'envoi signe l'adresse dans la boucle d'envoi (pas pendant la préparation)", () => {
+    const src = readFileSync(join(racine, "src/services/publications.ts"), "utf8");
+    expect(src).toMatch(/fichierCle: await urlVideoPourBuffer\(p\.fichierId\)/);
+    expect(src).not.toMatch(/fichierCle: p\.url/);
+  });
+});

@@ -1037,7 +1037,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon chez le diffuseur.");
   }
   // 1. Préparation complète avant le moindre envoi : un envoi par compte (un seul texte par réseau, pour tous ses comptes).
-  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean; format?: string; dureeSec?: number }[] = [];
+  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; fichierId: Id; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean; format?: string; dureeSec?: number }[] = [];
   // Seuls les comptes cochés ET validés (réseau envoyé, compte connu de ce réseau) sont mémorisés.
   const valides: Partial<Record<IdReseau, string[]>> = {};
   const aPoserALaMain = new Set<IdReseau>();
@@ -1050,7 +1050,9 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     if (!comptes.ok) throw new ErreurStudio(outil === "buffer" ? "COMPTE_BUFFER" : "CIBLE_ZERNIO", comptes.message);
     if (outil === "buffer" && comptes.source === "choisi") valides[reseau] = comptes.canaux.map((c) => c.id);
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
-    const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
+    // Contrôle précoce (vidéo d'essai, hors ligne) : refus avant toute réservation. L'adresse signée, elle, est refaite juste avant chaque téléversement (les envois se font l'un après l'autre et peuvent dépasser 1 h).
+    await urlVideoPourBuffer(r.sortieConseillee.fichierId);
+    const fichierId = r.sortieConseillee.fichierId;
     const nomReseau = obtenirReseau(reseau).nom;
     const { texte, commentaire } = await preparerEnvoi(kitVue, r, commentaires[reseau], avecVideo, outil, placements);
     if (commentaire.aLaMain) aPoserALaMain.add(reseau);
@@ -1058,7 +1060,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
-      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}),
+      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, fichierId, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}),
         // YouTube Shorts (garde « vrai Short ») et Facebook (Reel) ont besoin du format et de la durée : les autres réseaux n'en reçoivent pas.
         ...(reseau === "youtube-shorts" || reseau === "facebook" ? { format: r.sortieConseillee.ratio, dureeSec: r.sortieConseillee.dureeSec } : {}) });
     }
@@ -1146,7 +1148,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
       // 3. Appel HORS verrou.
       try {
         const envoi = await service.envoyer({
-          reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi,
+          reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: await urlVideoPourBuffer(p.fichierId), mode, canalId: p.canal.id, titre: p.titre, cleEnvoi,
           ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}),
           ...(p.votreMarque ? { votreMarque: true } : {}),
           ...(p.format !== undefined && p.dureeSec !== undefined ? { format: p.format, dureeSec: p.dureeSec } : {}),
