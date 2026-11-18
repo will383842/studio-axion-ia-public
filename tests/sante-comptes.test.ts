@@ -84,9 +84,12 @@ describe("carte", () => {
     const ferme = rendu(sante as never);
     expect(ferme.match(/Reconnecter/g)?.length).toBe(1);
     expect(ferme).toContain('aria-controls="aide-reconnexion-a1"');
-    expect(ferme).not.toContain('id="aide-reconnexion-a1"');
+    expect(ferme).toMatch(/<p id="aide-reconnexion-a1"[^>]*hidden/);
+    expect(ferme).toContain("Expiré");
+    expect(ferme).toContain("L&#x27;accès au compte est expiré. Reconnectez-le.");
+    expect(ferme).toContain("En règle");
     const ouvert = rendu(sante as never, ["a1"]);
-    expect(ouvert).toContain('id="aide-reconnexion-a1"');
+    expect(ouvert).toMatch(/<p id="aide-reconnexion-a1"(?![^>]*hidden)/);
     expect(ouvert).toMatch(/chez le diffuseur/);
     expect(ouvert).not.toMatch(/zernio|bg-orange|€/i);
   });

@@ -38,7 +38,7 @@ export function CarteSanteComptes({ sante, ouverts = [] }: { sante: SanteComptes
         <ul className="mt-3 space-y-4">
           {sante.comptes.map((c) => {
             const ouvert = explique.has(c.id);
-            const idAide = `aide-reconnexion-${c.id}`;
+            const idAide = `aide-reconnexion-${c.id.replace(/[^A-Za-z0-9_-]/g, "-")}`;
             return (
               <li key={c.id}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -55,11 +55,9 @@ export function CarteSanteComptes({ sante, ouverts = [] }: { sante: SanteComptes
                     </Bouton>
                   )}
                 </div>
-                {ouvert && (
-                  <p id={idAide} role="note" className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">
-                    La reconnexion se fait chez le diffuseur, par vous : reconnectez ce compte là-bas et acceptez l&apos;accès demandé par le réseau. Rechargez ensuite cette page pour revoir l&apos;état.
-                  </p>
-                )}
+                <p id={idAide} role="note" hidden={!ouvert} className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">
+                  La reconnexion se fait chez le diffuseur, par vous : reconnectez ce compte là-bas et acceptez l&apos;accès demandé par le réseau. Rechargez ensuite cette page pour revoir l&apos;état.
+                </p>
               </li>
             );
           })}

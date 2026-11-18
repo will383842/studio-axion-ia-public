@@ -68,6 +68,7 @@ export async function lireSanteComptes(e: { client: { listerComptes(): Promise<C
     }
     const fin = enMs(c.expireLe);
     if (fin <= e.maintenant) return { id: c.id, libelle, etat: "expire", message: "L'accès au compte est expiré. Reconnectez-le." };
+    if (!Number.isFinite(fin)) return { id: c.id, libelle, etat: "deconnecte", message: "Le compte demande votre attention. Reconnectez-le." };
     const jours = Math.max(1, Math.ceil((fin - e.maintenant) / (24 * 3600_000)));
     return { id: c.id, libelle, etat: "bientot", message: `L'accès au compte expire dans ${jours} jour${jours > 1 ? "s" : ""}. Reconnectez-le avant.` };
   });
