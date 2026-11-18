@@ -21,6 +21,7 @@ const { creerMoteurMontageDemoFacecam } = await import("@/moteurs/montage-demo-f
 const { creerMoteurMontageImageVideo } = await import("@/moteurs/montage-image-video");
 const { creerMoteurMontageFacecam } = await import("@/moteurs/montage-facecam");
 const { creerMoteurMontageFacecamAnimee } = await import("@/moteurs/montage-facecam-animee");
+const { creerMoteurVideoLongue } = await import("@/moteurs/montage-video-longue");
 const { carteFixe, monde, outilsSimules } = await import("./../image-video/doubles-fabrication");
 const { banc: bancCas } = await import("./../cas-concret/moteur/doubles");
 const { banc: bancTableau } = await import("./../tableau/moteur/doubles");
@@ -86,6 +87,23 @@ const cas = bancCas({ avecMot: true, motSur: ["facebook", "instagram"] });
 const tableau = bancTableau(ficheDemonstration);
 const tutoriel = creerMoteurTutorielOutil({ outils: une(outilsDoubles({ voix: [], claude: [], rendus: [] })) });
 
+/** Vidéo longue sur des doubles (voix et montage simulés : aucun appel réel, 0 €), script de 3 chapitres. */
+const chapitreVL = (n: number) => ({ id: `c${n}`, titre: `Chapitre ${n}`, texte: Array.from({ length: 40 }, (_, i) => `mot${n}x${i}`).join(" ") + "." });
+const doublesVL = {
+  voix: {
+    lire: async (m: { texte: string }) => {
+      const mots = m.texte.split(/\s+/).filter(Boolean).map((mot, i) => ({ mot, debutSec: i * 0.4, finSec: i * 0.4 + 0.35 }));
+      return { dureeSec: mots.length * 0.4, mots };
+    },
+  },
+  monter: async (ratio: string) => ({ fichierCle: `essai/video-longue/${ratio.replace(":", "x")}.mp4` }),
+};
+const moteurVideoLongue = creerMoteurVideoLongue(() => doublesVL as never);
+async function commandeVideoLongue(): Promise<CommandeFabrication> {
+  const c = await depuisV03("video-longue", "montage-video-longue", ["16:9"])();
+  return { ...c, entrees: { ...c.entrees, videoLongue: { chapitres: [chapitreVL(1), chapitreVL(2), chapitreVL(3)] } } };
+}
+
 interface Cas {
   /** Le moteur câblé sur les doubles (celui du registre n'a pas d'outils dans un test). Absent : celui du registre. */
   moteur?: MoteurVideo;
@@ -103,6 +121,7 @@ const CAS: Record<string, Cas> = {
   "montage-cas-concret": { moteur: cas.moteur, fabriquer: async () => cas.commande(), sansFournisseur: () => casSans.moteur },
   "montage-tutoriel-outil": { moteur: tutoriel, fabriquer: async () => commandeTutoriel(), sansPrix: true, sansFournisseur: () => creerMoteurTutorielOutil({ outils: async () => null }) },
   "montage-demo-facecam": { fabriquer: depuisV03("demo-facecam", "montage-demo-facecam", ["4:5", "9:16", "1:1", "16:9"]), sansPrix: true, sansFournisseur: () => creerMoteurMontageDemoFacecam({ chaine: () => null }) },
+  "montage-video-longue": { moteur: moteurVideoLongue, fabriquer: commandeVideoLongue, sansPrix: true, sansFournisseur: () => creerMoteurVideoLongue(() => null) },
   "montage-image-video": { moteur: moteurImageVideo, fabriquer: async () => commandeImageVideo(), sansFournisseur: () => creerMoteurMontageImageVideo({ outils: async () => undefined as never }) },
 };
 

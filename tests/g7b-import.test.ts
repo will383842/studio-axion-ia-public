@@ -54,7 +54,7 @@ describe("Buffer : lecture par idExterne (réponses enregistrées)", () => {
   });
 
   it("une erreur Buffer devient un message court, sans détail technique", () => {
-    expect(() => statsDepuisReponseBuffer(BUFFER.erreur)).toThrow("Buffer n'a pas pu lire cette publication.");
+    expect(() => statsDepuisReponseBuffer(BUFFER.erreur)).toThrow("L'ancien outil n'a pas pu lire cette publication.");
   });
 
   it("LECTURE SEULE : une requête GraphQL « query », jamais « mutation » ; la clé ne part qu'en en-tête", async () => {
@@ -72,7 +72,7 @@ describe("Buffer : lecture par idExterne (réponses enregistrées)", () => {
 
   it("clé refusée : message sans la clé", async () => {
     const { f } = fetchEnregistre([{}], 401);
-    await expect(creerLecteurBuffer({ BUFFER_API_KEY: CLE_TEST }, f).lire("66f1a2b3c4d5e6f708192a3b")).rejects.toThrow("Buffer refuse la clé.");
+    await expect(creerLecteurBuffer({ BUFFER_API_KEY: CLE_TEST }, f).lire("66f1a2b3c4d5e6f708192a3b")).rejects.toThrow("L'ancien outil refuse la clé.");
   });
 
   it("réponse 429 / 503 / 404 : le message affiché ne porte AUCUN code HTTP (le code va au journal du serveur)", async () => {
@@ -207,7 +207,7 @@ describe("importerMesures (dépôts en mémoire, lecteurs enregistrés)", () => 
     const lecteur: LecteurStatsBuffer = { mode: "reel", lire: async (id) => (lus.push(id), statsDepuisReponseBuffer(BUFFER.erreur)) };
     const b = await mc.importerMesures({ buffer: lecteur, visites: rien });
     expect(lus).toEqual(["z"]);
-    expect(b.buffer).toMatchObject({ erreurs: 1, ajoutees: 0, message: "Buffer n'a pas pu lire cette publication." });
+    expect(b.buffer).toMatchObject({ erreurs: 1, ajoutees: 0, message: "L'ancien outil n'a pas pu lire cette publication." });
   });
 
   it("sans clé : bilan « essai », aucun relevé écrit", async () => {
