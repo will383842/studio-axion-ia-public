@@ -26,6 +26,6 @@ export function phraseLisible(texte: string | undefined | null): texte is string
     /\b(error|errors|failed|failure|timeout|token|api key|undefined|null|internal|server|exception|stack)\b/i.test(t) ||
     /https?:|[{}]|<\/?[a-z]/i.test(t) ||
     // Adresse signée (stockage) avec ou sans https, encodée (%3F, %26, &amp;) ou paramètre isolé : jamais montrée.
-    /x(?:-|%2d)amz(?:-|%2d)|\b(?:signature|credential|security-token)(?:=|%3d)/i.test(t)
+    /x(?:-|%2d)(?:amz|goog)(?:-|%2d)|\bsignature\s*(?:[:=]|%3d)|(?<![a-z])(?:sig|credential|security-token)(?:=|%3d)/i.test(t)
   );
 }
