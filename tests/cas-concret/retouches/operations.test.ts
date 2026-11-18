@@ -230,7 +230,8 @@ describe("P2-02 · le mot", () => {
   it("aucune prise gardée : tout est relu", () => {
     const a = apercuRetoucheCasConcret(fiche, [{ type: "changer-mot", mot: "AUTO" }], { ...contexte, voixGardee: null });
     expect(a.corpsRelu).toBe(true);
-    expect(a.finsRelues).toEqual(a.plan.fins.map((f) => f.id));
+    // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide n'a pas de voix à relire (retouches.ts) : seules les fins à écrans sont relues.
+    expect(a.finsRelues).toEqual(a.plan.fins.filter((f) => f.ecrans.length).map((f) => f.id));
   });
 });
 

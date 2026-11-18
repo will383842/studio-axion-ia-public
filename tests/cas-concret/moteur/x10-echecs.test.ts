@@ -16,6 +16,8 @@ import type { MoteurVideo, ResultatFabrication } from "@/moteurs/types";
 import { MESURES_CONFORMES } from "../fabriquer/doubles";
 import { banc, type Banc } from "./doubles";
 
+// 17/11 (Williams) : sans choix, aucune fin ; ces tests comptaient sur plusieurs sorties par défaut : « Avec le mot » + mot branché sur Facebook et Instagram les rétablit.
+const AVEC_MOT = { avecMot: true, motSur: ["facebook", "instagram"] as ("facebook" | "instagram")[] };
 const T0 = Date.UTC(2026, 9, 12, 9, 0, 0);
 const ctx = (travailId: string) => ({ travailId, versionId: `ver-${travailId}`, titre: "Essai", maintenant: T0 });
 const estEcran = (d: DemandeRendu) => d.operation === "composition" && (d.parametres as { mode?: string }).mode === undefined;
@@ -66,7 +68,7 @@ function serveur(b: Banc) {
 
 /** Une vidéo sans panne (mêmes entrées : mêmes identifiants de rendu), pour désigner ce qui ratera. */
 async function temoin() {
-  const b = banc();
+  const b = banc(AVEC_MOT);
   const s = serveur(b);
   const c = b.commande();
   const fin = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-temoin")));
@@ -91,7 +93,7 @@ describe("X10 · (a) un écran d'une autre suite de fins rate après que la prem
     const ref = await temoin();
     // Le dernier écran rendu : celui de la dernière suite de fins (les écrans du corps et des autres fins sont faits).
     const cible = ref.ecrans.at(-1)!;
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const s = serveur(b);
     s.panne.rater = (d) => (sansEssai(d.idRendu) === cible ? TARGET_CLOSED : null);
     const c = b.commande();
@@ -119,7 +121,7 @@ describe("X10 · (b) l'assemblage de la deuxième sortie rate", () => {
   it("le raccord de voix de la deuxième fin : échec lisible sur « La voix » ; la reprise ne refait que lui", async () => {
     const ref = await temoin();
     const cible = ref.assemblages[1];
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const v = b.d.options.outils.voix;
     const assembler = v.assembler;
     const panne = { active: true };
@@ -134,7 +136,8 @@ describe("X10 · (b) l'assemblage de la deuxième sortie rate", () => {
     echecClair(enEchec.travail, "voix");
     expect(enEchec.travail.erreur?.reessayable).toBe(true);
     const lus = [...b.d.lus];
-    expect(lus).toHaveLength(4);
+    // 17/11 (Williams) : sans choix, aucune fin : le corps, Facebook et Instagram sont lus ; la fin vide (TikTok, LinkedIn) n'est pas lue (4 → 3).
+    expect(lus).toHaveLength(3);
     const avant = appels.length;
     panne.active = false;
     const fin = await avancerJusqua(b.moteur, c, await b.moteur.reessayer(enEchec.travail, enEchec.maintenant), enEchec.maintenant);
@@ -147,7 +150,7 @@ describe("X10 · (b) l'assemblage de la deuxième sortie rate", () => {
   it("la composition de la deuxième sortie : échec lisible sur « Les finitions » ; la reprise ne compose qu'elle et la suivante", async () => {
     const ref = await temoin();
     const cible = sansEssai(ref.compositions[1]);
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const s = serveur(b);
     s.panne.rater = (d) => (sansEssai(d.idRendu) === cible ? { ...TARGET_CLOSED, erreur: { ...(TARGET_CLOSED as Extract<EtatRendu, { statut: "echec" }>).erreur, reessayable: false } } : null);
     const c = b.commande();
@@ -170,7 +173,7 @@ describe("X10 · (b) l'assemblage de la deuxième sortie rate", () => {
 
 describe("X10 · (c) la voix d'une fin est refusée après que le corps est accepté", () => {
   it("échec lisible sur « La voix » ; la reprise ne relit que les fins restantes, jamais le corps", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const v = b.d.options.outils.voix;
     const fournisseur = v.voix();
     const panne = { active: true };
@@ -194,7 +197,8 @@ describe("X10 · (c) la voix d'une fin est refusée après que le corps est acce
     const fin = await avancerJusqua(b.moteur, c, await b.moteur.reessayer(enEchec.travail, enEchec.maintenant), enEchec.maintenant);
     expect(fin.travail.statut).toBe("termine");
     expect(b.d.lus.filter((t) => t === corps)).toHaveLength(1);
-    expect(b.d.lus).toHaveLength(4);
+    // 17/11 (Williams) : sans choix, aucune fin : la fin vide n'est pas lue (4 → 3).
+    expect(b.d.lus).toHaveLength(3);
     expect(paye?.[0].total.centimes).toBeGreaterThan(0);
   });
 });
@@ -203,7 +207,7 @@ describe("X10 · (d) le contrôle final d'une sortie échoue, les autres passent
   it("la vidéo est LIVRÉE (terminée) avec la liste « à vérifier », jamais jetée ni en échec ; toutes les étapes sont faites", async () => {
     const ref = await temoin();
     const cible = sansEssai(ref.compositions[1]);
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const s = serveur(b);
     s.panne.rater = (d) => (sansEssai(d.idRendu) === cible ? { statut: "termine", sortieCle: d.sortie.cle, mesures: { ...MESURES_CONFORMES, largeur: 720, dureeSec: (d.parametres as { dureeSec: number }).dureeSec } } : null);
     const c = b.commande();
@@ -221,7 +225,7 @@ describe("X10 · (d) le contrôle final d'une sortie échoue, les autres passent
 
 describe("X10 · un échec l'emporte toujours sur « déjà fait »", () => {
   it("une étape déjà passée qui doit être refaite puis rate : elle est montrée en échec, le travail ne reste pas « en cours »", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     // Jusqu'aux écrans : la voix est déjà faite pour ce travail.
     let t = await b.moteur.lancer(c, ctx("t-x10-ordre"));

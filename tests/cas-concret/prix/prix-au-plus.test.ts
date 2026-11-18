@@ -47,7 +47,8 @@ describe("cas concret · le prix annoncé est un vrai plafond (17/10)", () => {
   });
 
   it("pire cas réel de la chaîne (toutes les lectures ratent) : les caractères lus tiennent dans le prix annoncé", async () => {
-    const b = banc({ scriptValide: "catalogue", lecturesFautives: TOUTES });
+    // 17/11 (Williams) : sans choix, aucune fin ; le pire cas compte aussi les lectures des fins : « Avec le mot » + mot branché les rétablissent.
+    const b = banc({ scriptValide: "catalogue", lecturesFautives: TOUTES, avecMot: true, motSur: ["facebook", "instagram"] });
     const c = b.commande();
     const t = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, ctx("t-pire")));
     // 08/11/2026 : la voix qui lit mal n'arrête plus à l'étape voix (lecture gardée, phrase signalée) et le calage ne jette
@@ -62,11 +63,12 @@ describe("cas concret · le prix annoncé est un vrai plafond (17/10)", () => {
   it("chaque fin peut être relue : le prix compte 2 lectures par fin", () => {
     const cas = trouverCas("recrutement-apporteurs")!;
     const corps = texteDuCorps({ ecrans: scriptValideDuCatalogue(cas.id)!.ecrans } as never);
-    const un = voixDe(estimerDepuisCas(cas, ["facebook"], false, { voix: { fournisseur: "heygen" } }));
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test compte les lectures d'UNE fin : « Avec le mot » coché et mot branché sur Facebook la posent.
+    const un = voixDe(estimerDepuisCas(cas, ["facebook"], true, { voix: { fournisseur: "heygen" }, motSur: ["facebook"] }));
     const fins = (un.quantite - LECTURES_CORPS_MAX * corps.length) / LECTURES_FIN_MAX;
     expect(fins).toBeGreaterThan(0);
     expect(Number.isInteger(fins)).toBe(true);
-    expect(voixDe(estimerDepuisCas(cas, ["facebook"], false, { voix: { fournisseur: "heygen" }, lecturesVoixMax: 3 })).quantite).toBe(un.quantite * 3);
+    expect(voixDe(estimerDepuisCas(cas, ["facebook"], true, { voix: { fournisseur: "heygen" }, motSur: ["facebook"], lecturesVoixMax: 3 })).quantite).toBe(un.quantite * 3);
   });
 
   it("LOT A (08/11/2026) : une lecture qui dépasserait le prix confirmé n'est PLUS un arrêt (aucun prix ne bloque) ; seules les bornes de lectures tiennent", async () => {

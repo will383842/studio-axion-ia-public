@@ -89,7 +89,8 @@ describe("X4 · lien suivi : code de version dans utm_campaign, activité dans u
   });
 
   it("la chaîne pose le numéro de version reçu dans les liens et les textes de publication", async () => {
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; la fin au mot (Facebook, Instagram) rétablit plusieurs fins et la durée de la vidéo.
+    const d = doubles({ avecMot: true, motSur: ["facebook", "instagram"] });
     d.options.numeroVersion = 7;
     d.options.entrees = { ...d.options.entrees, codeSuivi: "cc-recrutement-apporteurs-abc123" };
     const cr = await fabriquerCasConcret(d.options);
@@ -145,8 +146,10 @@ describe("X4 · la recette de la voix du cas concret : gelée (1,1 / 0,20 s / 1,
   });
 
   it("la chaîne raccorde les sons BRUTS du corps et de chaque fin par la recette, un traitement par fin", async () => {
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste le raccord corps + fin : la fin au mot choisie (Facebook et Instagram).
+    const d = doubles({ reseaux: ["facebook", "instagram"], avecMot: true, motSur: ["facebook", "instagram"] });
     const cr = await fabriquerCasConcret(d.options);
+    expect(cr.fins).toHaveLength(2);
     expect(d.assemblages).toHaveLength(cr.fins.length);
     for (const a of d.assemblages) {
       expect(a.recette).toBeDefined();

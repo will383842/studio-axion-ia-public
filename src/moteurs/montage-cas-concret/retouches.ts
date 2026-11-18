@@ -395,7 +395,8 @@ export function apercuRetoucheCasConcret(fiche: FicheEcrans, operations: unknown
   const gardee = contexte.voixGardee === undefined ? { corps: lire(texteDuCorpsPourVoix(depart.fiche)), fins: planAvant.fins.map((f) => lire(texteDeFin(f))) } : (contexte.voixGardee ?? { fins: [] });
   const corps = lire(texteDuCorpsPourVoix(validation.fiche));
   const corpsRelu = corps !== gardee.corps;
-  const finsRelues = plan.fins.filter((f) => !gardee.fins.includes(lire(texteDeFin(f))));
+  // 17/11 : une fin vide (sans écran) n'a pas de voix à relire.
+  const finsRelues = plan.fins.filter((f) => f.ecrans.length > 0 && !gardee.fins.includes(lire(texteDeFin(f))));
   const textesARelire = [...(corpsRelu ? [corps] : []), ...finsRelues.map((f) => lire(texteDeFin(f)))];
 
   // Écrans : ceux dont l'empreinte n'existe pas déjà.

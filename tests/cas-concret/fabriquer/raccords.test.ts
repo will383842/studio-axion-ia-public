@@ -13,16 +13,19 @@ import { CATALOGUE, trouverCas } from "@/formats/cas-concret/catalogue";
 import { zoneProtegeeCombinee } from "@/reseaux";
 import { calerFiche } from "@/moteurs/montage-cas-concret/calage";
 import { controlerVideoCasConcret, SEUILS_CAS_CONCRET } from "@/moteurs/montage-cas-concret/controles";
-import { ecrireFiche, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { dureeDiteMs, ecrireFiche, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import * as etapes from "@/moteurs/montage-cas-concret/etapes";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
 import { centreBandePct, fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
 import { motsLus, validerSchemaFiche, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import type { OutilsEcriture } from "@/moteurs/montage-cas-concret/outils";
-import { DUREE_TOTALE_REFUS_MS, dureeFinMs, regleDureeTotale, tempsEcrans } from "@/moteurs/montage-cas-concret/regles";
+import { DUREE_TOTALE_REFUS_MS, dureeFinMs, regleDureeTotale, TENUE_FINALE_MS, tempsEcrans } from "@/moteurs/montage-cas-concret/regles";
 import { BANDE_SOUS_TITRES_CAS_CONCRET as BANDE_DES_COMPOSITIONS, exemplesEcrans, ZONE_QUATRE_RESEAUX } from "../../../studio-rendu/compositions/cas-concret/exemples";
 import { doubles } from "./doubles";
+
+// 17/11 (Williams) : sans choix, aucune fin ; le mot est branché explicitement pour garder plusieurs fins à fabriquer.
+const MOT = { avecMot: true, motSur: ["facebook", "instagram"] as ("facebook" | "instagram")[] };
 
 const FIXE = { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const };
 const QUATRE: ReseauCas[] = ["facebook", "instagram", "tiktok", "linkedin"];
@@ -41,7 +44,7 @@ describe("M8b · bande des sous-titres du format", () => {
   });
 
   it("la chaîne pose les écrans dans la zone utile de la bande du format et y place les sous-titres", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     await fabriquerCasConcret(d.options);
     // V4-2 (décision de Will, « option 1 comme la v4 ») : la zone est la zone PLEINE IMAGE du format, quels que soient
     // les réseaux visés, et non plus la zone sûre commune des quatre réseaux (qui réduisait tout au rapport 0,61).
@@ -66,7 +69,8 @@ describe("M8b · première image : le corps seulement", () => {
     const tous = exemplesEcrans();
     const corps = tous.filter((p) => !["appel-mot", "promesse", "lien"].includes(p.type));
     const fin = tous.filter((p) => ["appel-mot", "promesse", "lien"].includes(p.type));
-    const plan = planDesFins({ reseaux: ["facebook"], offre: "integration", nature: "automatisation", mot: "IA", avecMot: true, table: TABLE_FINS_DIAGNOSTIC });
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot est donc branché explicitement (Facebook, Instagram).
+    const plan = planDesFins({ reseaux: ["facebook"], offre: "integration", nature: "automatisation", mot: "IA", avecMot: true, motSur: ["facebook"], table: TABLE_FINS_DIAGNOSTIC });
     const id = plan.fins[0].id;
     const r = controlerVideoCasConcret({
       fiche: { ecrans: [] } as unknown as FicheEcrans,
@@ -101,7 +105,8 @@ describe("M8b · un seul comptage des mots", () => {
     expect("surMotsDits" in etapes).toBe(false);
     const cas = trouverCas("recrutement-apporteurs")!;
     const f = ficheParGabarit(cas, FIXE);
-    const plan = regrouperFins(planDesFins({ reseaux: ["facebook"], offre: cas.offre, mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot: true, table: TABLE_FINS_DIAGNOSTIC }));
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot est donc branché explicitement (Facebook, Instagram).
+    const plan = regrouperFins(planDesFins({ reseaux: ["facebook"], offre: cas.offre, mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot: true, motSur: ["facebook"], table: TABLE_FINS_DIAGNOSTIC }));
     const fin = plan.fins[0];
     let t = 0;
     const dits = [...f.ecrans, ...fin.ecrans].flatMap((e) => mots(e.texteDit)).map((m) => ({ mot: m, debutSec: (t += 0.3) - 0.3, finSec: t - 0.05 }));
@@ -122,7 +127,8 @@ describe("M8b · durée totale (R21) avec les vraies fins", () => {
     for (const avecMot of [true, false]) {
       it(`${cas.id}, ${avecMot ? "avec" : "sans"} le mot : aucune fiche simulée refusée par R21, la plus courte tient de 35 à 65 s`, async () => {
         for (const reseaux of choix) {
-          const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot, table: TABLE_FINS_DIAGNOSTIC }));
+          // 17/11 (Williams) : sans choix, aucune fin ; le mot est donc branché explicitement (Facebook, Instagram).
+          const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}), avecMot, ...(avecMot ? { motSur: ["facebook" as const, "instagram" as const] } : {}), table: TABLE_FINS_DIAGNOSTIC }));
           if (!plan.fins.length) continue;
           const controle = { fins: plan.fins };
           const r = await ecrireFiche({ ...FIXE, cas, controle }, outilsSimules);
@@ -131,8 +137,10 @@ describe("M8b · durée totale (R21) avec les vraies fins", () => {
           expect(regleDureeTotale(r.fiche, { cas, texteScript: "", ...controle })).toEqual([]);
           const t = tempsEcrans(r.fiche.ecrans);
           const corps = t[t.length - 1].finMs - t[0].debutMs;
-          const plusCourte = corps + Math.min(...plan.fins.map((f) => dureeFinMs(f)));
-          const plusLongue = corps + Math.max(...plan.fins.map((f) => dureeFinMs(f)));
+          // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans fin, la vidéo réelle = le corps (débit en caractères de l'écriture, X7) + la tenue de la question ; fins à écrans : inchangé.
+          const duree = (f: (typeof plan.fins)[number]) => (f.ecrans.length ? corps + dureeFinMs(f) : dureeDiteMs(r.fiche.ecrans) + TENUE_FINALE_MS);
+          const plusCourte = Math.min(...plan.fins.map(duree));
+          const plusLongue = Math.max(...plan.fins.map(duree));
           expect(plusCourte, `${reseaux.join(", ")}`).toBeGreaterThanOrEqual(DUREE_TOTALE_REFUS_MS.min);
           expect(plusLongue, `${reseaux.join(", ")}`).toBeLessThanOrEqual(DUREE_TOTALE_REFUS_MS.max);
         }
@@ -142,7 +150,8 @@ describe("M8b · durée totale (R21) avec les vraies fins", () => {
 
   it("la consigne envoyée dit la durée des fins prévues", async () => {
     const cas = trouverCas("email-difficile")!;
-    const plan = regrouperFins(planDesFins({ reseaux: QUATRE, offre: cas.offre, mot: cas.mot, avecMot: true, table: TABLE_FINS_DIAGNOSTIC }));
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot est donc branché explicitement (Facebook, Instagram).
+    const plan = regrouperFins(planDesFins({ reseaux: QUATRE, offre: cas.offre, mot: cas.mot, avecMot: true, motSur: ["facebook", "instagram"], table: TABLE_FINS_DIAGNOSTIC }));
     const vus: string[] = [];
     await ecrireFiche({ ...FIXE, cas, controle: { fins: plan.fins } }, { ...outilsSimules, appeler: async (role, e) => (vus.push(e.variable), { ok: true, simule: true, donnees: role.simuler?.(e) }) });
     expect(vus[0]).toMatch(/<duree_fins>/);
@@ -151,14 +160,14 @@ describe("M8b · durée totale (R21) avec les vraies fins", () => {
 
 describe("M8b · la chaîne de bout en bout", () => {
   it("recrutement-apporteurs, 4 réseaux : rapport « Bon » (aucun bloquant)", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     const cr = await fabriquerCasConcret(d.options);
     expect(cr.rapport.bloquants.map((l) => l.raison)).toEqual([]);
     expect(cr.rapport.verdict).toBe("ok");
   });
 
   it("formation, 4 réseaux : la fiche simulée n'est plus refusée pour sa durée", async () => {
-    const d = doubles({ casId: "email-difficile" });
+    const d = doubles({ ...MOT, casId: "email-difficile" });
     const cr = await fabriquerCasConcret(d.options);
     expect(cr.rapport.verdict).toBe("ok");
   });

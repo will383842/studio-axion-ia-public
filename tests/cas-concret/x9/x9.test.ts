@@ -21,6 +21,7 @@ import {
   dureesDesFins,
   ecrireFiche,
   ficheParGabarit,
+  PLACE_FIN_VIDE_MS,
   type EntreeEcriture,
 } from "@/moteurs/montage-cas-concret/ecriture";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
@@ -109,7 +110,8 @@ describe("X9 · rejouer le cas réel", () => {
     expect(chiffre?.type === "chiffre" && cas.faits.find((f) => f.id === chiffre.faitId)?.valeurs).toContain(chiffre?.type === "chiffre" ? chiffre.valeur : NaN);
     const v = validerFicheEcrans(r.fiche, { cas, texteScript: texteDuCorps(r.fiche), fins: plan.fins, motsInterdits: [] });
     expect(v.ok ? [] : v.problemes.map((p) => p.message)).toEqual([]);
-    const durees = plan.fins.map((f) => dureeDiteMs(r.fiche.ecrans) + dureeDiteMs(f.ecrans) + TENUE_FINALE_MS);
+    // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide garde la place de la fin retirée (PLACE_FIN_VIDE_MS) dans la visée.
+    const durees = plan.fins.map((f) => dureeDiteMs(r.fiche.ecrans) + (f.ecrans.length ? dureeDiteMs(f.ecrans) + TENUE_FINALE_MS : PLACE_FIN_VIDE_MS));
     expect(Math.min(...durees)).toBeGreaterThanOrEqual(DUREE_SORTIE_COURTE_VISEE_MS.min);
     expect(Math.min(...durees)).toBeLessThanOrEqual(DUREE_SORTIE_COURTE_VISEE_MS.max);
     for (const ms of durees) {

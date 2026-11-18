@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { controlerProprietes, imagesEcran, type ProprietesEcran } from "@/briques/ecrans-motion";
-import { TABLE_FINS_DIAGNOSTIC, type FinTable } from "@/briques/fins";
+import { suiteDeFins, TABLE_FINS_DIAGNOSTIC, type FinTable } from "@/briques/fins";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { FINS_DIAGNOSTIC } from "@/formats/cas-concret";
 import { poserBruitages, type EntreeBruitages } from "@/moteurs/montage-cas-concret/bruitages";
@@ -15,13 +15,14 @@ import { ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import { ecransCales } from "@/moteurs/montage-cas-concret/etapes";
 import { fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
 import type { EcranCorps, FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
-import { phrasesDiagnosticInterchangeables, planDesFins } from "@/moteurs/montage-cas-concret/fins";
+import { ecransDeFin, phrasesDiagnosticInterchangeables, planDesFins, suiteAuRang } from "@/moteurs/montage-cas-concret/fins";
 import type { BruitageValideCasConcret } from "@/moteurs/montage-cas-concret/outils";
 import { mettre, TIRAGE_V4, type Tirage } from "@/moteurs/montage-cas-concret/variete";
 import { proprietesPleineImage } from "@/moteurs/montage-cas-concret/zone-objets";
 import { exempleEcran } from "../../../studio-rendu/compositions/cas-concret/exemples";
 import { MONTEE_BULLE, planLien, varianteFin, type ProprietesLien } from "../../../studio-rendu/compositions/cas-concret/plans/Lien";
 import { doubles } from "../fabriquer/doubles";
+import { tableFinChoisieDiagnostic, verifierPhrasesDiagnostic } from "../fins/plan-diagnostic";
 
 const FIXE = { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const };
 const fiche = (): FicheEcrans => ficheParGabarit(trouverCas("recrutement-apporteurs")!, FIXE);
@@ -110,26 +111,37 @@ describe("L3a · fins : rotation de la phrase « diagnostic » parmi les phrases
     expect(JSON.stringify(planDesFins({ ...demande, rangPhrase: 0 }))).toBe(JSON.stringify(sans));
   });
 
+  // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : sans choix, `planDesFins` ne pose plus de fin « diagnostic » (la rotation n'a donc plus rien à
+  // tourner dans le plan) ; la rotation est testée sur `suiteAuRang` exporté, avec la suite « diagnostic » de la table, puis `suiteDeFins` et
+  // `ecransDeFin` : mêmes attentes, mot pour mot, qu'avant.
+  const finDiagnostic = (reseau: "facebook" | "instagram" | "tiktok" | "linkedin", rang: number) => {
+    const ids = suiteAuRang(reseau, [...FINS_DIAGNOSTIC[reseau]], TABLE_FINS_DIAGNOSTIC, rang);
+    const appels = suiteDeFins(reseau, ids, { mot: "IA", motDit: "I.A." }, TABLE_FINS_DIAGNOSTIC);
+    return { appels, ecrans: ecransDeFin(appels, "IA") };
+  };
+
   it("rang 1 : seule la demande « diagnostic » change ; le lien, le mot et le cadeau restent ; LinkedIn n'a qu'une phrase", () => {
-    const sans = planDesFins(demande);
-    const avec = planDesFins({ ...demande, rangPhrase: 1 });
-    expect(avec.fins.map((f) => f.reseaux)).toEqual(sans.fins.map((f) => f.reseaux));
-    for (const [i, f] of avec.fins.entries()) {
-      const avant = sans.fins[i]!;
+    for (const reseau of ["facebook", "instagram", "tiktok", "linkedin"] as const) {
+      const avant = finDiagnostic(reseau, 0);
+      const f = finDiagnostic(reseau, 1);
       const diag = f.appels.find((a) => a.type === "rendez-vous")!;
       expect(f.appels.filter((a) => a.type !== "rendez-vous")).toEqual(avant.appels.filter((a) => a.type !== "rendez-vous"));
-      if (f.reseaux.includes("linkedin")) expect(f).toEqual(avant);
+      if (reseau === "linkedin") expect(f).toEqual(avant);
       else {
         expect(diag.dit).toBe("Réservez votre diagnostic gratuit.");
         const ecranDiag = f.ecrans.find((e) => e.type === "diagnostic")!;
         expect(ecranDiag).toMatchObject({ titre: "Réservez votre diagnostic gratuit", texteDit: "Réservez votre diagnostic gratuit." });
         expect("ligne" in ecranDiag).toBe(false);
         expect(f.ecrans.find((e) => e.type === "lien")).toEqual(avant.ecrans.find((e) => e.type === "lien"));
+        // Rang 2 : retour à la phrase par défaut (2 phrases) ; déterministe.
+        expect(finDiagnostic(reseau, 2)).toEqual(avant);
       }
+      expect(finDiagnostic(reseau, 1)).toEqual(f);
     }
-    // Rang 2 : retour à la phrase par défaut (2 phrases) ; déterministe.
-    expect(planDesFins({ ...demande, rangPhrase: 2 })).toEqual(sans);
-    expect(planDesFins({ ...demande, rangPhrase: 1 })).toEqual(avec);
+  });
+
+  it("sans choix, le rang de la phrase ne change rien au plan des fins", () => {
+    expect(planDesFins({ ...demande, rangPhrase: 1 })).toEqual(planDesFins(demande));
   });
 
   it("la fin au mot ne tourne jamais (X7 d'Instagram : commentaire, cadeau)", () => {
@@ -264,8 +276,15 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
         .map(([, v]) => /bruitages\/([^?]+)\.wav/.exec(v)?.[1] ?? ""),
     );
 
-  async function fabriquer(tirage: Tirage | null) {
-    const d = doubles({ bruitages: SONS });
+  /**
+   * `"mot"` : plusieurs fins (Facebook et Instagram au mot) ; `"diagnostic"` : la fin de Facebook est « diagnostic + lien ».
+   * 17/11 (Williams) : sans choix, aucune fin ; la chaîne ne pose plus le diagnostic d'elle-même. Les tests dont le sujet est
+   * l'écran `lien` posent donc la fin de Facebook (la seule suite choisie) sur les lignes « diagnostic » et « lien » de la
+   * table, qui reste celle de la fin elle-même (mêmes phrases, mêmes écrans).
+   */
+  async function fabriquer(tirage: Tirage | null, fin: "mot" | "diagnostic" = "mot") {
+    const d = doubles({ bruitages: SONS, avecMot: true, motSur: fin === "mot" ? ["facebook", "instagram"] : ["facebook"] });
+    if (fin === "diagnostic") d.options.outils.contexte = { ...d.options.outils.contexte, tableDesFins: tableFinChoisieDiagnostic() };
     if (tirage) {
       const f = fiche();
       d.options.entrees = { ...d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" };
@@ -275,7 +294,9 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
       d.options.entrees = { ...d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" };
       d.options.lireFiche = async () => structuredClone(f);
     }
-    await fabriquerCasConcret(d.options);
+    const cr = await fabriquerCasConcret(d.options);
+    // La fin fabriquée dit bien, mot pour mot, les phrases du diagnostic de la table source.
+    if (fin === "diagnostic") verifierPhrasesDiagnostic(cr.plan.fins.find((f) => f.reseaux.includes("facebook"))!.appels);
     return { ecrans: propsEcrans(d.ecransSoumis()), sons: sonsPoses(d.compositionsSoumises()) };
   }
 
@@ -289,9 +310,10 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
   });
 
   it("départ des bruitages ≠ 0 : autres variantes ; fin 1/1 : le jeu sur le DERNIER écran `lien` de chaque fin seulement", async () => {
-    const sans = await fabriquer(null);
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const sans = await fabriquer(null, "diagnostic");
     const t: Tirage = { ...TIRAGE_V4, bruitages: { depart: 1 }, fin: { phrase: 0, composition: 1, animation: 1 } };
-    const avec = await fabriquer(t);
+    const avec = await fabriquer(t, "diagnostic");
     expect(avec.sons).not.toEqual(sans.sons);
     expect(avec.sons.map((x) => x.length)).toEqual(sans.sons.map((x) => x.length));
     const liens = avec.ecrans.filter((p) => p.type === "lien");
@@ -300,7 +322,7 @@ describe("L3a · chaîne : la mise de la vidéo pilote les sons et l'écran fina
     // Les clés de la fin ne vont que sur l'écran `lien` (les écrans du corps peuvent porter d'autres dimensions, ex. L3c).
     expect(avec.ecrans.filter((p) => p.type !== "lien").some((p) => p.jeu && ("finComposition" in p.jeu || "finAnimation" in p.jeu))).toBe(false);
     // Seule l'animation : seule la clé non nulle est posée.
-    const seule = await fabriquer({ ...TIRAGE_V4, fin: { phrase: 3, composition: 0, animation: 1 } });
+    const seule = await fabriquer({ ...TIRAGE_V4, fin: { phrase: 3, composition: 0, animation: 1 } }, "diagnostic");
     for (const p of seule.ecrans.filter((x) => x.type === "lien")) expect(p.jeu).toEqual({ finAnimation: 1 });
     // La phrase n'est pas branchée (le plan des fins précède le tirage) : mêmes écrans hors `lien` (leur `jeu` mis à part :
     // d'autres lots, ex. L3c, y posent leurs propres dimensions dès que le tirage n'est plus la v4).
