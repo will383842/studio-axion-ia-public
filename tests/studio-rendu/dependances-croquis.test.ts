@@ -63,8 +63,9 @@ describe("dépendances du style croquis (X1-07)", () => {
     const freehand = execSync(`grep -rEl "perfect-freehand" src studio-rendu/compositions studio-rendu/src --include=*.ts --include=*.tsx | grep -v "^src/briques/droits/" || true`, { cwd: RACINE, encoding: "utf8" });
     // X1-09, 17/11 : seul le trait au feutre, non inscrit, importe perfect-freehand.
     expect(freehand.trim().split("\n").filter(Boolean)).toEqual(["studio-rendu/compositions/petits-objets/TraitFeutre.tsx"]);
-    // Éteint réel : rien n'importe TraitFeutre (seul TraitFeutre.tsx importe trait-feutre.ts).
+    // Éteint réel : seul objets-2027.tsx importe trait-feutre (hors TraitFeutre.tsx).
     const importeurs = execSync(`grep -rlE "[/\\"']\\.{0,2}/?(petits-objets/)?(TraitFeutre|trait-feutre)['\\"]" src studio-rendu/compositions studio-rendu/src --include=*.ts --include=*.tsx | grep -v "^studio-rendu/compositions/petits-objets/TraitFeutre.tsx$" || true`, { cwd: RACINE, encoding: "utf8" });
-    expect(importeurs.trim()).toBe("");
+    // BR-OBJETS-2027-a (amendement n°1) : liste exacte, un seul importeur de plus (la définition d'objet du registre).
+    expect(importeurs.trim().split("\n").filter(Boolean).sort()).toEqual(["src/briques/motion/petits-objets/objets-2027.tsx"]);
   });
 });
