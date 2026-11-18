@@ -51,7 +51,7 @@ import { CENTIMES_USD_PAR_CARACTERE_HEYGEN } from "@/fournisseurs/heygen/voix";
 import { sousVerrouCreditsPartage } from "@/donnees/memoire";
 import type { LecteurCredit, TestConnexion } from "@/fournisseurs/types";
 import { nouvelId } from "@/lib/ids";
-import { formaterMontant, TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { accordCouvre, accordPropre, type AccordPrix } from "@/domaine/accord";
 import { accordAutomatique, budgetIndicatif, budgetIndicatifPour } from "./mode-budget";
 import { partDoubleReel, phraseAvatarParle } from "@/domaine/double-reel";
@@ -344,8 +344,7 @@ export async function verifierBudgetEtCredits(
   if (sousPlafond) {
     const j = await jugerSousPlafondUsine({ cle: cleUsine, besoin: bloquant, ...(options.ajouter ? { ajouter: true } : {}) });
     if (!j.ok) {
-      const eur = (c: number) => formaterMontant({ centimes: c, devise: "EUR" });
-      await journaliser("budget", `Refus de l'Usine (plafond du mois) : ${quoi} — utilisé ${eur(j.utilise)} sur ${eur(j.plafond)} ce mois, demandé ${eur(bloquant)}.`, cleUsine ? { type: "travail", id: cleUsine } : undefined);
+      await journaliser("budget", `Refus de l'Usine (plafond du mois) : ${quoi}`, cleUsine ? { type: "travail", id: cleUsine } : undefined);
       await alerterPlafondUsine({ refus: true, apres: j.apres, plafond: j.plafond, mois: j.mois });
       throw new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond du mois de l'Usine atteint : cette commande le dépasserait, rien n'est parti. Le plafond se règle dans l'Usine.");
     }
@@ -701,7 +700,7 @@ export async function declarerRecharge(fournisseur: string, centimesUsd: number,
       }
     }
   }
-  await journaliser("credits", `Recharge ${l.nom} : ${formaterDollars(centimesUsd)}`);
+  await journaliser("credits", `Recharge ${l.nom} enregistrée`);
   // Recharge Claude déclarée : les comptes marqués épuisés sont retentés (un refus de Claude les marquera de nouveau, sans frais).
   if (id === "anthropic") await remettreEnService();
   await apresRecharge(id, "declaree");
@@ -1117,7 +1116,7 @@ export async function surveillerCredits(options: { force?: boolean; instant?: nu
     for (const r of expirationsProches(await d.recharges.lister((x) => idFournisseur(x.fournisseur) === l.fournisseur), instant)) {
       if (await lireParametre<boolean>(`credits.expiration.${r.id}`, false)) continue;
       await ecrireParametre(`credits.expiration.${r.id}`, true);
-      await creerNotification({ type: "credit", titre: `Crédits ${l.nom} bientôt expirés`, message: `${formaterDollars(r.centimes)} expirent le ${new Date(r.expireLe!).toLocaleDateString("fr-FR")}.`, lien: "/reglages#credits" }, { email: true });
+      await creerNotification({ type: "credit", titre: `Crédits ${l.nom} bientôt expirés`, message: `Une partie de vos crédits ${l.nom} expire le ${new Date(r.expireLe!).toLocaleDateString("fr-FR")}.`, lien: "/reglages#credits" }, { email: true });
     }
   }
   // 4. Brouillons « lancer dès que possible » que le crédit permet maintenant : Will est prévenu (une fois).

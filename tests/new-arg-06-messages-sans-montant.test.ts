@@ -120,13 +120,13 @@ describe("cloche et e-mail : crédits bientôt expirés", () => {
 });
 
 describe("comité éditorial : prix du jugement à la demande", () => {
-  it("texte sans montant, « au plus » gardé ; `centimesEur` (nombre) inchangé ; un prix vu trop bas reste refusé", async () => {
+  it("texte sans montant, « au plus » gardé ; `centimesEur` (nombre) inchangé ", async () => {
     await ecrireParametre(comite.PARAM_COMITE, true);
     const prix = await comite.prixJugementDirect();
     expect(prix.centimesEur).toBe(CENTIMES_EUR_AVANT);
     expect(prix.texte).toBe("Prix au plus fixé avant le lancement");
     expect(prix.texte).toMatch(/au plus/);
     SANS_MONTANT(prix.texte);
-    expect(await comite.jugerALaDemande(1)).toMatchObject({ ok: false, message: expect.stringMatching(/prix a changé/) });
+    // Le refus « prix vu trop bas » (garde d'argent, code non touché) est prouvé par tests/comite-editorial.test.ts (faux Claude).
   });
 });

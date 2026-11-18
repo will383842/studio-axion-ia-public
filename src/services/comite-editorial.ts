@@ -43,7 +43,7 @@ import { controlerJugements, IDEES_PAR_REQUETE, roleComite, texteIdee, variableC
 import { construireRequete, pireCasRequete, type EntreeRole } from "@/generateur/roles/types";
 import { cleJour, cleMois, JOUR_MS } from "@/lib/dates";
 import { nouvelId } from "@/lib/ids";
-import { centimes, centimesDuPlafond, formaterMontant, usdVersEur } from "@/lib/montants";
+import { centimes, centimesDuPlafond, usdVersEur } from "@/lib/montants";
 import { depots, ecrireParametre, ErreurStudio, horodatage, journaliser, lireParametre, maintenant } from "./_commun";
 import { libererReservation, MARGE_CREDITS, verifierEtReserverSelonOrigine } from "./credits";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
@@ -527,7 +527,7 @@ export async function prixJugementDirect(): Promise<{ centimesEur: number; texte
   const factices: CombinaisonUsine[] = Array.from({ length: IDEES_A_LA_DEMANDE }, (_, i) => ({ signature: `prix-${i}`, parts: {}, textes: { douleur: "x".repeat(600) } }));
   const pire = pireCasComiteUsd(preparer(factices, "prix", contexte).map((p) => p.entree), false);
   const montant = usdVersEur(Math.ceil(pire * 100 * (1 + MARGE_CREDITS)), await taux());
-  return { centimesEur: montant.centimes, texte: `≈ ${formaterMontant(montant)} au plus` };
+  return { centimesEur: montant.centimes, texte: "Prix au plus fixé avant le lancement" };
 }
 
 /**
