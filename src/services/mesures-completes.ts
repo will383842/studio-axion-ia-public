@@ -245,7 +245,9 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
   const d = depots();
   const publications = await publicationsDeVersions();
   const parListe = await lectureParListeAllumee();
-  const aLire = parListe ? [...publications, ...(await publicationsDeVisuels())] : publications;
+  // La liste n'est réellement lue qu'avec une clé : sinon (lecteur injecté seul) on reste sur les lectures unitaires, sans visuels.
+  const listeLisible = parListe && cleZernioPresente();
+  const aLire = listeLisible ? [...publications, ...(await publicationsDeVisuels())] : publications;
   const zernioALire: Publication[] = [];
 
   for (const p of aLire) {
@@ -284,7 +286,7 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
     }
   };
   let aPart: Publication[] = zernioALire;
-  if (parListe && zernioALire.length && cleZernioPresente()) {
+  if (listeLisible && zernioALire.length) {
     aPart = [];
     const dates = zernioALire.map((p) => Date.parse(p.date)).filter((t) => Number.isFinite(t));
     const au = cleJour(instant);
@@ -304,6 +306,11 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
         aPart.push(p);
         continue;
       }
+      // Chiffres encore en cours de rassemblement chez le diffuseur : comme une lecture unitaire en 202, rien n'est écrit.
+      if (l.synchro === "en-cours") {
+        bilan.zernio.pasPretes++;
+        continue;
+      }
       bilan.zernio.lues++;
       const frais = (await d.publications.obtenir(p.id)) ?? p;
       if (await appliquerStatistiquesLues(frais, l, instant)) bilan.zernio.ajoutees++;
@@ -313,9 +320,12 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
       reste = true;
       aPart = aPart.slice(0, plafond);
     }
-  } else if (zernioALire.length > LECTURES_UNITAIRES_MAX_PAR_CLIC) {
-    reste = true;
-    aPart = zernioALire.slice(0, LECTURES_UNITAIRES_MAX_PAR_CLIC);
+  } else {
+    const plafond = parListe ? LECTURES_UNITAIRES_APRES_LISTE : LECTURES_UNITAIRES_MAX_PAR_CLIC;
+    if (zernioALire.length > plafond) {
+      reste = true;
+      aPart = zernioALire.slice(0, plafond);
+    }
   }
   for (const p of aPart) await lireUnePar(p);
 
