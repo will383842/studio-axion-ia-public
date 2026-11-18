@@ -251,6 +251,15 @@ describe("version fournie : trame en remarques, marque en refus", () => {
   it("« tu » → refus", () => marque("Tu ne cherches plus ce qui manque.", /tutoiement/));
   it("« Douleur : … » → refus", () => marque("Douleur : vous cherchez ce qui manque.", /étiquette/));
   it("« Prendre rendez-vous » → refus", () => marque("Vous pouvez prendre rendez-vous dès maintenant.", /fin/));
+  it("« Contactez-nous… » et « Découvrez la suite… » → refus", () => {
+    marque("Contactez-nous dès aujourd'hui.", /fin/);
+    marque("Découvrez la suite sur notre site.", /fin/);
+  });
+  it("phrases de situation avec « vous » + verbe → pas une fin", () => {
+    marque("Chaque matin, vous appelez trois fournisseurs.", /fin/, false);
+    marque("Vous découvrez vos commandes du jour.", /fin/, false);
+    marque("Vous réservez vos créneaux en un clic.", /fin/, false);
+  });
   it("jargon → refus", () => marque("Vous suivez vos KPI sans effort.", /jargon/));
   it("« 12 commandes » absent de la carte → refus, présent → ok", () => {
     marque("Vous voyez 13 commandes en retard.", /nombre/);
