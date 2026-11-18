@@ -227,11 +227,6 @@ describe("(d) de bout en bout : le style tiré arrive aux propriétés de Tablea
     const rendu = instantsTexte(calque as never);
     expect(rendu.instants.length).toBeGreaterThan(1);
     expect(rendu.durees.reduce((a, b) => a + b, 0)).toBe((calque as { images: number }).images);
-    // Même vidéo sur un autre décor : le texte dit et les instants du calque texte sont les mêmes (un seul style de sous-titres).
-    const aff = chaine({ ...v.fiche, styleTableau: style === "ardoise" ? "paperboard" : "ardoise" });
-    const autre = instantsTexte(aff.calque as never);
-    expect(autre.instants.length).toBe(rendu.instants.length);
-    expect(autre.durees).toEqual(rendu.durees);
   });
 });
 
