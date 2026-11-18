@@ -1,5 +1,7 @@
 /** ATR-02a · suivi des cartes À traiter. Horloge figée, faux dépôts, aucune base réelle, aucun envoi. Exemples INVENTÉS. */
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/services/_commun", async (orig) => ({ ...(await orig<object>()), lireParametre: async (_id: string, defaut: unknown) => defaut }));
 import {
   CRENEAUX_RAPPEL,
   MOTS_COMMERCIAUX,
@@ -36,6 +38,11 @@ describe("prioriteCarte", () => {
   it("1 : réclamation ou colère", () => {
     expect(prioriteCarte(carte({ extrait: "Je veux une réclamation" }))).toBe(1);
     expect(prioriteCarte(carte({ extrait: "C'est inadmissible" }))).toBe(1);
+  });
+  it("1 aussi quand la plainte cite un montant", () => {
+    expect(prioriteCarte(carte({ extrait: "Arnaque, remboursez mes 30 euros, rien reçu" }))).toBe(1);
+    expect(prioriteCarte(carte({ extrait: "Rien reçu après mon paiement de 30 €" }))).toBe(1);
+    expect(prioriteCarte(carte({ extrait: "Quel est le prix ?" }))).toBe(4);
   });
   it("2 : demande commerciale ou de rendez-vous", () => {
     for (const m of ["devis", "rendez-vous", "rdv", "démo", "offre"])
@@ -168,6 +175,12 @@ describe("deposerRappelsCloche", () => {
     const lire = vi.fn(async () => [vieille]);
     expect(await deposerRappelsCloche({ ...f.deps, lireCartes: lire })).toEqual({ depose: false, raison: "interrupteur_eteint" });
     expect(lire).not.toHaveBeenCalled();
+    expect(f.creer).not.toHaveBeenCalled();
+  });
+  it("sans réglage injecté : la lecture par défaut rend faux, rien n'est fait", async () => {
+    const f = faux();
+    const sans = { ...f.deps, lireReglage: undefined };
+    expect(await deposerRappelsCloche(sans)).toEqual({ depose: false, raison: "rappels_eteints" });
     expect(f.creer).not.toHaveBeenCalled();
   });
   it("réglage faux (ou autre que true) : ne fait RIEN", async () => {

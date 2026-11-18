@@ -30,9 +30,13 @@ const sansAccent = (t: string): string =>
 const motPresent = (texte: string, mots: readonly string[]): boolean =>
   mots.some((m) => new RegExp(`(^|[^a-z0-9])${m}s?($|[^a-z0-9])`).test(texte));
 
+const RE_MOTS_PRIX = /\b(?:prix|tarifs?|combien|co[uû]te[a-z]*|co[uû]ts?|payants?|gratuit[es]*|abonnements?|euros?|tarification)\b|[€$]/gi;
+
 /** 1 réclamation ou colère ; 2 demande commerciale ou de rendez-vous ; 3 mot du guide ; 4 le reste. */
 export function prioriteCarte(c: Pick<CarteATraiter, "extrait" | "mot">): Priorite {
-  const raison = detecterAEcrireSoiMeme(c.extrait);
+  let raison = detecterAEcrireSoiMeme(c.extrait);
+  // « prix » est testé avant réclamation et colère dans le kit : on retire les mots de prix pour ne pas masquer une plainte.
+  if (raison === "prix") raison = detecterAEcrireSoiMeme(c.extrait.replace(RE_MOTS_PRIX, " "));
   if (raison === "reclamation" || raison === "colere") return 1;
   if (motPresent(sansAccent(c.extrait), MOTS_COMMERCIAUX)) return 2;
   if (c.mot) return 3;
