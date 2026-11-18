@@ -56,6 +56,15 @@ describe("maquette 06-equipe", () => {
     expect(html).toMatch(/function resetAll\(\)\{state=base\(\)/);
     expect(html).not.toContain("confirm(");
   });
+  it("allerEtape efface le toast : le résultat ne dépend pas de l'étape précédente", () => {
+    const corps = html.slice(html.indexOf("function allerEtape("), html.indexOf("window.demoMaquette="));
+    expect(corps).toContain("clearTimeout(window.toastTimer)");
+    expect(corps).toMatch(/getElementById\('toast'\)\.classList\.remove\('show'\)/);
+  });
+  it("aucun émoji en couleur dans la maquette (signes monochromes seulement)", () => {
+    const emoji = /[\u{1F000}-\u{1FAFF}\u{FE0F}\u{200D}\u{20E3}\u{2705}\u{274C}\u{2728}\u{26A1}\u{2B50}\u{2B55}\u{231A}\u{231B}\u{23E9}-\u{23F3}\u{23F8}-\u{23FA}\u{2614}\u{2615}\u{2648}-\u{2653}\u{267F}\u{2693}\u{26AA}\u{26AB}\u{26BD}\u{26BE}\u{26C4}\u{26C5}\u{26CE}\u{26D4}\u{26EA}\u{26F2}\u{26F3}\u{26F5}\u{26FA}\u{26FD}\u{2753}-\u{2755}\u{2757}\u{2795}-\u{2797}\u{27B0}\u{27BF}\u{2B1B}\u{2B1C}]/u;
+    for (const f of fichiers) expect(f.contenu.match(emoji)?.[0] ?? null, f.chemin).toBeNull();
+  });
   it("PROVENANCE.md cite la source et « données fictives »", () => {
     expect(provenance).toContain(SOURCE);
     expect(provenance).toContain("données fictives");

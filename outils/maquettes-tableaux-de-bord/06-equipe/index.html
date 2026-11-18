@@ -39,7 +39,7 @@ const demos=[['La demande','Une collaboratrice dépose une demande pour deux jou
 /* Porte de pilotage (T-EXT-11) : étapes du parcours de capture existant, état déterministe à chaque appel. */
 const ETAPES=['accueil','demande','reception','validation','planning','collaborateurs','onboarding','documents','assistant'];
 function etatDemo(statut){state=base();if(statut)state.requests.push({id:9999,name:'Emma Lefèvre',start:'2026-11-26',end:'2026-11-27',days:2,status:statut,type:'Congés payés'});save()}
-function allerEtape(id){if(!ETAPES.includes(id))throw new Error('étape inconnue : '+id);closeModal();filter='Toutes';search='';
+function allerEtape(id){if(!ETAPES.includes(id))throw new Error('étape inconnue : '+id);closeModal();clearTimeout(window.toastTimer);document.getElementById('toast').classList.remove('show');filter='Toutes';search='';
 if(id==='accueil'){etatDemo();demoStep=0;go('home');updateDemo()}
 else if(id==='demande'||id==='reception'){etatDemo('En attente');demoStep=id==='demande'?1:2;go('leave');updateDemo()}
 else if(id==='validation'||id==='planning'){etatDemo('Validée');demoStep=3;go('leave');updateDemo();if(id==='planning'){const c=document.querySelector('#page-leave .calendar');if(c&&c.scrollIntoView)c.scrollIntoView({block:'center'})}}
