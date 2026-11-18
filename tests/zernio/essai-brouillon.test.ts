@@ -41,7 +41,7 @@ const { PARAM_ESSAI_BROUILLON, lireEssai, essaiCouvre, dansEssai, essaiEnCours, 
 const { tourEnvoisCalendrierServeur, reinitialiserTourEnvoisCalendrier } = await import("@/services/branchement-envoi-calendrier");
 const { envoyerVisuelDuCreneau } = await import("@/services/envoi-visuel-creneau");
 const { retirerProgrammationServeur, annulerRetraitServeur } = await import("@/services/retirer-programmation");
-const { depsDeplacementServeur } = await import("@/services/deplacer-programmation");
+const { depsDeplacementServeur, deplacerProgrammation } = await import("@/services/deplacer-programmation");
 const actions = await import("@/app/(studio)/reglages/actions-zernio");
 
 const MIN = 60_000;
@@ -315,6 +315,33 @@ describe("PR-B · portée : un seul créneau, jamais de promotion", () => {
     expect(await d.reglagesOuverts("cB")).toBe(false);
     aller(Date.parse(ESSAI.expireLe) + 1);
     expect(await d.reglagesOuverts("cA")).toBe(false);
+  });
+  it("6d. déplacement de bout en bout : A avec post → retrait puis version suivante avant expireLe ; refus « éteint » sans écriture après ; B refusé", async () => {
+    await tour();
+    const retraits: string[] = [];
+    const port = { retirer: async (e: { cle: string }) => { retraits.push(e.cle); return "retire" as const; } };
+    const nouveauJour = iso(T0 + 3 * JOUR).slice(0, 10);
+    const deplacer = async (creneauId: string, cle: string) => deplacerProgrammation(await depsDeplacementServeur(port as never), { creneauId, nouveauJour, cle });
+    // Après expireLe : refus sans écriture ni retrait.
+    aller(Date.parse(ESSAI.expireLe) + 1);
+    const avantCreneau = await depots().creneauxEditoriaux.obtenir("cA");
+    const avantEnvois = await depots().envoisPlanifies.lister();
+    const tard = await deplacer("cA", "k-tard");
+    expect(tard).toMatchObject({ ok: false, etat: "reste" });
+    expect(JSON.stringify(tard)).toMatch(/éteint|eteint/i);
+    expect(retraits).toEqual([]);
+    expect(await depots().creneauxEditoriaux.obtenir("cA")).toEqual(avantCreneau);
+    expect(await depots().envoisPlanifies.lister()).toEqual(avantEnvois);
+    // B : refusé, aucun retrait.
+    aller(T0 + 2 * MIN);
+    await depots().envoisPlanifies.enregistrer({ id: "eB", cle: "eB", videoId: "vis_2", nature: "visuel", creneauId: "cB", cleDiffuseur: "b".repeat(64), reseau: "linkedin", versionCreneau: 0, jour: "2026-12-01", heure: "09:30", statut: "valide", creeLe: iso(T0), modifieLe: iso(T0) } as never);
+    expect(await deplacer("cB", "k-b")).toMatchObject({ ok: false, etat: "reste" });
+    expect(retraits).toEqual([]);
+    // Avant expireLe : retrait puis version suivante.
+    const ok = await deplacer("cA", "k-ok");
+    expect(ok).toMatchObject({ ok: true, etat: "deplace" });
+    expect(retraits).toHaveLength(1);
+    expect((await depots().creneauxEditoriaux.obtenir("cA") as { decalages: number }).decalages).toBe(1);
   });
   it("7. « Annuler » un retrait de A : A-reprise recréé ; le tour d'essai suivant ne crée aucun brouillon", async () => {
     await tour();
