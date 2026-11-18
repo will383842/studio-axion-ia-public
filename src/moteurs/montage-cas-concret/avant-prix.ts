@@ -78,6 +78,8 @@ export interface DemandeAvantPrix {
   faitsConfirmes?: readonly string[];
   /** P2C : images déposées par Will pour les écrans derrière une connexion ; absent : non contrôlé. */
   ecransFournis?: readonly EcranFourni[];
+  /** FIX-CC-FIN-CHOIX-b1 · « La phrase de fin » choisie ; absent : aucune fin. */
+  finDemandee?: "rendez-vous";
 }
 
 /** Textes du cas que la vidéo peut dire. */
@@ -106,7 +108,7 @@ export function refusAvantPrix(d: DemandeAvantPrix): string | null {
     if (faitsAConfirmer(cas, d.description).some((f) => !confirmes.has(f.id))) return PHRASES_AVANT_PRIX.aConfirmer;
   }
   const mot = motValide(d.mot.trim()) ? d.mot.trim() : cas.mot;
-  const plan = planDesFins({ reseaux: d.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(cas.motDit && mot.toUpperCase() === cas.mot.toUpperCase() ? { motDit: cas.motDit } : {}), avecMot: d.avecMot, motSur: d.motSur, table: d.table ?? TABLE_FINS_DIAGNOSTIC });
+  const plan = planDesFins({ reseaux: d.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(cas.motDit && mot.toUpperCase() === cas.mot.toUpperCase() ? { motDit: cas.motDit } : {}), avecMot: d.avecMot, motSur: d.motSur, table: d.table ?? TABLE_FINS_DIAGNOSTIC, ...(d.finDemandee ? { finDemandee: d.finDemandee } : {}) });
   const sansFin = plan.sansFin.flatMap((s) => s.reseaux);
   if (sansFin.length || !plan.fins.length) return phraseSansFin(sansFin.length ? sansFin : d.reseaux);
   return null;

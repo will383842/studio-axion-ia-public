@@ -18,6 +18,8 @@ import { idEcranAttendu, type Ecran, type EcranCorps, type EcranFin, type FicheE
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { SCRIPT_V4_RECRUTEMENT } from "./scripts-valides/recrutement-apporteurs";
 import { STRUCTURES, type Structure } from "./variete";
+import { ETIQUETTE_LISTE_AVANT, ETIQUETTE_RESULTAT, texteBarre } from "./etapes";
+import { CATALOGUE } from "@/formats/cas-concret/catalogue";
 
 /** Un écran du script : celui de la fiche, sans ce que le studio pose (identifiant, marque, heures du calage). */
 export type EcranScript = EcranCorps extends infer E ? (E extends unknown ? Omit<E, "id" | "marque" | "debutMs" | "finMs"> : never) : never;
@@ -174,6 +176,31 @@ export interface EcranApercu {
   /** Les mêmes, bruts (`*mot*` = mot en orange), pour la modification ; et lesquels se modifient (pas le chiffre). */
   ecrits?: string[];
   modifiables?: boolean[];
+  /** Textes que le Studio écrit de lui-même à l'écran, sans que Will les ait écrits (« Avant », « Étape 01 / 6 »…). Jamais modifiables. */
+  poses?: string[];
+}
+
+/** Les faits du catalogue : les barres « avant / maintenant » d'un écran résultat y retrouvent leur nombre, comme à la fabrication. */
+const FAITS_DU_CATALOGUE = CATALOGUE.flatMap((c) => c.faits);
+
+/**
+ * Ce que le Studio pose à l'écran en plus des textes du script (17/11, Williams : l'écran montré avant fabrication montre
+ * tout ce qui sera dit et écrit). Mêmes mots que `dispositions.ts` (« Avant », « Maintenant », « Étape NN / N »). L'étiquette
+ * de l'accroche est déjà dans les textes écrits du script : rien à ajouter ici.
+ */
+function posesDe(e: Ecran): string[] {
+  switch (e.type) {
+    case "resultat": {
+      const barre = (b: typeof e.avant) => texteBarre(b, FAITS_DU_CATALOGUE) || b.libelle;
+      return [`Avant : ${barre(e.avant)}`, `Maintenant : ${barre(e.maintenant)}`, ETIQUETTE_RESULTAT];
+    }
+    case "etape":
+      return [`Étape ${String(e.numero).padStart(2, "0")} / ${e.total}`];
+    case "liste-avant":
+      return [ETIQUETTE_LISTE_AVANT];
+    default:
+      return [];
+  }
 }
 
 /** Les écrans d'un script, dans l'ordre, pour les montrer à Will avant la voix. */
@@ -193,6 +220,7 @@ export function apercuDesEcrans(ecrans: readonly (EcranScript | EcranCorps | Ecr
     } catch {
       ecrits = undefined;
     }
-    return { rang: i + 1, type: e.type, nom: NOMS_ECRANS[e.type] ?? e.type, texteDit: e.texteDit, affiches, ...(ecrits && modifiables ? { ecrits, modifiables } : {}) };
+    const poses = posesDe(e as Ecran);
+    return { rang: i + 1, type: e.type, nom: NOMS_ECRANS[e.type] ?? e.type, texteDit: e.texteDit, affiches, ...(ecrits && modifiables ? { ecrits, modifiables } : {}), ...(poses.length ? { poses } : {}) };
   });
 }
