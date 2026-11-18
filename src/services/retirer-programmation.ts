@@ -40,6 +40,8 @@ export interface DepsRetrait {
 
 export type EtatRetrait = "retire" | "refuse" | "reste-programme" | "a-verifier" | "a-retirer-a-la-main";
 export type ResultatRetrait = { ok: true; etat: "retire"; message: string; creneauId: string; annulableJusquA: string } | { ok: false; etat: Exclude<EtatRetrait, "retire">; message: string; /** Vrai si des écritures ont eu lieu (retrait partiel) : l'écran doit se rafraîchir. */ ecritures?: true };
+/** Un code d'erreur par cas, pour que l'écran distingue « à vérifier », « à retirer à la main », « reste programmé » et « refusé ». */
+export const CODES_RETRAIT = { refuse: "RETRAIT_REFUSE", "reste-programme": "RETRAIT_RESTE_PROGRAMME", "a-verifier": "RETRAIT_A_VERIFIER", "a-retirer-a-la-main": "RETRAIT_A_LA_MAIN" } as const;
 export type ResultatAnnulation = { ok: true; creneauId: string; message: string } | { ok: false; message: string };
 
 /** Délai de l'« Annuler » : 10 secondes après le retrait. */
@@ -47,7 +49,7 @@ export const DELAI_ANNULER_RETRAIT_MS = 10_000;
 /** Marge minimale du diffuseur avant l'heure prévue (PROMOTION_MARGE_MIN_MS) : en deçà, il ne peut plus programmer. */
 const MARGE_REPROGRAMMATION_MS = 30 * 60 * 1000;
 /** Suffixe de l'identifiant du créneau recréé par « Annuler » : déterministe, donc jamais deux. */
-export const SUFFIXE_REPRISE = "~reprise";
+export const SUFFIXE_REPRISE = "-reprise";
 
 export const PHRASES_RETRAIT_PROGRAMMATION = {
   introuvable: "Cette publication est introuvable. Rechargez la page.",
@@ -60,7 +62,12 @@ export const PHRASES_RETRAIT_PROGRAMMATION = {
   aVerifier: "Le Studio ne sait pas si le retrait a bien eu lieu chez le diffuseur. La publication reste programmée, marquée « à vérifier » : relisez-la chez le diffuseur.",
   aLaMain: "Le diffuseur n'a pas pu retirer cette publication. Elle reste programmée et marquée « à retirer à la main » : retirez-la chez le diffuseur.",
   partielle: (retires: string, restent: string): string =>
-    `Retrait partiel : ${retires} retiré chez le diffuseur ; ${restent} reste programmé. Rien n'a été supprimé.`,
+    `Retrait partiel. Retiré chez le diffuseur : ${retires}. Reste programmé : ${restent}. Le texte et le fichier sont gardés.`,
+  partielleSuite: {
+    "a-verifier": "Pour le reste, le Studio ne sait pas si le retrait a eu lieu : il est marqué « à vérifier », relisez-le chez le diffuseur.",
+    "a-retirer-a-la-main": "Le reste n'a pas pu être retiré par le diffuseur : il est marqué « à retirer à la main », retirez-le chez le diffuseur.",
+    "reste-programme": "Le diffuseur n'a pas répondu pour le reste : réessayez plus tard.",
+  },
   retiree: "Retirée du calendrier. Vous la retrouvez dans « À placer », avec son texte et son fichier.",
   dejaRetiree: "Déjà retirée du calendrier.",
   annulerHorsDelai: "Le délai de 10 secondes est passé. Remettez la publication dans le calendrier depuis « À placer ».",
@@ -199,7 +206,7 @@ function avecPartiel(res: ResultatRetrait, retires: Set<string>, avecPost: Envoi
   if (res.ok || retires.size === 0) return res;
   const faits = avecPost.filter((x) => retires.has(x.id)).map((x) => nomReseau(x.reseau)).join(", ");
   const restent = avecPost.filter((x) => !retires.has(x.id)).map((x) => nomReseau(x.reseau)).join(", ");
-  return { ...res, message: `${PHRASES_RETRAIT_PROGRAMMATION.partielle(faits, restent)} ${res.message}`, ecritures: true };
+  return { ...res, message: `${PHRASES_RETRAIT_PROGRAMMATION.partielle(faits, restent)} ${PHRASES_RETRAIT_PROGRAMMATION.partielleSuite[res.etat as keyof typeof PHRASES_RETRAIT_PROGRAMMATION.partielleSuite] ?? res.message}`, ecritures: true };
 }
 
 type Noter = (liste: EnvoiPlanifie[]) => Promise<void>;

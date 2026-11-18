@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 import type { LotEcritures } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { creerClientZernio, type FetchZernio } from "@/fournisseurs/publication/zernio-client";
-import { annulerRetrait, retirerProgrammation, type DepsRetrait } from "@/services/retirer-programmation";
+import { lireCleFiche } from "@/components/calendrier/FicheEntree";
+import { annulerRetrait, CODES_RETRAIT, retirerProgrammation, SUFFIXE_REPRISE, type DepsRetrait } from "@/services/retirer-programmation";
 
 const CLE = "a".repeat(64);
 const CLE_B = "b".repeat(64);
@@ -206,7 +207,7 @@ describe("CAL-22 · retirerProgrammation", () => {
     const m = monde({ envois: [envoi(), b], posts: { post_1: { status: "scheduled", cle: CLE }, post_2: { status: "scheduled", cle: CLE_B } }, scripts: { "DELETE /v1/posts/post_2": [{ statut: 400 }] } });
     const r = await retirerProgrammation(m.deps, "cre_1");
     expect(r).toMatchObject({ ok: false, etat: "a-retirer-a-la-main", ecritures: true });
-    if (!r.ok) expect(r.message).toMatch(/LinkedIn retiré.*Facebook reste programmé/);
+    if (!r.ok) expect(r.message).toMatch(/Retiré chez le diffuseur : LinkedIn\. Reste programmé : Facebook\./);
     expect(m.marques.get("retrait:envoi:vis_1:facebook:v0")).toBe("a-retirer-a-la-main");
     expect(m.faux.appels.filter((a) => a.methode === "DELETE").map((a) => a.chemin)).toContain("/v1/posts/post_2");
     expect(m.envois.get("envoi:vis_1:linkedin:v0")?.statut).toBe("annule");
@@ -274,7 +275,7 @@ describe("CAL-22 · annulerRetrait (10 secondes)", () => {
     await retirerProgrammation(m.deps, "cre_1");
     const t = { ...m.deps, maintenant: () => new Date(MAINTENANT.getTime() + 5_000) };
     await annulerRetrait(t, "cre_1");
-    m.creneaux.set("cre_1~reprise", { ...m.creneaux.get("cre_1~reprise")!, statut: "archive", retireLe: MAINTENANT.toISOString() });
+    m.creneaux.set("cre_1" + SUFFIXE_REPRISE, { ...m.creneaux.get("cre_1" + SUFFIXE_REPRISE)!, statut: "archive", retireLe: MAINTENANT.toISOString() });
     const a = await annulerRetrait(t, "cre_1");
     expect(a.ok).toBe(false);
   });
@@ -283,5 +284,48 @@ describe("CAL-22 · annulerRetrait (10 secondes)", () => {
     const a = await annulerRetrait(m.deps, "cre_1");
     expect(a.ok).toBe(false);
     expect(m.creneaux.size).toBe(1);
+  });
+});
+
+describe("CAL-22 · partiel, codes, clé de la reprise", () => {
+  const deux = (scriptB: Reponse[], extra: Record<string, Reponse[]> = {}) => {
+    const b = envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: CLE_B });
+    return monde({ envois: [envoi(), b], posts: { post_1: { status: "scheduled", cle: CLE }, post_2: { status: "scheduled", cle: CLE_B } }, scripts: { "DELETE /v1/posts/post_2": scriptB, ...extra } });
+  };
+  it.each([
+    ["à retirer à la main", [{ statut: 400 }] as Reponse[], "a-retirer-a-la-main", /à retirer à la main/],
+    ["à vérifier", ["coupure"] as Reponse[], "a-verifier", /à vérifier/],
+    ["reste programmé", [{ statut: 503 }] as Reponse[], "a-verifier", /à vérifier/],
+  ])("retrait partiel (%s) : message vrai, écran à rafraîchir, aucun mot interdit", async (_n, script, etat, motif) => {
+    const m = deux(script);
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    expect(r).toMatchObject({ ok: false, etat, ecritures: true });
+    if (r.ok) return;
+    expect(r.message).toMatch(/Retiré chez le diffuseur : LinkedIn\. Reste programmé : Facebook\./);
+    expect(r.message).toMatch(motif);
+    expect(r.message).not.toMatch(/rien n'a été changé/i);
+    for (const i of INTERDITS) expect(r.message).not.toMatch(i);
+  });
+  it("partiel sans réponse du diffuseur : phrase « réessayez », jamais « rien n'a été changé »", async () => {
+    const m = deux([], { "GET /v1/posts/post_2": [{ statut: 200, corps: { post: { _id: "post_2", status: "scheduled", platforms: [{ platform: "facebook" }], metadata: { origine: "studio", studioCle: CLE_B } } } }, { statut: 429 }] });
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    if (!r.ok) {
+      expect(r.message).not.toMatch(/rien n'a été changé/i);
+      for (const i of INTERDITS) expect(r.message).not.toMatch(i);
+    }
+  });
+  it("chaque état a son propre code ; sans écriture, pas de rafraîchissement demandé", async () => {
+    expect(new Set(Object.values(CODES_RETRAIT)).size).toBe(4);
+    expect(CODES_RETRAIT).toMatchObject({ "a-verifier": "RETRAIT_A_VERIFIER", "a-retirer-a-la-main": "RETRAIT_A_LA_MAIN", "reste-programme": "RETRAIT_RESTE_PROGRAMME", refuse: "RETRAIT_REFUSE" });
+    const m = monde({ scripts: { "GET /v1/posts": ["coupure"] } });
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    expect(r).toMatchObject({ ok: false, etat: "reste-programme" });
+    expect((r as { ecritures?: true }).ecritures).toBeUndefined();
+  });
+  it("la reprise a une clé de carte lisible (elle peut être retirée à son tour)", async () => {
+    const m = monde();
+    await retirerProgrammation(m.deps, "cre_1");
+    const a = await annulerRetrait({ ...m.deps, maintenant: () => new Date(MAINTENANT.getTime() + 3_000) }, "cre_1");
+    expect(a.ok && lireCleFiche(`creneau:${a.creneauId}|linkedin`)).toMatchObject({ origine: "creneau", id: "cre_1" + SUFFIXE_REPRISE });
   });
 });

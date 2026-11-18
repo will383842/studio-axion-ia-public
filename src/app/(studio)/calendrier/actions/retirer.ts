@@ -11,7 +11,7 @@ import { appliquerLot } from "@/donnees/memoire";
 import { depots, essayer, ErreurStudio, maintenant, sousVerrou, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { PHRASES_RETRAIT, RefusRetrait, retirerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
-import { annulerRetraitServeur, retirerProgrammationServeur } from "@/services/retirer-programmation";
+import { annulerRetraitServeur, CODES_RETRAIT, retirerProgrammationServeur } from "@/services/retirer-programmation";
 
 const SEULEMENT_CARROUSELS = "Seules les publications d'un carrousel se retirent d'ici pour le moment.";
 
@@ -49,7 +49,6 @@ export async function retirerDuCalendrier(cle: string, confirmation: string): Pr
 
 /* --- CAL-22 (écrite EN AVANCE, attend RC-08a) : retirer une publication PROGRAMMÉE chez le diffuseur, puis « À placer ». --- */
 
-const CODES_RETRAIT = { refuse: "RETRAIT_REFUSE", "reste-programme": "RETRAIT_RESTE_PROGRAMME", "a-verifier": "RETRAIT_A_VERIFIER", "a-retirer-a-la-main": "RETRAIT_A_LA_MAIN" } as const;
 const NON_RETIRABLE = "Seule une publication programmée d'un créneau se retire d'ici.";
 
 /**
