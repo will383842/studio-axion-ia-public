@@ -29,7 +29,7 @@ export const POURQUOI_MAX = 140;
 /** Montants d'argent (€, euro(s), EUR, k€, $, dollar(s), USD) ; testé sur le texte tel quel. Réutilisé par T-EXT-21. */
 export const MOTS_ARGENT = /€|\beuros?\b|\bEUR\b|\$|\bdollars?\b|\busd\b/i;
 /** Promesses interdites : garanti, certifié, Qualiopi, intégrateur (accents et casse ignorés). Réutilisé par T-EXT-21. */
-export const MOTS_PROMESSE = /(?<![\p{L}\p{N}_])(?:garanti(?:e|s|es)?|certifi(?:e|ee|es|ees)|qualiopi|integrateurs?)(?![\p{L}\p{N}_])/u;
+export const MOTS_PROMESSE = /(?<![\p{L}\p{N}_])(?:garanti(?:e|s|es)?|certifi[eé]e?s?|qualiopi|int[eé]grateurs?)(?![\p{L}\p{N}_])/iu;
 
 const schemaMoment = z
   .object({
@@ -165,7 +165,8 @@ export const roleStrategeValeur: DefinitionRole<typeof schemaFicheValeur> = {
 const sansAccents = (t: string): string => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const MOT = (m: string): RegExp => new RegExp(`(?<![\\p{L}\\p{N}_-])(?:${m})(?![\\p{L}\\p{N}_-])`, "u");
 const VOUVOIEMENT = MOT("vous|votre|vos");
-const TUTOIEMENT = MOT("tu|toi|ton|ta|tes");
+/** Le trait d'union sépare des mots : « organise-toi », « sais-tu », « toi-même » restent du tutoiement. */
+const TUTOIEMENT = /(?<![\p{L}\p{N}_])(?:tu|toi|ton|ta|tes)(?![\p{L}\p{N}_])/u;
 const TELEPHONE = /\+\d|\d(?:[\s.-]?\d){7,}/;
 const NOMME_L_OUTIL = /l['’]outil|le tableau de bord|l['’]automatisation|l['’]application/;
 

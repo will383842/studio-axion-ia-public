@@ -124,6 +124,12 @@ describe("moments", () => {
 });
 
 describe("vouvoiement", () => {
+  it("refuse le tutoiement collé par un trait d'union (organise-toi, sais-tu, toi-même)", () => {
+    for (const phrase of ["Vous voyez tout, organise-toi mieux.", "Vous voyez tout, sais-tu ?", "Vous voyez tout, toi-même aussi."]) {
+      const m = [{ id: "m1", zoneId: "alertes", geste: "clic", permet: phrase }] as FicheValeur["moments"];
+      expect(refus(avec({ moments: m }))).toContain("tutoiement");
+    }
+  });
   it("refuse le tutoiement", () => {
     const m = [{ id: "m1", zoneId: "alertes", geste: "clic", permet: "tu vois tout de suite ce qui manque." }] as FicheValeur["moments"];
     expect(refus(avec({ moments: m }))).toContain("tutoiement");
@@ -151,7 +157,7 @@ describe("argent, promesses, données de personnes", () => {
     expect(refus(pourquoi("Un intégrateur de confiance"))).toContain("intégrateur");
   });
   it("refuse une adresse e-mail dans la journée", () => {
-    expect(refus(avec({ persona: { metier: "gérant", journee: "Il écrit à jean.dupont@exemple.fr chaque matin.", perte: "Du temps." } }))).toContain("donnée de personne");
+    expect(refus(avec({ persona: { metier: "gérant", journee: "Il écrit à jean.dupont@exemple.invalid chaque matin.", perte: "Du temps." } }))).toContain("donnée de personne");
   });
   it("refuse un numéro de téléphone", () => {
     expect(refus(avec({ persona: { metier: "gérant", journee: "Il appelle le 06 12 34 56 78.", perte: "Du temps." } }))).toContain("donnée de personne");
@@ -169,6 +175,11 @@ describe("argent, promesses, données de personnes", () => {
     expect(MOTS_PROMESSE.test("certifie")).toBe(true);
     expect(MOTS_PROMESSE.test("garantie")).toBe(true);
     expect(MOTS_PROMESSE.test("une vue claire")).toBe(false);
+  });
+  it("MOTS_PROMESSE marche sur le texte brut (accents et casse)", () => {
+    expect(MOTS_PROMESSE.test("Résultat Garanti")).toBe(true);
+    expect(MOTS_PROMESSE.test("Certifié Qualiopi")).toBe(true);
+    expect(MOTS_PROMESSE.test("Intégrateur")).toBe(true);
   });
 });
 
