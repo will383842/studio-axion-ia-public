@@ -28,7 +28,13 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   if (vue.etat === "desactive") return <EtatVide compact icone="envoyer" titre="Désactivé" phrase="Cet écran est éteint pour le moment." />;
   if (vue.etat === "illisible") return <EtatVide compact icone="envoyer" titre="Source non lisible" phrase="Nous n’arrivons pas à lire la liste. Réessayez plus tard." />;
   const carte = visibles[0];
-  if (!restantes.length) return <EtatVide compact icone="envoyer" titre="Rien à traiter" phrase="Les commentaires à traiter à la main arrivent ici." />;
+  if (!restantes.length)
+    return (
+      <div className="flex flex-col gap-4" data-ecran="a-traiter">
+        <EtatVide compact icone="envoyer" titre="Rien à traiter" phrase="Les commentaires à traiter à la main arrivent ici." />
+        {dejaTraitees ? <DejaTraitees cartes={dejaTraitees} /> : null}
+      </div>
+    );
 
   const agir = (f: () => Promise<ResultatChangement>) =>
     demarrer(async () => {

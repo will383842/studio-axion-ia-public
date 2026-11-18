@@ -58,6 +58,16 @@ describe("écran", () => {
     for (const t of ["Tous (5)", "LinkedIn (2)", "Instagram (1)", "Facebook (0)", "TikTok (1)"]) expect(h).toContain(t);
     expect(h.match(/role="tab"/g)).toHaveLength(5);
     expect(h).toContain("5 à traiter");
+    expect(h.match(/aria-selected="true"/g)).toHaveLength(1);
+    expect(h).toMatch(/aria-selected="true"[^>]*>Tous/);
+    expect(h.match(/data-carte="a-traiter"/g)).toHaveLength(1);
+    expect(h).toContain("Extrait fictif linkedin 1");
+  });
+  it("plus rien à traiter : « Rien à traiter » ET le bloc « Déjà traitées » restent visibles", () => {
+    const dejaTraitees = [{ idEvenement: "e1", reseau: "linkedin", extrait: "Ancien extrait fictif", creeLe: "2026-11-01T10:00:00.000Z", statut: "fait" }];
+    const h = rendre({ vue: { etat: "vide", cartes: [], compteur: 0 }, dejaTraitees });
+    expect(h).toContain("Rien à traiter");
+    expect(h).toContain("Déjà traitées (1)");
   });
   it("libellés conservés", () => {
     const h = rendre({});
