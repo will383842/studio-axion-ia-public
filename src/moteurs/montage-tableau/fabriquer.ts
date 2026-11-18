@@ -1402,7 +1402,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     if (dureeMesuree !== undefined && finSousTitres !== undefined && finSousTitres > dureeMesuree + ECART_SOUS_TITRES_FIN_SEC) {
       const message = `Les sous-titres continuent après la fin de la vidéo (jusqu'à ${Math.round(finSousTitres)} s pour une vidéo de ${Math.round(dureeMesuree)} s) : la fin de la voix est peut-être coupée.`;
       alertesSortie.push({ code: "synchronisation", gravite: "attention", message });
-      noterAlerte({ etape: "controles", ...(nomEtape ? { sortie: nomEtape } : {}), code: "sous-titres-apres-fin", message });
+      noterAlerte({ etape: "controles", ...(nomEtape ? { sortie: nomEtape } : {}), code: "controle-fichier", message });
       dire(`Alerte : ${message}`);
     }
     etapes.push({ etape: "controles", statut: "faite", dureeMs: horloge() - t9, ...(nomEtape ? { sortie: nomEtape } : {}) });
