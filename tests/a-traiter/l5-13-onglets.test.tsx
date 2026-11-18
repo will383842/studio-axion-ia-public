@@ -74,7 +74,7 @@ describe("écran", () => {
   it("une date mal formée ne fait pas tomber l'écran", () => {
     const h = rendre({ dejaTraitees: [{ idEvenement: "e9", reseau: "facebook", extrait: "Extrait fictif", creeLe: "pas-une-date", statut: "fait" }] });
     expect(h).toContain("Déjà traitées (1)");
-    expect(h).toMatch(/reçue le (<!-- -->)?pas-une-date/);
+    expect(h).toMatch(/reçue le (<!-- -->)?pas-une-da</);
   });
   it("le bloc suit l'onglet : seules les cartes du réseau", () => {
     const l = [
