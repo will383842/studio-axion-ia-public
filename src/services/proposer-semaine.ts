@@ -18,6 +18,21 @@ export const PLAFOND_APPELS_SEMAINE_PAR_JOUR = 5;
 export const PARAM_COMPTEUR_SEMAINE = "calendrier.proposerSemaine.compteur";
 export const PHRASE_PLAFOND_SEMAINE = "Vous avez déjà demandé plusieurs semaines aujourd'hui. Revenez demain pour en demander une autre. En attendant, vous pouvez ajouter vos contenus à la main : rien n'est bloqué.";
 
+/**
+ * Adresse de l'écran « À valider » de l'usine : donnée par USINE_A_VALIDER_URL (https), à confirmer contre U-PLANIF.
+ * Absente ou invalide : null, et le bouton n'est pas monté (jamais de lien qui ramène à la page elle-même).
+ */
+export function adresseAValiderUsine(env: { USINE_A_VALIDER_URL?: string | undefined } = process.env as { USINE_A_VALIDER_URL?: string }): string | null {
+  const brut = env.USINE_A_VALIDER_URL?.trim();
+  if (!brut) return null;
+  try {
+    const u = new URL(brut);
+    return u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface PropositionSemaine extends EntreeCarte {
   etat: "propose";
   pourquoi?: string;

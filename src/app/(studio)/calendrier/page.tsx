@@ -35,6 +35,7 @@ import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier"
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
 import { usineActive } from "@/services/usine-porte";
+import { adresseAValiderUsine } from "@/services/proposer-semaine";
 
 export const metadata: Metadata = { title: "Calendrier" };
 export const dynamic = "force-dynamic";
@@ -194,9 +195,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         }}
       />
       <PanneauAFaire entrees={aFaire} />
-      {/* CAL-18 : l'usine propose, le Studio affiche ; la validation se fait dans le calendrier. */}
-      {/* Rien n'est allumé : sans USINE_URL et clé, le bouton reste masqué (V1). */}
-      {usineActive() && <div className="mb-3"><BoutonProposerSemaine debutSemaine={lundiCle} proposer={proposerSemaineAction} lienAValider={adresseSemaine} /></div>}
+      {/* CAL-18 : l'usine propose, le Studio affiche ; la validation se fait dans l'écran « À valider » de l'usine. Rien n'est allumé : sans usine reliée ET sans adresse de cet écran, le bouton reste masqué (V1). key : les cartes d'une semaine ne passent jamais sur une autre. */}
+      {usineActive() && adresseAValiderUsine() && <div key={lundiCle} className="mb-3"><BoutonProposerSemaine key={lundiCle} debutSemaine={lundiCle} proposer={proposerSemaineAction} lienAValider={adresseAValiderUsine()!} /></div>}
       {jours.some((j) => cleJour(j) === aujourdhui) && <BandeauAujourdhui entrees={visiblesReelles} aujourdhui={aujourdhui} />}
       <AlerteProximite entrees={visiblesReelles} className="mb-3" />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">

@@ -231,8 +231,21 @@ describe("CAL-18 · le Studio n'a aucun stratège", () => {
     const page = lire("src/app/(studio)/calendrier/page.tsx");
     expect(page).toContain("<BoutonProposerSemaine");
     expect(page).toMatch(/proposer=\{proposerSemaineAction\}/);
-    // Rien n'allumé : le bouton n'est monté que si l'usine est reliée.
-    expect(page).toMatch(/usineActive\(\) && <div[^\n]*<BoutonProposerSemaine/);
+    // Rien n'allumé : monté seulement si l'usine est reliée et l'adresse de « À valider » connue.
+    expect(page).toMatch(/usineActive\(\) && adresseAValiderUsine\(\) && <div[^\n]*<BoutonProposerSemaine/);
+    // Jamais un lien qui ramène à la page du calendrier ; cartes d'une semaine jamais gardées sur une autre.
+    expect(page).not.toMatch(/lienAValider=\{adresseSemaine\}/);
+    expect(page).toMatch(/<BoutonProposerSemaine key=\{lundiCle\}/);
+  });
+});
+
+describe("CAL-18 · adresse de « À valider »", () => {
+  it("seule une adresse https donnée par l'environnement est retenue", async () => {
+    const { adresseAValiderUsine } = await import("@/services/proposer-semaine");
+    expect(adresseAValiderUsine({})).toBeNull();
+    expect(adresseAValiderUsine({ USINE_A_VALIDER_URL: "http://usine.test/a-valider" })).toBeNull();
+    expect(adresseAValiderUsine({ USINE_A_VALIDER_URL: "pas une adresse" })).toBeNull();
+    expect(adresseAValiderUsine({ USINE_A_VALIDER_URL: "https://usine.test/a-valider" })).toBe("https://usine.test/a-valider");
   });
 });
 
