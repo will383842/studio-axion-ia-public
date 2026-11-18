@@ -3,8 +3,8 @@
  * Pour chaque élément dont `recherches[0]` commence par `axion:` : `extraitMaisonPourRecherche` (C4-U4.5a) → vidéo source signée
  * (dépôts : fiche → sortie → fichier, puis `signerLecture`) → `preparerExtraitV4` (C4-U4.3, clip 4:5 MUET) → `FichierVideoV4`.
  * Aucune banque, aucun fournisseur, aucun Claude : 0 €. Pas d'extrait (ou préparation en échec) : son nom va dans `sansExtrait`, avec une phrase
- * claire dans `manques` ; l'élément RESTE à son rang dans `plan` (les clips des banques se nomment au rang : aucun décalage, aucune collision)
- * et `retirerTelephonesSansExtraitV4` le retire APRÈS la fourniture des banques (le visage reste seul, jamais une vidéo approximative).
+ * claire dans `manques` ; l'élément RESTE à son rang dans `plan`, sans `medias` (les clips des banques se nomment au rang : aucun décalage, aucune collision).
+ * Le retrait d'un téléphone sans extrait est fait par la chaîne (`retirerSansVideoOuvertV4`, repli C4-U4.9b-b : contrôles H1/H2, puis Opus une fois), jamais ici.
  * Ports injectables : dépôts (archive), outils ffmpeg, signature, choix. Ne lève jamais pour un extrait raté.
  */
 import "server-only";
@@ -102,10 +102,4 @@ export async function fichiersTelephoneV4(plan: PlanFacecamAnimee, ports: PortsT
     }
   }
   return { plan: { ...plan, elementsV4: elements }, fichiers, sansExtrait, manques, choix };
-}
-
-/** Retire les téléphones `axion:` restés sans `medias` (sans extrait). À appeler sur le plan rendu par les banques, jamais avant elles (rangs = noms de clips). */
-export function retirerTelephonesSansExtraitV4(plan: PlanFacecamAnimee): PlanFacecamAnimee {
-  if (!(plan.elementsV4 ?? []).some((e) => estTelephoneAxionV4(e) && !e.medias?.length)) return plan;
-  return { ...plan, elementsV4: (plan.elementsV4 ?? []).filter((e) => !(estTelephoneAxionV4(e) && !e.medias?.length)) };
 }

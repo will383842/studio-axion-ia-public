@@ -11,7 +11,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlageExtrait } from "@/domaine/archive-extraits";
 import type { PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
 import type { ElementBibliotheque, Licence } from "@/domaine/types";
-import type { MotTranscrit } from "@/moteurs/montage-facecam-animee/realisateur";
+import type { MotTranscrit, RequeteRealisateur } from "@/moteurs/montage-facecam-animee/realisateur";
+import type { ElementV4Plan } from "@/domaine/facecam-animee/plan";
+import { erreurRepliTelephone, retirerSansVideoOuvertV4, telephonesSansMediaV4 } from "@/moteurs/montage-facecam-animee/repli-telephone-video";
+import { plaquettesSansVideo } from "@/moteurs/montage-facecam-animee/videos-v4";
 
 const lire = vi.hoisted(() => vi.fn());
 const banques = vi.hoisted(() => ({ chercher: vi.fn(async () => []), fenetres: [] as { recherche: string; media: string }[] }));
@@ -160,10 +163,13 @@ describe("BR-TELEPHONE-b : le téléphone prend un extrait de l'archive (videos(
     expect(r.depenseUsd).toBe(0);
   });
 
-  it("(c) allumé + archive vide : repli sans vidéo (le téléphone est retiré du plan), message clair, aucune banque, aucun fichier pour lui", async () => {
+  it("(c) allumé + archive vide : le téléphone reste sans media (la chaîne le retire : voir (d bis)), message clair, aucune banque, aucun fichier pour lui", async () => {
     reglage(true);
     const r = await (await outils()).videos!({ videoId: "v-1", plan: planAvec("axion:devis signature"), mots: TRANS.motsMontesTexteValide });
-    expect(telephoneDe(r.plan)).toBeUndefined();
+    expect(telephoneDe(r.plan)).toBeDefined();
+    expect(telephoneDe(r.plan)?.medias).toBeUndefined();
+    expect(telephonesSansMediaV4(r.plan, { telephoneVideo: true })).toEqual([RANG_TEL]);
+    expect(retirerSansVideoOuvertV4(r.plan, { telephoneVideo: true }).retirees.map((x) => x.id)).toEqual(["telephone-video"]);
     expect(r.fichiers.some((f) => f.nom === NOM_TEL)).toBe(false);
     expect(r.manques.some((m) => m.includes("telephone-video") && m.includes("aucun extrait de vos vidéos"))).toBe(true);
     expect(banques.fenetres.every((f) => !f.recherche.startsWith("axion:"))).toBe(true);
@@ -182,9 +188,8 @@ describe("BR-TELEPHONE-b : le téléphone prend un extrait de l'archive (videos(
     expect(o).toBeTruthy();
     expect(r.fichiers).toEqual([]);
     expect(r.sansExtrait).toEqual([NOM_TEL]);
-    expect(telephoneDe(r.plan)?.medias).toBeUndefined(); // reste à son rang ; le retrait vient APRÈS les banques
-    const { retirerTelephonesSansExtraitV4 } = await import("@/services/telephone-extrait-v4");
-    expect(telephoneDe(retirerTelephonesSansExtraitV4(r.plan))).toBeUndefined();
+    expect(telephoneDe(r.plan)?.medias).toBeUndefined(); // reste à son rang ; le retrait est celui de la chaîne
+    expect(telephoneDe(retirerSansVideoOuvertV4(r.plan, { telephoneVideo: true }).plan)).toBeUndefined();
   });
 
   it("2 téléphones dont le 1er sans extrait, avant des plaquettes à banque : aucun nom de clip en double, la clé de l'extrait n'est la media d'aucune fenêtre de banque", async () => {
@@ -201,8 +206,10 @@ describe("BR-TELEPHONE-b : le téléphone prend un extrait de l'archive (videos(
     expect(r.fichiers.filter((f) => f.nom === NOM_TEL)).toEqual([{ nom: NOM_TEL, cle: CLE_TEL }]);
     // le téléphone servi garde son rang d'origine ; aucune fenêtre de banque ne renvoie à son clip
     const tels = (r.plan.elementsV4 ?? []).filter((e) => e.id === "telephone-video");
-    expect(tels).toHaveLength(1);
-    expect(tels[0].medias).toEqual([`broll/${NOM_TEL}`]);
+    expect(tels).toHaveLength(2); // le 1er, sans extrait, reste à son rang SANS media (la chaîne le retire) ; rien ne décale les rangs
+    expect(tels[0].medias).toBeUndefined();
+    expect(tels[1].medias).toEqual([`broll/${NOM_TEL}`]);
+    expect((r.plan.elementsV4 ?? []).length).toBe((plan.elementsV4 ?? []).length);
     const medias = (r.plan.elementsV4 ?? []).filter((e) => e.id !== "telephone-video").flatMap((e) => e.medias ?? []);
     expect(medias).not.toContain(`broll/${NOM_TEL}`);
     expect(banques.fenetres.every((f) => f.media !== NOM_TEL && !f.recherche.startsWith("axion:"))).toBe(true);
@@ -219,39 +226,140 @@ describe("BR-TELEPHONE-b : le téléphone prend un extrait de l'archive (videos(
     expect(telephoneDe(r.plan)?.medias).toBeUndefined();
   });
 
-  it("(d) de bout en bout : étape « videos » puis « rendu » de la vraie chaîne ; le rendu reçoit le fichier du téléphone et le plan qui y renvoie", async () => {
-    await semerArchive();
-    reglage(true);
-    const reels = await outils();
-    const captures: { videos?: { nom: string; cle: string }[]; plan: PlanFacecamAnimee }[] = [];
-    const brancher = { ...reels, rendre: async (d: { plan: PlanFacecamAnimee; videos?: { nom: string; cle: string }[] }) => (captures.push({ videos: d.videos, plan: d.plan }), { cle: "sortie.mp4", vignetteCle: "v.jpg", dureeSec: 80, taille: 1 }) };
-    const depart: EtatChaineV4 = {
-      ...etatInitialV4({ videoId: "v-1", versionId: "ver-1", priseCle: "k.mov" } as never),
-      etape: "videos",
-      coupes: { gardes: TRANS.gardes, dureeSec: TRANS.dureeMonteeSec, mots: TRANS.motsMontesTexteValide } as never,
-      realisation: { version: "complete", essais: 1, avertissements: 0, plan: planAvec("axion:devis signature") },
+  // ---- (d) PAR LE CHEMIN RÉEL : « mise-en-scene » → vraie `realiser` + vrai `verifierPlan` → VRAIE `videos()` du service → « rendu » ----
+  // Seuls factices : l'appel à Claude (plans écrits ici, requêtes captées), les ports de plafond / historique, `rendre` (capte ses arguments), banques, ffmpeg, stockage.
+  const TEL = "telephone-video";
+  const D0_TEL = "« telephone-video » n'existe pas dans le catalogue v4";
+  const motsForts = [...new Set(PLAN_VALIDE.groupes.flatMap((g) => g.mots.filter((m) => m.fort).map((m) => m.w.replace(/[.,;:!?…«»"“”()]/g, ""))))];
+  const BANQUE = (PLAN_VALIDE.elementsV4 ?? []).map((e) => {
+    const copie = { ...e };
+    if (A_VIDEO.has(e.id)) delete copie.medias;
+    return copie;
+  });
+  const RANGS_BANQUE = BANQUE.flatMap((e, i) => (A_VIDEO.has(e.id) ? [i] : []));
+  const RANG_SEUL = RANGS_BANQUE[0];
+  const SEUL_TEL: ElementV4Plan = { id: TEL, debut: BANQUE[RANG_SEUL].debut, fin: BANQUE[RANG_SEUL].fin, recherches: ["axion:devis signature"], illustre: "les devis signés" };
+  // Le SEUL élément à vidéo est le téléphone : les deux autres plaquettes de banque deviennent des plaquettes sans vidéo, aux mêmes instants.
+  const SANS_VIDEO: Record<string, (e: ElementV4Plan) => ElementV4Plan> = {
+    "duel-video": (e) => ({ id: "MotSaute", debut: e.debut, fin: Math.round((e.fin - 0.1) * 100) / 100, mots: ["OUTIL", "EMBAUCHE"], illustre: "un outil de plus, une embauche de plus" }),
+    MosaiqueVideos: (e) => ({ id: "CarteCalendrier", debut: e.debut, fin: e.fin, mots: ["NOTRE ÉQUIPE"], instants: [49.6, 50.8], illustre: "en visio avec notre équipe" }),
+  };
+  const PLAN_AU_TEL: ElementV4Plan[] = BANQUE.map((e, i) => (i === RANG_SEUL ? SEUL_TEL : SANS_VIDEO[e.id]?.(e) ?? e));
+  /** 2e plan d'Opus après le repli : le téléphone devient une plaquette sans vidéo, à son instant. */
+  const PLAN_REPLI: ElementV4Plan[] = PLAN_AU_TEL.map((e) => (e.id === TEL ? { id: "CarteCalendrier", debut: e.debut, fin: e.fin, mots: ["À LA MAIN"], instants: [8.6, 9.4], illustre: "les devis, les relances à la main, les chiffres" } : e));
+  const NOM_SEUL = `v4-${RANG_SEUL}-0.mp4`;
+  const CLE_SEUL = `studio/dev/facecam-animee/v-1/videos/${NOM_SEUL}`;
+
+  /** Faux Claude : rend les plans dans l'ordre (le dernier se répète), capte chaque requête. */
+  function realisateurFaux(plans: ElementV4Plan[][]) {
+    const requetes: RequeteRealisateur[] = [];
+    let n = 0;
+    const appeler = async (r: RequeteRealisateur) => {
+      requetes.push(r);
+      return { ok: true as const, donnees: { cartes: [], fenetres: [], calques: [], zooms: [], motions: [], elementsV4: plans[Math.min(n++, plans.length - 1)], motsForts } };
     };
-    const apresVideos = await avancerChaineV4(depart, brancher as never);
-    expect(apresVideos.etape).toBe("rendu");
-    expect(apresVideos.videos?.fichiers.some((f) => f.nom === NOM_TEL && f.cle === CLE_TEL)).toBe(true);
-    expect(apresVideos.videos?.choix?.some((c) => c.fichier === NOM_TEL)).toBe(true);
-    await avancerChaineV4(apresVideos, brancher as never);
-    expect(captures).toHaveLength(1);
-    expect(captures[0].videos).toContainEqual({ nom: NOM_TEL, cle: CLE_TEL });
-    expect(telephoneDe(captures[0].plan)?.medias).toEqual([`broll/${NOM_TEL}`]);
-    expect(banques.fenetres.every((f) => !f.recherche.startsWith("axion:"))).toBe(true);
+    return { requetes, appeler };
+  }
+  const etatMiseEnScene = (): EtatChaineV4 => ({
+    ...etatInitialV4({ videoId: "v-1", versionId: "ver-1", priseCle: "k.mov" } as never),
+    etape: "mise-en-scene",
+    coupes: { gardes: TRANS.gardes, dureeSec: TRANS.dureeMonteeSec, mots: TRANS.motsMontesTexteValide } as never,
+  });
+  async function chaineReelle(plans: ElementV4Plan[][]) {
+    const reels = await outils();
+    const videos = vi.fn(reels.videos!);
+    const faux = realisateurFaux(plans);
+    const rendre = vi.fn(async (d: { plan: PlanFacecamAnimee; videos?: { nom: string; cle: string }[] }) => ({ cle: "sortie.mp4", vignetteCle: "v.jpg", dureeSec: d.plan.duree, taille: 1 }));
+    const o = { ...reels, appelerRealisateur: faux.appeler, plafondClaudeAtteint: async () => false, historique: async () => [], videos, rendre } as never;
+    const etats: EtatChaineV4[] = [etatMiseEnScene()];
+    let erreur: unknown = null;
+    for (let i = 0; i < 8 && etats[etats.length - 1].etape !== "prete"; i++) {
+      try {
+        etats.push(await avancerChaineV4(etats[etats.length - 1], o));
+      } catch (e) {
+        erreur = e;
+        break;
+      }
+    }
+    return { etats, erreur, videos, rendre, faux };
+  }
+
+  it("(d) allumé, le téléphone est le SEUL élément à vidéo : de « mise-en-scene » à « rendu », vraie videos(), aucune banque, l'extrait et sa media arrivent au rendu", async () => {
+    await semerArchive([plage("p1", { finSec: 3 })]);
+    reglage(true);
+    const r = await chaineReelle([PLAN_AU_TEL]);
+    expect(r.erreur).toBeNull();
+    expect(r.etats.map((e) => e.etape)).toEqual(["mise-en-scene", "videos", "rendu", "prete"]);
+    // la mise en scène (vrai verifierPlan) laisse passer le téléphone : plan complet, aucune erreur D0 (les corrections D14 viennent des répétitions de la répétition générale, pas du téléphone)
+    expect(r.etats[1].realisation?.version).toBe("complete");
+    expect((r.etats[1].realisation?.erreurs ?? []).filter((e) => e.includes("telephone-video"))).toEqual([]);
+    expect(r.faux.requetes.some((q) => q.message.includes(D0_TEL))).toBe(false);
+    // R1 : la chaîne appelle `videos()` (la vraie) pour ce plan, sans plaquette à banque
+    expect(r.videos).toHaveBeenCalledTimes(1);
+    expect(plaquettesSansVideo(r.videos.mock.calls[0][0].plan)).toEqual([]);
+    // argent : aucune banque (ni recherche, ni fenêtre), dépense nulle ; l'extrait vient de l'archive (ffmpeg 4:5 muet)
+    expect(banques.chercher).not.toHaveBeenCalled();
+    expect(banques.fenetres).toEqual([]);
+    expect(r.etats[2].videos?.depenseUsd).toBe(0);
+    expect(ffmpeg.deposer).toEqual([CLE_SEUL]);
+    expect(ffmpeg.executer[0].join(" ")).toContain("-an");
+    // le rendu reçoit le fichier du téléphone ET le plan qui y renvoie (rien n'est retiré)
+    expect(r.etats[2].videos?.retirees).toEqual([]);
+    expect(r.rendre).toHaveBeenCalledTimes(1);
+    const arg = r.rendre.mock.calls[0][0];
+    expect(arg.videos).toEqual([{ nom: NOM_SEUL, cle: CLE_SEUL }]);
+    expect(telephoneDe(arg.plan)?.medias).toEqual([`broll/${NOM_SEUL}`]);
+    expect(telephonesSansMediaV4(arg.plan, { telephoneVideo: true })).toEqual([]);
   });
 
-  it("(d) éteint : le rendu reçoit les mêmes fichiers qu'avant (aucun pour le téléphone)", async () => {
+  it("(d bis) allumé, archive vide : le téléphone est retiré PAR LA CHAÎNE (repli C4-U4.9b-b : H1/H2, puis Opus refait sans lui, une fois) ; le rendu ne reçoit ni téléphone ni media sans nom, 0 €", async () => {
+    reglage(true);
+    const r = await chaineReelle([PLAN_AU_TEL, PLAN_AU_TEL, PLAN_REPLI]);
+    expect(r.erreur).toBeNull();
+    expect(r.videos).toHaveBeenCalledTimes(1);
+    const apresVideos = r.etats[2];
+    // retrait avec sa raison et le message clair ; aucun D0 du téléphone au contrôle après retrait
+    expect(apresVideos.videos?.retirees.map((x) => x.id)).toEqual([TEL]);
+    expect(apresVideos.videos?.retirees[0].raison).toMatch(/^aucun extrait des vidéos de Will trouvé pour « telephone-video »/);
+    expect(apresVideos.videos?.manques.some((m) => m.includes("aucun extrait de vos vidéos"))).toBe(true);
+    expect((apresVideos.videos?.controle?.erreurs ?? []).some((e) => e.includes("telephone-video"))).toBe(false);
+    // sans le téléphone, Will reste seul à son instant (H2a) : retour à la mise en scène, avec la consigne exacte du téléphone et la plaquette interdite
+    expect(apresVideos.etape).toBe("mise-en-scene");
+    expect(apresVideos.repliSansVideo?.retirees.map((x) => x.id)).toEqual([TEL]);
+    const repli = r.faux.requetes.find((q) => /INTERDITES/.test(q.message));
+    expect(repli).toBeDefined();
+    expect(repli!.message).toMatch(/INTERDITES[^\n]*telephone-video/);
+    expect(repli!.message).toContain(erreurRepliTelephone(RANG_SEUL, SEUL_TEL.debut));
+    // le 2e plan (sans téléphone) va jusqu'au rendu
+    expect(r.etats[r.etats.length - 1].etape).toBe("prete");
+    expect(r.rendre).toHaveBeenCalledTimes(1);
+    const arg = r.rendre.mock.calls[0][0];
+    expect(telephoneDe(arg.plan)).toBeUndefined();
+    expect((arg.plan.elementsV4 ?? []).flatMap((e) => e.medias ?? []).filter((m) => !/^broll\/.+/.test(m))).toEqual([]);
+    // aucune banque, aucun fichier, aucune dépense, ffmpeg jamais lancé
+    expect(banques.chercher).not.toHaveBeenCalled();
+    expect(banques.fenetres).toEqual([]);
+    expect(apresVideos.videos?.depenseUsd).toBe(0);
+    expect(ffmpeg.executer).toEqual([]);
+  });
+
+  it("(d ter) éteint : même plan au téléphone, la chaîne réelle le refuse par D0 comme aujourd'hui ; archive, ffmpeg et banques ne servent pas, le rendu ne reçoit aucun téléphone", async () => {
+    await semerArchive([plage("p1", { finSec: 3 })]);
+    const r = await chaineReelle([PLAN_AU_TEL, PLAN_AU_TEL, PLAN_REPLI]);
+    expect(r.faux.requetes.length).toBeGreaterThanOrEqual(2);
+    expect(r.faux.requetes[1].message).toContain(D0_TEL);
+    expect(ffmpeg.executer).toEqual([]);
+    expect(ffmpeg.deposer).toEqual([]);
+    expect(banques.chercher).not.toHaveBeenCalled();
+    for (const c of r.rendre.mock.calls) expect(telephoneDe(c[0].plan)).toBeUndefined();
+  });
+
+  it("(d éteint) plan de la répétition : la chaîne réelle va jusqu'au rendu, aucun fichier pour le téléphone, ffmpeg ne sert pas", async () => {
     await semerArchive();
-    const reels = await outils();
-    const depart: EtatChaineV4 = {
-      ...etatInitialV4({ videoId: "v-1", versionId: "ver-1", priseCle: "k.mov" } as never),
-      etape: "videos",
-      coupes: { gardes: TRANS.gardes, dureeSec: TRANS.dureeMonteeSec, mots: TRANS.motsMontesTexteValide } as never,
-      realisation: { version: "complete", essais: 1, avertissements: 0, plan: planAvec(null) },
-    };
-    const apres = await avancerChaineV4(depart, reels as never);
-    expect(apres.videos?.fichiers.some((f) => f.nom === NOM_TEL)).toBe(false);
+    const r = await chaineReelle([BANQUE]);
+    expect(r.erreur).toBeNull();
+    expect(r.etats.map((e) => e.etape)).toEqual(["mise-en-scene", "videos", "rendu", "prete"]);
+    expect(ffmpeg.executer).toEqual([]);
+    expect(r.rendre.mock.calls[0][0].videos?.some((f) => f.nom.startsWith("v4-") && f.cle.includes("axion"))).toBe(false);
   });
 });
