@@ -60,4 +60,21 @@ describe("maquette 05 Stocks", () => {
     expect(html).toContain("Espace démo · Stocks");
     expect(html).toContain("Entreprise exemple");
   });
+  it("n'utilise aucun émoji en couleur (signes monochromes seulement)", () => {
+    for (const f of fichiers) {
+      expect(f.contenu, f.chemin).not.toMatch(/\p{Emoji_Presentation}|[\uFE0F\u{1F000}-\u{1FAFF}]/u);
+    }
+  });
+
+  it("n'expose aucun fournisseur de marque ni courriel hors exemple.invalid", () => {
+    const d = lire("demo-data.js");
+    expect(d).not.toMatch(/nordex|cartem|fabrilys|linéa/i);
+    for (const m of d.match(/[\w.-]+@[\w.-]+/g) ?? []) expect(m).toMatch(/@exemple\.invalid$/);
+  });
+
+  it("reinitialiser() efface le message affiché (capture déterministe)", () => {
+    const app = lire("app.js");
+    expect(app).toMatch(/function reset\(silent\)\{[^}]*clearTimeout\(toastTimer\)[^]*?textContent=''/);
+  });
+
 });
