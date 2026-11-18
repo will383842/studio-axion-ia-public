@@ -137,11 +137,15 @@ describe("ligne rendue", () => {
   });
 });
 
-describe("lectures bornées", () => {
-  it("lit au plus LECTURE_MAX_PUBLICATIONS publications, les plus récentes", async () => {
-    const beaucoup = Array.from({ length: LECTURE_MAX_PUBLICATIONS.valeur + 5 }, (_, i) => pub(`m${i}`, 100 + (i % 50), { date: ilYa(40 + i / 100) }));
+describe("plafond de traitement", () => {
+  it("garde les LECTURE_MAX_PUBLICATIONS plus récentes : les plus anciennes, même très bien notées, sont écartées", async () => {
+    const total = LECTURE_MAX_PUBLICATIONS.valeur + 5;
+    const beaucoup = Array.from({ length: total }, (_, i) => pub(`m${String(i).padStart(4, "0")}`, i >= total - 5 ? 100000 + i : 100 + (i % 50), { date: ilYa(40 + i / 100) }));
+    const anciennes = new Set(beaucoup.slice(total - 5).map((p) => p.id));
     const r = await listerContenusARelancer(deps(beaucoup).d, MAINTENANT);
-    expect(r.length).toBeLessThanOrEqual(NOMBRE_MAX_AFFICHES.valeur);
+    expect(r).toHaveLength(NOMBRE_MAX_AFFICHES.valeur);
+    expect(r.some((l) => anciennes.has(l.publicationId))).toBe(false);
+    expect(r[0].publicationId).toMatch(/^m0\d{3}$/);
   });
 });
 

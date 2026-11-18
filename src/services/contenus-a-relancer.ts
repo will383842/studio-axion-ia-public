@@ -3,7 +3,8 @@
  * aucun appel réseau ni à un modèle, aucun réglage lu. Branché nulle part (l'écran vient avec L8-12b).
  *
  * Ce que la fonction lit, et rien d'autre :
- *   - les publications publiées, non simulées, avec média, hors exemples, au plus LECTURE_MAX_PUBLICATIONS (les plus récentes) ;
+ *   - les publications publiées, non simulées, avec média, hors exemples ; l'API des dépôts n'a pas de limite de lecture : le dépôt les lit toutes (filtre appliqué),
+ *     puis un plafond de TRAITEMENT (LECTURE_MAX_PUBLICATIONS) ne garde en mémoire que les plus récentes ; les plus anciennes sont écartées et le « sur n » de la raison se calcule sur ce sous-ensemble ;
  *   - les créneaux dont l'identifiant commence par « republication-<id>- » pour les 10 lignes retenues seulement.
  * Le seuil de performance des règles n'est pas lu (question ouverte au fondateur) : on liste les mieux classés.
  */
@@ -22,7 +23,7 @@ import { filtreExemples as filtreExemplesParDefaut } from "./_commun";
 
 /** PROPOSITION : nombre maximal de lignes de la liste. */
 export const NOMBRE_MAX_AFFICHES = { statut: "hypothese", valeur: 10 } as const;
-/** PROPOSITION : plafond de sécurité de publications lues (les plus récentes d'abord), pour ne jamais lire une table sans limite. */
+/** PROPOSITION : plafond de TRAITEMENT appliqué en mémoire après la lecture (l'API des dépôts n'a pas de limite de lecture) : seules les plus récentes sont gardées, les plus anciennes sont écartées. */
 export const LECTURE_MAX_PUBLICATIONS = { statut: "hypothese", valeur: 2000 } as const;
 /** Nombre de signes du texte d'origine montrés (fixé par la fiche). */
 export const SIGNES_DEBUT_TEXTE = 80;
