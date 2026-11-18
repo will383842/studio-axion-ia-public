@@ -1077,9 +1077,10 @@ async function ficheCorrigee(
   const motsDouleur = entete.motsDouleur !== undefined ? nettoyerMotsDouleur(entete.motsDouleur) : (brouillon.donnees.motsDouleur ?? []);
   const corrigee = remettreEnForme({ ...coupee.fiche, douleur }, { motsDouleur });
   const texte = texteDitDe(corrigee);
-  // Texte du fondateur : une fiche « à corriger » enregistrée SANS toucher au texte dit ne remplace jamais en silence
+  // Texte choisi (le vôtre ou celui du générateur que vous avez validé) : une fiche « à corriger » enregistrée SANS toucher au texte dit ne remplace jamais en silence
   // son texte d'origine par celui que le modèle a changé. Une modification volontaire du texte reste acceptée.
-  if (brouillon.donnees.origine === "will" && brouillon.versions.at(-1)?.origine === "decoupage-a-corriger" && texteDitDe(actuelle) === texte && texte !== brouillon.donnees.texte) {
+  // 18/11 : vaut pour toute origine (règle du 17/11).
+  if (brouillon.versions.at(-1)?.origine === "decoupage-a-corriger" && texteDitDe(actuelle) === texte && texte !== brouillon.donnees.texte) {
     const [ecart] = regleTexteMotPourMot(corrigee, { texteScript: brouillon.donnees.texte } as ContexteTableau);
     if (ecart) return { ok: false, phrase: `Le texte de la fiche n'est plus le vôtre : ${ecart.detail.replace("le script validé dit", "votre texte dit")} Rien n'a été enregistré.`, problemes: [], code: CODE_TEXTE_FONDATEUR_CHANGE };
   }
