@@ -67,6 +67,9 @@ export const CONSEIL_GABARIT_3 = { detailMots: 9, itemMots: 5, comparaisonMots: 
 /** Ordre des parties : une partie ne revient jamais après la suivante (l'exemple peut suivre une étape). */
 const RANG: Record<string, number> = { accroche: 0, douleur: 1, solution: 2, exemple: 2, retenir: 4, appel: 5 };
 
+/** 18/11 (brouillon v-64a273d3580c) : le rôle de la SCÈNE, pas seulement la partie déclarée de sa page, interdit la liste. */
+const SCENES_SANS_LISTE: ReadonlySet<string> = new Set(["accroche", "douleur", "idee-recue"]);
+
 /** Blocs permis par partie. */
 export const BLOCS_PERMIS_3: Record<string, readonly BlocGabarit[]> = {
   accroche: ["phrase-cle", "detail"],
@@ -147,6 +150,8 @@ export function regleGabarit3(fiche: FicheTableau, contexte?: { texteDeWill?: bo
         const permis = role ? BLOCS_PERMIS_3[role] : undefined;
         if (!l.bloc) res.push({ sceneId: s.id, detail: `la ligne « ${l.texte} » n'a pas de « bloc » : dites sa place dans la page.` });
         else if (permis && !permis.includes(l.bloc)) res.push({ sceneId: s.id, detail: `${NOMS_BLOCS[l.bloc]} (« ${l.texte} ») n'a pas sa place sur une page « ${NOMS_ROLES[role!]} » (${liste(permis)} seulement).` });
+        // 18/11, brouillon v-64a273d3580c : une scène de douleur sur une page déclarée « solution » portait une liste.
+        if (l.bloc && SCENES_SANS_LISTE.has(s.role) && (l.bloc === "code" || l.bloc === "coche" || l.bloc === "transformation")) res.push({ sceneId: s.id, detail: `${NOMS_BLOCS[l.bloc]} (« ${l.texte} ») sur une scène « ${s.role} » : la douleur s'écrit en phrase clé et en détail, jamais en liste, même quand la voix énumère (« un outil pour…, un autre pour… ») ; une liste montre la solution.` });
         if (l.bloc === "code" && !l.code) res.push({ sceneId: s.id, detail: `l'élément « ${l.texte} » de la liste à pastilles n'a pas de « code » (« vert », « orange » ou « rouge »).` });
         if (l.code && l.bloc !== "code") res.push({ sceneId: s.id, detail: `« code » ne va que sur un élément de liste à pastilles (bloc « code »), pas sur « ${l.texte} ».` });
         if (l.bloc === "transformation" && !cotesTransformation(l.texte)) res.push({ sceneId: s.id, detail: `la transformation « ${l.texte} » s'écrit « avant → après » (une flèche, un mot ou deux de chaque côté : « M. Dupont → Client A »).` });
