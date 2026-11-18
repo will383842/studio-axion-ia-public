@@ -48,6 +48,7 @@ import { depuisLignesTableau } from "@/domaine/qualite-script/adaptateurs/tablea
 import { RECETTE_TABLEAU } from "@/domaine/qualite-script/recettes/tableau";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { CorrectionScene, DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
+import { texteAvecFin } from "@/moteurs/montage-tableau/fin-choisie";
 import { importantsDeLaScene } from "./importants";
 import { CoutVoixTableau } from "./CoutVoix";
 import { DUREE_DECOUPAGE_TEXTE } from "./durees";
@@ -172,6 +173,15 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   // Fins « À valider » masquées par défaut (sauf celle déjà choisie) ; libellé affiché, jamais une réservation directe.
   const finsAffichees = ecran.fins.filter((f) => f.validee || voirNonValidees || f.id === saisie.finId);
   const nonValideesMasquees = ecran.fins.some((f) => !f.validee && f.id !== saisie.finId) && !voirNonValidees;
+  /** La fin choisie n'est pas dans le texte : le geste pour l'y mettre (sur clic seulement ; mot vide : pas de phrase). */
+  const finAAjouter = (() => {
+    if (!fin || !saisie.texte.trim()) return null;
+    const mot = (saisie.mot ?? "").trim().toUpperCase();
+    if (fin.ecran.includes("{MOT}") && !mot) return { phrase: null as string | null };
+    const dite = fin.ecran.replace("{MOT}", mot).trim();
+    const phrase = /[.!?…]$/u.test(dite) ? dite : `${dite}.`;
+    return texteAvecFin(saisie.texte, phrase) === saisie.texte ? null : { phrase: phrase as string | null };
+  })();
   const changer = (p: Partial<Saisie>) => setSaisie((s) => ({ ...s, ...p }));
 
   // « Relire le script » du texte dit : par passage s'il vient tel quel du générateur, sinon phrase par phrase.
@@ -446,6 +456,15 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
           valeur={saisie.finId}
           onChange={(v) => changer({ finId: v })}
         />
+        {finAAjouter && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-texte-doux">{"Cette fin n'est pas dans votre texte : elle ne sera ni dite ni écrite."}</p>
+            <Bouton type="button" variante="secondaire" disabled={!finAAjouter.phrase} onClick={() => finAAjouter.phrase && changer({ texte: texteAvecFin(saisie.texte, finAAjouter.phrase) })}>
+              Ajouter cette fin à mon texte
+            </Bouton>
+            {!finAAjouter.phrase && <p className="text-sm text-texte-doux">{"Écrivez d'abord le mot à commenter."}</p>}
+          </div>
+        )}
         {nonValideesMasquees && (
           <button type="button" className="text-sm text-texte-doux underline underline-offset-2" onClick={() => setVoirNonValidees(true)}>
             Voir les fins non validées
