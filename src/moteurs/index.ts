@@ -17,6 +17,7 @@ import { moteurMontageFacecamAnimee } from "./montage-facecam-animee";
 import { moteurMontageImageVideo } from "./montage-image-video";
 import { moteurMontageTutorielOutil } from "./montage-tutoriel-outil";
 import { moteurMontageDemoFacecam } from "./montage-demo-facecam";
+import { moteurMontageVideoLongue } from "./montage-video-longue";
 import { moteurSimulation } from "./simulation";
 import type { MoteurVideo } from "./types";
 import { idMoteurDeCommande, moteurExiste, type IdMoteur } from "./ids";
@@ -40,6 +41,8 @@ const MOTEURS: Record<IdMoteur, MoteurVideo> = {
   // Lot G : vitrines. Rendu branché ; sans serveurs reliés, pause claire ; formats masqués.
   "montage-tutoriel-outil": moteurMontageTutorielOutil,
   "montage-demo-facecam": moteurMontageDemoFacecam,
+  // Vidéo longue (VL-04) : moteur mince, éteint ; sans dépendances reliées, pause sans dépense.
+  "montage-video-longue": moteurMontageVideoLongue,
 };
 
 export function obtenirMoteur(id: string): MoteurVideo {
