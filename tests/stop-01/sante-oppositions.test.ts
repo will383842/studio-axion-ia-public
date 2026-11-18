@@ -119,6 +119,7 @@ describe("R8 / réserve C cloche : import éteint ET parcours allumé, une par 2
     expect(await cloches()).toHaveLength(1);
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 24 * 60 * MIN - 1 });
     expect(await cloches()).toHaveLength(1);
+    SO.reinitialiserSanteOppositions(); // sans le plafond d'une minute du passage précédent : seul le créneau de 24 h décide
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 24 * 60 * MIN });
     expect(await cloches()).toHaveLength(2);
     const p = await Com.lireParametre<any>(SO.PARAM_SANTE_OPPOSITIONS, null);

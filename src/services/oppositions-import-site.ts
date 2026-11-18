@@ -342,6 +342,7 @@ async function passage(env: Env, now: number, p: EtatProcessus): Promise<void> {
       else await alerteEchec(restantes.size, now);
     } else if (sansCle > 0) await alerteSansConversation(sansCle, now); // en cas d'échec, `restantes` les compte déjà
   } catch (e) {
+    noterIssueVerificationSite("echec", now); // STOP-01 : un passage qui lève n'est pas « ok »
     demanderVerificationSite(restantes);
     throw e;
   }

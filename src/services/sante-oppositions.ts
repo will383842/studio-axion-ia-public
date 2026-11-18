@@ -1,7 +1,7 @@
 /**
  * STOP-01 — VISIBILITÉ de la consultation des refus du site (aucune décision d'envoi ici).
  * - `santeOppositions` : ligne « oppositions » de /api/sante, un état court, PUR, jamais un nombre, jamais d'effet sur `ok` ;
- * - `surveillerOppositions` : une cloche au plus par heure quand l'import des refus du site est ÉTEINT alors que le parcours des
+ * - `surveillerOppositions` : une cloche au plus par 24 heures quand l'import des refus du site est ÉTEINT alors que le parcours des
  *   messages privés est ALLUMÉ (les refus du site et du CRM ne sont alors pas consultés avant l'envoi). Tout éteint : retour immédiat.
  * Aucun appel au site, aucun envoi, aucun identifiant ni adresse dans la cloche, le journal ou la page de santé.
  */
@@ -12,19 +12,23 @@ import { importSiteActif, type EtatVerificationSite } from "./oppositions-mots";
 
 type Env = Record<string, string | undefined>;
 
-export type EtatOppositionsSante = "eteint" | "jamais-verifie" | "ok" | "en-echec" | "inconnu";
+export type EtatOppositionsSante = "eteint" | "jamais-verifie" | "ok" | "ancien" | "en-echec" | "inconnu";
 
 /** Créneau durable de la cloche : `{ v: 1, alerteEteintLe }` (une date, rien d'autre). */
 type CreneauBrut = { v?: unknown; alerteEteintLe?: unknown };
 export const PARAM_SANTE_OPPOSITIONS = "oppositions.sante";
 export const INTERVALLE_SURVEILLANCE_MS = 60_000;
-export const INTERVALLE_ALERTE_SANTE_OPPOSITIONS_MS = 3_600_000;
+export const INTERVALLE_ALERTE_SANTE_OPPOSITIONS_MS = 24 * 3_600_000;
+/** Au-delà, un « ok » sans nouveau passage n'est plus une preuve : « ancien ». */
+export const AGE_MAX_OK_SANTE_OPPOSITIONS_MS = 30 * 60_000;
 
 /** PUR. Ne lit PAS l'interrupteur du parcours : l'état de la ligne ne dépend que de l'import. */
-export function santeOppositions(env: Env, e: EtatVerificationSite): EtatOppositionsSante {
+export function santeOppositions(env: Env, e: EtatVerificationSite, maintenantMs: number = Date.now()): EtatOppositionsSante {
   if (!importSiteActif(env)) return "eteint";
   if (e.derniereIssue === null) return "jamais-verifie";
-  return e.derniereIssue === "ok" ? "ok" : "en-echec";
+  if (e.derniereIssue !== "ok") return "en-echec";
+  const age = e.derniereIssueMs === null ? 0 : maintenantMs - e.derniereIssueMs; // horloge qui recule : âge négatif, pas de vieillissement
+  return age > AGE_MAX_OK_SANTE_OPPOSITIONS_MS ? "ancien" : "ok";
 }
 
 interface MemoireSurveillance {
@@ -43,7 +47,7 @@ const parcoursAllume = (env: Env): boolean => /^(1|true|oui)$/i.test(env.PARCOUR
 const MESSAGE =
   "Le parcours des messages privés envoie, mais les refus connus du site et du CRM ne sont pas consultés avant l'envoi (interrupteur des oppositions du site éteint).";
 
-/** Au plus une fois par minute ; la cloche : au plus une par heure (créneau durable). Toute erreur est avalée. */
+/** Au plus une fois par minute ; la cloche : au plus une par 24 heures (créneau durable). Toute erreur est avalée. */
 export async function surveillerOppositions(o: { env?: Env; maintenantMs?: number } = {}): Promise<void> {
   try {
     const env = o.env ?? process.env;
