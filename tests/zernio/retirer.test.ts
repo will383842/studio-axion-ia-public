@@ -36,6 +36,61 @@ describe("retirer() · lecture avant, suppression, relecture après", () => {
     expect(methodes(faux)).toEqual(["GET"]);
   });
 
+  it.each([
+    ["date passée", "2026-10-31T10:00:00Z"],
+    ["à 10 min", "2026-11-01T08:10:00Z"],
+    ["juste sous la marge de 30 min", "2026-11-01T08:29:59Z"],
+  ])("programmé, %s : a-verifier (il peut partir), aucun DELETE", async (_n, scheduledFor) => {
+    const { client, faux } = creerFauxClientZernio([post({ scheduledFor })]);
+    expect(await client.retirer({ postId: ID, cleJournal: CLE_J })).toMatchObject({ etat: "a-verifier", raison: expect.stringMatching(/30 min/) });
+    expect(methodes(faux)).toEqual(["GET"]);
+  });
+
+  it("programmé à exactement 30 min : accepté (même bord que promouvoir)", async () => {
+    const { client } = creerFauxClientZernio([post({ scheduledFor: "2026-11-01T08:30:00Z" }), OK_DELETE, INTROUVABLE]);
+    expect((await client.retirer({ postId: ID, cleJournal: CLE_J })).etat).toBe("retire");
+  });
+
+  it.each([
+    ["absente", { scheduledFor: undefined }],
+    ["illisible", { scheduledFor: "pas-une-date" }],
+  ])("programmé, date %s : refuse, aucun DELETE", async (_n, partiel) => {
+    const { client, faux } = creerFauxClientZernio([post(partiel)]);
+    expect(await client.retirer({ postId: ID, cleJournal: CLE_J })).toMatchObject({ etat: "refuse", raison: expect.stringMatching(/illisible/) });
+    expect(methodes(faux)).toEqual(["GET"]);
+  });
+
+  it("brouillon avec une date passée : accepté (rien ne part d'un brouillon)", async () => {
+    const { client } = creerFauxClientZernio([post({ status: "draft", scheduledFor: "2026-10-01T10:00:00Z" }), OK_DELETE, INTROUVABLE]);
+    expect((await client.retirer({ postId: ID, cleJournal: CLE_J })).etat).toBe("retire");
+  });
+
+  it.each([
+    ["publiée", "published"],
+    ["en cours de publication", "publishing"],
+    ["en échec partiel", "failed"],
+    ["statut inconnu", "autre"],
+  ])("une plateforme %s sur deux : refuse « déjà en ligne », aucun DELETE", async (_n, statut) => {
+    const platforms = [
+      { platform: "instagram", accountId: "c1", status: "pending" },
+      { platform: "facebook", accountId: "c2", status: statut },
+    ];
+    const { client, faux } = creerFauxClientZernio([post({ platforms })]);
+    expect(await client.retirer({ postId: ID, cleJournal: CLE_J })).toMatchObject({ etat: "refuse", raison: expect.stringMatching(/déjà en ligne sur au moins un réseau/) });
+    expect(methodes(faux)).toEqual(["GET"]);
+  });
+
+  it("plateforme sans statut : refuse, aucun DELETE", async () => {
+    const { client, faux } = creerFauxClientZernio([post({ platforms: [{ platform: "instagram", accountId: "c1" }] })]);
+    expect((await client.retirer({ postId: ID, cleJournal: CLE_J })).etat).toBe("refuse");
+    expect(methodes(faux)).toEqual(["GET"]);
+  });
+
+  it.each(["draft", "scheduled", "pending"])("plateformes au statut %s : acceptées", async (statut) => {
+    const { client } = creerFauxClientZernio([post({ platforms: [{ platform: "instagram", accountId: "c1", status: statut }] }), OK_DELETE, INTROUVABLE]);
+    expect((await client.retirer({ postId: ID, cleJournal: CLE_J })).etat).toBe("retire");
+  });
+
   it("introuvable avant : retour explicite « a-verifier », aucun DELETE", async () => {
     const { client, faux } = creerFauxClientZernio([INTROUVABLE]);
     expect(await client.retirer({ postId: ID, cleJournal: CLE_J })).toMatchObject({ etat: "a-verifier", raison: expect.stringMatching(/introuvable/) });

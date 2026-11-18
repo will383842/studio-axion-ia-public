@@ -288,6 +288,9 @@ export interface ClientZernio {
 
 /** Écart minimal entre le PUT de promotion et la date programmée. */
 export const PROMOTION_MARGE_MIN_MS = 30 * 60 * 1000;
+
+/** Statuts de plateforme d'un post pas encore visible : seuls ceux-là autorisent un retrait. */
+const STATUTS_PLATEFORME_RETIRABLES = new Set(["draft", "scheduled", "pending"]);
 /** Au-delà, le média est re-téléversé avant promotion (stockage temporaire Zernio : 7 jours). */
 export const MEDIA_AGE_MAX_MS = 6 * 24 * 60 * 60 * 1000;
 export const ORIGINES_PROMOUVABLES = ["studio", "import-buffer"] as const;
@@ -1076,6 +1079,18 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       return { etat: "refuse", raison: "Post sans origine Studio ou import Buffer : il n'est pas à nous." };
     }
     if (avant.metadata?.studioCle !== d.cleJournal) return { etat: "refuse", raison: "La clé du post ne correspond pas à celle du journal." };
+    // Une seule plateforme déjà visible (publiée, en cours, en échec partiel, statut inconnu ou absent) : on ne supprime rien.
+    if (!avant.platforms.every((p) => typeof p.status === "string" && STATUTS_PLATEFORME_RETIRABLES.has(p.status))) {
+      return { etat: "refuse", raison: "Le post est déjà en ligne sur au moins un réseau : rien n'a été supprimé." };
+    }
+    // Programmé : même marge que promouvoir(). Date passée ou trop proche, il peut être en train de partir.
+    if (avant.status === "scheduled") {
+      const programme = typeof avant.scheduledFor === "string" ? Date.parse(avant.scheduledFor) : NaN;
+      if (!Number.isFinite(programme)) return { etat: "refuse", raison: "Date de programmation du post illisible : rien n'a été supprimé." };
+      if (programme < maintenant() + PROMOTION_MARGE_MIN_MS) {
+        return aVerifier("Programmé dans le passé ou à moins de 30 min : il peut être en train de partir, rien n'a été supprimé.", avant);
+      }
+    }
 
     try {
       await requeteInterne({ methode: "DELETE", chemin: `/v1/posts/${segment(d.postId)}` }, true);
