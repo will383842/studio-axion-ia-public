@@ -117,7 +117,20 @@ export interface EtatTutoriel {
   /** Version d'avant (retouche, réexport) : ce qui peut être repris sans être refait ni repayé. */
   parent?: { plan?: PlanValide; audio?: AudioTutoriel };
   echecSimuleFait?: boolean;
+  /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
+  appelsClaude?: { script: number; plan: number };
 }
+
+/** Enveloppe d'un appel Claude : ne compte que les appels revenus sans lever. */
+function compterAppels(appeler: AppelClaude, n: { v: number }): AppelClaude {
+  return async (requete) => {
+    const r = await appeler(requete);
+    n.v++;
+    return r;
+  };
+}
+
+const avecAppels = (etat: EtatTutoriel, cle: "script" | "plan", n: number): EtatTutoriel => (n > 0 ? { ...etat, appelsClaude: { script: 0, plan: 0, ...etat.appelsClaude, [cle]: (etat.appelsClaude?.[cle] ?? 0) + n } } : etat);
 
 /** Ordre des formats : 4:5 d'abord, puis les autres formats demandés, dans leur ordre. */
 export function ratiosTutoriel(ratios: readonly Ratio[]): Ratio[] {
@@ -164,7 +177,9 @@ async function pasScript(etat: EtatTutoriel, commande: CommandeFabrication, outi
   if ("texte" in r) return { statut: "faite", etat: { ...etat, script: { texte: r.texte, source: r.source, remarques: remarquesScript(r.texte) } } };
   if ("vide" in r) return { statut: "pause", etat, code: "TO_SCRIPT_ABSENT", message: "Aucun script ni idée : collez votre script ou donnez un titre. Rien n'a échoué." };
   if (etat.proposition) return { statut: "pause", etat, code: "TO_SCRIPT_A_VALIDER", message: "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite." };
-  const proposition = await ecrireScript(r.aEcrire, outils.claude);
+  const n = { v: 0 };
+  const proposition = await ecrireScript(r.aEcrire, compterAppels(outils.claude, n));
+  etat = avecAppels(etat, "script", n.v);
   if (!proposition) return { statut: "pause", etat, code: "TO_SCRIPT_NON_ECRIT", message: "Le script n'a pas pu être écrit pour l'instant : collez votre script, ou relancez plus tard. Rien n'a échoué." };
   return { statut: "pause", etat: { ...etat, proposition }, code: "TO_SCRIPT_A_VALIDER", message: "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite." };
 }
@@ -275,7 +290,9 @@ async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: {
   if (parent && fnv1a64(jsonCanonique({ texte, mots: parent.mots, format: parent.format })) === empreinteEntree) {
     return { statut: "faite", etat: { ...etat, plan: { plan: parent, remarques: [], source: "repris", empreinteEntree, scenesTouchees: [] } } };
   }
-  const r = await genererPlan({ script: texte, mots, format, facecam: false }, outils.claude);
+  const n = { v: 0 };
+  const r = await genererPlan({ script: texte, mots, format, facecam: false }, compterAppels(outils.claude, n));
+  etat = avecAppels(etat, "plan", n.v);
   const plan = parent ? fusionnerAvecParent(r.plan, parent) : r.plan;
   const scenesTouchees = parent ? scenesARerendre(parent, plan) : plan.scenes.map((s) => s.id);
   const reserves = r.source === "repli" ? [...etat.reserves, `À vérifier · Plan de scènes : ${r.remarques[0]?.message ?? "plan simple."}`] : etat.reserves;
