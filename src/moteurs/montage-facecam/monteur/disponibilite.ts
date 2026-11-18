@@ -37,6 +37,7 @@ export const DISPONIBILITE_OPERATIONS: Record<TypeOperationFacecam, Disponibilit
   transitionEcran: { rendu: true, par: "effets spéciaux (lot I) : rendu Remotion posé en plein écran" },
   effetRealisteIA: { rendu: true, par: "effet réaliste (lot K) : morceau rendu, posé au cadrage, après « Confirmer »" },
   changerTitreCouverture: { rendu: true, par: "miniature choisie : image de couverture refaite avec le nouveau titre (service miniatures), sans nouvelle version de la vidéo" },
+  modifierCarte: { rendu: true, par: "passages : carte changée de modèle (même id, ancre, textes), habillage refait" },
 };
 
 /** Musique : aucune musique dans la banque du studio et aucun mixage musical branché dans la composition. */
