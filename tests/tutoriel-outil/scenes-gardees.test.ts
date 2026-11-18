@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOGUE_BRIQUES } from "@/briques/plan-scenes/catalogue";
 import { avecEmpreintes } from "@/briques/plan-scenes/empreinte";
 import type { PlanDeScenes } from "@/briques/plan-scenes/schema";
+import { outilsDoubles, type Journal } from "./doubles";
 import { decouperEnMorceaux, type MorceauPlan } from "@/moteurs/montage-tutoriel-outil/decoupage-scenes";
 import type { MetaRangement } from "@/moteurs/montage-tutoriel-outil/index-scenes";
 
@@ -16,6 +17,7 @@ const etat = vi.hoisted(() => ({
   ecritures: [] as string[],
   journal: [] as string[],
   session: true,
+  erreurSession: null as Error | null,
   urls: [] as string[],
   videos: new Map<string, { titre: string }>(),
   versions: new Map<string, { projetMontage?: Record<string, unknown> }>(),
@@ -44,10 +46,12 @@ vi.mock("@/services/_commun", async (importOriginal) => {
 });
 vi.mock("@/services/auth", () => ({
   exigerSession: async () => {
+    if (etat.erreurSession) throw etat.erreurSession;
     if (!etat.session) throw new Error("pas de session");
     return {};
   },
 }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/services/fichiers", () => ({
   urlFichier: async (id: string | null) => {
     etat.urls.push(String(id));
@@ -116,6 +120,7 @@ beforeEach(() => {
   etat.versions.clear();
   etat.sorties.length = 0;
   etat.session = true;
+  etat.erreurSession = null;
   vi.stubGlobal("fetch", () => {
     throw new Error("fetch interdit");
   });
@@ -275,5 +280,54 @@ describe("allumé", () => {
   it("filtres affichés : Toutes, Validées, Retirées", () => {
     const html = renderToStaticMarkup(ecran(true));
     for (const l of ["Toutes", "Validées", "Retirées"]) expect(html).toContain(l);
+  });
+});
+
+describe("actions serveur (enveloppes)", () => {
+  async function actions() {
+    return await import("@/app/(studio)/tutoriel-outil/scenes/actions");
+  }
+  const redirection = () => Object.assign(new Error("NEXT_REDIRECT"), { digest: "NEXT_REDIRECT;replace;/connexion;307;" });
+
+  it("sans session : la redirection remonte de l'action (pas transformée en refus) et rien n'est écrit", async () => {
+    allumer();
+    poserVideo("v1");
+    await svc.rangerScenesDeVideo({ morceaux: morceaux(), meta: meta("v1") });
+    etat.ecritures.length = 0;
+    const redir = redirection();
+    etat.erreurSession = redir;
+    const a = await actions();
+    await expect(a.retirerSceneAction(CLE("v1", "s1"))).rejects.toBe(redir);
+    await expect(a.garderSceneAction(CLE("v1", "s1"))).rejects.toBe(redir);
+    expect(etat.ecritures).toEqual([]);
+  });
+
+  it("clé inconnue : « Cette scène n'existe plus. » (ErreurStudio rendue en refus clair)", async () => {
+    allumer();
+    const a = await actions();
+    expect(await a.retirerSceneAction("scene:zz:s1:v1")).toEqual({ ok: false, message: "Cette scène n'existe plus." });
+    expect(await a.garderSceneAction("scene:zz:s1:v1")).toEqual({ ok: false, message: "Cette scène n'existe plus." });
+  });
+});
+
+describe("aucun service de rendu", () => {
+  it("l'aperçu n'appelle le fournisseur de rendu (double) aucune fois : 0 soumission, 0 rendu", async () => {
+    const journal: Journal = { voix: [], claude: [], rendus: [] };
+    const outils = outilsDoubles(journal);
+    const rendu = outils.rendu.service() as unknown as Record<string, unknown>;
+    const espions = Object.keys(rendu)
+      .filter((k) => typeof rendu[k] === "function")
+      .map((k) => vi.spyOn(rendu as Record<string, (...a: unknown[]) => unknown>, k));
+    expect(espions.length).toBeGreaterThan(0);
+    allumer();
+    poserVideo("v1");
+    await svc.rangerScenesDeVideo({ morceaux: morceaux(), meta: meta("v1") });
+    const { scenes } = await vue.lireListeScenes();
+    expect(scenes.length).toBeGreaterThan(0);
+    renderToStaticMarkup(carte(scenes[0]!));
+    for (const e of espions) expect(e).not.toHaveBeenCalled();
+    expect(journal.rendus).toHaveLength(0);
+    expect(journal.voix).toHaveLength(0);
+    expect(journal.claude).toHaveLength(0);
   });
 });

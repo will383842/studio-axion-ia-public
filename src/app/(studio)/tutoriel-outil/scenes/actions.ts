@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ErreurStudio } from "@/services/_commun";
+import { exigerSession } from "@/services/auth";
 import { garder, retirer } from "@/services/scenes-gardees";
 
 export type ResultatGeste = { ok: true } | { ok: false; message: string };
@@ -18,10 +19,13 @@ async function faire(f: () => Promise<void>): Promise<ResultatGeste> {
 
 /** « Retirer » : enveloppe de `retirerSceneGardee` (session exigée par le service). */
 export async function retirerSceneAction(cle: string): Promise<ResultatGeste> {
+  // Session exigée HORS du try : la redirection vers /connexion est une erreur que Next doit voir remonter.
+  await exigerSession();
   return faire(() => retirer(String(cle)));
 }
 
 /** « Garder pour d'autres vidéos » : enveloppe de `validerSceneGardee`. */
 export async function garderSceneAction(cle: string): Promise<ResultatGeste> {
+  await exigerSession();
   return faire(() => garder(String(cle)));
 }
