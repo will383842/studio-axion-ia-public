@@ -37,11 +37,16 @@ export function chapitreDeScene(plan: Pick<PlanValide, "scenes">, chapitres: rea
 function scenesVisees(o: OperationRetouche): string[] | null {
   switch (o.type) {
     case "changer-habillage":
-      return o.transition ? [o.transition.sceneId] : o.position ? [o.position.sceneId] : null;
+      // L'habillage est global (appliqué à toute la vidéo) : dès qu'il est présent, l'opération n'est pas ramenable à un chapitre.
+      if (o.habillage) return null;
+      {
+        const ids = [o.transition?.sceneId, o.position?.sceneId].filter((id): id is string => typeof id === "string");
+        return ids.length ? ids : null;
+      }
     case "changer-transition":
       return o.sceneId ? [o.sceneId] : null;
     case "ajouter-dynamisme":
-      return o.sceneIds ?? null;
+      return o.sceneIds?.length ? o.sceneIds : null; // tableau vide = « toutes les scènes » pour appliquer.ts : traité comme absent
     case "deplacer":
       return [o.sceneId, o.apresSceneId];
     case "modifier-script":

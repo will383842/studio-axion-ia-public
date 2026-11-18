@@ -63,6 +63,28 @@ describe("chapitre = groupe de scènes", () => {
     expect(garderUnChapitre([{ type: "changer-habillage", habillage: { fond: "noir" } }], plan, chapitres, "c1").operations).toEqual([]);
   });
 
+  it("dynamisme avec sceneIds vide : ramené au chapitre (pas « toute la vidéo »)", () => {
+    const r = garderUnChapitre([{ type: "ajouter-dynamisme", intensite: "fort", sceneIds: [] }], plan, chapitres, "c1");
+    expect(r.operations).toEqual([{ type: "ajouter-dynamisme", intensite: "fort", sceneIds: scenesDuChapitre(plan, chapitres[0]) }]);
+    expect(chapitresTouches(r.operations, plan, chapitres).map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  it("habillage + transition : habillage global, écarté avec remarque", () => {
+    const dedans = scenesDuChapitre(plan, chapitres[0])[0];
+    const r = garderUnChapitre([{ type: "changer-habillage", habillage: { fond: "noir" }, transition: { sceneId: dedans } } as OperationRetouche], plan, chapitres, "c1");
+    expect(r.operations).toEqual([]);
+    expect(r.remarques).toHaveLength(1);
+  });
+
+  it("transition dans le chapitre + position hors chapitre : écartée", () => {
+    const dedans = scenesDuChapitre(plan, chapitres[0])[0];
+    const dehors = scenesDuChapitre(plan, chapitres[1])[0];
+    const op = { type: "changer-habillage", transition: { sceneId: dedans }, position: { sceneId: dehors } } as OperationRetouche;
+    const r = garderUnChapitre([op], plan, chapitres, "c1");
+    expect(r.operations).toEqual([]);
+    expect(r.remarques).toHaveLength(1);
+  });
+
   it("message : voix inchangée, autres chapitres intacts, aucun montant", () => {
     const m = messageChapitre(chapitres, "c2")!;
     expect(m).toBe("Seul le chapitre 2 sera refait. La voix ne change pas. L'autre reste tel quel.");
