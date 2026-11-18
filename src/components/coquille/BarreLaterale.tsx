@@ -205,7 +205,7 @@ function RubriqueFlottante({ r, courant, ouverte, ouvrir, fermer }: { r: Rubriqu
 }
 
 /** Barre latérale (ordinateur ≥ 1024 px) : 264 px, repliable à 72 px. Sept rubriques dont trois pliables ; le pied (réglages) ne défile pas. */
-export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean }) {
+export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier = false, aTraiter = false }: { formats?: FormatNavigation[]; actionDeconnexion: () => Promise<void>; surLeSite?: boolean; aPublier?: boolean; aTraiter?: boolean }) {
   const chemin = usePathname();
   const idBase = useId();
   const idNav = `${idBase}-menu`;
@@ -218,8 +218,8 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
   const flotte = repliee && flotteBrute?.chemin === chemin && flotteBrute.repliee === repliee ? flotteBrute.id : null;
   const setFlotte = (id: string | null) => setFlotteBrute(id ? { id, chemin, repliee } : null);
 
-  const courant = hrefCourant(chemin, surLeSite, aPublier);
-  const rubriqueDeLaPageId = rubriqueDeLaPage(chemin, surLeSite, aPublier);
+  const courant = hrefCourant(chemin, surLeSite, aPublier, aTraiter);
+  const rubriqueDeLaPageId = rubriqueDeLaPage(chemin, surLeSite, aPublier, aTraiter);
 
   useEffect(() => {
     document.documentElement.style.setProperty("--largeur-barre-courante", repliee ? "var(--largeur-barre-repliee)" : "var(--largeur-barre)");
@@ -252,7 +252,7 @@ export function BarreLaterale({ actionDeconnexion, surLeSite = false, aPublier =
     window.dispatchEvent(new Event(EVENEMENT));
   }
 
-  const rubriques = rubriquesLaterales(surLeSite, aPublier);
+  const rubriques = rubriquesLaterales(surLeSite, aPublier, aTraiter);
   const creerActif = courant === ACTION_CREER.href;
   const ecranAPrincipal = useEcranAUnBoutonPrincipal();
   const libelleRepli = repliee ? "Déplier le menu" : "Replier le menu";
