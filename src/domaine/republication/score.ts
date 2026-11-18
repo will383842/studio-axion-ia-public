@@ -46,8 +46,8 @@ export const POIDS_SCORE = {
 /** PROPOSITION : indicateurs dont la moyenne des positions donne le « rang moyen ». */
 export const INDICATEURS_RANG_MOYEN: readonly Indicateur[] = ["tenue3s", "duree", "vues"];
 
-/** Arrondi du score (nombre de décimales). */
-const DECIMALES = 1000;
+/** Arrondi au millième des nombres renvoyés (affichage seulement ; le calcul n'arrondit pas). */
+const FACTEUR_ARRONDI = 1000;
 
 /* ------------------------------------------------------------------ */
 
@@ -122,18 +122,20 @@ const moyenne = (xs: readonly number[]): number => xs.reduce((s, x) => s + x, 0)
  */
 export function scorerCandidats(candidats: readonly CandidatRepublication[], maintenant: Date): ResultatScore[] {
   const t = maintenant.getTime();
-  const sorties = new Map<string, ResultatScore>();
-  const retenus = new Map<string, CandidatRepublication[]>();
+  // Un résultat par ENTRÉE (indexé par sa position, jamais par l'identifiant : deux entrées de même id ne s'écrasent pas).
+  const sorties: ResultatScore[] = new Array(candidats.length);
+  const retenus = new Map<string, number[]>();
 
-  for (const c of candidats) {
+  candidats.forEach((c, k) => {
     const motif = motifIndividuel(c, t);
-    if (motif) sorties.set(c.id, exclu(c, motif));
-    else retenus.set(c.reseau, [...(retenus.get(c.reseau) ?? []), c]);
-  }
+    if (motif) sorties[k] = exclu(c, motif);
+    else retenus.set(c.reseau, [...(retenus.get(c.reseau) ?? []), k]);
+  });
 
-  for (const groupe of retenus.values()) {
+  for (const indices of retenus.values()) {
+    const groupe = indices.map((k) => candidats[k]);
     if (groupe.length < GROUPE_MIN.valeur) {
-      for (const c of groupe) sorties.set(c.id, exclu(c, "groupe-trop-petit"));
+      for (const k of indices) sorties[k] = exclu(candidats[k], "groupe-trop-petit");
       continue;
     }
     // Pour chaque indicateur : les valeurs lues du groupe ; sous 3 valeurs lues, l'indicateur n'est pas utilisé.
@@ -147,35 +149,35 @@ export function scorerCandidats(candidats: readonly CandidatRepublication[], mai
       const toutes = lues.get(i);
       return x === undefined || !toutes ? null : position(x, toutes);
     };
-    for (const c of groupe) {
+    for (const k of indices) {
+      const c = candidats[k];
       const positionsRang = INDICATEURS_RANG_MOYEN.map((i) => pos(c, i)).filter((x): x is number => x !== null);
-      const composantes: ComposantesScore = {
-        rang: positionsRang.length ? arrondi(moyenne(positionsRang)) : null,
-        visites: arrondiNul(pos(c, "visites")),
-        rendezVous: arrondiNul(pos(c, "rendezVous")),
-        partages: arrondiNul(pos(c, "partages")),
+      // Valeurs EXACTES : l'arrondi ne sert qu'à ce qui est renvoyé.
+      const exactes: ComposantesScore = {
+        rang: positionsRang.length ? moyenne(positionsRang) : null,
+        visites: pos(c, "visites"),
+        rendezVous: pos(c, "rendezVous"),
+        partages: pos(c, "partages"),
       };
+      const composantes: ComposantesScore = { rang: arrondiNul(exactes.rang), visites: arrondiNul(exactes.visites), rendezVous: arrondiNul(exactes.rendezVous), partages: arrondiNul(exactes.partages) };
       let somme = 0;
       let poids = 0;
       for (const cle of Object.keys(POIDS_SCORE) as (keyof ComposantesScore)[]) {
-        const p = composantes[cle];
+        const p = exactes[cle];
         if (p === null) continue; // absente : ni pour ni contre
         somme += POIDS_SCORE[cle].valeur * p;
         poids += POIDS_SCORE[cle].valeur;
       }
-      sorties.set(
-        c.id,
-        poids === 0 ? { ...exclu(c, "aucune-donnee"), composantes } : { id: c.id, reseau: c.reseau, etat: "note", score: arrondi(somme / poids), composantes },
-      );
+      sorties[k] = poids === 0 ? { ...exclu(c, "aucune-donnee"), composantes } : { id: c.id, reseau: c.reseau, etat: "note", score: arrondi(somme / poids), composantes };
     }
   }
 
-  return [...sorties.values()].sort((a, b) => {
+  return sorties.sort((a, b) => {
     if (a.etat !== b.etat) return a.etat === "note" ? -1 : 1;
     if (a.etat === "note" && a.score !== b.score) return (b.score ?? 0) - (a.score ?? 0);
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 }
 
-const arrondi = (n: number): number => Math.round(n * DECIMALES) / DECIMALES;
+const arrondi = (n: number): number => Math.round(n * FACTEUR_ARRONDI) / FACTEUR_ARRONDI;
 const arrondiNul = (n: number | null): number | null => (n === null ? null : arrondi(n));

@@ -64,11 +64,32 @@ describe("score", () => {
     expect(parId(r, "a").score).toBe(0);
   });
 
-  it("une valeur illisible (NaN, infinie) est une donnée absente", () => {
-    const r = scorerCandidats([cand("a", { vues: Number.NaN, visites: 1 }), cand("b", { vues: Infinity, visites: 2 }), cand("c", { visites: 3 })], MAINTENANT);
+  it("une valeur illisible (NaN, infinie) est une donnée absente, pas un zéro", () => {
+    const r = scorerCandidats(
+      [cand("a", { vues: Number.NaN, visites: 1 }), cand("b", { vues: 10, visites: 2 }), cand("c", { vues: 20, visites: 3 }), cand("d", { vues: 30 }), cand("e", { vues: Infinity })],
+      MAINTENANT,
+    );
+    // Les vues finies sont 10, 20, 30 : positions 0, 0,5, 1 ; NaN et Infinity ne comptent pas.
     expect(parId(r, "a").composantes.rang).toBeNull();
+    expect(parId(r, "e").composantes.rang).toBeNull();
+    expect(parId(r, "b").composantes.rang).toBe(0);
+    expect(parId(r, "c").composantes.rang).toBe(0.5);
+    expect(parId(r, "d").composantes.rang).toBe(1);
+    // a n'est noté que sur ses visites (la plus basse du groupe), pas sur « vues = 0 ».
     expect(parId(r, "a").composantes.visites).toBe(0);
-    expect(parId(r, "c").composantes.visites).toBe(1);
+    expect(parId(r, "a").score).toBe(0);
+    expect(parId(r, "e")).toMatchObject({ etat: "exclu", motif: "aucune-donnee" });
+  });
+
+  it("deux entrées de même identifiant ne s'écrasent pas : un résultat par entrée", () => {
+    const r = scorerCandidats([cand("a", { vues: 1 }), cand("a", { vues: 2 }, { reseau: "linkedin" }), cand("b", { vues: 3 }), cand("c", { vues: 2 })], MAINTENANT);
+    expect(r).toHaveLength(4);
+  });
+
+  it("le score est calculé sur les positions exactes, arrondi seulement à la fin", () => {
+    const r = scorerCandidats([cand("a", { vues: 1 }), cand("b", { vues: 2 }), cand("c", { vues: 3 }), cand("d", { vues: 4 }), cand("e", { vues: 5 }), cand("f", { vues: 6 }), cand("g", { vues: 7 })], MAINTENANT);
+    expect(parId(r, "b").composantes.rang).toBe(0.167);
+    expect(parId(r, "b").score).toBe(0.167);
   });
 
   it("un indicateur lu sur moins de 3 contenus du groupe n'est pas utilisé du tout", () => {
