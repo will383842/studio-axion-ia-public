@@ -160,6 +160,49 @@ describe("d) 2 phrases clés sur une page : la 2e devient détail", () => {
   });
 });
 
+describe("i) refus lus dans le DÉTAIL du message (« Scène sXX · règle « … » : détail ») : barre, code-orphelin, titres", () => {
+  const trois = (...e: El[]): El[] => [ligne("e02", "Un outil pour les devis.", "phrase-cle", 0), ...e];
+  const barree = "Un autre pour les e-mails.";
+  it("barre : un détail barré + le geste « barrer » qui le vise → marque et geste retirés, 1 appel, clé « barre », mêmes textes", async () => {
+    const cas = casDouleur(trois(ligne("e03", barree, "detail", 5, { marque: "barre" }), ligne("e04", "Un troisième pour les relances.", "detail", 10), { id: "e05", type: "geste", geste: "barrer", cibleId: "e03", ancre: 7 }));
+    const { r, appels } = await lancer(cas);
+    expect(r.ok).toBe(true);
+    expect(appels).toBe(1);
+    if (!r.ok) return;
+    expect(r.reparations?.[0].cle).toBe("barre");
+    expect(lignesDe(r.fiche).some((l) => l.marque === "barre")).toBe(false);
+    expect(r.fiche.scenes.flatMap((x) => x.elements).some((e) => e.type === "geste" && e.geste === "barrer")).toBe(false);
+    expect(blocsDe(r.fiche, barree)).toEqual(["detail"]);
+    texteIntact(cas.reponse, r.fiche);
+  });
+  it("code-orphelin : un détail qui porte « code » → champ retiré, 1 appel, clé « code-orphelin », mêmes textes", async () => {
+    const cas = casDouleur(trois(ligne("e03", "Un autre pour les e-mails.", "detail", 5, { code: "vert" }), ligne("e04", "Un troisième pour les relances.", "detail", 10)));
+    const { r, appels } = await lancer(cas);
+    expect(r.ok).toBe(true);
+    expect(appels).toBe(1);
+    if (!r.ok) return;
+    expect(r.reparations?.[0].cle).toBe("code-orphelin");
+    expect(lignesDe(r.fiche).some((l) => l.code)).toBe(false);
+    texteIntact(cas.reponse, r.fiche);
+  });
+  it("titres : 2 titres dans 2 scènes d'une même page → le titre de la 2e scène devient détail, 1 appel, clé « titres », mêmes textes", async () => {
+    const cas = casDouleur([]);
+    const [s0, s1, ...reste] = cas.reponse.scenes;
+    const premiere: Scene = { ...s1, texteDit: "Un outil pour les devis. Un autre pour les e-mails.", elements: [ligne("e02", "Les outils", "titre", 0), ligne("e02b", "Un outil pour les devis.", "phrase-cle", 0)] };
+    const seconde: Scene = { ...s1, id: "sXX", texteDit: "Un troisième pour les relances.", elements: [ligne("e02c", "Les relances", "titre", 0)] };
+    const scenes = [s0, premiere, seconde, ...reste].map((x, k) => ({ ...x, id: `s${String(k + 1).padStart(2, "0")}` }));
+    cas.reponse = { ...cas.reponse, scenes };
+    const { r, appels } = await lancer(cas);
+    expect(r.ok).toBe(true);
+    expect(appels).toBe(1);
+    if (!r.ok) return;
+    expect(r.reparations?.[0]).toMatchObject({ cle: "titres", sceneId: "s03" });
+    expect(blocsDe(r.fiche, "Les relances")).toEqual(["detail"]);
+    expect(blocsDe(r.fiche, "Les outils")).toEqual(["titre"]);
+    texteIntact(cas.reponse, r.fiche);
+  });
+});
+
 describe("e) page qui ne tient pas — NON REPRODUIT sur la vraie mise en page", () => {
   // Au gabarit « reference/3 » les bornes de la règle 18 (phrase clé de 12 mots au plus, 3 blocs) font tenir toute page : grille
   // paperboard / tableau-blanc / ardoise essayée le 18/11, aucune page refusée par la règle 4. Même constat que

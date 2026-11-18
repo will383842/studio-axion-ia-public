@@ -72,6 +72,8 @@ import { IDS_VISUELS_3 } from "@/briques/tableau-scene/reference/visuels-3";
 import { estPageEcriteCrayon, numerosDits, type RolePage } from "./gabarit";
 import { diagnosticPageDePlus, pageTropChargee, reparerDensite, type OptionsDensite, type RetraitAllegement } from "./densite";
 import { ECART_VISE_MS, reparerRythme, type ReglagesRythme } from "./rythme";
+// ORDRE À GARDER : après `./rythme`. Importer `reparation-refus` plus haut (ou seul) plante au chargement (cycle fiche/gabarit hérité,
+// `fiche.ts:155` ; `densite.ts` seul plante déjà de même sur master).
 import { reparerRefusDeForme, type ReparationForme } from "./reparation-refus";
 import { CARACTERES_DITS_MAX_TABLEAU, caracteresEn } from "@/domaine/duree-tableau";
 import { cleSimple, REGLES_TABLEAU, ACCROCHE_MOTS_MAX, CARACTERES_PAR_SECONDE, DUREE_MAX_MS, ECART_EVENEMENT_MAX_MS, PAGE_LIGNES_MAX, PAGE_MOTS_MAX, type ContexteTableau } from "./regles";

@@ -65,7 +65,10 @@ const BLOCS_EN_LISTE = new Set(["liste", "code", "coche", "transformation", "ava
 
 const indiceDe = (f: FicheTableau, sceneId: string | undefined) => f.scenes.findIndex((s) => s.id === sceneId);
 const majScene = (f: FicheTableau, i: number, g: (s: SceneTableau) => SceneTableau): FicheTableau => ({ ...f, scenes: f.scenes.map((s, k) => (k === i ? g(s) : s)) });
-const texteCite = (message: string): string | undefined => /« ([^»]+) »/u.exec(message)?.[1];
+/** Le DÉTAIL d'un message de `validerFicheTableau` : ce qui suit le préfixe « Scène sXX · règle « … » : » (`briques/fiche-scenes/valider.ts`). */
+const detailDe = (message: string): string => message.replace(/^.*? · règle « [^»]+ » : /u, "");
+/** Première citation « … » du DÉTAIL (jamais le nom de la règle, qui est dans le préfixe). */
+const texteCite = (message: string): string | undefined => /« ([^»]+) »/u.exec(detailDe(message))?.[1];
 
 /** Une liste = un bloc : les éléments du même bloc (l'avant et l'après forment un seul groupe). */
 const memeGroupe = (a: string | undefined, b: string | undefined): boolean => !!a && !!b && (a === b || ((a === "avant" || a === "apres") && (b === "avant" || b === "apres")));
@@ -230,14 +233,14 @@ function essaisDe(f: FicheTableau, p: ProblemeJuge, ctx: Contexte, reste: number
           else essais.push(() => ({ fiche: aplatir(f, k, new Set([l.id]), "detail"), reparations: [rep(f, k, "idee-recue", `l'idée reçue en trop devient un détail : « ${l.texte} »`, l.id)] }));
         }
   } else if (/est barrée : au style|le geste « barrer » vise/u.test(m)) {
-    const cite = texteCite(m);
+    const cite = /vise « ([^»]+) »/u.exec(detailDe(m))?.[1] ?? texteCite(m);
     const fautives = lignesDe(scene).filter((l) => (cite ? l.texte === cite : l.marque === "barre") && l.bloc !== "idee-recue");
     if (fautives.length) {
       const ids = new Set(fautives.map((l) => l.id));
-      essais.push(() => ({ fiche: majScene(f, i, (s) => ({ ...s, elements: s.elements.flatMap((e): ElementTableau[] => (estLigne(e) && ids.has(e.id) ? [sansMarque(e)] : e.type === "geste" && e.geste === "barrer" && ids.has(e.cibleId) ? [] : [e])) })), reparations: [rep(f, i, "idee-recue", "la marque « barre » est retirée d'une ligne qui n'est pas une idée reçue")] }));
+      essais.push(() => ({ fiche: majScene(f, i, (s) => ({ ...s, elements: s.elements.flatMap((e): ElementTableau[] => (estLigne(e) && ids.has(e.id) ? [sansMarque(e)] : e.type === "geste" && e.geste === "barrer" && ids.has(e.cibleId) ? [] : [e])) })), reparations: [rep(f, i, "barre", "la marque « barre » est retirée d'une ligne qui n'est pas une idée reçue")] }));
     }
   } else if (/« code » ne va que sur/u.test(m)) {
-    const cite = texteCite(m.replace(/^« code » ne va que sur un élément de liste à pastilles \(bloc « code »\), pas sur /u, ""));
+    const cite = texteCite(detailDe(m).replace(/^« code » ne va que sur un élément de liste à pastilles \(bloc « code »\), pas sur /u, ""));
     const cibles = lignesDe(scene).filter((l) => l.code && l.bloc !== "code" && (!cite || l.texte === cite));
     if (cibles.length) {
       const ids = new Set(cibles.map((l) => l.id));
