@@ -7,7 +7,9 @@
  *  - Le plafond Claude par vidéo est affiché seulement (« réglé » / « par défaut »), jamais modifiable ici.
  *  - Aucun appel payant : lecture des dépôts, écriture d'un réglage.
  *  - Clés dont la fiche créatrice n'est pas encore sur master (33, 41, 42, 26a, 15) : recopiées UNE fois ici, notées dans
- *    la PR ; le test compare chaque clé importée au texte de son fichier source.
+ *    la PR. Seule `tutoriel.finitions` a un fichier source sur master (comparée par le test) ; les autres seront remplacées
+ *    par des imports (`PARAM_SCENES_TUTORIEL`, `PARAM_ENTREE_ZIP`, `lienSuivi`…) après la fusion de leurs fiches,
+ *    avec un test de comparaison tant qu'une recopie subsiste. PR à garder en brouillon d'ici là.
  */
 import "server-only";
 import {
@@ -103,10 +105,13 @@ export async function basculerReglage(cle: unknown, valeur: unknown, ports?: Por
 
 const MOTS_REFUSES = /garanti|certifi[ée]|qualiopi|int[ée]grateur/i;
 
+/** NFKC puis retrait des caractères invisibles (`\p{Cf}`) : « intégrateur » décomposé ou « garan\u200Bti » n'y échappent pas. */
+const normaliserMention = (t: string): string => t.normalize("NFKC").replace(/\p{Cf}/gu, "").trim();
+
 /** Enregistre le texte de la mention : 120 caractères au plus ; vide = texte par défaut ; mots interdits refusés. */
 export async function enregistrerTexteMention(texte: unknown, ports?: PortsConsole): Promise<ResultatConsole> {
   if (typeof texte !== "string") return { ok: false, raison: "Le texte n'est pas valable." };
-  const propre = texte.trim();
+  const propre = normaliserMention(texte);
   if (propre.length > LONGUEUR_MAX_MENTION_IA) return { ok: false, raison: `Le texte doit faire ${LONGUEUR_MAX_MENTION_IA} caractères au plus.` };
   if (MOTS_REFUSES.test(propre)) return { ok: false, raison: "Ce texte contient un mot qui n'est pas permis." };
   await (ports?.ecrire ?? ecrireParDefaut)(CLE_TEXTE_MENTION_TUTORIEL, propre === "" ? TEXTE_MENTION_IA_PAR_DEFAUT : propre);
@@ -173,16 +178,23 @@ export interface QuantitesConso {
 
 const quantitesVides = (): QuantitesConso => ({ nbDepenses: 0, appelsClaude: 0, caracteresVoix: 0, rendus: 0, essai: true });
 
+/** Fournisseur des appels Claude, et fournisseurs de rendu (les lignes « seconde » d'un avatar ne sont pas des rendus). */
+const FOURNISSEUR_CLAUDE = "anthropic";
+const FOURNISSEURS_RENDU: readonly string[] = ["remotion-lambda", "simulation"];
+const memeFournisseur = (l: { fournisseur?: string }, f: string) => (l.fournisseur ?? "").trim().toLowerCase() === f;
+
 /** Quantités d'un lot de dépenses : appels, caractères lus, rendus (secondes ou minutes de rendu). Aucun montant. */
 export function quantitesDesDepenses(depenses: readonly DepenseEnregistree[], payee: (l: { fournisseur: string }) => boolean): QuantitesConso {
   const q = quantitesVides();
   q.nbDepenses = depenses.length;
   for (const d of depenses) {
+    // Comme `montantPaye` : une dépense sans détail compte en entier, donc payée.
+    if (!d.lignes?.length) q.essai = false;
     for (const l of d.lignes ?? []) {
       if (payee(l)) q.essai = false;
-      if (l.unite === "appel") q.appelsClaude += l.quantite;
+      if (l.unite === "appel" && memeFournisseur(l, FOURNISSEUR_CLAUDE)) q.appelsClaude += l.quantite;
       else if (l.unite === "caractere") q.caracteresVoix += l.quantite;
-      else if (l.unite === "seconde" || l.unite === "minute") q.rendus += 1;
+      else if ((l.unite === "seconde" || l.unite === "minute") && FOURNISSEURS_RENDU.some((f) => memeFournisseur(l, f))) q.rendus += 1;
     }
   }
   return q;
@@ -221,5 +233,5 @@ export async function lireConsommation(videos: readonly VideoEnCours[], ports: P
     parVideo.push({ videoId: v.id, titre: v.titre, ...quantitesDesDepenses(deps, ports.payee), nbDepenses: await ports.nbDepenses(v.id), devis: (await ports.devis?.(v.id)) ?? null });
   }
   const regle = await (ports.lire ?? lireParDefaut)<unknown>(PARAM_PLAFOND_TUTORIEL, null);
-  return { parVideo, moisEnCours: quantitesDesDepenses(duMois, ports.payee), plafond: typeof regle === "number" && regle > 0 ? "réglé" : "par défaut" };
+  return { parVideo, moisEnCours: quantitesDesDepenses(duMois, ports.payee), plafond: typeof regle === "number" && Number.isFinite(regle) && regle >= 0 ? "réglé" : "par défaut" };
 }

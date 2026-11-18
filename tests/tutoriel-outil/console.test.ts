@@ -4,10 +4,20 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DepenseEnregistree, Video } from "@/domaine/types";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
+vi.mock("@/services/cout-video", () => ({ coutsDeLaVideo: vi.fn(async () => ({ nbDepenses: 1 })) }));
+vi.mock("@/donnees/memoire", () => ({
+  depots: () => ({
+    parametres: { obtenir: async () => undefined },
+    videos: { lister: async () => [{ id: "v1", titre: "Titre v1", formatId: "tutoriel-outil", statut: "en_fabrication", modifieLe: new Date().toISOString(), creeLe: new Date().toISOString() }] },
+    depenses: { lister: async () => [{ id: "d1", videoId: "v1", date: new Date().toISOString(), lignes: [{ unite: "appel", quantite: 2, fournisseur: "anthropic" }] }] },
+  }),
+}));
 
 const c = await import("@/services/tutoriel-console");
 const { PanneauConsole } = await import("@/components/tutoriel-outil/PanneauConsole");
@@ -97,6 +107,12 @@ describe("mention IA du tutoriel", () => {
     expect((await c.enregistrerTexteMention("a".repeat(120), m.ports)).ok).toBe(true);
     for (const mot of ["garanti", "Certifié", "QUALIOPI", "intégrateur"]) expect((await c.enregistrerTexteMention(`Voix ${mot}`, m.ports)).ok).toBe(false);
     expect((await c.enregistrerTexteMention(42, m.ports)).ok).toBe(false);
+    // Contournements : accent décomposé, caractère invisible, forme de compatibilité.
+    for (const t of ["Voix inte\u0301grateur", "Voix garan\u200Bti", "Voix garan\u00ADti", "Voix ｇａｒａｎｔｉ", "Voix certifie\u0301"]) {
+      expect((await c.enregistrerTexteMention(t, m.ports)).ok, t).toBe(false);
+    }
+    expect((await c.enregistrerTexteMention("Voix cre\u0301ée\u200B par IA", m.ports)).ok).toBe(true);
+    expect(m.valeurs.get(c.CLE_TEXTE_MENTION_TUTORIEL)).toBe("Voix créée par IA");
     expect((await c.enregistrerTexteMention("   ", m.ports)).ok).toBe(true);
     expect(m.valeurs.get(c.CLE_TEXTE_MENTION_TUTORIEL)).toBe(TEXTE_MENTION_IA_PAR_DEFAUT);
     expect(await c.lireTexteMention(m.ports)).toBe(TEXTE_MENTION_IA_PAR_DEFAUT);
@@ -130,8 +146,8 @@ describe("consommation en quantités", () => {
     const mois = (d: string) => d.slice(0, 7);
     const deps: Record<string, DepenseEnregistree[]> = {
       a: [
-        depense("a", "2026-11-03T10:00:00Z", [{ unite: "appel", quantite: 2, fournisseur: "claude" }, { unite: "caractere", quantite: 900, fournisseur: "heygen" }]),
-        depense("a", "2026-10-30T10:00:00Z", [{ unite: "appel", quantite: 5, fournisseur: "claude" }]),
+        depense("a", "2026-11-03T10:00:00Z", [{ unite: "appel", quantite: 2, fournisseur: "anthropic" }, { unite: "caractere", quantite: 900, fournisseur: "heygen" }]),
+        depense("a", "2026-10-30T10:00:00Z", [{ unite: "appel", quantite: 5, fournisseur: "anthropic" }]),
       ],
       b: [depense("b", "2026-11-10T10:00:00Z", [{ unite: "seconde", quantite: 50, fournisseur: "simulation" }])],
     };
@@ -165,6 +181,39 @@ describe("consommation en quantités", () => {
     expect(sans.plafond).toBe("par défaut");
   });
 
+  it("une dépense sans lignes est payée (comme montantPaye), pas « essai »", () => {
+    const q = c.quantitesDesDepenses([{ id: "x", videoId: "a", date: "2026-11-03T10:00:00Z" } as unknown as DepenseEnregistree], () => false);
+    expect(q.essai).toBe(false);
+    expect(c.quantitesDesDepenses([depense("a", "2026-11-03T10:00:00Z", [{ unite: "seconde", quantite: 5, fournisseur: "simulation" }])], (l) => l.fournisseur !== "simulation").essai).toBe(true);
+  });
+
+  it("plafond réglé à 0 : « réglé » ; valeur absente, négative ou non finie : « par défaut »", async () => {
+    const vide = { depensesDe: async () => [], nbDepenses: async () => 0, payee: () => true, moisDe: (d: string) => d.slice(0, 7), moisCourant: "2026-11" };
+    for (const [v, attendu] of [[0, "réglé"], [0.4, "réglé"], [-1, "par défaut"], [Number.NaN, "par défaut"], ["0", "par défaut"]] as const) {
+      const m = memoire({ "tutoriel.plafondClaudeUsd": v });
+      expect((await c.lireConsommation([], { ...vide, lire: m.ports.lire })).plafond, String(v)).toBe(attendu);
+    }
+  });
+
+  it("les lignes HeyGen ne comptent ni comme appels Claude ni comme rendus", () => {
+    const q = c.quantitesDesDepenses(
+      [depense("a", "2026-11-03T10:00:00Z", [{ unite: "appel", quantite: 4, fournisseur: "heygen" }, { unite: "seconde", quantite: 30, fournisseur: "heygen" }, { unite: "appel", quantite: 1, fournisseur: "anthropic" }, { unite: "minute", quantite: 1, fournisseur: "remotion-lambda" }])],
+      () => true,
+    );
+    expect(q).toMatchObject({ appelsClaude: 1, rendus: 1 });
+  });
+
+  it("le rendu serveur de la sous-page ne contient aucun mot de prix", async () => {
+    const { default: Page } = await import("@/app/(studio)/reglages/tutoriel-outil/page");
+    const { exigerSession } = await import("@/services/auth");
+    const html = renderToStaticMarkup(await Page());
+    expect(exigerSession).toHaveBeenCalled();
+    const visible = html.replace(/<script>[\s\S]*?<\/script>/g, "").replace(/\sclass="[^"]*"/g, "");
+    expect(visible).toContain("Titre v1");
+    expect(visible).toContain("Consommation");
+    expect(visible).not.toMatch(INTERDIT);
+  });
+
   it("le texte de la page et des actions ne contient aucun mot de prix", () => {
     const page = lire("src/app/(studio)/reglages/tutoriel-outil/page.tsx").replace(/^import .*$/gm, "");
     expect(page.match(/>[^<{]*</g)?.join(" ") ?? "").not.toMatch(INTERDIT);
@@ -191,13 +240,22 @@ function fichiers(dir: string): string[] {
 
 describe("aucun allumage par le code", () => {
   const cles = c.REGLAGES_TUTORIEL.map((r) => r.cle);
-  beforeEach(() => {});
+  // Noms des constantes qui portent ces clés (CLE_*, PARAM_*), détectés dans les exports du service et de tutoriel-claude.
+  const constantes = Object.entries(c).filter(([, v]) => typeof v === "string" && cles.includes(v)).map(([n]) => n);
+  const nomsConstantes = new RegExp(`\\b(?:${[...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA"])].join("|")})\\b`);
+  const ECRITURE = /ecrireParametre\s*\(|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
+  it("la détection voit les constantes CLE_* / PARAM_* et parametres.enregistrer", () => {
+    expect(constantes).toEqual(expect.arrayContaining(["CLE_FORMULAIRE", "CLE_FINITIONS", "CLE_MENTION_TUTORIEL"]));
+    expect(ECRITURE.test(`await d.parametres.enregistrer({ id: CLE_FINITIONS })`)).toBe(true);
+    expect(nomsConstantes.test(`ecrireParametre(PARAM_CLAUDE_TUTORIEL, true)`)).toBe(true);
+    expect(nomsConstantes.test(`ecrireParametre(CLE_FORMULAIRE, true)`)).toBe(true);
+  });
   it("aucun fichier de src n'écrit ces clés, sauf le service de la console", () => {
     const coupables = fichiers(join(process.cwd(), "src"))
       .filter((f) => !f.endsWith("tutoriel-console.ts"))
       .filter((f) => {
         const s = readFileSync(f, "utf8");
-        return /ecrireParametre\s*\(/.test(s) && (cles.some((k) => s.includes(`"${k}"`)) || /\bPARAM_CLAUDE_TUTORIEL\b|\bcleInterrupteurMentionIA\b/.test(s));
+        return ECRITURE.test(s) && (cles.some((k) => s.includes(`"${k}"`)) || nomsConstantes.test(s));
       });
     expect(coupables).toEqual([]);
   });
