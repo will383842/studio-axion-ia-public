@@ -13,7 +13,7 @@ Les deux copies autonomes de 104 Ko ne sont pas reprises (doublons).
 - Noms : produit → « Espace démo · Courriels » ; organisation → « Entreprise exemple » (`charte/noms-neutres.json`) ; l'ancien nom n'apparaît plus (le flou de nom est supprimé, le nom neutre est écrit en clair) ; `window.VELORA_TEST` devient `window.TEST_MAQUETTE`.
 - Bouton « Valider (simulation) » → « Valider (simulation, aucun envoi) » (aucun envoi réel).
 - Adresses de courriel fictives : domaine `exemple.invalid` ; la saisie d'un contact n'accepte que ce domaine.
-- Donnée : l’entreprise fictive « Industrie Rivage » (nom interdit par la charte) devient « Industrie Horizon ».
+- Donnée : les 24 raisons sociales de la source (« Industrie Rivage », nom interdit par la charte, et d’autres non vérifiées comme fictives, dont des mots de couleur ou une marque réelle) sont remplacées par « Société exemple A » à « Société exemple X ».
 - Argent : aucun montant, aucun format monétaire.
 - Bandeau `.mention-demo` « Démonstration · données fictives » ajouté ; mise en page décalée de sa hauteur.
 - Porte : `window.demoMaquette = { aller(id), reinitialiser() }`.

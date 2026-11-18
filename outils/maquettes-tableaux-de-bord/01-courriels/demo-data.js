@@ -4,7 +4,7 @@ window.DEMO_SEED = {
     {
       "id": "c1",
       "name": "Camille Roussel",
-      "company": "Atelier Sillage",
+      "company": "Société exemple A",
       "email": "camille.roussel@exemple.invalid",
       "role": "Achats",
       "segment": "Prospect",
@@ -14,7 +14,7 @@ window.DEMO_SEED = {
     {
       "id": "c2",
       "name": "Nora Bellamy",
-      "company": "Studio Halcyon",
+      "company": "Société exemple B",
       "email": "nora.bellamy@exemple.invalid",
       "role": "Administratif",
       "segment": "Partenaire",
@@ -24,7 +24,7 @@ window.DEMO_SEED = {
     {
       "id": "c3",
       "name": "Théo Garnier",
-      "company": "Maison Vermeil",
+      "company": "Société exemple C",
       "email": "theo.garnier@exemple.invalid",
       "role": "Opérations",
       "segment": "Client",
@@ -34,7 +34,7 @@ window.DEMO_SEED = {
     {
       "id": "c4",
       "name": "Lina Marchal",
-      "company": "Logistique Liora",
+      "company": "Société exemple D",
       "email": "lina.marchal@exemple.invalid",
       "role": "Commercial",
       "segment": "Prospect",
@@ -44,7 +44,7 @@ window.DEMO_SEED = {
     {
       "id": "c5",
       "name": "Hugo Vernet",
-      "company": "Épure Conseil",
+      "company": "Société exemple E",
       "email": "hugo.vernet@exemple.invalid",
       "role": "Direction",
       "segment": "Partenaire",
@@ -54,7 +54,7 @@ window.DEMO_SEED = {
     {
       "id": "c6",
       "name": "Sarah Moreau",
-      "company": "Maison Céladon",
+      "company": "Société exemple F",
       "email": "sarah.moreau@exemple.invalid",
       "role": "Achats",
       "segment": "Client",
@@ -64,7 +64,7 @@ window.DEMO_SEED = {
     {
       "id": "c7",
       "name": "Émile Perrin",
-      "company": "Nacre Services",
+      "company": "Société exemple G",
       "email": "emile.perrin@exemple.invalid",
       "role": "Administratif",
       "segment": "Prospect",
@@ -74,7 +74,7 @@ window.DEMO_SEED = {
     {
       "id": "c8",
       "name": "Maya Lenoir",
-      "company": "Bureau Solstice",
+      "company": "Société exemple H",
       "email": "maya.lenoir@exemple.invalid",
       "role": "Opérations",
       "segment": "Partenaire",
@@ -84,7 +84,7 @@ window.DEMO_SEED = {
     {
       "id": "c9",
       "name": "Louis Dufour",
-      "company": "Atelier Mistral",
+      "company": "Société exemple I",
       "email": "louis.dufour@exemple.invalid",
       "role": "Commercial",
       "segment": "Client",
@@ -94,7 +94,7 @@ window.DEMO_SEED = {
     {
       "id": "c10",
       "name": "Inès Caron",
-      "company": "Orme Distribution",
+      "company": "Société exemple J",
       "email": "ines.caron@exemple.invalid",
       "role": "Direction",
       "segment": "Prospect",
@@ -104,7 +104,7 @@ window.DEMO_SEED = {
     {
       "id": "c11",
       "name": "Adam Fabre",
-      "company": "Comptoir Alta",
+      "company": "Société exemple K",
       "email": "adam.fabre@exemple.invalid",
       "role": "Achats",
       "segment": "Partenaire",
@@ -114,7 +114,7 @@ window.DEMO_SEED = {
     {
       "id": "c12",
       "name": "Jade Mercier",
-      "company": "Bâtiment Soren",
+      "company": "Société exemple L",
       "email": "jade.mercier@exemple.invalid",
       "role": "Administratif",
       "segment": "Client",
@@ -124,7 +124,7 @@ window.DEMO_SEED = {
     {
       "id": "c13",
       "name": "Noé Bernard",
-      "company": "Agencement Nova",
+      "company": "Société exemple M",
       "email": "noe.bernard@exemple.invalid",
       "role": "Opérations",
       "segment": "Prospect",
@@ -134,7 +134,7 @@ window.DEMO_SEED = {
     {
       "id": "c14",
       "name": "Clara Fontaine",
-      "company": "Élan Formation",
+      "company": "Société exemple N",
       "email": "clara.fontaine@exemple.invalid",
       "role": "Commercial",
       "segment": "Partenaire",
@@ -144,7 +144,7 @@ window.DEMO_SEED = {
     {
       "id": "c15",
       "name": "Paul Leclerc",
-      "company": "Flux Horizon",
+      "company": "Société exemple O",
       "email": "paul.leclerc@exemple.invalid",
       "role": "Direction",
       "segment": "Client",
@@ -154,7 +154,7 @@ window.DEMO_SEED = {
     {
       "id": "c16",
       "name": "Zoé Aubert",
-      "company": "Menuiserie Opale",
+      "company": "Société exemple P",
       "email": "zoe.aubert@exemple.invalid",
       "role": "Achats",
       "segment": "Prospect",
@@ -164,7 +164,7 @@ window.DEMO_SEED = {
     {
       "id": "c17",
       "name": "Yanis Brunet",
-      "company": "Collectif Aube",
+      "company": "Société exemple Q",
       "email": "yanis.brunet@exemple.invalid",
       "role": "Administratif",
       "segment": "Partenaire",
@@ -174,7 +174,7 @@ window.DEMO_SEED = {
     {
       "id": "c18",
       "name": "Eva Lambert",
-      "company": "Pixel Latitude",
+      "company": "Société exemple R",
       "email": "eva.lambert@exemple.invalid",
       "role": "Opérations",
       "segment": "Client",
@@ -184,7 +184,7 @@ window.DEMO_SEED = {
     {
       "id": "c19",
       "name": "Léo Masson",
-      "company": "Terrasse Violette",
+      "company": "Société exemple S",
       "email": "leo.masson@exemple.invalid",
       "role": "Commercial",
       "segment": "Prospect",
@@ -194,7 +194,7 @@ window.DEMO_SEED = {
     {
       "id": "c20",
       "name": "Louise Petit",
-      "company": "Fournitures Azur",
+      "company": "Société exemple T",
       "email": "louise.petit@exemple.invalid",
       "role": "Direction",
       "segment": "Partenaire",
@@ -204,7 +204,7 @@ window.DEMO_SEED = {
     {
       "id": "c21",
       "name": "Arthur Renault",
-      "company": "Mosaïque Conseil",
+      "company": "Société exemple U",
       "email": "arthur.renault@exemple.invalid",
       "role": "Achats",
       "segment": "Client",
@@ -214,7 +214,7 @@ window.DEMO_SEED = {
     {
       "id": "c22",
       "name": "Alice Giraud",
-      "company": "Aster Equipements",
+      "company": "Société exemple V",
       "email": "alice.giraud@exemple.invalid",
       "role": "Administratif",
       "segment": "Prospect",
@@ -224,7 +224,7 @@ window.DEMO_SEED = {
     {
       "id": "c23",
       "name": "Tom Colin",
-      "company": "Parcours Lumen",
+      "company": "Société exemple W",
       "email": "tom.colin@exemple.invalid",
       "role": "Opérations",
       "segment": "Partenaire",
@@ -234,7 +234,7 @@ window.DEMO_SEED = {
     {
       "id": "c24",
       "name": "Manon Roche",
-      "company": "Industrie Horizon",
+      "company": "Société exemple X",
       "email": "manon.roche@exemple.invalid",
       "role": "Commercial",
       "segment": "Client",

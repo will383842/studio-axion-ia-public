@@ -84,4 +84,14 @@ describe("maquette 01 · Espace démo · Courriels", () => {
     expect(css).toMatch(/\.demo-console span\{color:var\(--orange\)\}/);
     for (const m of css.matchAll(/font-size:(\d+)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(11);
   });
+  it("raisons sociales neutres : aucun ancien nom, aucun mot de couleur ni marque réelle", () => {
+    const anciens = ["Agencement Nova", "Aster Equipements", "Atelier Mistral", "Atelier Sillage", "Bureau Solstice", "Bâtiment Soren", "Collectif Aube", "Comptoir Alta", "Flux Horizon", "Fournitures Azur", "Industrie Horizon", "Industrie Rivage", "Logistique Liora", "Maison Céladon", "Maison Vermeil", "Menuiserie Opale", "Mosaïque Conseil", "Nacre Services", "Orme Distribution", "Parcours Lumen", "Pixel Latitude", "Studio Halcyon", "Terrasse Violette", "Élan Formation", "Épure Conseil"];
+    for (const nom of anciens) expect(tout, nom).not.toContain(nom);
+    expect(tout).not.toMatch(/azur|violet|bleu|blue|mistral/i);
+    const data = fichiers.find((f) => f.chemin === "demo-data.js")!.contenu;
+    const societes = [...data.matchAll(/"company": "([^"]*)"/g)].map((m) => m[1]);
+    expect(societes.length).toBe(24);
+    for (const s of societes) expect(s).toMatch(/^Société exemple [A-X]$/);
+    expect(new Set(societes).size).toBe(24);
+  });
 });
