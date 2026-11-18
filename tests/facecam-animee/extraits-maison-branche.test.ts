@@ -49,7 +49,7 @@ describe("BR-EXTRAITS-MAISON-a : realiser → message du réalisateur", () => {
         const e = valeur === undefined ? entree : ({ ...entree, extraitsMaison: valeur } as unknown as EntreeRealisateur);
         const r = await requete(e);
         expect(r.message, `${nom} ${String(valeur)}`).not.toContain(MARQUE);
-        console.log("H", nom, sha(r.message), sha(r.systeme));
+        expect(sha(r.message), `${nom} ${String(valeur)}`).toBe(EMPREINTES[nom].message);
         expect(sha(r.systeme), `${nom} ${String(valeur)}`).toBe(EMPREINTES[nom].systeme);
       }
     }
