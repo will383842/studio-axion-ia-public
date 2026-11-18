@@ -42,7 +42,15 @@ export async function gesteLireDejaTraitees(o: { env?: Record<string, string | u
     const cartes = await (o.depot ?? creerDepotParametre()).lire();
     return cartes
       .filter((c) => c.statut === "fait" || c.statut === "ignore")
-      .map((c) => ({ idEvenement: c.idEvenement, reseau: c.reseau, extrait: c.extrait, creeLe: c.creeLe, statut: c.statut as "fait" | "ignore" }))
+      .map((c) => ({
+        idEvenement: c.idEvenement,
+        reseau: c.reseau,
+        extrait: c.extrait,
+        post: c.post,
+        creeLe: c.creeLe,
+        ...(c.statut === "fait" && c.faitLe ? { faitLe: c.faitLe } : {}),
+        statut: c.statut as "fait" | "ignore",
+      }))
       .sort((a, b) => b.creeLe.localeCompare(a.creeLe));
   } catch {
     return [];

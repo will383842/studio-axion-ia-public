@@ -24,6 +24,10 @@ const NV_PLAN = nv("emplacement du plan non prouvé dans le code de ce moteur (G
 const NV_VOIX = nv("emplacement de la voix non prouvé dans le code de ce moteur (G12.md § 1.3 absent du dépôt privé)");
 const NV_SCENES = nv("emplacement des rendus de scène non prouvé dans le code de ce moteur (G12.md § 1.3 absent du dépôt privé)");
 
+const NV_PLAN_VL = nv("VL-05 : pas encore produit par le moteur (le plan de la vidéo longue n'est pas encore rangé dans le résultat)");
+const NV_SCENES_VL = nv("VL-05 : pas encore produit par le moteur (les rendus de scène de la vidéo longue ne sont pas encore rangés)");
+const NV_VOIX_VL = nv("le moteur range la voix dans projetMontage.reprise.voix (montage-video-longue/index.ts:50-55) ; lecteur à brancher avec VL-05, quand le résultat complet est produit");
+
 /** Plans du résultat : `ResultatFabrication.plans` (src/moteurs/types.ts:94), rempli par le cas concret (montage-cas-concret/index.ts:765). */
 const PLANS_PRESENTS: Lecteur = (r) => Array.isArray(r.plans) && r.plans.length > 0;
 /** Voix du cas concret : `projetMontage.casConcret.voix` (montage-cas-concret/index.ts:840). */
@@ -52,6 +56,7 @@ export const LECTEURS_ARTEFACTS: Readonly<Record<string, Readonly<Record<string,
   "image-video": Object.freeze({ plan: NV_PLAN, voix: NV_VOIX, "rendus-scenes": NV_SCENES }),
   "tutoriel-outil": Object.freeze({ plan: NV_PLAN, voix: NV_VOIX, "rendus-scenes": NV_SCENES }),
   "demo-facecam": Object.freeze({ plan: NV_PLAN }),
+  "video-longue": Object.freeze({ plan: NV_PLAN_VL, voix: NV_VOIX_VL, "rendus-scenes": NV_SCENES_VL }),
 });
 
 export interface ArtefactsDuResultat {
