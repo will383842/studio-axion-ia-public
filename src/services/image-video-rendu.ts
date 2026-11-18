@@ -41,6 +41,7 @@ import type { BlocRenduIV, LigneDeTempsIV } from "@/moteurs/montage-image-video/
 import { LIGNES_MAX_ECRAN_IV, proprietesEcranIV916 } from "@/moteurs/montage-image-video/ecrans-v4";
 import { BANDE_SOUS_TITRES_IV, ECRAN_IV, formatDeHauteurIV, MISE_EN_PAGE_IV, type FormatEcranIV } from "@/briques/schema-motion/types";
 import { passagesIvoireIV, segmentsDeBaseIV, sousTitresVariesIV, STYLE_SOUS_TITRES_IV, styleRetenuIV, surlignageSousTitresIV } from "@/moteurs/montage-image-video/sous-titres-varies";
+import { regrouperMinimalIV } from "@/moteurs/montage-image-video/sous-titres-minimal";
 import { figeHorsVoixMaxSec, type PassageFigeIV } from "@/moteurs/montage-image-video/commandes-ffmpeg";
 
 /* ------------------------------------------------------------------ */
@@ -275,6 +276,8 @@ export interface OutilsRenduIV {
   sons: readonly SonValideIV[];
   /** Mesures locales du fichier final (défaut : aucune). */
   mesurer?: (cle: string, dureeSec: number) => Promise<MesuresLocalesIV>;
+  /** BR-MINIMAL-IV-a : sous-titres en groupes de 1 à 3 mots (réglage `imageVideo.sousTitresMinimal`, éteint par défaut). */
+  sousTitresMinimal?: true;
 }
 
 /** Erreur de rendu : une phrase simple pour Will (jamais le message du serveur). */
@@ -307,11 +310,11 @@ export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" 
 }
 
 /** Base de la composition finale : scènes bout à bout, voix seule, bruitages, sous-titres VARIÉS dans la bande (PUR). */
-export function baseDuMontageIV(d: Pick<DemandeRenduIV, "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[]): BaseComposition {
+export function baseDuMontageIV(d: Pick<DemandeRenduIV, "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[], options?: { minimal?: true }): BaseComposition {
   const clairs = passagesIvoireIV(d.ligne);
   return {
     plans: plansDesScenes(scenes),
-    segments: sousTitresVariesIV(d.ligne, d.styleSousTitres),
+    segments: options?.minimal ? regrouperMinimalIV(sousTitresVariesIV(d.ligne, d.styleSousTitres)) : sousTitresVariesIV(d.ligne, d.styleSousTitres),
     dureeSec: d.ligne.dureeSec,
     mots: d.piste.mots.map((m) => ({ ...m })),
     audioCle: d.mixage.voix.cle,
@@ -369,7 +372,7 @@ export async function rendreVersionIV(d: DemandeRenduIV, o: OutilsRenduIV): Prom
   const commande = commandeDuMontageIV(d, posees, o.sons);
   const ratio = ratioDeLaLigneIV(d.ligne);
   const outilsMontage = outilsMontageIV(o, d.videoId, ratio);
-  const { demande } = await demandeComposition(commande, ratio, baseDuMontageIV(d, posees), "complet", d.id, outilsMontage, essai);
+  const { demande } = await demandeComposition(commande, ratio, baseDuMontageIV(d, posees, o.sousTitresMinimal ? { minimal: true } : undefined), "complet", d.id, outilsMontage, essai);
   const e = await suivreRendu(o.rendu, demande);
   if (e.statut === "echec") {
     console.warn(`[image-video] montage ${d.version} raté : ${e.erreur.message}`);
@@ -389,11 +392,11 @@ export async function rendreVersionIV(d: DemandeRenduIV, o: OutilsRenduIV): Prom
 }
 
 /** Demande de la composition finale d'une version, telle que le rendu la soumet (tests, diagnostic). */
-export async function demandeMontageIV(d: DemandeRenduIV, o: Pick<OutilsRenduIV, "rendu" | "env" | "signerLecture" | "signerDepot" | "sons">): Promise<DemandeRendu> {
+export async function demandeMontageIV(d: DemandeRenduIV, o: Pick<OutilsRenduIV, "rendu" | "env" | "signerLecture" | "signerDepot" | "sons" | "sousTitresMinimal">): Promise<DemandeRendu> {
   const scenes = scenesDeLaLigne(d.ligne, { env: o.env, videoId: d.videoId }).map((s) => ({ id: s.id, debutSec: s.debutSec, finSec: s.finSec, cle: s.cle }));
   const ratio = ratioDeLaLigneIV(d.ligne);
   const outilsMontage = outilsMontageIV(o, d.videoId, ratio);
-  return (await demandeComposition(commandeDuMontageIV(d, scenes, o.sons), ratio, baseDuMontageIV(d, scenes), "complet", d.id, outilsMontage, Math.max(0, (d.essai ?? 1) - 1))).demande;
+  return (await demandeComposition(commandeDuMontageIV(d, scenes, o.sons), ratio, baseDuMontageIV(d, scenes, o.sousTitresMinimal ? { minimal: true } : undefined), "complet", d.id, outilsMontage, Math.max(0, (d.essai ?? 1) - 1))).demande;
 }
 
 /* ------------------------------------------------------------------ */
