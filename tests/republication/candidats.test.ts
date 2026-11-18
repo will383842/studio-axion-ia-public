@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { interditsTousEcrivains } from "@/domaine/qualite-script/regles/interdits";
 import type { Publication } from "@/domaine/types";
-import { LECTURE_MAX_PUBLICATIONS, NOMBRE_MAX_AFFICHES, listerContenusARelancer, type DepsContenusARelancer } from "@/services/contenus-a-relancer";
+import { NOMBRE_MAX_AFFICHES, listerContenusARelancer, type DepsContenusARelancer } from "@/services/contenus-a-relancer";
 
 const MAINTENANT = new Date("2026-12-01T12:00:00Z");
 const ilYa = (jours: number) => new Date(MAINTENANT.getTime() - jours * 86_400_000).toISOString();
@@ -134,18 +134,6 @@ describe("ligne rendue", () => {
       expect(l.raison).not.toMatch(/\b0[.,]\d+/);
       expect(interditsTousEcrivains(l.raison)).toEqual([]);
     }
-  });
-});
-
-describe("plafond de traitement", () => {
-  it("garde les LECTURE_MAX_PUBLICATIONS plus récentes : les plus anciennes, même très bien notées, sont écartées", async () => {
-    const total = LECTURE_MAX_PUBLICATIONS.valeur + 5;
-    const beaucoup = Array.from({ length: total }, (_, i) => pub(`m${String(i).padStart(4, "0")}`, i >= total - 5 ? 100000 + i : 100 + (i % 50), { date: ilYa(40 + i / 100) }));
-    const anciennes = new Set(beaucoup.slice(total - 5).map((p) => p.id));
-    const r = await listerContenusARelancer(deps(beaucoup).d, MAINTENANT);
-    expect(r).toHaveLength(NOMBRE_MAX_AFFICHES.valeur);
-    expect(r.some((l) => anciennes.has(l.publicationId))).toBe(false);
-    expect(r[0].publicationId).toMatch(/^m0\d{3}$/);
   });
 });
 

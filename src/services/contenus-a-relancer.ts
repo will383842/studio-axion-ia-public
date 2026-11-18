@@ -3,8 +3,8 @@
  * aucun appel réseau ni à un modèle, aucun réglage lu. Branché nulle part (l'écran vient avec L8-12b).
  *
  * Ce que la fonction lit, et rien d'autre :
- *   - les publications publiées, non simulées, avec média, hors exemples ; l'API des dépôts n'a pas de limite de lecture : le dépôt les lit toutes (filtre appliqué),
- *     puis un plafond de TRAITEMENT (LECTURE_MAX_PUBLICATIONS) ne garde en mémoire que les plus récentes ; les plus anciennes sont écartées et le « sur n » de la raison se calcule sur ce sous-ensemble ;
+ *   - les publications publiées, non simulées, avec média, hors exemples : la lecture est bornée par le filtre du dépôt (publiées, non simulées, hors exemples) ;
+ *     toutes les publications filtrées sont notées, et l'affichage est borné par NOMBRE_MAX_AFFICHES ;
  *   - les créneaux dont l'identifiant commence par « republication-<id>- » pour les 10 lignes retenues seulement.
  * Le seuil de performance des règles n'est pas lu (question ouverte au fondateur) : on liste les mieux classés.
  */
@@ -23,8 +23,6 @@ import { filtreExemples as filtreExemplesParDefaut } from "./_commun";
 
 /** PROPOSITION : nombre maximal de lignes de la liste. */
 export const NOMBRE_MAX_AFFICHES = { statut: "hypothese", valeur: 10 } as const;
-/** PROPOSITION : plafond de TRAITEMENT appliqué en mémoire après la lecture (l'API des dépôts n'a pas de limite de lecture) : seules les plus récentes sont gardées, les plus anciennes sont écartées. */
-export const LECTURE_MAX_PUBLICATIONS = { statut: "hypothese", valeur: 2000 } as const;
 /** Nombre de signes du texte d'origine montrés (fixé par la fiche). */
 export const SIGNES_DEBUT_TEXTE = 80;
 
@@ -78,7 +76,7 @@ export async function listerContenusARelancer(deps: DepsContenusARelancer = deps
     (p) => p.statut === "publiee" && p.via !== "simulation" && exemples(p) && mediaDe(p) !== undefined,
     (p) => ({ ...p, retention: undefined }),
   );
-  const publications = [...lues].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? -1 : 1)).slice(0, LECTURE_MAX_PUBLICATIONS.valeur);
+  const publications = lues;
   if (publications.length === 0) return [];
 
   const parId = new Map(publications.map((p) => [p.id, p]));
