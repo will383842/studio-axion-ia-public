@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CommandeFabrication } from "@/domaine/types";
 import type { LectureMorceau } from "@/briques/voix-longue";
 import { decouperScript } from "@/briques/voix-longue";
@@ -224,5 +224,86 @@ describe("VL-07 — chemin gardé, aligneur, montage", () => {
     const r = await creerDependancesVideoLongue(commande(), f.ports).monter("16:9", ctxMontage);
     expect(r.fichierCle).toBe("k");
     expect(f.appelsMontage).toBe(1);
+  });
+});
+
+describe("VL-07 — correctif : son gardé, voix dans la clé, pause, aucun montant", () => {
+  it("un morceau repris rend le MÊME fichierCle, 0 appel, 0 réservation", async () => {
+    const f = faux();
+    f.ports.lireMorceau = async (t) => (f.appelsVoix.push(t), { dureeSec: 5, mots: [], fichierCle: `son/${f.appelsVoix.length}.mp3`, copieEnAttente: { adresse: "https://x/a.mp3", idDemande: "d1", idExterne: "voix-1" } });
+    const c = commande();
+    const d = creerDependancesVideoLongue(c, f.ports);
+    const premier = (await d.voix.lire(morceau(c, 0))) as LectureMorceau & { fichierCle?: string; copieEnAttente?: unknown };
+    const appels = f.appelsVoix.length;
+    const reserv = f.reservations.length;
+    const repris = (await d.voix.lire(morceau(c, 0))) as typeof premier;
+    expect(repris.fichierCle).toBe(premier.fichierCle);
+    expect(repris.fichierCle).toBe("son/1.mp3");
+    expect(repris.copieEnAttente).toEqual(premier.copieEnAttente);
+    expect(f.appelsVoix).toHaveLength(appels);
+    expect(f.reservations).toHaveLength(reserv);
+  });
+  it("la voix fait partie de la clé de reprise : autre voix = autre clé, jamais le son d'une autre voix", async () => {
+    expect(empreinteMorceau(VIDEO, "Bonjour.", "voix-a")).not.toBe(empreinteMorceau(VIDEO, "Bonjour.", "voix-b"));
+    expect(empreinteMorceau(VIDEO, "Bonjour.", "voix-a")).toBe(empreinteMorceau(VIDEO, "Bonjour.", "voix-a"));
+    const base = new Map<string, unknown>();
+    const c = commande();
+    const fa = faux({}, base);
+    fa.ports.idVoix = async () => "voix-a";
+    await creerDependancesVideoLongue(c, fa.ports).voix.lire(morceau(c, 0));
+    const fb = faux({}, base);
+    fb.ports.idVoix = async () => "voix-b";
+    await creerDependancesVideoLongue(c, fb.ports).voix.lire(morceau(c, 0));
+    expect(fb.appelsVoix).toHaveLength(1);
+  });
+  it("aucune phrase montrée à l'utilisateur ne contient un montant", async () => {
+    const c = commande();
+    const g = commande({ accord: null });
+    const dg = creerDependancesVideoLongue(g, faux().ports);
+    const d = creerDependancesVideoLongue(c, faux({ actif: false }).ports);
+    for (const lire of [() => d.voix.lire(morceau(c)), () => dg.voix.lire(morceau(g))]) await expect(lire()).rejects.toThrow(/^[^$€]*$/);
+    const chapitres = Array.from({ length: 8 }, (_, i) => chapitre(`c${i}`, 4990));
+    const c2 = commande({ chapitres });
+    await expect(creerDependancesVideoLongue(c2, faux().ports).voix.lire(morceau(c2))).rejects.toMatchObject({ motif: "plafond", message: expect.not.stringMatching(/\$|€|\d+\s*(?:dollars?|euros?)/i) });
+  });
+});
+
+describe("VL-07 — niveau réel : réglage, pause, aucun appel", () => {
+  async function chargerReel(reglage: unknown) {
+    vi.resetModules();
+    const lireParametre = vi.fn(async () => reglage);
+    const ecrireParametre = vi.fn(async () => undefined);
+    const verifierEtReserverSelonOrigine = vi.fn(async () => undefined);
+    const branchementsReels = vi.fn(async () => {
+      throw new Error("appel payant interdit");
+    });
+    vi.doMock("@/services/_commun", () => ({ lireParametre, ecrireParametre }));
+    vi.doMock("@/services/credits", () => ({ verifierEtReserverSelonOrigine }));
+    vi.doMock("@/services/tableau-outils", () => ({ branchementsReels }));
+    const m = await import("@/services/video-longue-branchements");
+    await new Promise((r) => setTimeout(r, 20)); // la 1re lecture du réglage revient
+    return { m, lireParametre, ecrireParametre, verifierEtReserverSelonOrigine, branchementsReels };
+  }
+  for (const reglage of [undefined, false, "true", 1, "oui", null, {}]) {
+    it(`réglage ${JSON.stringify(reglage)} : pause (null), aucune voix lue, aucune réservation, aucune écriture`, async () => {
+      const r = await chargerReel(reglage);
+      expect(r.m.dependancesVideoLongue(commande())).toBeNull();
+      expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
+      expect(r.branchementsReels).not.toHaveBeenCalled();
+      expect(r.ecrireParametre).not.toHaveBeenCalled();
+    });
+  }
+  it("réglage true exact, avec accord : PAUSE (montage non relié), jamais un échec ni un appel", async () => {
+    const r = await chargerReel(true);
+    expect(r.m.MONTAGE_VIDEO_LONGUE_RELIE).toBe(false);
+    expect(r.m.dependancesVideoLongue(commande())).toBeNull();
+    expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
+    expect(r.branchementsReels).not.toHaveBeenCalled();
+    expect(r.ecrireParametre).not.toHaveBeenCalled();
+  });
+  it("réglage true exact, sans accord : pause aussi", async () => {
+    const r = await chargerReel(true);
+    expect(r.m.dependancesVideoLongue(commande({ accord: null }))).toBeNull();
+    expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
   });
 });

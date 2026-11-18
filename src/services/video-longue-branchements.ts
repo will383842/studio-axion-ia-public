@@ -33,8 +33,13 @@ import type { DependancesVideoLongue } from "@/moteurs/montage-video-longue/chai
 
 /** Réglage de dépenses : seul `true` exact allume. */
 export const PARAM_VIDEO_LONGUE_ACTIF = "videoLongue.actif";
+/** Montage réel relié ? Faux tant que l'opération de collage n'est pas déclarée dans le contrat de rendu (zone will-dc). Faux = PAUSE, jamais un échec. */
+export const MONTAGE_VIDEO_LONGUE_RELIE = false;
 /** Plafond par vidéo : 10 $ (décision du 18/11), en centimes de dollar. */
 export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
+
+/** Un morceau lu et PAYÉ : on garde aussi son son (`fichierCle`, ou la copie encore en attente), pour ne jamais le repayer au montage. */
+export type LectureGardee = LectureMorceau & { fichierCle?: string; copieEnAttente?: { adresse: string; idDemande: string; idExterne?: string } };
 
 /** Pourquoi rien n'est parti. */
 export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur";
@@ -71,8 +76,8 @@ export const pireCasVoixCentimesUsd = (caracteres: number): number => Math.ceil(
 export interface RegistreVideoLongue {
   depense(videoId: string): Promise<number>;
   ecrireDepense(videoId: string, centimesUsd: number): Promise<void>;
-  morceauFait(cle: string): Promise<LectureMorceau | null>;
-  noterMorceau(cle: string, lecture: LectureMorceau): Promise<void>;
+  morceauFait(cle: string): Promise<LectureGardee | null>;
+  noterMorceau(cle: string, lecture: LectureGardee): Promise<void>;
 }
 
 export interface PortsVideoLongue {
@@ -84,21 +89,23 @@ export interface PortsVideoLongue {
   /** Chemin gardé de l'argent (crédits, budget du mois) : lève si refus. Appelé avant la lecture, jamais après. */
   reserver(e: { caracteres: number; centimesUsd: number; morceau: number }): Promise<void>;
   /** Voix du double (HeyGen) : lit UN morceau. Seul point qui paie. */
-  lireMorceau(texte: string): Promise<LectureMorceau>;
+  lireMorceau(texte: string): Promise<LectureGardee>;
+  /** Voix du double (entre dans la clé de reprise : une autre voix = un autre son). Absent = clé sans voix. */
+  idVoix?(): Promise<string>;
   /** Facultatif : horodatage des mots quand la voix n'en rend pas. */
   aligner?(texte: string, lecture: LectureMorceau): Promise<MotHorodate[]>;
   /** Montage réel d'un format (jamais appelé si éteint ou sans accord). */
   monter?(ratio: Ratio, ctx: Parameters<DependancesVideoLongue["monter"]>[1]): Promise<{ fichierCle: string }>;
 }
 
-export const empreinteMorceau = (videoId: string, texte: string): string => `videoLongue.voix.${videoId}.${createHash("sha256").update(texte).digest("hex").slice(0, 24)}`;
+export const empreinteMorceau = (videoId: string, texte: string, idVoix = ""): string => `videoLongue.voix.${videoId}.${createHash("sha256").update(`${idVoix}\n${texte}`).digest("hex").slice(0, 24)}`;
 const cleDepense = (videoId: string): string => `videoLongue.depense.${videoId}`;
 
 const PHRASES: Record<MotifRefusVideoLongue, string> = {
   eteint: "La vidéo longue est éteinte : rien n'est parti, rien n'est payé.",
   "sans-accord": "Votre accord pour cette vidéo manque : rien n'est parti, rien n'est payé.",
   "accord-depasse": "Le script dépasse les quantités que vous avez acceptées : rien n'est parti, rien n'est payé. Relancez en confirmant les nouvelles quantités.",
-  plafond: "Le plafond de 10 $ pour cette vidéo serait dépassé : la fabrication s'arrête ici. Ce qui est déjà lu est gardé, rien de plus n'est payé.",
+  plafond: "Le plafond prévu pour cette vidéo serait dépassé : la fabrication s'arrête ici. Ce qui est déjà lu est gardé, rien de plus n'est payé.",
   "montage-non-relie": "Le montage de la vidéo longue n'est pas encore relié : aucune voix n'est lue, rien n'est payé.",
   fournisseur: "La voix n'a pas pu être lue : vous pouvez réessayer, ce qui est déjà fait est conservé.",
 };
@@ -126,7 +133,9 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
         const a = await garder();
         const tous = decouperScript(entrees.chapitres);
         if (tous.length > a.morceaux || tous.reduce((s, m) => s + m.texte.length, 0) > a.caracteres) throw refus("accord-depasse");
-        const cle = empreinteMorceau(videoId, morceau.texte);
+        const idVoix = (await ports.idVoix?.()) ?? "";
+        const cleDe = (texte: string) => empreinteMorceau(videoId, texte, idVoix);
+        const cle = cleDe(morceau.texte);
         // Reprise : un morceau déjà lu (même texte) n'est jamais relu ni repayé.
         const fait = await ports.registre.morceauFait(cle);
         if (fait) return fait;
@@ -134,7 +143,7 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
         // Pire cas : déjà dépensé + ce morceau + tous les morceaux encore à lire (jamais payé pour s'arrêter au milieu).
         const depense = await ports.registre.depense(videoId);
         let restant = 0;
-        for (const m of tous) if (m.index === morceau.index || !(await ports.registre.morceauFait(empreinteMorceau(videoId, m.texte)))) restant += pireCasVoixCentimesUsd(m.texte.length);
+        for (const m of tous) if (m.index === morceau.index || !(await ports.registre.morceauFait(cleDe(m.texte)))) restant += pireCasVoixCentimesUsd(m.texte.length);
         if (depense + restant > PLAFOND_VIDEO_LONGUE_CENTIMES_USD) throw refus("plafond");
         const centimesUsd = pireCasVoixCentimesUsd(morceau.texte.length);
         // Registre écrit AVANT l'appel ; rendu seulement si l'appel n'est jamais parti.
@@ -145,7 +154,7 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
           await ports.registre.ecrireDepense(videoId, depense);
           throw e;
         }
-        let lecture: LectureMorceau;
+        let lecture: LectureGardee;
         try {
           lecture = await ports.lireMorceau(morceau.texte);
         } catch (e) {
@@ -174,7 +183,7 @@ async function registreReel(): Promise<RegistreVideoLongue> {
   return {
     depense: async (videoId) => Number(await lireParametre<number>(cleDepense(videoId), 0)) || 0,
     ecrireDepense: (videoId, c) => ecrireParametre(cleDepense(videoId), c),
-    morceauFait: async (cle) => (await lireParametre<LectureMorceau | null>(cle, null)) ?? null,
+    morceauFait: async (cle) => (await lireParametre<LectureGardee | null>(cle, null)) ?? null,
     noterMorceau: (cle, l) => ecrireParametre(cle, l),
   };
 }
@@ -182,11 +191,18 @@ async function registreReel(): Promise<RegistreVideoLongue> {
 async function portsReels(commande: CommandeFabrication, travailId: string): Promise<PortsVideoLongue> {
   const { lireParametre } = await import("./_commun");
   const registre = await registreReel();
+  let branches: ReturnType<(typeof import("./tableau-outils"))["branchementsReels"]> | undefined;
+  const branchements = () => {
+    const personnageId = commande.distribution[0]?.personnageId;
+    if (!personnageId) throw refus("montage-non-relie");
+    return (branches ??= import("./tableau-outils").then((m) => m.branchementsReels(personnageId, commande.videoId)));
+  };
   return {
-    actif: async () => (await lireParametre<unknown>(PARAM_VIDEO_LONGUE_ACTIF, false)) === true,
+    actif: async () => (await lireParametre<unknown>("videoLongue.actif", false)) === true,
     registre,
     // Montage réel pas encore relié (collage de chapitres : déclaration du contrat de rendu, zone de will-dc) : rien n'est lu.
-    montagePret: async () => false,
+    montagePret: async () => MONTAGE_VIDEO_LONGUE_RELIE,
+    idVoix: async () => (await branchements()).voix.idVoix,
     reserver: async (e) => {
       const { verifierEtReserverSelonOrigine } = await import("./credits");
       const { centimes } = await import("@/lib/montants");
@@ -195,13 +211,9 @@ async function portsReels(commande: CommandeFabrication, travailId: string): Pro
       await verifierEtReserverSelonOrigine(commande.origine, { lignes: [{ etape: "voix", fournisseur: "heygen", unite: "caractere", quantite: e.caracteres, prixUnitaire: centimes(CENTIMES_USD_PAR_CARACTERE_HEYGEN), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: commande.videoId, travailId, ...cleDepenseUsine(commande.origine, travailId) });
     },
     lireMorceau: async (texte) => {
-      const personnageId = commande.distribution[0]?.personnageId;
-      if (!personnageId) throw refus("montage-non-relie");
-      const { branchementsReels } = await import("./tableau-outils");
-      const b = await branchementsReels(personnageId, commande.videoId);
-      const v = b.voix;
+      const v = (await branchements()).voix;
       const r = await v.voix().lire({ idExterne: v.idVoix, texte, reglages: v.reglages ?? { vitesse: 1, stabilite: 45, emotion: 30 }, prononciations: [], tauxUsdEur: v.tauxUsdEur });
-      return { dureeSec: r.dureeSec, mots: r.mots };
+      return { dureeSec: r.dureeSec, mots: r.mots, fichierCle: r.fichierCle, ...(r.copieEnAttente ? { copieEnAttente: { ...r.copieEnAttente, idExterne: v.idVoix } } : {}) };
     },
   };
 }
@@ -218,7 +230,7 @@ function rafraichirActif(): void {
   if (etatActif.enCours || Date.now() - etatActif.deLe < DUREE_CACHE_MS) return;
   etatActif.enCours = true;
   void import("./_commun")
-    .then(({ lireParametre }) => lireParametre<unknown>(PARAM_VIDEO_LONGUE_ACTIF, false))
+    .then(({ lireParametre }) => lireParametre<unknown>("videoLongue.actif", false))
     .then((v) => {
       etatActif.vu = v === true;
     })
@@ -235,6 +247,8 @@ function rafraichirActif(): void {
 export function dependancesVideoLongue(commande: CommandeFabrication, travailId = commande.videoId): DependancesVideoLongue | null {
   rafraichirActif();
   if (!etatActif.vu) return null;
+  // Pause (jamais un échec) tant que le montage réel n'est pas relié, et tant que l'accord de CETTE vidéo manque.
+  if (!MONTAGE_VIDEO_LONGUE_RELIE || !lireAccordVideoLongue(commande)) return null;
   let ports: Promise<PortsVideoLongue> | undefined;
   const p = (): Promise<PortsVideoLongue> => (ports ??= portsReels(commande, travailId));
   const paresseux: PortsVideoLongue = {
@@ -248,6 +262,7 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
     montagePret: async () => (await p()).montagePret(),
     reserver: async (e) => (await p()).reserver(e),
     lireMorceau: async (t) => (await p()).lireMorceau(t),
+    idVoix: async () => (await p()).idVoix?.() ?? "",
   };
   return creerDependancesVideoLongue(commande, paresseux);
 }
