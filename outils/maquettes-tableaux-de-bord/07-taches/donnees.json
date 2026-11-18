@@ -151,6 +151,52 @@
           "valeur": 97
         }
       ]
+    },
+    {
+      "id": "graduations-graphique",
+      "libelle": "Graduations du graphique · exemple",
+      "unite": "demandes",
+      "points": [
+        {
+          "x": "Graduation 0",
+          "valeur": 0
+        },
+        {
+          "x": "Graduation 70",
+          "valeur": 70
+        },
+        {
+          "x": "Graduation 140",
+          "valeur": 140
+        },
+        {
+          "x": "Graduation 210",
+          "valeur": 210
+        },
+        {
+          "x": "Graduation 280",
+          "valeur": 280
+        }
+      ]
+    },
+    {
+      "id": "qualite-par-fiche",
+      "libelle": "Qualité indicative par fiche · exemple",
+      "unite": "%",
+      "points": [
+        {
+          "x": "Présentation de l’entreprise",
+          "valeur": 100
+        },
+        {
+          "x": "Offres et prestations",
+          "valeur": 97
+        },
+        {
+          "x": "Questions fréquentes",
+          "valeur": 94
+        }
+      ]
     }
   ],
   "comparaisons": [],

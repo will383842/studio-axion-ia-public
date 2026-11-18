@@ -61,7 +61,12 @@
       },
       "textesEcran": [
         "5 sources indexées",
-        "4 processus configurés"
+        "4 processus configurés",
+        "0",
+        "70",
+        "140",
+        "210",
+        "280"
       ]
     },
     {
@@ -120,7 +125,10 @@
       },
       "textesEcran": [
         "Fiches disponibles 5",
-        "Qualité moyenne 93 % · exemple"
+        "Qualité moyenne 93 % · exemple",
+        "Présentation de l’entreprise 100 %",
+        "Offres et prestations 97 %",
+        "Questions fréquentes 94 %"
       ]
     },
     {

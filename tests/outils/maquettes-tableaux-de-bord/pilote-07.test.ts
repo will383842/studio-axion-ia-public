@@ -146,6 +146,25 @@ describe("pilote 07 · données gardées", () => {
     expect(prio?.valeur).toBe(2);
   });
 
+  it("déclare les graduations du graphique (étape ensemble) et les 3 qualités du tableau des fiches (étape recherche)", () => {
+    if (!lecture.ok || !lectureScenario.ok) throw new Error("lecture impossible");
+    const parEtape = (id: string) => lectureScenario.scenario.etapes.find((e) => e.id === id)?.textesEcran ?? [];
+    const ensemble = parEtape("ensemble");
+    for (const g of ["0", "70", "140", "210", "280"]) expect(ensemble, g).toContain(g);
+    const recherche = parEtape("recherche");
+    for (const t of ["Présentation de l’entreprise 100 %", "Offres et prestations 97 %", "Questions fréquentes 94 %"]) expect(recherche, t).toContain(t);
+    const serie = (id: string) => lecture.donnee.series.find((x) => x.id === id);
+    expect(serie("graduations-graphique")?.libelle).toMatch(/exemple/i);
+    expect(serie("graduations-graphique")?.points.map((p) => p.valeur)).toEqual([0, 70, 140, 210, 280]);
+    expect(serie("qualite-par-fiche")?.libelle).toMatch(/exemple/i);
+    expect(serie("qualite-par-fiche")?.points.map((p) => p.valeur)).toEqual([100, 97, 94]);
+    // La garde G4-03 accepte chaque texte pris seul (aucun nombre hors donnée), y compris la graduation « 0 ».
+    for (const t of [...ensemble, ...recherche]) {
+      const v = garderChiffres(lecture.donnee, { textesEcran: [t], texteDit: "" });
+      expect(v.horsDonnee, t).toEqual([]);
+    }
+  });
+
   it("garde tous les textes d'écran et les paragraphes 1 à 5 : aucun nombre hors donnée", () => {
     if (!lecture.ok || !lectureScenario.ok) throw new Error("lecture impossible");
     const textesEcran = lectureScenario.scenario.etapes.flatMap((e) => e.textesEcran ?? []);
