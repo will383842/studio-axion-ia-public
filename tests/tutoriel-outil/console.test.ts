@@ -14,7 +14,8 @@ vi.mock("@/services/cout-video", () => ({ coutsDeLaVideo: vi.fn(async () => ({ n
 vi.mock("@/donnees/memoire", () => ({
   depots: () => ({
     parametres: { obtenir: async () => undefined },
-    videos: { lister: async () => [{ id: "v1", titre: "Titre v1", formatId: "tutoriel-outil", statut: "en_fabrication", modifieLe: new Date().toISOString(), creeLe: new Date().toISOString() }] },
+    videos: { obtenir: async (id: string) => (id === "v1" ? { id: "v1", titre: "Titre v1", formatId: "tutoriel-outil", statut: "en_fabrication" } : undefined), lister: async () => [{ id: "v1", titre: "Titre v1", formatId: "tutoriel-outil", statut: "en_fabrication", modifieLe: new Date().toISOString(), creeLe: new Date().toISOString() }] },
+    travaux: { lister: async () => [] },
     depenses: { lister: async () => [{ id: "d1", videoId: "v1", date: new Date().toISOString(), lignes: [{ unite: "appel", quantite: 2, fournisseur: "anthropic" }] }] },
   }),
 }));
@@ -75,6 +76,25 @@ describe("interrupteurs", () => {
       [c.CLE_FINITIONS, false],
     ]);
     expect(m.journal).toEqual(["Tutoriel d'outil : Son et vignette finis allumé", "Tutoriel d'outil : Son et vignette finis éteint"]);
+  });
+
+  it("la clé des scènes gardées et le lien de suivi viennent de leurs fichiers (imports, pas de recopie)", async () => {
+    const { PARAM_SCENES_TUTORIEL } = await import("@/services/scenes-tutoriel");
+    const { lienSuivi } = await import("@/services/tutoriel-suivi");
+    expect(c.CLE_SCENES_GARDEES).toBe(PARAM_SCENES_TUTORIEL);
+    const src = lire("src/services/tutoriel-console.ts");
+    expect(src).not.toContain(`"tutoriel.scenesGardees"`);
+    expect(src).not.toContain("/tutoriel-outil/suivi/");
+    const v = await c.videosEnCours({ videos: async () => [video("a", "tutoriel-outil", "en_fabrication", 0)], maintenantMs: T0 });
+    expect(v[0]?.suivi).toBe(lienSuivi("a"));
+  });
+
+  it("phrase d'état tirée du statut du travail (port etat de T-EXT-34)", async () => {
+    expect(c.phraseDuTravail("en_cours")).toBe("En cours de fabrication.");
+    expect(c.phraseDuTravail("termine")).toBe("Prête.");
+    expect(c.phraseDuTravail("echec")).toBe("Bloquée : regardez la cloche.");
+    const v = await c.videosEnCours({ videos: async () => [video("a", "tutoriel-outil", "en_fabrication", 0)], etat: async () => c.phraseDuTravail("en_file"), maintenantMs: T0 });
+    expect(v[0]?.etat).toBe("En attente de fabrication.");
   });
 
   it("les clés sont égales aux constantes de leurs fichiers sources", () => {
@@ -195,6 +215,10 @@ describe("consommation en quantités", () => {
     }
   });
 
+  it("les lignes « claude » comptent comme « anthropic » (même règle que idFournisseur)", () => {
+    const q = c.quantitesDesDepenses([depense("a", "2026-11-03T10:00:00Z", [{ unite: "appel", quantite: 3, fournisseur: "claude" }, { unite: "appel", quantite: 1, fournisseur: " Claude " }, { unite: "appel", quantite: 2, fournisseur: "anthropic" }])], () => true);
+    expect(q.appelsClaude).toBe(6);
+  });
   it("les lignes HeyGen ne comptent ni comme appels Claude ni comme rendus", () => {
     const q = c.quantitesDesDepenses(
       [depense("a", "2026-11-03T10:00:00Z", [{ unite: "appel", quantite: 4, fournisseur: "heygen" }, { unite: "seconde", quantite: 30, fournisseur: "heygen" }, { unite: "appel", quantite: 1, fournisseur: "anthropic" }, { unite: "minute", quantite: 1, fournisseur: "remotion-lambda" }])],
@@ -252,12 +276,19 @@ describe("aucun allumage par le code", () => {
   });
   it("aucun fichier de src n'écrit ces clés, sauf le service de la console", () => {
     const coupables = fichiers(join(process.cwd(), "src"))
-      .filter((f) => !f.endsWith("tutoriel-console.ts"))
+      .filter((f) => !f.endsWith("tutoriel-console.ts") && !f.endsWith("scenes-tutoriel.ts"))
       .filter((f) => {
         const s = readFileSync(f, "utf8");
         return ECRITURE.test(s) && (cles.some((k) => s.includes(`"${k}"`)) || nomsConstantes.test(s));
       });
     expect(coupables).toEqual([]);
+  });
+  it("scenes-tutoriel.ts (qui déclare la clé des scènes gardées) n'écrit que son index, jamais l'interrupteur", () => {
+    const src = lire("src/services/scenes-tutoriel.ts");
+    const ecritures = [...src.matchAll(/ecrireParametre\s*\(\s*([^,)]+)/g)].map((m) => m[1]!.trim());
+    expect(ecritures.length).toBeGreaterThan(0);
+    expect(ecritures.every((x) => x === "PARAM_INDEX_SCENES")).toBe(true);
+    expect(/parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/.test(src)).toBe(false);
   });
   it("le service n'écrit jamais `true` en dur ; l'action ne fait que relayer la valeur reçue", () => {
     expect(lire("src/services/tutoriel-console.ts")).not.toMatch(/ecrire\w*\([^)]*\btrue\b/);

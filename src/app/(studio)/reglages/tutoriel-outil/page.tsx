@@ -5,7 +5,8 @@ import { depots } from "@/donnees/memoire";
 import { exigerSession } from "@/services/auth";
 import { coutsDeLaVideo } from "@/services/cout-video";
 import { ligneSimulee, moisParis } from "@/services/couts";
-import { lireConsommation, lireReglagesTutoriel, lireTexteMention, videosEnCours } from "@/services/tutoriel-console";
+import { lireConsommation, lireReglagesTutoriel, lireTexteMention, phraseDuTravail, videosEnCours } from "@/services/tutoriel-console";
+import { lireSuivi } from "@/services/tutoriel-suivi";
 import { basculerReglageFormulaire, enregistrerTexteFormulaire } from "./actions";
 
 export const metadata: Metadata = { title: "Tutoriel d'outil" };
@@ -14,7 +15,14 @@ export const dynamic = "force-dynamic";
 /** Réglages › Tutoriel d'outil : interrupteurs (éteints par défaut), vidéos en cours, consommation en quantités. */
 export default async function PageReglagesTutorielOutil() {
   await exigerSession();
-  const videos = await videosEnCours({ videos: () => depots().videos.lister() });
+  const videos = await videosEnCours({
+    videos: () => depots().videos.lister(),
+    // Vue de suivi de T-EXT-34 : la dernière fabrication de la vidéo, en une phrase (sinon le statut de la vidéo).
+    etat: async (v) => {
+      const travail = (await lireSuivi(v.id))?.travail;
+      return travail ? phraseDuTravail(travail.statut) : null;
+    },
+  });
   const [reglages, texteMention, consommation] = await Promise.all([
     lireReglagesTutoriel(),
     lireTexteMention(),

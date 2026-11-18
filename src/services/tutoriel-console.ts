@@ -6,10 +6,9 @@
  *    (aucun `true` écrit en dur). Aucune clé n'est ajoutée à `reglages.ts`.
  *  - Le plafond Claude par vidéo est affiché seulement (« réglé » / « par défaut »), jamais modifiable ici.
  *  - Aucun appel payant : lecture des dépôts, écriture d'un réglage.
- *  - Clés dont la fiche créatrice n'est pas encore sur master (33, 41, 42, 26a, 15) : recopiées UNE fois ici, notées dans
- *    la PR. Seule `tutoriel.finitions` a un fichier source sur master (comparée par le test) ; les autres seront remplacées
- *    par des imports (`PARAM_SCENES_TUTORIEL`, `PARAM_ENTREE_ZIP`, `lienSuivi`…) après la fusion de leurs fiches,
- *    avec un test de comparaison tant qu'une recopie subsiste. PR à garder en brouillon d'ici là.
+ *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15) et `lienSuivi` (T-EXT-34) sont importés. Clés dont la fiche créatrice n'est pas encore
+ *    sur master (26a, 33, 35, 41, 42) : recopiées UNE fois ici, comparées au fichier source dès qu'il existe. PR à garder
+ *    en brouillon d'ici là.
  */
 import "server-only";
 import {
@@ -19,8 +18,10 @@ import {
   mentionIAAAfficher,
   TEXTE_MENTION_IA_PAR_DEFAUT,
 } from "@/briques/mentions-legales/etiquetage-ia";
-import type { DepenseEnregistree, Id, StatutVideo, Video } from "@/domaine/types";
+import type { DepenseEnregistree, Id, StatutTravail, StatutVideo, Video } from "@/domaine/types";
+import { PARAM_SCENES_TUTORIEL } from "./scenes-tutoriel";
 import { PARAM_CLAUDE_TUTORIEL, PARAM_PLAFOND_TUTORIEL } from "./tutoriel-claude";
+import { lienSuivi } from "./tutoriel-suivi";
 import { ecrireParametre as ecrireParDefaut, journaliser as journaliserParDefaut, lireParametre as lireParDefaut, maintenant } from "./_commun";
 
 /** Format du tutoriel (valeur de `ID_FORMAT_TUTORIEL_OUTIL`, comparée au fichier source par le test). */
@@ -35,7 +36,7 @@ export const CLE_ENTREE_PHRASE = "tutoriel.entreePhrase";
 export const CLE_DEVIS_AVANT_DEPENSE = "tutoriel.devisAvantDepense";
 export const CLE_FINITIONS = "tutoriel.finitions";
 export const CLE_FIN_COMMUNE = "tutoriel.finCommune";
-export const CLE_SCENES_GARDEES = "tutoriel.scenesGardees";
+export const CLE_SCENES_GARDEES = PARAM_SCENES_TUTORIEL; // importée : T-EXT-15 est fusionnée
 
 export interface ReglageTutoriel {
   cle: string;
@@ -142,6 +143,22 @@ export interface VideoEnCours {
   suivi: string;
 }
 
+/** Phrase d'état d'une fabrication (statut du travail lu par la vue de suivi de T-EXT-34), en mots simples. */
+export function phraseDuTravail(statut: StatutTravail): string {
+  switch (statut) {
+    case "en_file":
+      return "En attente de fabrication.";
+    case "en_cours":
+      return "En cours de fabrication.";
+    case "termine":
+      return "Prête.";
+    case "echec":
+      return "Bloquée : regardez la cloche.";
+    case "annule":
+      return "Annulée.";
+  }
+}
+
 export interface PortsVideos {
   videos: () => Promise<Video[]>;
   /** Phrase d'état venue de la vue de suivi (T-EXT-34) quand elle existe ; sinon le statut en une phrase. */
@@ -160,7 +177,7 @@ export async function videosEnCours(ports: PortsVideos): Promise<VideoEnCours[]>
       id: v.id,
       titre: v.titre,
       etat: (await ports.etat?.(v)) ?? PHRASE_ETAT[v.statut],
-      suivi: `/tutoriel-outil/suivi/${v.id}`,
+      suivi: lienSuivi(v.id),
     })),
   );
 }
@@ -181,7 +198,12 @@ const quantitesVides = (): QuantitesConso => ({ nbDepenses: 0, appelsClaude: 0, 
 /** Fournisseur des appels Claude, et fournisseurs de rendu (les lignes « seconde » d'un avatar ne sont pas des rendus). */
 const FOURNISSEUR_CLAUDE = "anthropic";
 const FOURNISSEURS_RENDU: readonly string[] = ["remotion-lambda", "simulation"];
-const memeFournisseur = (l: { fournisseur?: string }, f: string) => (l.fournisseur ?? "").trim().toLowerCase() === f;
+/** Même règle que `idFournisseur` (domaine/credits) : le Studio écrit aussi « claude » pour Anthropic (recopiée, pas importée). */
+const idFournisseurLigne = (f: string | undefined): string => {
+  const x = (f ?? "").trim().toLowerCase();
+  return x === "claude" ? FOURNISSEUR_CLAUDE : x;
+};
+const memeFournisseur = (l: { fournisseur?: string }, f: string) => idFournisseurLigne(l.fournisseur) === f;
 
 /** Quantités d'un lot de dépenses : appels, caractères lus, rendus (secondes ou minutes de rendu). Aucun montant. */
 export function quantitesDesDepenses(depenses: readonly DepenseEnregistree[], payee: (l: { fournisseur: string }) => boolean): QuantitesConso {
