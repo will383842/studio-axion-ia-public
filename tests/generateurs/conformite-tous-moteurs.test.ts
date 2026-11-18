@@ -20,6 +20,7 @@ const { creerMoteurTutorielOutil } = await import("@/moteurs/montage-tutoriel-ou
 const { creerMoteurMontageDemoFacecam } = await import("@/moteurs/montage-demo-facecam");
 const { creerMoteurMontageImageVideo } = await import("@/moteurs/montage-image-video");
 const { creerMoteurMontageFacecam } = await import("@/moteurs/montage-facecam");
+const { creerMoteurVideoLongue } = await import("@/moteurs/montage-video-longue");
 const { creerMoteurMontageFacecamAnimee } = await import("@/moteurs/montage-facecam-animee");
 const { carteFixe, monde, outilsSimules } = await import("./../image-video/doubles-fabrication");
 const { banc: bancCas } = await import("./../cas-concret/moteur/doubles");
@@ -79,6 +80,22 @@ async function commandeImageVideo(): Promise<CommandeFabrication> {
   } as CommandeFabrication;
 }
 
+/** Vidéo longue sur des doubles (voix et montage simulés, 16:9) : aucun appel réel, aucune dépense. */
+const chapitreVL = (n: number) => ({ id: `c${n}`, titre: `Chapitre ${n}`, texte: Array.from({ length: 40 }, (_, i) => `mot${n}x${i}`).join(" ") + "." });
+const moteurVideoLongue = creerMoteurVideoLongue(() => ({
+  voix: {
+    lire: async (m: { texte: string }) => {
+      const mots = m.texte.split(/\s+/).filter(Boolean).map((mot, i) => ({ mot, debutSec: i * 0.4, finSec: i * 0.4 + 0.35 }));
+      return { dureeSec: mots.length * 0.4, mots };
+    },
+  },
+  monter: async (ratio: string) => ({ fichierCle: `essai/video-longue/${ratio.replace(":", "x")}.mp4` }),
+}));
+async function commandeVideoLongue(): Promise<CommandeFabrication> {
+  const c = await depuisV03("video-longue", "montage-video-longue", ["16:9"])();
+  return { ...c, entrees: { ...c.entrees, videoLongue: { chapitres: [chapitreVL(1), chapitreVL(2), chapitreVL(3)] } } } as CommandeFabrication;
+}
+
 const casSans = bancCas({ relie: false });
 const tableauSans = bancTableau(ficheDemonstration, null);
 // 17/11 (Williams) : sans choix, aucune fin ; le contrat (retouche moins chère que la vidéo entière, sorties) suppose plusieurs fins : « Avec le mot » + mot branché les rétablissent.
@@ -103,6 +120,7 @@ const CAS: Record<string, Cas> = {
   "montage-cas-concret": { moteur: cas.moteur, fabriquer: async () => cas.commande(), sansFournisseur: () => casSans.moteur },
   "montage-tutoriel-outil": { moteur: tutoriel, fabriquer: async () => commandeTutoriel(), sansPrix: true, sansFournisseur: () => creerMoteurTutorielOutil({ outils: async () => null }) },
   "montage-demo-facecam": { fabriquer: depuisV03("demo-facecam", "montage-demo-facecam", ["4:5", "9:16", "1:1", "16:9"]), sansPrix: true, sansFournisseur: () => creerMoteurMontageDemoFacecam({ chaine: () => null }) },
+  "montage-video-longue": { moteur: moteurVideoLongue, fabriquer: async () => commandeVideoLongue(), sansPrix: true, sansFournisseur: () => creerMoteurVideoLongue(() => null) },
   "montage-image-video": { moteur: moteurImageVideo, fabriquer: async () => commandeImageVideo(), sansFournisseur: () => creerMoteurMontageImageVideo({ outils: async () => undefined as never }) },
 };
 
