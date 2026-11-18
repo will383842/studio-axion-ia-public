@@ -115,10 +115,10 @@ export function verrouFiche(entree: Pick<EntreeFiche, "etat" | "jour" | "confiee
   return null;
 }
 
-/** La raison d'un verrou, dite à la personne. */
 /** CAL-23 : dite à la place du verrou « confiee » quand le texte d'une publication programmée peut se changer. */
-export const PHRASE_PROGRAMMEE_MODIFIABLE = "Cette publication est déjà programmée. Si vous changez son texte, elle est retirée du diffuseur puis doit être validée de nouveau : rien ne part avant votre clic sur Valider.";
+export const PHRASE_PROGRAMMEE_MODIFIABLE = "Cette publication est déjà programmée. Si vous changez son texte, il doit être validé de nouveau : rien ne part avant votre clic sur Valider.";
 
+/** La raison d'un verrou, dite à la personne. */
 export const PHRASES_VERROU: Readonly<Record<RaisonVerrou, string>> = {
   publiee: "Déjà publiée. Elle n'est plus modifiable.",
   passee: "Ce jour est passé : cette publication n'est plus modifiable.",
@@ -367,7 +367,11 @@ export function FicheEntree({
                 ))}
               </ul>
             )}
-            {controle.voyant !== "vert" && <p className="mt-1 text-xs text-texte-faible">Ce contrôle avertit seulement : vous pouvez enregistrer quand même.</p>}
+            {controle.voyant !== "vert" && (
+              <p className="mt-1 text-xs text-texte-faible">
+                {programmeModifiable && controle.voyant === "rouge" ? "Ce texte sera refusé tant qu'il n'est pas corrigé." : "Ce contrôle avertit seulement : vous pouvez enregistrer quand même."}
+              </p>
+            )}
           </div>
         )}
         {!entree.texte.trim() && verrou === null && <p className="mt-1.5 text-sm font-semibold text-ambre">Il manque le texte.</p>}
@@ -462,7 +466,7 @@ export function FicheEntree({
       </div>
       {verrou && verrou !== "publiee" && (
         <p className="flex items-start gap-1.5 text-sm text-texte-doux">
-          <Icone nom="cadenas" size={14} className="mt-0.5 shrink-0" />
+          {!programmeModifiable && <Icone nom="cadenas" size={14} className="mt-0.5 shrink-0" />}
           {programmeModifiable ? PHRASE_PROGRAMMEE_MODIFIABLE : PHRASES_VERROU[verrou]}
         </p>
       )}

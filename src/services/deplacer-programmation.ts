@@ -12,12 +12,19 @@
  *  - texte ou premier commentaire changé : même retrait, puis le créneau repasse « À valider » (plus de `valideeLe`) : il exige le clic Valider ;
  *    un changement fait par un autre remet l'entrée à « Proposée ». Le contrôleur de texte (L7-12, L3-09) est relu avant tout appel ;
  *  - BLOQUÉ : « fonction client manquante » : `retirer(demande: DemandeRetraitZernio): Promise<ResultatRetraitZernio>` n'existe pas sur master
- *    (elle est dans la PR CAL-22, zone de la session Zernio). Sans port de retrait (`diffuseur: null`), AUCUN appel : déplacement LOCAL (journal du
- *    Studio), l'envoi est marqué « à vérifier » et aucun nouvel envoi n'est demandé (donc aucun doublon possible).
+ *    (elle est dans la PR CAL-22, zone de la session Zernio). Sans port de retrait (`diffuseur: null`) et avec un post possible chez le diffuseur :
+ *    AUCUN appel et AUCUNE écriture, l'ancienne date et l'ancien texte restent (jamais un créneau décalé avec un post resté à l'ancienne date, L5-02d).
+ *    Sans post chez le diffuseur (avant la promotion), le déplacement se fait en local, sans appel.
+ *  - la garde L5-02d (`niveauDiffuseurDuCreneau`) est relue avant tout geste : « à vérifier », « en cours » et « parti » refusent ;
+ *  - chaque déplacement écrit sa ligne du journal des décalages (ancien et nouveau jour), comme L4-06.
  * Tout est injecté : aucun service serveur, aucun appel réel, aucun fournisseur importé ici.
  */
-import type { LotEcritures } from "@/domaine/depots";
+import { verifierSaisie } from "@/components/calendrier/FicheEntree";
+import { occupeBuffer } from "@/domaine/buffer";
+import type { JournalDecalage, LotEcritures } from "@/domaine/depots";
 import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import type { IdReseau, Publication } from "@/domaine/types";
+import { estReseauDeclinaison } from "@/reseaux/codes";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
 import { instantParis } from "@/lib/horloge-paris";
 import { controlerProgrammation } from "@/services/controle-programmation";
@@ -31,7 +38,7 @@ export interface PortRetraitDiffuseur {
 }
 
 export interface DepsDeplacement {
-  /** `null` = fonction du client manquante sur master : déplacement local « à vérifier », aucun appel. */
+  /** `null` = fonction du client manquante sur master : rien ne change si un post existe chez le diffuseur. */
   diffuseur: PortRetraitDiffuseur | null;
   /** Les trois réglages d'envoi sont-ils ouverts ? Erreur ou valeur autre que `true` = fermé. */
   reglagesOuverts(): Promise<boolean>;
@@ -39,6 +46,12 @@ export interface DepsDeplacement {
   envois(creneauId: string): Promise<EnvoiPlanifie[]>;
   visuel(id: string): Promise<{ id: string; statut: string } | null>;
   appliquer(lot: LotEcritures): Promise<void>;
+  /** La garde L5-02d (`niveauDiffuseurDuCreneau`), lue dans la même section que l'écriture. */
+  niveau(creneauId: string): Promise<{ niveau: "libre" | "brouillon" | "en-cours" | "a-verifier" | "programme" | "parti" }>;
+  /** Les publications locales dont la clé d'envoi est l'une de ces clés du diffuseur. */
+  publicationsDeCles(cles: string[]): Promise<Publication[]>;
+  /** Une ligne du journal des décalages (ajout seul). */
+  journaliser(ligne: JournalDecalage): Promise<void>;
   etats: { lire(cle: string): Promise<string | undefined>; noter(cle: string, valeur: string): Promise<void> };
   /** Cloche seulement. */
   notifier(n: { cle: string; motif: "a-reprogrammer"; raison: string }): Promise<void>;
@@ -63,7 +76,7 @@ export interface DemandeTexte {
   cle: string;
 }
 
-export type EtatDeplacement = "deplace" | "deplace-a-verifier" | "modifie" | "modifie-a-verifier" | "deja-fait" | "inchange";
+export type EtatDeplacement = "deplace" | "modifie" | "deja-fait" | "inchange";
 export type EtatEchecDeplacement = "refuse" | "reste" | "a-verifier" | "a-reprogrammer" | "a-retirer-a-la-main";
 export type ResultatDeplacement =
   | { ok: true; etat: EtatDeplacement; message: string; creneauId: string; /** Clés d'envoi que le tour d'envoi créera (version suivante). */ nouvellesCles?: string[] }
@@ -73,8 +86,6 @@ export type ResultatDeplacement =
 export const CODES_DEPLACEMENT = { refuse: "DEPLACEMENT_REFUSE", reste: "DEPLACEMENT_RESTE_PROGRAMME", "a-verifier": "DEPLACEMENT_A_VERIFIER", "a-reprogrammer": "DEPLACEMENT_A_REPROGRAMMER", "a-retirer-a-la-main": "DEPLACEMENT_A_LA_MAIN" } as const;
 
 const MARGE_MS = 30 * 60 * 1000;
-export const LONGUEUR_MAX_TEXTE_PROGRAMME = 5000;
-export const LONGUEUR_MAX_COMMENTAIRE_PROGRAMME = 2000;
 
 export const PHRASES_DEPLACEMENT = {
   introuvable: "Cette publication est introuvable. Rechargez la page.",
@@ -90,19 +101,19 @@ export const PHRASES_DEPLACEMENT = {
   aLaMain: "Le diffuseur n'a pas pu retirer cette publication. L'ancienne date reste, elle est marquée « à retirer à la main » : retirez-la chez le diffuseur.",
   partielle: (retires: string, restent: string): string => `Retrait partiel. Retiré chez le diffuseur : ${retires}. Reste à l'ancienne date : ${restent}. Le texte et le fichier sont gardés.`,
   deplace: (jour: string): string => `Déplacée au ${jour}. Elle repart une seule fois, à cette date.`,
-  deplaceAVerifier: (jour: string): string => `La nouvelle date (${jour}) est notée dans le Studio, mais le Studio ne peut pas encore la changer chez le diffuseur : elle est marquée « à vérifier ». Vérifiez-la chez le diffuseur.`,
+  dateInchangee: "La publication est déjà à cette date : rien n'a été changé.",
+  sansRetrait: "Le Studio ne peut pas encore changer la date ou le texte chez le diffuseur. Rien n'a été changé : la publication reste à son ancienne date, avec son texte. Pour la modifier, passez par le diffuseur.",
+  dejaAVerifier: "Le Studio ne sait pas si cette publication est déjà programmée chez le diffuseur : rien n'a été changé. Relisez-la chez le diffuseur.",
   dejaFait: "Cette demande est déjà faite : rien n'a été changé de plus.",
   aPlacer: "Le retrait a eu lieu, mais la nouvelle date n'a pas pu être enregistrée. La publication est de retour dans « À placer », avec son texte : replacez-la à la date voulue.",
   aVerifierFin: "Le retrait a eu lieu chez le diffuseur, mais le Studio n'a pas pu enregistrer la suite. La publication est marquée « à vérifier » : relisez-la dans le calendrier.",
   notification: "Une publication déplacée est de retour dans « À placer » : choisissez sa nouvelle date.",
   texteVide: "Le texte ne peut pas être vide.",
-  texteLong: "Ce texte est trop long.",
-  commentaireLong: "Le premier commentaire est trop long.",
+  texteBloque: "Le contrôle du texte le refuse : corrigez-le avant de l'enregistrer.",
   reseauInconnu: "Ce réseau n'est pas prévu pour cette publication.",
   texteInchange: "Le texte est déjà celui-ci : rien n'a été changé.",
   texteModifie: "Texte modifié. Il doit être validé de nouveau : cliquez sur Valider quand il vous convient. Rien ne part avant.",
   texteModifiePropose: "Texte modifié. L'entrée repasse à « Proposée » : elle doit être relue puis validée par vous.",
-  texteAVerifier: "Texte modifié dans le Studio, mais le Studio ne peut pas encore le changer chez le diffuseur : la publication est marquée « à vérifier ». Vérifiez-la chez le diffuseur.",
 } as const;
 
 const ETATS_FIN_ENVOI = new Set(["envoye", "a-envoyer"]);
@@ -140,7 +151,7 @@ type Preparation =
   | { ok: false; res: ResultatDeplacement }
   | { ok: true; c: CreneauPlan; vivants: EnvoiPlanifie[]; avecPost: EnvoiPlanifie[]; versionSuivante: number };
 
-/** Gardes communes : créneau lisible, programmé ou validé, non partie, non passé, aucun envoi en cours. Aucune écriture, aucun appel. */
+/** Gardes communes : créneau lisible, programmé ou validé, non partie, non passé, garde L5-02d, aucun envoi en cours. Aucune écriture, aucun appel. */
 async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparation> {
   const c = typeof creneauId === "string" && creneauId ? await d.creneau(creneauId) : null;
   if (!c) return { ok: false, res: refus(PHRASES_DEPLACEMENT.introuvable) };
@@ -148,10 +159,16 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
   if (c.statut !== "programme" && c.statut !== "valide") return { ok: false, res: refus(PHRASES_DEPLACEMENT.nonProgrammee) };
   const t = d.maintenant().getTime();
   if (instants(c).some((h) => Number.isNaN(h) || h <= t)) return { ok: false, res: refus(PHRASES_DEPLACEMENT.passee) };
+  const niveau = (await d.niveau(c.id)).niveau;
+  if (niveau === "parti") return { ok: false, res: refus(PHRASES_DEPLACEMENT.partie) };
+  if (niveau === "en-cours") return { ok: false, res: refus(PHRASES_DEPLACEMENT.enCours) };
+  if (niveau === "a-verifier") return { ok: false, res: { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier } };
   const tous = await d.envois(c.id);
   if (tous.some((e) => ETATS_FIN_ENVOI.has(e.statut))) return { ok: false, res: refus(PHRASES_DEPLACEMENT.partie) };
   const vivants = tous.filter((e) => e.statut !== "annule");
-  for (const e of vivants) if ((await d.etats.lire(`promotion:${e.cle}`)) === "en-cours") return { ok: false, res: refus(PHRASES_DEPLACEMENT.enCours) };
+  for (const e of vivants) {
+    if ((await d.etats.lire(`promotion:${e.cle}`)) === "en-cours" || (await d.etats.lire(`creation:${e.cle}`)) === "en-cours") return { ok: false, res: refus(PHRASES_DEPLACEMENT.enCours) };
+  }
   const avecPost: EnvoiPlanifie[] = [];
   for (const e of vivants) if (await aUnPostPossible(e, d.etats)) avecPost.push(e);
   // Version suivante : jamais égale ni inférieure à une clé déjà utilisée (une clé retirée ne se réutilise pas).
@@ -162,13 +179,19 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
 /**
  * Retire chez le diffuseur, envoi par envoi. Rend `null` si TOUT est retiré (ou s'il n'y avait rien à retirer),
  * sinon la fin : l'ancienne date reste ; les envois déjà retirés passent « annule » tout de suite (ils n'existent plus).
+ * Les réglages sont relus JUSTE AVANT chaque retrait.
  */
 async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: true }>, port: PortRetraitDiffuseur): Promise<ResultatDeplacement | null> {
-  if (p.avecPost.length === 0) return null;
-  if (!(await ouverts(d))) return { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.eteint };
   const retires: EnvoiPlanifie[] = [];
   const le = d.maintenant().toISOString();
+  const fin = async (r: Extract<ResultatDeplacement, { ok: false }>): Promise<ResultatDeplacement> => {
+    if (retires.length === 0) return r;
+    await d.appliquer({ supprimer: [], enregistrer: [...annules(retires, le), ...(await liberer(d, retires, le))] });
+    const restent = p.avecPost.filter((x) => !retires.includes(x));
+    return { ...r, message: `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${r.message}`, ecritures: true };
+  };
   for (const e of p.avecPost) {
+    if (!(await ouverts(d))) return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.eteint });
     let issue: IssueRetraitDiffuseur;
     try {
       issue = await port.retirer(e);
@@ -181,40 +204,41 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
     }
     if (issue === "a-verifier") await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
     if (issue === "refuse") await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
-    if (retires.length > 0) await d.appliquer({ supprimer: [], enregistrer: annules(retires, le) });
-    const base = issue === "a-verifier" ? PHRASES_DEPLACEMENT.aVerifier : issue === "refuse" ? PHRASES_DEPLACEMENT.aLaMain : PHRASES_DEPLACEMENT.sansReponse;
-    const restent = p.avecPost.filter((x) => !retires.includes(x));
-    const message = retires.length > 0 ? `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${base}` : base;
-    const etat: EtatEchecDeplacement = issue === "a-verifier" ? "a-verifier" : issue === "refuse" ? "a-retirer-a-la-main" : "reste";
-    return { ok: false, etat, message, ...(retires.length > 0 ? { ecritures: true as const } : {}) };
+    if (issue === "a-verifier") return fin({ ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifier });
+    if (issue === "refuse") return fin({ ok: false, etat: "a-retirer-a-la-main", message: PHRASES_DEPLACEMENT.aLaMain });
+    return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.sansReponse });
   }
   return null;
 }
 
-/** Marque « à vérifier » chaque envoi dont le post est (peut-être) resté chez le diffuseur : la garde L5-02d la lit et bloque tout nouveau geste. */
-async function marquerAVerifier(d: DepsDeplacement, avecPost: EnvoiPlanifie[]): Promise<void> {
-  for (const e of avecPost) await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+/** Les publications locales de posts retirés ne « occupent » plus le réseau (sinon le tour exclut la nouvelle version) : état « absent », rien de supprimé. */
+async function liberer(d: DepsDeplacement, retires: EnvoiPlanifie[], le: string): Promise<LotEcritures["enregistrer"]> {
+  const cles = retires.map((e) => e.cleDiffuseur).filter((k): k is string => typeof k === "string");
+  if (cles.length === 0) return [];
+  const pubs = await d.publicationsDeCles(cles);
+  return pubs.filter((x) => occupeBuffer(x)).map((x) => ({ collection: "publications" as const, entite: { ...x, etatEnvoi: "absent" as const, modifieLe: le } }));
 }
 
 /**
  * Repli quand l'écriture locale échoue APRÈS un retrait réussi : retour dans « À placer » (créneau archivé avec `retireLe`, texte gardé,
- * visuel « valide »), marque « a-reprogrammer », notification. Si même cela échoue : « à vérifier ». Jamais « Programmé ».
+ * y compris le texte modifié, visuel « valide »), marque « a-reprogrammer », notification. Si même cela échoue : « à vérifier ». Jamais « Programmé ».
  */
-async function reposerDansAPlacer(d: DepsDeplacement, p: Extract<Preparation, { ok: true }>): Promise<ResultatDeplacement> {
+async function reposerDansAPlacer(d: DepsDeplacement, p: Extract<Preparation, { ok: true }>, creneau: CreneauPlan = p.c): Promise<ResultatDeplacement> {
   const le = d.maintenant().toISOString();
   try {
-    const r1 = p.c.statut === "programme" ? transitionner(p.c, "valide", "studio") : { ok: true as const, creneau: p.c };
+    const r1 = creneau.statut === "programme" ? transitionner(creneau, "valide", "studio") : { ok: true as const, creneau };
     if (!r1.ok) throw new Error(r1.raison);
     const r2 = transitionner(r1.creneau, "archive", "studio");
     if (!r2.ok) throw new Error(r2.raison);
-    const lot: LotEcritures = { supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: { ...r2.creneau, retireLe: le } as CreneauPlan }, ...annules(p.vivants, le)] };
+    const archive = sansAvant({ ...r2.creneau, retireLe: le } as CreneauPlan);
+    const lot: LotEcritures = { supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: archive }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] };
     if (p.c.visuelId) {
       const v = await d.visuel(p.c.visuelId);
       if (v && v.statut === "programme") lot.enregistrer.push({ collection: "visuels", entite: { ...v, statut: "valide", modifieLe: le } as never });
     }
     await d.appliquer(lot);
   } catch {
-    await marquerAVerifier(d, p.avecPost);
+    for (const e of p.avecPost) await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
     return { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
   for (const e of p.avecPost) await d.etats.noter(`deplacement:${e.cle}`, "a-reprogrammer");
@@ -234,6 +258,15 @@ async function noterFait(d: DepsDeplacement, cleFait: string, valeur: string): P
   }
 }
 
+function sansAvant(c: CreneauPlan): CreneauPlan {
+  const copie = { ...c };
+  delete copie.aRenvoyer;
+  return copie;
+}
+
+/** Sans port de retrait et avec un post possible chez le diffuseur : aucun appel, aucune écriture. */
+const bloque = (d: DepsDeplacement, p: Extract<Preparation, { ok: true }>): boolean => d.diffuseur === null && p.avecPost.length > 0;
+
 export async function deplacerProgrammation(d: DepsDeplacement, demande: DemandeDeplacement): Promise<ResultatDeplacement> {
   const cleFait = `deplace-fait:${demande?.creneauId}:${demande?.cle}`;
   if (typeof demande?.cle === "string" && demande.cle && (await d.etats.lire(cleFait)) !== undefined) {
@@ -250,30 +283,28 @@ export async function deplacerProgrammation(d: DepsDeplacement, demande: Demande
   if (Object.values(nouvelles).some((h) => Number.isNaN(Date.parse(h)) || Date.parse(h) < t + MARGE_MS) || (heuresActuelles.length === 0 && jour < d.maintenant().toISOString().slice(0, 10))) {
     return refus(PHRASES_DEPLACEMENT.jourPasse);
   }
+  // Même jour, mêmes heures : rien à faire, aucun retrait pour rien.
+  if (jour === p.c.jourVise && heuresActuelles.every(([r, h]) => nouvelles[r] === h)) return { ok: true, etat: "inchange", message: PHRASES_DEPLACEMENT.dateInchangee, creneauId: p.c.id };
+  if (bloque(d, p)) return { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.sansRetrait };
 
-  const local = d.diffuseur === null && p.avecPost.length > 0;
-  if (!local && d.diffuseur) {
+  if (d.diffuseur && p.avecPost.length > 0) {
     const fin = await retirerTout(d, p, d.diffuseur);
     if (fin) return fin;
   }
 
-  // Écriture locale. Retiré chez le diffuseur : les envois passent « annule », le créneau prend la date et la version suivante (nouvelle clé).
-  // Déplacement local (port absent) : seule la date du créneau change ; l'envoi garde sa clé et est marqué « à vérifier » (aucun doublon).
+  // Retiré chez le diffuseur : les envois passent « annule », le créneau prend la date et la version suivante (nouvelle clé), la ligne du journal est écrite.
+  const le = d.maintenant().toISOString();
   try {
-    if (local) await marquerAVerifier(d, p.avecPost);
-    const r1 = !local && p.c.statut === "programme" ? transitionner(p.c, "valide", "studio") : { ok: true as const, creneau: p.c };
+    const r1 = p.c.statut === "programme" ? transitionner(p.c, "valide", "studio") : { ok: true as const, creneau: p.c };
     if (!r1.ok) throw new Error(r1.raison);
-    const creneau: CreneauPlan = { ...r1.creneau, jourVise: jour, heuresParReseau: { ...r1.creneau.heuresParReseau, ...nouvelles }, decalages: local ? p.c.decalages : p.versionSuivante };
-    const le = d.maintenant().toISOString();
-    await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...(local ? [] : annules(p.vivants, le))] });
+    const creneau: CreneauPlan = sansAvant({ ...r1.creneau, jourVise: jour, heuresParReseau: { ...r1.creneau.heuresParReseau, ...nouvelles }, decalages: p.versionSuivante });
+    await d.journaliser({ id: `decalage:${p.c.id}:${demande.cle}#${p.versionSuivante}`, creneauId: p.c.id, ancienJour: p.c.jourVise, nouveauJour: jour, raison: "Publication programmée déplacée", creeLe: le });
+    await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
   } catch {
-    return local ? { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin } : reposerDansAPlacer(d, p);
+    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
   await noterFait(d, cleFait, "fait");
-  const nouvellesCles = local ? undefined : p.vivants.map((e) => cleEnvoi(e.videoId, e.reseau, p.versionSuivante));
-  return local
-    ? { ok: true, etat: "deplace-a-verifier", message: PHRASES_DEPLACEMENT.deplaceAVerifier(jourLisible(jour)), creneauId: p.c.id }
-    : { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, ...(nouvellesCles ? { nouvellesCles } : {}) };
+  return { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, nouvellesCles: p.vivants.map((e) => cleEnvoi(e.videoId, e.reseau, p.versionSuivante)) };
 }
 
 export async function modifierTexteProgramme(d: DepsDeplacement, demande: DemandeTexte): Promise<ResultatDeplacement> {
@@ -281,49 +312,78 @@ export async function modifierTexteProgramme(d: DepsDeplacement, demande: Demand
   if (typeof demande?.cle === "string" && demande.cle && (await d.etats.lire(cleFait)) !== undefined) {
     return { ok: true, etat: "deja-fait", message: PHRASES_DEPLACEMENT.dejaFait, creneauId: demande.creneauId };
   }
-  const texte = typeof demande?.texte === "string" ? demande.texte.trim() : "";
-  if (!texte) return refus(PHRASES_DEPLACEMENT.texteVide);
-  if (texte.length > LONGUEUR_MAX_TEXTE_PROGRAMME) return refus(PHRASES_DEPLACEMENT.texteLong);
-  const commentaire = typeof demande.premierCommentaire === "string" ? demande.premierCommentaire.trim() : undefined;
-  if (commentaire !== undefined && commentaire.length > LONGUEUR_MAX_COMMENTAIRE_PROGRAMME) return refus(PHRASES_DEPLACEMENT.commentaireLong);
+  // Une seule garde de saisie : celle de la fiche (retours à la ligne, longueurs, pas de premier commentaire sur TikTok).
+  const brut = demande?.reseau as IdReseau;
+  if (typeof brut !== "string" || !estReseauDeclinaison(brut)) return refus(PHRASES_DEPLACEMENT.reseauInconnu);
+  const reseau = brut;
+  const v = verifierSaisie({ texte: demande.texte, ...(demande.premierCommentaire !== undefined ? { premierCommentaire: demande.premierCommentaire } : {}) }, reseau);
+  if (!v.ok) return refus(v.message);
+  if (!v.saisie.texte.trim()) return refus(PHRASES_DEPLACEMENT.texteVide);
   const p = await preparer(d, demande.creneauId);
   if (!p.ok) return p.res;
-  const reseau = demande.reseau as keyof NonNullable<CreneauPlan["textes"]>;
-  if (typeof demande.reseau !== "string" || !Object.hasOwn(p.c.heuresParReseau ?? {}, demande.reseau)) return refus(PHRASES_DEPLACEMENT.reseauInconnu);
+  if (!Object.hasOwn(p.c.heuresParReseau ?? {}, reseau)) return refus(PHRASES_DEPLACEMENT.reseauInconnu);
   const avant = p.c.textes?.[reseau] ?? { texte: "", premierCommentaire: "" };
-  const apres = { texte, premierCommentaire: commentaire ?? avant.premierCommentaire };
+  const apres = { texte: v.saisie.texte, premierCommentaire: v.saisie.premierCommentaire ?? avant.premierCommentaire };
   if (apres.texte === avant.texte && apres.premierCommentaire === avant.premierCommentaire) return { ok: true, etat: "inchange", message: PHRASES_DEPLACEMENT.texteInchange, creneauId: p.c.id };
 
   // Le contrôleur de texte (L7-12, L3-09) est relu avant tout appel : un texte bloqué ne part jamais chez le diffuseur.
-  const controle = controlerProgrammation({ reseau: demande.reseau as never, texte: apres.texte, commentaire: apres.premierCommentaire, auteur: demande.auteur === "will" ? "will" : "autre" } as never);
-  if (controle.bloque) return refus(controle.avertissements[0] ?? PHRASES_DEPLACEMENT.texteVide);
+  const controle = controlerProgrammation({ reseau, texte: apres.texte, commentaire: apres.premierCommentaire, auteur: demande.auteur === "will" ? "will" : "machine" });
+  if (controle.bloque) return refus(controle.avertissements[0] ?? PHRASES_DEPLACEMENT.texteBloque);
 
-  const local = d.diffuseur === null && p.avecPost.length > 0;
-  if (!local && d.diffuseur) {
+  if (bloque(d, p)) return { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.sansRetrait };
+  if (d.diffuseur && p.avecPost.length > 0) {
     const fin = await retirerTout(d, p, d.diffuseur);
     if (fin) return fin;
   }
+  const modifie: CreneauPlan = { ...p.c, textes: { ...(p.c.textes ?? {}), [reseau]: apres } };
   try {
-    if (local) await marquerAVerifier(d, p.avecPost);
     // Dévalidation : plus de `valideeLe` (le clic Valider le réécrira) ; un autre que le fondateur : « Proposée ».
-    const r1 = p.c.statut === "programme" ? transitionner(p.c, "valide", "studio") : { ok: true as const, creneau: p.c };
+    const r1 = modifie.statut === "programme" ? transitionner(modifie, "valide", "studio") : { ok: true as const, creneau: modifie };
     if (!r1.ok) throw new Error(r1.raison);
     const r2 = transitionner(r1.creneau, "a_valider", "studio");
     if (!r2.ok) throw new Error(r2.raison);
     const r3 = demande.auteur === "will" ? r2 : transitionner(r2.creneau, "propose", "studio");
     if (!r3.ok) throw new Error(r3.raison);
-    const creneau: CreneauPlan = { ...r3.creneau, textes: { ...(p.c.textes ?? {}), [reseau]: apres }, decalages: p.versionSuivante };
+    const creneau: CreneauPlan = sansAvant({ ...r3.creneau, decalages: p.versionSuivante });
     const le = d.maintenant().toISOString();
-    await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le)] });
+    await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
   } catch {
-    return local ? { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin } : reposerDansAPlacer(d, p);
+    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p, modifie) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
   await noterFait(d, cleFait, "fait");
+  return { ok: true, etat: "modifie", message: demande.auteur === "will" ? PHRASES_DEPLACEMENT.texteModifie : PHRASES_DEPLACEMENT.texteModifiePropose, creneauId: p.c.id };
+}
+
+/* --- Adaptateur vers le client du diffuseur de CAL-22 (contrat structurel, aucun import du fournisseur) ---------------------------------- */
+
+/** Contrat de `client.retirer` / `client.listerPosts` de CAL-22 (relecture avant, DELETE, relecture après : jamais en aveugle). */
+export interface ClientRetraitCal22 {
+  listerPosts(q: { status: string; page: number; limit: number }): Promise<{ _id: string; metadata?: { studioCle?: string } }[]>;
+  retirer(d: { postId: string; cleJournal: string }): Promise<{ etat: "retire" | "a-verifier" | "refuse" | string }>;
+}
+
+/**
+ * Le jour où `retirer` est sur master : une ligne de branchement (`diffuseur: portRetraitDepuisClient(() => clientZernio())`).
+ * Brouillon et programmé sont relus ; sans post sous la clé, ou réponse incertaine : « à vérifier » (jamais en aveugle).
+ */
+export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortRetraitDiffuseur {
   return {
-    ok: true,
-    etat: local ? "modifie-a-verifier" : "modifie",
-    message: local ? PHRASES_DEPLACEMENT.texteAVerifier : demande.auteur === "will" ? PHRASES_DEPLACEMENT.texteModifie : PHRASES_DEPLACEMENT.texteModifiePropose,
-    creneauId: p.c.id,
+    async retirer(e) {
+      const cle = e.cleDiffuseur ?? e.cle;
+      try {
+        const c = client();
+        const posts = [...(await c.listerPosts({ status: "draft", page: 1, limit: 100 })), ...(await c.listerPosts({ status: "scheduled", page: 1, limit: 100 }))];
+        const post = posts.find((x) => x.metadata?.studioCle === cle);
+        if (!post) return "a-verifier";
+        const r = await c.retirer({ postId: post._id, cleJournal: cle });
+        return r.etat === "retire" ? "retire" : r.etat === "a-verifier" ? "a-verifier" : "refuse";
+      } catch (err) {
+        const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
+        if (code === "refuse") return "refuse";
+        if (code === "delai" || code === "reseau" || code === "arret" || code === "envoi-eteint") return "sans-reponse";
+        return "a-verifier";
+      }
+    },
   };
 }
 
@@ -339,6 +399,9 @@ async function depsServeur(): Promise<DepsDeplacement> {
   const d = depots();
   return {
     diffuseur: null,
+    niveau: async (id) => (await import("@/services/garde-creneau-diffuseur")).niveauDiffuseurDuCreneau(id),
+    publicationsDeCles: (cles) => d.publications.lister((x) => typeof x.cleEnvoi === "string" && cles.includes(x.cleEnvoi)),
+    journaliser: async (ligne) => void (await d.journalDecalages.enregistrer(ligne)),
     reglagesOuverts: async () => (await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true,
     creneau: async (id) => ((await d.creneauxEditoriaux.obtenir(id)) as CreneauPlan | null) ?? null,
     envois: (creneauId) => d.envoisPlanifies.lister((e) => e.creneauId === creneauId),
