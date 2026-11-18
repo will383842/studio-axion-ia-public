@@ -91,6 +91,7 @@ export type RouteZernio =
   | "lister-posts"
   | "promouvoir-post"
   | "remplacer-medias"
+  | "retirer-post"
   | "analytics"
   | "suivi-instagram"
   | RouteInboxZernio;
@@ -208,6 +209,21 @@ export interface DemandePromotionZernio {
   medias?: { televerseLe: string; reteleverser: () => Promise<MediaItemZernio[]> };
 }
 
+/** Demande de retrait CAL-22 : un brouillon ou un post programmé, retrouvé par sa clé du journal. */
+export interface DemandeRetraitZernio {
+  postId: string;
+  /** Clé du journal du Studio, attendue telle quelle dans `metadata.studioCle`. */
+  cleJournal: string;
+}
+
+export type ResultatRetraitZernio =
+  /** Relu après le retrait : le post n'existe plus (introuvable) ou porte le statut `cancelled`. */
+  | { etat: "retire"; raison: string }
+  /** Garde du GET avant non tenue (statut, origine, clé, déjà parti) : aucun DELETE n'est parti. */
+  | { etat: "refuse"; raison: string }
+  /** Réponse incertaine, ou relecture qui montre le post encore là : « À vérifier », aucun nouvel essai automatique. */
+  | { etat: "a-verifier"; raison: string; post?: PostZernio };
+
 export type ResultatPromotionZernio =
   | { etat: "programme"; post: PostZernio; mediasRemplaces: boolean }
   /** Date passée ou à moins de 30 min : aucun PUT, « À reprogrammer par vous ». */
@@ -254,6 +270,11 @@ export interface ClientZernio {
   lirePost(postId: string): Promise<PostZernio>;
   listerPosts(query?: Record<string, string | number | boolean>): Promise<PostZernio[]>;
   promouvoir(d: DemandePromotionZernio): Promise<ResultatPromotionZernio>;
+  /**
+   * CAL-22 : retire un brouillon ou un post programmé qui est à nous. GET avant (garde) → DELETE → GET après (seul juge).
+   * Jamais en aveugle : sans relecture concluante, le résultat est « a-verifier ».
+   */
+  retirer(d: DemandeRetraitZernio): Promise<ResultatRetraitZernio>;
   analytics(query?: Record<string, string | number | boolean>): Promise<unknown>;
   /**
    * Vrai tant qu'une écriture a fini sans réponse sûre (5xx, délai, coupure) et qu'aucune lecture de posts n'a suivi.
@@ -315,6 +336,8 @@ const ROUTES: readonly { methode: MethodeHttp; motif: RegExp; route: RouteZernio
   { methode: "GET", motif: /^\/v1\/posts$/, route: "lister-posts" },
   { methode: "GET", motif: new RegExp(`^/v1/posts/${SEGMENT_ID}$`), route: "lire-post" },
   { methode: "PUT", motif: new RegExp(`^/v1/posts/${SEGMENT_ID}$`), route: "promouvoir-post" },
+  // CAL-22 : seul `retirer()` l'atteint (la porte publique `requete()` le refuse, comme les PUT de post).
+  { methode: "DELETE", motif: new RegExp(`^/v1/posts/${SEGMENT_ID}$`), route: "retirer-post" },
   { methode: "GET", motif: /^\/v1\/analytics$/, route: "analytics" },
   // Inbox (4 routes exactement ; /v1/workflows et le reste restent refusés).
   { methode: "POST", motif: new RegExp(`^/v1/inbox/comments/${SEGMENT_ID}$`), route: "repondre-commentaire" },
@@ -502,6 +525,9 @@ export function verifierRequete(req: RequeteZernio, hotesTeleversement: Readonly
       return "creer-post";
     case "promouvoir-post":
       return routeDuPut(req.corps, maintenant);
+    case "retirer-post":
+      if (req.corps !== undefined) throw refus("DELETE d'un post : aucun corps permis.");
+      return "retirer-post";
     case "presign":
       verifierPresign(req.corps);
       return "presign";
@@ -740,6 +766,9 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     if ((route === "promouvoir-post" || route === "remplacer-medias") && !depuisPromotion) {
       throw refus("PUT d'un post réservé à promouvoir() (garde D5 : GET avant, origine, clé, filtre, marge de 30 min).");
     }
+    if (route === "retirer-post" && !depuisPromotion) {
+      throw refus("DELETE d'un post réservé à retirer() (garde CAL-22 : GET avant, origine, clé, relecture après).");
+    }
     if (ecriture && lectureRequise) {
       throw new ErreurZernio("lecture-requise", "Un envoi précédent a fini sans réponse sûre : lire les posts avant tout nouvel envoi. Rien n'a été envoyé.");
     }
@@ -952,6 +981,10 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       return promouvoir(d);
     },
 
+    async retirer(d) {
+      return retirer(d);
+    },
+
     async analytics(query) {
       const { corps } = await requete({ methode: "GET", chemin: "/v1/analytics", query });
       return corps;
@@ -1021,6 +1054,49 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
 
     function aVerifier(raison: string, post?: PostZernio): ResultatPromotionZernio {
       journal.alerte("Zernio : promotion à vérifier (aucun nouvel essai automatique)", { raison });
+      return { etat: "a-verifier", raison, post };
+    }
+  }
+
+  /** CAL-22 : GET avant → DELETE → GET après. Le client ne retire que NOS posts, brouillons ou programmés, jamais un post déjà parti. */
+  async function retirer(d: DemandeRetraitZernio): Promise<ResultatRetraitZernio> {
+    if (!(await envoiAutorise())) {
+      throw new ErreurZernio("envoi-coupe", "Envoi vers Zernio coupé (réglage zernio.envoi_autorise) : retrait refusé, rien n'a été envoyé.");
+    }
+    const avant = await client.lirePost(d.postId);
+    if (avant.status !== "draft" && avant.status !== "scheduled") return { etat: "refuse", raison: `Le post n'est ni un brouillon ni programmé (statut ${avant.status}).` };
+    const origine = avant.metadata?.origine;
+    if (typeof origine !== "string" || !(ORIGINES_PROMOUVABLES as readonly string[]).includes(origine)) {
+      return { etat: "refuse", raison: "Post sans origine Studio ou import Buffer : il n'est pas à nous." };
+    }
+    if (avant.metadata?.studioCle !== d.cleJournal) return { etat: "refuse", raison: "La clé du post ne correspond pas à celle du journal." };
+
+    try {
+      await requeteInterne({ methode: "DELETE", chemin: `/v1/posts/${segment(d.postId)}` }, true);
+    } catch (e) {
+      // 404 : déjà retiré ou jamais là, la relecture ci-dessous tranche. Réponse perdue : idem. Tout autre refus remonte tel quel.
+      if (!(estErreurZernio(e) && (e.code === "a-verifier" || e.code === "introuvable"))) throw e;
+    }
+
+    // GET après : seul juge (un 200 au DELETE ne prouve rien).
+    let apres: PostZernio;
+    try {
+      apres = await client.lirePost(d.postId);
+    } catch (e) {
+      if (estErreurZernio(e) && e.code === "introuvable") {
+        journal.info("Zernio : post retiré (relu : introuvable)");
+        return { etat: "retire", raison: "Relu chez le diffuseur : le post n'existe plus." };
+      }
+      return aVerifier("Relecture après retrait impossible.");
+    }
+    if (apres.status === "cancelled") {
+      journal.info("Zernio : post retiré (relu : annulé)");
+      return { etat: "retire", raison: "Relu chez le diffuseur : le post est annulé." };
+    }
+    return aVerifier(`Après retrait : le post est encore là (statut ${apres.status}).`, apres);
+
+    function aVerifier(raison: string, post?: PostZernio): ResultatRetraitZernio {
+      journal.alerte("Zernio : retrait à vérifier (aucun nouvel essai automatique)", { raison });
       return { etat: "a-verifier", raison, post };
     }
   }
