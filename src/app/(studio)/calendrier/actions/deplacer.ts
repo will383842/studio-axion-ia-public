@@ -64,3 +64,22 @@ export async function modifierTexteProgrammeAction(cle: string, saisie: SaisieTe
     }),
   );
 }
+
+/**
+ * Adaptateur pour le formulaire de la fiche (`texteProgrammeModifiable`) : lit `cle`, `texte`, `premierCommentaire`. La clé de rejeu vient du
+ * contenu envoyé : le même envoi rejoué ne refait rien, un autre contenu est une nouvelle demande. L'hôte affiche le refus (`erreur`).
+ * Aucun hôte ne passe encore `texteProgrammeModifiable` : l'écran est livré ÉTEINT, il sera branché par une fiche dédiée après CAL-22.
+ */
+export async function modifierTexteProgrammeDepuisFormulaire(formulaire: FormData): Promise<Resultat<DonneesDeplacement>> {
+  await exigerSession();
+  const lire = (nom: string): string | undefined => {
+    const v = formulaire.get(nom);
+    return typeof v === "string" ? v : undefined;
+  };
+  const cle = lire("cle") ?? "";
+  const texte = lire("texte") ?? "";
+  const premierCommentaire = lire("premierCommentaire");
+  let h = 5381;
+  for (const c of `${cle}|${texte}|${premierCommentaire ?? ""}`) h = ((h * 33) ^ c.codePointAt(0)!) >>> 0;
+  return modifierTexteProgrammeAction(cle, { texte, ...(premierCommentaire !== undefined ? { premierCommentaire } : {}), cleFormulaire: `f${h.toString(36)}` });
+}
