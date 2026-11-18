@@ -45,7 +45,8 @@ describe("TEXTES-ANCIEN-OUTIL-2b — messages du service de publication", () => 
     const src = readFileSync(f, "utf8");
     expect(src).toContain("Essai d'envoi vers l'ancien outil");
     expect(src).toContain("ou passez par un brouillon chez le diffuseur");
-    expect(src).toContain("L'ancien outil n'avait rien reçu");
+    expect(src).toContain(`"L'ancien outil" : "L'outil de publication"`);
+    expect(src).toContain("n'avait rien reçu pour");
     expect(src).toContain(`"l'ancien outil"`);
   });
 });
