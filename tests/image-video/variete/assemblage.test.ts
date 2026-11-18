@@ -219,7 +219,9 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     // 4 fichiers rendus (26/10/2026 : Facebook et LinkedIn disent la même fin, le 4:5 est UN fichier commun) : Shorts et
     // Instagram en 9:16, Facebook en Reel 9:16, et le 4:5 de LinkedIn qui est aussi le fil de Facebook.
     const fichiers = new Set(m.rendus.map((r) => r.version));
-    expect(fichiers.size).toBe(4);
+    // 17/11 D4 : fin non choisie = aucune fin (fin vide commune à tous les réseaux, un seul groupe) : 2 fichiers, le 9:16 de tous
+    // les réseaux et le 4:5 de LinkedIn / fil Facebook (avant : 4, une fin différente par groupe de réseaux). Assertion gardée, valeur mise à jour.
+    expect(fichiers.size).toBe(2);
     const fb = fin.livraison!.find((l) => l.reseau === "facebook")!;
     expect(fb.fichierCle).toBeTruthy();
     expect(fb.fichierCleFil).toBeTruthy();
@@ -239,7 +241,8 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     // Chaque version reçoit sa recette (4:5 : substitutions du cadre bas, ouverture de son format).
     const lignes = lignesDesVersionsIV(fin);
     const recettes = recettesDesVersionsIV(fin);
-    expect(lignes.length).toBe(4);
+    // 17/11 D4 : 2 lignes (9:16 et 4:5 de l'unique fin vide), avant 4. Assertion gardée, valeur mise à jour.
+    expect(lignes.length).toBe(2);
     for (const l of lignes) {
       const r = recettes.find((x) => x.version === l.version)!;
       expect(l.ligne.variete?.recette, l.version).toEqual(r.recette);
