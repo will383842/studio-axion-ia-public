@@ -18,6 +18,7 @@ export const PROFIL_AVOCAT: ProfilVideo = figerProfil({
     [ID.textePave]: { permis: false, maxParVideo: 1, decision: "Q2" },
     [ID.texteNomOutil]: { permis: false, maxParVideo: 1, decision: "texte seul" },
     [ID.texteNomOutilAutonome]: { permis: false, maxParVideo: 3, decision: "texte seul, sans logo (BR-ETIQUETTES-OUTIL)" },
+    [ID.texteSortieAnimee]: { permis: false, decision: "AM-08 (BR-SORTIE-ANIMEE)" },
     [ID.texteBandeauNom]: { permis: false, maxParVideo: 1, decision: "bandeau autorisé" },
     [ID.etalonnageLutNouvelle]: { permis: false, maxParVideo: 1, decision: "Q12" },
     [ID.sonRegistreCommun]: { permis: false, maxParVideo: 1 },

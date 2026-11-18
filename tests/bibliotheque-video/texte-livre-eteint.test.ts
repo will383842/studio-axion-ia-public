@@ -13,7 +13,6 @@ import { PROFILS_DU_CODE, profilNeutre } from "@/briques/bibliotheque-video/prof
 import { PAVE_ANIME_ACTIF } from "@/briques/sous-titres/pave";
 import { ETIQUETTE_OUTIL_DANS_LIGNE_ACTIF } from "@/briques/sous-titres/noms-outils";
 import { REPERE_EPAULE_ACTIF } from "@/briques/sous-titres/repere-epaule";
-import { SORTIE_ACTIVE } from "@/briques/sous-titres/sortie";
 import { ESCALIER_ACTIF } from "@/briques/sous-titres/escalier";
 import type { IdCapacite } from "@/briques/bibliotheque-video/types";
 
@@ -52,12 +51,20 @@ describe("C2-U17a : capacités texte livrées et éteintes", () => {
     }
   });
 
-  it("éteint : les 5 interrupteurs sont à false", () => {
+  // MISE À JOUR DE RÉFÉRENCE 18/11 (BR-SORTIE-ANIMEE, seconde lecture du pilote) : SORTIE_ACTIVE passe à true côté code ; il n'allume
+  // rien seul, c'est le champ `sortie` (posé seulement quand la capacité est permise) qui décide. La garde « éteint » est
+  // conservée, déplacée : sans entrée bibliothèque, `parametresComposition` ne pose pas `sortie` (voir ci-dessous).
+  it("éteint : les 4 interrupteurs restants sont à false", () => {
     expect(PAVE_ANIME_ACTIF).toBe(false);
     expect(ETIQUETTE_OUTIL_DANS_LIGNE_ACTIF).toBe(false);
     expect(REPERE_EPAULE_ACTIF).toBe(false);
-    expect(SORTIE_ACTIVE).toBe(false);
     expect(ESCALIER_ACTIF).toBe(false);
+  });
+
+  it("éteint : sans entrée bibliothèque, `parametresComposition` ne pose pas `sortie` (le champ n'existe que derrière la porte ; preuve par le vrai chemin dans tests/briques/composition/sortie-animee-branchee.test.ts)", () => {
+    const poses = texteDe("src/briques/composition/parametres.ts").match(/sortie\s*:\s*SORTIE_PAR_DEFAUT/g) ?? [];
+    expect(poses).toHaveLength(1);
+    expect(texteDe("src/briques/composition/parametres.ts")).toMatch(/sortieAnimeePermise\(c\.entrees\)\s*\?\s*\{\s*sortie\s*:\s*SORTIE_PAR_DEFAUT/);
   });
 
   it("éteint : aucun profil du code (ni le neutre) ne permet ces capacités", () => {

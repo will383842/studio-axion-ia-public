@@ -15,3 +15,13 @@ export function etiquettesOutilPermises(entrees: unknown): boolean {
     return false;
   }
 }
+
+/** BR-SORTIE-ANIMEE : les groupes de sous-titres sortent en glissant (fondu 0,2 s) au lieu de disparaître net. */
+export function sortieAnimeePermise(entrees: unknown): boolean {
+  try {
+    const p = porteCapacite(entrees, ID.texteSortieAnimee);
+    return p.bibliotheque === true && p.permis === true;
+  } catch {
+    return false;
+  }
+}

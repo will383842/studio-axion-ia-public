@@ -126,7 +126,10 @@ describe("planche de référence du texte à l'écran (C2-U15a)", () => {
     expect(SOURCE).not.toMatch(/ESCALIER_ACTIF\s*=/);
   });
 
-  it("l'interrupteur de la sortie reste éteint", () => {
-    expect(SORTIE_ACTIVE).toBe(false);
+  // MISE À JOUR DE RÉFÉRENCE 18/11 (BR-SORTIE-ANIMEE, seconde lecture du pilote) : SORTIE_ACTIVE vaut true côté code ; sans le
+  // champ `sortie` (posé seulement quand la capacité est permise) rien ne change. Garde conservée, déplacée.
+  it("la sortie n'est posée par aucune planche à elle seule : le champ vient de `parametres.ts`, derrière la porte", () => {
+    expect(SORTIE_ACTIVE).toBe(true);
+    expect(readFileSync("src/briques/composition/parametres.ts", "utf8")).toMatch(/sortieAnimeePermise\(c\.entrees\)\s*\?\s*\{\s*sortie\s*:/);
   });
 });

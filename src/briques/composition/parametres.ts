@@ -14,7 +14,8 @@ import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types"
 import { baseRetenue, controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
 import { lireEntreeBandeau, poserBandeauNom } from "@/briques/sous-titres/bandeau-nom";
 import { etiquettesAutonomes } from "@/briques/sous-titres/noms-outils";
-import { etiquettesOutilPermises } from "./porte-texte";
+import { etiquettesOutilPermises, sortieAnimeePermise } from "./porte-texte";
+import { SORTIE_PAR_DEFAUT } from "../sous-titres/sortie";
 import { positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
 import type { BandeFondSousTitres, DonneesCalque } from "@/briques/sous-titres/scene";
 import { sousTitresSurDecor } from "@/domaine/decors";
@@ -359,7 +360,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   // BR-ETIQUETTES-OUTIL : étiquettes « HUBSPOT »… (texte seul), seulement si le réglage a permis la capacité ; sinon rien, vidéo identique.
   const etiquettesOutils = avecSousTitres && etiquettesOutilPermises(c.entrees) ? etiquettesAutonomes(segmentsImage, e.dureeSec, { actif: true, ...(bandeauNom ? { bandeau: { debutSec: bandeauNom.debutSec, finSec: bandeauNom.finSec } } : {}), ...(instantsEncadre ? { ouvertureFinSec: instantsEncadre.a } : {}) }) : [];
   const calque = (ouverture?: DonneesCalque["ouverture"]): DonneesCalque | undefined =>
-    avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}), ...(bandeauNom ? { bandeauNom } : {}), ...(etiquettesOutils.length ? { etiquettesOutils } : {}) } : undefined;
+    avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ...(sortieAnimeePermise(c.entrees) ? { sortie: SORTIE_PAR_DEFAUT } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}), ...(bandeauNom ? { bandeauNom } : {}), ...(etiquettesOutils.length ? { etiquettesOutils } : {}) } : undefined;
   let sousTitres = calque();
 
   // Encadré d'ouverture SOUS les sous-titres réellement dessinés (≥ 80 px), au-dessus de la zone protégée du bas

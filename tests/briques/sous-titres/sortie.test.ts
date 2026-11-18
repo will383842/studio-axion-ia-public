@@ -10,8 +10,10 @@ const base: DonneesCalque = { largeur: 1080, hauteur: 1920, segments: [seg("a", 
 const sortie: SortieGroupe = { ...SORTIE_PAR_DEFAUT };
 
 describe("C2-U19 : interrupteur et constantes", () => {
-  it("éteint, flou à 0 seulement, fondu 0,2 s, aucun rebond", () => {
-    expect(SORTIE_ACTIVE).toBe(false);
+  // MISE À JOUR DE RÉFÉRENCE 18/11 (BR-SORTIE-ANIMEE, seconde lecture du pilote) : SORTIE_ACTIVE vaut true ; l'allumage réel dépend
+  // du champ `sortie` (garde : cas « champ absent » ci-dessous et tests/briques/composition/sortie-animee-branchee.test.ts).
+  it("allumé côté code, flou à 0 seulement, fondu 0,2 s, aucun rebond", () => {
+    expect(SORTIE_ACTIVE).toBe(true);
     expect(SORTIE_PAR_DEFAUT.dureeSec).toBeCloseTo(0.2, 9);
     expect(SORTIE_PAR_DEFAUT.flouPx).toBe(0);
     expect(SORTIE_PAR_DEFAUT.glissementPx).toBeLessThanOrEqual(40);
@@ -60,13 +62,16 @@ describe("C2-U19 : filet « champ absent = rendu identique »", () => {
     expect(sceneAuTemps(base, 5.05)).toBeNull();
     expect(sceneAuTemps(base, 4.5)!.opacite).toBe(1);
   });
-  it("le champ posé mais l'interrupteur éteint : identique image pour image", () => {
+  // MISE À JOUR DE RÉFÉRENCE 18/11 (BR-SORTIE-ANIMEE) : l'ancien cas « champ posé + interrupteur éteint → net » est remplacé par « champ absent → net ».
+  it("champ absent : identique image pour image, par empreinte comme par instants (rien ne glisse)", () => {
     for (const t of instants) {
-      expect(JSON.stringify(sceneAuTemps({ ...base, sortie }, t))).toBe(JSON.stringify(sceneAuTemps(base, t)));
-      expect(empreinteTexte({ sousTitres: { ...base, sortie }, encadre: null, incrustations: [] } as never, t)).toBe(empreinteTexte({ sousTitres: base, encadre: null, incrustations: [] } as never, t));
+      expect(empreinteTexte({ sousTitres: base, encadre: null, incrustations: [] } as never, t)).toBe(JSON.stringify(JSON.parse(empreinteTexte({ sousTitres: { ...base }, encadre: null, incrustations: [] } as never, t))));
+      expect(sceneAuTemps(base, t)?.decalageYPx ?? 0).toBe(0);
     }
     const p = { encadre: null, incrustations: [], images: 180, fps: 30 } as never;
-    expect(instantsTexte({ ...(p as object), sousTitres: { ...base, sortie } } as never)).toEqual(instantsTexte({ ...(p as object), sousTitres: base } as never));
+    const sans = instantsTexte({ ...(p as object), sousTitres: base } as never);
+    const avec = instantsTexte({ ...(p as object), sousTitres: { ...base, sortie } } as never);
+    expect(avec.instants.length).toBeGreaterThan(sans.instants.length);
   });
 });
 
