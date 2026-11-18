@@ -618,7 +618,7 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
   }
   // S-01 : « non relié » RENDU par un moteur (rien n'est payé avant) : le travail attend et repart seul, 24 h au plus (comme une panne levée).
   let entreEnAttente = false;
-  if (travail.statut === "echec" && t.statut !== "echec" && !enAttenteDeValidation(travail) && estPanneRendue(travail.erreur)) {
+  if (travail.statut === "echec" && t.statut !== "echec" && !enAttenteDeValidation(travail) && estPanneRendue(travail.erreur) && !(travail.erreur?.code === "CAS_CONCRET_NON_RELIE" && travail.etapes.some((e) => e.cle === "ecriture" && e.statut === "echec"))) { // cas concret à l'étape payée « ecriture » : jamais seul (relancerait un appel Claude sans l'accord de « Reprendre »)
     const suite = apresPanne(actuel.reprise, Date.now(), travail.erreur?.messagePourWill ?? "");
     if (!suite.abandon) {
       travail = { ...(await lu.moteur.reessayer(travail, Date.now())), reprise: suite.reprise, estDemo: t.estDemo, urgent: actuel.urgent };

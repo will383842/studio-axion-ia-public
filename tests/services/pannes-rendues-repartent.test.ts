@@ -264,6 +264,30 @@ describe("contre-épreuves : comportement de master inchangé", () => {
     expect(await notifs("info")).toHaveLength(0);
   });
 
+  it("CAS_CONCRET_NON_RELIE sur l'étape « ecriture » (payée) : jamais relancée seule ; la même panne sur une étape gratuite l'est toujours", async () => {
+    const etape = async (cle: string) => {
+      const { travailId } = await fabrication.lancerFabrication("v-03", { confirme: true });
+      const t = (await depots().travaux.obtenir(travailId))!;
+      const version = (await depots().versions.obtenir(t.versionId!))!;
+      const moteur = (await import("@/moteurs")).moteurDeCommande(version.commande);
+      const sortie: Travail = {
+        ...t,
+        statut: "echec",
+        erreur: { code: "CAS_CONCRET_NON_RELIE", reessayable: true, messagePourWill: "Phrase du moteur.", detailTechnique: "essai" },
+        etapes: [{ ...t.etapes[0], cle, statut: "echec" as const }, ...t.etapes.slice(1)],
+        modifieLe: new Date(T0).toISOString(),
+      };
+      await travaux.ecrireAvancement({ travail: t, commande: version.commande, moteur }, { travail: sortie });
+      return (await depots().travaux.obtenir(t.id))!;
+    };
+    const payee = await etape("ecriture");
+    expect(payee.statut).toBe("echec");
+    expect(payee.reprise).toBeUndefined();
+    const gratuite = await etape("rendu");
+    expect(gratuite.statut).not.toBe("echec");
+    expect(gratuite.reprise?.echecs).toBe(1);
+  });
+
   it("IV_SCRIPT_A_VALIDER (attente de validation) : réservation gardée, travail en échec comme avant, pas de reprise automatique", async () => {
     const { t, sortie, ecrit } = await ecrire("IV_SCRIPT_A_VALIDER", true);
     expect(ecrit).toEqual({ ...sortie, statut: "echec", reprise: undefined, estDemo: t.estDemo, urgent: t.urgent });
