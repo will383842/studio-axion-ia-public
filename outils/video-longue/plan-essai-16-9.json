@@ -1,0 +1,211 @@
+{
+  "version": "plan-scenes-1",
+  "format": {
+    "largeur": 1920,
+    "hauteur": 1080,
+    "fps": 25
+  },
+  "facecam": false,
+  "dureeMs": 60000,
+  "habillage": {
+    "fond": "ivoire",
+    "accent": "terracotta"
+  },
+  "mots": [],
+  "scenes": [
+    {
+      "id": "s1",
+      "version": 1,
+      "mots": {
+        "premier": 0,
+        "dernier": 0
+      },
+      "debutMs": 0,
+      "finMs": 10000,
+      "niveau": 1,
+      "piece": "carte-kpi",
+      "parametres": {
+        "libelle": "Exemple chiffré",
+        "valeur": 42,
+        "prefixe": "",
+        "suffixe": " %",
+        "decimales": 0,
+        "tendance": "hausse",
+        "variation": "+8 %"
+      },
+      "position": "centre",
+      "transition": {
+        "entree": "fondu",
+        "sortie": "fondu",
+        "dureeMs": 400
+      }
+    },
+    {
+      "id": "s2",
+      "version": 1,
+      "mots": {
+        "premier": 0,
+        "dernier": 0
+      },
+      "debutMs": 10000,
+      "finMs": 20000,
+      "niveau": 1,
+      "piece": "etapes",
+      "parametres": {
+        "elements": [
+          {
+            "texte": "Étape un",
+            "aMs": 600,
+            "surMot": 0
+          },
+          {
+            "texte": "Étape deux",
+            "aMs": 2200,
+            "surMot": 0
+          },
+          {
+            "texte": "Étape trois",
+            "aMs": 3800,
+            "surMot": 0
+          },
+          {
+            "texte": "Étape quatre",
+            "aMs": 5400,
+            "surMot": 0
+          }
+        ]
+      },
+      "position": "centre",
+      "transition": {
+        "entree": "fondu",
+        "sortie": "fondu",
+        "dureeMs": 400
+      }
+    },
+    {
+      "id": "s3",
+      "version": 1,
+      "mots": {
+        "premier": 0,
+        "dernier": 0
+      },
+      "debutMs": 20000,
+      "finMs": 30000,
+      "niveau": 1,
+      "piece": "fenetre-app",
+      "parametres": {
+        "titre": "Fenêtre d'exemple",
+        "onglets": [
+          "Un",
+          "Deux",
+          "Trois"
+        ],
+        "ongletActif": 1,
+        "contenu": "formulaire"
+      },
+      "position": "centre",
+      "transition": {
+        "entree": "fondu",
+        "sortie": "fondu",
+        "dureeMs": 400
+      }
+    },
+    {
+      "id": "s4",
+      "version": 1,
+      "mots": {
+        "premier": 0,
+        "dernier": 0
+      },
+      "debutMs": 30000,
+      "finMs": 40000,
+      "niveau": 1,
+      "piece": "carte-kpi",
+      "parametres": {
+        "libelle": "Exemple chiffré",
+        "valeur": 42,
+        "prefixe": "",
+        "suffixe": " %",
+        "decimales": 0,
+        "tendance": "hausse",
+        "variation": "+8 %"
+      },
+      "position": "centre",
+      "transition": {
+        "entree": "fondu",
+        "sortie": "fondu",
+        "dureeMs": 400
+      }
+    },
+    {
+      "id": "s5",
+      "version": 1,
+      "mots": {
+        "premier": 0,
+        "dernier": 0
+      },
+      "debutMs": 40000,
+      "finMs": 50000,
+      "niveau": 1,
+      "piece": "etapes",
+      "parametres": {
+        "elements": [
+          {
+            "texte": "Étape un",
+            "aMs": 600,
+            "surMot": 0
+          },
+          {
+            "texte": "Étape deux",
+            "aMs": 2200,
+            "surMot": 0
+          },
+          {
+            "texte": "Étape trois",
+            "aMs": 3800,
+            "surMot": 0
+          },
+          {
+            "texte": "Étape quatre",
+            "aMs": 5400,
+            "surMot": 0
+          }
+        ]
+      },
+      "position": "centre",
+      "transition": {
+        "entree": "fondu",
+        "sortie": "fondu",
+        "dureeMs": 400
+      }
+    },
+    {
+      "id": "s6",
+      "version": 1,
+      "mots": {
+        "premier": 0,
+        "dernier": 0
+      },
+      "debutMs": 50000,
+      "finMs": 60000,
+      "niveau": 1,
+      "piece": "fenetre-app",
+      "parametres": {
+        "titre": "Fenêtre d'exemple",
+        "onglets": [
+          "Un",
+          "Deux",
+          "Trois"
+        ],
+        "ongletActif": 1,
+        "contenu": "formulaire"
+      },
+      "position": "centre",
+      "transition": {
+        "entree": "fondu",
+        "sortie": "fondu",
+        "dureeMs": 400
+      }
+    }
+  ]
+}
