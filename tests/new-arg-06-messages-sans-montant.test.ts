@@ -112,10 +112,10 @@ describe("cloche et e-mail : crédits bientôt expirés", () => {
     const alertes = await depots().notifications.lister((x) => x.type === "credit" && x.titre.includes("bientôt expirés"));
     expect(alertes).toHaveLength(1);
     expect(alertes[0]!.titre).toBe("Crédits fal.ai bientôt expirés");
-    expectalertes[0]!.message.toBe(`Une partie de vos crédits fal.ai expire le ${new Date(expireLe).toLocaleDateString("fr-FR")}.`);
-    expectalertes[0]!.message.toMatch(/\d{2}\/\d{2}\/\d{4}\.$/);
+    expect(alertes[0]!.message).toBe(`Une partie de vos crédits fal.ai expire le ${new Date(expireLe).toLocaleDateString("fr-FR")}.`);
+    expect(alertes[0]!.message).toMatch(/\d{2}\/\d{2}\/\d{4}\.$/);
     SANS_MONTANT(alertes[0]!.titre);
-    SANS_MONTANT(alertes[0]!.message.replace(/\d{2}\/\d{2}\/\d{4}/, "DATE"));
+    SANS_MONTANT((alertes[0]!.message ?? "").replace(/\d{2}\/\d{2}\/\d{4}/, "DATE"));
   });
 });
 
