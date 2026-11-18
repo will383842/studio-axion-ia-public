@@ -59,6 +59,41 @@ describe("registre : voix et fin", () => {
   });
 });
 
+describe("registre : corrections du verdict Opus", () => {
+  it("permutation des entrées voix après figeage : la voix attendue reste dans l'ordre des phrases", () => {
+    const r = fige(etablirRegistre(base));
+    const permute: RegistreTextes = { ...r, entrees: [...r.entrees].reverse() };
+    expect(verifierRendu(permute, rendu()).ok).toBe(true);
+    const inverse = [...PHRASES].reverse().join(" ");
+    expect(verifierRendu(permute, rendu({ voix: inverse })).ok).toBe(false);
+    expect(verifierRendu(r, rendu({ voix: inverse })).ok).toBe(false);
+  });
+  it("drapeau finSansTexte supprimé après figeage : le contrôle échoue quand même", () => {
+    const r = fige(etablirRegistre({ ...base, fin: "prendre-rendez-vous" }));
+    const { finSansTexte: _f, ...sans } = r;
+    expect(_f).toBe(true);
+    const res = verifierRendu(sans as RegistreTextes, rendu());
+    expect(res.ok).toBe(false);
+    expect(res.message).toContain("fin choisie");
+  });
+  it("fin faite seulement d'espaces : traitée comme sans texte, échec", () => {
+    const r = fige(etablirRegistre({ ...base, fin: "prendre-rendez-vous", texteFin: "   " }));
+    expect(r.entrees.some((x) => x.ou === "fin")).toBe(false);
+    expect(r.finSansTexte).toBe(true);
+    expect(verifierRendu(r, rendu()).ok).toBe(false);
+  });
+  it("texte d'une entrée voix modifié après figeage : « registre modifié après validation »", () => {
+    const r = fige(etablirRegistre(base));
+    const modif: RegistreTextes = {
+      ...r,
+      entrees: r.entrees.map((x, i) => (i === 0 ? { ...x, texte: "Autre phrase." } : x)),
+    };
+    const res = verifierRendu(modif, rendu());
+    expect(res.ok).toBe(false);
+    expect(res.message).toContain("registre modifié après validation");
+  });
+});
+
 describe("registre : mot pour mot", () => {
   const r = fige(etablirRegistre(base));
   it("une virgule changée : échec, texte recopié", () => {

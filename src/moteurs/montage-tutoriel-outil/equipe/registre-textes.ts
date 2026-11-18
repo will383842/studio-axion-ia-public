@@ -6,6 +6,10 @@
  * un texte absent ou différent bloque. Le Studio ne dit ni n'écrit jamais une phrase non écrite ou non choisie.
  *
  * Pièces non encore sur master (T-EXT-21/22/23) : types locaux minimaux ci-dessous, compatibles par structure.
+ * ÉCART À LA FICHE (à trancher par le pilote) : la fiche dit « suite contiguë de mots d'UNE entrée voix ou fin » ;
+ * ici un sous-titre peut chevaucher deux phrases voisines (suite contiguë de la voix entière dite, fin comprise).
+ * La fiche a été lancée avant ses dépendances (T-EXT-21/22/23) : PR à garder en brouillon, types locaux à remplacer
+ * par les imports réels (`./scenariste`, `./realisateur`, `./controleur`) après leur fusion.
  */
 import { fnv1a64, jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import type { FinChoisie } from "./chef-de-projet";
@@ -79,7 +83,7 @@ export function etablirRegistre(e: {
   });
   let finSansTexte = false;
   if (e.fin === "prendre-rendez-vous") {
-    if (e.texteFin !== undefined && e.texteFin !== "") {
+    if (e.texteFin !== undefined && normaliser(e.texteFin) !== "") {
       entrees.push({ id: "fin-1", texte: e.texteFin, ou: "fin", origine: "fin-choisie", choisi: true });
     } else {
       finSansTexte = true;
@@ -163,8 +167,12 @@ export function verifierRendu(
 
   if (r.finSansTexte) echec("texte de la fin choisie absent du registre", ["fin choisie sans texte"]);
 
-  const voixEntrees = r.entrees.filter((x) => x.choisi && x.ou === "voix");
-  const finEntrees = r.entrees.filter((x) => x.choisi && x.ou === "fin");
+  const parRang = (a: EntreeRegistre, b: EntreeRegistre) => (a.phraseIndex ?? 0) - (b.phraseIndex ?? 0);
+  const voixEntrees = r.entrees.filter((x) => x.choisi && x.ou === "voix").sort(parRang);
+  const finEntrees = r.entrees.filter((x) => x.choisi && x.ou === "fin").sort(parRang);
+  if (r.fin !== "aucune" && finEntrees.length === 0 && !r.finSansTexte) {
+    echec("texte de la fin choisie absent du registre", ["fin choisie sans texte"]);
+  }
   const attendu = normaliser([...voixEntrees, ...finEntrees].map((x) => x.texte).join(" "));
   const dit = normaliser(rendu.voix);
   if (dit !== attendu) {
