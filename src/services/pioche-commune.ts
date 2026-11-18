@@ -5,8 +5,8 @@
  * recopié) ; le droit des scènes est écrit UNE fois ici, aux mêmes règles. Le classement est délégué à `choisirExtrait`.
  * Ne lève jamais : une erreur rend `null` et journalise une ligne (ids et comptes seulement, jamais de paroles).
  *
- * T-EXT-15 (index des scènes) n'est pas encore sur master : `EntreeSceneLue` / `IndexScenesLu` sont des types locaux
- * minimaux (sous-ensemble de `EntreeScene`), et la lecture passe par le port `ports.scenes`.
+ * Scènes gardées (T-EXT-15, fusionnée) : lecture par `lireScenesGardees` (port `ports.scenes` par défaut, éteint tant que
+ * `tutoriel.scenesGardees` n'est pas `true`), réutilisables = `scenesReutilisables`.
  */
 import "server-only";
 import { plagesDisponibles } from "@/briques/archive-extraits/choix";
@@ -15,7 +15,9 @@ import type { IdCapacite } from "@/briques/bibliotheque-video/types";
 import type { SujetExtrait, UsageExtrait } from "@/briques/note-extraits/types";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { etatLicence } from "@/domaine/derivations";
-import type { ElementBibliotheque, IdReseau, Licence, Ratio } from "@/domaine/types";
+import type { ElementBibliotheque, IdReseau, Ratio } from "@/domaine/types";
+import { scenesReutilisables, type IndexScenes } from "@/moteurs/montage-tutoriel-outil/index-scenes";
+import { lireScenesGardees } from "./scenes-tutoriel";
 import { depots as depotsParDefaut, journaliser, lireParametre } from "./_commun";
 
 export const PARAM_PIOCHE_COMMUNE = "pioche.commune";
@@ -61,26 +63,10 @@ export interface BesoinPioche {
   accepteTexteIncruste?: boolean;
 }
 
-/** Sous-ensemble minimal de l'`EntreeScene` de T-EXT-15 (local tant que cette fiche n'est pas fusionnée). */
-export interface EntreeSceneLue {
-  cle: string;
-  videoId: string;
-  sceneId: string;
-  version: number;
-  role: string;
-  sujet: SujetExtrait | null;
-  morceau: PlanValide;
-  dureeMs: number;
-  licence: Licence;
-  famille: string[];
-  etat: "brouillon" | "validee" | "retiree";
-}
-export interface IndexScenesLu { entrees: readonly EntreeSceneLue[] }
-
 export interface PortsPioche {
   depots?: typeof depotsParDefaut;
-  /** Lecture de l'index des scènes gardées (T-EXT-15 : `lireScenesGardees`). Absent = aucune scène. */
-  scenes?: () => Promise<IndexScenesLu>;
+  /** Lecture de l'index des scènes gardées (défaut : `lireScenesGardees`). */
+  scenes?: () => Promise<IndexScenes>;
 }
 
 const PREFIXE_ARCHIVE = "extrait:";
@@ -116,13 +102,12 @@ export function candidatsArchive(elements: readonly ElementBibliotheque[], besoi
 }
 
 /** Droit d'une scène : les mêmes règles que `plagesDisponibles` (licence copiée, famille, une source par vidéo). */
-export function candidatsScenes(index: IndexScenesLu, besoin: BesoinPioche): CandidatPioche[] {
+export function candidatsScenes(index: IndexScenes, besoin: BesoinPioche): CandidatPioche[] {
   if (besoin.accepteTexteIncruste !== true) return []; // texte incrusté toujours vrai (même esprit que P-4)
   const ratio = besoin.ratio ?? "4:5";
   if (!RATIOS_SCENE_V1.includes(ratio)) return [];
   const sortie: CandidatPioche[] = [];
-  for (const e of index.entrees) {
-    if (e.etat !== "validee") continue; // `scenesReutilisables`
+  for (const e of scenesReutilisables(index)) {
     const l = e.licence;
     if (etatLicence(l, besoin.maintenant) !== "ok" || !l.usageCommercial) continue;
     if (l.reseaux.length > 0 && !besoin.reseaux.every((r) => l.reseaux.includes(r))) continue;
@@ -174,8 +159,8 @@ export async function piocherCommun(besoin: BesoinPioche, ports?: PortsPioche): 
       const elements: ElementBibliotheque[] = await lesDepots.elements.lister((e) => e.type === "source-extraits" && !e.archiveLe);
       candidats.push(...candidatsArchive(elements, besoin));
     }
-    if (besoin.sources.includes("scene") && ports?.scenes) {
-      candidats.push(...candidatsScenes(await ports.scenes(), besoin));
+    if (besoin.sources.includes("scene")) {
+      candidats.push(...candidatsScenes(await (ports?.scenes ?? lireScenesGardees)(), besoin));
     }
     return piocher(candidats, besoin);
   } catch (e) {

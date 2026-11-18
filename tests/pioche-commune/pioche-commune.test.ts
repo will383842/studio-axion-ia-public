@@ -6,7 +6,11 @@ import { plagesDisponibles } from "@/briques/archive-extraits/choix";
 import type { PlageExtrait } from "@/domaine/archive-extraits";
 import type { ElementBibliotheque, IdReseau, Licence } from "@/domaine/types";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import type { BesoinPioche, EntreeSceneLue } from "@/services/pioche-commune";
+import type { EntreeScene, IndexScenes } from "@/moteurs/montage-tutoriel-outil/index-scenes";
+import type { BesoinPioche } from "@/services/pioche-commune";
+
+const lecteurParDefaut = vi.hoisted(() => vi.fn());
+vi.mock("@/services/scenes-tutoriel", () => ({ lireScenesGardees: lecteurParDefaut }));
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const P = await import("@/services/pioche-commune");
@@ -32,11 +36,12 @@ const el = (id: string, o: Partial<Opt> = {}): ElementBibliotheque =>
     },
   }) as unknown as ElementBibliotheque;
 
-type Scene = EntreeSceneLue;
+type Scene = EntreeScene;
 const scene = (videoId: string, sceneId: string, o: Partial<Scene> = {}): Scene => ({
   cle: `scene:${videoId}:${sceneId}:v1`, videoId, sceneId, version: 1, role: "ecran", sujet: null,
   morceau: { scenes: [] } as unknown as PlanValide, dureeMs: 6000, licence: lic(), famille: [videoId], etat: "validee", ...o,
-});
+}) as unknown as Scene;
+const indexDe = (...entrees: Scene[]): IndexScenes => ({ version: "index-scenes.v1", entrees });
 const besoin = (o: Partial<BesoinPioche> = {}): BesoinPioche => ({
   capacite: "ecran.telephone-extrait", usage: "ecran", sujet: null, sources: ["archive", "scene"],
   videoDemandeuse: "nouvelle", reseaux: ["linkedin"] as IdReseau[], dejaUtilisees: [], graine: "g1",
@@ -45,7 +50,7 @@ const besoin = (o: Partial<BesoinPioche> = {}): BesoinPioche => ({
 const cles = (r: { cle: string }[]) => r.map((x) => x.cle);
 const allumer = (v: unknown = true) => depots().parametres.enregistrer({ id: P.PARAM_PIOCHE_COMMUNE, valeur: v, creeLe: ISO, modifieLe: ISO });
 
-beforeEach(() => { reinitialiserDepots(); vi.restoreAllMocks(); });
+beforeEach(() => { reinitialiserDepots(); vi.restoreAllMocks(); lecteurParDefaut.mockReset(); });
 
 describe("archive", () => {
   it("mêmes plages que plagesDisponibles seul (clés égales) et visage/note/sujet recopiés", () => {
@@ -64,7 +69,8 @@ describe("archive", () => {
 });
 
 describe("scènes", () => {
-  const index = {
+  const index: IndexScenes = {
+    version: "index-scenes.v1",
     entrees: [
       scene("v-1", "s1"), scene("v-2", "s1"), scene("v-3", "s1"),
       scene("v-4", "s1", { etat: "brouillon" }), scene("v-5", "s1", { etat: "brouillon" }), scene("v-6", "s1", { etat: "retiree" }),
@@ -74,17 +80,17 @@ describe("scènes", () => {
     expect(cles(P.candidatsScenes(index, besoin()))).toEqual(["scene:v-1:s1:v1", "scene:v-2:s1:v1", "scene:v-3:s1:v1"]);
   });
   it("licence copiée expirée → exclue ; réseaux non couverts → exclue", () => {
-    const i = { entrees: [scene("v-1", "s1", { licence: lic({ expireLe: "2026-11-01" }) }), scene("v-2", "s1", { licence: lic({ reseaux: ["linkedin"] }) })] };
+    const i = indexDe(scene("v-1", "s1", { licence: lic({ expireLe: "2026-11-01" }) }), scene("v-2", "s1", { licence: lic({ reseaux: ["linkedin"] }) }));
     expect(cles(P.candidatsScenes(i, besoin({ reseaux: ["linkedin", "instagram"] })))).toEqual([]);
     expect(cles(P.candidatsScenes(i, besoin()))).toEqual(["scene:v-2:s1:v1"]);
   });
   it("vidéo demandeuse = source, ou dans la famille → exclue", () => {
     expect(cles(P.candidatsScenes(index, besoin({ videoDemandeuse: "v-1" })))).not.toContain("scene:v-1:s1:v1");
-    const i = { entrees: [scene("v-1", "s1", { famille: ["v-1", "nouvelle"] })] };
+    const i = indexDe(scene("v-1", "s1", { famille: ["v-1", "nouvelle"] }));
     expect(P.candidatsScenes(i, besoin())).toEqual([]);
   });
   it("une scène déjà utilisée exclut toutes les scènes de sa vidéo", () => {
-    const i = { entrees: [scene("v-1", "s1"), scene("v-1", "s2"), scene("v-2", "s1")] };
+    const i = indexDe(scene("v-1", "s1"), scene("v-1", "s2"), scene("v-2", "s1"));
     expect(cles(P.candidatsScenes(i, besoin({ dejaUtilisees: ["scene:v-1:s2:v1"] })))).toEqual(["scene:v-2:s1:v1"]);
   });
   it("accepteTexteIncruste absent → aucune scène", () => {
@@ -111,13 +117,13 @@ describe("parité de droit archive / scène", () => {
   it.each(cas)("$nom : mêmes exclusions des deux côtés", (c) => {
     const b = besoin({ reseaux: c.reseaux ?? ["linkedin"] });
     const a = P.candidatsArchive([el("x", { licence: c.licence, famille: c.famille })], b);
-    const s = P.candidatsScenes({ entrees: [scene("v-x", "s1", { licence: c.licence ?? lic(), famille: ["v-x", ...(c.famille ?? [])] })] }, b);
+    const s = P.candidatsScenes(indexDe(scene("v-x", "s1", { licence: c.licence ?? lic(), famille: ["v-x", ...(c.famille ?? [])] })), b);
     expect(a.length === 0).toBe(c.exclue);
     expect(s.length === 0).toBe(c.exclue);
   });
   it("une source par vidéo : déjà-utilisée exclut la source des deux côtés", () => {
     const a = P.candidatsArchive([el("x", { plages: [plage("p1"), plage("p2")] })], besoin({ dejaUtilisees: ["extrait:x:p1"] }));
-    const s = P.candidatsScenes({ entrees: [scene("v-x", "s1"), scene("v-x", "s2")] }, besoin({ dejaUtilisees: ["scene:v-x:s1:v1"] }));
+    const s = P.candidatsScenes(indexDe(scene("v-x", "s1"), scene("v-x", "s2")), besoin({ dejaUtilisees: ["scene:v-x:s1:v1"] }));
     expect(a).toEqual([]);
     expect(s).toEqual([]);
   });
@@ -125,7 +131,7 @@ describe("parité de droit archive / scène", () => {
 
 describe("mélange", () => {
   const els = [el("a", { plages: [plage("p1"), plage("p2")] }), el("b")];
-  const i = { entrees: [scene("v-1", "s1"), scene("v-2", "s1")] };
+  const i = indexDe(scene("v-1", "s1"), scene("v-2", "s1"));
   const tous = (b: BesoinPioche) => [...P.candidatsArchive(els, b), ...P.candidatsScenes(i, b)];
   it("même graine = même choix (10 répétitions)", () => {
     const b = besoin();
@@ -150,11 +156,11 @@ describe("mélange", () => {
   });
   it("graine différente : l'ordre ne change qu'à égalité (même score, même statut noté, même ancienneté)", () => {
     const b = besoin();
-    const deux = P.candidatsScenes({ entrees: [scene("v-1", "s1"), scene("v-2", "s1")] }, b);
+    const deux = P.candidatsScenes(indexDe(scene("v-1", "s1"), scene("v-2", "s1")), b);
     const choix = new Set(Array.from({ length: 30 }, (_, k) => P.piocher(deux, { ...b, graine: `g${k}` })?.cle));
     expect(choix.size).toBe(2); // à égalité stricte, deux graines peuvent donner deux choix
     const entrees = [scene("v-1", "s1"), scene("v-2", "s1", { sujet: "factures" as never })];
-    const cands = P.candidatsScenes({ entrees }, besoin({ sujet: "factures" as never }));
+    const cands = P.candidatsScenes(indexDe(...entrees), besoin({ sujet: "factures" as never }));
     for (let k = 0; k < 30; k++) {
       expect(P.piocher(cands, besoin({ sujet: "factures" as never, graine: `g${k}` }))?.cle).toBe("scene:v-2:s1:v1");
     }
@@ -166,11 +172,11 @@ describe("mélange", () => {
 });
 
 describe("piocherCommun : éteint par défaut", () => {
-  const ports = (lecteur = vi.fn(async () => ({ entrees: [scene("v-1", "s1")] }))) => ({ depots, scenes: lecteur });
+  const ports = (lecteur = vi.fn(async () => (indexDe(scene("v-1", "s1"))))) => ({ depots, scenes: lecteur });
   it.each([[undefined], ["true"], [1], [null]])("réglage %s → null, aucun dépôt lu", async (v) => {
     if (v !== undefined) await allumer(v);
     const espion = vi.spyOn(depots().elements, "lister");
-    const scenes = vi.fn(async () => ({ entrees: [scene("v-1", "s1")] }));
+    const scenes = vi.fn(async () => (indexDe(scene("v-1", "s1"))));
     expect(await P.piocherCommun(besoin(), ports(scenes))).toBeNull();
     expect(espion).not.toHaveBeenCalled();
     expect(scenes).not.toHaveBeenCalled();
@@ -186,6 +192,22 @@ describe("piocherCommun : éteint par défaut", () => {
     expect(r?.cle).toBe("scene:v-1:s1:v1");
     const r2 = await P.piocherCommun(besoin({ sources: ["archive"] }), ports());
     expect(r2?.cle).toBe("extrait:a:p1");
+  });
+  it("sans port injecté, la pioche allumée lit l'index par lireScenesGardees (double, 0 appel réel)", async () => {
+    await allumer(true);
+    lecteurParDefaut.mockResolvedValue(indexDe(scene("v-1", "s1")));
+    const r = await P.piocherCommun(besoin({ sources: ["scene"] }), { depots });
+    expect(lecteurParDefaut).toHaveBeenCalledTimes(1);
+    expect(r?.cle).toBe("scene:v-1:s1:v1");
+  });
+  it("sans port injecté, une scène non validée (brouillon, retirée) n'est jamais rendue", async () => {
+    await allumer(true);
+    lecteurParDefaut.mockResolvedValue(indexDe(scene("v-1", "s1", { etat: "brouillon" }), scene("v-2", "s2", { etat: "retiree" })));
+    expect(await P.piocherCommun(besoin({ sources: ["scene"] }), { depots })).toBeNull();
+  });
+  it("éteint : la lecture par défaut n'est jamais appelée", async () => {
+    await P.piocherCommun(besoin({ sources: ["scene"] }), { depots });
+    expect(lecteurParDefaut).not.toHaveBeenCalled();
   });
   it("lecture des éléments qui lève (allumé) → null", async () => {
     await allumer(true);
