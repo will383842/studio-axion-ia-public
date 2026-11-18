@@ -223,7 +223,7 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
     return { ...r, message: `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${r.message}`, ecritures: true };
   };
   for (const e of p.avecPost) {
-    if (!(await ouverts(d, demande.creneauId))) return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.eteint });
+    if (!(await ouverts(d, p.c.id))) return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.eteint });
     let issue: IssueRetraitDiffuseur;
     try {
       issue = await port.retirer(e);

@@ -63,9 +63,8 @@ export interface InjectionsEnvoiCalendrier {
 
 export type TourEnvoisCalendrierServeur =
   | { saute: "porte-fermee" | "debit" | "tour-en-cours" | "non-relie" }
-  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux; essai?: undefined }
-  /** Tour d'ESSAI borné : UN créneau, un brouillon, jamais de promotion. */
-  | { saute?: undefined; essai: LigneCreneau | undefined; annules?: undefined; resultat?: undefined };
+  /** `essai` n'est présent que pour un tour d'ESSAI borné : UN créneau, un brouillon, jamais de promotion. */
+  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux; essai?: LigneCreneau };
 
 /* ------------------------------------------------------------------ */
 /* Débit et tour unique                                                */
@@ -440,7 +439,7 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
       // Tour d'essai : UN seul créneau, jamais `tourEnvoisCalendrier` (qui promeut). Chaque porte relit l'essai.
       const id = essaiId;
       const ligne = await dansEssai(id, () => envoyerDepuisCreneau({ ...deps, porteEssai: (c) => essaiCouvre(c, "brouillon") }, id));
-      return { essai: ligne };
+      return { annules, resultat: { lignes: ligne ? [ligne] : [], erreurs: [] }, essai: ligne };
     }
     const resultat = await tourEnvoisCalendrier(deps);
     return { annules, resultat };
