@@ -28,6 +28,9 @@ export const ENTREE_A_PUBLIER: EntreeNavigation = { href: "/a-publier", libelle:
 /** « Sur le site » : la liste de ce qui est en ligne (visible seulement si un générateur est autorisé). */
 export const ENTREE_SUR_LE_SITE: EntreeNavigation = { href: "/sur-le-site", libelle: "Sur le site", icone: "lien" };
 
+/** « À traiter » : les commentaires à traiter à la main (visible seulement quand son interrupteur est allumé ; jamais proposé par la recherche, aucun compteur). */
+export const ENTREE_A_TRAITER: EntreeNavigation = { href: "/a-traiter", libelle: "À traiter", icone: "mail" };
+
 /**
  * Une rubrique de la barre (décision de Williams du 12/11 : 7 rubriques, dont 3 pliables).
  * Avec `href` : lien simple. Avec `enfants` : rubrique pliable ; s'il ne reste qu'un enfant visible, c'est un lien direct sans pli.
@@ -47,7 +50,7 @@ export interface RubriqueNavigation {
  * MENU (12/11, refonte R2) : source UNIQUE de la barre latérale, des onglets du bas, de la feuille « Plus » et de la recherche.
  * Ordre : Accueil · Écrire · Mes contenus ▸ · Calendrier · Publier ▸ · Résultats · Ressources ▸. « Nouvelle vidéo » est au-dessus,
  * Réglages et Me déconnecter en dessous. « Tous mes contenus » (/contenus) et « Mes modèles » (/modeles) ne sont plus dans la barre :
- * leurs pages existent toujours et la recherche les trouve. « Infographies » viendra quand l'écran existera.
+ * leurs pages existent toujours et la recherche les trouve.
  * Les entrées de « Publier » allumées par un réglage sont ajoutées par `rubriquesLaterales`.
  */
 export const RUBRIQUES_NAV: readonly RubriqueNavigation[] = [
@@ -62,6 +65,7 @@ export const RUBRIQUES_NAV: readonly RubriqueNavigation[] = [
       { href: "/videos", libelle: "Vidéos", icone: "film", actifSur: ACTIF_SUR_VIDEOS },
       // 18/10 : carrousels, infographies et vidéos sont trois familles distinctes (jamais sous « Vidéos »).
       { href: "/carrousels", libelle: "Carrousels", icone: "images" },
+      { href: "/infographies", libelle: "Infographies", icone: "image" },
     ],
   },
   { id: "calendrier", libelle: "Calendrier", icone: "calendrier", href: "/calendrier" },
@@ -97,9 +101,9 @@ export const ENTREES_HORS_BARRE: readonly EntreeNavigation[] = [
   { href: "/modeles", libelle: "Mes modèles", icone: "modele" },
 ];
 
-/** Rubriques réellement affichées : « Vidéos validées » puis « Sur le site » passent AVANT « Réponses automatiques » dans Publier quand ils sont allumés. */
-export function rubriquesLaterales(avecSurLeSite = false, avecAPublier = false): RubriqueNavigation[] {
-  return RUBRIQUES_NAV.map((r) => (r.id === "publier" ? { ...r, enfants: [...(avecAPublier ? [ENTREE_A_PUBLIER] : []), ...(avecSurLeSite ? [ENTREE_SUR_LE_SITE] : []), ...(r.enfants ?? [])] } : r));
+/** Rubriques réellement affichées : « Vidéos validées » puis « Sur le site » passent AVANT « Réponses automatiques » dans Publier quand ils sont allumés ; « À traiter » vient APRÈS. */
+export function rubriquesLaterales(avecSurLeSite = false, avecAPublier = false, avecATraiter = false): RubriqueNavigation[] {
+  return RUBRIQUES_NAV.map((r) => (r.id === "publier" ? { ...r, enfants: [...(avecAPublier ? [ENTREE_A_PUBLIER] : []), ...(avecSurLeSite ? [ENTREE_SUR_LE_SITE] : []), ...(r.enfants ?? []), ...(avecATraiter ? [ENTREE_A_TRAITER] : [])] } : r));
 }
 
 /** Vrai si la rubrique se déplie (au moins deux sous-rubriques visibles). */
@@ -124,15 +128,15 @@ export function estActif(chemin: string, e: EntreeNavigation): boolean {
 }
 
 /** Adresse de l'UNIQUE entrée marquée « page en cours » (la première qui correspond), ou null. */
-export function hrefCourant(chemin: string, avecSurLeSite = false, avecAPublier = false): string | null {
-  const ordre = [ACTION_CREER, ...rubriquesLaterales(avecSurLeSite, avecAPublier).flatMap(entreesDeRubrique), ...NAV_PIED];
+export function hrefCourant(chemin: string, avecSurLeSite = false, avecAPublier = false, avecATraiter = false): string | null {
+  const ordre = [ACTION_CREER, ...rubriquesLaterales(avecSurLeSite, avecAPublier, avecATraiter).flatMap(entreesDeRubrique), ...NAV_PIED];
   return ordre.find((e) => estActif(chemin, e))?.href ?? null;
 }
 
 /** Identifiant de la rubrique pliable qui contient la page en cours (elle s'ouvre toute seule), ou null. */
-export function rubriqueDeLaPage(chemin: string, avecSurLeSite = false, avecAPublier = false): string | null {
-  const courant = hrefCourant(chemin, avecSurLeSite, avecAPublier);
-  return rubriquesLaterales(avecSurLeSite, avecAPublier).find((r) => estPliable(r) && r.enfants!.some((e) => e.href === courant))?.id ?? null;
+export function rubriqueDeLaPage(chemin: string, avecSurLeSite = false, avecAPublier = false, avecATraiter = false): string | null {
+  const courant = hrefCourant(chemin, avecSurLeSite, avecAPublier, avecATraiter);
+  return rubriquesLaterales(avecSurLeSite, avecAPublier, avecATraiter).find((r) => estPliable(r) && r.enfants!.some((e) => e.href === courant))?.id ?? null;
 }
 
 /** Barre latérale à plat (sans les entrées conditionnelles) : sert aux listes et aux tests. */
@@ -152,8 +156,8 @@ const DANS_LES_ONGLETS = new Set(ONGLETS_BAS.map((o) => o.href));
  * Feuille « Plus » (mobile) : les mêmes rubriques que la barre, moins ce qui est déjà dans les onglets.
  * Les liens simples (Calendrier, Résultats) viennent en tête sans titre ; chaque rubrique pliable garde son titre ; Réglages en dernier.
  */
-export function sectionsPlusMobile(avecSurLeSite = false, avecAPublier = false): SectionNavigation[] {
-  const rubriques = rubriquesLaterales(avecSurLeSite, avecAPublier);
+export function sectionsPlusMobile(avecSurLeSite = false, avecAPublier = false, avecATraiter = false): SectionNavigation[] {
+  const rubriques = rubriquesLaterales(avecSurLeSite, avecAPublier, avecATraiter);
   const brutes: SectionNavigation[] = [
     { titre: null, entrees: rubriques.filter((r) => !r.enfants).flatMap(entreesDeRubrique) },
     ...rubriques.filter((r) => r.enfants).map((r) => ({ titre: r.libelle, entrees: r.enfants! })),
@@ -169,16 +173,16 @@ export const TUILES_PLUS: EntreeNavigation[] = sectionsPlusMobile().flatMap((s) 
  * Barre latérale à plat. 18/10 : plus de raccourci de création ; tout passe par « Nouvelle vidéo ». Le nom et la signature
  * restent (les appelants ne bougent pas) ; la liste des formats n'est pas dans cette fonction.
  */
-export function navigationLaterale(formats: readonly Pick<FormatNavigation, "id" | "statut">[], avecSurLeSite = false, avecAPublier = false): EntreeNavigation[] {
+export function navigationLaterale(formats: readonly Pick<FormatNavigation, "id" | "statut">[], avecSurLeSite = false, avecAPublier = false, avecATraiter = false): EntreeNavigation[] {
   void formats; // 18/10 : plus de raccourci de création ; tout passe par Nouvelle vidéo
-  if (!avecSurLeSite && !avecAPublier) return NAV_LATERALE;
-  const [tete, ...reste] = rubriquesLaterales(avecSurLeSite, avecAPublier);
+  if (!avecSurLeSite && !avecAPublier && !avecATraiter) return NAV_LATERALE;
+  const [tete, ...reste] = rubriquesLaterales(avecSurLeSite, avecAPublier, avecATraiter);
   return [...entreesDeRubrique(tete), ACTION_CREER, ...reste.flatMap(entreesDeRubrique), ...NAV_PIED];
 }
 
 /** Tuiles de la feuille « Plus » (mobile) à plat, avec les entrées conditionnelles quand elles sont allumées. */
-export function tuilesPlusMobile(avecSurLeSite = false, avecAPublier = false): EntreeNavigation[] {
-  return sectionsPlusMobile(avecSurLeSite, avecAPublier).flatMap((s) => s.entrees);
+export function tuilesPlusMobile(avecSurLeSite = false, avecAPublier = false, avecATraiter = false): EntreeNavigation[] {
+  return sectionsPlusMobile(avecSurLeSite, avecAPublier, avecATraiter).flatMap((s) => s.entrees);
 }
 
 /** Format (registre) transmis à la coquille : sert à la feuille « Créer » du téléphone. */
