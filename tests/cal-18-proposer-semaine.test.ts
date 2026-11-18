@@ -67,13 +67,16 @@ describe("CAL-18 · appel à l'usine par la porte", () => {
     const f = doublure();
     await expect(proposerSemaine({ debut: LUNDI }, { env: {}, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "USINE_ETEINTE" });
     expect(f).not.toHaveBeenCalled();
-    for (let i = 0; i < PLAFOND_APPELS_SEMAINE_PAR_JOUR; i++) await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(doublure()), maintenant: JOUR1 });
+    const r = await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(doublure()), maintenant: JOUR1 });
+    expect(r.appelsRestants).toBe(PLAFOND_APPELS_SEMAINE_PAR_JOUR - 1);
   });
 
   it("une panne de l'usine est comptée comme un appel (le plafond protège l'usine) mais ne casse rien", async () => {
     const f = vi.fn(async () => reponse({ erreur: "x" }, 500));
     await expect(proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(f), maintenant: JOUR1 })).rejects.toMatchObject({ code: "USINE_ERREUR" });
     expect(f).toHaveBeenCalledTimes(1);
+    const suite = await proposerSemaine({ debut: LUNDI }, { env: ENV, fetchImpl: F(doublure()), maintenant: JOUR1 });
+    expect(suite.appelsRestants).toBe(PLAFOND_APPELS_SEMAINE_PAR_JOUR - 2);
   });
 });
 
@@ -161,6 +164,20 @@ describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
     expect(texteDe(arbre)).toContain(PHRASE_PLAFOND_SEMAINE);
     expect(texteDe(arbre)).not.toMatch(/[€$]|prix|tarif/i);
     expect(bouton(arbre).props.disabled).toBeFalsy();
+  });
+
+  it("un succès puis un refus : plus aucune carte de la demande précédente", async () => {
+    let n = 0;
+    const proposer = vi.fn(async () => (n++ === 0 ? sortie : { ok: false as const, message: PHRASE_PLAFOND_SEMAINE, code: "SEMAINE_PLAFOND" }));
+    const { m } = monterBouton(proposer as never);
+    (bouton(m.rendre()).props.onClick as () => void)();
+    await attendre();
+    expect(renderToStaticMarkup(createElement("div", null, m.rendre() as never))).toContain("Proposée");
+    (bouton(m.rendre()).props.onClick as () => void)();
+    await attendre();
+    const html = renderToStaticMarkup(createElement("div", null, m.rendre() as never));
+    expect(html).not.toContain("data-proposition");
+    expect(texteDe(m.rendre())).toContain(PHRASE_PLAFOND_SEMAINE);
   });
 
   it("une action qui plante affiche une phrase simple : l'ajout manuel n'est pas bloqué", async () => {

@@ -34,6 +34,7 @@ export function BoutonProposerSemaine({ debutSemaine, proposer, lienAValider }: 
     occupe.current = true;
     setEnCours(true);
     setMessage(null);
+    setSemaine(null);
     try {
       const r = await proposer(debutSemaine);
       if (!r.ok) {
