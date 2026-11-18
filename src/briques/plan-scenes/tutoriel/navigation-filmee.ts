@@ -177,7 +177,16 @@ interface SegmentCamera {
 function segmentsCamera(nav: NavigationFilmee, format: FormatSortie): { repos: EtatCamera; segments: SegmentCamera[] } {
   const repos: EtatCamera = { s: 1, cx: format.largeur / 2, cy: format.hauteur / 2 };
   const segments: SegmentCamera[] = [];
-  for (const c of nav.cibles) if (c.zonePct) segments.push({ debut: c.instantMs + RETARD_ZOOM_MS, vers: etatDeZone(nav, c.zonePct, format) });
+  for (const c of nav.cibles) {
+    if (!c.zonePct) continue;
+    // 1re montée depuis le repos : 150 ms après le clic. Passage d'une zone à l'autre : la caméra part avec le curseur
+    // et arrive avec lui avant le clic (écart à la fiche, correction du verdict Opus : sinon le clic sort de l'image).
+    const precedent = segments[segments.length - 1];
+    const debut = precedent
+      ? Math.max(precedent.debut, c.instantMs - ARRIVEE_AVANT_CLIC_MS - DEPLACEMENT_CURSEUR_MS)
+      : c.instantMs + RETARD_ZOOM_MS;
+    segments.push({ debut, vers: etatDeZone(nav, c.zonePct, format) });
+  }
   if (segments.length) segments.push({ debut: Math.max(...nav.cibles.map((c) => c.finMs)), vers: repos });
   return { repos, segments };
 }

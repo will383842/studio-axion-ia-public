@@ -166,6 +166,42 @@ describe("curseurA", () => {
     expect(Math.abs(k.xPx - centre.x)).toBeLessThan(1);
     expect(Math.abs(k.yPx - centre.y)).toBeLessThan(1);
   });
+  it.each([["4:5", F45], ["9:16", F916]])("au clic et pendant l'impulsion de chaque cible avec zone, curseur et surbrillance sont dans l'image (%s)", (_n, F) => {
+    const lots = [
+      base(),
+      base({ cibles: [
+        { etapeId: "e1", zonePct: { x: 2, y: 2, largeur: 20, hauteur: 10 }, instantMs: 4000, finMs: 4900 },
+        { etapeId: "e2", zonePct: { x: 78, y: 85, largeur: 20, hauteur: 10 }, instantMs: 5000, finMs: 7000 },
+        { etapeId: "e3", zonePct: { x: 2, y: 40, largeur: 20, hauteur: 10 }, instantMs: 8000, finMs: 9000 },
+      ] }),
+    ];
+    for (const nav of lots) {
+      for (const c of nav.cibles) {
+        for (let t = c.instantMs - 100; t <= c.instantMs + 300; t += 20) {
+          const k = curseurA(nav, t, F)!;
+          expect(k.xPx, `${c.etapeId} x à ${t}`).toBeGreaterThanOrEqual(0);
+          expect(k.xPx, `${c.etapeId} x à ${t}`).toBeLessThanOrEqual(F.largeur);
+          expect(k.yPx, `${c.etapeId} y à ${t}`).toBeGreaterThanOrEqual(0);
+          expect(k.yPx, `${c.etapeId} y à ${t}`).toBeLessThanOrEqual(F.hauteur);
+          if (t >= c.instantMs) {
+            const sb = surbrillanceA(nav, t, F)!;
+            expect(sb.x, `${c.etapeId} cadre à ${t}`).toBeGreaterThanOrEqual(-1);
+            expect(sb.y).toBeGreaterThanOrEqual(-1);
+            expect(sb.x + sb.largeur).toBeLessThanOrEqual(F.largeur + 1);
+            expect(sb.y + sb.hauteur).toBeLessThanOrEqual(F.hauteur + 1);
+          }
+        }
+      }
+    }
+  });
+  it("le clic de la 2e cible a lieu sur elle : caméra et curseur arrivent ensemble", () => {
+    const nav = base();
+    const t = 9000;
+    const centre = versEcran(cameraA(nav, t, F45), F45, { x: 0.75 * 1080, y: 0.56 * 1350 });
+    const k = curseurA(nav, t, F45)!;
+    expect(Math.abs(k.xPx - centre.x)).toBeLessThan(1);
+    expect(k.xPx).toBeLessThanOrEqual(1080);
+  });
   it("le clic vaut 0 avant, > 0 pendant 300 ms, 0 après", () => {
     const nav = base();
     expect(curseurA(nav, 3900, F45)!.clic).toBe(0);
