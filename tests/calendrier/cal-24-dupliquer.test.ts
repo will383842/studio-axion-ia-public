@@ -19,7 +19,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/app/(studio)/calendrier/charger-comptes", () => ({ comptesCibles: async (r: string[]) => Object.fromEntries(r.map((x) => [x, `compte-${x}`])) }));
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("../aides/crochets-factices")).crochets }));
 
-const { dupliquerEntree } = await import("@/app/(studio)/calendrier/actions/dupliquer");
+const { dupliquerEntree, PHRASES_DUPLICATION } = await import("@/app/(studio)/calendrier/actions/dupliquer");
 const { LIBELLE_VOIR_SUR_RESEAU, MARQUE_A_ADAPTER, cleLienCopie, lienVoirSurReseau, marquerAAdapter } = await import("@/domaine/calendrier/lien-reseau");
 const { monter, trouver, texteDe, attendre } = await import("../aides/crochets-factices");
 
@@ -100,7 +100,7 @@ describe("CAL-24 · dupliquer un créneau", () => {
 
   it("même réseau ET même jour que l'original : refusé avec une phrase claire, rien n'est écrit", async () => {
     const r = await dupliquerEntree(saisie({ reseau: "linkedin", jour: "2026-12-15" }));
-    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ ok: false, message: PHRASES_DUPLICATION.identique });
     expect(await copies()).toHaveLength(0);
   });
 
@@ -126,26 +126,55 @@ describe("CAL-24 · dupliquer un créneau", () => {
   it("même clé de formulaire mais autre demande : refusé, la première copie reste telle quelle", async () => {
     await dupliquerEntree(saisie());
     const r = await dupliquerEntree(saisie({ reseau: "facebook" }));
-    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({ ok: false, message: PHRASES_DUPLICATION.autreDemande });
     const toutes = await copies();
     expect(toutes).toHaveLength(1);
     expect(Object.keys(toutes[0]!.heuresParReseau as object)).toEqual(["instagram"]);
   });
 
   it("refuse sans rien écrire : clé de fiche illisible, réseau inconnu, jour invalide, clé de formulaire invalide, original introuvable", async () => {
-    for (const mauvaise of [
-      saisie({ cle: "n'importe quoi" }),
-      saisie({ reseau: "myspace" }),
-      saisie({ jour: "2026-02-30" }),
-      saisie({ jour: "demain" }),
-      saisie({ cleFormulaire: "a b" }),
-      saisie({ cle: "creneau:inconnu|linkedin" }),
-      saisie({ heure: "25:99" }),
-    ]) {
+    const P = PHRASES_DUPLICATION;
+    for (const [mauvaise, phrase] of [
+      [saisie({ cle: "n'importe quoi" }), P.original],
+      [saisie({ reseau: "myspace" }), P.reseau],
+      [saisie({ jour: "2026-02-30" }), P.jour],
+      [saisie({ jour: "demain" }), P.jour],
+      [saisie({ cleFormulaire: "a b" }), P.formulaire],
+      [saisie({ cle: "creneau:inconnu|linkedin" }), P.original],
+      [saisie({ heure: "25:99" }), P.heure],
+    ] as const) {
       const r = await dupliquerEntree(mauvaise as never);
-      expect(r.ok, JSON.stringify(mauvaise)).toBe(false);
+      expect(r, JSON.stringify(mauvaise)).toMatchObject({ ok: false, message: phrase });
     }
     expect(await copies()).toHaveLength(0);
+  });
+
+  it("écriture interrompue (la fiche échoue une fois) : le rejeu avec la même clé termine la copie, avec son lien, sans doublon", async () => {
+    const parametres = depots().parametres;
+    const reel = parametres.enregistrer.bind(parametres);
+    let echec = true;
+    const espion = vi.spyOn(parametres, "enregistrer").mockImplementation(async (e) => {
+      if (echec && String((e as { id: string }).id).startsWith("calendrier.fiche.")) { echec = false; throw new Error("écriture impossible"); }
+      return reel(e);
+    });
+    const premier = await dupliquerEntree(saisie());
+    expect(premier).toMatchObject({ ok: false, message: PHRASES_DUPLICATION.impossible });
+    const rejeu = await dupliquerEntree(saisie());
+    espion.mockRestore();
+    if (!rejeu.ok) throw new Error(`attendu : ok, reçu ${rejeu.message}`);
+    expect(await copies()).toHaveLength(1);
+    expect(await lireParametre(cleLienCopie(rejeu.donnees.creneauId), null)).toBe(CLE_ORIGINALE);
+    const fiche = await lireParametre<{ texte?: string } | null>(`calendrier.fiche.${rejeu.donnees.cle}`, null);
+    expect(fiche?.texte?.startsWith(MARQUE_A_ADAPTER)).toBe(true);
+  });
+
+  it("heure qui n'existe pas ce jour-là (changement d'heure) : la copie est créée et la phrase d'avertissement est rendue", async () => {
+    const r = await dupliquerEntree(saisie({ jour: "2027-03-28", heure: "02:30" }));
+    if (!r.ok) throw new Error("attendu : ok");
+    expect(r.donnees.avertissement).toMatch(/n'existe pas/);
+    const normal = await dupliquerEntree(saisie({ jour: "2026-12-21", cleFormulaire: "form2" }));
+    if (!normal.ok) throw new Error("attendu : ok");
+    expect(normal.donnees.avertissement).toBeUndefined();
   });
 
   it("sans session : l'action échoue avant toute lecture ou écriture", async () => {
@@ -241,6 +270,34 @@ describe("CAL-24 · écran DupliquerEntree", () => {
     expect(avec).toMatch(/rel="[^"]*noopener[^"]*"/);
     expect(rendre(createElement(VoirSurLeReseau, { statut: "publiee" }))).toBe("");
     expect(rendre(createElement(VoirSurLeReseau, { statut: "programmee", urlPubliee: "https://www.linkedin.com/posts/exemple-1" }))).toBe("");
+  });
+
+  it("la liste des réseaux de l'écran est celle du registre (YouTube compris) et le réseau d'origine y figure", async () => {
+    const { DupliquerEntree } = await import("@/components/calendrier/DupliquerEntree");
+    const m = monter(DupliquerEntree, { cle: "creneau:cre_9|youtube", reseau: "youtube", jour: "2026-12-15" });
+    (trouver(m.rendre(), (e) => e.type === "button")[0]!.props.onClick as () => void)();
+    const options = trouver(m.rendre(), (e) => e.type === "option").map((o) => o.props.value);
+    expect(options).toContain("youtube");
+    expect(options).toContain("linkedin");
+  });
+
+  it("après un avertissement de date passée, changer le jour efface l'avertissement : « Créer la copie » revient", async () => {
+    vi.doMock("@/app/(studio)/calendrier/actions/dupliquer", () => ({
+      dupliquerEntree: async () => ({ ok: false, message: "x", aConfirmer: "passe", avertissement: "Cette date est passée : confirmez." }),
+    }));
+    vi.resetModules();
+    const { DupliquerEntree } = await import("@/components/calendrier/DupliquerEntree");
+    const m = monter(DupliquerEntree, { cle: CLE_ORIGINALE, reseau: "linkedin", jour: "2026-12-15" });
+    (trouver(m.rendre(), (e) => e.type === "button")[0]!.props.onClick as () => void)();
+    (trouver(m.rendre(), (e) => e.type === "form")[0]!.props.onSubmit as (e: { preventDefault(): void }) => void)({ preventDefault() {} });
+    await attendre();
+    expect(lisible(rendre(m.rendre()))).toContain("Créer quand même");
+    (trouver(m.rendre(), (e) => e.type === "input")[0]!.props.onChange as (e: { target: { value: string } }) => void)({ target: { value: "2026-12-30" } });
+    const html = lisible(rendre(m.rendre()));
+    expect(html).toContain("Créer la copie");
+    expect(html).not.toContain("Créer quand même");
+    expect(html).not.toContain("Cette date est passée");
+    vi.doUnmock("@/app/(studio)/calendrier/actions/dupliquer");
   });
 
   it("confirmer : appelle l'action une fois avec la bonne demande ; une date passée affiche l'avertissement et propose « Créer quand même »", async () => {

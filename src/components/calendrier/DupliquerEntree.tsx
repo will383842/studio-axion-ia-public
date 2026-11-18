@@ -5,14 +5,12 @@
  * Rien ne part d'ici : la copie naît en attente, son texte est marqué « À adapter », et elle attend votre validation.
  * Anti double clic : le bouton se désactive pendant l'envoi et la clé du formulaire reste la même jusqu'au succès.
  */
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { dupliquerEntree, type ResultatDuplication } from "@/app/(studio)/calendrier/actions/dupliquer";
 import { LIBELLE_VOIR_SUR_RESEAU, lienVoirSurReseau } from "@/domaine/calendrier/lien-reseau";
 import type { IdReseau } from "@/domaine/types";
-import { cn } from "@/lib/cn";
-import { nomReseau } from "./CarteEntreeCalendrier";
+import { RESEAUX } from "@/reseaux";
 
-const RESEAUX: readonly IdReseau[] = ["instagram", "facebook", "linkedin", "tiktok"];
 const BOUTON = "inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-[10px] border border-trait-fort bg-surface-2 px-3 py-1.5 text-sm font-bold text-texte hover:bg-surface-3 disabled:opacity-60";
 const CHAMP = "mt-1 block min-h-[44px] w-full rounded-[10px] border border-trait-fort bg-surface-1 px-3 text-sm text-texte";
 
@@ -30,7 +28,7 @@ export function VoirSurLeReseau({ statut, urlPubliee }: { statut?: string; urlPu
 }
 
 export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: IdReseau; jour: string }) {
-  const cleFormulaire = useRef(crypto.randomUUID());
+  const [cleFormulaire, setCleFormulaire] = useState(() => crypto.randomUUID());
   const [ouvert, setOuvert] = useState(false);
   const [reseauVise, setReseauVise] = useState<IdReseau>(reseau);
   const [jourVise, setJourVise] = useState(jour);
@@ -41,9 +39,9 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
     if (enCours) return;
     setEnCours(true);
     try {
-      const r = await dupliquerEntree({ cle, reseau: reseauVise, jour: jourVise, cleFormulaire: cleFormulaire.current, ...(confirmerPasse ? { confirmerPasse: true } : {}) });
+      const r = await dupliquerEntree({ cle, reseau: reseauVise, jour: jourVise, cleFormulaire, ...(confirmerPasse ? { confirmerPasse: true } : {}) });
       setRetour(r);
-      if (r.ok) cleFormulaire.current = crypto.randomUUID();
+      if (r.ok) setCleFormulaire(crypto.randomUUID());
     } catch {
       setRetour({ ok: false, message: "La copie n'a pas pu être créée. Réessayez." });
     } finally {
@@ -67,15 +65,15 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
       <p className="text-sm text-texte">{PHRASE_DUPLIQUER}</p>
       <label className="mt-2 block text-sm font-bold text-texte">
         Réseau
-        <select className={CHAMP} value={reseauVise} onChange={(e) => setReseauVise(e.target.value as IdReseau)} disabled={enCours || fait}>
+        <select className={CHAMP} value={reseauVise} onChange={(e) => { setReseauVise(e.target.value as IdReseau); setRetour(null); }} disabled={enCours || fait}>
           {RESEAUX.map((r) => (
-            <option key={r} value={r}>{nomReseau(r)}</option>
+            <option key={r.id} value={r.id}>{r.nom}</option>
           ))}
         </select>
       </label>
       <label className="mt-2 block text-sm font-bold text-texte">
         Jour
-        <input className={CHAMP} type="date" value={jourVise} onChange={(e) => setJourVise(e.target.value)} disabled={enCours || fait} />
+        <input className={CHAMP} type="date" value={jourVise} onChange={(e) => { setJourVise(e.target.value); setRetour(null); }} disabled={enCours || fait} />
       </label>
       <div className="mt-3 flex flex-wrap gap-2">
         {!fait && !aConfirmer && (
@@ -88,12 +86,12 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
             Créer quand même
           </button>
         )}
-        <button type="button" className={cn(BOUTON)} disabled={enCours} onClick={() => { setOuvert(false); setRetour(null); }}>
+        <button type="button" className={BOUTON} disabled={enCours} onClick={() => { setOuvert(false); setRetour(null); }}>
           {fait ? "Fermer" : "Annuler"}
         </button>
       </div>
       {retour?.ok === false && <p role="alert" className="mt-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{retour.avertissement ?? retour.message}</p>}
-      {retour?.ok === true && <p role="status" className="mt-2 text-sm font-bold text-texte">{retour.donnees.message}</p>}
+      {retour?.ok === true && <p role="status" className="mt-2 text-sm font-bold text-texte">{retour.donnees.message}{retour.donnees.avertissement ? ` ${retour.donnees.avertissement}` : ""}</p>}
     </form>
   );
 }

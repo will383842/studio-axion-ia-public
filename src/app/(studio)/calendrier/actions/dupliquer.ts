@@ -39,6 +39,8 @@ export interface DonneesDuplication {
   /** Clé de carte de la copie. */
   cle: string;
   message: string;
+  /** Phrase en plus, par exemple quand l'heure choisie n'existe pas ce jour-là (changement d'heure). */
+  avertissement?: string;
 }
 
 export type ResultatDuplication =
@@ -112,14 +114,20 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       const videoId = original?.videoId ?? publication?.videoId;
       const visuelId = original?.visuelId ?? publication?.visuelId;
       const heure = saisie.heure ?? fiche.entree.heure ?? "09:00";
-      const { instant } = resoudreHeureParis(saisie.jour, heure);
+      const { instant, avertissement } = resoudreHeureParis(saisie.jour, heure);
       const id = idCopie(saisie.cleFormulaire);
       const existant = await depots().creneauxEditoriaux.obtenir(id);
+      const cleCopie = { cle: `creneau:${id}|${saisie.reseau}`, origine: "creneau" as const, id, reseau: saisie.reseau };
+      const retour = (): ResultatDuplication => ({ ok: true, donnees: { creneauId: id, cle: cleCopie.cle, message: PHRASES_DUPLICATION.creee, ...(avertissement ? { avertissement } : {}) } });
       if (existant) {
-        const memeLien = (await lireParametre<string | null>(cleLienCopie(id), null)) === saisie.cle;
-        const memeDemande = memeLien && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau;
+        const lien = await lireParametre<string | null>(cleLienCopie(id), null);
+        const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau;
         if (!memeDemande) return refus(PHRASES_DUPLICATION.autreDemande);
-        return { ok: true as const, donnees: { creneauId: id, cle: `creneau:${id}|${saisie.reseau}`, message: PHRASES_DUPLICATION.creee } };
+        // Rejeu après une écriture interrompue : on termine ce qui manque (fiche et lien), sans rien recréer.
+        const texte = existant.textes?.[saisie.reseau];
+        if (texte) await ecrireStockageFiche(cleCopie, texte);
+        if (lien === null) await ecrireParametre(cleLienCopie(id), saisie.cle);
+        return retour();
       }
       if (saisie.reseau === fiche.entree.reseau && saisie.jour === fiche.entree.jour) return refus(PHRASES_DUPLICATION.identique);
       if (Date.parse(instant) < Date.now() && !saisie.confirmerPasse) {
@@ -127,6 +135,8 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       }
       const textes = texteOriginal(fiche.entree, original, fiche.entree.reseau);
       const copieTexte = { texte: marquerAAdapter(textes.texte), premierCommentaire: textes.premierCommentaire };
+      // Le lien est écrit AVANT la copie : une copie n'existe jamais sans lien, et un rejeu reprend là où l'écriture s'est arrêtée.
+      await ecrireParametre(cleLienCopie(id), saisie.cle);
       const copie = await creerCreneau(
         depotsPlan(),
         {
@@ -141,11 +151,10 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
         },
         maintenant(),
       );
-      // Le texte est aussi rangé là où la fiche le lit ; puis le lien vers l'original. Rien d'autre n'est écrit : ni l'original, ni un envoi.
-      await ecrireStockageFiche({ cle: `creneau:${copie.id}|${saisie.reseau}`, origine: "creneau", id: copie.id, reseau: saisie.reseau }, copieTexte);
-      await ecrireParametre(cleLienCopie(copie.id), saisie.cle);
+      // Le texte est aussi rangé là où la fiche le lit. Rien d'autre n'est écrit : ni l'original, ni un envoi.
+      await ecrireStockageFiche(cleCopie, copieTexte);
       try { revalidatePath("/calendrier"); } catch { /* le rafraîchissement est secondaire : l'écriture a eu lieu */ }
-      return { ok: true as const, donnees: { creneauId: copie.id, cle: `creneau:${copie.id}|${saisie.reseau}`, message: PHRASES_DUPLICATION.creee } };
+      return retour();
     });
   } catch (e) {
     if (e instanceof ErreurStudio) return refus(e.message);
