@@ -703,14 +703,14 @@ export function reglePreuveValidee(fiche: FicheTableau, contexte: ContexteTablea
         res.push({ sceneId: s.id, detail: `${etat} ; seule une preuve validée et non périmée s'affiche.` });
         continue;
       }
-      if (contexte.texteDeWill) continue;
       if (fiche.habillage === STYLE_REF3) {
         for (const l of e.lignes) {
           if (!ligneDePreuveReprise(l, texteDit)) res.push({ sceneId: s.id, detail: `la preuve écrit « ${l} », que le texte dit ne dit pas : une preuve n'écrit que ce que dit le script (règle du 17/11).` });
         }
       }
       // Le texte dit cite cette preuve (toutes ses lignes reprises) : elle doit alors avoir sa scène « preuve ».
-      if (s.role !== "preuve" && e.lignes.length && e.lignes.every((l) => ligneDePreuveReprise(l, texteDit))) {
+      // (le texte de l'utilisateur est exempté de ce seul contrôle, pas de celui des lignes ci-dessus)
+      if (!contexte.texteDeWill && s.role !== "preuve" && e.lignes.length && e.lignes.every((l) => ligneDePreuveReprise(l, texteDit))) {
         res.push({ sceneId: s.id, detail: "le texte dit cite cette preuve, mais la scène n'est pas une scène « preuve » ; une preuve citée se montre à l'écran." });
       }
     }

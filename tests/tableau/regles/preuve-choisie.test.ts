@@ -41,6 +41,17 @@ describe("preuve choisie", () => {
     expect(m[0]).toContain(LIGNE_MIT);
   });
 
+  it("(b2) même refus pour le texte de l'utilisateur (texteDeWill: true)", () => {
+    const f = copie(TEMOIN);
+    const s = f.scenes[1];
+    s.role = "preuve";
+    s.elements.push({ id: "ePreuveMit", type: "preuve", preuveId: "preuve-compte-rendu", lignes: [LIGNE_MIT], ancre: 0 } as never);
+    const ctx = contexteExemple(f, { preuves: [{ id: "preuve-compte-rendu", statut: "validee", perimeLe: "2027-01-09" }] });
+    const m = reglePreuveValidee(f, { ...ctx, texteDeWill: true }).map((x) => x.detail);
+    expect(m.length).toBe(1);
+    expect(m[0]).toContain(LIGNE_MIT);
+  });
+
   it("(c) les témoins reference/3 qui ont une preuve : aucun manquement de ligne de preuve", () => {
     const noms = [
       "fiche-formation-v3-reference-3.json",
@@ -53,8 +64,11 @@ describe("preuve choisie", () => {
     ];
     for (const nom of noms) {
       const f = lire(nom);
-      const ctx = contexteExemple(f, {});
-      const m = reglePreuveValidee(f, { ...ctx, preuves: [], matieres: [], texteDeWill: false }).filter((x) => x.detail.includes("que le texte dit ne dit pas"));
+      // une preuve validée non périmée pour chaque preuveId du témoin : le contrôle des lignes s'exécute vraiment
+      const ids = [...new Set(f.scenes.flatMap((s) => s.elements.flatMap((e) => (e.type === "preuve" ? [e.preuveId] : []))))];
+      expect(ids.length).toBeGreaterThan(0);
+      const ctx = contexteExemple(f, { preuves: ids.map((id) => ({ id, statut: "validee", perimeLe: "2027-01-09" })) as never });
+      const m = reglePreuveValidee(f, { ...ctx, texteDeWill: false }).filter((x) => x.detail.includes("que le texte dit ne dit pas"));
       expect({ nom, m }).toEqual({ nom, m: [] });
     }
   });
