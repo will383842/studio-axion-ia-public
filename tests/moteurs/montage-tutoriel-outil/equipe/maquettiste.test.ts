@@ -1,0 +1,185 @@
+/**
+ * T-EXT-25a · Rôle « maquettiste » : complète le manque nommé, refuse tout ce que le navigateur de capture pourrait jouer
+ * ou que la marque interdit. Claude est un DOUBLE (tests/tutoriel-outil/doubles.ts) : aucun appel réel, 0 €.
+ */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { construireRequete } from "@/generateur/roles/types";
+import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
+import { lireDescriptionMaquette, lireDonneesExemple } from "@/moteurs/montage-tutoriel-outil/description-maquette";
+import { completerManque, entreeMaquettiste, MANQUES_MAQUETTISTE, roleMaquettiste, type ContexteMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
+import { lireScenarioMaquette } from "@/moteurs/montage-tutoriel-outil/scenario-maquette";
+import type { Journal } from "../../../tutoriel-outil/doubles";
+
+const reel = JSON.parse(readFileSync(join(process.cwd(), "outils/maquettes-tableaux-de-bord/charte/noms-neutres.json"), "utf8")) as { interdits: string[] };
+const contexte: ContexteMaquettiste = {
+  metier: "Atelier",
+  carteZones: [
+    { id: "boite", libelle: "Boîte de réception" },
+    { id: "resume", libelle: "Résumé" },
+  ],
+  interdits: reel.interdits,
+  maquette: "atelier",
+};
+const options = { interdits: reel.interdits };
+
+const journalVide = (): Journal => ({ voix: [], claude: [], rendus: [] });
+/**
+ * Appel du rôle branché sur un double de Claude : il note la requête dans le journal du tutoriel (`Journal.claude`, comme
+ * `outilsDoubles`) et ne dépense rien. `outilsDoubles().claude` ne convient pas ici : il répond par un plan de scènes.
+ */
+function appelDouble(journal: Journal, reponse: unknown = "pas du JSON") {
+  return async (entree: Parameters<typeof construireRequete>[1]) => {
+    journal.claude.push(construireRequete(roleMaquettiste, entree));
+    return reponse;
+  };
+}
+const sortieSimulee = (manque: (typeof MANQUES_MAQUETTISTE)[number]) => roleMaquettiste.simuler(entreeMaquettiste(manque, contexte)) as { manque: string; contenu: Record<string, unknown> };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Obj = Record<string, any>;
+const descriptionValide = () => (sortieSimulee("maquette").contenu as Record<string, unknown>) as Obj;
+const refuse = (changement: (d: Obj) => void) => {
+  const d = structuredClone(descriptionValide());
+  changement(d);
+  return lireDescriptionMaquette(d, options);
+};
+
+describe("rôle maquettiste : réglages", () => {
+  it("utilise MODELE_ECRITURE (Opus), jamais Haiku ni Fable, et un schéma strict", () => {
+    expect(roleMaquettiste.modele).toBe(MODELE_ECRITURE);
+    expect(roleMaquettiste.modele).not.toMatch(/haiku|fable/i);
+    expect(roleMaquettiste.consigne).not.toMatch(/€/);
+  });
+});
+
+describe("simuler : une sortie fixe et valide par manque (0 €)", () => {
+  it("scénario de parcours : lu sans erreur par lireScenarioMaquette", () => {
+    const s = lireScenarioMaquette(sortieSimulee("scenario-parcours").contenu);
+    expect(s.ok).toBe(true);
+    if (s.ok) expect(s.scenario.etapes.map((e) => e.aller)).toEqual(["boite", "resume"]);
+  });
+  it("données exemple : lues sans erreur", () => {
+    expect(lireDonneesExemple(sortieSimulee("donnees-exemple").contenu, options).ok).toBe(true);
+  });
+  it("maquette : lue sans erreur", () => {
+    const l = lireDescriptionMaquette(sortieSimulee("maquette").contenu, options);
+    expect(l.ok).toBe(true);
+  });
+  it("est déterministe", () => {
+    for (const m of MANQUES_MAQUETTISTE) expect(sortieSimulee(m)).toEqual(sortieSimulee(m));
+  });
+});
+
+describe("completerManque : une proposition lue par son lecteur", () => {
+  it.each(MANQUES_MAQUETTISTE)("manque %s : la sortie simulée devient une proposition", async (manque) => {
+    const journal = journalVide();
+    const r = await completerManque({ manque, contexte, appeler: appelDouble(journal, JSON.stringify(sortieSimulee(manque))) });
+    expect(r).toMatchObject({ statut: "proposition" });
+    expect(journal.claude).toHaveLength(1);
+    expect(journal.claude[0]!.modele).toBe(MODELE_ECRITURE);
+  });
+  it("pièce fournie (scénario, données, maquette) : le rôle n'est pas appelé", async () => {
+    const journal = journalVide();
+    const appeler = appelDouble(journal);
+    expect((await completerManque({ manque: "scenario-parcours", contexte, fournies: { scenario: {} }, appeler })).statut).toBe("fournie");
+    expect((await completerManque({ manque: "donnees-exemple", contexte, fournies: { donneesExemple: {} }, appeler })).statut).toBe("fournie");
+    expect((await completerManque({ manque: "maquette", contexte, fournies: { maquette: {} }, appeler })).statut).toBe("fournie");
+    expect(journal.claude).toHaveLength(0);
+  });
+  it("manque inconnu (le flux est la partie 25b) : à revoir, aucun appel", async () => {
+    const journal = journalVide();
+    const r = await completerManque({ manque: "flux-automatisation", contexte, appeler: appelDouble(journal) });
+    expect(r.statut).toBe("a-revoir");
+    expect(journal.claude).toHaveLength(0);
+  });
+  it("réponse du double non conforme, panne ou autre manque : à revoir, jamais corrigé en silence", async () => {
+    const journal = journalVide();
+    expect((await completerManque({ manque: "maquette", contexte, appeler: appelDouble(journal) })).statut).toBe("a-revoir");
+    const panne = await completerManque({ manque: "maquette", contexte, appeler: async () => { throw new Error("panne"); } });
+    expect(panne.statut).toBe("a-revoir");
+    const autre = await completerManque({ manque: "maquette", contexte, appeler: async () => sortieSimulee("donnees-exemple") });
+    expect(autre.statut).toBe("a-revoir");
+  });
+  it("manque « scénario » : une zone absente de la carte des zones → refus", async () => {
+    const s = structuredClone(sortieSimulee("scenario-parcours"));
+    (s.contenu.etapes as { aller: string }[])[0]!.aller = "zone-inventee";
+    const r = await completerManque({ manque: "scenario-parcours", contexte, appeler: async () => s });
+    expect(r.statut).toBe("a-revoir");
+    if (r.statut === "a-revoir") expect(r.erreurs.join(" ")).toContain("absente de la carte des zones");
+  });
+  it("manque « données » : une zone absente de la carte → refus", async () => {
+    const s = structuredClone(sortieSimulee("donnees-exemple"));
+    (s.contenu.zones as { zone: string }[])[0]!.zone = "zone-inventee";
+    const r = await completerManque({ manque: "donnees-exemple", contexte, appeler: async () => s });
+    expect(r.statut).toBe("a-revoir");
+  });
+  it("scénario : texte jouable ou nombre inventé → refus", async () => {
+    const s = structuredClone(sortieSimulee("scenario-parcours"));
+    (s.contenu.etapes as Record<string, unknown>[])[0]!.annotation = "Voir <script>x</script>";
+    expect((await completerManque({ manque: "scenario-parcours", contexte, appeler: async () => s })).statut).toBe("a-revoir");
+    const t = structuredClone(sortieSimulee("scenario-parcours"));
+    (t.contenu.etapes as Record<string, unknown>[])[0]!.annotation = "Gagnez 40 % de temps";
+    expect((await completerManque({ manque: "scenario-parcours", contexte, appeler: async () => t })).statut).toBe("a-revoir");
+  });
+});
+
+describe("description-maquette : refus, chacun avec son message en français", () => {
+  const messages = (r: ReturnType<typeof lireDescriptionMaquette>) => (r.ok ? [] : r.erreurs.join(" | "));
+  it("accepte la description simulée", () => expect(refuse(() => {}).ok).toBe(true));
+  const deuxEcrans = (d: Obj) => {
+    const second = structuredClone(d.ecrans[0]);
+    second.id = "deux";
+    d.ecrans.push(second);
+  };
+  it("refuse une zone au même id sur deux écrans", () => {
+    const r = refuse((d) => deuxEcrans(d));
+    expect(r.ok).toBe(false);
+    expect(messages(r)).toContain("identifiant déjà utilisé");
+  });
+  it("refuse un écran nommé « avant » ou « maintenant »", () => {
+    expect(messages(refuse((d) => (d.ecrans[0].id = "avant")))).toContain("réservé aux états");
+    expect(messages(refuse((d) => (d.ecrans[0].id = "maintenant")))).toContain("réservé aux états");
+  });
+  it("refuse une zone nommée « avant »", () => expect(messages(refuse((d) => (d.ecrans[0].zones[0].id = "avant")))).toContain("réservé aux états"));
+  it("refuse une zone qui porte l'id d'un écran", () => expect(messages(refuse((d) => (d.ecrans[0].zones[0].id = d.ecrans[0].id)))).toContain("identifiant déjà utilisé"));
+  it("montant « 1 200 € »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "1 200 € ce mois")))).toContain("montant d'argent refusé"));
+  it("montant « euros »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "Mille euros")))).toContain("montant d'argent refusé"));
+  it("nom non neutre « BlueFlow »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "BlueFlow")))).toContain("nom non neutre"));
+  it("mot interdit « garanti »", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "Résultat garanti")))).toContain("mot interdit par la marque"));
+  it("couleur hors charte #1e90ff", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "Fond #1e90ff")))).toContain("couleur hors charte"));
+  it("<script>", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "<script>alert(1)</script>")))).toContain("balise ou script refusé"));
+  it("on…=", () => expect(messages(refuse((d) => (d.ecrans[0].titre = "x onclick=run")))).toContain("gestionnaire d'événement"));
+  it("adresse http(s)", () => {
+    expect(messages(refuse((d) => (d.ecrans[0].titre = "https://x.fr")))).toContain("adresse refusée");
+    expect(messages(refuse((d) => (d.ecrans[0].zones[0].libelle = "www.site.fr")))).toContain("adresse refusée");
+  });
+  it("7 écrans", () => {
+    const r = refuse((d) => (d.ecrans = Array.from({ length: 7 }, (_, i) => ({ ...d.ecrans[0], id: `e${i}` }))));
+    expect(messages(r)).toContain("Trop d'écrans");
+  });
+  it("champ inconnu", () => expect(messages(refuse((d) => (d.style = "x")))).toContain("champ inconnu"));
+  it("nom pas « Espace démo · <métier> » et entreprise réelle", () => {
+    expect(messages(refuse((d) => (d.nom = "Mon outil")))).toContain("Nom non neutre");
+    expect(messages(refuse((d) => (d.entreprise = "Dupont SA")))).toContain("Entreprise non neutre");
+  });
+  it("chiffre sans exemple: true → refus (garde G4-03)", () => {
+    const r = refuse((d) => delete d.ecrans[0].zones[0].donnees[0].exemple);
+    expect(messages(r)).toContain("exemple: true");
+  });
+  it("nombre d'un titre sans donnée exemple derrière → refus (garde G4-03)", () => {
+    expect(messages(refuse((d) => (d.ecrans[0].titre = "Déjà 37 messages")))).toContain("garde des chiffres");
+    expect(refuse((d) => (d.ecrans[0].titre = "Déjà 8 messages")).ok).toBe(true);
+  });
+  it("ne lève jamais", () => {
+    for (const v of [null, 3, "x", [], {}]) expect(lireDescriptionMaquette(v, options).ok).toBe(false);
+  });
+});
+
+describe("aucun appel réel", () => {
+  it("le module ne contient ni fetch ni appel direct au fournisseur", () => {
+    const src = readFileSync(join(process.cwd(), "src/moteurs/montage-tutoriel-outil/equipe/maquettiste.ts"), "utf8");
+    expect(src).not.toMatch(/fetch\(|appelerAvecRotation|executerRole\b|fournisseurs\/claude\/client/);
+  });
+});
