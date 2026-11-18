@@ -458,7 +458,8 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
   const motDit = motNormalise(mot) === motNormalise(cas.mot) ? cas.motDit : undefined;
   const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
   // C8-Z04 : le réglage est lu ICI, une seule fois, puis figé dans les entrées (un moteur ne lit jamais les réglages).
-  const cameraPlus = lireCameraPlus(await lireParametre<unknown>("casConcret.cameraPlus", null));
+  // ALLUME-VAGUE-A-CODE-a (18/11/2026) : défaut 1,048 (= `CAMERA_PLUS_MAX`) ; écrire 1.035 en base éteint.
+  const cameraPlus = lireCameraPlus(await lireParametre<unknown>("casConcret.cameraPlus", 1.048));
   const habillageTransitions = await habillageActif("transitionsPlanScenes", lireParametre);
   const entreesBase = {
     casId: cas.id,

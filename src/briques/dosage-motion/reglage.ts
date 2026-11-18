@@ -1,7 +1,8 @@
 /**
  * Réglages du dosage de l'animation (X3-02) : `dosageMotion.actif` et `dosageMotion.defauts`.
- * PUR : la lecture est injectée (`LireReglage`), aucun import de service. Tout éteint : seul `true` exact allume ;
- * absent, autre valeur ou lecture en échec = comportement actuel. Rien ne l'appelle en production.
+ * PUR : la lecture est injectée (`LireReglage`), aucun import de service. `dosageMotion.actif` : ALLUMÉ par défaut depuis
+ * ALLUME-VAGUE-A-CODE (18/11/2026) ; une valeur écrite en base l'emporte (`false` éteint) ; lecture en échec = éteint.
+ * `dosageMotion.defauts` : défauts du code (`DOSAGE_DEFAUT_CODE`, inchangés, décision E3-5).
  * Aucune date, aucun hasard.
  */
 import { CRANS_PERMIS, DOSAGE_DEFAUT_CODE } from "./crans";
@@ -24,9 +25,10 @@ function estPermis(generateur: IdGenerateurDosage, v: unknown): v is DosageMotio
 }
 
 /** Vrai seulement si la valeur lue est exactement `true` ; lecture en échec = faux. */
+// ALLUME-VAGUE-A-CODE (18/11/2026, autorisation de Williams 17/11 22:25) : absent = ALLUMÉ ; écrire false en base éteint.
 export async function dosageActif(lire: LireReglage): Promise<boolean> {
   try {
-    return (await lire(CLE_ACTIF, false)) === true;
+    return (await lire(CLE_ACTIF, true)) === true;
   } catch {
     return false;
   }
