@@ -243,12 +243,15 @@ describe("l'écran : deux chemins", () => {
 /* ------------------------------------------------------------------ */
 
 const fiche = ficheErreurCorrigee;
+const FIN_DITE = " Écrivez GUIDE en commentaire.";
 const balise = (variable: string, nom: string) => variable.match(new RegExp(`<${nom}>\\n([\\s\\S]*?)\\n</${nom}>`))?.[1] ?? "";
 const appelerDecoupage: OutilsDecoupage["appeler"] = async (_role, entree: EntreeRole) => {
   const f: FicheTableau = copie(fiche);
   Object.assign(f, JSON.parse(balise(entree.variable, "fiche_fixe")), { serie: JSON.parse(balise(entree.variable, "serie")) });
   // Style des nouvelles fiches (« reference/2 », 14/10) : la fiche rendue avec son gabarit de page clair.
   auStyleDemande(f);
+  // 18/11 (FIX-TABLEAU-FIN-CHOISIE-a) : la fixture DIT la fin qu'elle choisit (« Écrivez GUIDE en commentaire »).
+  f.scenes[f.scenes.length - 1].texteDit += FIN_DITE;
   return { ok: true, simule: false, donnees: JSON.stringify(f) };
 };
 
@@ -261,7 +264,7 @@ describe("fabrication : réseaux → sorties, mot et trace transmis jusqu'à la 
   });
 
   it("les entrées de la vidéo portent les sorties dédoublonnées, le mot et la trace ; les raccords posent la fin de chaque sortie", async () => {
-    const donnees = { texte: texteScriptDe(fiche), serieCode: "formation", structure: fiche.structure, douleur: fiche.douleur, gesteMinute: fiche.gesteMinute, finId: "fin-if-mot-envoi", mot: "guide", reseaux: ["verticaux", "linkedin", "verticaux"] };
+    const donnees = { texte: texteScriptDe(fiche) + FIN_DITE, serieCode: "formation", structure: fiche.structure, douleur: fiche.douleur, gesteMinute: fiche.gesteMinute, finId: "fin-if-mot-envoi", mot: "guide", reseaux: ["verticaux", "linkedin", "verticaux"] };
     const p = await creation.decouperScriptTableau(donnees, { relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES });
     if (p.statut !== "accord-requis") throw new Error(JSON.stringify(p));
     const d = await creation.decouperScriptTableau(donnees, { accord: p.centimes, relu: repereTexte(donnees.texte) }, { aujourdhui: AUJOURDHUI_EXEMPLES });
