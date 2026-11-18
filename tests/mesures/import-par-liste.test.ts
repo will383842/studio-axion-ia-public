@@ -230,6 +230,58 @@ describe("allumé : la liste d'abord", () => {
   });
 });
 
+describe("corrections de relecture", () => {
+  it("ligne « en cours » (syncStatus pending) : aucun relevé, aucune lecture unitaire, comptée « pas encore prêtes »", async () => {
+    await publications(2);
+    await allumer();
+    const f = fauxClient(() => []);
+    const client = { requete: async (req: Appel) => (req.query?.postId ? f.client.requete(req as never) : { statut: 200, corps: { posts: [{ ...post("exemple-st-0", { views: 0, likes: 0 }), syncStatus: "pending" }, post("exemple-st-1", { views: 20 })] }, route: "analytics" }) } as unknown as ClientZernio;
+    injecterClientZernio(client);
+    const bilan = await mc.importerMesures({ visites: VISITES, buffer: { mode: "simulation", lire: async () => null }, instant: INSTANT });
+    expect((await publi("exemple-pub-0")).releves ?? []).toHaveLength(0);
+    expect((await publi("exemple-pub-1")).releves).toHaveLength(1);
+    expect(f.unitaires()).toHaveLength(0);
+    expect(bilan.zernio.pasPretes).toBe(1);
+    expect(bilan.zernio.message).toBe(mc.LIBELLE_PAS_PRETES);
+  });
+
+  it("allumé, sans clé mais lecteur réel injecté : 10 lectures unitaires au plus, visuels non lus", async () => {
+    await publications(30);
+    await depots().visuels.enregistrer({ id: "exemple-vis-x", famille: "carrousel", titre: "T", entree: { type: "session" }, statut: "valide", modeTexte: "simulation", versionSpec: 1, coutCentimes: 0, creeLe: IL_Y_A(20), modifieLe: IL_Y_A(20) } as never);
+    await depots().publications.enregistrer({ id: "exemple-pubvis-x", visuelId: "exemple-vis-x", reseau: "instagram", statut: "publiee", via: "zernio", date: IL_Y_A(3), texte: "", idExterne: "ext-x", creeLe: IL_Y_A(3), modifieLe: IL_Y_A(3) } as never);
+    await allumer();
+    const f = fauxClient(() => idsPubs);
+    injecterClientZernio(null);
+    const ancienne = process.env.ZERNIO_API_KEY;
+    delete process.env.ZERNIO_API_KEY;
+    try {
+      const { creerLecteurZernio } = await import("@/fournisseurs/mesures/zernio");
+      await mc.importerMesures({ zernio: creerLecteurZernio(f.client), visites: VISITES, buffer: { mode: "simulation", lire: async () => null }, instant: INSTANT });
+    } finally {
+      if (ancienne !== undefined) process.env.ZERNIO_API_KEY = ancienne;
+    }
+    expect(f.listes()).toHaveLength(0);
+    expect(f.unitaires().length).toBeLessThanOrEqual(10);
+    expect(f.unitaires().some((a) => a.query!.postId === "ext-x")).toBe(false);
+  });
+
+  it("lecture du réglage impossible : éteint (aucune page de liste, visuels non lus)", async () => {
+    await publications(3);
+    await allumer();
+    const spy = vi.spyOn(depots().parametres, "obtenir").mockImplementation(async (id: string) => {
+      if (id === "mesures.lecture_par_liste") throw new Error("lecture impossible");
+      return undefined as never;
+    });
+    try {
+      const r = await lancer();
+      expect(r.listes()).toHaveLength(0);
+      expect(r.unitaires()).toHaveLength(3);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe("visuels, simulation, exemples", () => {
   async function visuel(id: string, extra: Record<string, unknown> = {}) {
     await depots().visuels.enregistrer({ id, famille: "carrousel", titre: `Titre ${id}`, entree: { type: "session" }, statut: "valide", modeTexte: "simulation", versionSpec: 1, coutCentimes: 0, creeLe: IL_Y_A(20), modifieLe: IL_Y_A(20), ...extra } as never);
