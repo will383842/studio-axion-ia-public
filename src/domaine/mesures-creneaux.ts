@@ -65,7 +65,7 @@ export function classerCreneaux(contenus: readonly ContenuPlace[]): GroupeCrenea
       g = { reseau: ct.reseau, type: ct.type, nonMesures: 0, cases: new Map() };
       groupes.set(cle, g);
     }
-    if (ct.position === null || !Number.isFinite(ct.position)) {
+    if (ct.position === null || !Number.isFinite(ct.position) || Number.isNaN(Date.parse(ct.date))) {
       g.nonMesures += 1;
       continue;
     }
