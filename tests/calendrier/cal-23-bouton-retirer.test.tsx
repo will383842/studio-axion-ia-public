@@ -29,6 +29,7 @@ const entree = (sur: Partial<Entree> = {}): Entree => ({ cle: CLE, jour: "2026-1
 const panneau = (e: Entree) => rendre(<ApercuPublication entree={e} aujourdhui={AUJOURDHUI} onPrecedente={() => {}} onSuivante={() => {}} onFermer={() => {}} onChangerDate={() => {}} />);
 const fiche = (sur: Record<string, unknown> = {}, e: Partial<Entree> = {}) => rendre(<FicheEntree entree={{ ...entree(e), texte: "Un texte." } as never} aujourdhui={AUJOURDHUI} {...sur} />);
 
+const monde_ = (cle: string) => monter(RetirerProgrammation, { cle });
 const cliquer = (m: { rendre: () => unknown }, filtre: (t: string) => boolean) => {
   const b = trouver(m.rendre() as never, (x) => typeof x.props.onClick === "function" && filtre(texteDe(x)))[0];
   return b.props.onClick as () => Promise<void> | void;
@@ -82,7 +83,18 @@ describe("RetirerProgrammation : le geste", () => {
     await cliquer(m, (t) => t.includes("Oui"))();
     await attendre();
     const html = lisible(rendre(m.rendre() as ReactElement));
-    expect(html).toContain("n'a pas pu être confirmé");
+    expect(html).toContain("À vérifier.");
+    expect(html).not.toContain("Retirée");
+  });
+
+  it.each([["code inconnu", { ok: false as const, code: "AUTRE", message: "Réessayez." }], ["sans code", { ok: false as const, message: "Un souci est survenu. Réessayez dans un instant." }]])("%s : « À vérifier », jamais un simple « réessayez »", async (_n, rep) => {
+    retirerProgrammationAction.mockResolvedValueOnce(rep);
+    const m = monde_(CLE);
+    cliquer(m, (t) => t.includes("Retirer"))();
+    await cliquer(m, (t) => t.includes("Oui"))();
+    await attendre();
+    const html = lisible(rendre(m.rendre() as ReactElement));
+    expect(html).toContain("À vérifier.");
     expect(html).not.toContain("Retirée");
   });
 

@@ -657,3 +657,44 @@ describe("CAL-23 · sur de vrais dépôts en mémoire : le tour d'envoi recrée 
     expect((await depots().journalDecalages.lister()).length).toBe(1);
   }, 60_000);
 });
+
+describe("CAL-23 · audit : envoi annulé gardant sa marque, écriture ratée après retrait, écriture ratée sans post", () => {
+  const B = "envoi:vis_1:facebook:v0";
+  it("un envoi vivant avec post ET un envoi annulé marqué « programme » : les DEUX passent par le retrait avant tout changement", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: B, cle: B, reseau: "facebook", cleDiffuseur: "b".repeat(64), statut: "annule" })],
+      marques: { [`promotion:${B}`]: "programme" },
+    });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r.ok).toBe(true);
+    expect(m.retraits.sort()).toEqual([B, "envoi:vis_1:linkedin:v0"].sort());
+    expect(m.marques.get(`promotion:${B}`)).toBe("retire");
+  });
+  it("le retrait de l'envoi annulé est incertain : rien ne change (ancienne date gardée), marque « à vérifier »", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: B, cle: B, reseau: "facebook", cleDiffuseur: "b".repeat(64), statut: "annule" })],
+      marques: { [`promotion:${B}`]: "programme" },
+      issues: ["retire", "a-verifier"],
+    });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r.ok).toBe(false);
+    expect(m.creneau().jourVise).toBe("2026-12-11");
+  });
+  it("retrait partiel confirmé puis écriture ratée : « à vérifier » marqué, jamais un faux « programmé »", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: "c".repeat(64) })],
+      issues: ["retire", "a-verifier"],
+      ecritureEchoue: 1,
+    });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier", ecritures: true });
+    expect(m.marques.get("a-verifier:envoi:vis_1:linkedin:v0")).toBe("a-verifier");
+  });
+  it("sans post chez le diffuseur et écriture ratée : on ne dit jamais « le retrait a eu lieu »", async () => {
+    const m = monde({ envois: [envoi({ cleDiffuseur: undefined, statut: "valide" } as never)], ecritureEchoue: 1 });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r.ok).toBe(false);
+    expect(r.message).toBe(PHRASES_DEPLACEMENT.rienChange);
+    expect(r.message).not.toContain("retrait a eu lieu");
+  });
+});

@@ -28,7 +28,8 @@ const TITRES_RETRAIT: Readonly<Record<string, string>> = {
   RETRAIT_RESTE_PROGRAMME: "Pas retirée.",
   RETRAIT_REFUSE: "Pas retirée.",
 };
-const SANS_REPONSE = "Le retrait n'a pas pu être confirmé. La publication reste programmée : rechargez la page, puis vérifiez-la avant de réessayer.";
+const SANS_REPONSE = "À vérifier. Le Studio ne sait pas si le retrait a eu lieu : rechargez la page, puis vérifiez la publication avant de réessayer.";
+const CODE_INCONNU = "À vérifier. Le Studio ne sait pas si le retrait a eu lieu : relisez la publication chez le diffuseur avant de réessayer.";
 
 export function RetirerProgrammation({ cle }: { cle: string }) {
   const routeur = useRouteurOuNul();
@@ -57,7 +58,8 @@ export function RetirerProgrammation({ cle }: { cle: string }) {
         }
       } else {
         const titre = r.code ? TITRES_RETRAIT[r.code] : undefined;
-        setAVoir(titre ? `${titre} ${r.message}` : r.message);
+        // Code absent ou inconnu : on ne sait pas ce qui a eu lieu, donc jamais une phrase qui laisse croire à un simple refus.
+        setAVoir(titre ? `${titre} ${r.message}` : CODE_INCONNU);
         setEtape("repos");
       }
     } catch {

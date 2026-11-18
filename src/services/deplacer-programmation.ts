@@ -103,6 +103,7 @@ export const PHRASES_DEPLACEMENT = {
   dejaAVerifier: "Le Studio ne sait pas si cette publication est déjà programmée chez le diffuseur : rien n'a été changé. Relisez-la chez le diffuseur.",
   dejaFait: "Cette demande est déjà faite : rien n'a été changé de plus.",
   aPlacer: "Le retrait a eu lieu, mais la nouvelle date n'a pas pu être enregistrée. La publication est de retour dans « À placer », avec son texte : replacez-la à la date voulue.",
+  rienChange: "Le Studio n'a pas pu enregistrer le changement. Rien n'a été retiré chez le diffuseur : réessayez dans un instant.",
   aVerifierFin: "Le retrait a eu lieu chez le diffuseur, mais le Studio n'a pas pu enregistrer la suite. La publication est marquée « à vérifier » : relisez-la dans le calendrier.",
   notification: "Une publication déplacée est de retour dans « À placer » : choisissez sa nouvelle date.",
   texteVide: "Le texte ne peut pas être vide.",
@@ -168,11 +169,17 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
   }
   const avecPost: EnvoiPlanifie[] = [];
   for (const e of vivants) if (await aUnPostPossible(e, d.etats)) avecPost.push(e);
+  const sansPostVivant = avecPost.length === 0;
+  // Un envoi déjà « annule » dont la marque dit encore « programmé » ou « à vérifier » a peut-être un post chez le diffuseur : il passe aussi par le retrait.
+  for (const e of tous) {
+    if (e.statut !== "annule") continue;
+    const m = await d.etats.lire(`promotion:${e.cle}`);
+    if (m === "programme" || m === "a-verifier") avecPost.push(e);
+  }
   // Version suivante : jamais égale ni inférieure à une clé déjà utilisée (une clé retirée ne se réutilise pas).
   const versionSuivante = Math.max(c.decalages, ...tous.map((e) => e.versionCreneau)) + 1;
-  // La garde voit un post chez le diffuseur (programmé ou brouillon) que les envois vivants ne montrent pas (ex. envoi annulé gardant sa marque) :
-  // impossible de savoir lequel retirer, rien n'est changé.
-  if (avecPost.length === 0 && (niveau === "programme" || niveau === "brouillon")) return { ok: false, res: { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier } };
+  // La garde voit un post chez le diffuseur (programmé ou brouillon) que les envois vivants ne montrent pas : impossible de savoir lequel retirer, rien n'est changé.
+  if (sansPostVivant && (niveau === "programme" || niveau === "brouillon")) return { ok: false, res: { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier } };
   return { ok: true, c, vivants, avecPost, versionSuivante, niveau };
 }
 
@@ -197,8 +204,20 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
   const le = d.maintenant().toISOString();
   const fin = async (r: Extract<ResultatDeplacement, { ok: false }>): Promise<ResultatDeplacement> => {
     if (retires.length === 0) return r;
-    await d.appliquer({ supprimer: [], enregistrer: [...annules(retires, le), ...(await liberer(d, retires, le))] });
-    await sortirDeLaGarde(d, retires);
+    try {
+      await d.appliquer({ supprimer: [], enregistrer: [...annules(retires, le), ...(await liberer(d, retires, le))] });
+      await sortirDeLaGarde(d, retires);
+    } catch {
+      // Des retraits sont confirmés mais l'écriture a échoué : jamais un faux « programmé ». Marque « à vérifier » pour chaque envoi retiré.
+      for (const e of retires) {
+        try {
+          await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+        } catch {
+          /* la marque est une aide */
+        }
+      }
+      return { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin, ecritures: true };
+    }
     const restent = p.avecPost.filter((x) => !retires.includes(x));
     return { ...r, message: `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${r.message}`, ecritures: true };
   };
@@ -323,7 +342,7 @@ export async function deplacerProgrammation(d: DepsDeplacement, demande: Demande
     await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, { collection: "journalDecalages", entite: ligne }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
     await sortirDeLaGarde(d, p.avecPost);
   } catch {
-    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
+    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.rienChange };
   }
   await noterFait(d, cleFait, p.versionSuivante);
   return { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, nouvellesCles: p.vivants.map((e) => cleEnvoi(e.videoId, e.reseau, p.versionSuivante)) };
@@ -369,7 +388,7 @@ export async function modifierTexteProgramme(d: DepsDeplacement, demande: Demand
     await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
     await sortirDeLaGarde(d, p.avecPost);
   } catch {
-    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p, modifie) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
+    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p, modifie) : { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.rienChange };
   }
   await noterFait(d, cleFait, p.versionSuivante);
   return { ok: true, etat: "modifie", message: demande.auteur === "will" ? PHRASES_DEPLACEMENT.texteModifie : PHRASES_DEPLACEMENT.texteModifiePropose, creneauId: p.c.id };
@@ -408,7 +427,12 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
       const cle = e.cleDiffuseur ?? e.cle;
       try {
         const c = client();
-        const posts = [...(await listerTous(c, "draft")), ...(await listerTous(c, "scheduled"))];
+        let posts: { _id: string; metadata?: { studioCle?: string } }[];
+        try {
+          posts = [...(await listerTous(c, "draft")), ...(await listerTous(c, "scheduled"))];
+        } catch {
+          return "sans-reponse"; // la liste n'a pas pu être lue : rien n'a été retiré
+        }
         const post = posts.find((x) => x.metadata?.studioCle === cle);
         if (!post) return "a-verifier";
         const r = await c.retirer({ postId: post._id, cleJournal: cle });
@@ -416,7 +440,7 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
       } catch (err) {
         const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
         if (code === "refuse") return "refuse";
-        if (code === "delai" || code === "reseau" || code === "arret" || code === "envoi-eteint") return "sans-reponse";
+        if (code === "delai" || code === "reseau" || code === "arret" || code === "envoi-eteint" || code === "envoi-coupe" || code === "debit") return "sans-reponse";
         return "a-verifier";
       }
     },
