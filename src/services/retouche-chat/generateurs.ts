@@ -130,7 +130,9 @@ export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, op
         o.type === "changer-mot"
           ? ecritParWilliams(demande, o.nouveau)
           : o.type === "ajouter-chiffre"
-            ? ecritParWilliams(demande, String(o.valeur)) && ecritParWilliams(demande, o.libelle)
+            ? ecritParWilliams(demande, String(o.valeur)) &&
+              ecritParWilliams(demande, o.libelle) &&
+              [o.prefixe, o.suffixe].every((t) => t === undefined || t.trim() === "" || ecritParWilliams(demande, t))
             : o.type === "ajouter-piece" || o.type === "remplacer-piece" || o.type === "changer-brique"
               ? textesDesParametres(o.parametres).every((t) => ecritParWilliams(demande, t))
               : true;
@@ -152,14 +154,15 @@ const ecritParWilliams = (demande: string, texte: string): boolean => {
   return t !== "" && new RegExp(`(^|[^\\p{L}\\p{N}])${echapper(t)}($|[^\\p{L}\\p{N}])`, "u").test(normaliser(demande));
 };
 
-const CLES_TEXTE = new Set(["texte", "titre", "libelle", "legende", "etiquette", "soustitre", "titres", "textes", "libelles", "legendes", "etiquettes", "lignes", "items", "elements", "mots", "phrase", "message", "accroche", "citation", "nom", "label", "description", "contenu", "valeur", "prefixe", "suffixe"]);
-/** Tout texte glissé dans les `parametres` d'une pièce (objets et listes imbriqués compris). */
-function textesDesParametres(v: unknown, cle = "", dansTexte = false): string[] {
-  const texteIci = dansTexte || CLES_TEXTE.has(cle.toLowerCase().replace(/[_\s]/g, ""));
-  if (typeof v === "string") return texteIci && v.trim() !== "" ? [v] : [];
-  if (typeof v === "number") return texteIci ? [String(v)] : [];
-  if (Array.isArray(v)) return v.flatMap((x) => textesDesParametres(x, cle, texteIci));
-  if (v && typeof v === "object") return Object.entries(v).flatMap(([k, x]) => textesDesParametres(x, k, texteIci));
+/** Liste FERMÉE des clés techniques des `parametres` : leurs valeurs ne sont jamais affichées. Toute autre valeur texte doit être écrite par Williams. */
+const CLES_TECHNIQUES = new Set(["id", "sceneid", "piece", "brique", "variante", "position", "zone", "couleur", "icone", "cle", "source"]);
+/** Tout texte ou nombre glissé dans les `parametres` d'une pièce (objets et listes imbriqués compris), hors clés techniques. */
+function textesDesParametres(v: unknown, cle = ""): string[] {
+  if (CLES_TECHNIQUES.has(cle.toLowerCase().replace(/[_\s]/g, ""))) return [];
+  if (typeof v === "string") return v.trim() !== "" ? [v] : [];
+  if (typeof v === "number") return [String(v)];
+  if (Array.isArray(v)) return v.flatMap((x) => textesDesParametres(x, cle));
+  if (v && typeof v === "object") return Object.entries(v).flatMap(([k, x]) => textesDesParametres(x, k));
   return [];
 }
 

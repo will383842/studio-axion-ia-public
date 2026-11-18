@@ -116,6 +116,31 @@ describe("tutoriel : le texte est celui de Williams", () => {
     expect(filtrerOperationsGenerateur(ID, [sansTexte] as never[], "ajoute une légende").operations).toHaveLength(1);
   });
 
+  it("clé de texte hors liste (intitule) → écartée ; clé technique → gardée", () => {
+    const f = (parametres: Record<string, unknown>, demande: string) =>
+      filtrerOperationsGenerateur(ID, [{ type: "ajouter-piece", sceneId: "s1", piece: "legende", parametres }] as never[], demande);
+    const ko = f({ intitule: "Gagnez 3 heures" }, "ajoute une légende");
+    expect(ko.operations).toEqual([]);
+    expect(ko.remarques).toEqual([PAS_VOTRE]);
+    expect(f({ sousTitreCourt: "Gagnez 3 heures" }, "ajoute une légende").operations).toEqual([]);
+    expect(f({ contenuHtml: "<b>Gagnez</b>" }, "ajoute une légende").operations).toEqual([]);
+    expect(f({ intitule: "Gagnez 3 heures" }, "mets Gagnez 3 heures").operations).toHaveLength(1);
+    expect(f({ variante: "grande", couleur: "rouge", position: "bas", icone: "etoile" }, "ajoute une légende").operations).toHaveLength(1);
+  });
+
+  it("ajouter-chiffre : prefixe et suffixe doivent être écrits par Williams", () => {
+    const base = { type: "ajouter-chiffre", sceneId: "s1", valeur: 42, libelle: "commandes" };
+    const suff = { ...base, suffixe: " commandes gagnées chaque jour grâce à l'IA" };
+    const r = filtrerOperationsGenerateur(ID, [suff] as never[], "ajoute 42 commandes");
+    expect(r.operations).toEqual([]);
+    expect(r.remarques).toEqual([PAS_VOTRE]);
+    expect(filtrerOperationsGenerateur(ID, [{ ...base, prefixe: "Jusqu'à" }] as never[], "ajoute 42 commandes").operations).toEqual([]);
+    expect(filtrerOperationsGenerateur(ID, [{ ...base, suffixe: "%" }] as never[], "ajoute 42 commandes").operations).toEqual([]);
+    expect(filtrerOperationsGenerateur(ID, [{ ...base, suffixe: "%" }] as never[], "ajoute 42 commandes avec %").operations).toHaveLength(1);
+    expect(filtrerOperationsGenerateur(ID, [{ ...base, prefixe: "Jusqu'à" }] as never[], "ajoute Jusqu'à 42 commandes").operations).toHaveLength(1);
+    expect(filtrerOperationsGenerateur(ID, [{ ...base, suffixe: "" }] as never[], "ajoute 42 commandes").operations).toHaveLength(1);
+  });
+
   it("avocat et image-video : comportement inchangé", () => {
     const mot = { type: "changer-mot", sceneId: "s1", ancien: "x", nouveau: "inventé" };
     for (const g of ["avocat", "image-video"] as const) {
