@@ -158,7 +158,8 @@ describe("éteint = identique", () => {
       for (const n of readdirSync(d)) {
         const c = join(d, n);
         if (statSync(c).isDirectory()) parcourir(c);
-        else if (/\.(ts|tsx)$/.test(n) && !c.endsWith("retouche-gratuite.ts") && readFileSync(c, "utf8").includes("retouche-gratuite")) citeurs.push(c);
+        // G12-09a-b 18/11 : reprise-rendu-v4.ts lit le type du projet gardé ; il n'est lui-même importé par personne (garde de reprise-rendu-v4.test.ts:97-110)
+        else if (/\.(ts|tsx)$/.test(n) && !c.endsWith("retouche-gratuite.ts") && !c.endsWith("reprise-rendu-v4.ts") && readFileSync(c, "utf8").includes("retouche-gratuite")) citeurs.push(c);
       }
     };
     parcourir(racine);
