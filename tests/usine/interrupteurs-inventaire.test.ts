@@ -82,6 +82,7 @@ const LITTERALES: Record<string, Etat> = {
  */
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
+  { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
   { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
@@ -302,6 +303,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "buffer.canaux": "memoire",
   "buffer.correspondance": "memoire",
   "cas-concret.ecrans-fournis": "memoire",
+  "tutoriel.index-scenes": "memoire",
   "casConcret.casAjoutes": "memoire",
   "casConcret.casRemis": "memoire",
   "casConcret.casRetires": "memoire",
