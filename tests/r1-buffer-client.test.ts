@@ -175,7 +175,7 @@ describe("règles pures", () => {
   });
 
   it("libellés honnêtes et occupation d'un réseau", () => {
-    expect(libellePublication({ via: "buffer", statut: "brouillon", etatEnvoi: "envoye" }).libelle).toBe("Brouillon dans Buffer");
+    expect(libellePublication({ via: "buffer", statut: "brouillon", etatEnvoi: "envoye" }).libelle).toBe("Brouillon chez le diffuseur");
     expect(libellePublication({ via: "buffer", statut: "brouillon", etatEnvoi: "a-verifier" }).libelle).toBe("À vérifier");
     expect(libellePublication({ via: "buffer", statut: "echec", etatEnvoi: "refuse" }).libelle).toBe("Échec");
     expect(libellePublication({ via: "simulation", statut: "brouillon" }).libelle).toBe("Essai");

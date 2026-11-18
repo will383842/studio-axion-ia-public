@@ -11,11 +11,11 @@ const cas = (statut: F["statut"]): F => ({ id: "cas-concret", statut });
 const avocat: F = { id: "avocat", statut: "actif" };
 
 // Menu à 7 rubriques (12/11, refonte R2 : « Tous mes contenus » et « Mes modèles » ont quitté la barre), pied « Réglages » ; Veille et Outils motion passent par la recherche et la Bibliothèque.
-const LIBELLES = ["Accueil", "Nouvelle vidéo", "Écrire", "Vidéos", "Carrousels", "Calendrier", "Réponses automatiques", "Résultats", "Personnages", "Bibliothèque", "Réglages"];
+const LIBELLES = ["Accueil", "Nouvelle vidéo", "Écrire", "Vidéos", "Carrousels", "Infographies", "Calendrier", "Réponses automatiques", "Résultats", "Personnages", "Bibliothèque", "Réglages"];
 const INTERDITS = ["/tableau/nouvelle", "/cas-concret", "/image-video", "/face-camera-animee"];
 
 describe("navigationLaterale", () => {
-  it("le menu est fixe : Accueil, Nouvelle vidéo, Écrire, Vidéos, Carrousels, puis le reste", () => {
+  it("le menu est fixe : Accueil, Nouvelle vidéo, Écrire, Vidéos, Carrousels, Infographies, puis le reste", () => {
     expect(NAV_LATERALE.map((e) => e.libelle)).toEqual(LIBELLES);
   });
 

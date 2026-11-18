@@ -7,7 +7,7 @@
  */
 import type { OperationRetouche } from "@/briques/operations";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
-import { CATALOGUE_BRIQUES } from "@/briques/plan-scenes/catalogue";
+import { CATALOGUE_BRIQUES, type DefinitionBrique } from "@/briques/plan-scenes/catalogue";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { POSITIONS, TRANSITIONS } from "@/briques/plan-scenes/zones";
 import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
@@ -31,6 +31,7 @@ export function demandeExpliciteScript(phrase: string): boolean {
 
 export function consigneRetouche(): string {
   const pieces = Object.values(CATALOGUE_BRIQUES)
+    .filter((d) => (d as DefinitionBrique).famille !== "objet") // BR-OBJETS-a : le chat ne propose jamais un petit objet (porte fermée, consigne identique)
     .map((d) => `- ${d.id} (${d.nom}) : ${d.description}`)
     .join("\n");
   return [

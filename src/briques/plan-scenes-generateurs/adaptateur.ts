@@ -14,6 +14,7 @@ import { faitsDuScript } from "../faits-script/extraire";
 import { genererPlan, type AppelClaude } from "../plan-scenes/generateur";
 import { schemaSceneStrict, type FormatPlan, type MotMinute, type PlanDeScenes, type PlanValide, type ScenePlan } from "../plan-scenes/schema";
 import { planDeRepli, validerPlan, type Remarque } from "../plan-scenes/validateur";
+import { poserObjetsAuPlan } from "./objets-au-plan";
 import { GENERATEURS_PLAN, type IdGenerateurPlan } from "./reglage";
 
 export { GENERATEURS_PLAN };
@@ -36,6 +37,7 @@ export interface EntreeAdaptateur {
   dureeMs?: number;
   /** Pièces déjà servies dans les vidéos récentes (facultatif, aucun appelant ne le passe encore). */
   piecesRecentes?: string[];
+  objetsPermis?: readonly string[];
 }
 
 export interface DependancesAdaptateur {
@@ -126,9 +128,15 @@ export async function adapterPlan(e: EntreeAdaptateur, deps: DependancesAdaptate
     else if (estRetenue(sure)) retenues.push(sure);
     else laissees.push(s.id);
   }
-  if (!retenues.length) return { plan: null, remarques, source, laissees };
+  const objets = e.objetsPermis?.length ? e.objetsPermis : null; // BR-OBJETS-b
+  if (!retenues.length && !objets) return { plan: null, remarques, source, laissees };
   const { scenes: _s, ...entete } = base;
   void _s;
-  const plan: PlanDeScenes = { ...entete, scenes: retenues };
+  let plan: PlanDeScenes = { ...entete, scenes: retenues };
+  if (objets && (plan = poserObjetsAuPlan(plan, mots, objets)).scenes.length) {
+    const v = validerPlan(plan, { ...contexte, objetsPermis: objets });
+    return { plan: v.plan, remarques: [...remarques, ...v.remarques], source, laissees };
+  }
+  if (!plan.scenes.length) return { plan: null, remarques, source, laissees };
   return { plan: avecEmpreintes(plan), remarques, source, laissees };
 }

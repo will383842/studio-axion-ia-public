@@ -9,14 +9,15 @@
  */
 import { describe, expect, it } from "vitest";
 import { proprietesEcrans, textesEcran, type ProprietesEcran } from "@/briques/ecrans-motion";
-import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
+import { suiteDeFins, TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
+import { FINS_DIAGNOSTIC } from "@/formats/cas-concret";
 import { verifierCas, type FaitCas } from "@/formats/cas-concret/cas";
 import { CATALOGUE, trouverCas } from "@/formats/cas-concret/catalogue";
 import { ETIQUETTE_POSTURE, surTitreDuCas } from "@/formats/cas-concret/recette";
 import { completerFiche, uniteDuFait } from "@/moteurs/montage-cas-concret/champs-du-cas";
 import { ECRAN_VIDE_MAX_MS, avecPointFinal, contenuEcran, ecransCales } from "@/moteurs/montage-cas-concret/etapes";
 import type { Ecran, EcranCorps } from "@/moteurs/montage-cas-concret/fiche";
-import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
+import { ecransDeFin, planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import { planTitre } from "../../../studio-rendu/compositions/cas-concret/plans/Titre";
 import { exempleEcran } from "../../../studio-rendu/compositions/cas-concret/exemples";
 
@@ -119,7 +120,9 @@ describe("(d) le sur-titre de la fin vient du cas de la vidéo", () => {
     expect(surTitreDuCas({ posture: "offre" })).toBe(ETIQUETTE_POSTURE.offre);
   });
 
-  const fin = planDesFins({ reseaux: ["facebook"], offre: "integration", nature: "automatisation", mot: "BLOG", avecMot: false, table: TABLE_FINS_DIAGNOSTIC }).fins[0];
+  // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+  const appelsDiagnostic = suiteDeFins("facebook", [...FINS_DIAGNOSTIC.facebook], { mot: "BLOG" }, TABLE_FINS_DIAGNOSTIC);
+  const fin = { id: "fin-facebook", reseaux: ["facebook" as const], appels: appelsDiagnostic, ecrans: ecransDeFin(appelsDiagnostic, "BLOG") };
   const cales = (surTitre: string) => {
     let t = 50_000;
     const ecrans = fin.ecrans.map((e) => ({ ...e, debutMs: t, finMs: (t += 3000) })) as Ecran[];

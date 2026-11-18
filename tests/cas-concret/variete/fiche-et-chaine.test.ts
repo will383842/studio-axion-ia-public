@@ -179,7 +179,8 @@ describe("L2 · chaîne", () => {
   it("une fiche fournie qui a déjà une mise la garde (aucun nouveau tirage)", async () => {
     const fiche = ficheDe("recrutement-apporteurs");
     const mise = mettre({ ...TIRAGE_V4, graine: 7 }, fiche.ecrans);
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot coché et branché sur Facebook et Instagram rétablit plusieurs fins dites.
+    const d = doubles({ avecMot: true, motSur: ["facebook", "instagram"] });
     d.options.entrees = { ...d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" };
     d.options.lireFiche = async () => structuredClone({ ...fiche, mise });
     const v = variete();

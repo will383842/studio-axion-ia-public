@@ -45,7 +45,7 @@ export const LIBELLES_ENVOI: TableLibelles = {
   ...LIBELLES_ESSAI,
   en_cours: { libelle: "Envoi en cours", ton: "neutre" },
   a_verifier: { libelle: "À vérifier", ton: "ambre" },
-  brouillon_buffer: { libelle: "Brouillon dans Buffer", ton: "neutre" },
+  brouillon_buffer: { libelle: "Brouillon chez le diffuseur", ton: "neutre" },
 };
 
 /** Où se place le texte par rapport au visuel, sur chaque réseau. */

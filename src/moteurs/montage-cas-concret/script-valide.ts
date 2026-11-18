@@ -14,7 +14,7 @@
 import { ecritsDe, ecritsModifiables } from "./modifier-script";
 import { MARQUE, textesEcrits } from "./regles";
 import { ficheFixe, type FicheFixe } from "./champs-du-cas";
-import { idEcranAttendu, type Ecran, type EcranCorps, type FicheEcrans } from "./fiche";
+import { idEcranAttendu, type Ecran, type EcranCorps, type EcranFin, type FicheEcrans } from "./fiche";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { SCRIPT_V4_RECRUTEMENT } from "./scripts-valides/recrutement-apporteurs";
 import { STRUCTURES, type Structure } from "./variete";
@@ -177,7 +177,7 @@ export interface EcranApercu {
 }
 
 /** Les écrans d'un script, dans l'ordre, pour les montrer à Will avant la voix. */
-export function apercuDesEcrans(ecrans: readonly (EcranScript | EcranCorps)[]): EcranApercu[] {
+export function apercuDesEcrans(ecrans: readonly (EcranScript | EcranCorps | EcranFin)[]): EcranApercu[] {
   return ecrans.map((e, i) => {
     let affiches: string[] = [];
     try {

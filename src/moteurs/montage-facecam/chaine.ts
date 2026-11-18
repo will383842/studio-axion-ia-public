@@ -58,6 +58,8 @@ import type { ControleCouleurs } from "@/briques/composition/scene";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { MemoireCartesAuto } from "@/briques/habillage-facecam";
 import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generateurs/video";
+import { dessinFacecamPermis, planFacecamPourSupplements } from "@/briques/plan-scenes-generateurs/dessin-facecam-porte";
+import { bandeSousTitres } from "@/briques/plan-scenes-generateurs/dessin-facecam";
 import { couleursBloquent, MESSAGE_COULEURS, pairesCouleurs } from "./garde-couleurs";
 
 export const VERSION_CHAINE_FACECAM = "chaine-facecam-1";
@@ -152,6 +154,8 @@ export interface EtatChaine {
   multicamera?: { statut: "fait"; piste?: PisteMulticamera };
   /** Lot R2 : plan de scènes (option éteinte par défaut), gardé pour ne pas rappeler l'IA à la reprise. Absent : option éteinte. */
   planScenes?: MemoPlanVideo;
+  /** BR-DESSIN-FACECAM-a : pièces du plan retirées (sous-titres, carte, visage) quand `planScenes.facecamDessin` est allumé. */
+  planScenesRetirees?: { id: string; raison: string }[];
   /** Briques ratées, livrées sans elles (« 1 élément non fait — Réessayer »). */
   sauts: { brique: string; message: string }[];
   fini?: boolean;
@@ -281,7 +285,7 @@ export interface DependancesChaine {
    * consigne « 3 caméras »). Absent : une seule caméra, comme avant.
    */
   /** Lot R2 : plan de scènes pour les scènes d'interface, de chiffres et d'accents (9:16). Absent (par défaut) : habillage inchangé. `appeler` absent : pièces du stock seulement. */
-  planScenes?: () => Promise<{ appeler?: AppelClaude } | undefined>;
+  planScenes?: () => Promise<{ appeler?: AppelClaude; dessin?: true } | undefined>;
   multicamera?: (e: { pisteCle: string; dureeSec: number; mots: MotHorodate[]; coupesPrefereesSec: number[]; consignes: string[] }) => Promise<PisteMulticamera | null>;
   /**
    * Lot K : fabrique les effets réalistes par IA de la version (`passeEffetsRealistesFacecam` : jamais sans confirmation
@@ -1025,6 +1029,9 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       }
       // Lot F1 : habillage des autres formats (mêmes mots, mêmes raccords, mêmes cartes ; aucun format : rien). APRÈS les
       // cartes du 9:16 (Vérif V2) : studio-rendu rend un long travail à la fois, la vidéo attendue passe d'abord.
+      // BR-DESSIN-FACECAM-a : éteint (option sans `dessin`, ou entrée bibliothèque qui ne permet pas `plan-scenes.facecam`) = plan tel quel (même objet).
+      const dessine = dessinFacecamPermis({ planScenesFacecam: true, dessin: optionPlan?.dessin, entrees: c.entrees }) ? planFacecamPourSupplements(etat.planScenes?.plan ?? undefined, { permis: true, bande: bandeSousTitres("9:16", FORMAT_PLAN_FACECAM, e.positionSousTitresPct), occupes: [...(e.cartesPleinEcran ?? []), ...(fx?.cartesPleinEcran ?? []), ...(e.ecransPartages ?? [])] }) : undefined;
+      if (dessine?.retirees.length) etat.planScenesRetirees = dessine.retirees;
       if (etat.declinaisons) await preparerHabillagesFormats(etat, { dureeSec, mots, coupesSec, ...(memoire ? { memoireCartes: memoire } : {}), ...(cartes ? { cartes } : {}), ...cartesAutoRetirees, ...(cartesAuto.length ? { cartesAuto } : {}), ...(occupes.length ? { occupes } : {}), ...(emphase.length ? { emphase } : {}), versionSimple: !!c.plafondClaudeAtteint, ...(lut ? { lookLutCle: lut.cle, lookLutIntensite: intensiteLutCommande(c.styles.lut) / 100 } : {}), prefixeCartes: cle("cartes") }, outils);
       etat.habillage = {
         ...(fx?.effets.length ? { effets: fx.effets } : {}),
@@ -1041,7 +1048,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
           audioCle: e.audioCle,
           pistesDouble: e.pistesDouble,
           pistesDepuisLook: true,
-          supplements: { ...(etat.planScenes?.plan ? { planScenes: etat.planScenes.plan } : {}), sourcePreCadree: e.sourcePreCadree, source10bits: e.source10bits, positionSousTitresPct: e.positionSousTitresPct, ecransPartages: e.ecransPartages, cartesPleinEcran: fx?.cartesPleinEcran.length ? [...(e.cartesPleinEcran ?? []), ...fx.cartesPleinEcran] : e.cartesPleinEcran, lookBroll: e.lookBroll, ...(e.textesAffiches?.length ? { textesAffiches: e.textesAffiches } : {}), ...controleCouleurs([...(e.cartesPleinEcran ?? []), ...(fx?.cartesPleinEcran ?? []), ...(e.ecransPartages ?? []), ...(e.misesEnPage ?? []), ...occupes], dureeSec, !!multicamera) },
+          supplements: { ...((dessine?.plan ?? etat.planScenes?.plan) ? { planScenes: (dessine?.plan ?? etat.planScenes?.plan)! } : {}), sourcePreCadree: e.sourcePreCadree, source10bits: e.source10bits, positionSousTitresPct: e.positionSousTitresPct, ecransPartages: e.ecransPartages, cartesPleinEcran: fx?.cartesPleinEcran.length ? [...(e.cartesPleinEcran ?? []), ...fx.cartesPleinEcran] : e.cartesPleinEcran, lookBroll: e.lookBroll, ...(e.textesAffiches?.length ? { textesAffiches: e.textesAffiches } : {}), ...controleCouleurs([...(e.cartesPleinEcran ?? []), ...(fx?.cartesPleinEcran ?? []), ...(e.ecransPartages ?? []), ...(e.misesEnPage ?? []), ...occupes], dureeSec, !!multicamera) },
           // Lot G : mises en page (côté, vignette).
           ...(e.misesEnPage?.length ? { supplementsMiseEnPage: { misesEnPage: e.misesEnPage } } : {}),
           ...(multicamera ? { multicamera } : {}),

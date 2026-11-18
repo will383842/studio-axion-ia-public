@@ -26,6 +26,7 @@ const { ficheParGabarit } = await import("@/moteurs/montage-cas-concret/ecriture
 const { fabriquerCasConcret } = await import("@/moteurs/montage-cas-concret/fabriquer");
 const { lireEntreesCasConcret } = await import("@/moteurs/montage-cas-concret/etapes");
 const { doubles } = await import("../fabriquer/doubles");
+const { tableFinChoisieDiagnostic, verifierPhrasesDiagnostic } = await import("../fins/plan-diagnostic");
 
 import type { ReseauCas } from "@/formats/cas-concret";
 import type { Doubles } from "../fabriquer/doubles";
@@ -166,9 +167,13 @@ describe("X6 · une vidéo refaite avec l'autre fin", () => {
   };
 
   it("même empreinte du corps, ni voix ni écran du corps refaits : seule la fin change", async () => {
-    const d = avecFiche(doubles({ reseaux: ["facebook"], avecMot: true, motSur: [] }));
+    // 17/11 (Williams) : sans choix, aucune fin (et sans fin, ce cas ne dure que 34,1 s : refusé sous 35 s) ; ce test teste la fin
+    // elle-même. La première fabrication pose donc la fin de Facebook « diagnostic + lien » sur les deux lignes de la fin choisie
+    // (mêmes phrases, mêmes écrans que l'ancienne fin par défaut) ; la seconde garde la table, avec la fin au mot.
+    const d = avecFiche(doubles({ reseaux: ["facebook"], avecMot: true, motSur: ["facebook"] }));
+    d.options.outils.contexte = { ...d.options.outils.contexte, tableDesFins: tableFinChoisieDiagnostic() };
     const cr = await fabriquerCasConcret(d.options);
-    expect(cr.plan.fins[0].appels.map((a) => a.id)).toEqual(["fin-if-diagnostic-gratuit", "fin-fb-lien-commentaire"]);
+    verifierPhrasesDiagnostic(cr.plan.fins[0].appels);
 
     // Le mot est branché sur Facebook : la même vidéo, refaite avec la fin au mot.
     const d2 = avecFiche(doubles({ partage: d.partage, reseaux: ["facebook"], avecMot: true, motSur: ["facebook"] }));

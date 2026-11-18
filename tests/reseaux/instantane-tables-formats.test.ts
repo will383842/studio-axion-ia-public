@@ -415,7 +415,7 @@ describe("BUF-02 · garantie 4 : une publication ancienne envoyée par l'ancien 
       libellePublication({ via: "buffer", statut, ...(etatEnvoi ? { etatEnvoi } : {}) } as never).libelle;
     expect(lib("publiee")).toBe("Publiée");
     expect(lib("programmee")).toBe("Programmée");
-    expect(lib("brouillon")).toBe("Brouillon dans Buffer");
+    expect(lib("brouillon")).toBe("Brouillon chez le diffuseur");
     expect(lib("echec")).toBe("Échec");
     expect(lib("programmee", "refuse")).toBe("Échec");
     expect(lib("programmee", "absent")).toBe("Échec");

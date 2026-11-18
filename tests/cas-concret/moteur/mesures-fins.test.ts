@@ -24,7 +24,8 @@ async function jusquAuBout(moteur: MoteurVideo, commande: CommandeFabrication, d
 
 describe("M9 · mesures de chaque fin au projet de montage", () => {
   it("chaque fin garde les mesures de son propre fichier", async () => {
-    const b = banc();
+    // 17/11 (Williams) : sans choix, aucune fin, donc un seul fichier ; plusieurs fins demandent un choix (la fin au mot, Facebook et Instagram).
+    const b = banc({ avecMot: true, motSur: ["facebook", "instagram"] });
     const c = b.commande();
     const r = await jusquAuBout(b.moteur, c, await b.moteur.lancer(c, { travailId: "t-mesures", versionId: "ver-mesures", titre: "Essai", maintenant: T0 }));
     const fins = (r!.projetMontage.casConcret as { fins: { id: string; dureeSec: number; mesures?: Record<string, number> }[] }).fins;

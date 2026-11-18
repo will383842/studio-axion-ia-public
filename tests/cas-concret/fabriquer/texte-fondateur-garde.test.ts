@@ -81,7 +81,8 @@ describe("GV2-30 · style Karaoké : la base du style est celle de la commande d
 
 describe("GV2-30 · voix sans heures de mots : le son est gardé entier", () => {
   it("mots approximatifs : aucun resserrage, la réserve est dite", async () => {
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot est branché (Facebook, Instagram) pour que chaque sortie ait corps et fin.
+    const d = doubles({ avecMot: true, motSur: ["facebook", "instagram"], reseaux: ["facebook", "instagram"] });
     // Une voix qui ne rend aucune heure de mot : les mots sont estimés (aligneur simulé).
     d.options.outils.voix.voix = () => ({
       ...fournisseurVoixSimulation,

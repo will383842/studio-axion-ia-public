@@ -283,7 +283,8 @@ describe("D2 · la chaîne", () => {
 
   it("(a) coaching + « une-journee » : le journal dit v4 (le script est v4), aucune balise", async () => {
     const id = videoDe("une-journee");
-    const d = avecVideo(id, { cas: casCoaching });
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot coché et branché sur Facebook et Instagram rétablit plusieurs fins dites.
+    const d = avecVideo(id, { cas: casCoaching, avecMot: true, motSur: ["facebook", "instagram"] });
     d.options.outils.variete = variete();
     const vus: string[] = [];
     d.options.outils.ecriture.appeler = async (_role, entree) => {
@@ -365,7 +366,8 @@ function ficheResultatDAbord(videoId: string): FicheEcrans {
 describe("D2 · intégration (outils simulés, structure « resultat-d-abord »)", () => {
   it("le script suit l'ordre ; l'écriture est appelée UNE fois ; une reprise (même journal, historique changé) ne repaie rien", async () => {
     const id = videoDe("resultat-d-abord");
-    const d = avecVideo(id);
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot coché et branché sur Facebook et Instagram rétablit plusieurs fins dites.
+    const d = avecVideo(id, { avecMot: true, motSur: ["facebook", "instagram"] });
     const v = variete();
     d.options.outils.variete = v;
     const reponses: string[] = [];

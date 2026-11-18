@@ -503,9 +503,9 @@ export function controlerSuiteV4(elements: readonly ElementResoluV4[], ctx: Cont
 /* ---------------- Le contrôle d'un plan ---------------- */
 
 /** D0 à D15 et V1 à V7, H1, H2 sur le plan (rien si le plan n'a pas d'`elementsV4`). Les messages commencent par leur code. */
-export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: readonly MotTranscrit[]; interdites?: readonly string[]; historique?: readonly HistoriqueVideo[]; repetitionEnAvertissement?: boolean; valeursDitesExigees?: boolean } = {}): { erreurs: string[]; avertissements: string[]; mesures: MesuresV4 | null } {
+export function controlerDiversiteV4(plan: PlanFacecamAnimee, options: { mots?: readonly MotTranscrit[]; interdites?: readonly string[]; historique?: readonly HistoriqueVideo[]; repetitionEnAvertissement?: boolean; valeursDitesExigees?: boolean; telephoneVideo?: boolean } = {}): { erreurs: string[]; avertissements: string[]; mesures: MesuresV4 | null } {
   if (!plan.elementsV4?.length) return { erreurs: [], avertissements: [], mesures: null };
-  const resolu = resoudreElementsV4(plan.elementsV4, plan.duree);
+  const resolu = resoudreElementsV4(plan.elementsV4, plan.duree, options.telephoneVideo === true ? { telephoneVideo: true } : undefined); // BR-TELEPHONE-c
   const interditsSousTitres: string[] = [];
   plan.groupes.forEach((g, k) => {
     const texte = g.mots.map((m) => m.w).join(" ");

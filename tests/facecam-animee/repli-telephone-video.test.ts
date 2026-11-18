@@ -47,9 +47,10 @@ describe("C4-U4.9b-b : repli du téléphone sans extrait", () => {
     expect(m?.[1]).toBe(ID);
   });
 
-  it("garde : rien dans src/ n'importe repli-telephone-video ; repli-sans-video-v4.ts non touché", () => {
+  it("garde : seul chaine-v4.ts importe repli-telephone-video ; repli-sans-video-v4.ts non touché", () => {
     const importeurs = fichiers("src").filter((f) => /\.(ts|tsx)$/.test(f) && !f.endsWith("repli-telephone-video.ts") && readFileSync(f, "utf8").includes("repli-telephone-video"));
-    expect(importeurs).toEqual([]);
+    // 18/11/2026 (BR-TELEPHONE-c, voulu, seconde lecture du pilote) : un importeur nommé exempté, `chaine-v4.ts` ; tout autre importeur reste refusé.
+    expect(importeurs.map((f) => f.split("\\").join("/"))).toEqual(["src/moteurs/montage-facecam-animee/chaine-v4.ts"]);
     let diff = "";
     try {
       diff = execSync("git diff origin/master -- src/moteurs/montage-facecam-animee/repli-sans-video-v4.ts", { encoding: "utf8" });

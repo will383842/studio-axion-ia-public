@@ -18,4 +18,8 @@ export const TOILES = {
   "liste-au-mot": { largeur: 1000, hauteur: 700 },
   citation: { largeur: 1000, hauteur: 500 },
   repere: { largeur: 1000, hauteur: 260 },
+  "objet-gros-chiffre": { largeur: 1000, hauteur: 1000 },
+  "objet-etape": { largeur: 1000, hauteur: 220 },
+  "objet-cartes-coche": { largeur: 1000, hauteur: 1000 },
+  "objet-coche": { largeur: 1000, hauteur: 1000 },
 } as const;

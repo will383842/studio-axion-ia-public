@@ -51,6 +51,8 @@ describe("porte C9-33 : une pièce objet factice (injectée ici seulement)", () 
   it("validerPlan refuse la scène sans permission (repli, « objet non permis ») et l'accepte avec", () => {
     const p = copie();
     p.scenes[0].piece = "objet-test";
+    // 17/11/2026 BR-OBJETS-a : un objet aux paramètres invalides est RETIRÉ (jamais réparé ni remplacé par l'exemple) ; la pièce factice reprend le schéma de « legende », on lui donne donc des paramètres valides.
+    p.scenes[0].parametres = { texte: "Essai", sousTexte: "", style: "bandeau" };
     const sans = validerPlan(p);
     expect(sans.plan.scenes[0]!.piece).not.toBe("objet-test");
     expect(sans.remarques.some((r) => /objet non permis/i.test(r.message))).toBe(true);
@@ -62,7 +64,8 @@ describe("porte C9-33 : une pièce objet factice (injectée ici seulement)", () 
   it("validerPlan refuse le calque objet sans permission (ajout par le chat, revalidé sans liste)", () => {
     const p = copie();
     p.scenes[0].niveau = 2;
-    p.scenes[0].calques = [{ piece: "objet-test", parametres: {}, debutMs: 0, zone: "plein" }];
+    // 17/11/2026 BR-OBJETS-a : paramètres valides pour le schéma de « legende » (un objet invalide est retiré, jamais réparé).
+    p.scenes[0].calques = [{ piece: "objet-test", parametres: { texte: "Essai", sousTexte: "", style: "bandeau" }, debutMs: 0, zone: "plein" }];
     const sans = validerPlan(p);
     expect((sans.plan.scenes[0]!.calques ?? []).some((c) => (c.piece as string) === "objet-test")).toBe(false);
     expect(sans.remarques.some((r) => /objet non permis/i.test(r.message))).toBe(true);

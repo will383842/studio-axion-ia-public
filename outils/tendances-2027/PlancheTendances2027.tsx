@@ -2,7 +2,8 @@
  * PLANCHE « TENDANCES 2027 » (X1-17a) : une case par pièce X1 fusionnée (X1-01, 02, 03, 04, 05, 06, 11, 12, 13, 15, 16).
  * Outil local : composant pur (aucun hook, aucune horloge, aucun hasard hors `graine`). Rien n'importe ce fichier depuis
  * `src/` ni `studio-rendu/`. Aucun réglage lu : les pièces sont appelées directement. Texte en Manrope.
- * X1-14 (pastille IA) et X1-08, 09, 10 : X1-17b-b.
+ * X1-08 (croquis), X1-09 (trait au feutre), X1-10 (papier découpé) : X1-17b-b, depuis les fichiers PURS de `src/` seulement
+ * (jamais roughjs, perfect-freehand ni `studio-rendu/**`). X1-14 (pastille IA) : exclue.
  */
 import { createElement, type CSSProperties, type JSX, type ReactNode } from "react";
 import { CHARTE_AXION, FAMILLE_CSS_AXION, type FondAxion } from "../../src/briques/jetons-motion";
@@ -19,8 +20,12 @@ import { deciderBoucle, type SceneBoucle } from "../../src/briques/fins/boucle";
 import { apercuDeLaFin } from "../../src/briques/composition/ouverture-apercu";
 import { motCleDeRecherche } from "../../src/briques/composition/mot-cle-recherche";
 import { mesurerFlashs } from "../../src/briques/composition/garde-flash";
+import { FORMES_CROQUIS, planCroquis, TOILE_CROQUIS, type FormeCroquis } from "../../src/briques/motion/petits-objets/croquis";
+import { traitFeutre, type GenreTraitFeutre } from "../../src/briques/motion/petits-objets/trait-feutre";
+import { bordDechire, papierDecoupe, rubanAdhesif } from "../../src/briques/motion/petits-objets/papier-decoupe";
+import { aleaGraine } from "../../src/briques/motion/petits-objets/graine";
 
-export const PIECES_X1_PLANCHE = ["X1-01", "X1-02", "X1-03", "X1-04", "X1-05", "X1-06", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"] as const;
+export const PIECES_X1_PLANCHE = ["X1-01", "X1-02", "X1-03", "X1-04", "X1-05", "X1-06", "X1-08", "X1-09", "X1-10", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"] as const;
 export type PieceX1 = (typeof PIECES_X1_PLANCHE)[number];
 
 export const FORMATS_PLANCHE = {
@@ -62,6 +67,10 @@ const CASES_DEF: ReadonlyArray<Pick<CasePlanche, "id" | "piece" | "titre">> = [
   { id: "x1-12", piece: "X1-12", titre: "X1-12 · règle : aperçu de la fin" },
   { id: "x1-13", piece: "X1-13", titre: "X1-13 · règle : mot-clé de recherche" },
   { id: "x1-15", piece: "X1-15", titre: "X1-15 · règle : garde flash" },
+  { id: "x1-08", piece: "X1-08", titre: "X1-08 · croquis (formes de base)" },
+  { id: "x1-09-entourage", piece: "X1-09", titre: "X1-09 · feutre : entourage" },
+  { id: "x1-09-soulignement", piece: "X1-09", titre: "X1-09 · feutre : soulignement" },
+  { id: "x1-10", piece: "X1-10", titre: "X1-10 · papier découpé et ruban" },
 ];
 
 const GOUTTIERE = 1.2;
@@ -126,6 +135,24 @@ function Lignes({ lignes }: { lignes: string[] }): JSX.Element {
       ))}
     </div>
   );
+}
+
+const pts = (points: ReadonlyArray<readonly [number, number]>): string => points.map(([x, y]) => `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100}`).join(" ");
+const ZONE_BASSE = { x: 10, y: 72, largeur: 80, hauteur: 20 };
+
+/** Forme géométrique de base du croquis (le tracé à la main est fait au rendu) : points légèrement déplacés, uniquement par la graine. */
+function pointsCroquis(forme: FormeCroquis, graine: number): string[] {
+  const plan = planCroquis(forme, { x: 10, y: 10, largeur: 80, hauteur: 80 }, "neutre", "ivoire", graine);
+  if (!plan) return [];
+  return plan.traits.map((t, i) => {
+    const [a, b, c, d] = t.nombres;
+    const bouge = (v: number, k: number): number => v + (aleaGraine(t.seed, k) - 0.5) * 16;
+    let base: [number, number][];
+    if (t.genre === "rectangle") base = [[a, b], [a + c, b], [a + c, b + d], [a, b + d], [a, b]];
+    else if (t.genre === "ellipse") base = Array.from({ length: 33 }, (_, k) => [a + (Math.cos((k / 32) * 2 * Math.PI) * c) / 2, b + (Math.sin((k / 32) * 2 * Math.PI) * d) / 2] as [number, number]);
+    else base = [[a, b], [c, d]];
+    return pts(base.map(([x, y], k) => [bouge(x, i * 100 + k * 2), bouge(y, i * 100 + k * 2 + 1)] as [number, number]));
+  });
 }
 
 function ContenuCase(c: CasePlanche, graine: number, format: FormatPlanche = "9x16"): ReactNode {
@@ -218,6 +245,48 @@ function ContenuCase(c: CasePlanche, graine: number, format: FormatPlanche = "9x
     case "x1-13": {
       const m = motCleDeRecherche(MOTS_DEMO, "relancer un devis");
       return <Lignes lignes={["Entrée : « Voici comment relancer devis », sujet « relancer un devis ».", m.type === "mot" ? `Décision : mot-clé « ${m.texte} » à ${m.debutMs} ms` : "Décision : aucun mot-clé"]} />;
+    }
+    case "x1-08":
+      return (
+        <div style={{ position: "absolute", inset: 0 }}>
+          <svg viewBox={`0 0 ${TOILE_CROQUIS * 2} ${TOILE_CROQUIS * 2}`} style={{ position: "absolute", inset: 0, width: "100%", height: "90%" }}>
+            {FORMES_CROQUIS.map((forme, i) => (
+              <g key={forme} transform={`translate(${(i % 2) * TOILE_CROQUIS} ${Math.floor(i / 2) * TOILE_CROQUIS})`}>
+                {pointsCroquis(forme, graine + i).map((p, k) => (
+                  <polyline key={k} points={p} fill="none" stroke={CHARTE_AXION.noir} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" />
+                ))}
+              </g>
+            ))}
+          </svg>
+          <div style={{ position: "absolute", left: 8, bottom: 4, ...texte(14) }}>tracé à la main au rendu</div>
+        </div>
+      );
+    case "x1-09-entourage":
+    case "x1-09-soulignement": {
+      const genre: GenreTraitFeutre = c.id.endsWith("entourage") ? "entourage" : "soulignement";
+      const t = traitFeutre({ genre, graine, zone: ZONE_BASSE });
+      const z = ZONE_BASSE;
+      return (
+        <svg viewBox={`${z.x - 3} ${z.y - 3} ${z.largeur + 6} ${z.hauteur + 6}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          {t ? <polyline points={pts(t.points)} fill="none" stroke={CHARTE_AXION.terracotta} strokeWidth={t.epaisseur / 10} strokeLinecap="round" strokeLinejoin="round" /> : null}
+          <text x={z.x + z.largeur / 2} y={z.y + z.hauteur / 2 + 3} textAnchor="middle" fontSize={9} fontWeight={700} fontFamily={FAMILLE_CSS_AXION} fill={CHARTE_AXION.noir}>relancer</text>
+        </svg>
+      );
+    }
+    case "x1-10": {
+      const z = ZONE_BASSE;
+      const p = papierDecoupe({ graine, zone: z, points: 24 });
+      const ruban = rubanAdhesif(z);
+      const bord = bordDechire(graine, 24);
+      const haut = bord.map((d, i) => [z.x + (i / (bord.length - 1)) * z.largeur, z.y + (d * z.largeur) / 100] as [number, number]);
+      const bas = [...bord].reverse().map((d, i) => [z.x + (1 - i / (bord.length - 1)) * z.largeur, z.y + z.hauteur + (d * z.largeur) / 100] as [number, number]);
+      return (
+        <svg viewBox={`${z.x - 4} ${z.y - 6} ${z.largeur + 8} ${z.hauteur + 12}`} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          {p ? <polygon points={pts([...haut, ...bas])} fill={p.couleur} stroke={CHARTE_AXION.noir} strokeWidth={0.4} /> : null}
+          <rect x={ruban.boite.x} y={ruban.boite.y} width={ruban.boite.largeur} height={ruban.boite.hauteur} fill={CHARTE_AXION.terracotta} opacity={ruban.opacite} />
+          <text x={z.x + z.largeur / 2} y={z.y + z.hauteur / 2 + 3} textAnchor="middle" fontSize={9} fontWeight={700} fontFamily={FAMILLE_CSS_AXION} fill={CHARTE_AXION.noir}>devis</text>
+        </svg>
+      );
     }
     default: {
       const f = mesurerFlashs(PLAN_FLASH);

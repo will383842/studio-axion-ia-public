@@ -11,7 +11,8 @@ import { moteurMontageCasConcret } from "@/moteurs/montage-cas-concret";
 import { testerMoteurVideo } from "@/moteurs/contrat";
 import { banc } from "./moteur/doubles";
 
-const b = banc();
+// 17/11 (Williams) : sans choix, aucune fin ; le contrat « une retouche coûte moins que la vidéo entière » suppose des fins : « Avec le mot » + mot branché les rétablissent.
+const b = banc({ avecMot: true, motSur: ["facebook", "instagram"] });
 
 testerMoteurVideo(b.moteur, async () => b.commande());
 

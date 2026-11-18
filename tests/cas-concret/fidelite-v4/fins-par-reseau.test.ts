@@ -13,7 +13,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { suiteDeFins } from "@/briques/fins";
+import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
+import { FINS_DIAGNOSTIC, type ReseauCas } from "@/formats/cas-concret";
 import { fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
+import { ecransDeFin } from "@/moteurs/montage-cas-concret/fins";
 import { doubles } from "../fabriquer/doubles";
 
 /** WAV PCM 16 bits mono. */
@@ -43,12 +47,19 @@ function voixEntiere(): Uint8Array {
 }
 const COUPEE = new Uint8Array(readFileSync(join(__dirname, "sons/v4-fin-coupee.wav")));
 const derniereFin = (texte: string) => texte.trim().split(/(?<=[.!?])\s+/).at(-1);
+/** La fin « diagnostic + lien » d'un réseau, tirée de la banque (la fin elle-même, sans passer par le plan). */
+function finDiagnostic(r: ReseauCas, cas: { mot: string; motDit?: string }): string {
+  const appels = suiteDeFins(r, [...FINS_DIAGNOSTIC[r]], { mot: cas.mot, ...(cas.motDit ? { motDit: cas.motDit } : {}) }, TABLE_FINS_DIAGNOSTIC);
+  return ecransDeFin(appels, cas.mot).map((e) => e.texteDit).join(" ");
+}
 
 describe("V4-2 · une sortie par groupe de réseaux, chacune avec SA fin", () => {
   it("4 réseaux → Facebook « en commentaire », LinkedIn « en premier commentaire », Instagram et TikTok ensemble « dans mon profil »", async () => {
     const d = doubles();
-    const cr = await fabriquerCasConcret(d.options);
-    const parReseaux = Object.fromEntries(cr.plan.fins.map((f) => [f.reseaux.join("+"), f.ecrans.map((e) => e.texteDit).join(" ")]));
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const parReseau = Object.fromEntries((["facebook", "instagram", "tiktok", "linkedin"] as const).map((r) => [r, finDiagnostic(r, d.options.cas)]));
+    const parReseaux: Record<string, string> = { facebook: parReseau.facebook, "instagram+tiktok": parReseau.instagram, linkedin: parReseau.linkedin };
+    expect(parReseau.instagram).toBe(parReseau.tiktok);
     expect(Object.keys(parReseaux).sort()).toEqual(["facebook", "instagram+tiktok", "linkedin"]);
     expect(derniereFin(parReseaux.facebook)).toBe("Le lien est en commentaire.");
     expect(derniereFin(parReseaux.linkedin)).toBe("Le lien est en premier commentaire.");
@@ -56,22 +67,31 @@ describe("V4-2 · une sortie par groupe de réseaux, chacune avec SA fin", () =>
     // Le lien d'Instagram et de TikTok n'est jamais annoncé en commentaire (non cliquable là-bas), et inversement.
     expect(parReseaux["instagram+tiktok"]).not.toMatch(/commentaire/);
     for (const r of ["facebook", "linkedin"]) expect(parReseaux[r]).not.toMatch(/profil|bio/);
+    // 17/11 (Williams) : sans choix, aucune fin. La fabrication (le mot coché et branché sur Facebook et Instagram) garde une
+    // sortie par groupe de réseaux de même fin, chacune avec SA fin ; TikTok et LinkedIn, sans mot branché, n'ont aucune fin.
+    const f = doubles({ avecMot: true, motSur: ["facebook", "instagram"] });
+    const cr = await fabriquerCasConcret(f.options);
+    const fins = Object.fromEntries(cr.plan.fins.map((x) => [x.reseaux.join("+"), x.ecrans.map((e) => e.texteDit).join(" ")]));
+    expect(Object.keys(fins).sort()).toEqual(["facebook", "instagram", "tiktok+linkedin"]);
+    expect(derniereFin(fins.facebook)).toBe("Je vous envoie la structure complète.");
+    expect(fins.instagram).toBe("Abonnez-vous et écrivez I.A. en commentaire : je vous l'envoie.");
+    expect(fins["tiktok+linkedin"]).toBe("");
     // Une composition complète par sortie, et le texte de chaque sortie finit par SA fin.
-    expect(cr.fins.map((f) => f.reseaux.join("+")).sort()).toEqual(["facebook", "instagram+tiktok", "linkedin"]);
+    expect(cr.fins.map((x) => x.reseaux.join("+")).sort()).toEqual(["facebook", "instagram", "tiktok+linkedin"]);
     // Le texte dit de chaque composition, lu dans ses sous-titres (mot par mot).
     type Segments = { texte: { sousTitres: { segments: { mots: { mot: string }[] }[] } } };
-    const dits = d.compositionsSoumises().map((c) => (c.parametres as Segments).texte.sousTitres.segments.flatMap((s) => s.mots.map((m) => m.mot)).join(" "));
+    const dits = f.compositionsSoumises().map((c) => (c.parametres as Segments).texte.sousTitres.segments.flatMap((s) => s.mots.map((m) => m.mot)).join(" "));
     expect(dits).toHaveLength(3);
-    expect(dits.filter((t) => t.endsWith("Le lien est dans mon profil."))).toHaveLength(1);
-    expect(dits.filter((t) => t.endsWith("Le lien est en premier commentaire."))).toHaveLength(1);
-    expect(dits.filter((t) => t.endsWith("Le lien est en commentaire."))).toHaveLength(1);
+    expect(dits.filter((t) => t.endsWith("Je vous envoie la structure complète."))).toHaveLength(1);
+    expect(dits.filter((t) => t.endsWith("je vous l'envoie."))).toHaveLength(1);
   });
 
   it("un réseau seul n'a que sa fin (Instagram : le profil)", async () => {
     const d = doubles({ reseaux: ["instagram"] });
     const cr = await fabriquerCasConcret(d.options);
     expect(cr.fins).toHaveLength(1);
-    expect(derniereFin(cr.plan.fins[0].ecrans.map((e) => e.texteDit).join(" "))).toBe("Le lien est dans mon profil.");
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    expect(derniereFin(finDiagnostic("instagram", d.options.cas))).toBe("Le lien est dans mon profil.");
   });
 
   it("liens suivis : un par réseau, `utm_source` du réseau, `utm_medium=video`, une campagne par réseau (code de version, ADR 0002)", async () => {
@@ -108,7 +128,8 @@ describe("V4-2 · une sortie par groupe de réseaux, chacune avec SA fin", () =>
 
 describe("V4-2 · le contrôle de la fin de la voix, sortie par sortie", () => {
   it("toutes les sorties dites jusqu'au bout : la fabrication passe", async () => {
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot coché et branché sur Facebook et Instagram rétablit trois sorties.
+    const d = doubles({ avecMot: true, motSur: ["facebook", "instagram"] });
     const entiere = voixEntiere();
     d.options.outils.voix.lireSon = async (cle) => (d.assemblages.some((a) => a.sortieCle === cle) ? entiere : null);
     const cr = await fabriquerCasConcret(d.options);
@@ -116,18 +137,20 @@ describe("V4-2 · le contrôle de la fin de la voix, sortie par sortie", () => {
   });
 
   it("LOT A : la voix coupée sur la SEULE sortie LinkedIn : cette sortie est nommée « à vérifier », la vidéo est faite", async () => {
-    const d = doubles();
+    // 17/11 (Williams) : sans choix, aucune fin ; LinkedIn n'a plus de fin à contrôler (le mot n'y est pas branchable). La
+    // voix coupée est celle de la SEULE sortie Instagram (mot branché), les autres sorties sont dites jusqu'au bout.
+    const d = doubles({ avecMot: true, motSur: ["facebook", "instagram"] });
     const entiere = voixEntiere();
-    // Les assemblages de la recette suivent l'ordre du plan : Facebook, Instagram + TikTok, LinkedIn (les copies WAV des
+    // Les assemblages de la recette suivent l'ordre du plan : Facebook, Instagram, TikTok + LinkedIn (les copies WAV des
     // sons bruts, faites avant pour mesurer leurs blancs, ne comptent pas).
     d.options.outils.voix.lireSon = async (cle) => {
       const i = d.assemblages.filter((a) => a.recette).findIndex((a) => a.sortieCle === cle);
-      return i < 0 ? null : i === 2 ? COUPEE : entiere;
+      return i < 0 ? null : i === 1 ? COUPEE : entiere;
     };
     const r = await fabriquerCasConcret(d.options);
     expect(r.reservesVoix).toHaveLength(1);
-    expect(r.reservesVoix[0]).toMatch(/^Voix de la fin pour LinkedIn · .*coupée net/);
-    expect(r.reservesVoix[0]).not.toMatch(/Facebook|Instagram|TikTok/);
+    expect(r.reservesVoix[0]).toMatch(/^Voix de la fin pour Instagram · .*coupée net/);
+    expect(r.reservesVoix[0]).not.toMatch(/Facebook|LinkedIn|TikTok/);
     expect(d.ecransSoumis().length).toBeGreaterThan(0);
   });
 });

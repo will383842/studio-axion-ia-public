@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "verifieLe": "2026-11-17",
+  "maquettes": {
+    "01-courriels": { "produit": "Espace démo · Courriels", "organisation": "Entreprise exemple" },
+    "02-projets": { "produit": "Espace démo · Projets", "organisation": "Entreprise exemple" },
+    "03-accueil-24h": { "produit": "Espace démo · Accueil 24 h", "organisation": "Entreprise exemple" },
+    "04-clients": { "produit": "Espace démo · Clients", "organisation": "Entreprise exemple" },
+    "05-stocks": { "produit": "Espace démo · Stocks", "organisation": "Entreprise exemple" },
+    "06-equipe": { "produit": "Espace démo · Équipe", "organisation": "Entreprise exemple" },
+    "07-taches": { "produit": "Espace démo · Connaissances", "organisation": "Entreprise exemple" }
+  },
+  "interdits": ["velora", "calyra", "sylva", "relayo", "noveria", "blueflow", "ordiva", "boreal", "maison alba", "feuille.", "orbis", "rivage"]
+}

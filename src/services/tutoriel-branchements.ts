@@ -5,13 +5,14 @@
  *  - VOIX, STOCKAGE, RENDU : les mêmes branchements réels que le tableau animé (`branchementsReels`, `tableau-outils.ts`) :
  *    voix prête du personnage (refusée avant toute dépense si ce n'est pas la voix HeyGen épinglée), stockage R2,
  *    `studio-rendu`. La voix passe par le budget du studio (`verifierEtReserverSelonOrigine`) juste avant sa lecture.
- *  - CLAUDE : PAS ENCORE RELIÉ (à faire avant usage réel : un rôle facturé par `executerRolePourVideo`, pré-vol et
- *    réservation des crédits ; `envoyerMessage` n'est appelé que par `executerRole`). En attendant, l'appel lève : le plan
- *    de scènes retombe sur le plan de repli (réserve « À vérifier »), l'idée attend un script collé. Jamais d'échec.
+ *  - CLAUDE : relié par `tutoriel-claude.ts`, éteint par défaut (réglage propre au tutoriel). Éteint, l'appel lève (« pas encore
+ *    relié ») : le plan de scènes retombe sur le plan de repli (réserve « À vérifier »), l'idée attend un script collé.
+ *    Jamais d'échec. Allumé, l'appel passe par le chemin gardé de l'argent (`executerRolePourVideo`).
  *  - Rien n'est construit tant qu'un travail du tutoriel n'avance pas ; sans personnage ou sans rendu réel : `null`, le
  *    travail reste en pause claire.
  */
 import { cleDepenseUsine } from "./cle-depense-usine";
+import { appelClaudeTutoriel, claudeTutorielActif } from "./tutoriel-claude";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 
@@ -42,9 +43,11 @@ brancherServicesTutoriel({
           await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: b.voix.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId, ...cleDepenseUsine(c.origine, travailId) });
         },
       },
-      claude: async () => {
-        throw new ErreurClaude("requete", "Claude n'est pas encore relié au tutoriel d'outil.");
-      },
+      claude: (await claudeTutorielActif())
+        ? appelClaudeTutoriel(c.videoId, c.origine)
+        : async () => {
+            throw new ErreurClaude("requete", "Claude n'est pas encore relié au tutoriel d'outil.");
+          },
       rendu: {
         service: () => b.montage.rendu(),
         signer: async (lectures, depot) => {

@@ -171,14 +171,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function passage(avecLlm: boolean, autres: Record<string, unknown> = {}) {
+async function passage(avecLlm: boolean, autres: Record<string, unknown> = {}, planRetouche?: unknown) {
   horloge = HORLOGE_DEPART;
   const mots = motsDe(PHRASE, 0, 0.4);
   const facecam = transcripteur({ "https://r2.exemple/lire/rush/seule.mp4": mots });
   const llm = avecLlm ? llmPlan() : undefined;
   const { d } = deps({ facecam, alignement: aligneur(), ...(llm ? { appelerPlan: llm } : {}) });
   const moteur = creerMoteurMontageDemoFacecam({ chaine: () => d });
-  const c = commande({ facecam: { cle: "rush/seule.mp4" }, ecranPartage: { ecran: "gauche" } }, ["4:5"], autres);
+  const c = commande({ facecam: { cle: "rush/seule.mp4" }, ecranPartage: { ecran: "gauche" }, ...(planRetouche !== undefined ? { plan: planRetouche } : {}) }, ["4:5"], autres);
   const lance = await moteur.lancer(c, { ...ctx, maintenant: HORLOGE_DEPART });
   const { travail } = await jusquAuBout(moteur, c, lance);
   expect(travail.statut).toBe("termine");
@@ -217,10 +217,46 @@ for (const avecLlm of [true, false]) {
       const deLaChaine = espions.validerPlan.filter((c) => "dureeMs" in (c as object));
       expect(deLaChaine.length).toBeGreaterThan(0);
       for (const c of deLaChaine) expect((c as { objetsPermis?: string[] }).objetsPermis).toEqual(PIECES_OBJET_CHIFFRE);
-      // Les pièces `objet` ne sont pas au catalogue du plan de scènes (le registre C9-27b ne change que la liste permise) : plan, source, remarques et consigne restent identiques.
+      // 17/11/2026 BR-OBJETS-a (C9-34b) : référence changée volontairement. Le gros chiffre est maintenant au catalogue du plan de scènes : allumé (objet.chiffre permis), la consigne du LLM le liste, et SEULEMENT lui (une ligne de plus) ; plan, source et remarques restent identiques (le double du LLM ne le demande pas).
       expect(avec.constat).toEqual(sans.constat);
-      expect(avec.consigne).toEqual(sans.consigne);
+      if (avecLlm) {
+        const texte = (c: typeof avec.consigne) => (c?.systeme ?? []).join("\n");
+        expect(texte(avec.consigne)).toContain("- objet-gros-chiffre (");
+        const sansBloc = texte(avec.consigne).replace(/- objet-gros-chiffre \(.*\n  paramètres .*\n  schéma .*\n/, "");
+        expect(sansBloc).toBe(texte(sans.consigne));
+        expect(avec.consigne?.message).toBe(sans.consigne?.message);
+      } else {
+        expect(avec.consigne).toEqual(sans.consigne);
+      }
       expect(reseau).toBe(0);
     });
   });
 }
+
+/**
+ * BR-OBJETS-a (C9-34b) — critère de fini : par la VRAIE chaîne de fabrication de la démo (`chaine.ts`, chemin « plan de
+ * retouche » qui valide avec les objets permis du profil), pas par un plan monté à la main puis posé dans le rendu.
+ * Limite constatée : le chemin « LLM » perd `objetsPermis` dans `genererPlan` (generateur.ts, hors fiche : BR-OBJETS-b).
+ */
+describe("BR-OBJETS-a : le gros chiffre apparaît dans le plan fabriqué quand objet.chiffre est permis, jamais sinon", () => {
+  const scene = (parametres: unknown) => ({ id: "chiffre", version: 1, mots: { premier: 0, dernier: 0 }, debutMs: 0, finMs: 3000, niveau: 1, position: "centre", transition: { entree: "fondu", sortie: "fondu", dureeMs: 400 }, piece: "objet-gros-chiffre", parametres });
+  const planAvec = (parametres: unknown) => ({ version: "plan-scenes-1", scenes: [scene(parametres)] });
+  const pieces = (c: Awaited<ReturnType<typeof passage>>) => (c.constat.plan?.scenes ?? []).map((sc) => sc.piece as string);
+  it("permis : la scène objet-gros-chiffre (valeur 3) est dans le plan fabriqué", async () => {
+    const r = await passage(false, { bibliothequeVideo: ENTREE_OBJET_CHIFFRE }, planAvec({ valeur: 3, unite: "heures" }));
+    expect(pieces(r)).toContain("objet-gros-chiffre");
+    const s = (r.constat.plan?.scenes ?? []).find((sc) => sc.piece === "objet-gros-chiffre") as unknown as { parametres: { valeur: number } };
+    expect(s.parametres.valeur).toBe(3);
+    expect(reseau).toBe(0);
+  });
+  it("éteint (pas d'entrée bibliothèque) : même plan, aucune scène objet, remarque « objet non permis »", async () => {
+    const r = await passage(false, {}, planAvec({ valeur: 3, unite: "heures" }));
+    expect(pieces(r).some((p) => p.startsWith("objet-"))).toBe(false);
+    expect(r.constat.remarques).toContain("OBJET_NON_PERMIS");
+  });
+  it("permis mais paramètres invalides : scène retirée, jamais l'exemple", async () => {
+    const r = await passage(false, { bibliothequeVideo: ENTREE_OBJET_CHIFFRE }, planAvec({ valeur: "beaucoup" }));
+    expect(pieces(r).some((p) => p.startsWith("objet-"))).toBe(false);
+    expect(r.constat.remarques).toContain("SCENE_RETIREE");
+  });
+});

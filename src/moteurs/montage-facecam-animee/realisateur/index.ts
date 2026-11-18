@@ -322,7 +322,7 @@ Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : 
       });
       // Anti-répétition (D17) : bloquante au SEUL premier essai (comme D14 et D2a, une vidéo ordinaire ne paie pas 3 appels) ; dès le 2ᵉ essai elle devient
       // un avertissement et le plan passe (jamais d'échec pour cette raison). Avec un seul essai prévu, elle n'est jamais bloquante.
-      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}), ...(essais >= Math.min(2, essaisMax) ? { repetitionEnAvertissement: true } : {}) });
+      const v = verifierPlan(plan, entree.mots, { historique: entree.historique, ...(repli ? { interdites: repli.interdites } : {}), ...(essais >= Math.min(2, essaisMax) ? { repetitionEnAvertissement: true } : {}), ...(entree.telephoneVideo === true ? { telephoneVideo: true } : {}) });
       // Un plan refusé UNIQUEMENT pour D17 est mis de côté : si les essais suivants échouent (panne, réponse illisible), il vaut mieux que la version simple.
       if (!gardeRepetition && v.erreurs.length && v.rendable && v.erreurs.every((e) => e.startsWith("D17"))) gardeRepetition = { plan, v };
       if (!v.erreurs.length) {

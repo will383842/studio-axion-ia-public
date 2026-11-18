@@ -46,8 +46,9 @@ describe("menu : entrée Carrousels", () => {
     expect(libelles.filter((l) => l === "Réponses automatiques")).toHaveLength(1);
   });
 
-  it("pas d'entrée Infographies (le générateur n'existe pas encore)", () => {
-    expect(libelles.some((l) => /infographie/i.test(l))).toBe(false);
+  it("« Infographies » est une entrée de Mes contenus, après Carrousels", () => {
+    expect(libelles.some((l) => /infographie/i.test(l))).toBe(true);
+    expect(libelles.indexOf("Infographies")).toBe(libelles.indexOf("Carrousels") + 1);
   });
 
   it("mobile : dans la feuille « Plus », jamais mélangée aux onglets Vidéos", () => {
