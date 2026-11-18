@@ -228,6 +228,7 @@ const estV2 = (fiche: Pick<FicheTableau, "habillage">) => fiche.habillage === ST
  * clair) : mêmes valeurs que `STYLE_REFERENCE_1` et `STYLE_REFERENCE_2` de `fiche.ts`.
  */
 const STYLE_REF = "reference/1";
+const STYLE_REF3 = "reference/3";
 const estRef = (fiche: Pick<FicheTableau, "habillage">) => fiche.habillage === STYLE_REF || estGabarit(fiche);
 /**
  * Styles « blocs/2 » et « reference/1 » : chaque ligne qui s'écrit est un événement visuel (elle entre, ou le crayon
@@ -662,20 +663,57 @@ function etatPreuve(preuveId: string, contexte: ContexteTableau): string | null 
   return `la preuve « ${preuveId} » est retirée ou archivée`;
 }
 
+/** Mots trop courants pour prouver qu'une ligne de preuve reprend le texte dit (FIX-TABLEAU-PREUVE-CHOISIE). */
+const MOTS_VIDES_PREUVE = new Set("avant apres plus tout toute tous sans avec pour dans chez leur leurs elle elles vous nous votre vos sont font fait cette ces".split(" "));
+
+const motsNormalises = (t: string): string[] =>
+  t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+/**
+ * Vrai si la ligne d'une preuve ne dit que ce que dit le texte : un sigle ou un nom en capitales (« MIT ») absent du
+ * texte la refuse ; sinon plus de la moitié de ses mots pleins (4 lettres ou plus, hors chiffres et mots courants)
+ * doivent avoir leurs 4 premières lettres parmi celles des mots du texte dit. Fonction pure.
+ */
+export function ligneDePreuveReprise(ligne: string, texteDit: string): boolean {
+  const corps = ligne.replace(/^\s*(avant|après|apres)\s*:\s*/iu, "");
+  const dits = new Set(motsNormalises(texteDit));
+  const debuts = new Set([...dits].map((m) => m.slice(0, 4)));
+  const sigles = (corps.match(/[\p{L}\p{N}]+/gu) ?? []).filter((m) => /^\p{Lu}[\p{Lu}\p{N}]+$/u.test(m) && /\p{Lu}{2}/u.test(m));
+  if (sigles.some((m) => !motsNormalises(m).every((x) => dits.has(x)))) return false;
+  const pleins = motsNormalises(corps).filter((m) => m.length >= 4 && !/\d/.test(m) && !MOTS_VIDES_PREUVE.has(m));
+  if (!pleins.length) return true;
+  return pleins.filter((m) => debuts.has(m.slice(0, 4))).length * 2 > pleins.length;
+}
+
 export function reglePreuveValidee(fiche: FicheTableau, contexte: ContexteTableau): Manquement[] {
   const res: Manquement[] = [];
-  let bonne = false;
+  const texteDit = fiche.scenes.map((s) => s.texteDit).join(" ");
+  // 18/11 (règle du 17/11, Williams) : aucune preuve n'est imposée ; une preuve n'écrit que ce que le texte dit.
   for (const s of fiche.scenes) {
     for (const e of s.elements) {
       if (e.type !== "preuve") continue;
       const etat = etatPreuve(e.preuveId, contexte);
-      if (etat) res.push({ sceneId: s.id, detail: `${etat} ; seule une preuve validée et non périmée s'affiche.` });
-      else if (s.role === "preuve") bonne = true;
+      if (etat) {
+        res.push({ sceneId: s.id, detail: `${etat} ; seule une preuve validée et non périmée s'affiche.` });
+        continue;
+      }
+      if (fiche.habillage === STYLE_REF3) {
+        for (const l of e.lignes) {
+          if (!ligneDePreuveReprise(l, texteDit)) res.push({ sceneId: s.id, detail: `la preuve écrit « ${l} », que le texte dit ne dit pas : une preuve n'écrit que ce que dit le script (règle du 17/11).` });
+        }
+      }
+      // Le texte dit cite cette preuve (toutes ses lignes reprises) : elle doit alors avoir sa scène « preuve ».
+      // (le texte de l'utilisateur est exempté de ce seul contrôle, pas de celui des lignes ci-dessus)
+      if (!contexte.texteDeWill && s.role !== "preuve" && e.lignes.length && e.lignes.every((l) => ligneDePreuveReprise(l, texteDit))) {
+        res.push({ sceneId: s.id, detail: "le texte dit cite cette preuve, mais la scène n'est pas une scène « preuve » ; une preuve citée se montre à l'écran." });
+      }
     }
-  }
-  // Texte dit de Will : pas de scène « preuve » imposée (le texte est pris à l'identique, on n'invente pas de preuve). Une fiche de Claude reste refusée.
-  if (!bonne && !res.length && !contexte.texteDeWill) {
-    res.push({ detail: "aucune scène « preuve » ne montre une preuve validée et non périmée ; une vidéo montre sa preuve à l'écran." });
   }
   return res;
 }
