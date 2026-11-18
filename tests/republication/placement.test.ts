@@ -142,6 +142,18 @@ describe("L8-11b : refus sans aucune écriture", () => {
     expect(await refuse(m, demande())).toEqual(["Ce jour est déjà occupé sur ce réseau : choisissez un autre jour."]);
   });
 
+  it("une publication réelle programmée le même jour occupe le jour : refus", async () => {
+    const m = monde(NOW, [pub(), pub({ id: "pub-2", statut: "programmee", via: "manuel", date: "2026-12-10T14:00:00.000Z", videoId: "video-2" })]);
+    expect(await refuse(m, demande())).toEqual(["Ce jour est déjà occupé sur ce réseau : choisissez un autre jour."]);
+  });
+
+  it("une publication simulée le même jour n'occupe pas le jour : création acceptée", async () => {
+    const m = monde(NOW, [pub(), pub({ id: "pub-2", statut: "programmee", via: "simulation", date: "2026-12-10T14:00:00.000Z", videoId: "video-2" })]);
+    await m.prets;
+    const r = await creerNouvelleVersion(m.deps, demande());
+    expect(r.ok && r.creneau.statut).toBe("a_valider");
+  });
+
   it("écart L3-15 trop court (veille proche, jour différent)", async () => {
     const m = monde();
     await m.prets;
