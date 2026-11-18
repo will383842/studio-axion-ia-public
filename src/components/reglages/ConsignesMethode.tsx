@@ -10,7 +10,7 @@ import type { ConsigneMethode } from "@/domaine/kb-site";
  * interne, montrée avec son identifiant : aucun bouton d'utilisation, de reprise ou de proposition.
  * Les textes arrivent déjà sans montant.
  */
-export function ConsignesMethode({ allumee }: { allumee: boolean }) {
+export function ConsignesMethode({ allumee, branchee }: { allumee: boolean; branchee: boolean }) {
   const [sujet, setSujet] = useState("");
   const [consignes, setConsignes] = useState<ConsigneMethode[]>([]);
   const [message, setMessage] = useState("");
@@ -25,6 +25,7 @@ export function ConsignesMethode({ allumee }: { allumee: boolean }) {
   }
 
   if (!allumee) return <p className="rounded-2xl border border-trait p-4 text-sm text-texte-doux">Méthode éteinte. Allumez « Lire la Méthode du site » pour la consulter.</p>;
+  if (!branchee) return <p className="rounded-2xl border border-trait p-4 text-sm text-texte-doux">La Méthode n&apos;est pas consultée pour l&apos;instant.</p>;
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border border-trait p-4" aria-label="Lire la Méthode du site">
@@ -44,7 +45,7 @@ export function ConsignesMethode({ allumee }: { allumee: boolean }) {
           aria-label="Sujet"
           className="min-h-11 min-w-0 flex-1 rounded-full border border-trait-fort bg-surface-1 px-4 text-texte"
         />
-        <Bouton type="submit" chargement={lecture} disabled={sujet.trim().length < 2}>
+        <Bouton type="submit" variante="secondaire" chargement={lecture} disabled={sujet.trim().length < 2}>
           Lire la Méthode
         </Bouton>
       </form>

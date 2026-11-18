@@ -88,7 +88,7 @@ export default async function PageReglagesBaseConnaissances() {
               {methode.allumee ? "Éteindre" : "Allumer"}
             </button>
           </form>
-          <ConsignesMethode allumee={methode.allumee && methode.adresse && methode.secret} />
+          <ConsignesMethode allumee={methode.allumee} branchee={methode.adresse && methode.secret} />
         </li>
         <li className="flex flex-col gap-2 rounded-2xl border border-trait p-4">
           <div className="flex items-center justify-between gap-3">

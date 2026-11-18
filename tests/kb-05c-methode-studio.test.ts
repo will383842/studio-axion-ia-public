@@ -389,6 +389,7 @@ describe("critère 7 — jamais une preuve ni un texte publiable", () => {
     expect(src).toContain("Lire la Méthode");
     expect(src).toMatch(/\.slug/);
     expect(src).not.toContain(E);
+    expect(src).toMatch(/variante="secondaire"/);
   });
   it("seuls les 5 fichiers de la fiche importent lireMethodeSite, ConsigneMethode ou lectureMethodeDisponible", () => {
     const permis = new Set(["src/domaine/kb-site.ts", "src/services/kb-site.ts", "src/app/(studio)/reglages/base-connaissances/actions.ts", "src/app/(studio)/reglages/base-connaissances/page.tsx", "src/components/reglages/ConsignesMethode.tsx"]);
@@ -408,9 +409,18 @@ describe("critère 1 — client unique", () => {
     expect(src).toContain("export async function chercherFaitsSite");
     expect(src).toContain("CHEMIN_METHODE_SITE");
   });
-  it("aucun autre service ne fait de fetch vers le site (SITE_KB_URL / METHODE_STUDIO_SECRET)", () => {
-    const hors = fichiersSrc().filter((f) => f !== "src/services/kb-site.ts" && f !== "src/services/preuves.ts" && /METHODE_STUDIO_SECRET/.test(lire(f)));
-    expect(hors).toEqual([]);
+  it("aucun autre fichier de src/** ne lit le secret, ni ne combine l'adresse du site avec un fetch", () => {
+    const secret = fichiersSrc().filter((f) => f !== "src/services/kb-site.ts" && /METHODE_STUDIO_SECRET/.test(lire(f)));
+    expect(secret).toEqual([]);
+    const fetchSite = fichiersSrc().filter((f) => f !== "src/services/kb-site.ts" && /SITE_KB_URL/.test(lire(f)) && /\bfetch\b/.test(lire(f)));
+    expect(fetchSite).toEqual([]);
+  });
+  it("l'écran sans adresse ou secret ne dit pas « éteinte » et ne demande pas d'allumer", () => {
+    const src = lire("src/components/reglages/ConsignesMethode.tsx");
+    expect(src).toContain("Méthode éteinte.");
+    expect(src).toContain("pas consultée pour l&apos;instant");
+    expect(src).toMatch(/!branchee/);
+    expect(lire("src/app/(studio)/reglages/base-connaissances/page.tsx")).toMatch(/branchee=\{methode\.adresse && methode\.secret\}/);
   });
   it("le secret est lu dans l'environnement, jamais en base", () => {
     const src = lire("src/services/kb-site.ts");
