@@ -139,11 +139,11 @@ export function phraseEtat(entree: Pick<EntreeFiche, "etat" | "jour" | "heure" |
     case "publie":
       return PHRASES_VERROU.publiee;
     case "a_corriger":
-      return entree.envoiAbsent ? "L'envoi n'est pas arrivé jusqu'à Buffer. Rien n'est parti." : "Le réseau l'a refusée. Rien n'est parti.";
+      return entree.envoiAbsent ? "L'envoi n'est pas arrivé jusqu'au diffuseur. Rien n'est parti." : "Le réseau l'a refusée. Rien n'est parti.";
     case "en_cours":
       return "Un envoi est en cours. Attendez sa fin avant de modifier.";
     case "brouillon_buffer":
-      return "Brouillon déposé dans Buffer. Rien ne part tant que vous ne l'avez pas validé là-bas.";
+      return "Brouillon déposé chez le diffuseur. Rien ne part tant que vous ne l'avez pas validé là-bas.";
     case "idee":
       return "Idée de l'IA. Elle ne partira jamais sans vous.";
     case "brouillon":

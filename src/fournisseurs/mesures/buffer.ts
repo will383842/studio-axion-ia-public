@@ -57,7 +57,7 @@ function nombre(x: unknown): number | undefined {
 
 /** Statistiques d'une publication Buffer → valeurs du studio (PUR). Une statistique absente reste absente. */
 export function statsDepuisPostBuffer(post: unknown): StatistiquesBuffer {
-  if (!post || typeof post !== "object") throw new ErreurMesure("illisible", "Buffer n'a pas renvoyé cette publication.");
+  if (!post || typeof post !== "object") throw new ErreurMesure("illisible", "L'ancien outil n'a pas renvoyé cette publication.");
   const p = post as Record<string, unknown>;
   const brut = p.metrics ?? p.statistics ?? p.analytics;
   const table = new Map<string, number>();
@@ -97,7 +97,7 @@ export function statsDepuisPostBuffer(post: unknown): StatistiquesBuffer {
 /** Réponse GraphQL complète → statistiques (erreurs GraphQL comprises). */
 export function statsDepuisReponseBuffer(reponse: unknown): StatistiquesBuffer {
   const r = reponse as { data?: { post?: unknown }; errors?: { message?: string }[] } | null;
-  if (r?.errors?.length) throw new ErreurMesure("illisible", "Buffer n'a pas pu lire cette publication.");
+  if (r?.errors?.length) throw new ErreurMesure("illisible", "L'ancien outil n'a pas pu lire cette publication.");
   return statsDepuisPostBuffer(r?.data?.post);
 }
 
@@ -117,8 +117,8 @@ export function creerLecteurBuffer(env: Env = process.env, appeler: Fetch = fetc
   return {
     mode: "reel",
     async lire(idExterne) {
-      if (!/^[A-Za-z0-9_-]{6,64}$/.test(idExterne)) throw new ErreurMesure("illisible", "Identifiant Buffer illisible.");
-      const rep = await lireJsonPost(appeler, URL_BUFFER, cle, { query: REQUETE_POST_BUFFER, variables: { id: idExterne } }, "Buffer");
+      if (!/^[A-Za-z0-9_-]{6,64}$/.test(idExterne)) throw new ErreurMesure("illisible", "Identifiant de l'ancien outil illisible.");
+      const rep = await lireJsonPost(appeler, URL_BUFFER, cle, { query: REQUETE_POST_BUFFER, variables: { id: idExterne } }, "L'ancien outil");
       return statsDepuisReponseBuffer(rep);
     },
   };

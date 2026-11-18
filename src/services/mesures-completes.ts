@@ -44,11 +44,11 @@ import { versionsExemplesAvantPublication, videosExemplesMesurees } from "./mesu
 
 /** Définitions écrites avec un relevé importé de Buffer (B.8 §2). */
 export const DEFINITIONS_BUFFER: Readonly<Record<string, string>> = {
-  vues: "Vues relevées par Buffer (statistique du réseau, rafraîchie environ une fois par jour).",
-  portee: "Personnes atteintes, relevées par Buffer.",
-  likes: "Réactions relevées par Buffer.",
-  commentaires: "Commentaires relevés par Buffer.",
-  partages: "Partages relevés par Buffer.",
+  vues: "Vues relevées sur le réseau (statistique rafraîchie environ une fois par jour).",
+  portee: "Personnes atteintes, relevées sur le réseau.",
+  likes: "Réactions relevées sur le réseau.",
+  commentaires: "Commentaires relevés sur le réseau.",
+  partages: "Partages relevés sur le réseau.",
   partagesParPortee: "Partages ÷ personnes atteintes × 100 (%), calculé.",
 };
 
@@ -389,7 +389,7 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
   else if (bilan.zernio.pasPretes) bilan.zernio.message = LIBELLE_PAS_PRETES;
   else if (bilan.zernio.nonLisibles) bilan.zernio.message = LIBELLE_NON_LISIBLE;
   if (gele) bilan.buffer.message = "L'ancien outil est gelé : ses chiffres ne sont plus relus (les relevés déjà gardés restent).";
-  if (bilan.buffer.ajoutees || bilan.visites.ajoutees || bilan.zernio.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par Buffer, ${bilan.zernio.ajoutees} lus chez Zernio, ${bilan.visites.ajoutees} par lien suivi, ${bilan.zernio.requetes} requêtes chez le diffuseur`);
+  if (bilan.buffer.ajoutees || bilan.visites.ajoutees || bilan.zernio.ajoutees) await journaliser("mesure", `Chiffres mis à jour : ${bilan.buffer.ajoutees} par l'ancien outil, ${bilan.zernio.ajoutees} lus chez Zernio, ${bilan.visites.ajoutees} par lien suivi, ${bilan.zernio.requetes} requêtes chez le diffuseur`);
   return bilan;
 }
 
