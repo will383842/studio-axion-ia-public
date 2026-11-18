@@ -105,7 +105,6 @@ export function lireRepertoireZip(octets: Uint8Array): LectureRepertoire {
       } catch {
         nom = String.fromCharCode(...nomOctets); // nom non UTF-8 : lu octet par octet, les contrôles seront refusés plus loin
       }
-      const unix = hote === 3;
       entrees.push({
         nom,
         nomOctets,
@@ -115,7 +114,7 @@ export function lireRepertoireZip(octets: Uint8Array): LectureRepertoire {
         tailleDecompressee: td,
         crc,
         decalageLocal: local,
-        estLien: unix && ((attrExterne >>> 16) & 0o170000) === 0o120000,
+        estLien: ((attrExterne >>> 16) & 0o170000) === 0o120000, // quel que soit l'hôte (Unix 3, macOS 19…)
         estDossier: nom.endsWith("/"),
       });
       p += 46 + ln + le + lc;
@@ -207,8 +206,24 @@ function ligneDe(texte: string, decalage: number): number {
 }
 
 /** Une référence (src, href, url(), @import…) est-elle hors du dossier de la maquette ? Retourne le motif ou null. */
+const ENTITES_NOMMEES: Record<string, string> = {
+  colon: ":", sol: "/", bsol: "\\", tab: "\t", newline: "\n", amp: "&", quot: '"', apos: "'", lpar: "(", rpar: ")",
+  period: ".", comma: ",", semi: ";", lt: "<", gt: ">", num: "#", quest: "?", equals: "=", percnt: "%", excl: "!",
+};
+
+/** Décode les entités HTML (`&#104;`, `&#x68;`, `&colon;`…) comme le fait le navigateur dans un attribut. */
+export function decoderEntites(valeur: string): string {
+  return valeur.replace(/&(?:#x([0-9a-f]{1,6})|#(\d{1,7})|([a-z]{2,8}));?/gi, (tout, hex?: string, dec?: string, nom?: string) => {
+    if (hex !== undefined || dec !== undefined) {
+      const n = hex !== undefined ? parseInt(hex, 16) : Number(dec);
+      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "";
+    }
+    return ENTITES_NOMMEES[(nom ?? "").toLowerCase()] ?? tout;
+  });
+}
+
 function referenceInterdite(valeur: string): string | null {
-  const v = valeur.trim().replace(/[\u0000-\u0020]/g, "").toLowerCase();
+  const v = decoderEntites(valeur).trim().replace(/[\u0000-\u0020]/g, "").toLowerCase();
   if (v === "" || v.startsWith("#")) return null;
   if (/^(https?|wss?|ftp):/.test(v) || v.startsWith("//")) return "adresse externe";
   if (v.startsWith("data:")) return v.startsWith("data:image/") ? null : "données « data: » hors image";
@@ -225,7 +240,8 @@ const MOTIFS_JS: readonly { re: RegExp; motif: string }[] = [
   { re: /\bEventSource\b/g, motif: "appel réseau « EventSource »" },
   { re: /\bsendBeacon\b/g, motif: "appel réseau « sendBeacon »" },
   { re: /\bimportScripts\b/g, motif: "chargement de script « importScripts »" },
-  { re: /\beval\s*\(/g, motif: "code évalué « eval( »" },
+  { re: /\beval\b/g, motif: "code évalué « eval »" },
+  { re: /\bFunction\b/g, motif: "code évalué « Function »" },
   { re: /\bnew\s+Function\b/g, motif: "code évalué « new Function »" },
   { re: /\bserviceWorker\b/g, motif: "« serviceWorker »" },
   { re: /\bimport\s*\(/g, motif: "import dynamique « import( »" },
@@ -246,6 +262,15 @@ function verifierJs(chemin: string, texte: string, base: number, source: string,
 }
 
 function verifierCss(chemin: string, texte: string, base: number, source: string, refus: RefusMaquette[]): void {
+  for (const m of texte.matchAll(/url\(([^)]*)\)/gi)) {
+    if ((m[1] ?? "").includes("\\")) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "url( ) : barre oblique inverse (adresse masquée)" });
+  }
+  for (const m of texte.matchAll(/(?:-webkit-)?image-set\(([^;{}]*)/gi)) {
+    for (const c of (m[1] ?? "").matchAll(/"([^"]*)"|'([^']*)'|url\(\s*([^)\s"']*)/gi)) {
+      const motif = referenceInterdite(c[1] ?? c[2] ?? c[3] ?? "");
+      if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `image-set( ) : ${motif}` });
+    }
+  }
   for (const m of texte.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)/gi)) {
     const motif = referenceInterdite(m[1] ?? m[2] ?? m[3] ?? "");
     if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `url( ) : ${motif}` });
@@ -272,13 +297,25 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
         for (const m of texte.matchAll(/<\s*(iframe|object|embed|base|frame|frameset|applet)\b/gi)) {
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: `balise interdite <${m[1]!.toLowerCase()}>` });
         }
+        for (const m of texte.matchAll(/<[a-z][^>]*?\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
+          for (const a of m[0].matchAll(/\son[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
+            const code = decoderEntites(a[1] ?? a[2] ?? a[3] ?? "");
+            verifierJs(chemin, code, (m.index ?? 0) + (a.index ?? 0), texte, refus);
+          }
+        }
+        for (const m of texte.matchAll(/<script\b([^>]*)>/gi)) {
+          const src = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/i.exec(m[1] ?? "");
+          if (!src) continue;
+          const valeur = decoderEntites(src[1] ?? src[2] ?? src[3] ?? "").trim().split(/[?#]/)[0] ?? "";
+          if (!valeur.toLowerCase().endsWith(".js")) refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "script src : le fichier doit finir par « .js »" });
+        }
         for (const m of texte.matchAll(/<meta\b[^>]*http-equiv\s*=\s*["']?\s*refresh/gi)) {
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "redirection automatique « refresh »" });
         }
         for (const m of texte.matchAll(/<form\b[^>]*\baction\s*=/gi)) {
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "formulaire avec « action »" });
         }
-        for (const m of texte.matchAll(/\b(src|href|action|formaction|poster|srcset|data|xlink:href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
+        for (const m of texte.matchAll(/\b(src|href|action|formaction|poster|srcset|data|xlink:href|ping|background|manifest|codebase)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
           const valeur = m[2] ?? m[3] ?? m[4] ?? "";
           const motif = (m[1]!.toLowerCase() === "srcset" ? valeur.split(",").map((s) => s.trim().split(/\s+/)[0] ?? "") : [valeur])
             .map(referenceInterdite)
@@ -302,6 +339,8 @@ export interface Detection {
   /** Décalages dans le texte entier (début inclus, fin exclue). */
   debut: number;
   fin: number;
+  /** Valeur JSON non chaîne (nombre) : le remplacement est mis entre guillemets pour garder un JSON valide. */
+  nu?: boolean;
 }
 export interface OptionsDonnees {
   /** Chemin du fichier : `.csv` et `.json` déclenchent la détection par colonne. */
@@ -388,15 +427,51 @@ function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined):
   return mots.length > 0 && mots.every((m) => lower.has(minuscule(m)));
 }
 
-function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number }[] {
-  const trouves: { debut: number; fin: number }[] = [];
+function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
+  const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
   if (ext === "json") {
-    for (const m of texte.matchAll(/"([^"\\]*)"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) {
+    const ESPACE = /\s/;
+    /** Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `i` ; retourne la fin. */
+    const collecter = (i: number): number => {
+      while (i < texte.length && ESPACE.test(texte[i]!)) i++;
+      const c = texte[i];
+      if (c === '"') {
+        let j = i + 1;
+        while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
+        if (!valeurNeutre(texte.slice(i + 1, j), neutres)) trouves.push({ debut: i + 1, fin: j });
+        return j + 1;
+      }
+      if (c === "[" || c === "{") {
+        const fermant = c === "[" ? "]" : "}";
+        let j = i + 1;
+        while (j < texte.length) {
+          while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
+          if (texte[j] === fermant || j >= texte.length) return j + 1;
+          if (c === "{") {
+            // clé : on la saute, puis la valeur
+            if (texte[j] !== '"') return j + 1;
+            j++;
+            while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
+            j++;
+            while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
+          }
+          const suite = collecter(j);
+          if (suite <= j) return j + 1;
+          j = suite;
+        }
+        return j;
+      }
+      const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(i, i + 40));
+      if (nombre) {
+        // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
+        trouves.push({ debut: i, fin: i + nombre[0].length, nu: true });
+        return i + nombre[0].length;
+      }
+      return i + 1; // true, false, null…
+    };
+    for (const m of texte.matchAll(/"((?:[^"\\]|\\.)*)"\s*:\s*/g)) {
       if (!COLONNES_PERSONNE.has(m[1]!.toLowerCase())) continue;
-      if (valeurNeutre(m[2]!, neutres)) continue;
-      const fin = (m.index ?? 0) + m[0].length - 1;
-      const debut = fin - m[2]!.length;
-      trouves.push({ debut, fin });
+      collecter((m.index ?? 0) + m[0].length);
     }
     return trouves;
   }
@@ -421,9 +496,9 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
 
 /** Détecte les données de personnes. Ne retourne jamais la valeur trouvée, seulement sa place. */
 export function detecterDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): Detection[] {
-  const bruts: { type: TypeDonnee; debut: number; fin: number }[] = [];
+  const bruts: { type: TypeDonnee; debut: number; fin: number; nu?: boolean }[] = [];
   try {
-    for (const m of texte.matchAll(/[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})/g)) {
+    for (const m of texte.matchAll(/(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,})/gu)) {
       if (!DOMAINES_EXEMPLE.has(m[1]!.toLowerCase())) bruts.push({ type: "courriel", debut: m.index ?? 0, fin: (m.index ?? 0) + m[0].length });
     }
     for (const m of texte.matchAll(/(?<![A-Za-z0-9])FR\d{2}(?:[ ]?[A-Za-z0-9]){23}(?![A-Za-z0-9])/gi)) {
@@ -464,7 +539,7 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
 export function masquerDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): { texte: string; remplacements: { type: TypeDonnee; nombre: number }[] } {
   const trouvees = detecterDonneesPersonnelles(texte, options);
   let numero = 0;
-  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? `Personne exemple ${++numero}` : REMPLACEMENTS[d.type] }));
+  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type] }));
   let sortie = "";
   let curseur = 0;
   for (const { d, par } of remplaces) {

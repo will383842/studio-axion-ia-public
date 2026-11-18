@@ -130,11 +130,12 @@ export async function extraireZipSur(
       return fermer(...lecture.refus);
     }
     const verdict = verifierEntreesZip(lecture.entrees);
-    rapport.ignores.push(...verdict.ignores);
     if (!verdict.ok) {
       await noter(`Dossier refusé : ${verdict.refus.length} motif(s) sur les entrées.`);
       return fermer(...verdict.refus);
     }
+    // Noms écourtés (60 caractères, sans caractère de contrôle) et poussés seulement après le verdict.
+    rapport.ignores.push(...verdict.ignores.map(court));
 
     const bruts = new Map<string, Uint8Array>();
     const refus: string[] = [];

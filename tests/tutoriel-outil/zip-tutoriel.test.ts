@@ -206,7 +206,7 @@ describe("masquage des données, jamais du script", () => {
   it("une donnée dans une maquette ou un csv est masquée et listée sans la valeur", async () => {
     ALLUME();
     const r = await entree([
-      { nom: "index.html", donnees: u8("<p>Écrire à jean@societe.fr</p>") },
+      { nom: "index.html", donnees: u8("<p>Écrire à jean@exemple.invalid</p>") },
       { nom: "clients.csv", donnees: u8("nom,ville\nMartin,Lyon\n") },
       { nom: "demo-data.js", donnees: u8("window.t = 1;") },
     ]);
@@ -219,9 +219,9 @@ describe("masquage des données, jamais du script", () => {
       { chemin: "index.html", type: "courriel", nombre: 1 },
       { chemin: "clients.csv", type: "colonne-personne", nombre: 1 },
     ]);
-    expect(JSON.stringify(r.rapport)).not.toContain("societe");
+    expect(JSON.stringify(r.rapport)).not.toContain("exemple.invalid");
     expect(JSON.stringify(r.rapport)).not.toContain("Martin");
-    expect(journal.join(" ")).not.toMatch(/societe|Martin/);
+    expect(journal.join(" ")).not.toMatch(/exemple\.invalid|Martin/);
   });
   it("un téléphone dans le script : refus, jamais masqué, jamais recopié", async () => {
     ALLUME();
@@ -329,7 +329,7 @@ describe("aucune écriture disque", () => {
     ALLUME();
     await entree(SAINE);
     await entree([...SAINE, { nom: "../x.js", donnees: u8("x") }]);
-    await entree([{ nom: "index.html", donnees: u8("jean@societe.fr") }]);
+    await entree([{ nom: "index.html", donnees: u8("jean@exemple.invalid") }]);
     expect(ecritures).toEqual([]);
   });
   it("le texte source n'importe ni node:fs ni de stockage", async () => {
@@ -338,5 +338,28 @@ describe("aucune écriture disque", () => {
     expect(src).not.toMatch(/from\s+["']node:(fs|child_process|net|http|https|dns)/);
     expect(src).not.toMatch(/\b(executerRole|appelerAvecRotation)\b/);
     expect(src).not.toContain("lireZip");
+  });
+});
+
+describe("rapport.ignores : noms courts, rien avant le verdict", () => {
+  it("nom ignoré de plus de 60 caractères : coupé à 60 dans le rapport", async () => {
+    ALLUME();
+    const long = `__MACOSX/${"a".repeat(80)}`;
+    const r = await entree([...SAINE, { nom: long, donnees: u8("x") }]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const nom = r.rapport.ignores.find((n) => n.startsWith("__MACOSX/aaa"));
+    expect(nom).toBeDefined();
+    expect(nom!.length).toBeLessThanOrEqual(61);
+    expect(r.rapport.ignores.join("")).not.toContain("a".repeat(70));
+  });
+  it("nom piégé (long, avec \\u001b) : archive refusée, aucun nom brut dans le rapport", async () => {
+    ALLUME();
+    const piege = `__MACOSX/${"b".repeat(80)}\u001b[31m`;
+    const r = await entree([...SAINE, { nom: piege, donnees: u8("x") }]);
+    expect(r.ok).toBe(false);
+    expect(r.rapport.ignores).toEqual([]);
+    expect(JSON.stringify(r.rapport)).not.toContain("\u001b");
+    expect(JSON.stringify(r)).not.toContain("b".repeat(70));
   });
 });

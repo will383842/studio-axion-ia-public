@@ -359,7 +359,7 @@ function nirAvecCle(corps13: string): string {
 describe("détection des données de personnes", () => {
   const types = (t: string, chemin?: string) => detecterDonneesPersonnelles(t, chemin ? { chemin } : {}).map((d) => d.type);
   it("courriel détecté ; domaines d'exemple permis", () => {
-    expect(types("écrire à jean.dupont@societe.fr")).toEqual(["courriel"]);
+    expect(types("écrire à jean.dupont@exemple.invalid")).toEqual(["courriel"]);
     for (const d of ["exemple.fr", "exemple.com", "example.com", "example.org", "Exemple.FR"]) expect(types(`contact@${d}`)).toEqual([]);
   });
   it("téléphone FR : 0…, +33…, séparateurs ; pas un numéro trop court ou trop long", () => {
@@ -409,7 +409,7 @@ describe("détection des données de personnes", () => {
 
 describe("masquage", () => {
   it("remplace chaque type par son texte d'exemple, de façon déterministe", () => {
-    const t = `Mail jean@societe.fr tel 06 12 34 56 78 iban ${IBAN_OK} carte 4111 1111 1111 1111 nir ${nirAvecCle("1850575012345")}`;
+    const t = `Mail jean@exemple.invalid tel 06 12 34 56 78 iban ${IBAN_OK} carte 4111 1111 1111 1111 nir ${nirAvecCle("1850575012345")}`;
     const a = masquerDonneesPersonnelles(t);
     const b = masquerDonneesPersonnelles(t);
     expect(a).toEqual(b);
@@ -417,7 +417,7 @@ describe("masquage", () => {
     expect(a.remplacements.map((r) => r.type).sort()).toEqual(["carte", "courriel", "iban", "nir", "telephone"]);
   });
   it("le résultat masqué ne contient plus rien à détecter (idempotent)", () => {
-    const t = `jean@societe.fr 06 12 34 56 78 ${IBAN_OK} 4111 1111 1111 1111 ${nirAvecCle("1850575012345")}`;
+    const t = `jean@exemple.invalid 06 12 34 56 78 ${IBAN_OK} 4111 1111 1111 1111 ${nirAvecCle("1850575012345")}`;
     const m = masquerDonneesPersonnelles(t).texte;
     expect(detecterDonneesPersonnelles(m)).toEqual([]);
     expect(masquerDonneesPersonnelles(m).texte).toBe(m);
@@ -463,5 +463,67 @@ describe("images (modèle écran fourni)", () => {
   it("une valeur truthy qui n'est pas true : écartées", () => {
     expect(trierImages(chemins, 1 as unknown as boolean).gardees).toEqual([]);
     expect(trierImages(chemins, "true" as unknown as boolean).gardees).toEqual([]);
+  });
+});
+
+describe("verdict Opus : maquette, courriels, JSON, liens", () => {
+  const h = (texte: string) => verifierMaquette([{ chemin: "index.html", texte }]);
+  const c = (texte: string) => verifierMaquette([{ chemin: "styles.css", texte }]);
+  const refuses: [string, string][] = [
+    ["onload fetch", `<body onload="fetch('https://exemple.invalid/x')"></body>`],
+    ["onerror sendBeacon", `<img src="a.png" onerror="navigator.sendBeacon('x')">`],
+    ["onclick sans guillemets", `<a href="#" onclick=eval(1)>x</a>`],
+    ["href entité décimale", `<a href="&#104;ttps://exemple.invalid/a">x</a>`],
+    ["src entités //", `<script src="&#47;&#47;exemple.invalid/a.js"></script>`],
+    ["href &colon;", `<a href="https&colon;//exemple.invalid">x</a>`],
+    ["(0,eval)", `<script>(0,eval)("1")</script>`],
+    ["Function()", `<script>Function("return 1")()</script>`],
+    ["ping", `<a href="#" ping="https://exemple.invalid/p">x</a>`],
+    ["background", `<body background="https://exemple.invalid/b.png"></body>`],
+    ["manifest", `<html manifest="https://exemple.invalid/m"></html>`],
+    ["codebase", `<div codebase="https://exemple.invalid/"></div>`],
+    ["script src sans .js", `<script src="data.json"></script>`],
+    ["script src .js.txt", `<script src="app.js.txt"></script>`],
+  ];
+  for (const [nom, html] of refuses) {
+    it(`html refusé : ${nom}`, () => {
+      expect(h(html).ok, nom).toBe(false);
+    });
+  }
+  it("html permis : script src .js local et gestionnaire inoffensif", () => {
+    expect(h(`<script src="app.js?v=1"></script><button onclick="ouvrir()">x</button>`).ok).toBe(true);
+  });
+  it("css refusé : image-set, -webkit-image-set, url( avec barre oblique inverse", () => {
+    expect(c(`a{background:image-set("https://exemple.invalid/a.png" 1x)}`).ok).toBe(false);
+    expect(c(`a{background:-webkit-image-set(url(https://exemple.invalid/a.png) 1x)}`).ok).toBe(false);
+    expect(c(`a{background:url(ht\\74 tps://exemple.invalid/a.png)}`).ok).toBe(false);
+    expect(c(`a{background:url("ht\\74 tps://exemple.invalid/a.png")}`).ok).toBe(false);
+    expect(c(`a{background:image-set("img/a.png" 1x)}`).ok).toBe(true);
+  });
+
+  it("courriel avec accents : masqué en entier, rien ne fuit", () => {
+    const m = masquerDonneesPersonnelles("Écrire à jérôme@gmail.com");
+    expect(m.texte).toBe("Écrire à contact@exemple.fr");
+    expect(m.texte).not.toContain("jérô");
+    const n = masquerDonneesPersonnelles("jean@société.fr");
+    expect(n.remplacements).toEqual([{ type: "courriel", nombre: 1 }]);
+    expect(n.texte).not.toContain("société");
+    expect(n.texte).toBe("contact@exemple.fr");
+  });
+
+  it("clés de personne avec tableau ou nombre : détectées et masquées en JSON valide", () => {
+    for (const j of ['{"nom": ["Jean Dupont"]}', '{"telephone": 612345678}', '{"adresse": {"rue": "1 rue X", "cp": 69000}}']) {
+      expect(detecterDonneesPersonnelles(j, { chemin: "d.json" }).length, j).toBeGreaterThan(0);
+      const m = masquerDonneesPersonnelles(j, { chemin: "d.json" }).texte;
+      expect(() => JSON.parse(m), m).not.toThrow();
+      expect(m).not.toMatch(/Dupont|612345678|rue X|69000/);
+    }
+    expect(detecterDonneesPersonnelles('{"nom": ["Entreprise exemple"], "telephone": null}', { chemin: "d.json" })).toEqual([]);
+  });
+
+  it("lien symbolique : refusé aussi avec l'hôte 19 (macOS)", () => {
+    const r = refus(construire([{ nom: "lien.txt", donnees: u8("/etc/passwd"), hote: 19, attrExterne: (0o120777 << 16) >>> 0 }]));
+    expect(r.join(" ")).toContain("lien symbolique");
+    expect(refus(construire([{ nom: "a.txt", donnees: u8("x"), hote: 19, attrExterne: (0o100644 << 16) >>> 0 }]))).toEqual([]);
   });
 });
