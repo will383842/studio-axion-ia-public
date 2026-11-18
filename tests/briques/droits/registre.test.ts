@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DROITS, TYPES_PIECE, droitValide, trouverDroit } from "../../../src/briques/droits";
 import type { EntreeDroit } from "../../../src/briques/droits";
@@ -59,5 +59,20 @@ describe("registre des droits", () => {
     } finally {
       (DROITS as EntreeDroit[]).pop();
     }
+  });
+
+  it("émojis Fluent (C9-32b) : l'entrée est au registre, MIT, Microsoft, preuve datée, fichier de licence présent", () => {
+    const d = trouverDroit("emoji-fluent");
+    expect(d, "emoji-fluent absent du registre").toBeDefined();
+    expect(d?.type).toBe("icone");
+    expect(d?.licence).toBe("MIT");
+    expect(d?.spdx).toBe("MIT");
+    expect(d?.auteur).toBe("Microsoft Corporation");
+    expect(d?.preuve).toContain("docs/droits/emojis.md");
+    expect(d?.date).toBe("2026-11-17");
+    expect(d?.nbElements).toBe(29);
+    expect(d?.versionFigee).toBe("1ffb34c752ecf5d402f04cfb4b392c77f57c54bc");
+    expect(droitValide("emoji-fluent", "2026-11-18")).toBe(true);
+    expect(existsSync(new URL(`../../../${d?.fichierLicence}`, import.meta.url))).toBe(true);
   });
 });
