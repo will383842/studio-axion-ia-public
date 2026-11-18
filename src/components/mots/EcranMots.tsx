@@ -14,6 +14,7 @@ import { KitLinkedin } from "./KitLinkedin";
 import type { EtatReglagesParcours, ReglageParcours, ResultatReglage } from "@/services/parcours-reglages";
 import type { TableauSuivi } from "./suivi-affichage";
 import { ETATS_MOT, etatGlobalMots, phraseRefus } from "./etat-mots";
+import { useConfirmationDansLaPage } from "./ConfirmationDansLaPage";
 import { creerGestesMotLocal, PHRASE_VALIDER_GUIDE } from "./gestes-mot-local";
 
 const TEXTE_MOTS_MULTIPLES = "Allumé : une même personne peut recevoir plusieurs mots (3 au plus en 24 h) et, si elle redemande un guide déjà envoyé, un renvoi avec un lien neuf. Éteint : un seul mot par personne. Éteindre éteint aussi Instagram.";
@@ -87,6 +88,8 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
   const [enCours, demarrer] = useTransition();
   const [heure, setHeure] = useState(String(vue.plafonds.heureCompte));
   const [jour, setJour] = useState(String(vue.plafonds.jourMot));
+  // Confirmation affichée dans la page (plus de fenêtre du navigateur) : sans « oui », aucun service n'est appelé.
+  const { demander: confirmer, dialogue } = useConfirmationDansLaPage();
   const global = etatGlobalMots({ interrupteurAllume: vue.interrupteurAllume, toutArrete: vue.toutArrete, disjoncteurOuvert: vue.disjoncteur.ouvert });
 
   const apres = (r: Resultat) => {
@@ -96,17 +99,17 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
     onChange?.();
   };
 
-  // Lignes locales : l'opérateur confirme (fenêtre du navigateur) AVANT tout appel ; sans accord, rien ne part.
+  // Lignes locales : l'opérateur confirme (boîte dans la page) AVANT tout appel ; sans accord, rien ne part.
   const apresLocal = (r: Resultat) => {
     if (r.issue === "refuse") {
       notifier.erreur(phraseRefus(r.raison));
       onChange?.();
     } else apres(r);
   };
-  const local = creerGestesMotLocal(services, { confirmer: (phrase) => window.confirm(phrase), apres: apresLocal });
+  const local = creerGestesMotLocal(services, { confirmer, apres: apresLocal });
   const comptesSansLigne = (comptes ?? []).filter((c) => !vue.lignes.some((l) => l.mot === "GUIDE" && l.compte === c));
   const validerGuide = async () => {
-    if (!services.validerGuide || !window.confirm(PHRASE_VALIDER_GUIDE)) return;
+    if (!services.validerGuide || !(await confirmer(PHRASE_VALIDER_GUIDE))) return;
     const r = await services.validerGuide();
     if (r.ok) notifier.succes("Textes du mot GUIDE validés.");
     else notifier.erreur(phraseRefus(r.raison));
@@ -114,7 +117,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
   };
 
   const validerFormulation = async (version: string) => {
-    if (!services.validerFormulation || !window.confirm("Valider cette formulation ? Rien n’est envoyé.")) return;
+    if (!services.validerFormulation || !(await confirmer("Valider cette formulation ? Rien n’est envoyé."))) return;
     const r = await services.validerFormulation(version);
     if (r.ok) notifier.succes("Formulation validée.");
     else notifier.erreur(phraseRefus(r.raison));
@@ -123,7 +126,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
 
   const basculer = async (reglage: ReglageParcours, allume: boolean) => {
     if (!services.reglerParcours) return;
-    if (allume && !window.confirm(reglage === "mots_multiples" ? PHRASE_ALLUMER_MOTS_MULTIPLES : PHRASE_ALLUMER_INSTAGRAM)) return;
+    if (allume && !(await confirmer(reglage === "mots_multiples" ? PHRASE_ALLUMER_MOTS_MULTIPLES : PHRASE_ALLUMER_INSTAGRAM))) return;
     try {
       const r = await services.reglerParcours(reglage, allume);
       if (r.ok) notifier.succes(allume ? "Allumé." : "Éteint.");
@@ -317,6 +320,7 @@ export function EcranMots({ vue, services, onChange, kitLinkedin, branchement, c
           Enregistrer
         </Bouton>
       </Carte>
+      {dialogue}
       {suivi ? <TableauSuiviMots suivi={suivi} /> : suiviIndisponible ? <p role="status" className="text-sm text-texte-doux">Chiffres indisponibles pour l&apos;instant</p> : null}
     </div>
   );

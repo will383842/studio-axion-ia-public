@@ -10,8 +10,8 @@ export interface ServicesMotLocal {
   mettreEnPauseLocal(mot: string, compte: string): Promise<Resultat>;
 }
 export interface AppuiMotLocal {
-  /** Demande son accord à l'opérateur (phrase en français). */
-  confirmer(phrase: string): boolean;
+  /** Demande son accord à l'opérateur (phrase en français) ; la réponse peut venir plus tard (boîte dans la page). */
+  confirmer(phrase: string): boolean | Promise<boolean>;
   /** Résultat du geste, à montrer à l'opérateur. */
   apres(r: Resultat): void;
 }
@@ -23,12 +23,12 @@ export const PHRASE_PAUSE = "Mettre le mot GUIDE en pause pour ce compte ? Plus 
 export function creerGestesMotLocal(services: ServicesMotLocal, appui: AppuiMotLocal) {
   return {
     async activer(compte: string): Promise<boolean> {
-      if (!appui.confirmer(PHRASE_ACTIVER)) return false;
+      if (!(await appui.confirmer(PHRASE_ACTIVER))) return false;
       appui.apres(await services.activerLocal(compte));
       return true;
     },
     async pause(mot: string, compte: string): Promise<boolean> {
-      if (!appui.confirmer(PHRASE_PAUSE)) return false;
+      if (!(await appui.confirmer(PHRASE_PAUSE))) return false;
       appui.apres(await services.mettreEnPauseLocal(mot, compte));
       return true;
     },
