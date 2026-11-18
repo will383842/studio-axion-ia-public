@@ -50,6 +50,23 @@ describe("D5 santeOppositions : fonction pure, cinq états", () => {
     expect(SO.santeOppositions(on, etat({ derniereIssue: "echec" }))).toBe("en-echec");
     expect(SO.santeOppositions(on, etat({ derniereIssue: "non-relie" }))).toBe("en-echec");
   });
+  it("réserve B : « ok » qui vieillit devient « ancien » au-delà de 30 min sans passage ; l'échec reste « en-echec » ; horloge qui recule : « ok »", () => {
+    const on = { OPPOSITIONS_SITE_IMPORT_ENABLED: "1" };
+    const ok = etat({ derniereIssue: "ok", derniereIssueMs: T0 });
+    expect(SO.santeOppositions(on, ok, T0 + 30 * MIN)).toBe("ok");
+    expect(SO.santeOppositions(on, ok, T0 + 30 * MIN + 1)).toBe("ancien");
+    expect(SO.santeOppositions(on, ok, T0 - 5 * MIN)).toBe("ok");
+    expect(SO.santeOppositions(on, etat({ derniereIssue: "echec", derniereIssueMs: T0 }), T0 + 5 * 60 * MIN)).toBe("en-echec");
+    expect(SO.santeOppositions({}, ok, T0 + 5 * 60 * MIN)).toBe("eteint");
+  });
+  it("réserve B dans /api/sante : « ancien » sans effet sur ok, statut 200, aucun nombre", async () => {
+    vi.stubEnv("OPPOSITIONS_SITE_IMPORT_ENABLED", "1");
+    OPP.noterIssueVerificationSite("ok", Date.now() - 31 * MIN);
+    const e = await etatSante(3000, { sonde: sondeRapide });
+    expect(e.oppositions).toBe("ancien");
+    expect(e.ok).toBe(true);
+    expect((await GET()).status).toBe(200);
+  });
   it("ne dépend pas de l'interrupteur du parcours", () => {
     expect(SO.santeOppositions({ PARCOURS_CONVERSATION_ENABLED: "1" }, etat())).toBe("eteint");
   });
@@ -82,26 +99,30 @@ describe("D5 /api/sante : ligne informative", () => {
     OPP.noterIssueVerificationSite("echec", T0);
     OPP.noterIssueVerificationSite("echec", T0 + 1);
     const corps = (await (await GET()).json()) as Record<string, unknown>;
-    expect(["eteint", "jamais-verifie", "ok", "en-echec", "inconnu"]).toContain(corps.oppositions);
+    expect(["eteint", "jamais-verifie", "ok", "ancien", "en-echec", "inconnu"]).toContain(corps.oppositions);
     expect(JSON.stringify(corps)).not.toMatch(/c1_|p1\.|@/);
     for (const [k, v] of Object.entries(corps)) if (/opposition/i.test(k)) expect(typeof v).toBe("string");
     expect(Object.keys(corps).filter((k) => /demande|echec|refus|compteur/i.test(k) && !/travaux|plusVieux/i.test(k))).toEqual([]);
   });
 });
 
-describe("R8 cloche : import éteint ET parcours allumé, une par heure, créneau durable", () => {
-  it("1 cloche, puis 0 à +59 min, puis 1 à +60 min ; un redémarrage simulé à +10 min n'en ajoute pas", async () => {
+describe("R8 / réserve C cloche : import éteint ET parcours allumé, une par 24 heures, créneau durable", () => {
+  it("1 cloche, puis 0 à +59 min et +60 min, 0 à +23 h 59, puis 1 à +24 h ; un redémarrage simulé à +10 min n'en ajoute pas", async () => {
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 });
     expect(await cloches()).toHaveLength(1);
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 59 * MIN });
     expect(await cloches()).toHaveLength(1);
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 60 * MIN });
-    expect(await cloches()).toHaveLength(2);
+    expect(await cloches()).toHaveLength(1);
     SO.reinitialiserSanteOppositions(); // redémarrage : la mémoire de processus est perdue, le créneau durable reste
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 70 * MIN });
+    expect(await cloches()).toHaveLength(1);
+    await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 24 * 60 * MIN - 1 });
+    expect(await cloches()).toHaveLength(1);
+    await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 24 * 60 * MIN });
     expect(await cloches()).toHaveLength(2);
     const p = await Com.lireParametre<any>(SO.PARAM_SANTE_OPPOSITIONS, null);
-    expect(p).toMatchObject({ v: 1, alerteEteintLe: T0 + 60 * MIN });
+    expect(p).toMatchObject({ v: 1, alerteEteintLe: T0 + 24 * 60 * MIN });
   });
   it("au plus un passage par minute (mémoire de processus)", async () => {
     const lire = vi.spyOn(depots().parametres, "obtenir");
@@ -110,7 +131,7 @@ describe("R8 cloche : import éteint ET parcours allumé, une par heure, crénea
     await SO.surveillerOppositions({ env: ETEINT_PARCOURS_ALLUME, maintenantMs: T0 + 30_000 });
     expect(lire.mock.calls.length).toBe(n);
     expect(SO.INTERVALLE_SURVEILLANCE_MS).toBe(60_000);
-    expect(SO.INTERVALLE_ALERTE_SANTE_OPPOSITIONS_MS).toBe(3_600_000);
+    expect(SO.INTERVALLE_ALERTE_SANTE_OPPOSITIONS_MS).toBe(24 * 60 * MIN);
   });
   it("la notification n'est jamais créée sous le verrou ; jamais de push ; message sans nom ni identifiant", async () => {
     let verrou = "";

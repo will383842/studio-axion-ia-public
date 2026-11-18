@@ -245,6 +245,20 @@ describe("R5 pas de réessai en boucle, plafond horaire intact", () => {
     await importer(ENV_ALLUME, T0 + 61 * S);
     expect(OPP.etatVerificationSite()).toMatchObject({ derniereIssue: "ok", echecsConsecutifs: 0 });
   });
+  it("réserve A : un passage qui LÈVE note « echec » et l'erreur remonte comme avant", async () => {
+    await semer("p", "attente_email", { refLienConv: ref(1) });
+    await verdict("p", ENV_ALLUME).catch(() => undefined);
+    await importer(ENV_ALLUME);
+    expect(OPP.etatVerificationSite().derniereIssue).toBe("ok");
+    const obtenir = depots().parametres.obtenir.bind(depots().parametres);
+    vi.spyOn(depots().parametres, "obtenir").mockImplementation(async (id: string) => {
+      if (id === OPP.PARAM_OPPOSITIONS_SITE) throw new Error("base-illisible");
+      return obtenir(id);
+    });
+    OPP.demanderVerificationSite([ref(1)]);
+    await expect(importer(ENV_ALLUME, T0 + 61 * S)).rejects.toThrow("base-illisible");
+    expect(OPP.etatVerificationSite()).toMatchObject({ derniereIssue: "echec", echecsConsecutifs: 1 });
+  });
   it("aucun lot interrogé : l'issue n'est pas notée", async () => {
     await importer(ENV_ALLUME);
     expect(OPP.etatVerificationSite().derniereIssue).toBeNull();
