@@ -255,7 +255,7 @@ describe("PR-B · portée : un seul créneau, jamais de promotion", () => {
     for (const f of ["src/services/promotion-envois.ts", "src/services/import-buffer/promotion.ts"]) expect(source(f)).not.toMatch(/essai-zernio/);
   });
   it("4. isDraft:false sous essai : refus avant appel ; compte du corps différent : refus avant appel ; brouillon du bon compte : permis", async () => {
-    const corps = (isDraft: unknown, accountId: string) => ({ isDraft, platforms: [{ platform: "linkedin", accountId }] }) as never;
+    const corps = (isDraft: unknown, accountId: string) => ({ isDraft, platforms: [{ platform: "linkedin", accountId, platformSpecificData: { organizationUrn: "urn:li:organization:42" } }] }) as never;
     await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps(false, "compte-1")))).rejects.toThrow();
     await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps(undefined, "compte-1")))).rejects.toThrow();
     await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps(true, "compte-3")))).rejects.toThrow();
@@ -448,5 +448,61 @@ describe("PR-B · ce qui ne bouge pas", () => {
     await poserEssai();
     await depots().creneauxEditoriaux.enregistrer({ ...(await depots().creneauxEditoriaux.obtenir("cA")), videoId: "vid_1" } as never);
     expect(await essaiCouvre("cA", "brouillon", T0)).toBe(false);
+  });
+});
+
+describe("Réserves de l'audit · marque d'essai, retrait d'abord, cible complète", () => {
+  const cleA = () => cleEnvoi("vis_1", "linkedin", 0);
+  const putsPromotion = () => faux.appels.filter((a) => a.methode === "PUT");
+
+  it("1. un brouillon d'essai n'est jamais promu par la promotion générale ; un envoi normal l'est", async () => {
+    await poserEssai(ESSAI);
+    await tour();
+    expect(await depots().parametres.obtenir(`envoi-calendrier:essai:${cleA()}`)).toMatchObject({ valeur: expect.any(String) });
+    await poserEssai(null);
+    await ouvrirTout();
+    aller(T0 + 6 * MIN);
+    await tour({ attendre: async () => undefined });
+    const envoiA = (await depots().envoisPlanifies.lister((e) => e.creneauId === "cA"))[0];
+    expect(envoiA.statut).not.toBe("programme");
+    expect(posts.get("post-1")?.status).toBe("draft");
+    expect(putsPromotion().every((a) => !a.url.endsWith("/post-1"))).toBe(true);
+    expect(methodesClient).toContain("promouvoir"); // B, envoi normal, a bien été promu
+    const envoiB = (await depots().envoisPlanifies.lister((e) => e.creneauId === "cB"))[0];
+    expect(envoiB.statut).toBe("programme");
+  });
+
+  it("2. retirer l'essai ou en poser un autre : refusé tant que le brouillon existe chez le diffuseur ; accepté après retrait", async () => {
+    expect((await actions.poserEssaiZernioAction({ creneauId: "cA", dureeHeures: 4 })).ok).toBe(true);
+    await tour();
+    const phrase = "Retirez d'abord le brouillon d'essai chez le diffuseur depuis le calendrier.";
+    const r = await actions.retirerEssaiZernioAction();
+    expect(r).toMatchObject({ ok: false });
+    if (!r.ok) expect(r.message).toContain(phrase);
+    expect((await depots().parametres.obtenir(PARAM_ESSAI_BROUILLON))?.valeur).not.toBeNull();
+    // poser un autre essai après expiration : refusé aussi
+    aller(Date.parse(iso(T0)) + 5 * H);
+    const p = await actions.poserEssaiZernioAction({ creneauId: "cB", dureeHeures: 4 });
+    expect(p.ok).toBe(false);
+    if (!p.ok) expect(p.message).toContain(phrase);
+    // retrait du brouillon depuis le calendrier, puis l'essai peut être retiré
+    aller(T0 + 2 * MIN);
+    expect(await retirerProgrammationServeur("cA")).toMatchObject({ ok: true });
+    expect((await actions.retirerEssaiZernioAction()).ok).toBe(true);
+    expect((await depots().parametres.obtenir(PARAM_ESSAI_BROUILLON))?.valeur).toBeNull();
+  });
+
+  it("2b. aucun brouillon créé : le retrait de l'essai est accepté", async () => {
+    expect((await actions.poserEssaiZernioAction({ creneauId: "cA", dureeHeures: 4 })).ok).toBe(true);
+    expect((await actions.retirerEssaiZernioAction()).ok).toBe(true);
+  });
+
+  it("3. cible complète : même compte, autre page ou autre organisation = refus ; la bonne cible passe", async () => {
+    await poserEssai(ESSAI);
+    const corps = (specifique?: Record<string, unknown>, accountId = "compte-1") => ({ isDraft: true, platforms: [{ platform: "linkedin", accountId, ...(specifique ? { platformSpecificData: specifique } : {}) }] }) as never;
+    await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps({ organizationUrn: "urn:li:organization:99" })))).rejects.toThrow();
+    await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps()))).rejects.toThrow();
+    await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps({ pageId: "42" })))).rejects.toThrow();
+    await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps({ organizationUrn: "urn:li:organization:42" })))).resolves.toBeUndefined();
   });
 });
