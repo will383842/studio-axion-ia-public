@@ -11,6 +11,7 @@ import "server-only";
 import type { CommandeFabrication, LigneCout, Montant, Notification, Plan, Ratio, Sortie, SuiteFabrication, Travail, VersionVideo, Video } from "@/domaine/types";
 import { TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
 import { familleDe } from "@/domaine/journal-echecs";
+import { estPanneRendue } from "@/domaine/pannes-rendues";
 import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, delaiSansAvancementMs, depenseDesEtapes, empreinteAvancement, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
@@ -615,8 +616,21 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
     // GV2-38 : le résultat du moteur est gardé dans la MÊME écriture que « terminé » (jamais « terminé » sans la note).
     travail.finAAppliquer = { resultat: sortie.resultat, rejouee: false, faits: [] };
   }
+  // S-01 : « non relié » RENDU par un moteur (rien n'est payé avant) : le travail attend et repart seul, 24 h au plus (comme une panne levée).
+  let entreEnAttente = false;
+  if (travail.statut === "echec" && t.statut !== "echec" && !enAttenteDeValidation(travail) && estPanneRendue(travail.erreur)) {
+    const suite = apresPanne(actuel.reprise, Date.now(), travail.erreur?.messagePourWill ?? "");
+    if (!suite.abandon) {
+      travail = { ...(await lu.moteur.reessayer(travail, Date.now())), reprise: suite.reprise, estDemo: t.estDemo, urgent: actuel.urgent };
+      entreEnAttente = !actuel.reprise;
+    }
+  }
   travail = gardeSansAvancement(travail, actuel, lu.moteur.id);
   await d.travaux.enregistrer(travail);
+  if (entreEnAttente) {
+    await journaliser("fabrication", "Fabrication ralentie chez un outil : reprise automatique", { type: "video", id: travail.cibleId });
+    await notifier({ type: "info", titre: "Une vidéo attend un outil", message: `Votre vidéo « ${travail.titre} » attend un outil : elle reprendra seule.`, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
+  }
   // Un format ajouté ne touche ni le statut de la vidéo ni sa version : elle reste prête (et publiée).
   const reexport = t.type === "reexport";
   if (travail.statut === "echec" && t.statut !== "echec") {
