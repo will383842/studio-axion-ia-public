@@ -10,7 +10,7 @@ import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { sortiesDesReseaux, type IdSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { finDeLaSortie, relireFicheTableau } from "../../../src/moteurs/montage-tableau/relecture";
 import { pagesDuStyle } from "../../../src/moteurs/montage-tableau/densite";
-import { estimerVoixSorties, planVoixSorties, texteDitDe } from "../../../src/moteurs/montage-tableau/variantes-fin";
+import { estimerVoixSorties, FIN_SANS_APPEL_LIENS, planVoixSorties, texteDitDe } from "../../../src/moteurs/montage-tableau/variantes-fin";
 import { choisirFinTableau } from "../../../src/services/tableau-fin";
 import { contexteDe } from "../reference-2/fiches";
 
@@ -141,4 +141,19 @@ describe("(e) argent : les lectures ne dépassent pas celles de master", () => {
     console.log("CARACTERES_LUS_a", total, r.plan.mode);
     void estimerVoixSorties;
   }, 60_000);
+});
+
+// 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX, amendement n°1, C-1) : une fin au mot choisie qui arrive au moteur
+// sans passer par les services n'est jamais remplacée par une phrase de la banque : retirée, rien à sa place.
+describe("C-1 : finDeLaSortie ne remplace pas une fin choisie par la banque", () => {
+  it("fin au mot choisie arrivée au moteur : { absente: FIN_SANS_APPEL_LIENS }", () => {
+    const f = fiche("fin-if-mot-envoi", AU_MOT);
+    const fin = { id: "fin-if-mot-envoi", ecran: "Écrivez PLAN en commentaire", mot: "PLAN" } as never;
+    expect(finDeLaSortie(VL, fin, f)).toEqual({ absente: FIN_SANS_APPEL_LIENS });
+  });
+  it("chemin o.fin « phrase » : même résultat", () => {
+    const f = fiche("fin-if-mot-envoi", AU_MOT);
+    const fin = { id: "phrase", ecran: "Écrivez PLAN en commentaire" } as never;
+    expect(finDeLaSortie(VL, fin, f)).toEqual({ absente: FIN_SANS_APPEL_LIENS });
+  });
 });

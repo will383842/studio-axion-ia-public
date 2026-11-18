@@ -52,7 +52,8 @@ export function finDeLaSortie(id: IdSortie, fin: FinRetenue | undefined, fiche?:
   if (estAvisFinRetiree(fin)) return fin;
   if (fin && "ecran" in fin && !fin.objectif && !finAuMot(fin) && !/^\s*(écrivez|commentez)\b|\bje vous (l['’]\s?|les )?envoie\b/i.test(`${fin.ecran} ${fin.dit ?? ""}`)) return fin;
   // TikTok et Shorts (Will, 14/10) : UNE demande de la banque, choisie selon le type de la fiche (`objectif` : choix forcé).
-  const liens = id === VERTICAL_LIENS && fiche ? finDesLiens(fiche, fin && "ecran" in fin ? fin.objectif : undefined) : undefined;
+  const choisie = !!fin && "ecran" in fin && !fin.objectif;
+  const liens = id === VERTICAL_LIENS && fiche && !choisie ? finDesLiens(fiche, fin && "ecran" in fin ? fin.objectif : undefined) : undefined;
   if (liens) return liens;
   const sansAppel = id === VERTICAL_LIENS ? FIN_SANS_APPEL_LIENS : FIN_SANS_APPEL_LINKEDIN;
   if (fin && "absente" in fin && fin.absente.includes(sansAppel)) return fin;
