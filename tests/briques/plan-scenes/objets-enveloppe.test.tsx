@@ -64,8 +64,10 @@ describe("C9-34a enveloppe des objets", () => {
     expect(Object.keys(envelopperObjets([mauvaise], graineDe))).toHaveLength(0);
   });
 
-  it("garde : IDS_PIECES et CATALOGUE_BRIQUES inchangés (aucun objet inscrit)", () => {
-    expect(IDS_PIECES.some((i) => i.startsWith("objet-"))).toBe(false);
-    expect(Object.keys(CATALOGUE_BRIQUES).some((i) => i.startsWith("objet-"))).toBe(false);
+  it("garde : seuls les 4 objets de BR-OBJETS-a sont inscrits (porte fermée)", () => {
+    // 17/11/2026 BR-OBJETS-a (C9-34b) : référence changée volontairement, « aucun objet » devient « exactement ces 4 ».
+    const quatre = ["objet-cartes-coche", "objet-coche", "objet-etape", "objet-gros-chiffre"];
+    expect(IDS_PIECES.filter((i) => i.startsWith("objet-")).sort()).toEqual(quatre);
+    expect(Object.keys(CATALOGUE_BRIQUES).filter((i) => i.startsWith("objet-")).sort()).toEqual(quatre);
   });
 });

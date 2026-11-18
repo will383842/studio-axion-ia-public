@@ -1,0 +1,53 @@
+/*
+ * Charte commune des maquettes de tableaux de bord (T-EXT-04).
+ * Valeurs EXACTES de PALETTE (src/briques/charte/axion-2026.ts), source unique : un test le vérifie.
+ * Ni bleu, ni jaune, ni dégradé, ni ombre colorée.
+ */
+:root {
+  --ivoire: #FAF9F5;
+  --gris: #E8E6DC;
+  --noir: #141413;
+  --terracotta: #B23F16;
+  --orange: #D97757;
+  --gris-sur-noir: #B0AEA5;
+  --reussite: #5E7050;
+  --blanc: #FFFFFF;
+  --texte-secondaire: #5E5D59;
+  --erreur-filet: #B8341C;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("../../../src/app/polices/manrope-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--ivoire);
+  color: var(--noir);
+  font-family: "Manrope", sans-serif;
+}
+
+/* Bandeau « Démonstration · données fictives » : noir sur gris, toujours visible. */
+.mention-demo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  padding: 6px 16px;
+  background: var(--gris);
+  color: var(--noir);
+  font-family: "Manrope", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: none;
+}

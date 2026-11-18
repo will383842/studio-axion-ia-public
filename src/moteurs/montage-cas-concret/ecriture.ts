@@ -356,6 +356,8 @@ export function dureeDiteMs(ecrans: readonly { texteDit: string }[], caracteresP
 
 /** Visée de R21 pour la vidéo entière, fin comprise (demande de Will) ; les bornes de refus sont `DUREE_TOTALE_REFUS_MS`. */
 export const DUREE_TOTALE_VISEE_MS = { min: 40_000, max: 60_000 } as const;
+/** 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide garde la place de la plus longue fin retirée (LinkedIn, 6,4 s) : le corps visé ne grandit jamais et la vidéo raccourcit d'autant. */
+export const PLACE_FIN_VIDE_MS = 6_500;
 
 /** Durées des fins prévues : la plus courte et la plus longue, en ms ; `null` sans fin connue. */
 export interface DureesFins {
@@ -365,7 +367,7 @@ export interface DureesFins {
 
 export function dureesDesFins(fins: readonly Pick<FinPlanifiee, "ecrans">[]): DureesFins | null {
   if (!fins.length) return null;
-  const d = fins.map((f) => dureeDiteMs(f.ecrans) + TENUE_FINALE_MS);
+  const d = fins.map((f) => (f.ecrans.length ? dureeDiteMs(f.ecrans) + TENUE_FINALE_MS : PLACE_FIN_VIDE_MS));
   return { plusCourteMs: Math.min(...d), plusLongueMs: Math.max(...d) };
 }
 

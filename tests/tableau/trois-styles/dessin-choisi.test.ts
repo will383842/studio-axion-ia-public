@@ -66,8 +66,10 @@ describe("GV2-41 : le dessin choisi pour le script est tracé", () => {
       for (const id of ["cible", "enveloppe", "engrenage"]) expect(page(style, id).traits).toEqual(page(style, id).traits);
     });
 
+  // FIX-TEXTE-HORS-CADRE-TABLEAU-2a (18/11/2026) : tableau-blanc a4b8263c2dac → 2b432f8d20e0 et ardoise 3909e03982c7 → a8ae7751b9cf
+  // (la page est calculée avec la vraie mesure Manrope, donc la hauteur du texte, et la taille du dessin, changent) ; paperboard inchangé.
   // Empreintes relevées sur la branche de départ (avant GV2-41) : une page SANS dessin garde exactement ses traits.
-  const AVANT: Record<StyleTableau, string> = { "tableau-blanc": "a4b8263c2dac", ardoise: "3909e03982c7", paperboard: "fbd8409f03e2" };
+  const AVANT: Record<StyleTableau, string> = { "tableau-blanc": "2b432f8d20e0", ardoise: "a8ae7751b9cf", paperboard: "fbd8409f03e2" };
   for (const style of STYLES_TABLEAU)
     it(`${style} : une page sans dessin garde exactement les traits d'avant (même thème, même tracé)`, () => {
       expect(empreinte(page(style, null).traits)).toBe(AVANT[style]);

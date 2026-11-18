@@ -35,8 +35,9 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a). */
 const LITTERALES: Record<string, Etat> = {
+  "accueil.bilan_semaine": "eteint",
   afficherExemples: "allume",
   "alignement.voixSynthese": "eteint",
   "budget.mensuel": "valeur",
@@ -52,6 +53,8 @@ const LITTERALES: Record<string, Etat> = {
   "fournisseur.stockage": "valeur",
   "illustrations.economique": "eteint",
   "mentionIA.parDefaut": "valeur",
+  "mesures.lecture_par_liste": "eteint",
+  "mesures.tentatives_lecture": "valeur",
   "miniature.gabarit": "valeur",
   "mots.registre": "valeur",
   notifications: "valeur",
@@ -90,6 +93,9 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "facecamAnimee.plafondClaudeUsd", etat: "valeur", appel: "src/services/facecam-animee.ts", motif: /lireParametre<number>\(PARAM_PLAFOND_CLAUDE_FA, PLAFOND_CLAUDE_FA_USD\)/ },
   { cle: "facecamAnimee.plafondVideosUsd", etat: "valeur", appel: "src/services/depense-claude-video.ts", motif: /parametre: PARAM_PLAFOND_VIDEOS_FA, defautUsd: PLAFOND_VIDEOS_FA_USD/ },
   { cle: "imageVideo.accordEssaiReel", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /PARAM_ACCORD_ESSAI_IV, false\)/ },
+  { cle: "imageVideo.sousTitresMinimal", etat: "eteint", appel: "src/services/image-video.ts", motif: /lireParametre<unknown>\(PARAM_SOUS_TITRES_MINIMAL_IV, false\)\.catch\(\(\) => false\)\) === true/ },
+  { cle: "facecamAnimee.telephoneVideo", etat: "eteint", appel: "src/moteurs/montage-facecam-animee/realisateur/consigne-telephone-video.ts", motif: /lire\(PARAM_TELEPHONE_VIDEO_FA, false\)\) === true/ },
+  { cle: "habillage.transitionsPlanScenes", etat: "eteint", appel: "src/briques/motion/habillage-commun/reglage.ts", motif: /estAllume\(await lire\(/ },
   { cle: "imageVideo.relireScript", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /lireParametre<boolean>\(PARAM_RELIRE_SCRIPT_IV, false\)/ },
   { cle: "usine.autonomie", etat: "eteint", appel: "src/services/autonomie-usine.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE, null\)/ },
   { cle: "usine.autonomie.porte", etat: "eteint", appel: "src/services/autonomie-usine.ts", motif: /lireParametre<unknown>\(CLE_PORTE, null\)/ },
@@ -112,6 +118,8 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "zernio.envoi_calendrier_autorise", etat: "eteint", appel: "src/services/zernio.ts", motif: /PARAM_ENVOI_CALENDRIER, false\)\) === true/ },
   { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
   { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },
+  { cle: "tableau.styleTire", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ },
+  { cle: "planScenes.facecamDessin", etat: "eteint", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, false\)\) === true/ },
   {
     cle: "adaptations_reseaux.actif",
     etat: "eteint",
@@ -335,6 +343,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "mots.validation.guide-parcours": "memoire",
   "mots.validations": "memoire",
   "mots.validations.par-mot": "memoire",
+  "oppositions.sante": "memoire",
   "optionsPayantes.demandes": "memoire",
   "parcours.conversations": "memoire",
   "parcours.conversations.alias": "memoire",
@@ -776,7 +785,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(32);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(35);
   });
 });

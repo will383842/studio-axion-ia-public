@@ -10,6 +10,9 @@ import { ErreurFabricationCasConcret, fabriquerCasConcret, type CompteRenduCasCo
 import type { FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import { doubles, SONS_VALIDES, type Doubles } from "./doubles";
 
+// 17/11 (Williams) : sans choix, aucune fin ; le mot est branché explicitement pour garder plusieurs fins à fabriquer.
+const MOT = { avecMot: true, motSur: ["facebook", "instagram"] as ("facebook" | "instagram")[] };
+
 const FIXE = { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const };
 const ficheDe = (casId: string): FicheEcrans => ficheParGabarit(trouverCas(casId)!, FIXE);
 
@@ -33,17 +36,19 @@ const parametres = (d: Doubles) => d.compositionsSoumises().map((c) => ({ entree
 
 describe("M8 · sorties", () => {
   it("cas « recrutement-apporteurs » simulé, 4 réseaux, rien de branché → 3 sorties (Instagram et TikTok partagent la leur)", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     const cr = await fabriquerCasConcret(d.options);
-    expect(cr.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram", "tiktok"], ["linkedin"]]);
+    // 17/11 (Williams) : sans choix, aucune fin ; Instagram a sa fin au mot, TikTok et LinkedIn partagent la fin vide.
+    expect(cr.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram"], ["tiktok", "linkedin"]]);
     expect(new Set(cr.fins.map((f) => f.fichierCle)).size).toBe(3);
     expect(d.compositionsSoumises()).toHaveLength(3);
     expect(cr.ecriture).toEqual({ appels: 1, simule: true });
     expect(cr.etapes.map((e) => e.etape)).toEqual(["ecriture", "fiche", "captures", "voix", "calage", "ecrans", "montage", "controle"]);
-    // Une prise pour le corps, une par fin ; chaque lecture réservée avant d'être payée.
-    expect(d.lus).toHaveLength(4);
-    expect(cr.prises).toHaveLength(4);
-    expect(d.reservationsVoix).toHaveLength(4);
+    // Une prise pour le corps, une par fin non vide ; chaque lecture réservée avant d'être payée.
+    // 17/11 (Williams) : la fin vide (TikTok, LinkedIn) n'a pas de lecture : 1 + 2 = 3.
+    expect(d.lus).toHaveLength(3);
+    expect(cr.prises).toHaveLength(3);
+    expect(d.reservationsVoix).toHaveLength(3);
     expect(cr.coutCentimes).toBe(cr.prises.reduce((s, p) => s + p.coutCentimes, 0));
     expect(cr.estimation.centimes).toBeGreaterThanOrEqual(cr.coutCentimes);
     // Corps puis fin raccordés par la recette de la voix (X4), au tempo du format, un son par fin.
@@ -55,11 +60,13 @@ describe("M8 · sorties", () => {
     expect(cr.rapport.phrases.length).toBeGreaterThan(0);
   });
 
-  it("formation, mot coché mais branché nulle part → le diagnostic partout, la raison au compte rendu", async () => {
+  it("formation, mot coché mais branché nulle part → la fin vide partout, la raison au compte rendu", async () => {
     const d = doubles({ casId: "email-difficile" });
     const cr = await fabriquerCasConcret(d.options);
-    expect(cr.fins.map((f) => [...f.reseaux].sort())).toEqual([["facebook"], ["instagram", "tiktok"], ["linkedin"]]);
-    expect(d.compositionsSoumises()).toHaveLength(3);
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot n'étant branché nulle part, les quatre réseaux ont la même fin vide
+    // (un seul fichier) ; la raison du repli reste au compte rendu pour Facebook et Instagram.
+    expect(cr.fins.map((f) => [...f.reseaux].sort())).toEqual([["facebook", "instagram", "linkedin", "tiktok"]]);
+    expect(d.compositionsSoumises()).toHaveLength(1);
     expect(cr.plan.reduites.map((r) => r.reseaux).flat().sort()).toEqual(["facebook", "instagram"]);
     expect(cr.rapport.phrases.some((p) => p.includes("Fin réduite"))).toBe(true);
     // Chaque réseau garde son texte de publication.
@@ -69,24 +76,25 @@ describe("M8 · sorties", () => {
 
 describe("M8 · écrans", () => {
   it("les écrans du corps ne sont rendus qu'une fois pour 4 réseaux", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     const cr = await fabriquerCasConcret(d.options);
     const corps = cr.fiche.ecrans.map((e) => e.id);
     const soumis = d.ecransSoumis().map((s) => (s.parametres as { proprietes: { id: string } }).proprietes.id);
     for (const id of corps) expect(soumis.filter((x) => x === id)).toHaveLength(1);
     expect(d.ecransSoumis()).toHaveLength(cr.ecrans.rendus.length);
-    // Chaque écran d'une fin est rendu au plus une fois par contenu (LinkedIn reprend l'écran du diagnostic de Facebook).
-    expect(cr.ecrans.rendus.filter((id) => id.startsWith("fin-"))).toEqual(["fin-facebook-f01", "fin-facebook-f02", "fin-instagram-tiktok-f01", "fin-instagram-tiktok-f02", "fin-linkedin-f02"]);
+    // Chaque écran d'une fin est rendu au plus une fois par contenu. 17/11 (Williams) : sans choix, aucune fin ; la fin vide
+    // (TikTok, LinkedIn) n'a aucun écran, et l'appel au mot d'Instagram (X7) tient en un seul écran.
+    expect(cr.ecrans.rendus.filter((id) => id.startsWith("fin-"))).toEqual(["fin-facebook-f01", "fin-facebook-f02", "fin-instagram-f01"]);
   });
 
   it("les adresses signées des captures sont dans les propriétés, hors de l'empreinte", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     const cr = await fabriquerCasConcret(d.options);
     const reel = d.ecransSoumis().find((s) => JSON.stringify(s.parametres).includes('"capture"'));
     expect(reel).toBeDefined();
     expect(JSON.stringify(reel!.parametres)).toMatch(/https:\/\/r2\.exemple\/signe\//);
     // Deuxième lancement (journal perdu, mêmes fichiers) : une autre signature, aucun écran rendu de nouveau.
-    const d2 = doubles({ partage: { fichiers: d.partage.fichiers, journal: { valeur: null } } });
+    const d2 = doubles({ ...MOT, partage: { fichiers: d.partage.fichiers, journal: { valeur: null } } });
     const cr2 = await fabriquerCasConcret(d2.options);
     expect(d2.ecransSoumis()).toHaveLength(0);
     expect(cr2.ecrans.repris).toHaveLength(cr.ecrans.rendus.length);
@@ -94,7 +102,7 @@ describe("M8 · écrans", () => {
 
   it("un seul écran changé → un seul rendu", async () => {
     const fiche = ficheDe("recrutement-apporteurs");
-    const d = avecFiche(doubles(), fiche);
+    const d = avecFiche(doubles(MOT), fiche);
     const cr = await fabriquerCasConcret(d.options);
     expect(cr.ecriture).toBeUndefined();
     expect(d.appelsEcriture()).toBe(0);
@@ -102,7 +110,7 @@ describe("M8 · écrans", () => {
     expect(i).toBeGreaterThan(-1);
     const changee = structuredClone(fiche);
     (changee.ecrans[i] as { puces: string[] }).puces = ["Sans papier"];
-    const d2 = avecFiche(doubles({ partage: d.partage }), changee);
+    const d2 = avecFiche(doubles({ ...MOT, partage: d.partage }), changee);
     const cr2 = await fabriquerCasConcret(d2.options);
     expect(d2.lus).toHaveLength(0);
     expect(d2.ecransSoumis()).toHaveLength(1);
@@ -112,15 +120,16 @@ describe("M8 · écrans", () => {
 
 describe("M8 · reprise et arrêts", () => {
   it("relance après une panne à « ecrans » : voix non relue, écrans déposés non rendus", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     d.pannes.journalEcransApres = 1;
     const err = await echec(d);
     expect(err.etape).toBe("ecrans");
-    expect(d.lus).toHaveLength(4);
+    // 17/11 (Williams) : sans choix, aucune fin ; la fin vide n'a pas de lecture : corps + 2 fins au mot.
+    expect(d.lus).toHaveLength(3);
     const avant = d.ecransSoumis().length;
     expect(avant).toBeGreaterThan(0);
 
-    const d2 = doubles({ partage: d.partage });
+    const d2 = doubles({ ...MOT, partage: d.partage });
     const cr = await fabriquerCasConcret(d2.options);
     expect(d2.lus).toHaveLength(0);
     expect(cr.coutCentimes).toBe(0);
@@ -132,20 +141,21 @@ describe("M8 · reprise et arrêts", () => {
   });
 
   it("une panne pendant la voix ne fait relire aucune prise déjà payée", async () => {
-    const d = doubles();
+    const d = doubles(MOT);
     d.pannes.journalApres = "voix";
     await echec(d);
     const lus = d.lus.length;
-    const d2 = doubles({ partage: d.partage });
+    const d2 = doubles({ ...MOT, partage: d.partage });
     await fabriquerCasConcret(d2.options);
-    expect(lus + d2.lus.length).toBe(4);
+    // 17/11 (Williams) : sans choix, aucune fin ; corps + 2 fins au mot, la fin vide n'est pas lue.
+    expect(lus + d2.lus.length).toBe(3);
   });
 
   it("fiche refusée → arrêt avant toute voix, avant toute capture", async () => {
     const fiche = ficheDe("recrutement-apporteurs");
     const mauvaise = structuredClone(fiche);
     mauvaise.ecrans[1] = { ...mauvaise.ecrans[1], marque: "autre-site.fr" };
-    const d = avecFiche(doubles(), mauvaise);
+    const d = avecFiche(doubles(MOT), mauvaise);
     const err = await echec(d);
     expect(err.etape).toBe("fiche");
     expect(err.message).toMatch(/marque/i);
@@ -155,7 +165,7 @@ describe("M8 · reprise et arrêts", () => {
   });
 
   it("écriture refusée deux fois → arrêt à l'écriture, jamais de troisième appel, aucune voix", async () => {
-    const d = doubles({ retoucherFiche: (f) => ({ ...f, ecrans: [] }) });
+    const d = doubles({ ...MOT, retoucherFiche: (f) => ({ ...f, ecrans: [] }) });
     const err = await echec(d);
     expect(err.etape).toBe("ecriture");
     expect(d.appelsEcriture()).toBe(2);
@@ -163,14 +173,14 @@ describe("M8 · reprise et arrêts", () => {
   });
 
   it("panne d'essai sur « ecrans » : un échec, puis la réussite (compteur au journal)", async () => {
-    const d = doubles({ panneDEssai: "ecrans" });
+    const d = doubles({ ...MOT, panneDEssai: "ecrans" });
     const err = await echec(d);
     expect(err.etape).toBe("ecrans");
     expect(err.message).toMatch(/Panne d'essai/);
     expect(d.ecransSoumis()).toHaveLength(0);
     expect(d.partage.journal.valeur?.pannesDEssai).toEqual({ ecrans: 1 });
 
-    const d2 = doubles({ panneDEssai: "ecrans", partage: d.partage });
+    const d2 = doubles({ ...MOT, panneDEssai: "ecrans", partage: d.partage });
     const cr = await fabriquerCasConcret(d2.options);
     expect(cr.pannesDEssai).toEqual({ ecrans: 1 });
     expect(d2.lus).toHaveLength(0);
@@ -182,7 +192,7 @@ describe("M8 · finitions", () => {
   let sansSon: { d: Doubles; cr: CompteRenduCasConcret } | null = null;
   const lancer = async () => {
     if (!sansSon) {
-      const d = doubles();
+      const d = doubles(MOT);
       sansSon = { d, cr: await fabriquerCasConcret(d.options) };
     }
     return sansSon;
@@ -214,7 +224,7 @@ describe("M8 · finitions", () => {
   });
 
   it("avec des sons validés : seulement eux, rien dans la dernière seconde sauf la clôture", async () => {
-    const d = doubles({ bruitages: SONS_VALIDES });
+    const d = doubles({ ...MOT, bruitages: SONS_VALIDES });
     const cr = await fabriquerCasConcret(d.options);
     const valides = new Set(SONS_VALIDES.map((s) => s.cle));
     for (const [i, { entrees, p }] of parametres(d).entries()) {

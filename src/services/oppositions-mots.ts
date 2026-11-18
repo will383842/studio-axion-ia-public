@@ -48,6 +48,9 @@ interface MemoireSite {
   demandes: Set<string>;
   refsIllisibles: number;
   debordements: number;
+  derniereIssue?: IssueVerificationSite | null;
+  derniereIssueMs?: number | null;
+  echecsConsecutifs?: number;
 }
 /**
  * Mémoire de processus (survit au rechargement des modules) : demandes en attente, références illisibles vues, demandes retirées par le
@@ -88,6 +91,31 @@ export function reinitialiserDemandesSite(): void {
   m.demandes.clear();
   m.refsIllisibles = 0;
   m.debordements = 0;
+  m.derniereIssue = null;
+  m.derniereIssueMs = null;
+  m.echecsConsecutifs = 0;
+}
+/** STOP-01 : issue du dernier passage de vérification du site qui a interrogé au moins un lot. */
+export type IssueVerificationSite = "ok" | "echec" | "non-relie";
+export interface EtatVerificationSite {
+  demandes: number;
+  refsIllisibles: number;
+  debordements: number;
+  derniereIssue: IssueVerificationSite | null;
+  derniereIssueMs: number | null;
+  echecsConsecutifs: number;
+}
+/** STOP-01 : note l'issue d'un passage. Mémoire de processus seule : aucune base, aucun identifiant, aucune adresse, aucune décision d'envoi. */
+export function noterIssueVerificationSite(issue: IssueVerificationSite, maintenantMs: number): void {
+  const m = memoireSite();
+  m.derniereIssue = issue;
+  m.derniereIssueMs = maintenantMs;
+  m.echecsConsecutifs = issue === "ok" ? 0 : (m.echecsConsecutifs ?? 0) + 1;
+}
+/** STOP-01 : copie des compteurs de processus (nombres et états courts seulement). */
+export function etatVerificationSite(): EtatVerificationSite {
+  const m = memoireSite();
+  return { demandes: m.demandes.size, refsIllisibles: m.refsIllisibles, debordements: m.debordements, derniereIssue: m.derniereIssue ?? null, derniereIssueMs: m.derniereIssueMs ?? null, echecsConsecutifs: m.echecsConsecutifs ?? 0 };
 }
 /** Nombre de références illisibles vues depuis la dernière alerte (un nombre seulement). */
 export const refsIllisiblesSite = (): number => memoireSite().refsIllisibles;

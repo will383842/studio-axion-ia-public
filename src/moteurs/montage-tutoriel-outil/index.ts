@@ -187,7 +187,8 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   });
   const lignesReelles: LigneCout[] = [];
   if (etat.audio && etat.audio.caracteres > 0) lignesReelles.push(ligne("Voix", etat.audio.fournisseur, "caractere", etat.audio.caracteres, "reel"));
-  if (etat.plan && etat.plan.source !== "repris") lignesReelles.push(ligne("Plan de scènes", "claude", "appel", 1, "reel"));
+  if (etat.appelsClaude?.script) lignesReelles.push(ligne("Script", "claude", "appel", etat.appelsClaude.script, "reel"));
+  if (etat.appelsClaude?.plan) lignesReelles.push(ligne("Plan de scènes", "claude", "appel", etat.appelsClaude.plan, "reel"));
   lignesReelles.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "reel"));
   return {
     sorties,

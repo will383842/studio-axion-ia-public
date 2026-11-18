@@ -173,7 +173,8 @@ describe("D2 : items d'une ligne quand il y a la place ; case vide tracée, puis
       for (const { p, plan } of listes)
         for (const e of p.page.elements.filter((x) => x.gabarit?.sorte === "case")) {
           const texte = e.lignes.map((l) => l.texte).join(" ");
-          expect(e.lignes.length, `« ${e.lignes.map((l) => l.texte).join(" / ")} »`).toBe(texte.length <= 17 ? 1 : e.lignes.length);
+          // Seuil relevé sur Caveat ; la page est écrite en Manrope 400, 1,33 à 1,37 fois plus large : 17 / 1,35 ≈ 12 (paperboard).
+          expect(e.lignes.length, `« ${e.lignes.map((l) => l.texte).join(" / ")} »`).toBe(texte.length <= (style === "paperboard" ? 12 : 17) ? 1 : e.lignes.length);
           expect(e.lignes.length).toBeLessThanOrEqual(2);
           // La case vide est le premier trait d'avant le texte, tracé par l'outil ; la coche vient après le texte.
           const g = e.gabarit!.sorte === "case" ? (e.gabarit!.boite as unknown as { x: number; largeur: number; px?: { x: number; largeur: number } }) : null;

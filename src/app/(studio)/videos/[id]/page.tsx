@@ -346,7 +346,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                         Le script n&apos;a pas pu être chargé : rechargez la page.
                       </p>
                     )}
-                    {aRelire && scriptAValider && <ValidationScript videoId={v.id} travailId={d.travail.id} ecrans={scriptAValider.ecrans} avertissements={scriptAValider.avertissements} />}
+                    {aRelire && scriptAValider && <ValidationScript videoId={v.id} travailId={d.travail.id} ecrans={scriptAValider.ecrans} fins={scriptAValider.fins} avertissements={scriptAValider.avertissements} />}
                   </>
                 ) : d.travail ? (
                   <SuiviTravail initial={d.travail} compacte={!enFabrication} sansPrix={formatSansPrix(v.formatId)} />

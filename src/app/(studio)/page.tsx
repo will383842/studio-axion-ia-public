@@ -9,6 +9,8 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { CarteVideo } from "@/components/videos/CarteVideo";
 import { cn } from "@/lib/cn";
 import { dateLongue } from "@/lib/dates";
+import { CarteBilanSemaine } from "@/components/accueil/CarteBilanSemaine";
+import { bilanSemaineAccueil } from "@/services/bilan-semaine";
 import { resumeAccueil } from "@/services/accueil";
 import { resumeCreditsAccueil } from "@/services/credits";
 import { vueCreditClaude } from "@/services/credit-claude";
@@ -39,10 +41,13 @@ function salutation(): string {
  */
 export default async function PageAccueil() {
   await exigerSession();
-  const [r, credits, ecrire, mesuresASaisir, facecamAEnvoyer, creditClaude, limite] = await Promise.all([resumeAccueil(), resumeCreditsAccueil(), compteursGenerateur(), compterMesuresASaisir(), versionsFacecamAEnvoyer(), vueCreditClaude().catch((e) => {
+  const [r, credits, ecrire, mesuresASaisir, facecamAEnvoyer, creditClaude, limite, bilan] = await Promise.all([resumeAccueil(), resumeCreditsAccueil(), compteursGenerateur(), compterMesuresASaisir(), versionsFacecamAEnvoyer(), vueCreditClaude().catch((e) => {
       console.error("[accueil] crédit Claude restant illisible", e);
       return null;
-    }), etatLimiteAppels()]);
+    }), etatLimiteAppels(), bilanSemaineAccueil().catch((e) => {
+      console.error("[accueil] bilan de la semaine illisible", e);
+      return null;
+    })]);
   const aujourdhui: { libelle: string; nombre: number; icone: NomIcone; href: string }[] = [
     // « Vidéos » : les tuiles d'Écrire comptent des SCRIPTS sous les mêmes mots (E2E-1 n° 8).
     { libelle: "Vidéos à relire", nombre: r.aujourdhui.nbARelire, icone: "oeil", href: "/videos?etape=a_relire" },
@@ -174,6 +179,8 @@ export default async function PageAccueil() {
             </div>
           </div>
         </section>
+
+        {bilan && <CarteBilanSemaine lignes={bilan} />}
 
         {/* Crédit Claude restant et soldes des services reliés : affichage seulement ; l'Accueil ne casse jamais s'ils manquent. */}
         <section aria-labelledby="titre-credits" className="space-y-4">

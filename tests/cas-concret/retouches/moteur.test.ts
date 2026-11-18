@@ -27,9 +27,9 @@ async function avancerJusqua(moteur: MoteurVideo, commande: CommandeFabrication,
 }
 
 /** Une vidéo fabriquée : le banc, sa commande et le parent qu'une retouche reçoit (projet relu « comme en base »). */
-async function videoFabriquee(motSur: ("facebook" | "instagram")[] = ["facebook", "instagram"], lecturesFautives?: number[]) {
+async function videoFabriquee(motSur: ("facebook" | "instagram")[] = ["facebook", "instagram"], lecturesFautives?: number[], scriptValide?: "catalogue") {
   // P2R : le mot n'est dit que là où il est branché ; ces essais le branchent sur Facebook et Instagram (comme X7).
-  const b = banc({ motSur, retouches: true, ...(lecturesFautives ? { lecturesFautives } : {}) });
+  const b = banc({ motSur, retouches: true, ...(lecturesFautives ? { lecturesFautives } : {}), ...(scriptValide ? { scriptValide } : {}) });
   const c = b.commande();
   const fin = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-1")));
   expect(fin.travail.statut).toBe("termine");
@@ -90,7 +90,8 @@ describe("P2-02 · moteur : retouches acceptées", () => {
     const projet = fin.resultat!.projetMontage.casConcret as { mot: string; motDit: string; fins: unknown[] };
     expect(projet.mot).toBe("RDV");
     expect(projet.motDit).toBe("R.D.V.");
-    expect(projet.fins).toHaveLength(4);
+    // 17/11 (Williams) : sans choix, aucune fin ; TikTok et LinkedIn partagent la même fin vide (3 fichiers, avant 4).
+    expect(projet.fins).toHaveLength(3);
     // Coût de la voix de la retouche : les deux fins seulement.
     const voix = fin.travail.etapes.find((e) => e.cle === "voix");
     expect(voix?.coutReel?.centimes).toBeGreaterThan(0);
@@ -159,7 +160,8 @@ describe("P2-02 · moteur : la voix d'une retouche ne paie jamais plus que le pr
 
 describe("P2-02 · moteur : refus avant tout lancement", () => {
   it("P2R : un mot branché nulle part n'est jamais dit : le changer est refusé sans rien lancer", async () => {
-    const { b, c, parent } = await videoFabriquee([]);
+    // 17/11 (Williams) : sans choix, aucune fin ; sans mot branché la vidéo n'a aucune fin et la fiche écrite par les doubles (34,1 s) passe sous la durée minimale : le script validé du catalogue (comme en production) tient sans fin.
+    const { b, c, parent } = await videoFabriquee([], undefined, "catalogue");
     const lus = b.d.lus.length;
     const soumises = b.d.soumises.length;
     const t = await b.moteur.retoucher({ commande: c, contexte: ctx("t-2"), planIds: [], consigne: "", operations: ops([{ type: "changer-mot", mot: "RDV", motDit: "R.D.V." }]), parent });
@@ -204,7 +206,8 @@ describe("P2-02 · moteur : refus avant tout lancement", () => {
   });
 
   it("sans opération, la réservation est le corps au pire (ni fins ni écriture) : la retouche libre est refusée, rien n'est payé", async () => {
-    const b = banc({ retouches: true });
+    // 17/11 (Williams) : sans choix, aucune fin ; sans mot branché la vidéo entière n'a plus de fin à lire, donc pas plus chère que le corps : « Avec le mot » + mot branché rétablit les fins.
+    const b = banc({ retouches: true, avecMot: true, motSur: ["facebook", "instagram"] });
     const c = b.commande();
     const r = await b.moteur.estimerRetouche(c, []);
     expect(r.lignes.map((l) => l.etape)).not.toContain("Écriture");

@@ -90,7 +90,8 @@ describe("S1e · rendu soumis puis relu", () => {
   });
 
   it("un passage interrompu pendant un assemblage reprend sans relire ni réassembler ce qui est fini", async () => {
-    const d = doubles({ reseaux: ["facebook", "linkedin"] });
+    // 17/11 (Williams) : sans choix, aucune fin ; le mot est branché sur Facebook pour que sa fin soit assemblée.
+    const d = doubles({ avecMot: true, motSur: ["facebook"], reseaux: ["facebook", "linkedin"] });
     const v = d.options.outils.voix;
     const assembler = v.assembler;
     // Le premier assemblage finit, le second reste en cours : on interrompt (attente = arrêt du passage).
@@ -162,7 +163,8 @@ describe("S1e · entrée absente : une série, puis l'arrêt", () => {
     void _r;
     const outils = { ...reste, montage: { ...reste.montage, seriesFichierInaccessible: 1 }, env: "dev", numeroVersion: async () => 42, contexte: ctx, cas: d.options.cas };
     const moteur = creerMoteurMontageCasConcret({ outils: async () => outils });
-    const c = { videoId: "video-cc", distribution: [{ voixId: "v" }], prononciations: [], entrees: { casConcret: d.options.entrees } } as unknown as CommandeFabrication;
+    // 18/11 (FIX-CC-FIN-NON-CHOISIE) : la commande porte `styles` (index.ts le lit sans garde) ; le test l'oubliait, l'étape « La relecture » plantait.
+    const c = { videoId: "video-cc", distribution: [{ voixId: "v" }], prononciations: [], styles: {}, entrees: { casConcret: d.options.entrees } } as unknown as CommandeFabrication;
     const avancer = async (t: Travail) => {
       for (let i = 0; i < 400 && t.statut !== "termine" && t.statut !== "echec"; i++) t = (await moteur.avancer(t, c)).travail;
       return t;

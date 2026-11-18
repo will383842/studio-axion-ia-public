@@ -12,6 +12,8 @@ import { ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import type { MoteurVideo, ResultatFabrication } from "@/moteurs/types";
 import { banc } from "./doubles";
 
+// 17/11 (Williams) : sans choix, aucune fin ; ces tests comptaient sur plusieurs sorties par défaut (sans fin, la fiche des doubles, 34,1 s, passe sous la durée minimale) : « Avec le mot » + mot branché sur Facebook et Instagram les rétablit.
+const AVEC_MOT = { avecMot: true, motSur: ["facebook", "instagram"] as ("facebook" | "instagram")[] };
 const T0 = Date.UTC(2026, 9, 12, 9, 0, 0);
 const ctx = (travailId: string) => ({ travailId, versionId: `ver-${travailId}`, titre: "Essai", maintenant: T0 });
 const terminees = (t: Travail) => t.etapes.filter((e) => e.statut === "terminee").map((e) => e.cle);
@@ -33,7 +35,7 @@ async function avancerJusqua(moteur: MoteurVideo, commande: CommandeFabrication,
 
 describe("M9 · parcours pas à pas", () => {
   it("un travail avance d'étape en étape jusqu'à « terminé » : la première fin est la sortie, chaque fin au projet", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     const t = await b.moteur.lancer(c, ctx("t-parcours"));
     expect(t.statut).toBe("en_file");
@@ -48,22 +50,23 @@ describe("M9 · parcours pas à pas", () => {
     expect(r.sorties).toHaveLength(1);
     expect(r.sorties[0]).toMatchObject({ ratio: "9:16", resolution: "1080x1920" });
     const projet = r.projetMontage.casConcret as { fins: { id: string; fichierCle: string; reseaux: string[] }[]; rapport: { verdict: string }; liens: Record<string, string>; fiche: { casId: string } };
-    // Rien de branché (X6) : Instagram et TikTok partagent leur fin, Facebook et LinkedIn ont chacun la leur.
+    // 17/11 (Williams) : sans choix, aucune fin. Mot branché sur Facebook et Instagram : chacun sa fin au mot ; TikTok et LinkedIn partagent la fin vide (avant : Facebook, Instagram-TikTok, LinkedIn).
     expect(projet.fins).toHaveLength(3);
     expect(r.sorties[0].fichierCle).toBe(projet.fins[0].fichierCle);
     expect(projet.rapport.verdict).toBe("ok");
     expect(Object.keys(projet.liens)).toEqual(["facebook", "instagram", "tiktok", "linkedin"]);
     expect(projet.fiche.casId).toBe("recrutement-apporteurs");
     expect(r.lignesReelles.every((l) => l.nature === "reel")).toBe(true);
-    // La voix payée : une prise pour le corps, une par fin, chacune une fois.
-    expect(b.d.lus).toHaveLength(4);
+    // La voix payée : une prise pour le corps, une par fin lue, chacune une fois.
+    // 17/11 (Williams) : sans choix, aucune fin : la fin vide (TikTok, LinkedIn) n'est pas lue (4 → 3).
+    expect(b.d.lus).toHaveLength(3);
     const voix = r.lignesReelles.find((l) => l.etape === "Voix");
     expect(voix?.total.centimes).toBeGreaterThan(0);
     expect(b.moteur.lignesPayees?.(fin.travail, c)).toEqual([voix]);
   });
 
   it("L0d · chaque fin garde SES sous-titres (Facebook, Instagram-TikTok, LinkedIn), la première = ceux de la vidéo", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     const fin = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-st-fins")));
     const r = fin.resultat!;
@@ -76,7 +79,7 @@ describe("M9 · parcours pas à pas", () => {
   });
 
   it("L0a · le moteur renvoie ses vrais plans : un par écran du corps, texte dit, horaires du calage", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     const fin = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-plans")));
     const r = fin.resultat!;
@@ -105,7 +108,7 @@ describe("M9 · parcours pas à pas", () => {
 
 describe("M9 · échec et reprise", () => {
   it("échec puis « Réessayer » : rien n'est repayé, rien n'est rendu deux fois", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande({ simulerEchecEtape: "montage" });
     const enEchec = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-echec")));
     expect(enEchec.travail.statut).toBe("echec");
@@ -130,7 +133,7 @@ describe("M9 · échec et reprise", () => {
   });
 
   it("fiche fournie refusée : échec à la relecture, non réessayable, ni écriture ni voix", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const fiche = ficheParGabarit(trouverCas("recrutement-apporteurs")!, { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" });
     b.fiches.set("studio/dev/fiches/video-cc.json", { ...fiche, casId: "un-autre-cas" });
     const c = b.commande({ entrees: { casConcret: { ...b.d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" } } });
@@ -144,7 +147,7 @@ describe("M9 · échec et reprise", () => {
   });
 
   it("fiche fournie valide : l'écriture est sautée, la vidéo est faite", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const fiche = ficheParGabarit(trouverCas("recrutement-apporteurs")!, { videoId: "video-cc", versionId: "ver-t-fournie", habillage: "charte-duo/1", origine: "porte-a" });
     b.fiches.set("studio/dev/fiches/video-cc.json", fiche);
     const c = b.commande({ entrees: { casConcret: { ...b.d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" } } });
@@ -157,7 +160,7 @@ describe("M9 · échec et reprise", () => {
 
 describe("M9 · « Arrêter »", () => {
   it("annuler pendant les écrans : statut annulé, étapes faites gardées, plus rien n'avance", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     const pendant = await avancerJusqua(b.moteur, c, await b.moteur.lancer(c, ctx("t-arret")), (t) => t.etapes.find((e) => e.cle === "ecrans")?.statut === "en_cours");
     const faites = terminees(pendant.travail);
@@ -192,7 +195,7 @@ describe("M9 · estimation", () => {
   });
 
   it("la voix compte chaque fin : plus de réseaux, plus de caractères ; sans voix, aucune ligne de voix", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const un = await b.moteur.estimer(b.commande({ entrees: { casConcret: { ...b.d.options.entrees, reseaux: ["facebook"] } } }));
     const quatre = await b.moteur.estimer(b.commande());
     expect(quatre.lignes.find((l) => l.etape === "Voix")!.quantite).toBeGreaterThan(un.lignes.find((l) => l.etape === "Voix")!.quantite);
@@ -200,7 +203,7 @@ describe("M9 · estimation", () => {
   });
 
   it("une fiche fournie : ni écriture estimée, ni étape d'écriture", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande({ entrees: { casConcret: { ...b.d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" } } });
     expect((await b.moteur.estimer(c)).lignes.map((l) => l.etape)).not.toContain("Écriture");
     expect(b.moteur.etapes(c).map((e) => e.cle)).not.toContain("ecriture");
@@ -209,7 +212,7 @@ describe("M9 · estimation", () => {
 
 describe("M9 · refus lisibles", () => {
   it("au lancement : pas de voix, ni cas ni fiche, aucun réseau", () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     expect(b.moteur.refusAuLancement?.(c)).toBeNull();
     expect(b.moteur.refusAuLancement?.({ ...c, distribution: [] })?.code).toBe("CAS_CONCRET_SANS_VOIX");
@@ -218,7 +221,7 @@ describe("M9 · refus lisibles", () => {
   });
 
   it("retouche, réexport, sous-titres : « viendra en version 2 », rien n'est lancé", async () => {
-    const b = banc();
+    const b = banc(AVEC_MOT);
     const c = b.commande();
     const r = await b.moteur.retoucher({ commande: c, contexte: ctx("t-r"), planIds: [], consigne: "" });
     const x = await b.moteur.reexporter({ commande: c, contexte: ctx("t-x"), cible: { ratio: "1:1" } });

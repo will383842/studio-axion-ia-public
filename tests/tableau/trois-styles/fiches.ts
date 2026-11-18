@@ -12,6 +12,7 @@ import type { MotCalage } from "../../../src/briques/motion/calage";
 import type { StyleTableau } from "../../../src/briques/tableau-scene/trois-styles/styles";
 import { calerFicheTableau, type ElementCale } from "../../../src/moteurs/montage-tableau/calage";
 import { remettreEnForme } from "../../../src/moteurs/montage-tableau/decoupage";
+import { pagesDuStyle } from "../../../src/moteurs/montage-tableau/densite";
 import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import type { ContexteTableau } from "../../../src/moteurs/montage-tableau/regles";
 import { motsRealistes } from "../reference-3/fiches";
@@ -158,5 +159,6 @@ export function ficheDemonstration3Gestes(style?: StyleTableau): FicheTableau {
     ],
   } as FicheTableau;
   const r = remettreEnForme(f, { motsDouleur: MOTS_DOULEUR_DEMO });
-  return style ? { ...r, styleTableau: style } : r;
+  // La fiche telle que la fabrication la lit (`fabriquer.ts:849`) : le style posé, puis la réparation des pages dans ce style.
+  return style ? (pagesDuStyle({ ...r, styleTableau: style }) as FicheTableau) : r;
 }

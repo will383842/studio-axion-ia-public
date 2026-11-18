@@ -4,18 +4,27 @@
  */
 import { describe, expect, it } from "vitest";
 import { controlerProprietes, proprietesEcrans } from "@/briques/ecrans-motion";
-import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
+import { suiteDeFins, TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
+import { FINS_DIAGNOSTIC, type ReseauCas } from "@/formats/cas-concret";
 import { trouverCas } from "@/formats/cas-concret/catalogue";
 import { poserBruitages } from "@/moteurs/montage-cas-concret/bruitages";
 import { ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
 import { contenuEcran, ecransCales, etapesCasConcret, lireEntreesCasConcret, regrouperFins, reporterTexteDit } from "@/moteurs/montage-cas-concret/etapes";
 import { fabriquerCasConcret } from "@/moteurs/montage-cas-concret/fabriquer";
 import { motsLus, type EcranCorps, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
-import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
+import { ecransDeFin, planDesFins } from "@/moteurs/montage-cas-concret/fins";
 import { doubles, SONS_VALIDES } from "./doubles";
+
+// 17/11 (Williams) : sans choix, aucune fin ; le mot est branché explicitement pour garder plusieurs fins à fabriquer.
+const MOT = { avecMot: true, motSur: ["facebook", "instagram"] as ("facebook" | "instagram")[] };
 
 const FIXE = { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const };
 const fiche = (): FicheEcrans => ficheParGabarit(trouverCas("recrutement-apporteurs")!, FIXE);
+/** Une fin « diagnostic » construite explicitement (la table et les écrans de la brique), un plan par réseau. */
+const finDiagnostic = (reseau: ReseauCas, mot: string, motDit: string) => {
+  const appels = suiteDeFins(reseau, [...FINS_DIAGNOSTIC[reseau]], { mot, motDit }, TABLE_FINS_DIAGNOSTIC);
+  return { id: `fin-${reseau}`, reseaux: [reseau], appels, ecrans: ecransDeFin(appels, mot) };
+};
 const ZONE = { haut: 14, droite: 18, bas: 30, gauche: 6 };
 
 describe("M8 · graphe et entrées", () => {
@@ -42,7 +51,8 @@ describe("M8 · fins regroupées", () => {
   const demande = { reseaux: ["facebook", "instagram", "tiktok", "linkedin"] as const, mot: "IA", motDit: "I.A.", avecMot: false, table: TABLE_FINS_DIAGNOSTIC };
 
   it("aujourd'hui : trois fichiers au plus — Instagram et TikTok partagent leur fin, Facebook et LinkedIn ont chacun la leur", () => {
-    const brut = planDesFins({ ...demande, reseaux: [...demande.reseaux], offre: "integration", nature: "automatisation" });
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const brut = { fins: demande.reseaux.map((r) => finDiagnostic(r, demande.mot, demande.motDit)), reduites: [], sansFin: [] };
     expect(brut.fins).toHaveLength(4);
     const plan = regrouperFins(brut);
     expect(plan.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram", "tiktok"], ["linkedin"]]);
@@ -50,9 +60,10 @@ describe("M8 · fins regroupées", () => {
     expect(plan.reduites).toEqual(brut.reduites);
   });
 
-  it("mot branché sur les deux comptes : Facebook et Instagram ont chacun leur fin au mot (X7 : l'abonnement sur Instagram), TikTok et LinkedIn la leur", () => {
+  it("mot branché sur les deux comptes : Facebook et Instagram ont chacun leur fin au mot (X7 : l'abonnement sur Instagram), TikTok et LinkedIn la fin vide", () => {
+    // 17/11 (Williams) : sans choix, aucune fin ; TikTok et LinkedIn ont la même fin vide et partagent un fichier.
     const plan = regrouperFins(planDesFins({ ...demande, avecMot: true, motSur: ["facebook", "instagram"], reseaux: [...demande.reseaux], offre: "formation" }));
-    expect(plan.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram"], ["tiktok"], ["linkedin"]]);
+    expect(plan.fins.map((f) => f.reseaux)).toEqual([["facebook"], ["instagram"], ["tiktok", "linkedin"]]);
   });
 });
 
@@ -102,8 +113,8 @@ describe("M8 · écrans de la brique", () => {
   });
 
   it("fin « diagnostic » : « Faites votre *diagnostic gratuit* », « en quelques minutes », puis la bulle du lien et la signature", () => {
-    const plan = planDesFins({ reseaux: ["facebook"], offre: "integration", nature: "automatisation", mot: "IA", motDit: "I.A.", avecMot: false, table: TABLE_FINS_DIAGNOSTIC });
-    const fin = plan.fins[0];
+    // 17/11 (Williams) : sans choix, aucune fin ; ce test teste la fin elle-même.
+    const fin = finDiagnostic("facebook", "IA", "I.A.");
     const [diagnostic, lien] = fin.ecrans.map((e) => contenuEcran(e, fin, {}));
     expect(diagnostic).toEqual({ type: "promesse", invite: "Faites votre", cadeau: "*diagnostic gratuit*", ligne: "en quelques minutes" });
     expect(lien).toEqual({ type: "lien", titre: "Le lien est en commentaire", lien: "Diagnostic gratuit · lien en commentaire", signature: "Axion-*IA*" });
@@ -152,13 +163,14 @@ describe("M8 · bruitages", () => {
 
 describe("M8 · reformulation", () => {
   it("corps rejeté : reformulation par le rôle borné, relecture, texte reporté, vidéo faite", async () => {
-    const d = doubles({ lecturesFautives: [1] });
+    const d = doubles({ ...MOT, lecturesFautives: [1] });
     const cr = await fabriquerCasConcret(d.options);
     expect(d.roles).toContain("reformulation-cas-concret");
     expect(cr.voix.lecturesCorps).toBe(2);
     expect(cr.voix.reformulations).toHaveLength(1);
-    // Deux lectures du corps, puis une par fin : Facebook et Instagram (au mot) partagent la leur, TikTok, LinkedIn.
-    expect(d.lus).toHaveLength(5);
+    // Deux lectures du corps, puis une par fin lue : Facebook et Instagram (au mot). 17/11 (Williams) : sans choix, aucune
+    // fin ; la fin vide (TikTok, LinkedIn) n'est pas lue.
+    expect(d.lus).toHaveLength(4);
     expect(cr.prises.filter((p) => p.prise === "corps")).toHaveLength(2);
     expect(cr.fins).toHaveLength(3);
   });

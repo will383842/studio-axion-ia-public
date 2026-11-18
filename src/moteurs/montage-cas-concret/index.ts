@@ -612,7 +612,8 @@ function voixDeRetouche(commande: CommandeFabrication, outils: OutilsCasConcret,
   const motDit = entrees.motDit ?? cas.motDit;
   const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: outils.contexte.tableDesFins }));
   const texteCorps = lire(texteDuCorpsPourVoix(r.fiche));
-  const textesFins = plan.fins.map((f) => ({ id: f.id, texte: lire(texteDeFin(f)) }));
+  // 17/11 : comme `fabriquer.ts` (étape 4), une fin vide (sans écran) n'a pas de voix : même empreinte, sinon la retouche relirait tout.
+  const textesFins = plan.fins.filter((f) => f.ecrans.length).map((f) => ({ id: f.id, texte: lire(texteDeFin(f)) }));
   const v = outils.voix;
   const meme = (texte: string, p: EtatVoixCasConcret["corps"]["prise"]) => priseReprise(texte, p, v);
   const avant = r.prisesAvant;

@@ -24,7 +24,8 @@ import type { ReseauCas } from "@/formats/cas-concret";
 import { formaterMontant } from "@/lib/montants";
 import { casDesEntrees, ID_MOTEUR_CAS_CONCRET, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { texteDuCorps } from "@/moteurs/montage-cas-concret/fiche";
-import { planDesFins, RAISON_SUITE_REDUITE } from "@/moteurs/montage-cas-concret/fins";
+import { FIN_AUCUNE, planDesFins, RAISON_SUITE_REDUITE } from "@/moteurs/montage-cas-concret/fins";
+import { CONSIGNE_SANS_FIN } from "@/moteurs/montage-cas-concret/publication";
 import { depots, fournisseur } from "./_commun";
 import { exigerSession } from "./auth";
 import { reglageAllume, REGLAGES_CAS_CONCRET } from "./cas-concret-reglages";
@@ -80,7 +81,6 @@ export interface DependancesVueCasConcret {
 const NOM_RESEAU: Readonly<Record<ReseauCas, string>> = { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", linkedin: "LinkedIn" };
 const RESEAUX: readonly ReseauCas[] = ["facebook", "instagram", "tiktok", "linkedin"];
 const MOT_DE_LIGNE: Readonly<Record<string, string>> = { commentaire: "mot", cadeau: "envoi", "rendez-vous": "diagnostic", lien: "lien" };
-const RAISON_SANS_MOT = "Fin sans le mot à commenter : la vidéo propose le diagnostic.";
 
 const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
 const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -93,6 +93,7 @@ function listeFrancaise(t: readonly string[]): string {
 
 /** Phrase de la fin d'après les types de lignes de la suite (PUR). */
 export function phraseDeFin(types: readonly string[]): string {
+  if (types.length === 0) return FIN_AUCUNE; // 17/11 : fin vide, rien n'est dit ni écrit après la question.
   const dans = new Set(types);
   // Une fin au mot promet toujours l'envoi : en ligne à part, ou dans la même phrase (Instagram, X7).
   if (dans.has("commentaire")) dans.add("cadeau");
@@ -140,10 +141,10 @@ function finsRejouees(entrees: ReturnType<typeof lireEntreesCasConcret>): Map<Re
   const cas = casDesEntrees(entrees);
   if (!cas || !entrees.reseaux.length) return parReseau;
   try {
-    const plan = planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? "", ...(entrees.motDit ? { motDit: entrees.motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC });
+    const plan = planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC });
     for (const fin of plan.fins) {
       const reduite = plan.reduites.find((r) => fin.reseaux.some((x) => r.reseaux.includes(x)));
-      const raison = reduite ? (reduite.raison || RAISON_SUITE_REDUITE) : !entrees.avecMot ? RAISON_SANS_MOT : undefined;
+      const raison = reduite ? (reduite.raison || RAISON_SUITE_REDUITE) : undefined;
       for (const reseau of fin.reseaux) parReseau.set(reseau, { types: fin.appels.map((a) => a.type), ...(raison ? { raison } : {}) });
     }
   } catch {
@@ -190,8 +191,11 @@ export async function vueCasConcret(videoId: Id, dependances: DependancesVueCasC
     if (!fin) return [];
     const fiche = fichiers.find((f) => f.cleStockage === fin.fichierCle);
     const dimensions = dimensionsDe(fin.mesures?.largeur, fin.mesures?.hauteur) ?? dimensionsDe(fiche?.largeur, fiche?.hauteur);
-    const fait = rejoue.get(reseau);
     const publication = textes.get(reseau);
+    const faitRejoue = rejoue.get(reseau);
+    // 18/11 (relecteur B, FIX-CC-FIN-NON-CHOISIE) : une vidéo fabriquée AVANT « sans choix, aucune fin » a gardé une publication qui annonce un lien (consigne autre que `CONSIGNE_SANS_FIN`) : son fichier porte l'ancienne fin. On ne dit alors rien de la fin plutôt qu'« aucune (votre choix) ».
+    const ancienneFin = faitRejoue?.types.length === 0 && texteNonVide(publication?.consigneLien) && publication.consigneLien !== CONSIGNE_SANS_FIN;
+    const fait = ancienneFin ? undefined : faitRejoue;
     const lien = texteNonVide(liens[reseau]) ? (liens[reseau] as string) : undefined;
     const url = urls.get(fin.fichierCle);
     return [{

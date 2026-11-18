@@ -13,10 +13,10 @@ import { describe, expect, it } from "vitest";
 import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins";
 import type { ReseauCas } from "@/formats/cas-concret";
 import { CATALOGUE } from "@/formats/cas-concret/catalogue";
-import { CONSIGNE_ECRITURE, DUREE_SORTIE_COURTE_VISEE_MS, EXEMPLE_TON_V4, dureeDiteMs, dureesDesFins, ficheParGabarit } from "@/moteurs/montage-cas-concret/ecriture";
+import { CONSIGNE_ECRITURE, DUREE_SORTIE_COURTE_VISEE_MS, EXEMPLE_TON_V4, dureeDiteMs, dureesDesFins, ficheParGabarit, PLACE_FIN_VIDE_MS } from "@/moteurs/montage-cas-concret/ecriture";
 import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
 import { planDesFins } from "@/moteurs/montage-cas-concret/fins";
-import { TENUE_FINALE_MS } from "@/moteurs/montage-cas-concret/regles";
+import { DUREE_TOTALE_REFUS_MS, TENUE_FINALE_MS } from "@/moteurs/montage-cas-concret/regles";
 
 const FIXE = { videoId: "v", versionId: "v", habillage: "charte-duo/1", origine: "porte-a" } as const;
 const TOUS: ReseauCas[] = ["facebook", "instagram", "tiktok", "linkedin"];
@@ -56,7 +56,9 @@ describe("V4-2 · durée visée proche de la v4 (41 s)", () => {
     const plan = regrouperFins(planDesFins({ reseaux: TOUS, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: cas.mot, avecMot: false, table: TABLE_FINS_DIAGNOSTIC }));
     const fiche = ficheParGabarit(cas, FIXE, dureesDesFins(plan.fins));
     const corps = dureeDiteMs(fiche.ecrans);
-    const durees = plan.fins.map((f) => (corps + dureeDiteMs(f.ecrans) + TENUE_FINALE_MS) / 1000);
+    // 17/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : une fin vide garde la place de la fin retirée (PLACE_FIN_VIDE_MS) ; la vidéo réelle sans fin ne passe pas sous le plancher de refus.
+    const durees = plan.fins.map((f) => (corps + (f.ecrans.length ? dureeDiteMs(f.ecrans) + TENUE_FINALE_MS : PLACE_FIN_VIDE_MS)) / 1000);
+    expect(corps + TENUE_FINALE_MS).toBeGreaterThanOrEqual(DUREE_TOTALE_REFUS_MS.min);
     expect(Math.min(...durees)).toBeGreaterThanOrEqual(40);
     expect(Math.min(...durees)).toBeLessThanOrEqual(47);
     expect(Math.max(...durees)).toBeLessThanOrEqual(50);

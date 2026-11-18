@@ -122,6 +122,7 @@ export function reparerParametres(piece: IdPiece, brut: unknown): { parametres: 
   const def = CATALOGUE_BRIQUES[piece];
   const direct = def.schema.safeParse(brut);
   if (direct.success) return { parametres: direct.data, champs: [] };
+  if ((def as DefinitionBrique).famille === "objet") return { parametres: null, champs: ["objet"] }; // BR-OBJETS-a : rien n'est inventé, jamais l'exemple
   const forme = (def.schema as unknown as z.ZodObject<z.ZodRawShape>).shape;
   const exemple = def.exemple as Record<string, unknown>;
   const source = estObjet(brut) ? brut : {};
@@ -392,6 +393,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
       parametres = parametresDepuisTexte(piece, texteScene);
     } else {
       const r = reparerParametres(piece, nettoyerCharte(s.parametres, "", signaler));
+      if (r.parametres === null) return signaler("SCENE_RETIREE", `Objet « ${String(piece)} » aux paramètres invalides : scène retirée.`);
       if (r.champs.length) signaler("PARAMETRES_REPARES", `Paramètres réparés (${r.champs.join(", ")}).`);
       parametres = r.parametres;
     }
@@ -412,6 +414,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
         }
         const pc = c.piece as IdPiece;
         const r = reparerParametres(pc, nettoyerCharte(c.parametres, "", signaler));
+        if (r.parametres === null) return signaler("CALQUE_RETIRE", `Calque ${i + 1} : objet « ${pc} » aux paramètres invalides, retiré.`);
         if (r.champs.length) signaler("PARAMETRES_REPARES", `Calque ${i + 1} : paramètres réparés (${r.champs.join(", ")}).`);
         const zone = POSITIONS.includes(c.zone as Position) ? (c.zone as Position) : "plein";
         calques.push({ piece: pc, parametres: r.parametres, debutMs: Math.max(0, Math.min(nombre(c.debutMs) ?? 0, finMs - debutMs - 200)), zone } as Calque);
@@ -429,6 +432,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
       niveau = 1;
     }
 
+    if (piece !== pieceDemandee && (CATALOGUE_BRIQUES[piece] as DefinitionBrique).famille === "objet") return signaler("SCENE_RETIREE", `Objet « ${piece} » sans paramètres écrits par le plan : scène retirée (jamais l'exemple).`); // BR-OBJETS-a
     // Position (jamais devant le visage en face caméra) et transition douce.
     let position: Position = POSITIONS.includes(s.position as Position) ? (s.position as Position) : facecam ? POSITION_SURE_FACECAM : "centre";
     if (facecam && devantLeVisage(position)) {

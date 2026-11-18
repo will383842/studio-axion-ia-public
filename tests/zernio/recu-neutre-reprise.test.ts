@@ -2,8 +2,8 @@
  * C5 · reçu neutre : reprise du reçu (`reprendre_recu`), report au plafond horaire, événement `recu_neutre_non_valide` une seule fois par conversation.
  * Faux port, faux site, données fictives.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Evenement } from "@/domaine/types";
 import { rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
 import { cleConversation, deposerMessage, evenement, validerFormulationsAuParcours } from "./aides/conversation";
 import { AUTEUR, banc, C, Com, COMPTE, depots, graineConv, nettoyer, passer, preparer, T0, TITRE, toutesLesConversations } from "./filet-guide/_amorce";
@@ -19,7 +19,7 @@ const cle = () => cleConversation(AUTEUR);
 const etatDe = async () => (await toutesLesConversations())[cle()];
 const semerIncertain = async (extra: Record<string, unknown> = {}) =>
   Com.ecrireParametre(C.PARAM_CONVERSATIONS, { [cle()]: graineConv("guide_demande", { idMessageGuide: "msg-accuse", guideIncertain: true, ...extra }) });
-const nbEvenementNeutre = async () => (await depots().evenements.lister((e: any) => String(e.message).includes("recu_neutre_non_valide"))).length;
+const nbEvenementNeutre = async () => (await depots().evenements.lister((e: Evenement) => String(e.message).includes("recu_neutre_non_valide"))).length;
 
 beforeEach(async () => {
   await preparer();

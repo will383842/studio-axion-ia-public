@@ -47,6 +47,8 @@ import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs
 export const STUDIO_NON_RELIE_IV = "Le studio n'est pas relié (stockage, voix, Claude ou serveur de rendu) : rien n'a été dépensé.";
 export const CONVERSION_IMPOSSIBLE_IV = "FFmpeg est absent de ce serveur : l'image ne peut pas être découpée pour la lecture.";
 
+/** BR-MINIMAL-IV-a : sous-titres en groupes de 1 à 3 mots (image vers vidéo). Absent ou autre que `true` : éteint. */
+export const PARAM_SOUS_TITRES_MINIMAL_IV = "imageVideo.sousTitresMinimal";
 /** Plafond Claude propre au format, par vidéo (lecture, écriture, relecture finale), en dollars. */
 export const PARAM_PLAFOND_CLAUDE_IV = "imageVideo.plafondClaudeUsd";
 /** Préfixe des étapes de dépense Claude du format (plafond propre de `executerRolePourVideo`). */
@@ -269,6 +271,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   const renduSimule = client.renduSimule();
   if (production && (stockage.mode === "simulation" || voix.mode === "simulation" || renduSimule)) throw new Error(STUDIO_NON_RELIE_IV);
   const taux = await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT);
+  const sousTitresMinimal = (await lireParametre<unknown>(PARAM_SOUS_TITRES_MINIMAL_IV, false).catch(() => false)) === true;
   const tarifUsd = voix.capacites.tarifUsd?.unite === "caractere" ? voix.capacites.tarifUsd.centimesUsd : CENTIMES_USD_PAR_CARACTERE_HEYGEN;
 
   const signerLecture = async (cle: string) => (stockage.urlLectureDuree ? stockage.urlLectureDuree(cle, 3600) : stockage.urlLecture(cle));
@@ -439,6 +442,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         signerDepot,
         existe: async (cle) => stockage.mode !== "simulation" && (await stockage.confirmerDepot(cle).catch(() => ({ ok: false }))).ok,
         sons: BRUITAGES_V4_IV,
+        ...(sousTitresMinimal ? { sousTitresMinimal: true as const } : {}),
         mesurer: async (cle, dureeSec) => {
           if (renduSimule || stockage.mode === "simulation") return {};
           // Fichier final lu en entier (200 Mo au plus) : empreinte de ses octets, images noires et figées.

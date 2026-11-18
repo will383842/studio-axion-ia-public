@@ -46,7 +46,8 @@ function commande(extra: { voixId?: string | null; mot?: string; reseaux?: reado
     distribution: [{ role: "voix", source: "double", personnageId: "p-clara", fournisseurVoix: "simulation", ...(voixId ? { voixId } : {}) }],
     styles: { sousTitres: null, decor: null, lut: null, musique: null },
     briques: { "sous-titres": true, etalonnage: false, illustrations: true, son: true, habillage: false, "texte-ecran": false, "mention-ia": false },
-    entrees: { casConcret: { casId: "recrutement-apporteurs", porte: "porte-a", mot: extra.mot ?? "APPORT", avecMot: true, reseaux: [...(extra.reseaux ?? RESEAUX)], essai: false, codeSuivi: "cc-recrutement-apporteurs-abc123" } },
+    // 17/11 (Williams) : sans choix, aucune fin ; ces essais comptaient sur plusieurs sorties par défaut : « Avec le mot » + mot branché sur Facebook et Instagram les rétablissent.
+    entrees: { casConcret: { casId: "recrutement-apporteurs", porte: "porte-a", mot: extra.mot ?? "APPORT", avecMot: true, motSur: ["facebook", "instagram"], reseaux: [...(extra.reseaux ?? RESEAUX)], essai: false, codeSuivi: "cc-recrutement-apporteurs-abc123" } },
     reglages: {},
     plans: [],
     prononciations: [],

@@ -133,6 +133,9 @@ describe("X1-02b : éteint, pur", () => {
     for (const dossier of ["src", "studio-rendu"]) {
       for (const f of sources(dossier)) {
         if (f.endsWith("minimal-dynamique.ts")) continue;
+        // 18/11/2026, BR-MINIMAL-IV-a (seconde lecture du pilote) : SEUL appelant autorisé, la fonction pure de l'image vers vidéo
+        // (éteinte par `imageVideo.sousTitresMinimal`). Garde intacte : tout autre importeur reste refusé.
+        if (f.replace(/\\/g, "/").endsWith("src/moteurs/montage-image-video/sous-titres-minimal.ts")) continue;
         expect(readFileSync(f, "utf8"), f).not.toMatch(/(from\s+|import\s*\(|require\()\s*["'][^"']*sous-titres\/minimal-dynamique["']|from\s+["']\.\/minimal-dynamique["']/);
       }
     }

@@ -177,7 +177,7 @@ export function libellePublication(p: Pick<Publication, "via" | "statut" | "etat
     if (p.etatEnvoi === "en-cours") return { libelle: "Envoi en cours", ton: "neutre" };
     if (p.etatEnvoi === "a-verifier") return { libelle: "À vérifier", ton: "ambre" };
     if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent" || p.statut === "echec") return { libelle: "Échec", ton: "brique" };
-    if (p.statut === "brouillon") return { libelle: "Brouillon dans Buffer", ton: "neutre" };
+    if (p.statut === "brouillon") return { libelle: "Brouillon chez le diffuseur", ton: "neutre" };
   }
   switch (p.statut) {
     case "brouillon":

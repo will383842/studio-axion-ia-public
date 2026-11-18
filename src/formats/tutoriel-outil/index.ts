@@ -7,7 +7,7 @@ import { CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES } from "../commun
  *
  * Part d'un script collé, ou d'un titre / d'une idée dont le studio écrit un script lisible et modifiable avant validation.
  * L'outil est montré en plein écran par du motion design (curseur, clics, zooms, frappe, légendes), sur la voix HeyGen
- * épinglée. Aucun visage. Lot I : le rendu est branché (`moteurs/montage-tutoriel-outil`) ; le format reste `masque`
+ * épinglée. Aucun visage. Une voix : le double de Williams. Lot I : le rendu est branché (`moteurs/montage-tutoriel-outil`) ; le format reste `masque`
  * jusqu'à la décision de Williams de le passer `actif`.
  */
 export const ID_FORMAT_TUTORIEL_OUTIL = "tutoriel-outil";
@@ -32,7 +32,7 @@ export const formatTutorielOutil: DefinitionFormat = {
   ratioMaitre: "4:5",
   miseEnPage: "plein-ecran",
   miseEnPageParRatio: { "4:5": "plein-ecran", "9:16": "plein-ecran", "1:1": "plein-ecran" },
-  personnages: { min: 0, max: 0, sources: [] },
+  personnages: { min: 1, max: 1, roles: ["voix"], sources: ["double"] },
   entrees: [],
   etapes: ["express", "fabrication"],
   reglages: { schema: z.object({}), champs: [] },

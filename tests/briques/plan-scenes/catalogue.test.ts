@@ -6,6 +6,8 @@ import { RENDUS_BRIQUES } from "@/briques/plan-scenes/briques";
 import { CHARTE_AXION, POLICE_AXION, FPS_AXION, adoucir } from "@/briques/jetons-motion";
 
 const ATTENDUES = ["curseur", "zoom-camera", "frappe-clavier", "carte-kpi", "graphique", "tableau-de-bord", "liste-crm", "fenetre-app", "bulle-chat", "legende", "compteur", "jauge", "avant-apres", "barres", "etapes", "liste-au-mot", "citation", "repere"];
+// 17/11/2026 BR-OBJETS-a (C9-34b) : les 4 objets inscrits (porte fermée) s'ajoutent volontairement aux 18 briques ; la liste des 18 reste exacte.
+const OBJETS_INSCRITS_A = ["objet-gros-chiffre", "objet-etape", "objet-cartes-coche", "objet-coche"];
 const HEX_CHARTE = new Set(Object.values(CHARTE_AXION).map((c) => c.toLowerCase()));
 
 function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" | "noir" = "ivoire"): string {
@@ -16,7 +18,7 @@ function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" |
 
 describe("catalogue de briques (fausse interface logicielle)", () => {
   it("contient les 18 briques demandées, chacune avec un rendu", () => {
-    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES].sort());
+    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A].sort());
     for (const id of IDS_PIECES) expect(RENDUS_BRIQUES[id]).toBeTypeOf("function");
   });
 

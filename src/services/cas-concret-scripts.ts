@@ -25,6 +25,9 @@ import { trouverCasAutorise, trouverCasConnu } from "./cas-concret-stock-acces";
 import { casDesEntrees, lireEntreesCasConcret } from "@/moteurs/montage-cas-concret";
 import { ID_MOTEUR_CAS_CONCRET } from "@/moteurs/montage-cas-concret";
 import { apercuDesEcrans, blocsScriptDesEcrans, CODE_SCRIPT_A_VALIDER, ficheDuScriptValide, lireScriptValide, problemesScriptValide, scriptDeFiche, scriptValideDuCatalogue, SCRIPTS_VALIDES_CATALOGUE, type EcranApercu, type ScriptValide } from "@/moteurs/montage-cas-concret/script-valide";
+import { regrouperFins } from "@/moteurs/montage-cas-concret/etapes";
+import { FIN_AUCUNE, planDesFins } from "@/moteurs/montage-cas-concret/fins";
+import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
 import { lignesDesEcrans } from "@/moteurs/montage-cas-concret/relecture";
 import { texteDuCorps, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import { appliquerModifications, type ModificationEcran } from "@/moteurs/montage-cas-concret/modifier-script";
@@ -66,6 +69,12 @@ export interface ApercuScriptCasConcret {
    * reprend rien de ce qui est dit), en phrases, écran par écran (`rang`). AVERTISSEMENT seulement : jamais bloquant.
    */
   avertissements: { rang: number; detail: string }[];
+  /**
+   * 17/11 (Williams) : la fin de chaque groupe de réseaux, telle qu'elle sera dite et écrite (la fin au mot choisie), ou
+   * `FIN_AUCUNE` (`dit`, sans `ecrits`) quand rien n'est dit ni écrit après la question. `reseaux` : « facebook-instagram ».
+   * Remplie par `apercuScriptCasConcret` (qui rejoue le plan des fins) ; `apercuDuTravail`, pur, rend une liste vide.
+   */
+  fins: { reseaux: string; dit: string; ecrits: string[] }[];
 }
 
 const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null);
@@ -93,6 +102,7 @@ export function apercuDuTravail(travail: (Pick<Travail, "statut" | "erreur" | "e
     texteDit: fiche.ecrans.map((e) => e.texteDit.trim()).join(" "),
     ecrans: apercuDesEcrans(fiche.ecrans),
     avertissements: avertissementsCorrespondance(fiche.ecrans).map((a) => ({ rang: fiche.ecrans.findIndex((e) => e.id === a.ecranId) + 1, detail: a.detail })),
+    fins: [],
   };
 }
 
@@ -157,11 +167,36 @@ async function travailDeLaVideo(videoId: Id): Promise<Travail | null> {
   return derniere?.travailId ? ((await d.travaux.obtenir(derniere.travailId)) ?? null) : null;
 }
 
+/**
+ * 17/11 : les fins de la dernière version, rejouées depuis ses entrées (même appel que `cas-concret-vue.ts`), regroupées par
+ * contenu : la fin au mot choisie mot pour mot, ou `FIN_AUCUNE`. Jamais d'exception : au moindre doute, liste vide.
+ */
+async function finsDeLApercu(videoId: Id, casId: string): Promise<ApercuScriptCasConcret["fins"]> {
+  try {
+    const d = depots();
+    const derniere = (await d.versions.lister((v) => v.videoId === videoId && v.commande?.moteurId === ID_MOTEUR_CAS_CONCRET)).sort((a, b) => b.numero - a.numero)[0];
+    if (!derniere?.commande) return [];
+    const entrees = lireEntreesCasConcret(derniere.commande.entrees);
+    const cas = (await casDeLaVideo(videoId, casId)) ?? casDesEntrees(entrees);
+    if (!cas || !entrees.reseaux.length) return [];
+    const plan = regrouperFins(planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC }));
+    return plan.fins.map((f) =>
+      f.appels.length
+        // 18/11 (relecteur A) : les écrits de la fin = les lignes `ecran` de la table posées (ce que `contenuEcran` découpe en invite / mot / suite).
+        ? { reseaux: f.reseaux.join("-"), dit: f.ecrans.map((e) => e.texteDit.trim()).join(" "), ecrits: f.appels.map((x) => x.ecran.trim()).filter(Boolean) }
+        : { reseaux: f.reseaux.join("-"), dit: FIN_AUCUNE, ecrits: [] },
+    );
+  } catch {
+    return [];
+  }
+}
+
 /** L'aperçu du script de la dernière version d'une vidéo « Cas concret MD » ; `null` sans script. Jamais d'exception. */
 export async function apercuScriptCasConcret(videoId: Id): Promise<ApercuScriptCasConcret | null> {
   await exigerSession();
   try {
-    return apercuDuTravail(await travailDeLaVideo(videoId));
+    const apercu = apercuDuTravail(await travailDeLaVideo(videoId));
+    return apercu ? { ...apercu, fins: await finsDeLApercu(videoId, apercu.casId) } : null;
   } catch (erreur) {
     console.error("[studio] aperçu du script du cas concret illisible", videoId, erreur);
     return null;

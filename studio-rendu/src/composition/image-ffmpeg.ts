@@ -15,6 +15,7 @@
  */
 import { cadreSource, DIMENSIONS_SCENE, SOURCE_DOUBLE, transformation, type CameraScene, type ParametresCouleurs, type PlanScene, type ProprietesImageComposition, type SourceDouble } from "../../../src/briques/composition/scene.js";
 import { chaineCouleurs, sourceGrain } from "./ffmpeg.js";
+import { filtresRaccords } from "./raccords-ffmpeg.js";
 
 /** Une source du double prête pour FFmpeg : un fichier local (webm transparent ou image détourée). */
 export interface FichierDouble {
@@ -201,6 +202,28 @@ export function filtresFonduFin(dureeSec: number, fonduSec: number): { video: st
   return { video: `fade=t=out:st=${st.toFixed(3)}:d=${d.toFixed(3)}:color=black`, audio: `afade=t=out:st=${st.toFixed(3)}:d=${d.toFixed(3)}` };
 }
 
+/**
+ * BR-TABLEAU-RACCORDS-a : filtres des raccords (fondu, glissé) entre deux illustrations voisines sans visage, ou `null`
+ * (rien de demandé ou de permis : l'appelant garde son `concat`, inchangé). `xfade` raccourcit la piste de la durée du
+ * raccord : la fin du morceau qui précède est prolongée d'autant (dernière image clonée), donc chaque plan commence à
+ * la même image qu'avant et la durée totale reste EXACTEMENT la même (la voix et les sous-titres ne bougent pas).
+ */
+export function raccordsDesMorceaux(liste: Morceau[], raccords: ProprietesImageComposition["raccords"], fps: number, rvbFmt: string, sansVisage: (m: Morceau) => boolean): string[] | null {
+  const lies = (raccords ?? []).map((r) => ({ r, k: liste.findIndex((m) => m.index === r.indexAvant) })).filter(({ r, k }) => k >= 0 && liste[k + 1]?.index === r.indexAvant + 1 && sansVisage(liste[k]!) && sansVisage(liste[k + 1]!)).map(({ r, k }) => ({ indexAvant: k, type: r.type }));
+  const entrees = liste.map((m) => ({ debutImage: m.debut, finImage: m.fin }));
+  const options = { formats: { rvb: rvbFmt } };
+  const duree = (filtres: string[]) => filtres.flatMap((l) => { const mm = /\]\[m(\d+)\]xfade=.*:duration=([\d.]+):/.exec(l); return mm ? [[Number(mm[1]) - 1, Number(mm[2])] as const] : []; });
+  const avant = lies.length ? filtresRaccords(entrees, lies, fps, options) : null;
+  if (!avant) return null;
+  const d = new Map(duree(avant.filtres));
+  const apres = filtresRaccords(entrees.map((e, k) => (d.has(k) ? { ...e, finImage: e.finImage + d.get(k)! * fps } : e)), lies, fps, options);
+  if (!apres || JSON.stringify(duree(apres.filtres)) !== JSON.stringify(duree(avant.filtres))) return null;
+  const rembourrage = [...d].map(([k, s]) => `[m${k}]tpad=stop_mode=clone:stop_duration=${s.toFixed(3)}[t${k}]`);
+  // `concat` rend une base de temps 1/1000000 que `xfade` refuse (il attend celle des morceaux) : on la remet à 1/fps.
+  const tb = (l: string) => (/concat=.*\[c\d+\]$/.test(l) ? l.replace(/(\[c\d+\])$/, `,settb=1/${fps}$1`) : l);
+  return [...rembourrage, ...apres.filtres.map((l) => tb([...d.keys()].reduce((t, k) => t.split(`[m${k}]`).join(`[t${k}]`), l)))];
+}
+
 export function argumentsImageFfmpeg(
   p: ProprietesImageComposition,
   couleurs: Pick<ParametresCouleurs, "grainPct" | "grainTaillePx" | "vignettePct">,
@@ -364,7 +387,9 @@ export function argumentsImageFfmpeg(
     sorties.push(`[m${k}]`);
     kd++;
   }
-  lignes.push(`${sorties.join("")}concat=n=${sorties.length}:v=1:a=0,format=${fRvb}[img]`);
+  const ra = raccordsDesMorceaux(liste, p.raccords, fps, fRvb, (m) => estIllustration(m) && !m.plan.ecranPartage && !m.plan.miseEnPage);
+  if (ra) lignes.push(...ra, `[raccords]trim=end_frame=${p.images},setpts=PTS-STARTPTS[img]`);
+  else lignes.push(`${sorties.join("")}concat=n=${sorties.length}:v=1:a=0,format=${fRvb}[img]`);
 
   // --- Couleurs (calque 6) puis son ---
   // Grain : source DU graphe (tirée à la demande) ; en entrée « lavfi », elle courait devant et s'empilait (≈ 1 Go).
