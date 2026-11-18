@@ -22,6 +22,7 @@ import type { ReseauCas } from "@/formats/cas-concret";
 import type { FaitCas } from "@/formats/cas-concret/cas";
 import type { EvenementCale } from "./calage";
 import { cleMot, motsDe, motsLus, type Ecran, type EcranCorps, type FicheEcrans, type FinPlanifiee, type Origine, type PlanDesFins } from "./fiche";
+import { lireFinDemandee } from "./fin-choisie";
 import { ETAPES_CAS_CONCRET, type EtapeCasConcret } from "./outils";
 import { lireCameraPlus } from "./variete";
 
@@ -73,6 +74,8 @@ export interface EntreesCasConcret {
   cameraPlus?: number;
   /** BR-TRANSITIONS-CC-a · transitions dessinées entre écrans, figées au lancement par `habillage.transitionsPlanScenes` ; absent : coupes sèches. */
   habillageTransitions?: true;
+  /** FIX-CC-FIN-CHOIX-b1 · « La phrase de fin » choisie (D1) ; absent : aucune fin. */
+  finDemandee?: "rendez-vous";
 }
 
 const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -103,6 +106,7 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(porte === "porte-b" && Array.isArray(b.faitsConfirmes) ? { faitsConfirmes: b.faitsConfirmes.filter(texteNonVide) } : {}),
     ...(lireCameraPlus(b.cameraPlus) !== undefined ? { cameraPlus: lireCameraPlus(b.cameraPlus) } : {}),
     ...(b.habillageTransitions === true ? { habillageTransitions: true as const } : {}),
+    ...(lireFinDemandee(b.finDemandee) ? { finDemandee: "rendez-vous" as const } : {}),
   };
 }
 
