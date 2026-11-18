@@ -5,6 +5,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { EtatVide } from "@/components/ui/EtatVide";
 import { notifier } from "@/components/ui/Toast";
 import { compterParOnglet, filtrerParOnglet, LIBELLE_RESEAU_A_TRAITER, ONGLETS_A_TRAITER, type CarteDejaTraitee, type OngletATraiter } from "@/services/a-traiter-onglets";
+import { copiePossible, lienCommentaireSur } from "@/services/a-traiter-kit";
 import { extraitLisible } from "@/services/a-traiter-types";
 import type { ResultatChangement, VueATraiter } from "@/services/a-traiter-types";
 import { CarteATraiter } from "./CarteATraiter";
@@ -28,6 +29,9 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   if (vue.etat === "desactive") return <EtatVide compact icone="envoyer" titre="Désactivé" phrase="Cet écran est éteint pour le moment." />;
   if (vue.etat === "illisible") return <EtatVide compact icone="envoyer" titre="Source non lisible" phrase="Nous n’arrivons pas à lire la liste. Réessayez plus tard." />;
   const carte = visibles[0];
+  const manuel = carte?.reseau === "linkedin" || carte?.reseau === "tiktok";
+  const tiktok = carte?.reseau === "tiktok";
+  const lienReseau = carte && manuel ? lienCommentaireSur(carte.reseau, carte.lienPost) : null;
   const agir = (f: () => Promise<ResultatChangement>) =>
     demarrer(async () => {
       const r = await f();
@@ -79,12 +83,17 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <Bouton variante="secondaire" disabled={!carte.kit} onClick={copier}>Copier la réponse</Bouton>
-          {carte.lienPost ? (
+          <Bouton variante="secondaire" disabled={!carte.kit || (tiktok && !copiePossible("tiktok", carte.kit))} onClick={copier}>Copier la réponse</Bouton>
+          {lienReseau ? (
+            <Bouton variante="secondaire" asChild>
+              <a href={lienReseau} target="_blank" rel="noopener noreferrer">Ouvrir sur le réseau</a>
+            </Bouton>
+          ) : !manuel && carte.lienPost ? (
             <Bouton variante="secondaire" asChild>
               <a href={carte.lienPost} target="_blank" rel="noopener noreferrer">Ouvrir le post</a>
             </Bouton>
           ) : null}
+          {tiktok && carte.kit && !copiePossible("tiktok", carte.kit) ? <p className="basis-full text-sm text-texte-doux" data-copie-impossible>TikTok : réponse trop longue ou avec un @, écrivez-la vous-même.</p> : null}
           <Bouton disabled={enCours} onClick={() => agir(() => services.fait(carte.idEvenement))}>Fait</Bouton>
           <Bouton variante="fantome" disabled={enCours} onClick={() => agir(() => services.ignorer(carte.idEvenement))}>Ignorer</Bouton>
           <Bouton variante="danger" disabled={enCours} onClick={() => agir(() => services.stop(carte.idEvenement, compte))}>STOP</Bouton>

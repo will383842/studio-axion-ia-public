@@ -28,7 +28,7 @@ describe("LinkedIn", () => {
   it("montre la réponse, Copier la réponse actif et Ouvrir sur le réseau vers le bon domaine", () => {
     expect(h).toContain("Réponse proposée");
     expect(boutonCopier(h)).not.toBe("");
-    expect(boutonCopier(h)).not.toContain("disabled");
+    expect(boutonCopier(h)).not.toMatch(/ disabled(=|>)/);
     expect(h).toMatch(/<a [^>]*href="https:\/\/www\.linkedin\.com\/feed\/update\/exemple"[^>]*>Ouvrir sur le réseau<\/a>/);
     expect(h).toContain('rel="noopener noreferrer"');
     expect(h).not.toContain("Ouvrir le post");
@@ -51,18 +51,18 @@ describe("TikTok", () => {
   const lien = "https://www.tiktok.com/@exemple/video/1";
   it("réponse courte sans @ : copie active, Ouvrir sur le réseau, pas de phrase d'écart", () => {
     const h = rendre(carte("tiktok", { lienPost: lien }));
-    expect(boutonCopier(h)).not.toContain("disabled");
+    expect(boutonCopier(h)).not.toMatch(/ disabled(=|>)/);
     expect(h).toContain("Ouvrir sur le réseau");
     expect(h).not.toContain(PHRASE_TIKTOK);
   });
   it("plus de 150 caractères : copie désactivée et phrase affichée", () => {
     const h = rendre(carte("tiktok", { lienPost: lien, kit: "a".repeat(151) }));
-    expect(boutonCopier(h)).toContain("disabled");
+    expect(boutonCopier(h)).toMatch(/ disabled(=|>)/);
     expect(h).toContain(PHRASE_TIKTOK);
   });
   it("un @ : copie désactivée et phrase affichée", () => {
     const h = rendre(carte("tiktok", { lienPost: lien, kit: "Merci @exemple !" }));
-    expect(boutonCopier(h)).toContain("disabled");
+    expect(boutonCopier(h)).toMatch(/ disabled(=|>)/);
     expect(h).toContain(PHRASE_TIKTOK);
   });
   it("lien refusé : pas de bouton Ouvrir sur le réseau", () => {
