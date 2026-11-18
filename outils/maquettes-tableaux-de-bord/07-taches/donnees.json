@@ -95,9 +95,64 @@
       "unite": "%",
       "precision": 0,
       "sens": "hausse-bonne"
+    },
+    {
+      "id": "actions-prioritaires",
+      "libelle": "Actions à valider prioritaires · exemple",
+      "valeur": 2,
+      "unite": "actions",
+      "precision": 0,
+      "sens": "baisse-bonne"
     }
   ],
-  "series": [],
+  "series": [
+    {
+      "id": "executions-par-processus",
+      "libelle": "Exécutions par processus · exemple",
+      "unite": "exécutions",
+      "points": [
+        {
+          "x": "Tri des demandes entrantes",
+          "valeur": 158
+        },
+        {
+          "x": "Relance des devis en attente",
+          "valeur": 71
+        },
+        {
+          "x": "Synthèse quotidienne des e-mai",
+          "valeur": 22
+        },
+        {
+          "x": "Préparation des fiches clients",
+          "valeur": 36
+        }
+      ]
+    },
+    {
+      "id": "reussite-par-processus",
+      "libelle": "Taux de réussite par processus · exemple",
+      "unite": "%",
+      "points": [
+        {
+          "x": "Tri des demandes entrantes",
+          "valeur": 99
+        },
+        {
+          "x": "Relance des devis en attente",
+          "valeur": 98
+        },
+        {
+          "x": "Synthèse quotidienne des e-mai",
+          "valeur": 100
+        },
+        {
+          "x": "Préparation des fiches clients",
+          "valeur": 97
+        }
+      ]
+    }
+  ],
   "comparaisons": [],
   "alertes": [],
   "calculs": []

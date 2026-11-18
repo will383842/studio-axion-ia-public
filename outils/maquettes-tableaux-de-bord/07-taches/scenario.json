@@ -23,7 +23,8 @@
         "+ 12 % ce mois · exemple",
         "Demandes traitées 248",
         "+ 24 % ce mois · exemple",
-        "Temps estimé libéré 97 h"
+        "Temps estimé libéré 97 h",
+        "Actions à valider 4 · 2 prioritaires"
       ]
     },
     {
@@ -41,7 +42,7 @@
         "surMot": "dispersent"
       },
       "textesEcran": [
-        "Actions à valider 4"
+        "Actions à valider 4 · 2 prioritaires"
       ]
     },
     {
@@ -93,8 +94,14 @@
         "surMot": "relance"
       },
       "textesEcran": [
+        "Tri des demandes entrantes 158 exécutions",
+        "Taux de réussite 99 %",
         "Relance des devis en attente 71 exécutions",
-        "Taux de réussite 98 %"
+        "Taux de réussite 98 %",
+        "Synthèse quotidienne des e-mails 22 exécutions",
+        "Taux de réussite 100 %",
+        "Préparation des fiches clients 36 exécutions",
+        "Taux de réussite 97 %"
       ]
     },
     {
@@ -131,7 +138,7 @@
         "surMot": "vérifiée"
       },
       "textesEcran": [
-        "Actions à valider 4"
+        "Actions à valider 4 · 2 prioritaires"
       ]
     },
     {
@@ -149,7 +156,7 @@
         "surMot": "Pour"
       },
       "textesEcran": [
-        "Actions à valider 4"
+        "Actions à valider 4 · 2 prioritaires"
       ]
     }
   ]

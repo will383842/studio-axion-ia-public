@@ -131,6 +131,21 @@ describe("pilote 07 · données gardées", () => {
     for (const i of lecture.donnee.indicateurs) expect(i.libelle, i.id).toMatch(/exemple/i);
   });
 
+  it("déclare les 4 lignes du tableau filmé (un texte par ligne) et « 2 prioritaires » de la 4e carte", () => {
+    if (!lecture.ok || !lectureScenario.ok) throw new Error("lecture impossible");
+    const parEtape = (id: string) => lectureScenario.scenario.etapes.find((e) => e.id === id)?.textesEcran ?? [];
+    const relance = parEtape("relance");
+    for (const t of ["Tri des demandes entrantes 158", "Synthèse quotidienne des e-mails 22", "Préparation des fiches clients 36"]) {
+      expect(relance.some((x) => x.startsWith(t)), t).toBe(true);
+    }
+    expect(relance.some((x) => x === "Taux de réussite 100 %")).toBe(true);
+    for (const id of ["accroche", "eparpille", "controle", "fin"]) expect(parEtape(id), id).toContain("Actions à valider 4 · 2 prioritaires");
+    const valeurs = [...lecture.donnee.indicateurs.map((i) => i.valeur), ...lecture.donnee.series.flatMap((s) => s.points.map((p) => p.valeur))];
+    for (const v of [158, 99, 22, 100, 36, 2]) expect(valeurs, String(v)).toContain(v);
+    const prio = lecture.donnee.indicateurs.find((i) => i.id === "actions-prioritaires");
+    expect(prio?.valeur).toBe(2);
+  });
+
   it("garde tous les textes d'écran et les paragraphes 1 à 5 : aucun nombre hors donnée", () => {
     if (!lecture.ok || !lectureScenario.ok) throw new Error("lecture impossible");
     const textesEcran = lectureScenario.scenario.etapes.flatMap((e) => e.textesEcran ?? []);
