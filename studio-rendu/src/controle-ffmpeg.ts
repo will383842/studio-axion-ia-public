@@ -65,6 +65,10 @@ function sources(): { nom: string; args: string[] }[] {
     { nom: "source : carte", args: ["-f", "lavfi", "-i", `testsrc=s=${W}x${H}:r=${FPS}`, ...t(DUREE + 0.2), "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "carte.mp4"] },
     // Voix de synthèse : un son modulé et du bruit (loudnorm et ebur128 ont de quoi mesurer).
     { nom: "source : voix", args: ["-f", "lavfi", "-i", `sine=f=220:r=48000,volume='0.3+0.25*sin(2*PI*3*t)':eval=frame`, "-f", "lavfi", "-i", "anoisesrc=r=48000:a=0.01", "-filter_complex", "[0][1]amix=inputs=2:normalize=0", ...t(DUREE + 0.2), "-ac", "1", "-c:a", "pcm_f32le", "voix.wav"] },
+    // C6-H24c-d : deux illustrations fixes pour le contrôle des fondus (xfade).
+    { nom: "source : voix des fondus", args: ["-f", "lavfi", "-i", "sine=f=220:r=48000", ...t(1.8 + 0.2), "-ac", "1", "-c:a", "pcm_f32le", "voix-raccords.wav"] },
+    { nom: "source : illustration 0", args: ["-f", "lavfi", "-i", `color=c=0x2A2420:s=${W}x${H}`, "-frames:v", "1", "illu-0.png"] },
+    { nom: "source : illustration 1", args: ["-f", "lavfi", "-i", `testsrc2=s=${W}x${H}`, "-frames:v", "1", "illu-1.png"] },
     { nom: "source : calques texte", args: ["-f", "lavfi", "-i", `color=c=black@0:s=${W}x${H}:r=${FPS},format=rgba,drawbox=x=90:y=1400:w=900:h=180:color=white@0.85:t=fill`, "-frames:v", "2", "-start_number", "0", "t-%06d.png"] },
   ];
 }
@@ -96,6 +100,34 @@ function proprietes(dix: boolean): ProprietesImageComposition {
       plan(3, { miseEnPage: { mode: "vignette", cote: "droite", carte: "entree:carte", entreeImages: 5, carteDebutSec: 0, geometrie: { vignette } } }),
     ],
   };
+}
+
+/** C6-H24c-d : durée propre au contrôle des fondus : 3 illustrations de 0,6 s (seuil de `raccordsStyleMontage`) ; `DUREE` et `IMAGES` des autres contrôles ne changent pas. */
+const DUREE_RACCORDS = 1.8;
+export const FICHIERS_RACCORDS: FichiersImage = {
+  decor: "decor.png",
+  doubles: { principal: { fichier: "prise.mp4", video: true } },
+  illustrations: { 0: { fichier: "illu-0.png", video: false }, 1: { fichier: "illu-1.png", video: false }, 2: { fichier: "illu-0.png", video: false } },
+  luts: [],
+  son: "voix-raccords.wav",
+};
+
+/** C6-H24c-d : 3 plans `illustration` reliés par un fondu puis un glissement, comme `parametresComposition` les écrit. */
+export function proprietesIllustrations(): ProprietesImageComposition {
+  const { largeur, hauteur } = DIMENSIONS_SCENE["9:16"];
+  const plan = (i: number) => ({ debutSec: +(i * 0.6).toFixed(3), finSec: +((i + 1) * 0.6).toFixed(3), type: "illustration", angle: "principal", cadrage: CADRAGE, illustration: { url: `entree:illu-${i}`, video: false } }) as PlanScene;
+  return {
+    ratio: "9:16", largeur, hauteur, fps: FPS, images: Math.round(DUREE_RACCORDS * FPS),
+    decor: { teinte: "#2A2420", directionLumiere: "gauche", flouPx: 0, clair: false },
+    doubles: { principal: { type: "video", url: "prise.mp4", transparent: false } },
+    plans: [plan(0), plan(1), plan(2)],
+    raccords: [{ indexAvant: 0, type: "fondu" }, { indexAvant: 1, type: "glissement" }],
+  };
+}
+
+/** C6-H24c-d : arguments FFmpeg (sans le préfixe) du master « tableau » avec fondus, ceux que le contrôle exécute. */
+export function argumentsMasterRaccords(): string[] {
+  return argumentsImageFfmpeg(proprietesIllustrations(), COULEURS, FICHIERS_RACCORDS, DUREE_RACCORDS, "master-raccords.mov", { fils: 2 }).slice(2);
 }
 
 /**
@@ -256,6 +288,16 @@ export function controles(dossier: string): { nom: string; executer: () => Promi
     { nom: "chaîne du son (preparerSon : loudnorm, voix, limiteur, ebur128)", executer: () => preparerSon({ voix: join(dossier, "voix.wav"), dureeSec: DUREE, dossier, passeHautHz: 80, seuilLraCompression: 0, ratioCompression: 2.5, lufs: -14, creteVraieMaxDbtp: -1.5, tonPieceDb: -42, graine: 7 }) },
     { nom: "master avocat 8 bits (argumentsImageFfmpeg)", executer: apres(ff(argumentsImageFfmpeg(proprietes(false), COULEURS, fichiers(false), DUREE, "master8.mov", { fils: 2 }).slice(2)), "master8.mov") },
     { nom: "master face caméra 10 bits (argumentsImageFfmpeg)", executer: apres(ff(argumentsImageFfmpeg(proprietes(true), COULEURS, fichiers(true), DUREE, "master10.mov", { fils: 2 }).slice(2)), "master10.mov") },
+    {
+      nom: "master tableau 8 bits avec fondus entre illustrations (argumentsImageFfmpeg + xfade)",
+      executer: async () => {
+        await ff(argumentsMasterRaccords())();
+        await verifierBt709("master-raccords.mov", dossier);
+        // La piste garde exactement sa durée : un fondu ne doit ni la raccourcir ni bouger la voix.
+        const [lues, attendues] = [Number((await executer(FFPROBE, ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", join(dossier, "master-raccords.mov")])).trim()), proprietesIllustrations().images];
+        if (lues !== attendues) throw new Error(`fondus : ${lues} images au lieu de ${attendues}`);
+      },
+    },
     // V6 P0 n° 1-2 : un dégradé de mur 10 bits traverse la composition face caméra sans perdre ses niveaux.
     { nom: "source : dégradé de mur 10 bits", executer: ff(argumentsDegradeMur("mur.mov", W, H)) },
     {
