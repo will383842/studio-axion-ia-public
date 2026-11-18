@@ -39,6 +39,7 @@ import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { CARACTERES_DITS_MAX_TABLEAU, DUREE_MAX_TABLEAU_SEC, caracteresDits, caracteresEnTrop, dureeDiteSec } from "@/domaine/duree-tableau";
 import { BORNES_FICHE } from "@/briques/fiche-scenes/types";
+import { TABLE_FINS } from "@/briques/fins";
 import { debutsDePhrase, mots as motsDuTexte } from "@/domaine/controles-script/texte";
 import type { LigneScript, PastilleControle, ResultatLancement, ScriptRelu } from "@/domaine/relecture-script";
 import { contexteDuGenerateur, correctionsDeLaRelecture, origineApresSaisie, texteClaudeDuBrouillon, decouperANouveau, lignesDeDepart, lignesDeLaFiche, RAISON_CASE_DEJA_VU, repereFiche, repereTexte, scriptAvecLignes, texteDesLignes } from "@/domaine/relecture-tableau";
@@ -117,6 +118,23 @@ export function cheminDeDepart(b: EcranCreationTableau["brouillon"]): CheminTabl
 /** Ce que le contrôle du sujet lit : si cela change après un refus, le panneau « Sujet déjà traité » n'a plus lieu d'être. */
 const cleSaisie = (s: Saisie): string => JSON.stringify([s.texte, s.gesteMinute, s.douleur, s.finId, s.mot ?? "", s.reseaux]);
 
+/**
+ * La fin choisie n'est pas dans le texte : le geste pour l'y mettre (sur clic seulement). La phrase ajoutée est la phrase
+ * DITE de la fin (`TABLE_FINS`, `{MOT}` remplacé par le mot en capitales) ; mot vide : pas de phrase. `null` : rien à proposer
+ * (aucune fin, texte vide, ou fin déjà dans le texte). PUR.
+ */
+export function finAAjouterDe(finId: string | undefined, texte: string, mot: string | undefined): { phrase: string | null } | null {
+  const choisie = TABLE_FINS.find((f) => f.id === finId);
+  const dite = choisie?.dit;
+  if (!choisie || !dite || !texte.trim()) return null;
+  const m = (mot ?? "").trim().toUpperCase();
+  if (dite.includes("{MOT}") && !m) return { phrase: null };
+  const phrase = dite.replace("{MOT}", m).trim();
+  // Déjà là : la phrase dite, ou sa partie écrite à l'écran (ce que contrôle `finChoisieAbsente`) : rien à ajouter.
+  const ecrite = choisie.ecran.replace("{MOT}", m).trim();
+  return texteAvecFin(texte, phrase) === texte || texteAvecFin(texte, ecrite) === texte ? null : { phrase };
+}
+
 export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -174,14 +192,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   const finsAffichees = ecran.fins.filter((f) => f.validee || voirNonValidees || f.id === saisie.finId);
   const nonValideesMasquees = ecran.fins.some((f) => !f.validee && f.id !== saisie.finId) && !voirNonValidees;
   /** La fin choisie n'est pas dans le texte : le geste pour l'y mettre (sur clic seulement ; mot vide : pas de phrase). */
-  const finAAjouter = (() => {
-    if (!fin || !saisie.texte.trim()) return null;
-    const mot = (saisie.mot ?? "").trim().toUpperCase();
-    if (fin.ecran.includes("{MOT}") && !mot) return { phrase: null as string | null };
-    const dite = fin.ecran.replace("{MOT}", mot).trim();
-    const phrase = /[.!?…]$/u.test(dite) ? dite : `${dite}.`;
-    return texteAvecFin(saisie.texte, phrase) === saisie.texte ? null : { phrase: phrase as string | null };
-  })();
+  const finAAjouter = finAAjouterDe(saisie.finId, saisie.texte, saisie.mot);
   const changer = (p: Partial<Saisie>) => setSaisie((s) => ({ ...s, ...p }));
 
   // « Relire le script » du texte dit : par passage s'il vient tel quel du générateur, sinon phrase par phrase.
