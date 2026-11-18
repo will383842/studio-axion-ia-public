@@ -117,6 +117,13 @@ describe("aucune donnée d'identification", () => {
   });
 });
 
+describe("tranches hors liste", () => {
+  it("une tranche qui n'est pas dans la liste (horodatage exact) n'apparaît jamais", () => {
+    const r = calculerAgregatsPerformance(mesures(3, { trancheHoraire: "2026-11-18T08:00" }), { env: ALLUME });
+    expect(r).toEqual({ etat: "calcule", cases: [], masquees: 0 });
+  });
+});
+
 describe("aucun appelant", () => {
   function sources(dossier: string): string[] {
     return readdirSync(dossier).flatMap((nom) => {
@@ -134,6 +141,7 @@ describe("aucun appelant", () => {
     const texte = readFileSync("src/services/agregats-performance.ts", "utf8");
     const code = texte.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     expect(code).not.toMatch(/^\s*import\s(?!type\b)/m);
+    expect(code).not.toMatch(/\brequire\s*\(|\bimport\s*\(|^\s*export\s[^;]*\sfrom\s/m);
     expect(code).not.toMatch(/\bfetch\s*\(|process\.env|XMLHttpRequest|WebSocket/);
     expect(texte).toMatch(/proposition du pilotage, à valider par le fondateur/);
   });

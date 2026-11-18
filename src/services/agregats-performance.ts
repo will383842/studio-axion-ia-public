@@ -63,6 +63,7 @@ export function calculerAgregatsPerformance(
 
   const groupes = new Map<string, { type: string; reseau: string; tranche: string; n: number; v: number; p: number; c: number }>();
   for (const m of mesures) {
+    if (!(TRANCHES_HORAIRES as readonly string[]).includes(m.trancheHoraire)) continue;
     if (!valide(m.vues) || !valide(m.partages) || !valide(m.commentaires)) continue;
     const cle = JSON.stringify([m.type, m.reseau, m.trancheHoraire]);
     const g = groupes.get(cle) ?? { type: m.type, reseau: m.reseau, tranche: m.trancheHoraire, n: 0, v: 0, p: 0, c: 0 };
