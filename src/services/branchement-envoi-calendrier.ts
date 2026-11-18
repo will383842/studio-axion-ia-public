@@ -65,9 +65,8 @@ export interface InjectionsEnvoiCalendrier {
 
 export type TourEnvoisCalendrierServeur =
   | { saute: "porte-fermee" | "debit" | "tour-en-cours" | "non-relie" }
-  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux }
-  /** Tour d'essai borné : UN créneau, brouillon seulement, jamais de promotion. `null` = rien à créer pour ce créneau. */
-  | { saute?: undefined; annules: number; essai: LigneCreneau | null };
+  /** `essai` n'est posé que par le tour d'essai borné : UN créneau, brouillon seulement, jamais de promotion (`null` = rien à créer pour ce créneau). */
+  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux; essai?: LigneCreneau | null };
 
 /* ------------------------------------------------------------------ */
 /* Débit et tour unique                                                */
@@ -449,7 +448,7 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
       // Tour d'essai : le créneau d'essai seul, créé en brouillon dans le contexte d'essai ; `tourEnvoisCalendrier` (qui promeut) n'est jamais appelé.
       const id = essai.creneauId;
       const ligne = await dansEssai(id, () => envoyerDepuisCreneau(deps, id));
-      return { annules, essai: ligne ?? null };
+      return { annules, resultat: { lignes: ligne ? [ligne] : [], erreurs: [] }, essai: ligne ?? null };
     }
     const resultat = await tourEnvoisCalendrier(deps);
     return { annules, resultat };
