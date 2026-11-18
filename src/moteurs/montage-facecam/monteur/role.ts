@@ -504,6 +504,6 @@ export function resumeOperation(op: OperationFacecam): string {
     case "remettre":
       return "Carte remise";
     case "modifierCarte":
-      return `Carte changée en « ${op.modele} »`;
+      return `Carte changée en « ${estModeleEtendu(op.modele) ? CATALOGUE_MOTION_ETENDU[op.modele].nom : NOMS_MODELE[op.modele]} »`;
   }
 }

@@ -8,6 +8,7 @@ import { entreesFacecamVides } from "@/domaine/facecam";
 import { partiesARefaire, signatureMontage } from "@/moteurs/montage-facecam/retouche";
 import {
   appliquerOperations,
+  resumeOperation,
   reglagesMonteurVides,
   schemaOperationFacecam,
   SIGNATURES_OPERATIONS_FACECAM,
@@ -114,5 +115,9 @@ describe("S-09a · modifierCarte", () => {
     const lignes = SIGNATURES_OPERATIONS_FACECAM.split("\n").filter((l) => l.startsWith("- "));
     expect(lignes.slice(0, AVANT.length).map((l) => l.slice(2).split(" ")[0])).toEqual(AVANT);
     expect(SIGNATURES_OPERATIONS_FACECAM).toMatch(/^- modifierCarte : /m);
+  });
+  it("f) le résumé montré à Will donne le nom lisible du modèle, jamais l'identifiant brut", () => {
+    expect(resumeOperation({ type: "modifierCarte", passageId: "p1", modele: "check-list" } as OperationFacecam)).toBe("Carte changée en « Check-list »");
+    expect(resumeOperation({ type: "modifierCarte", passageId: "p1", modele: "avant-apres" } as OperationFacecam)).toBe("Carte changée en « Avant / après »");
   });
 });
