@@ -35,7 +35,7 @@ import { ErreurMesure } from "@/fournisseurs/mesures/commun";
 import { creerLecteurZernio, type LecteurStatsZernio } from "@/fournisseurs/mesures/zernio";
 import { estChezUnOutil, outilDe } from "@/domaine/outil-publication";
 import { creerLecteurPlausible, type LecteurVisites } from "@/fournisseurs/mesures/plausible";
-import { depots, filtreExemples, journaliser, lireParametre } from "./_commun";
+import { depots, ecrireParametre, filtreExemples, journaliser, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import { bufferGele } from "./buffer-gel";
 import { lireStatistiquesPeriode, type StatistiquesLues } from "./lecteur-statistiques";
@@ -178,6 +178,21 @@ async function lectureParListeAllumee(): Promise<boolean> {
   }
 }
 
+/**
+ * Rotation des lectures (fiche : « aucune n'est oubliée ») : date de la dernière lecture tentée par publication, gardée à
+ * part (jamais dans `StatsPublication`). Une lecture sans relevé neuf (chiffres inchangés, « pas encore prêtes », « non
+ * lisible ») avance quand même la rotation. Identifiants et dates seulement.
+ */
+const CLE_TENTATIVES = "mesures.tentatives_lecture";
+async function lireTentatives(): Promise<Record<string, string>> {
+  try {
+    const t = await lireParametre<Record<string, string>>("mesures.tentatives_lecture", {});
+    return t && typeof t === "object" && !Array.isArray(t) ? t : {};
+  } catch {
+    return {};
+  }
+}
+
 export interface BilanImport {
   buffer: { essai: boolean; lues: number; ajoutees: number; erreurs: number; message?: string };
   visites: { essai: boolean; lues: number; ajoutees: number; message?: string };
@@ -271,10 +286,13 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
   }
 
   // Zernio : celles dont le dernier relevé est le plus ancien (ou absent) d'abord, pour qu'aucune ne soit oubliée.
-  const anciennete = (p: Publication) => dernierReleve(p, "zernio")?.le ?? "";
+  const tentatives = await lireTentatives();
+  const anciennete = (p: Publication) => tentatives[p.id] ?? dernierReleve(p, "zernio")?.le ?? "";
+  const tentees = new Set<string>();
   zernioALire.sort((a, b) => anciennete(a).localeCompare(anciennete(b)));
   let reste = false;
   const lireUnePar = async (p: Publication) => {
+    tentees.add(p.id);
     bilan.zernio.requetes++;
     const m = await lecteurZernio.lire(p.idExterne!);
     if (m.etat === "pas-encore-pretes") bilan.zernio.pasPretes++;
@@ -308,9 +326,11 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
       }
       // Chiffres encore en cours de rassemblement chez le diffuseur : comme une lecture unitaire en 202, rien n'est écrit.
       if (l.synchro === "en-cours") {
+        tentees.add(p.id);
         bilan.zernio.pasPretes++;
         continue;
       }
+      tentees.add(p.id);
       bilan.zernio.lues++;
       const frais = (await d.publications.obtenir(p.id)) ?? p;
       if (await appliquerStatistiquesLues(frais, l, instant)) bilan.zernio.ajoutees++;
@@ -328,6 +348,19 @@ export async function importerMesures(options: { buffer?: LecteurStatsBuffer; ze
     }
   }
   for (const p of aPart) await lireUnePar(p);
+  if (tentees.size) {
+    // Une seule écriture par clic ; on ne garde que les publications encore suivies.
+    const suivantes: Record<string, string> = {};
+    for (const p of zernioALire) {
+      const t = tentees.has(p.id) ? instant.toISOString() : tentatives[p.id];
+      if (t) suivantes[p.id] = t;
+    }
+    try {
+      await ecrireParametre(CLE_TENTATIVES, suivantes);
+    } catch {
+      // La rotation est un confort : un échec d'écriture ne bloque pas l'import.
+    }
+  }
 
   try {
     const lignes = await lecteurVisites.lire({ periode: "90d" });
