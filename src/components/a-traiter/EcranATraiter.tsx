@@ -7,9 +7,10 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { notifier } from "@/components/ui/Toast";
 import { compterParOnglet, filtrerParOnglet, LIBELLE_RESEAU_A_TRAITER, ONGLETS_A_TRAITER, type CarteDejaTraitee, type OngletATraiter } from "@/services/a-traiter-onglets";
 import { copiePossible, lienCommentaireSur } from "@/services/a-traiter-kit";
-import { cartesMasquees, trierParPriorite } from "@/services/a-traiter-pur";
+import { masqueesPourEcran, trierPourEcran } from "@/services/a-traiter-pur";
 import { extraitLisible } from "@/services/a-traiter-types";
 import type { ResultatChangement, VueATraiter } from "@/services/a-traiter-types";
+import type { CarteATraiter as TypeCarte } from "@/services/a-traiter-types";
 import { CarteATraiter } from "./CarteATraiter";
 import { clePost, CompteursATraiter, etiquettesPosts } from "./CompteursATraiter";
 
@@ -20,17 +21,24 @@ export interface ServicesATraiter {
   stop(id: string, compte: string): Promise<ResultatChangement>;
 }
 
-/** Carte déjà traitée avec, si elle est connue, l'heure du « fait » (champ facultatif). */
-export type CarteDejaTraiteeDatee = CarteDejaTraitee & { faitLe?: string };
+/** Conservé pour les appelants existants : `CarteDejaTraitee` porte désormais `faitLe`. */
+export type CarteDejaTraiteeDatee = CarteDejaTraitee;
 
 /** Touche pressée : seules « Flèche droite » et « S » (suivante) et « F » (Fait) agissent. Jamais de raccourci pour STOP ou Ignorer. */
-export function actionClavier(e: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; target?: { tagName?: string; isContentEditable?: boolean } | null }): "suivante" | "fait" | null {
-  if (e.ctrlKey || e.metaKey || e.altKey) return null;
+export function actionClavier(e: { key: string; repeat?: boolean; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean; target?: { tagName?: string; isContentEditable?: boolean } | null }): "suivante" | "fait" | null {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return null;
   const t = e.target;
   if (t?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes((t?.tagName ?? "").toUpperCase())) return null;
   if (e.key === "ArrowRight" || e.key === "s" || e.key === "S") return "suivante";
   if (e.key === "f" || e.key === "F") return "fait";
   return null;
+}
+
+/** Ce que fait l'écran pour une touche : rien si une action est en cours, si l'écran n'est pas « normal » ou s'il n'y a pas de carte ; « Fait » jamais sur une carte opposée ; STOP jamais. */
+export function decisionClavier(a: "suivante" | "fait" | null, o: { carte?: { opposee?: boolean } | undefined; enCours: boolean; etat: string }): "suivante" | "fait" | null {
+  if (!a || !o.carte || o.enCours || o.etat !== "normal") return null;
+  if (a === "suivante") return "suivante";
+  return o.carte.opposee ? null : "fait";
 }
 
 /** « Fait le JJ/MM à HHhMM » (heure de Paris) ; « Fait » seul si l'heure manque ou est illisible. */
@@ -51,15 +59,21 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   const [rang, setRang] = useState(0);
   const [masquesVus, setMasquesVus] = useState(false);
   const restantes = vue.cartes.filter((c) => !fait.includes(c.idEvenement));
-  const triees = trierParPriorite(restantes);
+  const triees = trierPourEcran(restantes);
   const nombres = compterParOnglet(triees);
   const dansOnglet = filtrerParOnglet(triees, onglet);
-  const noms = etiquettesPosts(dansOnglet);
   const postsListe = [...new Set(dansOnglet.map(clePost))];
   const postChoisi = postsListe.includes(post) ? post : "";
   const visibles = postChoisi ? dansOnglet.filter((c) => clePost(c) === postChoisi) : dansOnglet;
-  const masquees = filtrerParOnglet(cartesMasquees(restantes), onglet);
-  const pourCompteurs = vue.cartes.map((c) => (fait.includes(c.idEvenement) ? { ...c, statut: "fait" as const } : c));
+  const masquees = filtrerParOnglet(masqueesPourEcran(restantes), onglet);
+  // Compteurs : cartes encore à traiter + cartes déjà traitées (sinon « répondus » serait toujours 0).
+  const idsVue = new Set(vue.cartes.map((c) => c.idEvenement));
+  const anciennes = (dejaTraitees ?? [])
+    .filter((d) => !idsVue.has(d.idEvenement))
+    .map((d) => ({ idEvenement: d.idEvenement, reseau: d.reseau, post: d.post, lienPost: null, mot: null, motif: "mot_manuel" as const, extrait: d.extrait, creeLe: d.creeLe, statut: d.statut, kit: null, ...(d.faitLe ? { faitLe: d.faitLe } : {}) }));
+  const pourCompteurs: TypeCarte[] = [...vue.cartes, ...anciennes].map((c) => (fait.includes(c.idEvenement) ? { ...c, statut: "fait" as const } : c));
+  // Une seule table de noms de posts, calculée sur une source stable : la même pour le filtre et les compteurs.
+  const noms = etiquettesPosts(pourCompteurs);
 
   const carte = visibles.length ? visibles[rang % visibles.length] : undefined;
   const manuel = carte?.reseau === "linkedin" || carte?.reseau === "tiktok";
@@ -80,11 +94,11 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
   useEffect(() => {
     const ecoute = (e: KeyboardEvent) => {
       const a = actionClavier(e as unknown as Parameters<typeof actionClavier>[0]);
-      if (!a || !carte || enCours || vue.etat !== "normal") return;
-      if (a === "suivante") {
+      const d = decisionClavier(a, { carte, enCours, etat: vue.etat });
+      if (d === "suivante") {
         e.preventDefault();
         setRang((r) => r + 1);
-      } else if (!carte.opposee) {
+      } else if (d === "fait" && carte) {
         e.preventDefault();
         agir(() => services.fait(carte.idEvenement));
       }
@@ -136,7 +150,7 @@ export function EcranATraiter({ vue, services, compte, onChange, dejaTraitees }:
           </select>
         </label>
       ) : null}
-      <CompteursATraiter cartes={pourCompteurs} onglet={onglet} />
+      <CompteursATraiter cartes={pourCompteurs} onglet={onglet} noms={noms} />
       <p className="text-sm text-texte-doux" data-restantes>{visibles.length} à traiter</p>
       <div role="tabpanel" id="panneau-a-traiter" aria-labelledby={`onglet-a-traiter-${onglet}`} className="flex flex-col gap-4">
       {!carte ? (

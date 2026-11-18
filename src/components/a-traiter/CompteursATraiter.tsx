@@ -2,11 +2,12 @@ import { compteurs, type Compte } from "@/services/a-traiter-pur";
 import { LIBELLE_RESEAU_A_TRAITER, type OngletATraiter } from "@/services/a-traiter-onglets";
 import type { CarteATraiter, ReseauATraiter } from "@/services/a-traiter-types";
 
-/** Nom lisible de chaque post, dans l'ordre d'arrivée : « Post 1 », « Post 2 »… (jamais l'identifiant technique). */
-export function etiquettesPosts(cartes: readonly Pick<CarteATraiter, "reseau" | "post">[]): Map<string, string> {
+/** Nom lisible de chaque post, dans l'ordre d'arrivée (date de la carte) : « Post 1 », « Post 2 »… (jamais l'identifiant technique). */
+export function etiquettesPosts(cartes: readonly Pick<CarteATraiter, "reseau" | "post" | "creeLe">[]): Map<string, string> {
   const m = new Map<string, string>();
   const vus: Record<string, number> = {};
-  for (const c of cartes) {
+  const rang = cartes.map((c, i) => ({ c, i })).sort((a, b) => a.c.creeLe.localeCompare(b.c.creeLe) || a.i - b.i);
+  for (const { c } of rang) {
     const cle = `${c.reseau}|${c.post}`;
     if (m.has(cle)) continue;
     vus[c.reseau] = (vus[c.reseau] ?? 0) + 1;
@@ -29,9 +30,9 @@ function Pastilles({ c }: { c: Compte }) {
 }
 
 /** Compteurs de l'onglet courant : par réseau, puis par post. Lecture seule. */
-export function CompteursATraiter({ cartes, onglet, maintenant }: { cartes: readonly CarteATraiter[]; onglet: OngletATraiter; maintenant?: Date }) {
+export function CompteursATraiter({ cartes, onglet, maintenant, noms: nomsDonnes }: { cartes: readonly CarteATraiter[]; onglet: OngletATraiter; maintenant?: Date; noms?: ReadonlyMap<string, string> }) {
   const total = compteurs(cartes, maintenant);
-  const noms = etiquettesPosts(cartes);
+  const noms = nomsDonnes ?? etiquettesPosts(cartes);
   const reseaux = (Object.keys(total.parReseau) as ReseauATraiter[]).filter((r) => onglet === "tous" || r === onglet);
   if (reseaux.length === 0) return null;
   return (

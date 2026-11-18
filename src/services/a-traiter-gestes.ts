@@ -46,6 +46,7 @@ export async function gesteLireDejaTraitees(o: { env?: Record<string, string | u
         idEvenement: c.idEvenement,
         reseau: c.reseau,
         extrait: c.extrait,
+        post: c.post,
         creeLe: c.creeLe,
         ...(c.statut === "fait" && c.faitLe ? { faitLe: c.faitLe } : {}),
         statut: c.statut as "fait" | "ignore",

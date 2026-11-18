@@ -57,6 +57,15 @@ export function trierParPriorite(cartes: readonly CarteATraiter[]): CarteATraite
 /** Cartes masquées (spam) : elles restent dans le dépôt, rien n'est supprimé. */
 export const cartesMasquees = (cartes: readonly CarteATraiter[]): CarteATraiter[] => cartes.filter(estSpam);
 
+/** Pour l'écran : les cartes « opposées » (STOP demandé) passent TOUJOURS en tête (la plus ancienne d'abord), puis le tri par priorité. */
+export function trierPourEcran(cartes: readonly CarteATraiter[]): CarteATraiter[] {
+  const opposees = cartes.filter((c) => c.statut === "a_traiter" && c.opposee === true).sort((a, b) => a.creeLe.localeCompare(b.creeLe));
+  return [...opposees, ...trierParPriorite(cartes.filter((c) => c.opposee !== true))];
+}
+
+/** Pour l'écran : une carte opposée n'est JAMAIS masquée, même avec un mot de spam ou deux liens. */
+export const masqueesPourEcran = (cartes: readonly CarteATraiter[]): CarteATraiter[] => cartesMasquees(cartes.filter((c) => c.opposee !== true));
+
 /** Minutes entre la création et le « fait », ou null (pas de « fait », ou dates illisibles). */
 export function delaiReponseMinutes(c: Pick<CarteATraiter, "creeLe" | "faitLe">): number | null {
   if (!c.faitLe) return null;

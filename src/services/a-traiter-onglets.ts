@@ -27,6 +27,8 @@ export interface CarteDejaTraitee {
   idEvenement: string;
   reseau: ReseauATraiter;
   extrait: string;
+  /** Repère technique du post (jamais un nom ni un identifiant de personne), pour les compteurs. */
+  post: string;
   creeLe: string;
   /** Date ISO du « fait » (déjà enregistrée sur la carte) ; absente pour une carte ignorée ou sans date. */
   faitLe?: string;
