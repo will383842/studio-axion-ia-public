@@ -121,7 +121,7 @@ describe("CAL-24 · dupliquer un créneau", () => {
     const r = await dupliquerEntree(saisie({ jour: "2026-12-20", heure: "09:30" }));
     expect(r).toMatchObject({ ok: false });
     if (r.ok || !r.aConfirmer) throw new Error("attendu : avertissement de proximité ou de quota");
-    expect(["proximite", "quota"]).toContain(r.aConfirmer);
+    expect(r.aConfirmer).toBe("proximite");
     expect(r.avertissement).toMatch(/Confirmez/);
     expect(await copies()).toHaveLength(1); // seulement le voisin
     const r2 = await dupliquerEntree(saisie({ jour: "2026-12-20", heure: "09:30", confirmerProximite: true }));
@@ -189,6 +189,56 @@ describe("CAL-24 · dupliquer un créneau", () => {
     const normal = await dupliquerEntree(saisie({ jour: "2026-12-21", cleFormulaire: "form2" }));
     if (!normal.ok) throw new Error("attendu : ok");
     expect(normal.donnees.avertissement).toBeUndefined();
+  });
+
+  it("quota atteint (un seul post par jour autorisé ailleurs que l'écart) : le quota est annoncé comme « quota »", async () => {
+    // Plusieurs publications espacées le même jour sur le réseau : l'écart est respecté, le quota du jour est dépassé.
+    for (const [i, h] of ["2026-12-20T01:00:00.000Z", "2026-12-20T05:00:00.000Z", "2026-12-20T13:00:00.000Z", "2026-12-20T17:00:00.000Z", "2026-12-20T21:00:00.000Z"].entries()) {
+      await depots().creneauxEditoriaux.enregistrer({ id: `v${i}`, jourVise: "2026-12-20", heuresParReseau: { instagram: h }, compteCible: "compte-instagram", videoId: `vid_${i}`, statut: "propose", decalages: 0 } as never);
+    }
+    const r = await dupliquerEntree(saisie({ jour: "2026-12-20", heure: "11:00" }));
+    if (r.ok || !r.aConfirmer) throw new Error("attendu : avertissement");
+    expect(r.aConfirmer).toBe("quota");
+  });
+
+  it("même clé de formulaire mais autre heure : refusé, la copie garde son heure", async () => {
+    await dupliquerEntree(saisie({ heure: "09:00" }));
+    const r = await dupliquerEntree(saisie({ heure: "15:00" }));
+    expect(r).toMatchObject({ ok: false, message: PHRASES_DUPLICATION.autreDemande });
+    expect(await copies()).toHaveLength(1);
+  });
+
+  it("la fiche de la copie est écrite AVANT la copie : si elle échoue, aucune copie n'existe, et un nouvel essai réussit", async () => {
+    const parametres = depots().parametres;
+    const reel = parametres.enregistrer.bind(parametres);
+    let echec = true;
+    const espion = vi.spyOn(parametres, "enregistrer").mockImplementation(async (e) => {
+      if (echec && String((e as { id: string }).id).startsWith("calendrier.fiche.")) { echec = false; throw new Error("écriture impossible"); }
+      return reel(e);
+    });
+    expect(await dupliquerEntree(saisie())).toMatchObject({ ok: false, message: PHRASES_DUPLICATION.impossible });
+    expect(await copies()).toHaveLength(0);
+    const r = await dupliquerEntree(saisie({ cleFormulaire: "form-neuf" }));
+    espion.mockRestore();
+    expect(r.ok).toBe(true);
+    expect(await copies()).toHaveLength(1);
+  });
+
+  it("un rejeu tardif n'écrase pas un texte déjà adapté dans la fiche", async () => {
+    const r = await dupliquerEntree(saisie());
+    if (!r.ok) throw new Error("attendu : ok");
+    await depots().parametres.enregistrer({ id: `calendrier.fiche.${r.donnees.cle}`, valeur: { texte: "Mon texte adapté.", premierCommentaire: "" }, creeLe: MAINTENANT, modifieLe: MAINTENANT } as never);
+    expect((await dupliquerEntree(saisie())).ok).toBe(true);
+    const fiche = await lireParametre<{ texte?: string }>(`calendrier.fiche.${r.donnees.cle}`, {});
+    expect(fiche.texte).toBe("Mon texte adapté.");
+  });
+
+  it("DÉCISION DOCUMENTÉE : la marque « À adapter » est dans le texte ; elle est donc visible à la relecture, mais seule une garde de validation hors de cette fiche peut empêcher de l'envoyer", async () => {
+    await dupliquerEntree(saisie());
+    const [copie] = await copies();
+    const t = (copie!.textes as Record<string, { texte: string }>).instagram!.texte;
+    expect(t.startsWith(MARQUE_A_ADAPTER)).toBe(true);
+    expect(readFileSync("src/app/(studio)/calendrier/actions/dupliquer.ts", "utf8")).toContain("garde de validation hors de cette fiche");
   });
 
   it("sans session : l'action échoue avant toute lecture ou écriture", async () => {

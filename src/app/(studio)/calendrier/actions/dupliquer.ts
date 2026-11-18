@@ -2,9 +2,9 @@
 
 /**
  * CAL-24 (écrite EN AVANCE, attend CAL-22, CAL-23 et RC-08a) : dupliquer une publication vers un autre réseau ou une autre date.
- * Chaque action commence par exigerSession(). Rien ne part d'ici : aucun fournisseur n'est importé, aucun envoi n'est créé.
+ * Chaque action commence par exigerSession(). Rien ne part d'ici : aucun appel, aucun envoi n'est créé ; seule lecture : les comptes gardés au dernier « Tester » (charger-comptes).
  * La copie est une NOUVELLE entrée « propose » créée par le chemin normal du calendrier (creerCreneau), sans date de validation : elle attend
- * le clic Valider du fondateur. Son texte est marqué « À adapter ». L'original n'est jamais modifié ni supprimé ; le lien vers lui est gardé.
+ * le clic Valider du fondateur. Son texte est marqué « À adapter » : ATTENTION, la marque est dans le texte lui-même ; une garde de validation hors de cette fiche doit refuser de valider ou d'envoyer un texte qui la porte encore (à décider par le pilotage). L'original n'est jamais modifié ni supprimé ; le lien vers lui est gardé.
  * Une date dans le passé avertit et se confirme d'un clic (comme un ajout manuel).
  */
 import { revalidatePath } from "next/cache";
@@ -16,7 +16,7 @@ import { RESEAUX } from "@/reseaux";
 import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { exigerSession } from "@/services/auth";
 import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
-import { chargerFiche, ecrireStockageFiche } from "@/services/calendrier-fiche";
+import { chargerFiche, ecrireStockageFiche, lireStockageFiche } from "@/services/calendrier-fiche";
 import { creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 import { reseauConnu } from "@/components/calendrier/CarteEntreeCalendrier";
 import { compteCibleValide } from "../compte-cible";
@@ -156,11 +156,12 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       const retour = (): ResultatDuplication => ({ ok: true, donnees: { creneauId: id, cle: cleCopie.cle, message: PHRASES_DUPLICATION.creee, ...(avertissement ? { avertissement } : {}) } });
       if (existant) {
         const lien = await lireParametre<string | null>(cleLienCopie(id), null);
-        const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau;
+        const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau && existant.heuresParReseau[saisie.reseau] === instant;
         if (!memeDemande) return refus(PHRASES_DUPLICATION.autreDemande);
         // Rejeu après une écriture interrompue : on termine ce qui manque (fiche et lien), sans rien recréer.
         const texte = existant.textes?.[saisie.reseau];
-        if (texte) await ecrireStockageFiche(cleCopie, texte);
+        // La fiche n'est réécrite que si elle n'a aucun texte : un texte déjà adapté n'est jamais écrasé.
+        if (texte && !(await lireStockageFiche(cleCopie)).texte) await ecrireStockageFiche(cleCopie, texte);
         if (lien === null) await ecrireParametre(cleLienCopie(id), saisie.cle);
         return retour();
       }
@@ -175,8 +176,9 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       }
       const textes = texteOriginal(fiche.entree, original, fiche.entree.reseau);
       const copieTexte = { texte: marquerAAdapter(textes.texte), premierCommentaire: textes.premierCommentaire };
-      // Le lien est écrit AVANT la copie : une copie n'existe jamais sans lien, et un rejeu reprend là où l'écriture s'est arrêtée.
+      // Le lien et le texte de la fiche sont écrits AVANT la copie : une copie n'existe jamais sans lien ni texte visible, et un rejeu reprend là où l'écriture s'est arrêtée.
       await ecrireParametre(cleLienCopie(id), saisie.cle);
+      await ecrireStockageFiche(cleCopie, copieTexte);
       await creerCreneau(
         depotsPlan(),
         {
@@ -191,8 +193,7 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
         },
         maintenant(),
       );
-      // Le texte est aussi rangé là où la fiche le lit. Rien d'autre n'est écrit : ni l'original, ni un envoi.
-      await ecrireStockageFiche(cleCopie, copieTexte);
+      // Rien d'autre n'est écrit : ni l'original, ni un envoi.
       try { revalidatePath("/calendrier"); } catch { /* le rafraîchissement est secondaire : l'écriture a eu lieu */ }
       return retour();
     });
