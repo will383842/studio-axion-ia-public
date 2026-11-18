@@ -11,8 +11,7 @@
  *  - une publication partie, publiée ou passée ne se déplace pas ; rien n'est supprimé (les envois passent à « annule »).
  *  - texte ou premier commentaire changé : même retrait, puis le créneau repasse « À valider » (plus de `valideeLe`) : il exige le clic Valider ;
  *    un changement fait par un autre remet l'entrée à « Proposée ». Le contrôleur de texte (L7-12, L3-09) est relu avant tout appel ;
- *  - BLOQUÉ : « fonction client manquante » : `retirer(demande: DemandeRetraitZernio): Promise<ResultatRetraitZernio>` n'existe pas sur master
- *    (elle est dans la PR CAL-22, zone de la session Zernio). Sans port de retrait (`diffuseur: null`) et avec un post possible chez le diffuseur :
+ *  - `client.retirer` est sur master (CAL-22) et branché par défaut dans le câblage serveur. Sans port de retrait (`diffuseur: null`) et avec un post possible chez le diffuseur :
  *    AUCUN appel et AUCUNE écriture, l'ancienne date et l'ancien texte restent (jamais un créneau décalé avec un post resté à l'ancienne date, L5-02d).
  *    Sans post chez le diffuseur (avant la promotion), le déplacement se fait en local, sans appel.
  *  - la garde L5-02d (`niveauDiffuseurDuCreneau`) est relue avant tout geste : « à vérifier », « en cours » et « parti » refusent ;
@@ -28,6 +27,7 @@ import { estReseauDeclinaison } from "@/reseaux/codes";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
 import { instantParis } from "@/lib/horloge-paris";
 import { controlerProgrammation } from "@/services/controle-programmation";
+import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import type { CreneauPlan } from "@/services/plan-editorial";
 
 export type IssueRetraitDiffuseur = "retire" | "refuse" | "sans-reponse" | "a-verifier";
@@ -104,6 +104,7 @@ export const PHRASES_DEPLACEMENT = {
   dejaAVerifier: "Le Studio ne sait pas si cette publication est déjà programmée chez le diffuseur : rien n'a été changé. Relisez-la chez le diffuseur.",
   dejaFait: "Cette demande est déjà faite : rien n'a été changé de plus.",
   aPlacer: "Le retrait a eu lieu, mais la nouvelle date n'a pas pu être enregistrée. La publication est de retour dans « À placer », avec son texte : replacez-la à la date voulue.",
+  rienChange: "Le Studio n'a pas pu enregistrer le changement. Rien n'a été retiré chez le diffuseur : réessayez dans un instant.",
   aVerifierFin: "Le retrait a eu lieu chez le diffuseur, mais le Studio n'a pas pu enregistrer la suite. La publication est marquée « à vérifier » : relisez-la dans le calendrier.",
   notification: "Une publication déplacée est de retour dans « À placer » : choisissez sa nouvelle date.",
   texteVide: "Le texte ne peut pas être vide.",
@@ -169,11 +170,17 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
   }
   const avecPost: EnvoiPlanifie[] = [];
   for (const e of vivants) if (await aUnPostPossible(e, d.etats)) avecPost.push(e);
+  const sansPostVivant = avecPost.length === 0;
+  // Un envoi déjà « annule » dont la marque dit encore « programmé » ou « à vérifier » a peut-être un post chez le diffuseur : il passe aussi par le retrait.
+  for (const e of tous) {
+    if (e.statut !== "annule") continue;
+    const m = await d.etats.lire(`promotion:${e.cle}`);
+    if (m === "programme" || m === "a-verifier") avecPost.push(e);
+  }
   // Version suivante : jamais égale ni inférieure à une clé déjà utilisée (une clé retirée ne se réutilise pas).
   const versionSuivante = Math.max(c.decalages, ...tous.map((e) => e.versionCreneau)) + 1;
-  // La garde voit un post chez le diffuseur (programmé ou brouillon) que les envois vivants ne montrent pas (ex. envoi annulé gardant sa marque) :
-  // impossible de savoir lequel retirer, rien n'est changé.
-  if (avecPost.length === 0 && (niveau === "programme" || niveau === "brouillon")) return { ok: false, res: { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier } };
+  // La garde voit un post chez le diffuseur (programmé ou brouillon) que les envois vivants ne montrent pas : impossible de savoir lequel retirer, rien n'est changé.
+  if (sansPostVivant && (niveau === "programme" || niveau === "brouillon")) return { ok: false, res: { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier } };
   return { ok: true, c, vivants, avecPost, versionSuivante, niveau };
 }
 
@@ -181,7 +188,7 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
 async function sortirDeLaGarde(d: DepsDeplacement, retires: EnvoiPlanifie[]): Promise<void> {
   for (const e of retires) {
     try {
-      await d.etats.noter(`promotion:${e.cle}`, "retire");
+      await d.etats.noter(`promotion:${e.cle}`, "libre");
     } catch {
       /* la marque est une aide : l'écriture principale a eu lieu */
     }
@@ -198,8 +205,20 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
   const le = d.maintenant().toISOString();
   const fin = async (r: Extract<ResultatDeplacement, { ok: false }>): Promise<ResultatDeplacement> => {
     if (retires.length === 0) return r;
-    await d.appliquer({ supprimer: [], enregistrer: [...annules(retires, le), ...(await liberer(d, retires, le))] });
-    await sortirDeLaGarde(d, retires);
+    try {
+      await d.appliquer({ supprimer: [], enregistrer: [...annules(retires, le), ...(await liberer(d, retires, le))] });
+      await sortirDeLaGarde(d, retires);
+    } catch {
+      // Des retraits sont confirmés mais l'écriture a échoué : jamais un faux « programmé ». Marque « à vérifier » pour chaque envoi retiré.
+      for (const e of retires) {
+        try {
+          await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+        } catch {
+          /* la marque est une aide */
+        }
+      }
+      return { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin, ecritures: true };
+    }
     const restent = p.avecPost.filter((x) => !retires.includes(x));
     return { ...r, message: `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${r.message}`, ecritures: true };
   };
@@ -215,8 +234,13 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
       retires.push(e);
       continue;
     }
-    if (issue === "a-verifier") await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
-    if (issue === "refuse") await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
+    // Une marque ratée ne doit jamais empêcher d'écrire « annule » pour les envois déjà retirés (sinon faux « Programmé »).
+    try {
+      if (issue === "a-verifier") await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+      if (issue === "refuse") await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
+    } catch {
+      /* la marque est une aide : la phrase dit déjà « à vérifier » ou « à retirer à la main » */
+    }
     if (issue === "a-verifier") return fin({ ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifier });
     if (issue === "refuse") return fin({ ok: false, etat: "a-retirer-a-la-main", message: PHRASES_DEPLACEMENT.aLaMain });
     return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.sansReponse });
@@ -252,10 +276,22 @@ async function reposerDansAPlacer(d: DepsDeplacement, p: Extract<Preparation, { 
     await d.appliquer(lot);
     await sortirDeLaGarde(d, p.avecPost);
   } catch {
-    for (const e of p.avecPost) await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+    for (const e of p.avecPost) {
+      try {
+        await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+      } catch {
+        /* les autres envois sont quand même marqués */
+      }
+    }
     return { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
-  for (const e of p.avecPost) await d.etats.noter(`deplacement:${e.cle}`, "a-reprogrammer");
+  for (const e of p.avecPost) {
+    try {
+      await d.etats.noter(`deplacement:${e.cle}`, "a-reprogrammer");
+    } catch {
+      /* l'état est déjà écrit : la phrase « À placer » reste dite et la cloche part */
+    }
+  }
   try {
     await d.notifier({ cle: p.c.id, motif: "a-reprogrammer", raison: PHRASES_DEPLACEMENT.notification });
   } catch {
@@ -324,7 +360,7 @@ export async function deplacerProgrammation(d: DepsDeplacement, demande: Demande
     await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, { collection: "journalDecalages", entite: ligne }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
     await sortirDeLaGarde(d, p.avecPost);
   } catch {
-    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
+    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.rienChange };
   }
   await noterFait(d, cleFait, p.versionSuivante);
   return { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, nouvellesCles: p.vivants.map((e) => cleEnvoi(e.videoId, e.reseau, p.versionSuivante)) };
@@ -370,7 +406,7 @@ export async function modifierTexteProgramme(d: DepsDeplacement, demande: Demand
     await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
     await sortirDeLaGarde(d, p.avecPost);
   } catch {
-    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p, modifie) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
+    return p.avecPost.length > 0 ? reposerDansAPlacer(d, p, modifie) : { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.rienChange };
   }
   await noterFait(d, cleFait, p.versionSuivante);
   return { ok: true, etat: "modifie", message: demande.auteur === "will" ? PHRASES_DEPLACEMENT.texteModifie : PHRASES_DEPLACEMENT.texteModifiePropose, creneauId: p.c.id };
@@ -378,31 +414,52 @@ export async function modifierTexteProgramme(d: DepsDeplacement, demande: Demand
 
 /* --- Adaptateur vers le client du diffuseur de CAL-22 (contrat structurel, aucun import du fournisseur) ---------------------------------- */
 
-/** Contrat de `client.retirer` / `client.listerPosts` de CAL-22 (relecture avant, DELETE, relecture après : jamais en aveugle). */
-export interface ClientRetraitCal22 {
-  listerPosts(q: { status: string; page: number; limit: number }): Promise<{ _id: string; metadata?: { studioCle?: string } }[]>;
-  retirer(d: { postId: string; cleJournal: string }): Promise<{ etat: "retire" | "a-verifier" | "refuse" | string }>;
+/** Contrat du client de CAL-22 (relecture avant, DELETE, relecture après : jamais en aveugle). Import de TYPE seulement. */
+export type ClientRetraitCal22 = Pick<ClientZernio, "listerPosts" | "retirer">;
+type PostListe = Awaited<ReturnType<ClientRetraitCal22["listerPosts"]>>[number];
+
+/** Tous les posts d'un statut (pages de 100, 50 pages au plus), comme le retrait de CAL-22 : un post au-delà de la première page se retrouve aussi. */
+async function listerTous(c: ClientRetraitCal22, status: string): Promise<PostListe[]> {
+  const tous: PostListe[] = [];
+  const vus = new Set<string>();
+  for (let page = 1; page <= 50; page++) {
+    const lus = await c.listerPosts({ status, page, limit: 100 });
+    const neufs = lus.filter((p) => !vus.has(p._id));
+    neufs.forEach((p) => vus.add(p._id));
+    tous.push(...neufs);
+    if (lus.length < 100 || neufs.length === 0) break;
+  }
+  return tous;
 }
 
 /**
- * Le jour où `retirer` est sur master : une ligne de branchement (`diffuseur: portRetraitDepuisClient(() => clientZernio())`).
- * Brouillon et programmé sont relus ; sans post sous la clé, ou réponse incertaine : « à vérifier » (jamais en aveugle).
+ * Le port de retrait sur le client du diffuseur (`retirer` est sur master depuis CAL-22). Brouillon et programmé sont relus ;
+ * sans post sous la clé, ou réponse incertaine : « à vérifier » (jamais en aveugle). Le retrait est confirmé AVANT toute écriture locale :
+ * l'envoi n'est marqué « annulé » qu'après, donc jamais de brouillon orphelin chez le diffuseur.
  */
 export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortRetraitDiffuseur {
   return {
     async retirer(e) {
       const cle = e.cleDiffuseur ?? e.cle;
+      let c: ClientRetraitCal22;
+      let posts: PostListe[];
       try {
-        const c = client();
-        const posts = [...(await c.listerPosts({ status: "draft", page: 1, limit: 100 })), ...(await c.listerPosts({ status: "scheduled", page: 1, limit: 100 }))];
-        const post = posts.find((x) => x.metadata?.studioCle === cle);
-        if (!post) return "a-verifier";
+        // Client ou liste impossibles (clé absente, diffuseur muet) : rien n'a été retiré, aucune marque.
+        c = client();
+        posts = [...(await listerTous(c, "draft")), ...(await listerTous(c, "scheduled"))];
+      } catch {
+        return "sans-reponse";
+      }
+      const post = posts.find((x) => x.metadata?.studioCle === cle);
+      if (!post) return "a-verifier";
+      try {
         const r = await c.retirer({ postId: post._id, cleJournal: cle });
         return r.etat === "retire" ? "retire" : r.etat === "a-verifier" ? "a-verifier" : "refuse";
       } catch (err) {
+        // Même classement que CAL-22 : réponse incertaine ou erreur inconnue = « à vérifier » ; refus = refus ; coupure avant envoi = sans réponse.
         const code = typeof err === "object" && err !== null && "code" in err ? String((err as { code: unknown }).code) : "";
         if (code === "refuse") return "refuse";
-        if (code === "delai" || code === "reseau" || code === "arret" || code === "envoi-eteint") return "sans-reponse";
+        if (code === "envoi-coupe" || code === "indisponible" || code === "debit" || code === "acces") return "sans-reponse";
         return "a-verifier";
       }
     },
@@ -410,17 +467,17 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
 }
 
 /**
- * Câblage serveur : dépendances réelles, chargées à l'appel. `diffuseur: null` : AUCUN appel au diffuseur tant que la fonction de retrait
- * n'est pas sur master (bloqué : fonction client manquante `retirer(demande: DemandeRetraitZernio): Promise<ResultatRetraitZernio>`).
+ * Câblage serveur : dépendances réelles, chargées à l'appel. Sans port donné, le retrait passe par le client du diffuseur (construit seulement
+ * si un retrait est nécessaire, donc jamais réglages fermés ou sans post). `null` explicite : aucun retrait possible, rien ne change.
  */
-export async function depsDeplacementServeur(diffuseur: PortRetraitDiffuseur | null = null): Promise<DepsDeplacement> {
+export async function depsDeplacementServeur(diffuseur?: PortRetraitDiffuseur | null): Promise<DepsDeplacement> {
   const { depots, maintenant } = await import("@/services/_commun");
   const { appliquerLot } = await import("@/donnees/memoire");
   const { PREFIXE_ETATS_ENVOI_CALENDRIER: prefixe } = await import("@/services/branchement-envoi-calendrier");
   const z = await import("@/services/zernio");
   const d = depots();
   return {
-    diffuseur,
+    diffuseur: diffuseur === undefined ? portRetraitDepuisClient(() => z.clientZernio()) : diffuseur,
     niveau: async (id) => (await import("@/services/garde-creneau-diffuseur")).niveauDiffuseurDuCreneau(id),
     publicationsDeCles: (cles) => d.publications.lister((x) => typeof x.cleEnvoi === "string" && cles.includes(x.cleEnvoi)),
     reglagesOuverts: async () => (await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true,

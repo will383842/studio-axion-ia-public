@@ -79,7 +79,9 @@ describe("rien n'est branché", () => {
     };
     parcourir(join(process.cwd(), "src"));
     // MAJ 2026-11-17 (BR-TELEPHONE-a, branchement voulu par le pilote) : la liste vide devient la liste EXACTE des 2 importeurs de la fiche (chaine-v4.ts ne l importe pas, il reçoit un booléen) ; tout autre importeur reste refusé.
+    // MAJ 2026-11-18 (BR-PRIX-FA-a, amendement n°1) : 3e importeur exact, cout-v4.ts (le prix affiché compte le bloc téléphone).
     expect(cites.map((c) => c.slice(process.cwd().length + 1).split("\\").join("/")).sort()).toEqual([
+      "src/moteurs/montage-facecam-animee/realisateur/cout-v4.ts",
       "src/moteurs/montage-facecam-animee/realisateur/index.ts",
       "src/services/facecam-animee.ts",
     ]);

@@ -6,9 +6,9 @@
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { FicheEntree, PHRASE_PROGRAMMEE_MODIFIABLE } from "@/components/calendrier/FicheEntree";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
+import { FicheEntree, PHRASE_PROGRAMMEE_MODIFIABLE } from "@/components/calendrier/FicheEntree";
 import type { LotEcritures } from "@/domaine/depots";
 import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { instantParis } from "@/lib/horloge-paris";
@@ -18,6 +18,11 @@ import { deplacerProgrammationAction, modifierTexteProgrammeAction, modifierText
 import { CODES_DEPLACEMENT, deplacerProgrammation, modifierTexteProgramme, PHRASES_DEPLACEMENT, portRetraitDepuisClient, type DepsDeplacement, type IssueRetraitDiffuseur } from "@/services/deplacer-programmation";
 
 const revalide = vi.hoisted(() => ({ appels: [] as string[] }));
+const retraitService = vi.hoisted(() => ({ reponse: undefined as unknown }));
+vi.mock("@/services/retirer-programmation", async (orig) => {
+  const m = await orig<typeof import("@/services/retirer-programmation")>();
+  return { ...m, retirerProgrammationServeur: vi.fn(async (id: string) => (retraitService.reponse ?? (await m.retirerProgrammationServeur(id)))) };
+});
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: (p: string) => void revalide.appels.push(p), revalidateTag: () => undefined }));
@@ -157,7 +162,7 @@ describe("CAL-23 · déplacer : annuler puis recréer, une seule fois, à la nou
     const m = monde({ marques: { "promotion:envoi:vis_1:linkedin:v0": "programme" } });
     expect((await m.deps.niveau("cre_1")).niveau).toBe("programme");
     await deplacerProgrammation(m.deps, demande());
-    expect(m.marques.get("promotion:envoi:vis_1:linkedin:v0")).toBe("retire");
+    expect(m.marques.get("promotion:envoi:vis_1:linkedin:v0")).toBe("libre");
     expect((await m.deps.niveau("cre_1")).niveau).toBe("libre");
   });
 
@@ -488,22 +493,26 @@ describe("CAL-23 · adaptateur vers le client de CAL-22 (relecture avant, jamais
   };
   it("retire le post trouvé sous la clé, après relecture des brouillons et des programmés", async () => {
     const k = client();
-    expect(await portRetraitDepuisClient(k.c).retirer(e)).toBe("retire");
+    expect(await portRetraitDepuisClient(k.c as never).retirer(e)).toBe("retire");
     expect(k.appels).toEqual(["liste:draft", "liste:scheduled", `retirer:post_1:true`]);
   });
   it("aucun post sous la clé : « à vérifier », aucun retrait", async () => {
     const k = client();
-    expect(await portRetraitDepuisClient(k.c).retirer(envoi({ cleDiffuseur: "c".repeat(64) }))).toBe("a-verifier");
+    expect(await portRetraitDepuisClient(k.c as never).retirer(envoi({ cleDiffuseur: "c".repeat(64) }))).toBe("a-verifier");
     expect(k.appels.some((a) => a.startsWith("retirer"))).toBe(false);
   });
   it.each([
     [{ etat: "a-verifier" }, "a-verifier"],
     [{ etat: "refuse" }, "refuse"],
     [{ leve: Object.assign(new Error("x"), { code: "refuse" }) }, "refuse"],
-    [{ leve: Object.assign(new Error("x"), { code: "delai" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "envoi-coupe" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "indisponible" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "debit" }) }, "sans-reponse"],
+    [{ leve: Object.assign(new Error("x"), { code: "limite-incertaine" }) }, "a-verifier"],
+    [{ leve: Object.assign(new Error("x"), { code: "a-verifier" }) }, "a-verifier"],
     [{ leve: new Error("inconnue") }, "a-verifier"],
   ])("réponse %j : %s", async (sur, attendu) => {
-    expect(await portRetraitDepuisClient(client(sur).c).retirer(e)).toBe(attendu);
+    expect(await portRetraitDepuisClient(client(sur).c as never).retirer(e)).toBe(attendu);
   });
 });
 
@@ -528,8 +537,9 @@ describe("CAL-23 · périmètre, écran et vocabulaire", () => {
   });
 
   it("le service n'importe aucun fournisseur ni le client du diffuseur (zone Zernio intacte)", () => {
-    expect(service).not.toMatch(/from\s+["']@\/fournisseurs/);
-    expect(service).not.toMatch(/zernio-client/);
+    // Un import de TYPE (contrat du client, vérifié par tsc) est permis ; jamais un import de valeur.
+    expect(service.replace(/import type [^;]*;/g, "")).not.toMatch(/from\s+["']@\/fournisseurs/);
+    expect(service.replace(/import type [^;]*;/g, "")).not.toMatch(/zernio-client/);
   });
 
   const entreeProgrammee = { cle: "creneau:cre_1|linkedin", etat: "programme", jour: "2026-12-11", heure: "09:30", reseau: "linkedin", type: "carrousel", texte: "Le texte", confiee: true } as never;
@@ -656,4 +666,95 @@ describe("CAL-23 · sur de vrais dépôts en mémoire : le tour d'envoi recrée 
     expect((await depots().envoisPlanifies.obtenir(CLE_V0))?.statut).toBe("annule");
     expect((await depots().journalDecalages.lister()).length).toBe(1);
   }, 60_000);
+});
+
+describe("CAL-23 · audit : envoi annulé gardant sa marque, écriture ratée après retrait, écriture ratée sans post", () => {
+  const B = "envoi:vis_1:facebook:v0";
+  it("un envoi vivant avec post ET un envoi annulé marqué « programme » : les DEUX passent par le retrait avant tout changement", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: B, cle: B, reseau: "facebook", cleDiffuseur: "b".repeat(64), statut: "annule" })],
+      marques: { [`promotion:${B}`]: "programme" },
+    });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r.ok).toBe(true);
+    expect(m.retraits.sort()).toEqual([B, "envoi:vis_1:linkedin:v0"].sort());
+    expect(m.marques.get(`promotion:${B}`)).toBe("libre");
+  });
+  it("le retrait de l'envoi annulé est incertain : rien ne change (ancienne date gardée), marque « à vérifier »", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: B, cle: B, reseau: "facebook", cleDiffuseur: "b".repeat(64), statut: "annule" })],
+      marques: { [`promotion:${B}`]: "programme" },
+      issues: ["retire", "a-verifier"],
+    });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r.ok).toBe(false);
+    expect(m.creneau().jourVise).toBe("2026-12-11");
+  });
+  it("retrait partiel confirmé puis écriture ratée : « à vérifier » marqué, jamais un faux « programmé »", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: "c".repeat(64) })],
+      issues: ["retire", "a-verifier"],
+      ecritureEchoue: 1,
+    });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier", ecritures: true });
+    expect(m.marques.get("a-verifier:envoi:vis_1:linkedin:v0")).toBe("a-verifier");
+  });
+  it("sans post chez le diffuseur et écriture ratée : on ne dit jamais « le retrait a eu lieu »", async () => {
+    const m = monde({ envois: [envoi({ cleDiffuseur: undefined, statut: "valide" } as never)], ecritureEchoue: 1 });
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r.ok).toBe(false);
+    expect(r.message).toBe(PHRASES_DEPLACEMENT.rienChange);
+    expect(r.message).not.toContain("retrait a eu lieu");
+  });
+});
+
+describe("CAL-23 · port de retrait : liste ou client en échec = sans réponse, sans marque", () => {
+  const env = { cle: "K", cleDiffuseur: "K" } as never;
+  it("la liste des posts échoue : « sans-reponse »", async () => {
+    const c = { listerPosts: async () => { throw new Error("coupé"); }, retirer: async () => ({ etat: "retire" }) } as never;
+    expect(await portRetraitDepuisClient(() => c).retirer(env)).toBe("sans-reponse");
+  });
+  it("le client ne se construit pas (clé absente) : « sans-reponse »", async () => {
+    expect(await portRetraitDepuisClient(() => { throw Object.assign(new Error("non relié"), { code: "ZERNIO_NON_RELIE" }); }).retirer(env)).toBe("sans-reponse");
+  });
+});
+
+describe("CAL-23 · tour 2 : une marque qui échoue ne casse rien", () => {
+  it("marque impossible après un premier retrait confirmé : l'envoi retiré passe quand même « annule », réponse « à vérifier »", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: "c".repeat(64) })],
+      issues: ["retire", "a-verifier"],
+    });
+    m.deps.etats.noter = async () => { throw new Error("marque impossible"); };
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier", ecritures: true });
+    expect(m.envois.get("envoi:vis_1:linkedin:v0")?.statut).toBe("annule");
+  });
+});
+
+describe("CAL-23 · « Retirer » depuis l'aperçu : aucun rafraîchissement au succès (l'aperçu garde « Annuler »)", () => {
+  it("succès : phrase et délai rendus, AUCUN revalidatePath ; confirmation et clé de créneau exigées", async () => {
+    const { retirerProgrammationDepuisApercuAction } = await import("../../src/app/(studio)/calendrier/actions/deplacer");
+    retraitService.reponse = { ok: true, etat: "retire", message: "Retirée du calendrier.", creneauId: "cre_1", annulableJusquA: "2026-12-10T10:00:10.000Z" };
+    revalide.appels.length = 0;
+    const r = await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "retirer");
+    expect(r).toEqual({ ok: true, donnees: { creneauId: "cre_1", annulableJusquA: "2026-12-10T10:00:10.000Z", message: "Retirée du calendrier." } });
+    expect(revalide.appels).toEqual([]);
+    expect((await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "oui")).ok).toBe(false);
+    expect((await retirerProgrammationDepuisApercuAction("publication:p1|linkedin", "retirer")).ok).toBe(false);
+  });
+  it("refus : un code par cas ; retrait partiel (écritures) rafraîchit", async () => {
+    const { retirerProgrammationDepuisApercuAction } = await import("../../src/app/(studio)/calendrier/actions/deplacer");
+    retraitService.reponse = { ok: false, etat: "a-verifier", message: "Retrait partiel. À vérifier.", ecritures: true };
+    revalide.appels.length = 0;
+    const r = await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "retirer");
+    expect(r).toMatchObject({ ok: false, code: "RETRAIT_A_VERIFIER" });
+    expect(revalide.appels).toEqual(["/calendrier"]);
+    retraitService.reponse = { ok: false, etat: "a-retirer-a-la-main", message: "À la main." };
+    revalide.appels.length = 0;
+    expect(await retirerProgrammationDepuisApercuAction("creneau:cre_1|linkedin", "retirer")).toMatchObject({ ok: false, code: "RETRAIT_A_LA_MAIN" });
+    expect(revalide.appels).toEqual([]);
+    retraitService.reponse = undefined;
+  });
 });
