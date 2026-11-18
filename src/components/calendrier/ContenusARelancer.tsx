@@ -15,6 +15,10 @@ export const LIBELLES_A_RELANCER = {
   ajouter: "Ajouter au calendrier",
   sansCompte: "Aucun compte de publication pour ce réseau",
   succes: "Nouvelle version ajoutée au calendrier, à valider. Rien n'est envoyé.",
+  dejaAuCalendrier: "Une nouvelle version de ce contenu est déjà au calendrier, à valider. Rien n'est envoyé.",
+  incomplet: "Le formulaire est incomplet : indiquez le texte, le jour et l'heure.",
+  dejaRelance: "Déjà relancé",
+  fois: "fois",
 } as const;
 
 /** PROPOSITION (hypothèse) : heure proposée dans le formulaire. */
@@ -49,7 +53,7 @@ export function ContenusARelancer({ lignes, comptes, action }: ProprietesContenu
             </p>
             <p className="mt-1 text-texte">{l.debutTexte}</p>
             <p className="text-texte-doux">{l.raison}</p>
-            {l.rangDejaAtteint > 0 && <p className="text-texte-doux">Déjà relancé {l.rangDejaAtteint} fois</p>}
+            {l.rangDejaAtteint > 0 && <p className="text-texte-doux">{LIBELLES_A_RELANCER.dejaRelance} {l.rangDejaAtteint} {LIBELLES_A_RELANCER.fois}</p>}
             {compte ? (
               <details className="mt-3">
                 <summary className="inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-trait px-4 font-medium">{LIBELLES_A_RELANCER.bouton}</summary>

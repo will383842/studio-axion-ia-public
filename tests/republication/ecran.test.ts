@@ -128,10 +128,30 @@ describe("action", () => {
     const long = decodeURIComponent(await lancer());
     expect(long.slice(long.indexOf("message=") + 8).length).toBeLessThanOrEqual(300);
   });
-  it("champs absents ou illisibles : refus clair, aucun appel au service", async () => {
+  it("champs absents : refus exact, aucun appel au service", async () => {
     const sortie = decodeURIComponent(await lancer({ publicationId: "p1" } as never));
-    expect(sortie).toContain("message=");
+    expect(sortie).toBe(`REDIRECTION /calendrier/a-relancer?message=${LIBELLES_A_RELANCER.incomplet}`);
     expect(etat.appels).toHaveLength(0);
+  });
+  it("texte fait seulement d'espaces : même refus", async () => {
+    const sortie = decodeURIComponent(await lancer({ ...CHAMPS, texte: "   \n  " }));
+    expect(sortie).toContain(LIBELLES_A_RELANCER.incomplet);
+    expect(etat.appels).toHaveLength(0);
+  });
+  it("une nouvelle version déjà ouverte : un seul appel, message dédié", async () => {
+    etat.reponse = { ok: true, deja: true };
+    const sortie = decodeURIComponent(await lancer());
+    expect(etat.appels).toHaveLength(1);
+    expect(sortie).toBe(`REDIRECTION /calendrier/a-relancer?message=${LIBELLES_A_RELANCER.dejaAuCalendrier}`);
+    expect(sortie).toContain("déjà au calendrier, à valider. Rien n'est envoyé.");
+  });
+  it("un emoji à la limite des 300 signes ne fait pas planter la redirection", async () => {
+    etat.reponse = { ok: false, motifs: ["x".repeat(299) + "😀" + "fin"] };
+    const sortie = await lancer();
+    expect(sortie).toMatch(/^REDIRECTION /);
+    const msg = decodeURIComponent(sortie.slice(sortie.indexOf("message=") + 8));
+    expect(Array.from(msg)).toHaveLength(300);
+    expect(msg.endsWith("😀")).toBe(true);
   });
 });
 

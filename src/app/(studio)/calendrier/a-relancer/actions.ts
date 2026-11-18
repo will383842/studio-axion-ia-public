@@ -28,16 +28,16 @@ export async function creerNouvelleVersionAction(formulaire: FormData): Promise<
   };
   let message: string;
   if (!demande.publicationId || !demande.jour || !demande.heure || !demande.texte.trim()) {
-    message = "Le formulaire est incomplet : indiquez le texte, le jour et l'heure.";
+    message = LIBELLES_A_RELANCER.incomplet;
   } else {
     const resultat = await creerNouvelleVersion(depsParDefaut(), demande);
     message = resultat.ok
       ? resultat.deja
-        ? "Une nouvelle version de ce contenu est déjà au calendrier, à valider. Rien n'est envoyé."
+        ? LIBELLES_A_RELANCER.dejaAuCalendrier
         : LIBELLES_A_RELANCER.succes
       : resultat.motifs.join(" ");
   }
   revalidatePath("/calendrier");
   revalidatePath(PAGE);
-  redirect(`${PAGE}?message=${encodeURIComponent(message.slice(0, MESSAGE_MAX))}`);
+  redirect(`${PAGE}?message=${encodeURIComponent(Array.from(message).slice(0, MESSAGE_MAX).join(""))}`);
 }
