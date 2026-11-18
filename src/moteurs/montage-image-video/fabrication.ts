@@ -899,12 +899,23 @@ export function reprendreIV(etat: EtatFabricationIV, o: { plafondCentimes?: numb
   // R1 : une lecture refusée APRÈS les deux lectures payées (carte « incomplète » ou « illisible » d'origine fusion, refus réessayable ; « sans texte » ou « trop chargée » ne relisent pas) donnerait
   // le même refus si on rendait les mêmes lectures : on les efface pour relire vraiment. (« Type à choisir » d'un ancien
   // état : les lectures restent, Will impose le type sans repayer.)
+  // S-04b : un contrôle « non fait » repris : les mesures gardées redonneraient le même « non fait » ; elles sont refaites
+  // (rendu rappelé sous le MÊME identifiant : gratuit, rien de repayé ; transcriptions et relectures gardées dans `e.controles`).
+  const remesurer = etape === "controles" && e.refus.code === "IV_PANNE" && !!e.rendus && Object.keys(e.rendus).length > 0;
   const relireVraiment = etape === "lecture" && e.refus.code === "IV_IMAGE" && e.refus.reessayable !== false && !!e.lectures?.a && !!e.lectures?.b;
   if (relireVraiment) delete e.lectures;
   delete e.refus;
   delete e.attente;
   e.etape = etape;
   e.tentatives[etape] = (e.tentatives[etape] ?? 1) + 1;
+  if (remesurer) {
+    for (const r of Object.values(e.rendus!)) {
+      delete r.mesures;
+      delete r.demande;
+    }
+    e.etape = "rendu";
+    e.journal.push("Reprise : les mesures du fichier sont refaites (rendus, voix et lectures payés gardés).");
+  }
   e.journal.push(relireVraiment ? `Reprise de l'étape « ${etape} » : relecture neuve, comptée dans le prix accordé.` : `Reprise de l'étape « ${etape} ».`);
   return e;
 }
@@ -1836,7 +1847,7 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
   // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
-  if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.", { phrases: verdict.phrases, reessayable: true });
+  if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : « Reprendre » la refait.", { phrases: verdict.phrases, reessayable: true });
   // Livraison partielle : une faute propre à certaines versions ne refuse plus toute la vidéo ; les réseaux dont les versions sont bonnes sont livrés.
   const partielle = !verdict.ok && verdict.partielle;
   if (!verdict.ok && !partielle) return refuser(e, "controles", "IV_CONTROLES", verdict.phrase, { phrases: verdict.phrases, reessayable: false });
