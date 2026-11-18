@@ -295,7 +295,7 @@ describe("CAL-22 · partiel, codes, clé de la reprise", () => {
   it.each([
     ["à retirer à la main", [{ statut: 400 }] as Reponse[], "a-retirer-a-la-main", /à retirer à la main/],
     ["à vérifier", ["coupure"] as Reponse[], "a-verifier", /à vérifier/],
-    ["reste programmé", [{ statut: 503 }] as Reponse[], "a-verifier", /à vérifier/],
+    ["503 au retrait → à vérifier", [{ statut: 503 }] as Reponse[], "a-verifier", /à vérifier/],
   ])("retrait partiel (%s) : message vrai, écran à rafraîchir, aucun mot interdit", async (_n, script, etat, motif) => {
     const m = deux(script);
     const r = await retirerProgrammation(m.deps, "cre_1");
@@ -306,13 +306,17 @@ describe("CAL-22 · partiel, codes, clé de la reprise", () => {
     expect(r.message).not.toMatch(/rien n'a été changé/i);
     for (const i of INTERDITS) expect(r.message).not.toMatch(i);
   });
-  it("partiel sans réponse du diffuseur : phrase « réessayez », jamais « rien n'a été changé »", async () => {
-    const m = deux([], { "GET /v1/posts/post_2": [{ statut: 200, corps: { post: { _id: "post_2", status: "scheduled", platforms: [{ platform: "facebook" }], metadata: { origine: "studio", studioCle: CLE_B } } } }, { statut: 429 }] });
+  it("partiel sans réponse du diffuseur (lecture en 503) : « reste programmé », phrase « réessayez », envoi retiré noté « annule », aucun DELETE sur le second", async () => {
+    const m = deux([], { "GET /v1/posts/post_2": [{ statut: 503 }] });
     const r = await retirerProgrammation(m.deps, "cre_1");
-    if (!r.ok) {
-      expect(r.message).not.toMatch(/rien n'a été changé/i);
-      for (const i of INTERDITS) expect(r.message).not.toMatch(i);
-    }
+    expect(r).toMatchObject({ ok: false, etat: "reste-programme", ecritures: true });
+    if (r.ok) return;
+    expect(r.message).toMatch(/Retiré chez le diffuseur : LinkedIn\. Reste programmé : Facebook\./);
+    expect(r.message).toMatch(/réessayez plus tard/);
+    expect(r.message).not.toMatch(/rien n'a été changé/i);
+    for (const i of INTERDITS) expect(r.message).not.toMatch(i);
+    expect(m.envois.get("envoi:vis_1:linkedin:v0")?.statut).toBe("annule");
+    expect(m.faux.appels.some((a) => a.methode === "DELETE" && a.chemin === "/v1/posts/post_2")).toBe(false);
   });
   it("chaque état a son propre code ; sans écriture, pas de rafraîchissement demandé", async () => {
     expect(new Set(Object.values(CODES_RETRAIT)).size).toBe(4);
