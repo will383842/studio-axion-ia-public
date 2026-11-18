@@ -18,8 +18,8 @@ function fichiers(dossier: string): string[] {
 }
 
 describe("X1-17a planche tendances 2027", () => {
-  it("liste les onze pièces X1 fusionnées (X1-14 exclue)", () => {
-    expect([...PIECES_X1_PLANCHE]).toEqual(["X1-01", "X1-02", "X1-03", "X1-04", "X1-05", "X1-06", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"]);
+  it("liste les quatorze pièces X1 fusionnées (X1-14 exclue)", () => {
+    expect([...PIECES_X1_PLANCHE]).toEqual(["X1-01", "X1-02", "X1-03", "X1-04", "X1-05", "X1-06", "X1-08", "X1-09", "X1-10", "X1-11", "X1-12", "X1-13", "X1-15", "X1-16"]);
     const ids = new Set(casesDeLaPlanche().map((c) => c.piece));
     for (const p of PIECES_X1_PLANCHE) expect(ids.has(p)).toBe(true);
     expect(ids.has("X1-14" as never)).toBe(false);
@@ -46,6 +46,27 @@ describe("X1-17a planche tendances 2027", () => {
     const d = /<path[^>]* d="([^"]+)"/.exec(case_("x1-02-boite"))?.[1] ?? "";
     expect(d.startsWith("M")).toBe(true);
     expect(d.trim().endsWith("Z")).toBe(true);
+  });
+  it("X1-17b-b : croquis, feutre, papier découpé : même graine = même balisage, 4 formats, aucune case vide", () => {
+    const IDS = ["x1-08", "x1-09-entourage", "x1-09-soulignement", "x1-10"];
+    const case_ = (h: string, id: string): string => {
+      const debut = h.indexOf(`data-case="${id}"`);
+      expect(debut, id).toBeGreaterThanOrEqual(0);
+      const suite = h.indexOf("data-case=", debut + 10);
+      return h.slice(debut, suite < 0 ? undefined : suite);
+    };
+    for (const f of Object.keys(FORMATS_PLANCHE) as (keyof typeof FORMATS_PLANCHE)[]) {
+      const a = renderToStaticMarkup(createElement(PlancheTendances2027, { format: f, graine: 11 }));
+      const b = renderToStaticMarkup(createElement(PlancheTendances2027, { format: f, graine: 11 }));
+      const autre = renderToStaticMarkup(createElement(PlancheTendances2027, { format: f, graine: 12 }));
+      for (const id of IDS) {
+        const c = case_(a, id);
+        expect(c, `${f} ${id} identique`).toBe(case_(b, id));
+        expect(c, `${f} ${id} dépend de la graine`).not.toBe(case_(autre, id));
+        expect(c, `${f} ${id} vide`).toMatch(/<(path|polyline|ellipse|rect|line)\b/);
+      }
+      expect(case_(a, "x1-08")).toContain("tracé à la main au rendu");
+    }
   });
   it("quatre formats", () => {
     expect(Object.keys(FORMATS_PLANCHE)).toEqual(["9x16", "4x5", "1x1", "16x9"]);
