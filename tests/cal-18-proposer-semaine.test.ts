@@ -221,7 +221,53 @@ describe("CAL-18 · le Studio n'a aucun stratège", () => {
   it("aucun nom de personne dans le dépôt public", () => {
     for (const c of [...FICHIERS, "tests/cal-18-proposer-semaine.test.ts"]) expect(lire(c)).not.toMatch(new RegExp("will" + "iams", "i"));
   });
-  it("l'action serveur n'est PAS ajoutée à actions.ts : trois gardes exigent qu'il ne garde que deux actions (CORRECTIF requis)", () => {
+  it("l'action serveur vit dans actions/proposer-semaine.ts ; actions.ts n'est pas modifié (les trois gardes des fiches sœurs tiennent)", () => {
     expect(lire("src/app/(studio)/calendrier/actions.ts")).not.toMatch(/proposerSemaine/);
+    const a = lire("src/app/(studio)/calendrier/actions/proposer-semaine.ts");
+    expect(a.startsWith('"use server"')).toBe(true);
+    expect(a).toMatch(/exigerSession\(\)/);
+  });
+  it("la page de la semaine monte le bouton avec l'action serveur (jamais un appel direct du navigateur)", () => {
+    const page = lire("src/app/(studio)/calendrier/page.tsx");
+    expect(page).toContain("<BoutonProposerSemaine");
+    expect(page).toMatch(/proposer=\{proposerSemaineAction\}/);
+    // Rien n'allumé : le bouton n'est monté que si l'usine est reliée.
+    expect(page).toMatch(/usineActive\(\) && <div[^\n]*<BoutonProposerSemaine/);
+  });
+});
+
+describe("CAL-18 · action serveur", () => {
+  it("sans session, rien n'est appelé : l'action s'arrête au contrôle de session", async () => {
+    vi.resetModules();
+    const proposerFactice = vi.fn();
+    vi.doMock("@/services/auth", () => ({ exigerSession: async () => { throw new Error("session"); } }));
+    vi.doMock("@/services/proposer-semaine", () => ({ proposerSemaine: proposerFactice }));
+    const { proposerSemaineAction } = await import("@/app/(studio)/calendrier/actions/proposer-semaine");
+    await expect(proposerSemaineAction(LUNDI)).rejects.toThrow("session");
+    expect(proposerFactice).not.toHaveBeenCalled();
+    vi.doUnmock("@/services/auth");
+    vi.doUnmock("@/services/proposer-semaine");
+  });
+  it("avec une session : le résultat du service est rendu tel quel, et une erreur du Studio devient une phrase sans montant", async () => {
+    vi.resetModules();
+    const { ErreurStudio } = await import("@/services/_commun");
+    vi.doMock("@/services/auth", () => ({ exigerSession: async () => ({ id: "f" }) }));
+    vi.doMock("@/services/proposer-semaine", () => ({ proposerSemaine: async () => { throw new ErreurStudio("SEMAINE_PLAFOND", "Phrase de plafond."); } }));
+    const { proposerSemaineAction } = await import("@/app/(studio)/calendrier/actions/proposer-semaine");
+    const r = await proposerSemaineAction(LUNDI);
+    expect(r).toEqual({ ok: false, message: "Phrase de plafond.", code: "SEMAINE_PLAFOND" });
+    vi.doUnmock("@/services/auth");
+    vi.doUnmock("@/services/proposer-semaine");
+  });
+  it("usine non reliée : l'action répond en français, sans appel réel", async () => {
+    vi.resetModules();
+    vi.doMock("@/services/auth", () => ({ exigerSession: async () => ({ id: "f" }) }));
+    const { proposerSemaineAction } = await import("@/app/(studio)/calendrier/actions/proposer-semaine");
+    const f = vi.spyOn(globalThis, "fetch");
+    const r = await proposerSemaineAction(LUNDI);
+    expect(r.ok).toBe(false);
+    expect(f).not.toHaveBeenCalled();
+    f.mockRestore();
+    vi.doUnmock("@/services/auth");
   });
 });

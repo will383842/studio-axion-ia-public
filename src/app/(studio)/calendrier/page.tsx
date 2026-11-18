@@ -6,6 +6,8 @@ import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regrou
 import { AlerteProximite } from "@/components/calendrier/AlerteProximite";
 import { BandeauAujourdhui } from "@/components/calendrier/BandeauAujourdhui";
 import { VueAgenda } from "@/components/calendrier/VueAgenda";
+import { BoutonProposerSemaine } from "@/components/calendrier/BoutonProposerSemaine";
+import { proposerSemaineAction } from "./actions/proposer-semaine";
 import { VueVide } from "@/components/calendrier/VueVide";
 import { SemaineAvecApercu } from "@/components/calendrier/ApercuPublication";
 import { suiteFiltres } from "@/components/calendrier/Filtres";
@@ -32,6 +34,7 @@ import { GrilleMois } from "@/components/calendrier/GrilleMois";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
 import { listerAProgrammer, listerCalendrier, type JourCalendrier } from "@/services/publications";
 import { exigerSession } from "@/services/auth";
+import { usineActive } from "@/services/usine-porte";
 
 export const metadata: Metadata = { title: "Calendrier" };
 export const dynamic = "force-dynamic";
@@ -191,6 +194,9 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         }}
       />
       <PanneauAFaire entrees={aFaire} />
+      {/* CAL-18 : l'usine propose, le Studio affiche ; la validation se fait dans le calendrier. */}
+      {/* Rien n'est allumé : sans USINE_URL et clé, le bouton reste masqué (V1). */}
+      {usineActive() && <div className="mb-3"><BoutonProposerSemaine debutSemaine={lundiCle} proposer={proposerSemaineAction} lienAValider={adresseSemaine} /></div>}
       {jours.some((j) => cleJour(j) === aujourdhui) && <BandeauAujourdhui entrees={visiblesReelles} aujourdhui={aujourdhui} />}
       <AlerteProximite entrees={visiblesReelles} className="mb-3" />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">
