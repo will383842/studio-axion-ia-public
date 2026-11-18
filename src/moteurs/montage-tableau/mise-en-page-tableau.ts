@@ -18,7 +18,7 @@ import { PALETTE } from "@/briques/charte/axion-2026";
 import { faitsDuScript, familleUnite } from "@/briques/faits-script";
 import { CHARTES_TABLEAU, type CharteTableau, type PoliceTableau, type StyleTableau } from "@/briques/tableau-scene/trois-styles/styles";
 import { INTERLIGNES_TABLEAU, couperTableau, coupeUnGroupe, largeurTableau } from "@/briques/tableau-scene/trois-styles/mesure";
-import { banderole, barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
+import { barre, calendrier, carteCroquis, chrono, eclat, enveloppe, etoile, feuilleBrouillon, feuilleDemande, fleche, flecheCourbe, horloge, loupe, medaillon, pointeur, rayons, reveil, sablier, souligne, surligneur, telephone } from "@/briques/tableau-scene/trois-styles/dessins";
 import { boiteTraits, cadrer, densifier, ellipse, graineDe, minuter, plume, polyPts, rectArr, remplir, trait, tremble, type Plume, type Point, type TraitTableau } from "@/briques/tableau-scene/trois-styles/trace";
 import { GRILLE_DESSIN, TRACES_DESSINS } from "@/briques/dessins/traces";
 import type { ElementTableauPlace, ObjetTableau } from "@/briques/tableau-scene/trois-styles/types";
@@ -347,24 +347,12 @@ function entete(g: Geo, c: ContenuPage): Rang | null {
     return fixe(bloc([p]));
   }
   if (c.role === "exemple" || c.role === "retenir") {
-    const libelle = c.role === "exemple" ? (c.mention?.texte.trim() || "Exemple illustratif") : "À retenir";
-    const id = c.role === "exemple" && c.mention ? c.mention.id : `${c.premiere.id}~partie`;
-    const sceneId = c.role === "exemple" && c.mention ? c.mention.sceneId : c.premiere.id;
-    if (c.role === "retenir") {
-      // « À retenir » : un titre de la partie, souligné (A, B) ou dans une banderole (C).
-      const lg: Ligne = { l: { id, type: "ligne", texte: libelle, niveau: "titre", role: "regle", ancre: 0 }, sceneId };
-      const r = ecrire(g, lg, { police: S.titre, taille: T(g).titre * 1.05 * k * g.f, min: mini(g, "titre"), couleur: S.encre, max: 1, centre: S.centre || g.style === "paperboard", majuscules: S.capitales, type: "mention", gabarit: { sorte: "partie", role: c.role, point: { x: g.x0, y: 0, largeur: 0, hauteur: 0 }, couleur: S.encre, couleurPoint: S.accent } });
-      if (!r) return null;
-      let p = { ...r.pose, heure: null } as Pose;
-      const l = p.lignes[0].px;
-      if (g.style === "paperboard") {
-        // Ses ailes restent sur la page (leurs pointes dépassent de 10 px de référence) : jamais hors de la zone sûre.
-        const ban = banderole(g.P, Math.max(g.x0 + px(g, 12), l.x - px(g, 120)), Math.min(g.x1 - px(g, 12), l.x + l.largeur + px(g, 120)), l.y - px(g, 6), l.hauteur + px(g, 12));
-        p = avecTraits(p, "avant", ban, 0.36);
-        p = { ...p, couleurFond: S.clair };
-      } else p = avecTraits(p, "apres", [souligne(g.P, l.x, l.x + l.largeur, l.y + l.hauteur * 0.96, g.style === "ardoise" ? 7 : 9, g.style === "ardoise" ? S.doux : S.encre)], 0.18);
-      return fixe(bloc([p]));
-    }
+    // FIX-TABLEAU-ETIQUETTES-FORME (18/11, D1 Williams) : la page « à retenir » n'a plus de libellé « À retenir » écrit
+    // d'office par le Studio ; seule la mention de l'EXEMPLE reste (« Exemple illustratif » ou celle du script).
+    if (c.role === "retenir") return null;
+    const libelle = c.mention?.texte.trim() || "Exemple illustratif";
+    const id = c.mention ? c.mention.id : `${c.premiere.id}~partie`;
+    const sceneId = c.mention ? c.mention.sceneId : c.premiere.id;
     const pol: PoliceTableau = g.style === "paperboard" ? "caveat" : "kalam";
     const basse = g.s.W >= g.s.H * 0.99;
     const mx = px(g, basse ? 28 : 38);
@@ -442,6 +430,9 @@ function titre(g: Geo, x: Ligne): Rang | null {
   return r ? fixe(bloc([r.pose])) : null;
 }
 
+/** Interligne de la phrase de la page « à retenir » : la place du titre « À retenir » (retiré) lui est rendue. */
+const INTERLIGNE_RETENIR = 1.22;
+
 /** Phrase : sous le titre (plus petite, son mot-clé souligné ou surligné), ou seule (grande). */
 function phrase(g: Geo, x: Ligne, sousTitre: boolean, role: string): Rang | null {
   const S = g.S;
@@ -449,7 +440,7 @@ function phrase(g: Geo, x: Ligne, sousTitre: boolean, role: string): Rang | null
   const grand = !sousTitre && (role === "douleur" || role === "retenir" || role === "solution" || role === "appel");
   const taille = (sousTitre ? T(g).sousTitre : grand ? T(g).phrase : T(g).detail) * k * g.f;
   const couleur = sousTitre && g.style === "ardoise" ? S.doux : S.encre;
-  const r = ecrire(g, x, { police: S.corps, taille, min: mini(g, sousTitre ? "detail" : "phrase"), couleur, max: (sousTitre ? 3 : 5) + (g.x1 - g.x0 < 600 * g.k ? 1 : 0), centre: S.centre, gabarit: { sorte: "phrase" } });
+  const r = ecrire(g, x, { police: S.corps, taille, min: mini(g, sousTitre ? "detail" : "phrase"), couleur, max: (sousTitre ? 3 : 5) + (g.x1 - g.x0 < 600 * g.k ? 1 : 0), centre: S.centre, gabarit: { sorte: "phrase" }, ...(role === "retenir" && !sousTitre ? { interligne: INTERLIGNE_RETENIR } : {}) });
   if (!r) return null;
   let p = r.pose;
   if (sousTitre && g.style !== "ardoise") {
@@ -471,20 +462,13 @@ function detail(g: Geo, x: Ligne): Rang | null {
   return r ? fixe(bloc([r.pose])) : null;
 }
 
-/** Idée reçue : « Idée reçue » au-dessus, le texte barré quand la voix a fini de le dire. */
+/** Idée reçue : la phrase seule, barrée quand la voix a fini de la dire (plus de libellé « Idée reçue » écrit par le Studio, D1 Williams 18/11). */
 function idee(g: Geo, x: Ligne): Rang | null {
   const S = g.S;
   const k = g.k;
-  const tl = Math.round(Math.max(mini(g, "detail"), T(g).etiquette * k * Math.min(1, g.f)));
-  const ll = Math.ceil(largeurTableau("Idée reçue", S.corps, tl));
-  const il = Math.round(tl * INTERLIGNES_TABLEAU[S.corps]);
   const r = ecrire(g, x, { police: S.corps, taille: T(g).phrase * k * g.f, min: mini(g, "phrase"), couleur: S.encre, max: 3, centre: S.centre });
   if (!r) return null;
-  const xl = S.centre ? milieu(g) - Math.round(ll / 2) : g.x0;
-  const cadre = { x: xl, y: 0, largeur: ll, hauteur: il };
-  const p = deplacer(r.pose, 0, il + px(g, 12));
-  p.gabarit = { sorte: "idee", cadre, signe: { x: xl, y: 0, largeur: 0, hauteur: 0 }, texte: { texte: "Idée reçue", x: xl, y: 0, largeur: ll, hauteur: il, taille: tl }, couleur: S.accentTexte };
-  return fixe(bloc([encombrer({ ...p, enc: union([p.px, cadre]) })]));
+  return fixe(bloc([{ ...r.pose, marque: "barre" }]));
 }
 
 /** La case vide d'une liste (carré à main levée, coins à peine arrondis, comme la maquette). */
@@ -494,7 +478,7 @@ function caseVide(P: Plume, b: RectPx, couleur: string, k: number): TraitTableau
 }
 
 /** Liste (cochée, à pastilles, « À retenir ») : une rangée par élément (case, petit dessin, texte), hauteur souple. */
-function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
+function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>, retenir = false): Rang | null {
   const S = g.S;
   const k = g.k;
   const n = gr.lignes.length;
@@ -532,7 +516,9 @@ function liste(g: Geo, gr: Extract<Groupe, { lignes: Ligne[] }>): Rang | null {
   // Un peu d'air entre deux rangées (moins dans les sorties basses).
   const air = px(g, g.s.W >= g.s.H * 0.99 ? 2 : 12);
   const min = n * (Math.max(hTexte, icMin, tcase) + air) + (n - 1) * px(g, g.s.W >= g.s.H * 0.99 ? 8 : 18);
-  const max = n * Math.max(hTexte, icMax) + (n - 1) * px(g, 70);
+  // Page « à retenir » (D1 Williams 18/11) : le titre « À retenir » n'est plus écrit ; la place libérée est rendue à la liste
+  // (rangées plus espacées) pour que la page reste à 85-95 % de la hauteur utile.
+  const max = n * Math.max(hTexte, icMax) + (n - 1) * px(g, retenir ? 700 : 70);
   const poser = (h: number): Bloc => {
     const pas = h / n;
     let ic = Math.round(Math.max(icMin, Math.min(icMax, pas - px(g, 18))));
@@ -1181,7 +1167,7 @@ function rangsDePage(g: Geo, c: ContenuPage, texte: string, gs: Geo = g, sansDes
       case "code":
       case "coche":
       case "liste":
-        r = liste(gs, gr);
+        r = liste(gs, gr, c.role === "retenir");
         souple = true;
         break;
       case "transformation":
