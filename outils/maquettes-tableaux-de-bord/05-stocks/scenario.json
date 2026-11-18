@@ -1,0 +1,62 @@
+{
+  "version": "scenario-maquette.v1",
+  "maquette": "05-stocks",
+  "largeur": 1080,
+  "hauteur": 1350,
+  "etapes": [
+    {
+      "id": "alerte",
+      "role": "accroche",
+      "aller": "alerte",
+      "cible": ".task",
+      "zone": { "x": 28, "y": 21.2, "largeur": 67.8, "hauteur": 5 },
+      "ancre": { "surMot": "Votre" },
+      "textesEcran": ["Stock 18 · seuil 35"]
+    },
+    {
+      "id": "seuil",
+      "role": "probleme",
+      "aller": "seuil",
+      "cible": "tbody tr:first-child",
+      "zone": { "x": 46.1, "y": 20.2, "largeur": 16.7, "hauteur": 4.4 },
+      "ancre": { "surMot": "produit" },
+      "textesEcran": ["Stock 18", "Seuil actuel 35"]
+    },
+    {
+      "id": "analyse",
+      "role": "parcours",
+      "aller": "analyse",
+      "cible": ".mini",
+      "zone": { "x": 29.5, "y": 46.7, "largeur": 64.6, "hauteur": 17.9 },
+      "ancre": { "surMot": "rapproche" },
+      "textesEcran": ["42 lots sur 7 jours", "6 lots / jour", "3 jours", "4 jours"]
+    },
+    {
+      "id": "proposition",
+      "role": "mise-en-garde",
+      "aller": "proposition",
+      "cible": ".soft-panel",
+      "zone": { "x": 28, "y": 66.8, "largeur": 67.8, "hauteur": 13.9 },
+      "ancre": { "surMot": "propose" },
+      "textesEcran": ["Commande de 80 lots", "Quantité modifiable 80 lots"]
+    },
+    {
+      "id": "validation",
+      "role": "bonne-pratique",
+      "aller": "validation",
+      "cible": "tbody tr:last-child",
+      "zone": { "x": 28, "y": 69.3, "largeur": 72, "hauteur": 4 },
+      "ancre": { "surMot": "responsable" },
+      "textesEcran": ["Quantité 80"]
+    },
+    {
+      "id": "fin",
+      "role": "appel",
+      "aller": "fin",
+      "cible": "#main .card:nth-of-type(2)",
+      "zone": { "x": 62.7, "y": 10.7, "largeur": 35.2, "hauteur": 10 },
+      "ancre": { "surMot": "Commentez" },
+      "textesEcran": ["Produits sous seuil 1"]
+    }
+  ]
+}
