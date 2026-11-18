@@ -24,7 +24,7 @@ function claudeSimule(vus: RequeteClaude[]) {
     id, version: 1, mots: { premier, dernier }, debutMs, finMs, niveau: 1, position: "centre", transition: { entree: "fondu", sortie: "fondu", dureeMs: 400 }, piece, parametres,
   });
   const plan = {
-    version: 1, format: FORMAT, dureeMs: 3000,
+    version: "1", format: FORMAT, dureeMs: 3000,
     scenes: [
       scene("a", 3, 3, 1000, 1800, "objet-croix", { boite: { x: 20, y: 30, largeur: 40, hauteur: 25 } }),
       scene("b", 5, 5, 2000, 2900, "objet-compteur-rouleau", { valeur: 12 }),
