@@ -182,6 +182,7 @@ Profil neutre : rien de neuf. Le format garde sa vidéo d'aujourd'hui.
 - `podcast` — profil neutre : rien de neuf
 - `selfie` — profil neutre : rien de neuf
 - `ugc` — profil neutre : rien de neuf
+- `video-longue` — profil neutre : rien de neuf
 
 ## 3. Les réglages
 
@@ -209,6 +210,7 @@ Tous les réglages sont éteints dans le code : seule la valeur `true` allume. C
 | `tableau-anime` | `bibliothequeVideo.tableau-anime` |
 | `tutoriel-outil` | `bibliothequeVideo.tutoriel-outil` |
 | `ugc` | `bibliothequeVideo.ugc` |
+| `video-longue` | `bibliothequeVideo.video-longue` |
 
 ### Tous les interrupteurs (tous éteints dans le code)
 
