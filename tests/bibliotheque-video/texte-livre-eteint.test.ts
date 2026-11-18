@@ -127,7 +127,7 @@ describe("C2-U17a : capacités texte livrées et éteintes", () => {
 
   // BR-ESCALIER-a 17/11 : scene.ts porte désormais le champ facultatif et la fonction pure ; la garde reste stricte
   // (liste fermée des lignes) et aucun fichier de src/** ne remplit `escalier:` (jamais rempli jusqu'à BR-FACECAM-TEXTE).
-  it("escalier dans scene.ts : seulement le champ facultatif et escalierAuTemps ; jamais rempli dans src/** (BR-FACECAM-TEXTE le remplira, ce cas sera alors remplacé par son relecteur, pas supprimé)", () => {
+  it("escalier dans scene.ts : seulement le champ facultatif et escalierAuTemps ; seul src/briques/composition/parametres.ts remplit `escalier:` (BR-FACECAM-TEXTE, amendement n°1)", () => {
     const lignes = texteDe("src/briques/sous-titres/scene.ts")
       .split("\n")
       .map((l) => l.trim())
@@ -150,7 +150,7 @@ describe("C2-U17a : capacités texte livrées et éteintes", () => {
       }
     };
     parcourir("src");
-    // la déclaration du champ (`escalier?:`) ne correspond pas : seule une affectation `escalier:` compte, et il n'y en a aucune.
-    expect(remplisseurs).toEqual([]);
+    // la déclaration du champ (`escalier?:`) ne correspond pas : seule une affectation `escalier:` compte ; BR-FACECAM-TEXTE : un seul fichier la porte (liste exacte).
+    expect(remplisseurs).toEqual(["src/briques/composition/parametres.ts"]);
   });
 });

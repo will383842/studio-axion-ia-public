@@ -25,3 +25,23 @@ export function sortieAnimeePermise(entrees: unknown): boolean {
     return false;
   }
 }
+
+/** BR-FACECAM-TEXTE : les groupes d'une même phrase s'empilent en escalier (AM-09), seulement si la capacité est permise. */
+export function escalierPermis(entrees: unknown): boolean {
+  try {
+    const p = porteCapacite(entrees, ID.texteEscalier);
+    return p.bibliotheque === true && p.permis === true;
+  } catch {
+    return false;
+  }
+}
+
+/** BR-FACECAM-TEXTE : le mot fort arrive sur une plaque animée posée sur une marque (Q2), seulement si la capacité est permise. */
+export function pavePermis(entrees: unknown): boolean {
+  try {
+    const p = porteCapacite(entrees, ID.textePave);
+    return p.bibliotheque === true && p.permis === true;
+  } catch {
+    return false;
+  }
+}
