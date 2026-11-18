@@ -118,3 +118,13 @@ describe("texte hors cadre : le contrôle existant est bloquant sur le témoin d
     expect(controlerMiseEnPageTableau(large).some((p) => p.controle === "coupe")).toBe(true);
   });
 });
+
+describe("phrase non choisie : le mot à commenter choisi par l'utilisateur n'est pas une phrase du Studio", () => {
+  it("fin au mot « GUIDE » (saisi à la création) écrit en dernière ligne du vertical → aucun bloquant « Phrase non choisie »", async () => {
+    const { contexteFormation, ficheFormation } = await import("../style-v2/temoin-formation");
+    const fiche = ficheFormation();
+    const fin = { id: "fin-if-mot-envoi", ecran: "Écrivez GUIDE en commentaire", type: "commentaire", mot: "GUIDE" };
+    const { rapport } = await relireFicheTableau({ fiche, contexte: contexteFormation(), historique: [], sorties: ["vertical", "carre"], choisirFin: () => fin });
+    expect(rapport.bloquants.filter((l) => l.libelle === "Phrase non choisie")).toEqual([]);
+  });
+});

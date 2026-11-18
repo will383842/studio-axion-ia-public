@@ -532,9 +532,11 @@ function lignesPhraseNonChoisie(fiche: FicheTableau, sorties: readonly SortieRel
   const fautes: string[] = [];
   const apercu = apercuDesSorties(fiche, preparees);
   for (const a of apercu) {
-    const choisie = (preparees.find((p) => p.id === a.sortie)?.options.appel as { phrase?: string } | undefined)?.phrase;
+    const appel = preparees.find((p) => p.id === a.sortie)?.options.appel as { phrase?: string; mot?: string } | undefined;
+    const choisie = appel?.phrase;
     for (const p of choisie ? a.phrasesAjoutees.slice(1) : a.phrasesAjoutees) fautes.push(`« ${cite(p)} » (dite, fichier ${a.libelle})`);
-    const permis = new Set([...autorises, ...jetons(choisie ?? ""), ...a.phrasesAjoutees.flatMap(jetons)]);
+    // Le mot à commenter saisi par l'utilisateur à la création (« GUIDE ») est écrit par la mise en page sur la dernière ligne : il est choisi.
+    const permis = new Set([...autorises, ...jetons(choisie ?? ""), ...jetons(appel?.mot ?? ""), ...a.phrasesAjoutees.flatMap(jetons)]);
     for (const pg of a.pages) for (const l of pg.lignes) if (jetons(l.texte).some((j) => /[a-z]/.test(j) && !permis.has(j) && !(j.length >= 3 && [...permis].some((m) => m.length >= 3 && (m.startsWith(j) || j.startsWith(m)))))) fautes.push(`« ${cite(l.texte)} » (écrite page ${pg.numero}, fichier ${a.libelle})`);
   }
   const uniques = [...new Set(fautes)];
