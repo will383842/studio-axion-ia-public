@@ -109,8 +109,8 @@ describe("X3-03 · éteint = identique", () => {
         expect("dosageMotion" in apres.c).toBe(false);
         expect(apres.prix).toStrictEqual(a.prix);
         expect(apres.prixE).toStrictEqual(a.prixE);
-        expect(apres.e).toStrictEqual(sansDosage(a.e) as typeof apres.e);
-        expect(apres.c).toStrictEqual(sansDosage(a.c) as typeof apres.c);
+        expect(apres.e).toStrictEqual(sansDosage(a.e) as unknown as typeof apres.e);
+        expect(apres.c).toStrictEqual(sansDosage(a.c) as unknown as typeof apres.c);
         if (id === "t-avocat") expect((a.c as unknown as { dosageMotion: unknown }).dosageMotion).toEqual({ cran: "equilibre", choisiPar: "generateur" });
       }
     } finally {
