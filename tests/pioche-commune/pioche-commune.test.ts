@@ -142,11 +142,22 @@ describe("mélange", () => {
     const seuls = toutes.filter((c) => ["extrait:b:p1", "scene:v-2:s1:v1"].includes(c.cle));
     expect(P.piocher(seuls, b)).toBeNull();
   });
-  it("à égalité de score, l'extrait noté passe avant la scène", () => {
+  it("un extrait noté passe avant une scène non notée, quel que soit le score (ordre de choisirExtrait)", () => {
     const e = [el("n", { plages: [plage("p1", { note: 50 })] })];
     const b = besoin();
     const r = P.piocher([...P.candidatsScenes(i, b), ...P.candidatsArchive(e, b)], b);
     expect(r?.source).toBe("archive");
+  });
+  it("graine différente : l'ordre ne change qu'à égalité (même score, même statut noté, même ancienneté)", () => {
+    const b = besoin();
+    const deux = P.candidatsScenes({ entrees: [scene("v-1", "s1"), scene("v-2", "s1")] }, b);
+    const choix = new Set(Array.from({ length: 30 }, (_, k) => P.piocher(deux, { ...b, graine: `g${k}` })?.cle));
+    expect(choix.size).toBe(2); // à égalité stricte, deux graines peuvent donner deux choix
+    const entrees = [scene("v-1", "s1"), scene("v-2", "s1", { sujet: "factures" as never })];
+    const cands = P.candidatsScenes({ entrees }, besoin({ sujet: "factures" as never }));
+    for (let k = 0; k < 30; k++) {
+      expect(P.piocher(cands, besoin({ sujet: "factures" as never, graine: `g${k}` }))?.cle).toBe("scene:v-2:s1:v1");
+    }
   });
   it("usage absent : rien", () => {
     const b = besoin({ usage: "fond" });

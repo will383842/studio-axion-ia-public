@@ -88,6 +88,7 @@ const PREFIXE_SCENE = "scene:";
 /** Une scène gardée est au maître 4:5 ; elle se recalcule pour 9:16 ou 1:1 (V1). 16:9 : exclu en V1 (T-EXT-43). */
 const RATIOS_SCENE_V1: readonly Ratio[] = ["9:16", "1:1", "4:5"];
 
+/** Archive : `besoin.ratio`, `dureeMaxSec` et `role` sont ignorés (conforme à la fiche) ; seule `dureeMinSec` s'applique. */
 export function candidatsArchive(elements: readonly ElementBibliotheque[], besoin: BesoinPioche): CandidatPioche[] {
   const plages = plagesDisponibles(elements, {
     videoId: besoin.videoDemandeuse,
@@ -143,7 +144,7 @@ export function candidatsScenes(index: IndexScenesLu, besoin: BesoinPioche): Can
 
 /**
  * Exclut par `cle` (les deux préfixes : `choisirExtrait` ne connaît que `extrait:`), puis délègue TOUT le classement
- * à `choisirExtrait`. Aucune autre règle. À score égal, un extrait noté passe avant une scène (non notée).
+ * à `choisirExtrait`. Aucune autre règle. `choisirExtrait` place les candidats notés avant les non notés quel que soit le score : un extrait noté passe donc avant une scène qui a le bon sujet (à faire valider par le pilote).
  */
 export function piocher(candidats: readonly CandidatPioche[], besoin: BesoinPioche): CandidatPioche | null {
   const exclues = new Set(besoin.dejaUtilisees);
