@@ -23,7 +23,12 @@ import { DESCRIPTIONS_STRUCTURES, STRUCTURES_TABLEAU, estPageEcrite, estStyleBlo
 import { blocsTropLongsGabarit, couleursHorsGabarit, numerosAbsentsGabarit, pagesTropVidesGabarit, taillesTropPetitesGabarit, titresAbsentsGabarit } from "./controles-gabarit";
 import { etiquettesAbsentes3, pagesChargees3, pagesProbleme3, pagesVides3, taillesTropPetites3, visuelsNonDessines3, visuelsPeps3 } from "./controles-v3";
 import { controlerMiseEnPageTableau } from "./controles-tableau";
-import { sansAppelAuMot } from "./formats-sortie";
+import { sansAppelAuMot, type IdSortie } from "./formats-sortie";
+import { apercuDesSorties } from "./apercu-sorties";
+import { BANQUE_APPELS } from "@/briques/fins/banque";
+import { dessinsInacheves } from "./dessins-finis";
+import { planPage3 } from "@/briques/tableau-scene/reference/animation-3";
+import type { ProprietesTableauScene } from "@/briques/tableau-scene/types";
 import { ErreurMiseEnPage, boitesDeControle, boitesZoneHaute, mettreEnPage, miseEnPageBrique, reseauxVerticaux, seuilsImageBlocs2, zoneSureDeLaMise, type MiseEnPageTableau, type OptionsMiseEnPage } from "./mise-en-page";
 import { REGLES_TABLEAU, textesEcrits, textesEcransScene, type ContexteTableau } from "./regles";
 import { parleDuCommentaire } from "./variantes-fin";
@@ -111,6 +116,11 @@ export interface EntreeControleTableau {
    * et mise en page de la sortie deviennent des alertes « attention » (GV2-35).
    */
   apresMontage?: boolean;
+  /**
+   * Propriétés de rendu des scènes (calage fait : heures de la voix). Présentes, elles servent au contrôle « Dessin inachevé »
+   * (FIX-CONTROLES-IMAGE-AVANT-PRET-b) ; absentes, ce contrôle est « non fait » (jamais un faux « réussi »).
+   */
+  proprietes?: readonly ProprietesTableauScene[];
 }
 
 export interface OutilsControleTableau {
@@ -498,6 +508,66 @@ function reunirSorties(parSortie: { libelle: string; lignes: LigneControleTablea
 }
 
 /* ------------------------------------------------------------------ */
+/* FIX-CONTROLES-IMAGE-AVANT-PRET-b : phrase non choisie, dessin inachevé  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Libellés que la mise en page écrit seule, jamais dans la fiche : « Avant » et « Maintenant »
+ * (mise-en-page-tableau.ts:690), « Idée reçue » (mise-en-page-tableau.ts:479, :486), « Exemple illustratif » et « À retenir »
+ * (mise-en-page-tableau.ts:350), l'étiquette « APRÈS » du gabarit clair (controles.ts:289 et :299), l'adresse du site de la fin (variantes-fin.ts:34 `SITE_FIN`).
+ */
+const LIBELLES_DE_LA_MISE_EN_PAGE = ["axion-ia.com", "Avant", "Maintenant", "Exemple illustratif", "Idée reçue", "À retenir", "Après"];
+
+const jetons = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+const cite = (t: string) => (t.length > 70 ? `${t.slice(0, 67)}…` : t);
+
+/**
+ * Phrase non écrite ni choisie : ce que chaque fichier DIT (hors texte validé) ou ÉCRIT (hors lignes de la fiche, de la
+ * fin choisie et des libellés de la mise en page) est refusé. La fin choisie d'une sortie est celle que sa mise en page
+ * reçoit (`options.appel.phrase`, relecture.ts:90) : seule SA phrase dite (celle de la banque pour cet écran) est permise ; toute autre, ou sans fin choisie, est refusée.
+ */
+function lignesPhraseNonChoisie(fiche: FicheTableau, sorties: readonly SortieRelue[]): LigneControleTableau[] {
+  const preparees = sorties.flatMap((s) => (s.fiche ? [{ id: s.id as IdSortie, libelle: s.libelle, fiche: s.fiche, options: s.options ?? {} }] : []));
+  if (!preparees.length) return [];
+  const autorises = new Set([...jetons(LIBELLES_DE_LA_MISE_EN_PAGE.join(" ")), ...jetons(JSON.stringify(fiche.scenes.map((x) => [x.texteDit, x.elements, x.ecrans])).replace(/"(id|type|niveau|role|bloc|marque|cote|geste|dessinId|cibleId|preuveId|ancre|gabarit|moment)":("[^"]*"|\d+)/g, ""))]);
+  const fautes: string[] = [];
+  const apercu = apercuDesSorties(fiche, preparees);
+  for (const a of apercu) {
+    const appel = preparees.find((p) => p.id === a.sortie)?.options.appel as { phrase?: string; mot?: string } | undefined;
+    const choisie = appel?.phrase;
+    // La phrase DITE de la fin choisie de CETTE sortie : celle de la banque dont l'écran est l'écran choisi (texte exact normalisé) ; toute autre est refusée.
+    const dites = new Set(choisie ? BANQUE_APPELS.filter((b) => jetons(b.ecran).join(" ") === jetons(choisie).join(" ")).map((b) => jetons(b.dit).join(" ")) : []);
+    const dite = a.phrasesAjoutees.find((p) => dites.has(jetons(p).join(" ")));
+    for (const p of a.phrasesAjoutees) if (p !== dite) fautes.push(`« ${cite(p)} » (dite, fichier ${a.libelle})`);
+    // Écrit : la fiche, les libellés de la mise en page, l'écran et la phrase dite de la fin choisie ; le mot à commenter saisi (« GUIDE ») seulement tel quel.
+    const base = new Set([...autorises, ...jetons(choisie ?? ""), ...(dite ? jetons(dite) : [])]);
+    const mot = new Set(jetons(appel?.mot ?? ""));
+    // Un mot écrit est aussi admis comme DÉBUT d'un mot permis d'au moins 5 lettres (abréviation « MIN » pour « minutes »), jamais l'inverse ; le mot choisi : à l'identique seulement.
+    const admis = (j: string) => !/[a-z]/.test(j) || base.has(j) || mot.has(j) || (j.length >= 3 && [...base].some((m) => m.length >= 5 && m.startsWith(j)));
+    for (const pg of a.pages) for (const l of pg.lignes) if (jetons(l.texte).some((j) => !admis(j))) fautes.push(`« ${cite(l.texte)} » (écrite page ${pg.numero}, fichier ${a.libelle})`);
+  }
+  const uniques = [...new Set(fautes)];
+  // Aucune ligne « réussi » : une vidéo saine garde exactement le rapport d'avant (éteint = identique).
+  return uniques.length ? [ligne("fiche", "Phrase non choisie", true, "echoue", `${uniques.slice(0, 3).join(" ; ")}${uniques.length > 3 ? ` ; … (${uniques.length} en tout)` : ""}. Le Studio ne dit ni n'écrit que ce que vous avez écrit ou choisi.`)] : [];
+}
+
+/** Dessin inachevé : un dessin dont un trait n'est pas posé à la fin de sa page (plan réel de la page, `dessinsInacheves`). */
+function ligneDessinInacheve(proprietes: readonly ProprietesTableauScene[] | undefined): LigneControleTableau[] {
+  if (!proprietes?.length) return []; // pas de calage : rien à mesurer, le rapport reste celui d'avant
+  const fautes: string[] = [];
+  const vues = new Set<number>();
+  for (const p of proprietes) {
+    const r = p.styleReference;
+    if (!r || vues.has(p.page.page)) continue;
+    vues.add(p.page.page);
+    const plan = planPage3(p.page, r, { largeur: p.largeur, hauteur: p.hauteur });
+    const d = dessinsInacheves(plan, plan.finPage);
+    if (d.length) fautes.push(`${d.map((x) => x.id).join(", ")} page ${p.page.page}`);
+  }
+  return fautes.length ? [ligne("mise-en-page", "Dessin inachevé", true, "echoue", `Dessin inachevé : ${fautes.join(" ; ")} : le dessin n'est pas fini quand la page se tourne.`)] : [];
+}
+
+/* ------------------------------------------------------------------ */
 /* Rapport unique                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -561,6 +631,8 @@ export async function controlerVideoTableau(entree: EntreeControleTableau, outil
   const faites = sorties.map((s) => ({ libelle: s?.libelle ?? "", ...controlerSortieRelue(fiche, s, entree) }));
   lignes.push(...reunirSorties(faites));
   for (const raison of entree.sortiesImpossibles ?? []) lignes.push(ligne("fiche", "Fiche de chaque sortie", true, "echoue", raison));
+
+  lignes.push(...lignesPhraseNonChoisie(fiche, entree.sorties ?? []), ...ligneDessinInacheve(entree.proprietes));
 
   const premiere = faites.find((f) => f.mise);
   if (premiere?.mise) lignes.push(...(await relire(premiere.ficheSortie, premiere.mise, outils)));
