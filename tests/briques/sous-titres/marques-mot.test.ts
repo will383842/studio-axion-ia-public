@@ -112,10 +112,16 @@ describe("C11-T3 : gardes statiques", () => {
     expect(piece).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(piece).not.toMatch(/rgba?\(/);
   });
-  it("personne n'importe marques-mot ni MarqueMot", () => {
+  it("seuls scene.ts (import type) et CalqueSousTitres.tsx citent marques-mot ; personne n'importe MarqueMot.tsx", () => {
+    // BR-PAVE-MARQUES-a 18/11 (voulue, seconde lecture du pilote) : le branchement cite `marques-mot` à EXACTEMENT 2 endroits.
+    // Garde aussi stricte : égalité exacte de la liste ; dans scene.ts toute ligne qui cite marques-mot est un `import type` ; MarqueMot.tsx n'est importé par personne.
     const fichiers = [...sources("src"), ...sources("studio-rendu")].filter(
       (f) => !f.endsWith("marques-mot.ts") && !f.endsWith("MarqueMot.tsx"),
     );
-    for (const f of fichiers) expect(readFileSync(f, "utf8"), f).not.toMatch(/marques-mot|MarqueMot/);
+    const citeurs = fichiers.filter((f) => /marques-mot|MarqueMot/.test(readFileSync(f, "utf8"))).map((f) => f.replace(/\\/g, "/")).sort();
+    expect(citeurs).toEqual(["src/briques/sous-titres/scene.ts", "studio-rendu/compositions/sous-titres/CalqueSousTitres.tsx"]);
+    const lignesScene = readFileSync("src/briques/sous-titres/scene.ts", "utf8").split("\n").filter((l) => /marques-mot|MarqueMot/.test(l) && /^\s*import\b/.test(l));
+    for (const l of lignesScene) expect(l).toMatch(/^\s*import type\b/);
+    for (const f of fichiers) expect(readFileSync(f, "utf8"), f).not.toMatch(/from\s+["'][^"']*\/MarqueMot["']/);
   });
 });

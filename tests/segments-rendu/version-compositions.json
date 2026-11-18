@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "empreintes": {
     "(racine)": "375aff519bec14ef50525a8e722316e7115aa18b1e59720957c8d15470648caf",
     "_gabarit": "fc93d6595d4a2fa0d850b0c641435c587a41ceb56b83619ec03f0f71c336578b",
@@ -13,11 +13,11 @@
     "interface-claire": "a68f56cba13299b85a538f07e63dbe634d80c7998066903627cfdc06e11ce5b1",
     "petits-objets": "85d326ca19e61cd41ecb71243c328590baa1d0ba87d9511823aa58d6e2d9978b",
     "plan-scenes": "177e3273d93ec4838249a3f76bc30852535a19887ffb146d4ddfb7177d227d74",
-    "sous-titres": "1c1c47028ac3721ef2f74c2214d20d731a184d83ed05c2a6dded5cce5f262eb0",
+    "sous-titres": "ade7afab4c37fbdf1c3d943da0d6e9a8f9bc04c918834128c68c71ab743726c9",
     "tableau": "fddc08de662601795332f858564f19e5659769c8c13c2d80f13e670cd8660697"
   },
   "precedent": {
-    "version": 2,
+    "version": 3,
     "empreintes": {
       "(racine)": "375aff519bec14ef50525a8e722316e7115aa18b1e59720957c8d15470648caf",
       "_gabarit": "fc93d6595d4a2fa0d850b0c641435c587a41ceb56b83619ec03f0f71c336578b",
@@ -31,7 +31,7 @@
       "interface-claire": "a68f56cba13299b85a538f07e63dbe634d80c7998066903627cfdc06e11ce5b1",
       "petits-objets": "85d326ca19e61cd41ecb71243c328590baa1d0ba87d9511823aa58d6e2d9978b",
       "plan-scenes": "177e3273d93ec4838249a3f76bc30852535a19887ffb146d4ddfb7177d227d74",
-      "sous-titres": "1ff3d1d72938530248bd129b78a3a94124961d2ccdceff4b736b9fb088bc1c1e",
+      "sous-titres": "1c1c47028ac3721ef2f74c2214d20d731a184d83ed05c2a6dded5cce5f262eb0",
       "tableau": "fddc08de662601795332f858564f19e5659769c8c13c2d80f13e670cd8660697"
     }
   }
