@@ -45,9 +45,28 @@ export function RetirerProgrammation({ cle }: { cle: string }) {
 
   useEffect(() => {
     if (!annulable) return;
-    const t = setTimeout(() => setAnnulable(null), Math.max(0, annulable.jusqua - Date.now()));
-    return () => clearTimeout(t);
+    // Le rafraîchissement attend la fin du délai : le créneau retiré quitte le calendrier, l'aperçu se fermerait avec son message et son « Annuler ».
+    let fait = false;
+    const t = setTimeout(() => {
+      fait = true;
+      setAnnulable(null);
+      rafraichir();
+    }, Math.max(0, annulable.jusqua - Date.now()));
+    return () => {
+      clearTimeout(t);
+      // Fermé avant la fin du délai (sans « Annuler ») : le calendrier se met à jour quand même.
+      if (!fait) rafraichir();
+    };
   }, [annulable]);
+
+  function rafraichir() {
+    try {
+      if (routeur) routeur.refresh();
+      else window.location.reload();
+    } catch {
+      /* l'écran se mettra à jour au prochain chargement */
+    }
+  }
 
   async function annuler() {
     if (!annulable || enCours) return;
@@ -58,12 +77,7 @@ export function RetirerProgrammation({ cle }: { cle: string }) {
       setAnnulable(null);
       if (r.ok) {
         setMessage(r.donnees.message);
-        try {
-          if (routeur) routeur.refresh();
-          else window.location.reload();
-        } catch {
-          /* l'écran se mettra à jour au prochain chargement */
-        }
+        rafraichir();
       } else setAVoir(r.message);
     } catch {
       setAnnulable(null);
@@ -84,15 +98,10 @@ export function RetirerProgrammation({ cle }: { cle: string }) {
       if (r.ok) {
         setMessage(r.donnees.message);
         const jusqua = Date.parse(r.donnees.annulableJusquA);
-        if (Number.isFinite(jusqua)) setAnnulable({ creneauId: r.donnees.creneauId, jusqua });
         setEtape("fait");
-        // Le retrait est fait : un rafraîchissement raté ne doit jamais le faire passer pour un échec.
-        try {
-          if (routeur) routeur.refresh();
-          else window.location.reload();
-        } catch {
-          /* l'écran se mettra à jour au prochain chargement */
-        }
+        // Pas de rafraîchissement tant que « Annuler » est proposé ; sans délai lisible, on rafraîchit tout de suite.
+        if (Number.isFinite(jusqua)) setAnnulable({ creneauId: r.donnees.creneauId, jusqua });
+        else rafraichir();
       } else {
         const titre = r.code ? TITRES_RETRAIT[r.code] : undefined;
         // Code absent ou inconnu : on ne sait pas ce qui a eu lieu, donc jamais une phrase qui laisse croire à un simple refus.

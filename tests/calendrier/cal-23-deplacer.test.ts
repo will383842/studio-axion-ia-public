@@ -714,3 +714,16 @@ describe("CAL-23 · port de retrait : liste ou client en échec = sans réponse,
     expect(await portRetraitDepuisClient(() => { throw Object.assign(new Error("non relié"), { code: "ZERNIO_NON_RELIE" }); }).retirer(env)).toBe("sans-reponse");
   });
 });
+
+describe("CAL-23 · tour 2 : une marque qui échoue ne casse rien", () => {
+  it("marque impossible après un premier retrait confirmé : l'envoi retiré passe quand même « annule », réponse « à vérifier »", async () => {
+    const m = monde({
+      envois: [envoi(), envoi({ id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", reseau: "facebook", cleDiffuseur: "c".repeat(64) })],
+      issues: ["retire", "a-verifier"],
+    });
+    m.deps.etats.noter = async () => { throw new Error("marque impossible"); };
+    const r = await deplacerProgrammation(m.deps, demande());
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier", ecritures: true });
+    expect(m.envois.get("envoi:vis_1:linkedin:v0")?.statut).toBe("annule");
+  });
+});

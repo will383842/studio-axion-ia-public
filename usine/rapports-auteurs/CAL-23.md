@@ -31,5 +31,9 @@
 - Écran : code inconnu = « À vérifier » ; pas de titre sur un retrait partiel ; « Annuler » 10 secondes branché sur annulerRetraitAction.
 - Connu, non corrigé ici (fichier de CAL-22 = master, hors périmètre) : un retrait partiel de CAL-22 n'écrit pas la marque de l'envoi annulé ; CAL-23 la rattrape. Captures 375 / 1280 px à joindre.
 
+## Tour 2 des relectures (corrigé)
+- Écran : le rafraîchissement attend la fin des 10 secondes (ou la fermeture), pour que le message et « Annuler » restent visibles.
+- Marques d'état qui échouent après un retrait confirmé : jamais bloquantes (try/catch), les envois retirés passent « annule ».
+
 ## Relectures Opus
 Voir les commentaires de la PR (VERDICT OPUS et AUDIT OPUS).

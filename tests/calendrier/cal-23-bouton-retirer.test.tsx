@@ -124,6 +124,22 @@ describe("RetirerProgrammation : le geste", () => {
     expect(annulerRetraitAction).toHaveBeenCalledWith("c1");
   });
 
+  it("succès : pas de rafraîchissement tant que « Annuler » est proposé (l'aperçu garderait sinon son message)", async () => {
+    const reload = vi.fn();
+    vi.stubGlobal("window", { location: { reload } });
+    try {
+      retirerProgrammationAction.mockResolvedValueOnce({ ok: true, donnees: { creneauId: "c1", annulableJusquA: new Date(Date.now() + 10_000).toISOString(), message: "Retirée du calendrier." } });
+      const m = monde_(CLE);
+      cliquer(m, (t) => t.includes("Retirer"))();
+      await cliquer(m, (t) => t.includes("Oui"))();
+      await attendre();
+      expect(lisible(rendre(m.rendre() as ReactElement))).toContain("Annuler");
+      expect(reload).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("aucun bouton orange (un seul par écran) et mots simples", () => {
     const m = monter(RetirerProgrammation, { cle: CLE });
     cliquer(m, (t) => t.includes("Retirer"))();

@@ -234,8 +234,13 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
       retires.push(e);
       continue;
     }
-    if (issue === "a-verifier") await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
-    if (issue === "refuse") await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
+    // Une marque ratée ne doit jamais empêcher d'écrire « annule » pour les envois déjà retirés (sinon faux « Programmé »).
+    try {
+      if (issue === "a-verifier") await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+      if (issue === "refuse") await d.etats.noter(`retrait:${e.cle}`, "a-retirer-a-la-main");
+    } catch {
+      /* la marque est une aide : la phrase dit déjà « à vérifier » ou « à retirer à la main » */
+    }
     if (issue === "a-verifier") return fin({ ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifier });
     if (issue === "refuse") return fin({ ok: false, etat: "a-retirer-a-la-main", message: PHRASES_DEPLACEMENT.aLaMain });
     return fin({ ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.sansReponse });
@@ -271,10 +276,22 @@ async function reposerDansAPlacer(d: DepsDeplacement, p: Extract<Preparation, { 
     await d.appliquer(lot);
     await sortirDeLaGarde(d, p.avecPost);
   } catch {
-    for (const e of p.avecPost) await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+    for (const e of p.avecPost) {
+      try {
+        await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
+      } catch {
+        /* les autres envois sont quand même marqués */
+      }
+    }
     return { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
-  for (const e of p.avecPost) await d.etats.noter(`deplacement:${e.cle}`, "a-reprogrammer");
+  for (const e of p.avecPost) {
+    try {
+      await d.etats.noter(`deplacement:${e.cle}`, "a-reprogrammer");
+    } catch {
+      /* l'état est déjà écrit : la phrase « À placer » reste dite et la cloche part */
+    }
+  }
   try {
     await d.notifier({ cle: p.c.id, motif: "a-reprogrammer", raison: PHRASES_DEPLACEMENT.notification });
   } catch {
