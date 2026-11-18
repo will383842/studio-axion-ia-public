@@ -392,6 +392,16 @@ describe("STOP-01b · merci après la page", () => {
     expect(await envoisCompte()).toBe(avant);
   });
 
+  it("9e · merci : reprise concurrente déjà passée au journal en « à vérifier » avant l'écriture de la conversation, la conversation garde sa marque", async () => {
+    leveSiMerciEnVol(async (j) => {
+      await Com.ecrireParametre(PARAM_JOURNAL, { ...j, [ref(1)]: { ...j[ref(1)], etat: "a_verifier", issue: "a_verifier" } });
+    });
+    confirmer(ref(1));
+    await passerMerci(T0);
+    expect((await lireJournal())[ref(1)]).toMatchObject({ etat: "a_verifier" });
+    expect((await etatDe()).merciEtat).toBe("en_vol"); // le journal et la conversation restent cohérents : la reprise concurrente termine son ouvrage
+  });
+
   it("9b · merci : entrée du journal d'une autre date (autre appel), non retirée", async () => {
     const autreDate = iso(T0 + 5000);
     leveSiMerciEnVol(async (j) => {
