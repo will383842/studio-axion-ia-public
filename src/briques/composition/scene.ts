@@ -172,6 +172,8 @@ export type ProprietesImageComposition = {
   /** Liseré de lumière de contour, du côté opposé à la lumière principale (B.3). */
   contour?: { couleur: string; cote: "gauche" | "droite" };
   plans: PlanScene[];
+  /** BR-TABLEAU-RACCORDS-a (FACULTATIF) : raccords entre deux illustrations voisines (`indexAvant` = indice du plan qui précède). Absent : coupe franche. */
+  raccords?: { indexAvant: number; type: "fondu" | "glissement" }[];
   /** Réduction du double en plan « large » hors 9:16 (recette du format). Absente : `REDUCTION_LARGE_PAR_DEFAUT`. */
   reductionLarge?: ReductionLarge;
   /**
