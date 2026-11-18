@@ -1895,7 +1895,7 @@ async function repondreOkInstagram(ev: EvenementFournisseur, d: DepsConversation
     } catch (err) {
       // Vérification impossible (lecture en panne, registre illisible) : rien n'est parti. Place rendue, état d'avant remis (le OK reste à servir) ; l'erreur d'origine remonte et l'appelant reporte.
       await rendrePlaceEnvoi(idCompte, now);
-      await restaurer(false).catch(() => undefined); // un échec du nettoyage ne masque jamais l'erreur d'origine
+      await restaurer(false).catch(nettoyageImpossible); // un échec du nettoyage est journalisé (code fixe) et ne masque jamais l'erreur d'origine
       throw err;
     }
     if (messageEnAttente) {
@@ -2685,7 +2685,7 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
     } catch (err) {
       // Vérification impossible : rien n'est parti. Place rendue, marques « en vol » de CET appel retirées (retour arrière technique) ; l'erreur d'origine remonte, le site re-proposera.
       await rendrePlaceEnvoi(conv.etat.idCompte, now);
-      await annulerMerciEnVol(ref, cle, new Date(now).toISOString(), pris.essaiAvant).catch(() => undefined);
+      await annulerMerciEnVol(ref, cle, new Date(now).toISOString(), pris.essaiAvant).catch(nettoyageImpossible);
       throw err;
     }
     if (!nonOpposeeMerci) {
@@ -2713,21 +2713,30 @@ async function traiterConfirmation(ref: string, d: DepsConversation, env: Env, k
 }
 const p_enVol = (ref: string, vol: boolean): void => void (vol ? processus().merciEnVol.add(ref) : processus().merciEnVol.delete(ref));
 
-/** Retour arrière technique des marques « en vol » écrites par CET appel, seulement si elles sont encore intactes (même date, même clé) ; ne touche jamais l'ouvrage d'un autre processus. */
+/** Échec du nettoyage d'un `catch` : UNE ligne technique, code fixe, aucune donnée de personne ni clé ; l'erreur d'origine reste celle qui est relancée. */
+async function nettoyageImpossible(): Promise<void> {
+  await journaliser("parcours_conversation", "nettoyage_impossible").catch(() => undefined);
+}
+
+/**
+ * Retour arrière technique des marques « en vol » écrites par CET appel, seulement si elles sont encore intactes (même date, même clé) ; ne touche jamais l'ouvrage d'un autre processus.
+ * ORDRE : la conversation d'abord, le journal ensuite. Une panne entre les deux laisse une entrée « en vol » au journal, que la reprise (`reprendreMercisEnVol`) sait traiter ;
+ * l'ordre inverse laisserait `merciEtat = "en_vol"` sans entrée de journal, invisible de la reprise.
+ */
 async function annulerMerciEnVol(ref: string, cle: string, leIso: string, essaiAvant: string | undefined): Promise<void> {
   await sousVerrou(async () => {
-    const j = await lireJournalMerci();
-    if (j[ref]?.etat === "en_vol" && j[ref].le === leIso && j[ref].cle === cle) {
-      const { [ref]: _retire, ...reste } = j;
-      void _retire;
-      await ecrireParametre(PARAM_MERCI_JOURNAL, reste);
-    }
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     if (tout[cle]?.merciEtat === "en_vol") {
       const { merciEtat, merciEssaiLe, ...autres } = tout[cle];
       void merciEtat;
       void merciEssaiLe;
       await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...autres, ...(essaiAvant !== undefined ? { merciEssaiLe: essaiAvant } : {}) } });
+    }
+    const j = await lireJournalMerci();
+    if (j[ref]?.etat === "en_vol" && j[ref].le === leIso && j[ref].cle === cle) {
+      const { [ref]: _retire, ...reste } = j;
+      void _retire;
+      await ecrireParametre(PARAM_MERCI_JOURNAL, reste);
     }
   });
 }

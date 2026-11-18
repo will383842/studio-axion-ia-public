@@ -110,6 +110,9 @@ const levePourIgEnVol = (suite?: (tout: Record<string, Conv>) => Promise<void>):
 describe("STOP-01b · OK Instagram", () => {
   let cle = "";
   beforeEach(async () => {
+    // Harnais : la personne « suit » le compte (lecture du suivi du faux port) et son message vaut « OK ».
+    (banc.port.port as unknown as { lireSuiviInstagram: () => Promise<{ statut: string }> }).lireSuiviInstagram = async () => ({ statut: "suit" });
+    banc.port.reponses.texte = () => "OK";
     await Com.ecrireParametre(MM.PARAM_MOTS_MULTIPLES, true);
     await Com.ecrireParametre(IG.PARAM_INSTAGRAM_SUIVRE, true);
     await validerFormulationsAuParcours(FORM);
@@ -207,6 +210,28 @@ describe("STOP-01b · OK Instagram", () => {
     expect((await conv())[cle]).toMatchObject({ etat: "ig_a_verifier", dernierCode: "redemarrage" });
     expect(banc.port.envoyes).toHaveLength(0);
     expect(await envoisCompte()).toBe(avant);
+  });
+
+  it("5b · OK Instagram : nettoyage en échec, UNE ligne technique « nettoyage_impossible » sans donnée de personne, l'erreur d'origine reste relancée", async () => {
+    const p = depots().parametres;
+    const enregistrer = p.enregistrer.bind(p);
+    let casse = false;
+    vi.spyOn(p, "enregistrer").mockImplementation(async (x) => {
+      if (casse && x.id === C.PARAM_CONVERSATIONS) throw new Error("panne de base fictive");
+      return enregistrer(x);
+    });
+    levePourIgEnVol(async () => {
+      casse = true;
+    });
+    const e = await messageOk();
+    await passerIg(T1);
+    casse = false;
+    expect(await evt(e)).toMatchObject({ etat: "a_reessayer", dernierCode: "registre_illisible" });
+    const lignes = await depots().evenements.lister((x: { message: string }) => /nettoyage_impossible/.test(x.message));
+    expect(lignes).toHaveLength(1);
+    expect((lignes[0] as { message: string }).message).toBe("nettoyage_impossible");
+    const texte = await journalTexte();
+    for (const interdit of [AUTEUR, racine(), cle, cleG("1"), "msg-ok-1"]) expect(texte).not.toContain(interdit);
   });
 
   it("10 · interrupteur éteint, sans panne : comportement identique (un envoi, une place, mêmes états)", async () => {
@@ -375,6 +400,54 @@ describe("STOP-01b · merci après la page", () => {
     confirmer(ref(1));
     await passerMerci(T0);
     expect((await lireJournal())[ref(1)]).toMatchObject({ etat: "en_vol", le: autreDate });
+  });
+
+  it("9c · merci : la seconde écriture (journal) échoue, la conversation est déjà remise et l'entrée « en vol » restante est reprise (à vérifier, jamais renvoyé)", async () => {
+    const p = depots().parametres;
+    const enregistrer = p.enregistrer.bind(p);
+    let casse = false;
+    vi.spyOn(p, "enregistrer").mockImplementation(async (x) => {
+      if (casse && x.id === PARAM_JOURNAL) throw new Error("panne de base fictive");
+      return enregistrer(x);
+    });
+    leveSiMerciEnVol(async () => {
+      casse = true;
+    });
+    confirmer(ref(1));
+    const avant = await envoisCompte();
+    await passerMerci(T0);
+    casse = false;
+    // Conversation écrite d'abord : plus de « en_vol » orphelin ; le journal garde l'entrée « en vol » que la reprise sait lire.
+    expect((await etatDe()).merciEtat).toBeUndefined();
+    expect((await lireJournal())[ref(1)]).toMatchObject({ etat: "en_vol" });
+    expect(await envoisCompte()).toBe(avant);
+    etat.avant = null;
+    await passerMerci(T0 + 2 * 60_000);
+    expect((await lireJournal())[ref(1)]).toMatchObject({ etat: "a_verifier", issue: "a_verifier" });
+    expect(await alerteNotif(/issue inconnue/)).toBe(1);
+    expect(merciEnvoyes()).toHaveLength(0);
+  });
+
+  it("9d · merci : nettoyage en échec, UNE ligne technique « nettoyage_impossible » sans donnée de personne, l'erreur d'origine reste relancée", async () => {
+    const p = depots().parametres;
+    const enregistrer = p.enregistrer.bind(p);
+    let casse = false;
+    vi.spyOn(p, "enregistrer").mockImplementation(async (x) => {
+      if (casse && x.id === C.PARAM_CONVERSATIONS) throw new Error("panne de base fictive");
+      return enregistrer(x);
+    });
+    leveSiMerciEnVol(async () => {
+      casse = true;
+    });
+    confirmer(ref(1));
+    await passerMerci(T0);
+    casse = false;
+    expect((await depots().evenements.lister((e: { message: string }) => /verification_impossible/.test(e.message))).length).toBe(1); // l'erreur d'origine est bien celle traitée
+    const lignes = await depots().evenements.lister((x: { message: string }) => /nettoyage_impossible/.test(x.message));
+    expect(lignes).toHaveLength(1);
+    expect((lignes[0] as { message: string }).message).toBe("nettoyage_impossible");
+    const texte = await journalTexte();
+    for (const interdit of [A, cleConversation(A), ref(1)]) expect(texte).not.toContain(interdit);
   });
 
   it("10 · interrupteur éteint, sans panne : comportement identique (un merci, une place, accusé « envoye »)", async () => {
