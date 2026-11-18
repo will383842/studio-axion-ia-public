@@ -1,0 +1,22 @@
+{
+  "etat": "attend-oui-williams",
+  "lancer": false,
+  "format": "tutoriel-outil",
+  "script": {
+    "texteComplet": "Et si les petites tâches répétitives de votre entreprise étaient enfin visibles ?\n\nDans les TPE et PME, les informations se dispersent entre messages, devis, documents et suivi client.\n\nCette démonstration rassemble des demandes clients, des tâches et des documents dans un même espace.\n\nL’assistant peut préparer une réponse, repérer une relance ou retrouver une information avec sa source.\n\nChaque proposition doit être vérifiée avant toute action sensible. Ce que vous voyez est une simulation, pas le résultat d’un client.\n\nPour trouver vos premières pistes, commentez « AUTOMATISER » et recevez « Les 25 tâches que les TPE et PME peuvent automatiser grâce à l’IA ». Un Diagnostic IA gratuit de 45 minutes est aussi proposé.\n"
+  },
+  "entrees": {
+    "tutorielOutil": {
+      "scriptColle": true
+    }
+  },
+  "maquette": "07-taches",
+  "scenario": "scenario.json",
+  "ratios": [
+    "4:5",
+    "9:16",
+    "1:1"
+  ],
+  "musique": false,
+  "fin": "prendre-rendez-vous"
+}
