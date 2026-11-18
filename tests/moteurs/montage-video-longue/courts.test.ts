@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { empreinteScene } from "@/briques/plan-scenes/empreinte";
 import { planVideoLongue, type ChapitrePourPlan, type PlanChapitre } from "@/moteurs/montage-video-longue/plan";
 import { COURTS_MAX, DIMENSIONS_COURT, planDuCourt, preparerCourts, proposerCourts } from "@/moteurs/montage-video-longue/courts";
 
@@ -88,5 +89,27 @@ describe("courts tirés des chapitres", () => {
     vi.unstubAllGlobals();
     expect(f).not.toHaveBeenCalled();
     expect(mauvais.quantite).toBe(0);
+  });
+
+  it.each(["9:16", "4:5", "1:1"] as const)("empreintes recalculées au format %s : celles du plan du court, pas celles du 16:9", async (ratio) => {
+    const p = await plans();
+    const r = preparerCourts({ chapitres: p, choisis: ["c2"], ratio, accordLot: true });
+    const plan = r.courts[0].plan;
+    const origine = p[1].plan!;
+    expect(plan.scenes.length).toBeGreaterThan(0);
+    for (const s of plan.scenes) {
+      expect(s.empreinte).toBe(empreinteScene(s, plan));
+      expect(origine.scenes.map((o) => o.empreinte)).not.toContain(s.empreinte);
+    }
+  });
+
+  it("plus de 5 chapitres possibles : une remarque « 5 au plus » dès la proposition", async () => {
+    const huit = Array.from({ length: 8 }, (_, i) => ch(i + 1, i * 50_000, (i + 1) * 50_000));
+    const r = await planVideoLongue(huit);
+    const { courts, remarques } = proposerCourts(r.chapitres);
+    expect(courts).toHaveLength(8);
+    expect(courts.every((c) => c.choisi === false)).toBe(true);
+    expect(remarques.join(" ")).toMatch(/Au plus 5 courts à la fois/);
+    expect(proposerCourts(r.chapitres.slice(0, 5)).remarques.join(" ")).not.toMatch(/Au plus/);
   });
 });

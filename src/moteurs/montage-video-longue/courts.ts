@@ -12,6 +12,7 @@
  *  - de 3 à 5 courts proposés ; 45 à 70 s par court conseillés, hors zone = une remarque, jamais un refus.
  */
 import type { PlanValide } from "@/briques/plan-scenes/schema";
+import { validerPlan, type Remarque } from "@/briques/plan-scenes/validateur";
 import type { PlanChapitre } from "./plan";
 
 export type RatioCourt = "9:16" | "4:5" | "1:1";
@@ -46,7 +47,7 @@ export interface CourtPropose {
 const arrondi = (n: number) => Math.round(n * 10) / 10;
 const nette = (p: string | undefined): string | undefined => (typeof p === "string" && p.trim() ? p.trim() : undefined);
 
-/** Courts proposés (PUR) : un par chapitre qui a un plan, tous décochés, 5 au plus ; remarques non bloquantes. */
+/** Courts proposés (PUR) : un par chapitre, tous décochés ; plus de 5 possibles = une remarque (on en coche 5 au plus) ; remarques non bloquantes. */
 export function proposerCourts(chapitres: PlanChapitre[]): { courts: CourtPropose[]; remarques: string[] } {
   const courts: CourtPropose[] = chapitres.map((c) => {
     const dureeSec = arrondi((c.finMs - c.debutMs) / 1000);
@@ -60,6 +61,7 @@ export function proposerCourts(chapitres: PlanChapitre[]): { courts: CourtPropos
   const remarques: string[] = [];
   const possibles = courts.filter((c) => c.possible).length;
   if (possibles < COURTS_MIN) remarques.push(`Seuls ${possibles} chapitre(s) peuvent devenir un court (de ${COURTS_MIN} à ${COURTS_MAX} sont conseillés).`);
+  if (possibles > COURTS_MAX) remarques.push(`Au plus ${COURTS_MAX} courts à la fois : cochez-en ${COURTS_MAX} au plus.`);
   return { courts, remarques };
 }
 
@@ -91,8 +93,8 @@ export interface ResultatCourts {
   quantite: number;
 }
 
-/** Plan d'un chapitre refait au format du court : scènes recalées sur 0, format changé, contenu inchangé. PUR. */
-export function planDuCourt(chapitre: PlanChapitre, ratio: RatioCourt): PlanValide | null {
+/** Plan du court et remarques du validateur : le plan recalé repasse par `validerPlan`, qui recalcule les empreintes (format et temps compris). */
+function planDuCourtAvecRemarques(chapitre: PlanChapitre, ratio: RatioCourt): { plan: PlanValide; remarques: Remarque[] } | null {
   if (!chapitre.plan) return null;
   const decalage = chapitre.debutMs;
   const duree = chapitre.finMs - chapitre.debutMs;
@@ -101,7 +103,14 @@ export function planDuCourt(chapitre: PlanChapitre, ratio: RatioCourt): PlanVali
   plan.dureeMs = duree;
   plan.scenes = plan.scenes.map((s) => ({ ...s, debutMs: Math.max(0, s.debutMs - decalage), finMs: Math.min(duree, s.finMs - decalage) })).filter((s) => s.finMs > s.debutMs);
   plan.mots = plan.mots.map((m) => ({ ...m, debutMs: Math.max(0, m.debutMs - decalage), finMs: Math.max(0, m.finMs - decalage) }));
-  return plan.scenes.length ? plan : null;
+  if (!plan.scenes.length) return null;
+  const v = validerPlan(plan, { mots: plan.mots, format: plan.format, facecam: plan.facecam, dureeMs: plan.dureeMs });
+  return v.plan.scenes.length ? { plan: v.plan, remarques: v.remarques } : null;
+}
+
+/** Plan d'un chapitre refait au format du court : scènes recalées sur 0, format changé, contenu inchangé, empreintes recalculées. PUR. */
+export function planDuCourt(chapitre: PlanChapitre, ratio: RatioCourt): PlanValide | null {
+  return planDuCourtAvecRemarques(chapitre, ratio)?.plan ?? null;
 }
 
 /**
@@ -121,11 +130,13 @@ export function preparerCourts(d: DemandeCourts): ResultatCourts {
   const courts: CourtFabriquable[] = [];
   for (const id of ids) {
     const chapitre = d.chapitres.find((c) => c.id === id);
-    const plan = chapitre ? planDuCourt(chapitre, d.ratio) : null;
+    const refait = chapitre ? planDuCourtAvecRemarques(chapitre, d.ratio) : null;
+    const plan = refait?.plan ?? null;
     if (!chapitre || !plan) {
       remarques.push(`Le chapitre « ${id} » ne peut pas devenir un court : il est laissé de côté.`);
       continue;
     }
+    for (const r of refait!.remarques) remarques.push(`Chapitre « ${id} » : ${r.message}`);
     const ouverture = nette(d.phrases?.[id]?.ouverture);
     const fin = nette(d.phrases?.[id]?.fin);
     courts.push({ chapitreId: id, ratio: d.ratio, plan, dureeSec: arrondi((chapitre.finMs - chapitre.debutMs) / 1000), ...(ouverture ? { ouverture } : {}), ...(fin ? { fin } : {}) });
