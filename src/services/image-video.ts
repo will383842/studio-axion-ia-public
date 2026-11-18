@@ -47,9 +47,9 @@ import { argumentsMorceau, argumentsSonWav, type PassageFigeIV } from "@/moteurs
 export const STUDIO_NON_RELIE_IV = "Le studio n'est pas relié (stockage, voix, Claude ou serveur de rendu) : rien n'a été dépensé.";
 export const CONVERSION_IMPOSSIBLE_IV = "FFmpeg est absent de ce serveur : l'image ne peut pas être découpée pour la lecture.";
 
-/** Plafond Claude propre au format, par vidéo (lecture, écriture, relecture finale), en dollars. */
 /** BR-MINIMAL-IV-a : sous-titres en groupes de 1 à 3 mots (image vers vidéo). Absent ou autre que `true` : éteint. */
 export const PARAM_SOUS_TITRES_MINIMAL_IV = "imageVideo.sousTitresMinimal";
+/** Plafond Claude propre au format, par vidéo (lecture, écriture, relecture finale), en dollars. */
 export const PARAM_PLAFOND_CLAUDE_IV = "imageVideo.plafondClaudeUsd";
 /** Préfixe des étapes de dépense Claude du format (plafond propre de `executerRolePourVideo`). */
 export const PREFIXE_ETAPE_IV = "Image → vidéo ·";
