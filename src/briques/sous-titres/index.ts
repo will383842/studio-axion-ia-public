@@ -28,6 +28,7 @@ import { reporterSurTexteValide } from "./report";
 import { elementDe, largeurElement, type DonneesCalque, type SurlignageSousTitres } from "./scene";
 import { baseDe, couleursDepuisMarque, gabaritDe, GABARITS, type CouleursSousTitres } from "./style";
 import { motsAPlaque } from "./pave";
+import { couleursMinimalDynamique } from "./minimal-dynamique";
 import { motsOutils } from "./noms-outils";
 import { PASTILLE_AXION, PASTILLE_AXION_ARDOISE } from "./pastille";
 import { normaliser } from "./typographie";
@@ -228,6 +229,8 @@ export function donneesCalque(entree: {
     // C2-U7a (ajout pur) : mot-clé en pavé, seulement quand le style le porte.
     ...(regleePave ? { plaques: Object.fromEntries(segmentsPropres.flatMap((s) => { const k = motAPlaque(s, regleePave); return k === undefined ? [] : [[s.id, k] as const]; })) } : {}),
     ...(etiquettes ? { motsOutils: etiquettes } : {}),
+    // BR-MINIMAL-IV-b : boîte arrondie maison derrière le groupe, seulement quand le style le demande (`true` exact).
+    ...(entree.style?.boiteArrondie === true ? { boite: { rayonEm: 0.3, margeEm: 0.25, couleurs: couleursMinimalDynamique() } } : {}),
   };
 }
 
