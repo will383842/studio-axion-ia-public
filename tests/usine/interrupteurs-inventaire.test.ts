@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34). */
 const LITTERALES: Record<string, Etat> = {
   "accueil.bilan_semaine": "eteint",
   afficherExemples: "allume",
@@ -71,6 +71,7 @@ const LITTERALES: Record<string, Etat> = {
   "style.faconDeParler": "valeur",
   "taux.usdEur": "valeur",
   "tutoriel.finitions": "eteint",
+  "tutoriel.suiviCloche": "eteint",
   "veille.derniereLecture": "valeur",
   "veille.resumeSemaine": "valeur",
   "zernio.synchro_etape_visuels": "eteint",
@@ -82,6 +83,7 @@ const LITTERALES: Record<string, Etat> = {
  */
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
+  { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
   { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
@@ -108,6 +110,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "zernio.youtube_actif", etat: "eteint", appel: "src/services/youtube-zernio.ts", declare: "src/fournisseurs/publication/zernio-youtube.ts", motif: /lireParametre<unknown>\(CLE_YOUTUBE_ACTIF, false\)/ },
   { cle: "limite_appels.active", etat: "eteint", appel: "src/services/limite-appels.ts", motif: /lireParametre<boolean>\(PARAM_LIMITE_ACTIVE, false\)\) !== true/ },
   { cle: "kb_site.lecture.actif", etat: "eteint", appel: "src/services/kb-site.ts", motif: /REGLAGE_LECTURE_SITE, false\)\) === true/ },
+  { cle: "kb_site.methode.actif", etat: "eteint", appel: "src/services/kb-site.ts", motif: /REGLAGE_METHODE_SITE, false\)\) === true/ },
   { cle: "ecriture.memoireCasConcret", etat: "eteint", appel: "src/services/memoire-cas-concret.ts", motif: /REGLAGE_MEMOIRE_CAS_CONCRET, false\)\) === true/ },
   { cle: "ecriture.memoireCentrale", etat: "eteint", appel: "src/services/memoire-centrale.ts", motif: /REGLAGE_MEMOIRE_CENTRALE, false\)\) === true/ },
   { cle: "site.passeportParClaude", etat: "eteint", appel: "src/services/site-videos.ts", motif: /PARAM_PASSEPORT_PAR_CLAUDE, false\)\) === true/ },
@@ -148,6 +151,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "avocat.bandeauNom", etat: "eteint", appel: "src/services/bandeau-nom.ts", motif: /lireParametre<unknown>\(PARAM_BANDEAU_AVOCAT, false\)\) !== true/ },
   { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
   { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
+  { cle: "a_traiter.rappels_actifs", etat: "eteint", appel: "src/services/a-traiter-suivi.ts", motif: /REGLAGE_RAPPELS_ACTIFS, false\)\);\s*if \(\(await lireReglage\(\)\) !== true\)/ },
   // Montage avocat (voisin de zone interdite) : lecture du texte seulement, jamais d'import.
   {
     cle: "avocat.motionCommune",
@@ -265,6 +269,7 @@ const RETOUCHE: Record<string, Etat> = {
   "retoucheChat.avocat": "eteint",
   "retoucheChat.imageVideo": "eteint",
   "retoucheChat.facecamAnimee": "eteint",
+  "retoucheChat.tutorielOutil": "eteint",
 };
 
 const lire = (f: string) => readFileSync(f, "utf8");
@@ -300,6 +305,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "buffer.canaux": "memoire",
   "buffer.correspondance": "memoire",
   "cas-concret.ecrans-fournis": "memoire",
+  "tutoriel.index-scenes": "memoire",
   "casConcret.casAjoutes": "memoire",
   "casConcret.casRemis": "memoire",
   "casConcret.casRetires": "memoire",
@@ -486,7 +492,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/oppositions-transmission.ts:`${PARAM_CONVERSATIONS}.alias`": { exclu: "memoire" },
   "services/plafond-fournisseur.ts:cle": { exclu: "dedoublonnage" }, // :74 marque ; :99 et :113 compteur (mémoire)
   "services/publication-editoriale-interrupteurs.ts:cle": { couvre: "publication.premier_commentaire_coupe" }, // INTERRUPTEURS_PUBLICATION
-  "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 3 de CLES_REGLAGE_RETOUCHE
+  "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 4 de CLES_REGLAGE_RETOUCHE
   "services/serie-ecriture.ts:cleSerie(cle)": { exclu: "memoire" },
   "services/site-videos.ts:cleSiteGenerateur(formatId)": { couvre: "siteGenerateurs.*" },
   "services/site-videos.ts:cleSiteAuto(f.id)": { couvre: "siteAuto.*" },
@@ -640,7 +646,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(Object.keys(PLAN_SCENES).sort()).toEqual(Object.values(CLES_REGLAGE_PLAN_SCENES).sort());
   });
 
-  it("retouche du chat : trois clés, toutes éteintes (AM-24 / C-7)", () => {
+  it("retouche du chat : quatre clés, toutes éteintes (AM-24 / C-7)", () => {
     expect(Object.values(CLES_REGLAGE_RETOUCHE).sort()).toEqual(Object.keys(RETOUCHE).sort());
     expect(Object.values(RETOUCHE).every((e) => e === "eteint")).toBe(true);
     const texte = lire("src/services/retouche-chat/generateurs.ts");
@@ -788,7 +794,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(37);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(38);
   });
 });

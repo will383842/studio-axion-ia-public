@@ -1,0 +1,11 @@
+Votre stock est déjà sous le seuil. Qui l’a vu ?
+
+Un produit manquant peut bloquer une préparation. Encore faut-il détecter le problème et vérifier les chiffres.
+
+Dans cet exemple simulé, l’outil rapproche les mouvements, le stock restant et les informations fournisseurs.
+
+Il propose un réapprovisionnement. Mais le fournisseur n’a pas été interrogé, et les quantités doivent être contrôlées.
+
+Le responsable modifie, refuse ou valide. La commande apparaît dans le suivi, sans envoi réel au fournisseur et sans augmenter artificiellement le stock.
+
+Commentez « STOCK » pour recevoir « Les 12 automatisations pour mieux gérer ses stocks ». Vous pouvez aussi demander un Diagnostic IA gratuit de 45 minutes pour identifier les premières priorités.

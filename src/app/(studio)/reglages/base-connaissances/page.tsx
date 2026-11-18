@@ -3,11 +3,12 @@ import { EnTetePage } from "@/components/ui/EnTetePage";
 import { exigerSession } from "@/services/auth";
 import { lireParametre } from "@/services/_commun";
 import { REGLAGE_SOURCE_USINE } from "@/services/branchement-idees-usine";
+import { ConsignesMethode } from "@/components/reglages/ConsignesMethode";
 import { RechercheFaitsSite } from "@/components/reglages/RechercheFaitsSite";
 import { CHIFFRES_CLES, type Verdict } from "@/domaine/gardien-chiffres";
 import { gardienActif, lireDernierControle } from "@/services/gardien-chiffres";
-import { lectureSiteDisponible } from "@/services/kb-site";
-import { basculerGardienChiffresFormulaire, basculerLectureSiteFormulaire, basculerSourceUsineFormulaire, verifierChiffresFormulaire } from "./actions";
+import { lectureMethodeDisponible, lectureSiteDisponible } from "@/services/kb-site";
+import { basculerGardienChiffresFormulaire, basculerLectureSiteFormulaire, basculerMethodeSiteFormulaire, basculerSourceUsineFormulaire, verifierChiffresFormulaire } from "./actions";
 
 const TEXTE_VERDICT: Record<Verdict, string> = { accord: "accord", ecart: "écart", "non-compare": "non comparé" };
 const FORMAT_PARIS = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", dateStyle: "short", timeStyle: "short" });
@@ -24,6 +25,7 @@ export default async function PageReglagesBaseConnaissances() {
   await exigerSession();
   const allume = (await lireParametre<unknown>(REGLAGE_SOURCE_USINE, false)) === true;
   const site = await lectureSiteDisponible();
+  const methode = await lectureMethodeDisponible();
   const gardien = await gardienActif();
   const dernier = await lireDernierControle();
   return (
@@ -66,6 +68,27 @@ export default async function PageReglagesBaseConnaissances() {
             </button>
           </form>
           <RechercheFaitsSite allumee={site.allumee && site.adresse} />
+        </li>
+        <li className="flex flex-col gap-2 rounded-2xl border border-trait p-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold">Lire la Méthode du site</span>
+            <span>{methode.allumee ? "Allumé" : "Éteint"}</span>
+          </div>
+          <p className="text-sm text-texte-doux">
+            {methode.allumee
+              ? methode.adresse && methode.secret
+                ? "Vous pouvez lire des consignes internes de la Méthode (lecture seule). Elles ne sont jamais des preuves et ne se publient pas."
+                : `Allumé, mais il manque ${methode.adresse ? "le secret" : methode.secret ? "l'adresse du site (sécurisée)" : "l'adresse du site (sécurisée) et le secret"} sur le serveur : rien n'est lu.`
+              : "Éteint : la Méthode n'est pas consultée."}
+          </p>
+          <p className="text-sm text-texte-doux">Secret posé : {methode.secret ? "oui" : "non"}</p>
+          <form action={basculerMethodeSiteFormulaire}>
+            <input type="hidden" name="valeur" value={methode.allumee ? "non" : "oui"} />
+            <button type="submit" className="min-h-11 rounded-full px-4 font-semibold">
+              {methode.allumee ? "Éteindre" : "Allumer"}
+            </button>
+          </form>
+          <ConsignesMethode allumee={methode.allumee} branchee={methode.adresse && methode.secret} />
         </li>
         <li className="flex flex-col gap-2 rounded-2xl border border-trait p-4">
           <div className="flex items-center justify-between gap-3">

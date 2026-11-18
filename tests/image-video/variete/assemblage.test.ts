@@ -129,8 +129,9 @@ describe("assemblage · écarts entre lots", () => {
           const r = mettreEnSceneIV({ ...entree, format });
           // 29/10/2026 : le moteur calcule la toile 4:5 à 1350 px (comme le rendu) et voit donc le vrai défaut de la carte F (16 blocs,
           // trois mots à 12,9 s) : Q15 y reste une REMARQUE (ligne zéro blocage), jamais un refus (`cadrage-moteur-4x5.test.ts`).
+          // REPARE-MASTER 18/11 : la variante étroite de la carte F 4:5 (#145, 30/10) a déplacé ce même blocage Q15 de « n08 (12.877 s) » à « n10 (12,9 s) » ; seule la phrase attendue change.
           const connu = (l: { code: string; phrase: string; details: string[] }) =>
-            l.code === "Q15" && format === "4:5" && nom === "F" && /Au mot du bloc n08 \(12\.877 s\)/.test(l.phrase) && l.details.every((d) => /^séquence b05 : /.test(d) && /12[.,]877? ?s|12,9 s|13,2 s/.test(d));
+            l.code === "Q15" && format === "4:5" && nom === "F" && /au mot du bloc n10 \(12,9 s\)/.test(l.phrase) && l.details.every((d) => /^séquence b05 : /.test(d) && /12[.,]877? ?s|12,9 s|13,2 s/.test(d));
           const rouges = r.rapport.lignes.filter((l) => ["Q12", "Q13", "Q15", "Q22"].includes(l.code) && !l.ok && !connu(l)).map((l) => `${l.code} ${l.phrase} ${l.details.join(" ")}`);
           expect(rouges, `${nom} ${fin.id} ${format}`).toEqual([]);
           // La première carte de chaque toile est posée en haut de la bande, entière.
@@ -218,7 +219,9 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     // 4 fichiers rendus (26/10/2026 : Facebook et LinkedIn disent la même fin, le 4:5 est UN fichier commun) : Shorts et
     // Instagram en 9:16, Facebook en Reel 9:16, et le 4:5 de LinkedIn qui est aussi le fil de Facebook.
     const fichiers = new Set(m.rendus.map((r) => r.version));
-    expect(fichiers.size).toBe(4);
+    // 17/11 D4 : fin non choisie = aucune fin (fin vide commune à tous les réseaux, un seul groupe) : 2 fichiers, le 9:16 de tous
+    // les réseaux et le 4:5 de LinkedIn / fil Facebook (avant : 4, une fin différente par groupe de réseaux). Assertion gardée, valeur mise à jour.
+    expect(fichiers.size).toBe(2);
     const fb = fin.livraison!.find((l) => l.reseau === "facebook")!;
     expect(fb.fichierCle).toBeTruthy();
     expect(fb.fichierCleFil).toBeTruthy();
@@ -238,7 +241,8 @@ describe("assemblage · la variété dans la fabrication (doubles, aucun appel p
     // Chaque version reçoit sa recette (4:5 : substitutions du cadre bas, ouverture de son format).
     const lignes = lignesDesVersionsIV(fin);
     const recettes = recettesDesVersionsIV(fin);
-    expect(lignes.length).toBe(4);
+    // 17/11 D4 : 2 lignes (9:16 et 4:5 de l'unique fin vide), avant 4. Assertion gardée, valeur mise à jour.
+    expect(lignes.length).toBe(2);
     for (const l of lignes) {
       const r = recettes.find((x) => x.version === l.version)!;
       expect(l.ligne.variete?.recette, l.version).toEqual(r.recette);

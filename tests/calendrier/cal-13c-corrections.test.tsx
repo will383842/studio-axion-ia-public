@@ -54,13 +54,13 @@ describe("CAL-13c corrections — phrases d'état de la fiche", () => {
   });
   it("brouillon Buffer : phrase propre, sans « État à vérifier »", () => {
     const t = phraseEtat({ ...e, etat: "brouillon_buffer" });
-    expect(t).toContain("Brouillon déposé dans Buffer");
+    expect(t).toContain("Brouillon déposé chez le diffuseur");
     expect(t).not.toContain("rien ne part d'ici");
   });
   it("à corriger : refusé par le réseau seulement si Buffer a répondu", () => {
     expect(phraseEtat({ ...e, etat: "a_corriger" })).toContain("Le réseau l'a refusée");
     const absent = phraseEtat({ ...e, etat: "a_corriger", envoiAbsent: true });
     expect(absent).not.toContain("refusée");
-    expect(absent).toContain("Buffer");
+    expect(absent).toContain("diffuseur");
   });
 });

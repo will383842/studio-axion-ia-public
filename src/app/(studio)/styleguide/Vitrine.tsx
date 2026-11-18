@@ -140,7 +140,7 @@ export function Vitrine({ elements }: { elements: VueElement[] }) {
             Supprimer
           </Bouton>
           <Bouton chargement>Chargement</Bouton>
-          <Bouton variante="secondaire" icone="envoyer" essai onClick={() => notifier.essai("rien n'a été envoyé à Buffer")}>
+          <Bouton variante="secondaire" icone="envoyer" essai onClick={() => notifier.essai("rien n'a été envoyé au diffuseur")}>
             Préparer dans Zernio
           </Bouton>
           <Bouton taille="xl" iconeDroite="fleche-droite">
