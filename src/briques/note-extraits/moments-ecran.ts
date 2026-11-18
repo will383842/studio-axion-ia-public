@@ -36,6 +36,11 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   legende: "texte",
   citation: "texte",
   repere: "texte",
+  // BR-OBJETS-a (18/11/2026) : les 4 objets inscrits au catalogue.
+  "objet-gros-chiffre": "chiffre",
+  "objet-etape": "demarche",
+  "objet-cartes-coche": "demarche",
+  "objet-coche": "geste",
 };
 
 const DUREE_MAX_SEC = 6;
