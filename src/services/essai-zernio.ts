@@ -10,8 +10,8 @@
  * « Tout arrêter » (`zernio.envoi_autorise` à faux) l'emporte toujours. Ni promotion, ni PUT, ni chemin vidéo.
  */
 import "server-only";
-import { AsyncLocalStorage } from "node:async_hooks";
 import { depots, ecrireParametre, lireParametre, maintenant as maintenantIso } from "./_commun";
+import { dansEssai, essaiEnCours } from "./essai-contexte";
 import { cleZernioPresente, envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 
 export const PARAM_ESSAI_BROUILLON = "zernio.essai_brouillon";
@@ -68,16 +68,9 @@ export async function essaiCouvre(creneauId: string, geste: GesteEssai, maintena
   return geste === "retrait" ? maintenant < expire + FENETRE_NETTOYAGE_MS : maintenant < expire;
 }
 
-/* --- Contexte d'exécution : l'identifiant seulement ----------------------------------------------------------------------- */
+/* --- Contexte d'exécution : l'identifiant seulement (module feuille `essai-contexte.ts`) ------------------------------------ */
 
-const contexte = new AsyncLocalStorage<string>();
-
-/** Exécute `f` avec le créneau d'essai en contexte. N'ouvre rien à lui seul : chaque porte relit `essaiCouvre`. */
-export function dansEssai<T>(creneauId: string, f: () => Promise<T>): Promise<T> {
-  return contexte.run(creneauId, f);
-}
-
-export const essaiEnCours = (): string | undefined => contexte.getStore();
+export { dansEssai, essaiEnCours };
 
 /**
  * Porte de création d'un brouillon pour CE créneau : la condition générale (trois réglages) OU l'essai couvrant ce créneau.
@@ -94,9 +87,8 @@ export async function essaiOuvertPour(creneauId?: string): Promise<boolean> {
   return essaiCouvre(creneauId, "brouillon");
 }
 
-/** Porte du client du fournisseur : générale, ou un essai en cours qui couvre le créneau du contexte. */
+/** Seconde condition de la porte du client du fournisseur (la condition générale y reste écrite) : l'essai en cours couvre le créneau du contexte. */
 export async function porteClientEssai(): Promise<boolean> {
-  if (await publicationEditorialeAutorisee()) return true;
   return essaiOuvertPour(essaiEnCours());
 }
 

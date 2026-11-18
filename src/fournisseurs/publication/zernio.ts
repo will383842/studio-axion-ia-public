@@ -7,6 +7,7 @@
  *   liste des posts est LUE (retrouver `metadata.studioCle`) avant toute conclusion ; jamais de renvoi à l'aveugle.
  * - Sans clé : le fournisseur n'est pas inscrit (voir `inscription.ts`), la simulation reste.
  */
+import { essaiEnCours } from "@/services/essai-contexte";
 import { cleEnvoiPublication } from "@/domaine/outil-publication";
 import { CLE_PREMIER_COMMENTAIRE_COUPE } from "@/domaine/interrupteurs/registre";
 import type { StatutPublication } from "@/domaine/types";
@@ -57,12 +58,13 @@ async function premierCommentaireCoupe(lecture: () => Promise<unknown>): Promise
  * l'essai, relu à l'instant. Sinon : refus avant tout appel de création. Hors essai : rien n'est contrôlé (comportement inchangé).
  */
 async function gardeEssaiParDefaut(corps: { isDraft?: boolean; platforms: { accountId?: unknown }[] }): Promise<void> {
-  // Module d'essai illisible : aucune porte d'essai ne peut être ouverte non plus (même import dans `inscription.ts`), rien à contrôler.
-  const m = await import("@/services/essai-zernio").catch(() => null);
-  if (!m) return;
-  const { essaiEnCours, lireEssai } = m;
+  // Hors essai (cas courant) : une lecture du contexte, aucun import lourd, rien n'est contrôlé.
   const id = essaiEnCours();
   if (id === undefined) return;
+  // Module d'essai illisible : aucune porte d'essai ne peut être ouverte non plus (même import dans `inscription.ts`) ; dans un essai, c'est fermé.
+  const m = await import("@/services/essai-zernio").catch(() => null);
+  if (!m) throw new ErreurZernio("refuse", "Essai borné : l'essai est illisible. Rien n'a été envoyé.");
+  const { lireEssai } = m;
   const refus = (m: string) => new ErreurZernio("refuse", `Essai borné : ${m} Rien n'a été envoyé.`);
   if (corps.isDraft !== true) throw refus("seul un brouillon est permis.");
   const lu = await lireEssai();
