@@ -6,6 +6,7 @@
  *  - `garderUnChapitre` : ne laisse passer que les retouches qui touchent les scènes du chapitre choisi ; une retouche
  *    qui toucherait toute la vidéo est ramenée au chapitre (dynamisme) ou écartée avec une remarque ;
  *    `decaler-scene` est toujours écartée (le recalage des mots déborde sur les chapitres voisins) ;
+ *    `retirer-scene` est écartée pour la première scène d'un chapitre (ses mots iraient à la scène du chapitre précédent) ;
  *  - `chapitresTouches` : quels chapitres refaire (le rendu partiel par empreinte ne refait que ceux-là) ;
  *  - `messageChapitre` : phrase de réponse, sans montant ; la voix ne change pas ;
  *  - le texte lu est le script validé : `modifier-script` reste écarté (règle de `generateurs.ts`, `scriptEstValide`).
@@ -80,6 +81,16 @@ export function garderUnChapitre(operations: readonly OperationRetouche[], plan:
     if (o.type === "decaler-scene") {
       remarques.push("Une retouche sortait du chapitre choisi : elle n'est pas appliquée, les autres chapitres restent tels quels.");
       continue;
+    }
+    // `retirer-scene` donne les mots de la scène retirée à la voisine PRÉCÉDENTE du plan (`appliquer.ts`) : si la scène
+    // retirée est la première de son chapitre, la voisine est d'un autre chapitre. Écartée aussi (y compris seule de son chapitre).
+    if (o.type === "retirer-scene") {
+      const i = plan.scenes.findIndex((s) => s.id === o.sceneId);
+      const precedente = i > 0 ? plan.scenes[i - 1]!.id : null;
+      if (!siennes.has(o.sceneId) || precedente === null || !siennes.has(precedente)) {
+        remarques.push("Une retouche sortait du chapitre choisi : elle n'est pas appliquée, les autres chapitres restent tels quels.");
+        continue;
+      }
     }
     const visees = scenesVisees(o);
     if (visees === null) {

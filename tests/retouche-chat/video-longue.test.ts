@@ -4,6 +4,7 @@ import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { OperationRetouche } from "@/briques/operations";
 import { CLES_REGLAGE_RETOUCHE, adaptateurRetouche, estGenerateurRetouche, filtrerOperationsGenerateur, retoucheChatActif, scriptEstValide } from "@/services/retouche-chat/generateurs";
+import { appliquerOperations } from "@/services/retouche-chat";
 import { chapitresTouches, garderUnChapitre, messageChapitre, scenesARefaire, scenesDuChapitre, type ChapitreRetouche } from "@/services/retouche-chat/video-longue";
 
 const plan: PlanValide = validerPlan(PLAN_DEMO, { mots: PLAN_DEMO.mots, format: PLAN_DEMO.format, facecam: PLAN_DEMO.facecam, dureeMs: PLAN_DEMO.dureeMs }).plan;
@@ -96,6 +97,34 @@ describe("chapitre = groupe de scènes", () => {
     // Décalage par durée, même pour une scène du chapitre : écarté aussi (le validateur recale les voisines).
     const decale = garderUnChapitre([{ type: "decaler-scene", sceneId: dehors, decalageMs: 200 } as OperationRetouche], plan, chapitres, "c2");
     expect(decale.operations).toEqual([]);
+  });
+
+  it("retirer-scene : la première scène d'un chapitre est écartée (ses mots iraient à la scène du chapitre précédent)", () => {
+    const premiereC2 = scenesDuChapitre(plan, chapitres[1])[0];
+    const r = garderUnChapitre([{ type: "retirer-scene", sceneId: premiereC2 } as OperationRetouche], plan, chapitres, "c2");
+    expect(r.operations).toEqual([]);
+    expect(r.remarques).toEqual(["Une retouche sortait du chapitre choisi : elle n'est pas appliquée, les autres chapitres restent tels quels."]);
+    expect(chapitresTouches(r.operations, plan, chapitres)).toEqual([]);
+    // Même la première scène du chapitre 1 (pas de précédente) : écartée.
+    const premiereC1 = scenesDuChapitre(plan, chapitres[0])[0];
+    expect(garderUnChapitre([{ type: "retirer-scene", sceneId: premiereC1 } as OperationRetouche], plan, chapitres, "c1").operations).toEqual([]);
+  });
+
+  it("retirer-scene : une scène qui n'est pas la première de son chapitre est gardée, et seules des scènes de ce chapitre changent", () => {
+    const c = chapitres.find((x) => scenesDuChapitre(plan, x).length >= 2)!;
+    const siennes = scenesDuChapitre(plan, c);
+    const op = { type: "retirer-scene", sceneId: siennes[1] } as OperationRetouche;
+    const r = garderUnChapitre([op], plan, chapitres, c.id);
+    expect(r.operations).toEqual([op]);
+    expect(chapitresTouches(r.operations, plan, chapitres).map((x) => x.id)).toEqual([c.id]);
+    const apres = appliquerOperations(plan, r.operations);
+    for (const avant of plan.scenes) {
+      if (siennes.includes(avant.id)) continue;
+      const apresScene = apres.plan.scenes.find((s) => s.id === avant.id);
+      expect(apresScene?.mots).toEqual(avant.mots);
+      expect(apresScene?.debutMs).toBe(avant.debutMs);
+      expect(apresScene?.finMs).toBe(avant.finMs);
+    }
   });
 
   it("message : voix inchangée, autres chapitres intacts, aucun montant", () => {
