@@ -19,8 +19,8 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/app/(studio)/calendrier/charger-comptes", () => ({ comptesCibles: async (r: string[]) => Object.fromEntries(r.filter((x) => x !== "facebook").map((x) => [x, `compte-${x}`])) }));
 vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("../aides/crochets-factices")).crochets }));
 
-const { dupliquerEntree, PHRASES_DUPLICATION } = await import("@/app/(studio)/calendrier/actions/dupliquer");
-const { LIBELLE_VOIR_SUR_RESEAU, cleAAdapter, cleLienCopie, lienVoirSurReseau } = await import("@/domaine/calendrier/lien-reseau");
+const { dupliquerEntree } = await import("@/app/(studio)/calendrier/actions/dupliquer");
+const { LIBELLE_VOIR_SUR_RESEAU, PHRASES_DUPLICATION, cleAAdapter, cleLienCopie, lienVoirSurReseau } = await import("@/domaine/calendrier/lien-reseau");
 const { monter, trouver, texteDe, attendre } = await import("../aides/crochets-factices");
 
 const MAINTENANT = "2026-12-10T10:00:00.000Z";
@@ -207,10 +207,15 @@ describe("CAL-24 · dupliquer un créneau", () => {
   });
 
   it("même clé de formulaire mais autre heure : refusé, la copie garde son heure", async () => {
-    await dupliquerEntree(saisie({ heure: "09:00" }));
+    const premier = await dupliquerEntree(saisie({ heure: "09:00" }));
+    expect(premier.ok).toBe(true);
+    const avant = ((await copies())[0]!.heuresParReseau as Record<string, string>).instagram;
     const r = await dupliquerEntree(saisie({ heure: "15:00" }));
     expect(r).toMatchObject({ ok: false, message: PHRASES_DUPLICATION.autreDemande });
-    expect(await copies()).toHaveLength(1);
+    const apres = await copies();
+    expect(apres).toHaveLength(1);
+    expect((apres[0]!.heuresParReseau as Record<string, string>).instagram).toBe(avant);
+    expect(avant).toBe("2026-12-20T08:00:00.000Z"); // 09:00 à Paris (hiver)
   });
 
   it("la fiche de la copie est écrite AVANT la copie : si elle échoue, aucune copie n'existe, et un nouvel essai réussit", async () => {
@@ -430,6 +435,11 @@ describe("CAL-24 · gardes de périmètre", () => {
     const corps = action.slice(action.indexOf("export async function dupliquerEntree"));
     expect(corps.indexOf("exigerSession()")).toBeGreaterThan(-1);
     expect(corps.indexOf("exigerSession()")).toBeLessThan(corps.indexOf("depots()") === -1 ? Infinity : corps.indexOf("depots()"));
+  });
+  it("le fichier « use server » n'exporte que des fonctions async et des types (Next refuse tout autre export)", () => {
+    const exports = [...action.matchAll(/^export\s+(?!type\b|interface\b)(\w+(?:\s+\w+)?)/gm)].map((m) => m[1]);
+    expect(exports.length).toBeGreaterThan(0);
+    for (const e of exports) expect(e, e).toBe("async function");
   });
   it("actions.ts n'est pas modifié par cette fiche (les deux actions de L4-04 seulement)", () => {
     const a = readFileSync("src/app/(studio)/calendrier/actions.ts", "utf8");

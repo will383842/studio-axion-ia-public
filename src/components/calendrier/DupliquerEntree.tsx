@@ -7,7 +7,7 @@
  */
 import { useState } from "react";
 import { dupliquerEntree, type ResultatDuplication } from "@/app/(studio)/calendrier/actions/dupliquer";
-import { LIBELLE_VOIR_SUR_RESEAU, lienVoirSurReseau } from "@/domaine/calendrier/lien-reseau";
+import { LIBELLE_VOIR_SUR_RESEAU, PHRASES_DUPLICATION, lienVoirSurReseau } from "@/domaine/calendrier/lien-reseau";
 import type { IdReseau } from "@/domaine/types";
 import { RESEAUX } from "@/reseaux";
 
@@ -45,7 +45,7 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
       setRetour(r);
       if (r.ok) setCleFormulaire(crypto.randomUUID());
     } catch {
-      setRetour({ ok: false, message: "La copie n'a pas pu être créée. Réessayez." });
+      setRetour({ ok: false, message: PHRASES_DUPLICATION.impossible });
     } finally {
       setEnCours(false);
     }

@@ -41,3 +41,18 @@ export function lienVoirSurReseau(publication: { statut?: string; urlPubliee?: s
     return null;
   }
 }
+
+/** Phrases de « Dupliquer » (ici et non dans le fichier « use server », qui ne peut exporter que des fonctions async). */
+export const PHRASES_DUPLICATION = {
+  jour: "Jour invalide : choisissez un jour qui existe.",
+  heure: "Heure invalide : écrivez par exemple 09:00.",
+  reseau: "Choisissez le réseau de la copie.",
+  formulaire: "Rechargez la page, puis réessayez.",
+  original: "Cette publication est introuvable dans le calendrier. Rechargez la page.",
+  identique: "Cette copie serait identique à la publication : choisissez un autre réseau ou un autre jour.",
+  autreDemande: "Ce formulaire a déjà créé une copie différente : rouvrez-le pour en faire une autre.",
+  passe: "Cette date est passée : confirmez pour créer la copie quand même.",
+  visuelVideoSeule: "Ce réseau ne publie que des vidéos : choisissez un autre réseau pour copier ce visuel.",
+  creee: "La copie est créée. Elle est signalée « À adapter » : relisez son texte, puis validez-la. Elle ne part pas toute seule.",
+  impossible: "La copie n'a pas pu être créée. Réessayez.",
+} as const;

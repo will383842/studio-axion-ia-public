@@ -10,7 +10,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { lireCleFiche, type EntreeFiche } from "@/components/calendrier/FicheEntree";
-import { cleAAdapter, cleLienCopie, idCopie } from "@/domaine/calendrier/lien-reseau";
+import { PHRASES_DUPLICATION, cleAAdapter, cleLienCopie, idCopie } from "@/domaine/calendrier/lien-reseau";
 import type { IdReseau } from "@/domaine/types";
 import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
 import { RESEAUX } from "@/reseaux";
@@ -56,20 +56,6 @@ const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const CLE_FORMULAIRE = /^[A-Za-z0-9_-]{1,64}$/;
 const COMPTE_PAR_DEFAUT = "compte-studio";
-
-export const PHRASES_DUPLICATION = {
-  jour: "Jour invalide : choisissez un jour qui existe.",
-  heure: "Heure invalide : écrivez par exemple 09:00.",
-  reseau: "Choisissez le réseau de la copie.",
-  formulaire: "Rechargez la page, puis réessayez.",
-  original: "Cette publication est introuvable dans le calendrier. Rechargez la page.",
-  identique: "Cette copie serait identique à la publication : choisissez un autre réseau ou un autre jour.",
-  autreDemande: "Ce formulaire a déjà créé une copie différente : rouvrez-le pour en faire une autre.",
-  passe: "Cette date est passée : confirmez pour créer la copie quand même.",
-  visuelVideoSeule: "Ce réseau ne publie que des vidéos : choisissez un autre réseau pour copier ce visuel.",
-  creee: "La copie est créée. Elle est signalée « À adapter » : relisez son texte, puis validez-la. Elle ne part pas toute seule.",
-  impossible: "La copie n'a pas pu être créée. Réessayez.",
-} as const;
 
 function jourExiste(j: string): boolean {
   const [a, m, d] = j.split("-").map(Number);
@@ -161,8 +147,11 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
         if (!memeDemande) return refus(PHRASES_DUPLICATION.autreDemande);
         // Rejeu après une écriture interrompue : on termine ce qui manque (drapeau, lien et fiche), sans rien recréer.
         const texte = existant.textes?.[saisie.reseau];
-        // La fiche n'est réécrite que si elle n'a aucun texte : un texte déjà adapté n'est jamais écrasé.
-        if (texte && !(await lireStockageFiche(cleCopie)).texte) await ecrireStockageFiche(cleCopie, texte);
+        // La fiche n'est réécrite que si elle n'a ni texte ni premier commentaire : un texte déjà adapté n'est jamais écrasé.
+        if (texte) {
+          const gardee = await lireStockageFiche(cleCopie);
+          if (!gardee.texte && !gardee.premierCommentaire) await ecrireStockageFiche(cleCopie, texte);
+        }
         if (lien === null) {
           await ecrireParametre(cleAAdapter(id), true);
           await ecrireParametre(cleLienCopie(id), saisie.cle);
