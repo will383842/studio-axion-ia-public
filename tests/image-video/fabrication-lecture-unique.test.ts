@@ -24,6 +24,15 @@ import { avancerVoixIV, etatInitialVoixIV, segmentsVoixIV, type EtatVoixIV, type
 import { carteFixe, demandeEssai, monde, outilsSimules, TARIF_SIMULE } from "./doubles-fabrication";
 
 /** Le drapeau `LECTURE_UNIQUE_IV` peut être remis à `false` pour décrire une voix payée en segments séparés (« voix-iv/1 »). */
+/**
+ * 17/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Ces tests ont pour sujet la lecture
+ * unique des fins dites (une lecture, une réservation, prix sans terme de fin, voix « voix-iv/1 » d'avant) : le drapeau est
+ * retiré ici, assertions inchangées. Le cas « fin vide » a ses preuves dans `fins/fin-non-choisie.test.ts`.
+ */
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => vrai.planDesFinsIV({ ...d, finVide: undefined }) };
+});
 const reglageVoix = vi.hoisted(() => ({ lectureUnique: true }));
 vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
   const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/voix")>();
