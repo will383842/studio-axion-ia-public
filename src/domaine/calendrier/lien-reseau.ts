@@ -5,14 +5,14 @@
 
 export const LIBELLE_VOIR_SUR_RESEAU = "Voir sur le réseau";
 
-/** Marque posée en tête du texte d'une copie : la personne la relit et l'adapte au nouveau réseau avant de valider. */
-export const MARQUE_A_ADAPTER = "À adapter : ";
+/**
+ * Drapeau « À adapter » d'une copie : il est rangé À CÔTÉ du texte (jamais dedans). Le texte de la copie reste celui de l'original, sans marque :
+ * un clic Valider sans relecture ne publie donc jamais le mot « À adapter » sur un réseau. Valeur : `true` tant que la copie n'a pas été relue.
+ */
+export const LIBELLE_A_ADAPTER = "À adapter";
 
-/** Ajoute la marque une seule fois (une copie de copie ne la double pas). Un texte vide donne la marque seule. */
-export function marquerAAdapter(texte: string): string {
-  const propre = (texte ?? "").trim();
-  if (propre.startsWith(MARQUE_A_ADAPTER.trim())) return propre;
-  return propre ? `${MARQUE_A_ADAPTER}${propre}` : MARQUE_A_ADAPTER.trim();
+export function cleAAdapter(creneauIdCopie: string): string {
+  return `calendrier.copie-a-adapter.${creneauIdCopie}`;
 }
 
 /** Où le Studio range le lien d'une copie vers son original (la clé de fiche de l'original est la valeur). */
@@ -41,3 +41,18 @@ export function lienVoirSurReseau(publication: { statut?: string; urlPubliee?: s
     return null;
   }
 }
+
+/** Phrases de « Dupliquer » (ici et non dans le fichier « use server », qui ne peut exporter que des fonctions async). */
+export const PHRASES_DUPLICATION = {
+  jour: "Jour invalide : choisissez un jour qui existe.",
+  heure: "Heure invalide : écrivez par exemple 09:00.",
+  reseau: "Choisissez le réseau de la copie.",
+  formulaire: "Rechargez la page, puis réessayez.",
+  original: "Cette publication est introuvable dans le calendrier. Rechargez la page.",
+  identique: "Cette copie serait identique à la publication : choisissez un autre réseau ou un autre jour.",
+  autreDemande: "Ce formulaire a déjà créé une copie différente : rouvrez-le pour en faire une autre.",
+  passe: "Cette date est passée : confirmez pour créer la copie quand même.",
+  visuelVideoSeule: "Ce réseau ne publie que des vidéos : choisissez un autre réseau pour copier ce visuel.",
+  creee: "La copie est créée. Elle est signalée « À adapter » : relisez son texte, puis validez-la. Elle ne part pas toute seule.",
+  impossible: "La copie n'a pas pu être créée. Réessayez.",
+} as const;
