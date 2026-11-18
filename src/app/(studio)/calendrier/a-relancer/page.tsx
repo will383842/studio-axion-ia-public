@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
+import { JoursProposes } from "@/components/calendrier/JoursProposes";
 import { ContenusARelancer, LIBELLES_A_RELANCER } from "@/components/calendrier/ContenusARelancer";
 import type { IdReseau } from "@/domaine/types";
 import { exigerSession } from "@/services/auth";
 import { listerContenusARelancer } from "@/services/contenus-a-relancer";
+import { depsAutoParDefaut, proposerSiAllume } from "@/services/republication-auto";
 import { comptesCibles } from "../charger-comptes";
 import { creerNouvelleVersionAction } from "./actions";
 
@@ -19,6 +21,8 @@ export default async function PageARelancer({ searchParams }: { searchParams: Pr
   const lignes = await listerContenusARelancer();
   const reseaux = [...new Set(lignes.map((l) => l.reseau))] as IdReseau[];
   const comptes = lignes.length ? await comptesCibles(reseaux) : {};
+  // Éteint par défaut : rien n'est calculé. Allumé : des jours proposés, sans aucune écriture.
+  const propositions = lignes.length ? await proposerSiAllume(depsAutoParDefaut(lignes), new Date()) : [];
   return (
     <ConteneurPage largeur="lecture">
       <EnTetePage retour={{ href: "/calendrier", libelle: "Calendrier" }} titre={LIBELLES_A_RELANCER.titre} />
@@ -28,6 +32,7 @@ export default async function PageARelancer({ searchParams }: { searchParams: Pr
           {message.slice(0, 300)}
         </p>
       )}
+      <JoursProposes suggestions={propositions} comptes={comptes} action={creerNouvelleVersionAction} />
       {lignes.length === 0 ? (
         <EtatVide icone="calendrier" titre={LIBELLES_A_RELANCER.videTitre} phrase={LIBELLES_A_RELANCER.videPhrase} />
       ) : (
