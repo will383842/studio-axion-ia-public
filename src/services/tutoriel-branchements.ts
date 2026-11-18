@@ -33,7 +33,11 @@ brancherServicesTutoriel({
     }
     // Style de la Bibliothèque choisi pour la vidéo : transmis au moteur (champs absents si non définis).
     const style = c.styles.sousTitres?.valeur;
+    // T-EXT-31 : mixage, mesure du son et vignette. Réglage absent ou autre que `true` = éteint.
+    const { lireParametre } = await import("./_commun");
+    const finitions = (await lireParametre<boolean>("tutoriel.finitions", false)) === true;
     return {
+      ...(finitions ? { finitions: { actif: true as const } } : {}),
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       voix: {
         ...b.voix,

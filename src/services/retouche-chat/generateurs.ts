@@ -11,22 +11,28 @@
  */
 import type { OperationRetouche } from "@/briques/operations";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
+import { CATALOGUE_BRIQUES, estPiece } from "@/briques/plan-scenes/catalogue";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { demandeExpliciteScript } from "./comprendre";
 import type { EntreeRenduPartiel, PortsRetoucheChat, SortieRenduPartiel } from "./service";
 
-export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee"] as const;
+export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee", "tutoriel-outil"] as const;
 export type IdGenerateurRetouche = (typeof GENERATEURS_RETOUCHE)[number];
 
 export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
   avocat: "retoucheChat.avocat",
   "image-video": "retoucheChat.imageVideo",
   "facecam-animee": "retoucheChat.facecamAnimee",
+  "tutoriel-outil": "retoucheChat.tutorielOutil",
 };
 
 /** Générateurs dont la voix est une prise filmée : elle ne se réécrit jamais (`modifier-script` toujours écarté). */
 export const GENERATEURS_VOIX_PRISE_FILMEE = ["facecam-animee", "demo-facecam"] as const;
 export const voixEstPriseFilmee = (g: string): boolean => (GENERATEURS_VOIX_PRISE_FILMEE as readonly string[]).includes(g);
+
+/** Générateurs dont le texte lu est le script validé par Williams : `modifier-script` toujours écarté, texte à l'écran seulement s'il l'a écrit. */
+export const GENERATEURS_SCRIPT_VALIDE = ["tutoriel-outil"] as const;
+export const scriptEstValide = (g: string): boolean => (GENERATEURS_SCRIPT_VALIDE as readonly string[]).includes(g);
 
 /** Clé du réglage de la démo facecam : déclarée ici, éteinte, lue nulle part tant que N-26 n'inscrit pas la démo. */
 export const CLE_REGLAGE_DEMO_FACECAM = "retoucheChat.demoFacecam";
@@ -59,6 +65,8 @@ const COMMUNES: readonly TypeOperation[] = ["changer-mot", "ajouter-chiffre", "c
 
 const REGLE_VOIX = "La voix et le texte lu ne changent jamais, sauf demande explicite de modifier le script.";
 
+const REGLE_SCRIPT_VALIDE = "La voix et le texte lu ne changent jamais par ce chat : le script validé se change sur l'écran de validation.";
+
 const REGLE_PRISE_FILMEE = "La prise et la voix ne changent jamais, même sur demande.";
 
 export const ADAPTATEURS_RETOUCHE: Record<IdGenerateurRetouche, AdaptateurRetouche> = {
@@ -80,6 +88,12 @@ export const ADAPTATEURS_RETOUCHE: Record<IdGenerateurRetouche, AdaptateurRetouc
     operations: COMMUNES,
     consigne: `Vidéo « Facecam animée » (prise de Williams, plaquettes animées autour). Retouchable : texte des plaquettes, pièces (chiffres, interface), zooms, transitions, dynamisme. La prise, les coupes et le son ne se touchent pas. ${REGLE_PRISE_FILMEE}`,
   },
+  "tutoriel-outil": {
+    id: "tutoriel-outil",
+    nom: "Tutoriel",
+    operations: ["ajuster-zoom", "decaler-scene", "changer-transition", "ajouter-dynamisme", "changer-habillage", "ajouter-piece", "retirer-piece", "remplacer-piece", "changer-brique", "changer-mot", "ajouter-chiffre"],
+    consigne: `Vidéo « Tutoriel » (navigation filmée dans un outil de démonstration, voix du double de Williams). Retouchable : zooms, curseur et surbrillance, pièces posées par-dessus, transitions, dynamisme. Le film de la navigation ne se refait pas ici. ${REGLE_SCRIPT_VALIDE}`,
+  },
 };
 
 export const adaptateurRetouche = (g: IdGenerateurRetouche): AdaptateurRetouche => ADAPTATEURS_RETOUCHE[g];
@@ -98,11 +112,13 @@ export function appelPourGenerateur(generateur: IdGenerateurRetouche, appeler: A
 export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, operations: readonly OperationRetouche[], demande: string): { operations: OperationRetouche[]; remarques: string[] } {
   const permises = new Set<TypeOperation>(adaptateurRetouche(generateur).operations);
   const priseFilmee = voixEstPriseFilmee(generateur);
-  const explicite = !priseFilmee && demandeExpliciteScript(demande);
+  const scriptValide = scriptEstValide(generateur);
+  const explicite = !priseFilmee && !scriptValide && demandeExpliciteScript(demande);
   const remarques: string[] = [];
   const gardees = operations.filter((o) => {
     if (o.type === "modifier-script") {
-      if (priseFilmee) remarques.push("La voix est votre prise filmée : elle ne se réécrit pas. Pour enlever un passage, demandez de le couper.");
+      if (scriptValide) remarques.push("Le texte lu est celui que vous avez validé : pour le changer, repassez par l'écran de validation.");
+      else if (priseFilmee) remarques.push("La voix est votre prise filmée : elle ne se réécrit pas. Pour enlever un passage, demandez de le couper.");
       else if (!explicite) remarques.push("Le texte lu reste le vôtre : pour le changer, demandez « modifie le script ».");
       return explicite;
     }
@@ -110,9 +126,55 @@ export function filtrerOperationsGenerateur(generateur: IdGenerateurRetouche, op
       remarques.push(`Cette retouche (« ${o.type} ») n'existe pas pour ${adaptateurRetouche(generateur).nom}.`);
       return false;
     }
+    if (scriptValide) {
+      const estLeSien =
+        o.type === "changer-mot"
+          ? ecritParWilliams(demande, o.nouveau)
+          : o.type === "ajouter-chiffre"
+            ? ecritParWilliams(demande, String(o.valeur)) &&
+              ecritParWilliams(demande, o.libelle) &&
+              [o.prefixe, o.suffixe].every((t) => t === undefined || t.trim() === "" || ecritParWilliams(demande, t))
+            : o.type === "ajouter-piece" || o.type === "remplacer-piece" || o.type === "changer-brique"
+              ? textesDesParametres(o.parametres).every((t) => ecritParWilliams(demande, t))
+              : true;
+      if (!estLeSien) {
+        remarques.push("Ce texte n'est pas le vôtre : écrivez-le dans votre message, mot pour mot.");
+        return false;
+      }
+      if ((o.type === "ajouter-piece" || o.type === "changer-brique" || o.type === "remplacer-piece") && !parametresComplets(o.type === "remplacer-piece" ? o.nouvelle : o.piece, o.parametres)) {
+        remarques.push("Dites le texte exact à afficher dans votre message.");
+        return false;
+      }
+    }
     return true;
   });
   return { operations: gardees, remarques: [...new Set(remarques)] };
+}
+
+const normaliser = (t: string): string => t.toLowerCase().replace(/\s+/g, " ").trim();
+const echapper = (t: string): string => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Le texte figure dans la demande à frontières de mots ou de nombres (« 4 » n'est pas dans « 42 », « stock » pas dans « stocks »). */
+const ecritParWilliams = (demande: string, texte: string): boolean => {
+  const t = normaliser(texte);
+  return t !== "" && new RegExp(`(^|[^\\p{L}\\p{N}])${echapper(t)}($|[^\\p{L}\\p{N}])`, "u").test(normaliser(demande));
+};
+
+/** `parametres` présents ET valides tels quels pour la pièce : jamais de réparation, donc jamais de texte d'exemple du catalogue à l'écran. */
+function parametresComplets(piece: string, parametres: unknown): boolean {
+  if (!estPiece(piece) || parametres === undefined || parametres === null) return false;
+  return CATALOGUE_BRIQUES[piece].schema.safeParse(parametres).success;
+}
+
+/** Liste FERMÉE des clés techniques des `parametres` : leurs valeurs ne sont jamais affichées. Toute autre valeur texte doit être écrite par Williams. */
+const CLES_TECHNIQUES = new Set(["id", "sceneid", "piece", "brique", "variante", "position", "zone", "couleur", "icone", "cle", "source", "style"]);
+/** Tout texte ou nombre glissé dans les `parametres` d'une pièce (objets et listes imbriqués compris), hors clés techniques. */
+function textesDesParametres(v: unknown, cle = ""): string[] {
+  if (CLES_TECHNIQUES.has(cle.toLowerCase().replace(/[_\s]/g, ""))) return [];
+  if (typeof v === "string") return v.trim() !== "" ? [v] : [];
+  if (typeof v === "number") return [String(v)];
+  if (Array.isArray(v)) return v.flatMap((x) => textesDesParametres(x, cle));
+  if (v && typeof v === "object") return Object.entries(v).flatMap(([k, x]) => textesDesParametres(x, k));
+  return [];
 }
 
 export interface RenduPartielGenerateur {

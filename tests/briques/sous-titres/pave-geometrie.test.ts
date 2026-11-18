@@ -87,14 +87,15 @@ describe("C2-U7b : gardes statiques", () => {
     expect(pave).not.toMatch(/from\s+["']@\//);
     expect(pave).not.toMatch(/from\s+["'](react|remotion)/);
   });
-  it("personne n'importe MotPave ni les nouvelles fonctions", () => {
+  it("seuls CalqueSousTitres.tsx et texte-instants.ts citent geometriePave ; personne n'importe MotPave ni instantsPaves", () => {
+    // BR-PAVE-MARQUES-a 18/11 (voulue, seconde lecture du pilote) : le branchement cite `geometriePave` à EXACTEMENT 2 endroits.
+    // Garde aussi stricte : égalité exacte de la liste, et aucun de ces fichiers ne cite `MotPave` ni `instantsPaves`.
     const fichiers = [...sources("src"), ...sources("studio-rendu")].filter(
       (f) => !f.endsWith("pave.ts") && !f.endsWith("MotPave.tsx") && !f.includes(`${"studio-rendu"}/node_modules`),
     );
-    for (const f of fichiers) {
-      const s = readFileSync(f, "utf8");
-      expect(s, f).not.toMatch(/MotPave|geometriePave|instantsPaves/);
-    }
+    const citeurs = fichiers.filter((f) => /MotPave|geometriePave|instantsPaves/.test(readFileSync(f, "utf8"))).map((f) => f.replace(/\\/g, "/")).sort();
+    expect(citeurs).toEqual(["studio-rendu/compositions/sous-titres/CalqueSousTitres.tsx", "studio-rendu/src/composition/texte-instants.ts"]);
+    for (const f of citeurs) expect(readFileSync(f, "utf8"), f).not.toMatch(/MotPave|instantsPaves/);
   });
   it("MotPave.tsx sans couleur écrite en dur", () => {
     const s = readFileSync("studio-rendu/compositions/sous-titres/MotPave.tsx", "utf8");

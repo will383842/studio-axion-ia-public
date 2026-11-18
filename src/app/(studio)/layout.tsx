@@ -7,14 +7,18 @@ import { surLeSiteVisible } from "@/services/site-videos";
 import { pageAPublierAllumee } from "@/services/a-publier";
 import { BandeauArret } from "@/components/coquille/BandeauArret";
 import { envoiZernioAutorise } from "@/services/zernio";
+import { VARIABLE_INTERRUPTEUR_A_TRAITER } from "@/services/a-traiter-types";
 
 /** Toutes les pages connectées passent par ici : session revérifiée + coquille AV2.1. */
 export default async function LayoutStudio({ children }: { children: React.ReactNode }) {
   const session = await lireSession();
   if (!session) redirect("/connexion");
   const [formats, nonLues, surLeSite, aPublier, envoiAutorise] = await Promise.all([listerFormatsAvecCompteurs(), compterNonLues(), surLeSiteVisible(), pageAPublierAllumee(), envoiZernioAutorise().catch(() => true)]);
+  // « À traiter » : même règle que `aTraiterActif` (exactement « 1 » ou « true »), lue dans l'environnement seulement (aucune lecture de base).
+  const interrupteurATraiter = process.env[VARIABLE_INTERRUPTEUR_A_TRAITER];
+  const aTraiter = interrupteurATraiter === "1" || interrupteurATraiter === "true";
   return (
-    <Coquille formats={formats.map((f) => ({ id: f.id, nom: f.nom, icone: f.icone, statut: f.statut, nbVideos: f.nbVideos, adresseCreation: f.adresseCreation, ...(f.essai ? { essai: true } : {}) }))} nonLues={nonLues} surLeSite={surLeSite} aPublier={aPublier}>
+    <Coquille formats={formats.map((f) => ({ id: f.id, nom: f.nom, icone: f.icone, statut: f.statut, nbVideos: f.nbVideos, adresseCreation: f.adresseCreation, ...(f.essai ? { essai: true } : {}) }))} nonLues={nonLues} surLeSite={surLeSite} aPublier={aPublier} aTraiter={aTraiter}>
       {!envoiAutorise && <BandeauArret />}
       {children}
     </Coquille>

@@ -104,7 +104,9 @@ describe("garde statique", () => {
       return statSync(p).isDirectory() ? fichiers(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
     });
   it("aucun fichier de src/ n'importe extraits-maison-v4", () => {
-    const importeurs = fichiers("src").filter((f) => !f.endsWith("extraits-maison-v4.ts") && /extraits-maison-v4/.test(readFileSync(f, "utf8")));
+    // MAJ 2026-11-18 (BR-TELEPHONE-b, voulue, à relire) : `src/services/telephone-extrait-v4.ts` est désormais le seul importeur permis
+    // (le branchement du téléphone qui joue un extrait). Garde intacte : tout AUTRE fichier de src/ qui l'importe reste refusé.
+    const importeurs = fichiers("src").filter((f) => !f.endsWith("extraits-maison-v4.ts") && !f.endsWith("telephone-extrait-v4.ts") && /extraits-maison-v4/.test(readFileSync(f, "utf8")));
     expect(importeurs).toEqual([]);
   });
   it("le fichier n'importe ni fournisseurs, ni credits, ni couts, ni facecam-animee, ni reglages", () => {

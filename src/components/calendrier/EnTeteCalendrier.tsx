@@ -36,6 +36,9 @@ export function EnTeteCalendrier({ vue, periode, liens, reseauxActifs, lienResea
       <Link href="/ecrire/voix" className="mb-2 flex min-h-11 items-center font-bold underline underline-offset-4">
         {LIBELLES_CALENDRIER.mesTextes}
       </Link>
+      <Link href="/calendrier/a-relancer" className="mb-2 flex min-h-11 items-center font-bold underline underline-offset-4">
+        Contenus à relancer
+      </Link>
       {tousAllumes ? <span className="text-texte-faible">Tous les réseaux sont affichés.</span> : <Link href={lienTout} className="font-bold underline underline-offset-4">Afficher tous les réseaux</Link>}
     </div>
   );

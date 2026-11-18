@@ -159,18 +159,21 @@ describe("rendu réel : échec puis « Réessayer » sans repayer", () => {
     expect(serveur.scenes()).toHaveLength(scenesAvant);
     const nouveaux = serveur.montages().map((d) => d.idRendu).filter((id) => !montagesAvant.includes(id));
     expect(nouveaux.length).toBeGreaterThan(0);
-    expect(nouveaux.every((id) => /-e1$/.test(id))).toBe(true);
+    // REPARE-MASTER 18/11, comportement #81 : le renvoi automatique a déjà pris l'identifiant « -e1 » avant l'arrêt (il est dans `montagesAvant`) ; le « Réessayer » repart sous « -e2 ».
+    expect(nouveaux.every((id) => /-e2$/.test(id))).toBe(true);
   });
 
   it("scène ratée : arrêt qui la situe (n sur N) ; la reprise ne rend que les scènes manquantes", async () => {
     const m = monde();
     let cible: string | null = null;
+    let panne = true;
     const serveur: ServeurDouble = new ServeurDouble({
       echoue: (d): boolean => {
         if ((d.parametres as { mode?: string }).mode) return false;
         // La 3e scène soumise tombe en panne au premier essai.
+        // REPARE-MASTER 18/11, comportement #81 : le renvoi automatique rejoue la scène sous « -e1 » et la guérirait seul ; pour que l'arrêt existe encore, la panne dure jusqu'au « Réessayer ».
         cible ??= serveur.scenes()[2]?.sortie.cle ?? null;
-        return d.sortie.cle === cible && !/-e\d+$/.test(d.idRendu);
+        return panne && d.sortie.cle === cible;
       },
     });
     const o = outilsAvecRendu(m, serveur);
@@ -180,12 +183,13 @@ describe("rendu réel : échec puis « Réessayer » sans repayer", () => {
     const deposees = new Set(serveur.deposes);
     const avant = serveur.scenes().length;
 
+    panne = false;
     const fin = (await jusquAuBout(reprendreIV(arret), o)).etat;
     expect(fin.etape).toBe("prete");
     const reprises = serveur.scenes().slice(avant);
     // Aucune scène déjà déposée n'est soumise de nouveau.
     expect(reprises.every((d) => !deposees.has(d.sortie.cle))).toBe(true);
-    expect(reprises.some((d) => d.sortie.cle === cible && /-e1$/.test(d.idRendu))).toBe(true);
+    expect(reprises.some((d) => d.sortie.cle === cible && /-e2$/.test(d.idRendu))).toBe(true);
   });
 });
 
