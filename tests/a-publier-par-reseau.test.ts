@@ -48,7 +48,7 @@ const lignesLi = (h: string) => h.match(/<li[ >]/g)?.length ?? 0;
 
 /** v-deux est sur deux réseaux (Brouillon sur Facebook, À envoyer sur LinkedIn) ; v-fb et v-li sont chacune sur un seul. */
 const jeu = (): LigneAPublier[] => [
-  ligne("v-deux", "facebook", { etat: etat("Brouillon dans Buffer", "neutre"), creeLe: "2026-03-02T10:00:00.000Z" }),
+  ligne("v-deux", "facebook", { etat: etat("Brouillon chez le diffuseur", "neutre"), creeLe: "2026-03-02T10:00:00.000Z" }),
   ligne("v-deux", "linkedin", { creeLe: "2026-03-02T10:00:00.000Z" }),
   ligne("v-fb", "facebook", { creeLe: "2026-03-03T10:00:00.000Z", dimensions: { largeur: 1080, hauteur: 1350 } }),
   ligne("v-li", "linkedin", { creeLe: "2026-03-04T10:00:00.000Z", dimensions: { largeur: 1080, hauteur: 1920 } }),
@@ -68,9 +68,9 @@ describe("À publier par réseau — la liste d'un réseau", () => {
     const li = texte(liste(jeu(), "toutes", "linkedin"));
     expect(fb).toContain("Titre v-deux");
     expect(li).toContain("Titre v-deux");
-    expect(fb).toContain("Brouillon dans Buffer");
-    expect(li).not.toContain("Brouillon dans Buffer");
-    expect(R.lignesParReseau(jeu()).filter((l) => l.ligne.videoId === "v-deux").map((l) => `${l.ligne.reseau}:${l.etat.libelle}`).sort()).toEqual(["facebook:Brouillon dans Buffer", "linkedin:À envoyer"]);
+    expect(fb).toContain("Brouillon chez le diffuseur");
+    expect(li).not.toContain("Brouillon chez le diffuseur");
+    expect(R.lignesParReseau(jeu()).filter((l) => l.ligne.videoId === "v-deux").map((l) => `${l.ligne.reseau}:${l.etat.libelle}`).sort()).toEqual(["facebook:Brouillon chez le diffuseur", "linkedin:À envoyer"]);
   });
 
   it("montre le format de CE réseau (4:5, 9:16) et, quand la vidéo n'est pas prête, la raison courte", () => {

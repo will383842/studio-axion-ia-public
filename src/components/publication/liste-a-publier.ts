@@ -32,7 +32,7 @@ export interface EtatListe {
 }
 
 const PROBLEMES = new Set(["Échec", "À vérifier"]);
-const ORDRE_ENVOYEES = ["Envoi en cours", "Programmée", "Brouillon dans Buffer", "Brouillon", "Essai"];
+const ORDRE_ENVOYEES = ["Envoi en cours", "Programmée", "Brouillon chez le diffuseur", "Brouillon", "Essai"];
 
 /** L'état d'UNE vidéo dans la liste, déduit de ce que la page savait déjà (états des réseaux). */
 export function etatDeCarte(c: CarteVideo): EtatListe {
