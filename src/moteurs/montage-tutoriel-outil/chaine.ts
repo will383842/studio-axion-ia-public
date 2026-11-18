@@ -99,7 +99,8 @@ export interface PlanRetenu {
 
 /** Une opération de finition (mesure ou vignette) : sa demande, son essai, son résultat ou son échec définitif. */
 export interface FinitionTutoriel<R> {
-  demande: DemandeRendu;
+  /** Absent quand la signature ou la soumission a échoué avant toute demande (`resultat: "echec"`). */
+  demande?: DemandeRendu;
   essai: number;
   resultat?: R | "echec";
 }
@@ -119,7 +120,8 @@ export interface RenduTutoriel {
 export interface SonMixeTutoriel {
   fichierCle: string;
   lufs?: number;
-  demande: DemandeRendu;
+  /** Absent quand la première signature a échoué (`echec: true`). */
+  demande?: DemandeRendu;
   essai: number;
   fini: boolean;
   echec?: boolean;
@@ -368,7 +370,7 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai: 0 });
   }
   if (courant.sortie) return etat;
-  const e = await suivreRendu(service, courant.demande);
+  const e = await suivreRendu(service, courant.demande!);
   if (e.statut === "echec") {
     const essai = courant.essai + 1;
     if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) throw new ErreurRendu(e.erreur);
@@ -389,7 +391,7 @@ async function suivreFinition<R>(service: ServiceRendu, f: FinitionTutoriel<R>, 
   if (f.resultat !== undefined) return { f, fini: true };
   let e;
   try {
-    e = await suivreRendu(service, f.demande);
+    e = await suivreRendu(service, f.demande!);
   } catch {
     return { f: { ...f, resultat: "echec" }, fini: true };
   }
@@ -451,7 +453,7 @@ async function pasFinitions(etat: EtatTutoriel, ratio: Ratio, outils: OutilsTuto
     }
   } catch {
     // Signature ou soumission impossible : réserve (rapport « non mesuré » / « vignette non produite »), la vidéo est livrée.
-    return remplacer({ ...rendu, ...(rendu.mesure?.resultat === undefined ? { mesure: { ...(rendu.mesure ?? { demande: rendu.demande, essai: 0 }), resultat: "echec" as const } } : { vignette: { ...(rendu.vignette ?? { demande: rendu.demande, essai: 0 }), resultat: "echec" as const } }) });
+    return remplacer({ ...rendu, ...(rendu.mesure?.resultat === undefined ? { mesure: { ...(rendu.mesure ?? { essai: 0 }), resultat: "echec" as const } } : { vignette: { ...(rendu.vignette ?? { essai: 0 }), resultat: "echec" as const } }) });
   }
   return etat;
 }
@@ -470,7 +472,7 @@ async function pasMixage(etat: EtatTutoriel, commande: CommandeFabrication, outi
   const abandon = (): { etat: EtatTutoriel; fini: boolean } => {
     const c = etat.sonMixe;
     const reserves = [...etat.reserves, "À vérifier · Son : la chaîne son n'a pas abouti, voix non traitée."];
-    return { etat: { ...etat, reserves, sonMixe: { fichierCle: c?.fichierCle ?? voix, demande: c?.demande as DemandeRendu, essai: c?.essai ?? 0, fini: true, echec: true } }, fini: true };
+    return { etat: { ...etat, reserves, sonMixe: { fichierCle: c?.fichierCle ?? voix, ...(c?.demande ? { demande: c.demande } : {}), essai: c?.essai ?? 0, fini: true, echec: true } }, fini: true };
   };
   try {
     const courant = etat.sonMixe;
@@ -479,7 +481,7 @@ async function pasMixage(etat: EtatTutoriel, commande: CommandeFabrication, outi
       await service.soumettre(demande);
       return { etat: { ...etat, sonMixe: { fichierCle: demande.sortie.cle, demande, essai: 0, fini: false } }, fini: false };
     }
-    const e = await suivreRendu(service, courant.demande);
+    const e = await suivreRendu(service, courant.demande!);
     if (e.statut === "echec") {
       const essai = courant.essai + 1;
       if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) return abandon();

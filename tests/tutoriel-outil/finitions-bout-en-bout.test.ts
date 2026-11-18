@@ -149,7 +149,18 @@ describe("tutoriel d'outil : finitions (T-EXT-31)", () => {
     expect(ops(j)).not.toContain("mixage");
     expect(ops(j)).toContain("mesure-son");
     expect(ops(j)).toContain("miniature");
-    expect(resultat.sorties[0].rapportQualite.verifie.son).toBe(false);
+    const rq = resultat.sorties[0].rapportQualite;
+    expect(rq.verifie.son).toBe(false);
+    expect(rq.alertes.find((a) => a.message.includes("sans voix"))?.gravite).toBe("info");
+    expect(rq.alertes.filter((a) => a.gravite === "attention")).toEqual([]);
+    expect(rq.note).toBe(100);
+  });
+
+  it("7b. vidéo muette : même note allumé et éteint", async () => {
+    const c = commandeTutoriel({ distribution: [] });
+    const allume = await mener(outils(journalVide(), { finitions: true }), c);
+    const eteint = await mener(outils(journalVide()), c);
+    expect(allume.resultat.sorties[0].rapportQualite.note).toBe(eteint.resultat.sorties[0].rapportQualite.note);
   });
 
   it("réexport : refait mixage, mesure et vignette du seul format", async () => {

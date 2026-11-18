@@ -52,5 +52,14 @@ describe("finitions du tutoriel : rapportSon dit le vrai", () => {
     const r = rapportSon({ lufs: -14 }, CIBLE, false);
     expect(r.sonVerifie).toBe(false);
     expect(r.alerte).toContain("sans voix");
+    expect(r.gravite).toBe("info");
+  });
+  it("gravité : « attention » seulement avec voix, mesure et écart ; sinon « info »", () => {
+    expect(rapportSon({ lufs: -11 }, CIBLE, true).gravite).toBe("attention");
+    expect(rapportSon({ lufs: -14, creteVraieDbtp: -0.5 }, CIBLE, true).gravite).toBe("attention");
+    expect(rapportSon(null, CIBLE, true).gravite).toBe("info");
+    expect(rapportSon({ lufs: -14 }, CIBLE, false).gravite).toBe("info");
+    expect(rapportSon({ lufs: -11 }, CIBLE, false).gravite).toBe("info");
+    expect(rapportSon({ lufs: -14.3 }, CIBLE, true).gravite).toBeUndefined();
   });
 });

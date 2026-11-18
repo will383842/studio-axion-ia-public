@@ -182,7 +182,7 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     const son = rapportSon(mesure, cible, !!etat.audio?.fichierCle);
     const vignette = r.vignette?.resultat && r.vignette.resultat !== "echec" ? r.vignette.resultat.cle : undefined;
     const alertesSon: AlerteQualite[] = [
-      ...(son.alerte ? [{ code: "defaut-visuel" as const, gravite: mesure ? ("attention" as const) : ("info" as const), message: son.alerte }] : []),
+      ...(son.alerte ? [{ code: "defaut-visuel" as const, gravite: son.gravite ?? ("info" as const), message: son.alerte }] : []),
       ...(vignette ? [] : [{ code: "defaut-visuel" as const, gravite: "info" as const, message: "Vignette non produite" }]),
     ];
     const alertes = [...alertesCommunes, ...alertesSon];

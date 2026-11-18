@@ -57,6 +57,8 @@ export interface RapportSon {
   niveauSonoreLufs: number;
   sonVerifie: boolean;
   alerte?: string;
+  /** « attention » seulement si une mesure existe, la vidéo a une voix et le son est hors tolérance ; sinon « info ». */
+  gravite?: "attention" | "info";
 }
 
 const dixieme = (n: number) => Math.round(n * 10) / 10;
@@ -64,8 +66,8 @@ const virgule = (n: number) => String(n).replace(".", ",").replace("-", "−");
 
 /** Ce que le rapport peut affirmer du son : la valeur mesurée, jamais un chiffre écrit en dur. */
 export function rapportSon(mesure: MesureSon | null, cible: CibleSon, avecVoix: boolean): RapportSon {
-  if (!avecVoix) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "Son : vidéo sans voix" };
-  if (!mesure) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "À vérifier · Son : niveau non mesuré (la valeur affichée est la cible)" };
+  if (!avecVoix) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "Son : vidéo sans voix", gravite: "info" };
+  if (!mesure) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "À vérifier · Son : niveau non mesuré (la valeur affichée est la cible)", gravite: "info" };
   const niveau = dixieme(mesure.lufs);
   const niveauOk = Math.abs(mesure.lufs - cible.lufs) <= TOLERANCE_LUFS_TUTORIEL;
   const creteOk = mesure.creteVraieDbtp === undefined || mesure.creteVraieDbtp <= cible.creteVraieMaxDbtp;
@@ -73,5 +75,5 @@ export function rapportSon(mesure: MesureSon | null, cible: CibleSon, avecVoix: 
   const alerte = niveauOk
     ? `À vérifier · Son : crête mesurée ${virgule(dixieme(mesure.creteVraieDbtp!))} dBTP, au-dessus du maximum ${virgule(cible.creteVraieMaxDbtp)}`
     : `À vérifier · Son : niveau mesuré ${virgule(niveau)} LUFS, attendu ${virgule(cible.lufs)}`;
-  return { niveauSonoreLufs: niveau, sonVerifie: false, alerte };
+  return { niveauSonoreLufs: niveau, sonVerifie: false, alerte, gravite: "attention" };
 }
