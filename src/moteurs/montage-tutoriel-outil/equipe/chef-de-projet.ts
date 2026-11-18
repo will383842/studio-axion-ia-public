@@ -94,7 +94,7 @@ export const RATIOS_PAR_DEFAUT: readonly RatioTutoriel[] = ["4:5", "9:16", "1:1"
 /** Décision 2 : « Aucune » par défaut, jamais déduite. */
 export const FIN_PAR_DEFAUT: FinChoisie = "aucune";
 
-export const MOTS_TABLEAU = ["tableau de bord", "tableau", "indicateur", "indicateurs", "suivi", "kpi", "dashboard", "chiffres", "statistiques", "pilotage", "pilotier"];
+export const MOTS_TABLEAU = ["tableau de bord", "tableau", "indicateur", "indicateurs", "suivi", "kpi", "dashboard", "chiffres", "statistiques", "pilotage", "piloter"];
 export const MOTS_AUTOMATISATION = [
   "automatisation", "automatiser", "automatique", "tri", "trier", "relance", "relancer", "saisie", "saisir",
   "classement", "classer", "e-mail", "e-mails", "email", "emails", "mail", "mails", "facture", "factures",
@@ -316,13 +316,17 @@ export function lireDecisionChef(brut: unknown, d: DemandeTutoriel, regles: Deci
     const gabarits = lu.data.gabarits as IdGabarit[];
     const dos = d.dossier;
     const phrase = normaliser(d.phrase ?? "");
+    if (cas === 2 && dos) return ecarter("le cas 2 est une phrase seule, un dossier est fourni");
+    if (cas === 5 && !(dos?.flux || contient(phrase, MOTS_AUTOMATISATION))) return ecarter("le cas 5 demande un flux ou une demande d'automatisation");
+    if (cas === 5 && !(dos?.tableauDeBord || contient(phrase, MOTS_TABLEAU))) return ecarter("le cas 5 demande un tableau de bord");
     if ((cas === 1 || cas === 5) && !dos?.maquette) return ecarter("ce cas demande une maquette, le dossier n'en a pas");
     if (cas === 3 && !dos?.flux && !contient(phrase, MOTS_AUTOMATISATION)) return ecarter("aucun flux ni demande d'automatisation");
     if (cas === 4 && !dos?.conversation && !contient(phrase, MOTS_ASSISTANT)) return ecarter("aucune conversation ni demande d'assistant");
     if (!gabaritCompatible(cas, gabarits)) return ecarter("gabarit hors de la table du cas");
     return {
       cas,
-      entree: regles.entree,
+      // Même règle d'entrée que `classerParRegles` : D pour un flux de dossier (cas 3), A/B selon les scripts pour un dossier, sinon C.
+      entree: dos ? (cas === 3 && dos.flux ? "D" : entreeDossier(dos)) : "C",
       gabarits,
       certitude: "sure",
       raisons: [...regles.raisons, `avis retenu : ${lu.data.raison}`],
@@ -342,7 +346,8 @@ export function etablirCahier(d: DemandeTutoriel, decision: DecisionChef): Resul
   if (!dos && phraseVide) {
     return { ok: false, attente: { code: "TO_DEMANDE_VIDE", message: "Aucune demande : ni phrase ni dossier. Donnez une phrase ou un dossier pour commencer." } };
   }
-  if (!dos) {
+  // V2 (§ 2 quater) : toute demande rangée en entrée C ou en cas 2 (même avec un dossier qui ne suffit pas) attend la création de la maquette.
+  if (!dos || decision.entree === "C" || decision.cas === 2) {
     return {
       ok: false,
       attente: {
@@ -353,7 +358,6 @@ export function etablirCahier(d: DemandeTutoriel, decision: DecisionChef): Resul
   }
 
   const roles: RoleEquipe[] = [...ROLES_CHAINE];
-  if (decision.cas === 2) roles.unshift("maquettiste");
   if (decision.cas === 3 || decision.cas === 5) roles.unshift("ecrans-neutres");
 
   const manques: string[] = [];

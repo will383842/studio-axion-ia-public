@@ -1,7 +1,9 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   DUREE_CIBLE_SEC,
+  MOTS_TABLEAU,
   classerParRegles,
   etablirCahier,
   lireDecisionChef,
@@ -123,6 +125,46 @@ describe("lireDecisionChef", () => {
   });
 });
 
+describe("corrections du verdict Opus", () => {
+  it("dossier sans tableau de bord, flux ni conversation → TO_CAS_V2, pas de cahier V1", () => {
+    const d = dossier({ tableauDeBord: false });
+    const dec = classerParRegles(d);
+    expect(dec).toMatchObject({ cas: 2, entree: "C" });
+    expect(etablirCahier(d, dec)).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+  });
+  it("dossier sans maquette + phrase tri et tableau de bord → entrée C, TO_CAS_V2", () => {
+    const d: DemandeTutoriel = { ...dossier({ maquette: false }), phrase: "tri des factures et tableau de bord" };
+    const dec = classerParRegles(d);
+    expect(dec.entree).toBe("C");
+    expect(etablirCahier(d, dec)).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+  });
+  it("avis cas 2 avec un dossier → écarté", () => {
+    const d = dossier({ tableauDeBord: true });
+    const r = lireDecisionChef({ cas: 2, gabarits: ["G-Journee"], raison: "x" }, d, classerParRegles(d));
+    expect(r.cas).toBe(1);
+    expect(r.raisons.join("|")).toContain("avis écarté");
+  });
+  it("avis cas 5 sans flux ni phrase d'automatisation → écarté ; sans tableau de bord → écarté", () => {
+    const d = dossier({ tableauDeBord: true });
+    const a = lireDecisionChef({ cas: 5, gabarits: ["G-Flux", "G-Decision"], raison: "x" }, d, classerParRegles(d));
+    expect(a.cas).toBe(1);
+    expect(a.raisons.join("|")).toContain("avis écarté");
+    const f = dossier({ flux: true });
+    const b = lireDecisionChef({ cas: 5, gabarits: ["G-Flux", "G-Decision"], raison: "x" }, f, classerParRegles(f));
+    expect(b.cas).toBe(3);
+    expect(b.raisons.join("|")).toContain("avis écarté");
+  });
+  it("avis cas 3 retenu pour un dossier de flux → entrée D", () => {
+    const d = dossier({ flux: true, scripts: ["a"] });
+    const r = lireDecisionChef({ cas: 3, gabarits: ["G-Flux"], raison: "x" }, d, classerParRegles(d));
+    expect(r).toMatchObject({ cas: 3, entree: "D" });
+  });
+  it("MOTS_TABLEAU : « piloter », plus de faute de frappe", () => {
+    expect(MOTS_TABLEAU).toContain("piloter");
+    expect(MOTS_TABLEAU).not.toContain("pilotier");
+  });
+});
+
 describe("rôle Opus", () => {
   it("simuler = décision des règles, modèle Opus, consigne sûre", () => {
     const d = dossier({ tableauDeBord: true });
@@ -136,5 +178,15 @@ describe("rôle Opus", () => {
   it("aucun import de @/services, aucun appelant", () => {
     const src = readFileSync("src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet.ts", "utf8");
     expect(src).not.toMatch(/from\s+["']@\/services/);
+  });
+  it("git grep : aucun appelant de equipe/chef-de-projet dans src ni studio-rendu", () => {
+    let sortie = "";
+    try {
+      sortie = execFileSync("git", ["grep", "-n", "equipe/chef-de-projet", "--", "src", "studio-rendu"], { encoding: "utf8" });
+    } catch {
+      sortie = ""; // code 1 = aucune ligne trouvée
+    }
+    const appelants = sortie.split("\n").filter((l) => l && !l.startsWith("src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet.ts:"));
+    expect(appelants).toEqual([]);
   });
 });
