@@ -9,6 +9,8 @@
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
+import { transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
+import { reconcilier } from "./reconciliation-calendrier";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
@@ -73,6 +75,14 @@ export async function envoiZernioAutorise(): Promise<boolean> {
 /** Relu à chaque appel. Seul `true` ouvre : absent, faux ou toute autre valeur = fermé. */
 export async function envoiCalendrierAutorise(): Promise<boolean> {
   return (await lireParametre<boolean>(PARAM_ENVOI_CALENDRIER, false)) === true;
+}
+
+/**
+ * L5-06 · décision du pilote n° 2 : le suivi de l'ÉTAPE des visuels par la synchro (après un passage ET au rattrapage) est un
+ * interrupteur NEUF, ÉTEINT par défaut. Éteint : la synchro n'écrit JAMAIS `visuels.statut`. Seul `true` allume. Relu à chaque passage.
+ */
+export async function synchroEtapeVisuelsActive(): Promise<boolean> {
+  return (await lireParametre<boolean>("zernio.synchro_etape_visuels", false)) === true;
 }
 
 /** Envoi de publications (calendrier, promotion) : exige les DEUX réglages ouverts. Le GUIDE n'utilise pas cette porte. */
@@ -229,12 +239,141 @@ async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Pr
   });
 }
 
+/** L5-06 · plafond de sécurité du nombre de pages lues pour une liste de posts. */
+export const PAGES_LISTE_MAX_ZERNIO = 50;
+/** L5-06 · BUDGET d'UN passage, TOUTES requêtes comptées (lecture des comptes, pages de liste, lectures unitaires, échecs compris) : 51 au plus, sous le plafond de 60 par minute du client. */
+export const BUDGET_REQUETES_PAR_PASSAGE = 51;
+export const PAGES_LISTE_PAR_PASSAGE = 10;
+export const LECTURES_UNITAIRES_PAR_PASSAGE_COMPLET = 40;
+/** L5-06 · nombre de visuels rattrapés au plus par passage. */
+const RATTRAPAGE_PAR_PASSAGE = 20;
+
+/** L5-06 · un post de liste n'est utilisable tel quel que s'il est complet (`lirePost` rejette les autres). */
+const postDeListeComplet = (x: PostZernio | null | undefined): x is PostZernio => !!x && typeof x._id === "string" && typeof x.status === "string" && Array.isArray(x.platforms);
+
+/**
+ * L5-06 · LECTURE seule : lit TOUTES les pages d'une liste de posts (`page`, `limit`) par `listerPosts` du client (porte
+ * unique : arrêt, filtre, débit). S'arrête à la première page incomplète, vide ou sans post nouveau, et au plafond de pages.
+ */
+export async function listerToutesLesPagesZernio(client: Pick<ClientZernio, "listerPosts">, query: Record<string, string | number | boolean> = {}, limite = 50, pagesMax = PAGES_LISTE_MAX_ZERNIO, sortie?: { posts: PostZernio[]; requetes: number }): Promise<PostZernio[]> {
+  const tous: PostZernio[] = sortie?.posts ?? [];
+  const vus = new Set<string>(tous.map((p) => p._id));
+  for (let page = 1; page <= pagesMax; page++) {
+    // `sortie` : posts déjà lus et requêtes faites (même si une page échoue), pour que l'appelant ne perde rien ni ne se trompe de compte.
+    if (sortie) sortie.requetes++;
+    const lus = await client.listerPosts({ ...query, page, limit: limite });
+    const neufs = lus.filter((p) => !vus.has(p?._id));
+    for (const p of neufs) vus.add(p?._id);
+    tous.push(...neufs);
+    if (lus.length < limite || neufs.length === 0) break;
+  }
+  return tous;
+}
+
+/**
+ * L5-06 · RÈGLE UNIQUE (décision du pilote du 17/11/2026) : l'étape d'un visuel ne suit le diffuseur que sur l'ENSEMBLE de ses
+ * publications actives chez le diffuseur, jamais sur une seule. Le résultat ne dépend donc pas de l'ordre des lectures.
+ *  1. Une publication active ni programmée ni publiée (brouillon, envoi en cours ou à vérifier, échec), ou un réseau prévu au
+ *     créneau qui n'a pas encore d'envoi actif : l'étape NE CHANGE PAS (« valide » : un autre réseau, un nouvel essai après un
+ *     refus et la corbeille restent possibles ; la garde d'envoi n'est pas adaptée).
+ *  2. Toutes programmées, ou programmées et publiées : « programme ». Toutes publiées : « publie ».
+ *  3. TOUTES en échec : « echec_envoi ». Un échec partiel ne fait jamais bouger l'étape ; il reste visible sur la publication.
+ * Jamais de mise à la corbeille par la synchro.
+ */
+type CibleVisuel = "programme" | "publie" | "echec_envoi";
+
+/** Publication active chez le diffuseur : ni refusée ni absente (les refus nets permettent un nouvel essai). */
+const publicationActive = (p: Publication): boolean => p.via === "zernio" && p.etatEnvoi !== "refuse" && p.etatEnvoi !== "absent";
+
+/** Cible de l'étape d'un visuel d'après l'ENSEMBLE de ses publications actives (et des réseaux prévus au créneau). `undefined` = ne pas bouger. */
+function cibleDuVisuel(actives: readonly Publication[], reseauxPrevus: ReadonlySet<string>): CibleVisuel | undefined {
+  if (!actives.length) return undefined;
+  for (const r of reseauxPrevus) if (!actives.some((p) => p.reseau === r)) return undefined; // un réseau prévu n'est pas encore envoyé
+  if (actives.every((p) => p.statut === "echec")) return "echec_envoi";
+  if (!actives.every((p) => p.statut === "programmee" || p.statut === "publiee")) return undefined;
+  return actives.every((p) => p.statut === "publiee") ? "publie" : "programme";
+}
+
+/** Étape suivante du visuel pour cette cible, en enchaînant les pas permis (valide → programme → publie) ; `undefined` = inchangé. */
+function etapeVisuel(courante: StatutVisuel, cible: CibleVisuel): StatutVisuel | undefined {
+  let s = courante;
+  if (cible === "programme") return s === "valide" && transitionPermise(s, "programme") ? "programme" : undefined;
+  if (cible === "publie" && s === "valide" && transitionPermise(s, "programme")) s = "programme";
+  // « publie » et « echec_envoi » : le pas passe par `reconcilier` (L5-05) ; une transition non permise est ignorée, jamais forcée.
+  const vers = reconcilier({ diffuseur: cible === "publie" ? "publie" : "echec" }, { creneau: { id: "c", statut: "publie" }, publication: { id: "p", statut: "programmee" }, visuel: { id: "v", statut: s } }).visuel?.statut ?? s;
+  return vers !== courante ? vers : undefined;
+}
+
+const RESEAUX_AVEC_VISUEL: readonly string[] = ["linkedin", "instagram", "facebook"];
+
+/** Réseaux prévus au(x) créneau(x) vivant(s) du visuel. */
+async function reseauxPrevusDuVisuel(visuelId: string): Promise<Set<string>> {
+  const creneaux = await depots().creneauxEditoriaux.lister((c) => c.visuelId === visuelId && !c.refuseLe && !c.retireLe && (c.statut === "valide" || c.statut === "programme"));
+  // Un réseau dont l'envoi a été refusé net par le diffuseur reste « prévu » : le nouvel essai doit rester possible.
+  const refuses = await depots().publications.lister((p) => p.visuelId === visuelId && p.via === "zernio" && (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent"));
+  // Seuls les réseaux qui reçoivent un visuel comptent (un créneau peut porter d'autres réseaux, jamais envoyés par cette voie).
+  return new Set([...creneaux.flatMap((c) => Object.entries(c.heuresParReseau).filter(([, h]) => !!h).map(([r]) => r)), ...refuses.map((p) => p.reseau)].filter((r) => RESEAUX_AVEC_VISUEL.includes(r)));
+}
+
+/**
+ * L5-06 · l'étape du visuel suit le diffuseur, SOUS le verrou (comme tout changement de statut d'un visuel), en UNE écriture,
+ * jamais pour un visuel à la corbeille. La cible est calculée sur l'état COURANT de toutes les publications du visuel.
+ */
+async function visuelSuitDiffuseur(visuelId: string): Promise<void> {
+  await sousVerrou(async () => {
+    const v = await depots().visuels.obtenir(visuelId);
+    if (!v || v.corbeilleLe) return;
+    const actives = await depots().publications.lister((p) => p.visuelId === visuelId && publicationActive(p));
+    const cible = cibleDuVisuel(actives, await reseauxPrevusDuVisuel(visuelId));
+    const vers = cible && etapeVisuel(v.statut, cible);
+    if (vers) await depots().visuels.modifier(visuelId, { statut: vers });
+  });
+}
+
+/** L5-06 · l'étape du visuel ne bloque jamais la synchronisation : l'échec est journalisé (rattaché au visuel), le rattrapage le reprendra. */
+async function visuelSuitSansBloquer(visuelId: string | undefined): Promise<void> {
+  if (!visuelId) return;
+  try {
+    await visuelSuitDiffuseur(visuelId);
+  } catch {
+    await journaliser("publication", "Le visuel n'a pas pu être mis à jour : il sera repris au prochain passage.", { type: "visuel", id: visuelId }).catch(() => undefined);
+  }
+}
+
+/**
+ * L5-06 · rattrapage BORNÉ : on choisit d'abord, par l'ÉTAT du visuel, ceux dont l'étape n'est pas celle que dit le diffuseur
+ * (visuels « valide » ou « programme » qui ont des publications actives), puis on en reprend 20 au plus par passage
+ * (les plus anciennement modifiés d'abord : aucun ne reste en queue).
+ */
+async function rattraperVisuels(): Promise<void> {
+  const d = depots();
+  const candidats = await d.visuels.lister((v) => !v.corbeilleLe && (v.statut === "valide" || v.statut === "programme"));
+  if (!candidats.length) return;
+  const ids = new Set(candidats.map((v) => v.id));
+  const parVisuel = new Map<string, Publication[]>();
+  for (const p of await d.publications.lister((p) => !!p.visuelId && ids.has(p.visuelId) && publicationActive(p))) (parVisuel.get(p.visuelId!) ?? parVisuel.set(p.visuelId!, []).get(p.visuelId!)!).push(p);
+  const aRattraper: string[] = [];
+  for (const v of candidats.sort((a, b) => a.modifieLe.localeCompare(b.modifieLe))) {
+    const actives = parVisuel.get(v.id);
+    if (!actives) continue;
+    const cible = cibleDuVisuel(actives, await reseauxPrevusDuVisuel(v.id));
+    if (cible && etapeVisuel(v.statut, cible)) aRattraper.push(v.id);
+    if (aRattraper.length >= RATTRAPAGE_PAR_PASSAGE) break;
+  }
+  for (const id of aRattraper) await visuelSuitSansBloquer(id);
+}
+
 /**
  * Toutes les 15 minutes au plus : relit chez Zernio l'état des publications envoyées et pas encore publiées. Le réseau
  * se fait HORS verrou ; chaque écriture, sous le verrou, seulement si la publication n'a pas changé entre-temps.
  * Un post introuvable (404) depuis 30 minutes ou plus passe « À vérifier » ; avant, il est laissé tel quel.
+ * L5-06 · passage COMPLET (option `complet`, ou automatique au-delà de 50 publications suivies) : relit d'abord les pages de
+ * la liste du diffuseur (10 au plus, lecture seule) et n'interroge un post seul que s'il n'y figure pas (40 au plus) : 50
+ * requêtes au plus par passage. Sinon, ou si la liste échoue, le passage reste celui de lectures unitaires par tour.
+ * BUDGET : toutes requêtes comptées (comptes, pages, lectures, échecs), 51 au plus ; si la liste échoue en cours de route, les
+ * pages déjà lues servent (aucun de leurs posts n'est relu seul) et le reste du budget va aux lectures unitaires.
  */
-export async function synchroniserEtatsZernio(options: { force?: boolean; instant?: number } = {}): Promise<{ lues: number; changees: number }> {
+export async function synchroniserEtatsZernio(options: { force?: boolean; instant?: number; complet?: boolean } = {}): Promise<{ lues: number; changees: number }> {
   const instant = options.instant ?? Date.now();
   const g = globalThis as AvecSynchro;
   if (!options.force && g[cleSynchro] && instant - g[cleSynchro]! < INTERVALLE_SYNCHRO_ZERNIO_MS) return { lues: 0, changees: 0 };
@@ -243,23 +382,51 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   const client = clientZernio();
   const d = depots();
   const r = { lues: 0, changees: 0 };
+  let requetes = 0; // toutes les requêtes de ce passage (L5-06 : budget)
   // Passage périodique (15 min) : alertes jetons / comptes déconnectés. Jamais bloquant pour la synchronisation.
+  requetes++;
   try {
     await alerterJetonsZernio(await client.listerComptes(), instant);
   } catch {
     /* lecture ou alerte impossible : on réessaiera au prochain passage */
   }
-  const suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
-    .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""))
-    .slice(0, LECTURES_PAR_TOUR);
+  let suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
+    .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""));
+  // L5-06 · liste complète (lecture seule) : un échec de lecture laisse le passage incrémental habituel.
+  // Au-delà de 50 publications suivies (ou sur demande), le passage est complet : la boucle de fond en profite sans option.
+  let dejaLus: Map<string, PostZernio> | null = null;
+  let plafondUnitaires = LECTURES_PAR_TOUR;
+  if (options.complet || suivies.length > LECTURES_PAR_TOUR) {
+    const sortie = { posts: [] as PostZernio[], requetes: 0 };
+    try {
+      await listerToutesLesPagesZernio(client, {}, 50, PAGES_LISTE_PAR_PASSAGE, sortie);
+      plafondUnitaires = LECTURES_UNITAIRES_PAR_PASSAGE_COMPLET;
+    } catch {
+      /* liste en échec : les pages déjà lues restent valables, le reste du budget va aux lectures unitaires */
+    }
+    requetes += sortie.requetes;
+    // La liste n'est pas validée par le client : seuls les posts complets (_id et status chaînes, platforms tableau) servent ; les autres sont relus un à un (validés, comptés au budget).
+    dejaLus = new Map(sortie.posts.filter(postDeListeComplet).map((x) => [x._id, x]));
+  }
+  let lecturesUnitaires = 0;
+  if (!dejaLus) suivies = suivies.slice(0, LECTURES_PAR_TOUR);
   const lu = new Date(instant).toISOString();
+  // L5-06 · l'étape des visuels est calculée UNE fois, après la boucle, sur l'état final du passage (jamais sur un état intermédiaire).
+  const visuelsTouches = new Set<string>();
   for (const p of suivies) {
     const vid = videoIdSure(p);
     const entite = vid ? { type: "video", id: vid } : undefined;
     const lien = vid ? `/videos/${vid}` : "/calendrier";
     let post: PostZernio;
     try {
-      post = await client.lirePost(p.idExterne!);
+      const deListe = dejaLus?.get(p.idExterne!);
+      if (deListe) post = deListe;
+      else if (lecturesUnitaires >= plafondUnitaires || requetes >= BUDGET_REQUETES_PAR_PASSAGE) continue;
+      else {
+        lecturesUnitaires++;
+        requetes++;
+        post = await client.lirePost(p.idExterne!);
+      }
     } catch (e) {
       if (estErreurZernio(e) && e.code === "introuvable") {
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
@@ -271,8 +438,13 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       }
       continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
     }
+    let etat: EtatLuZernio;
+    try {
+      etat = etatDepuisPost(post, p);
+    } catch {
+      continue; // post illisible : on relira plus tard, le passage continue
+    }
     r.lues++;
-    const etat = etatDepuisPost(post, p);
     const changement: Partial<Publication> = { etatLuLe: lu };
     if (etat.statut !== p.statut) changement.statut = etat.statut;
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
@@ -303,17 +475,34 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     r.changees++;
     if (etat.statut === "publiee") {
       if (vid) await d.videos.modifier(vid, { etapeEditoriale: "publiee" });
+      if (p.visuelId) visuelsTouches.add(p.visuelId);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
       await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
+      if (p.visuelId) visuelsTouches.add(p.visuelId);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
     } else if (etat.statut === "echec") {
       const phrase = etat.note === "annulee" ? `Zernio a annulé la publication sur ${nom}.` : `Zernio n'a pas pu publier sur ${nom} : voyez la raison dans Zernio.`;
       console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
       await journaliser("publication", phrase, entite);
+      if (p.visuelId) visuelsTouches.add(p.visuelId);
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
+  }
+  // Interrupteur éteint (défaut) : aucune écriture sur `visuels.statut`, ni après le passage ni au rattrapage (comportement de master).
+  let suitLesVisuels = false;
+  try {
+    suitLesVisuels = await synchroEtapeVisuelsActive();
+  } catch {
+    /* lecture du réglage impossible : éteint */
+  }
+  if (!suitLesVisuels) return r;
+  for (const id of visuelsTouches) await visuelSuitSansBloquer(id);
+  try {
+    await rattraperVisuels();
+  } catch {
+    await journaliser("publication", "Le rattrapage des visuels n'a pas pu être fait : il sera repris au prochain passage.").catch(() => undefined);
   }
   return r;
 }
