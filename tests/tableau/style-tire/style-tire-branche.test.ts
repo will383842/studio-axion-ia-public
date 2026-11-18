@@ -19,13 +19,14 @@ import { coutPireDecoupageUsd, type OutilsDecoupage } from "../../../src/moteurs
 import { avecStyleDeLaSerie } from "../../../src/moteurs/montage-tableau/decoupage";
 import { fondSousTitresTableau } from "../../../src/moteurs/montage-tableau/sous-titres-tableau";
 import { calerFicheTableau } from "../../../src/moteurs/montage-tableau/calage";
-import { centreBandePct, commandeTableau, pagesDuStyle, plansTableau, RECETTE_COMPOSITION_TABLEAU, segmentsSousTitresTableau } from "../../../src/moteurs/montage-tableau/fabriquer";
+import { centreBandePct, commandeTableau, fabriquerTableau, pagesDuStyle, plansTableau, RECETTE_COMPOSITION_TABLEAU, segmentsSousTitresTableau } from "../../../src/moteurs/montage-tableau/fabriquer";
 import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { formatSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { mettreEnPage, reseauxVerticaux } from "../../../src/moteurs/montage-tableau/mise-en-page";
 import { bandeDe, sousTitresTableau, supplementsSousTitresTableau } from "../../../src/moteurs/montage-tableau/sous-titres-tableau";
 import { tempsReference3 } from "../../../src/moteurs/montage-tableau/temps-reference-3";
 import { contexteBanc } from "../banc/fiches-banc";
+import { doubles } from "../fabriquer/doubles";
 import { motsRealistes } from "../reference-3/fiches";
 import { auStyleDemande, AUJOURDHUI_EXEMPLES, contexteExemple, copie, ficheErreurCorrigee, texteScriptDe } from "../regles/exemples";
 import { instantsTexte } from "../../../studio-rendu/src/composition/texte-instants";
@@ -226,8 +227,56 @@ describe("(d) de bout en bout : le style tiré arrive aux propriétés de Tablea
     const rendu = instantsTexte(calque as never);
     expect(rendu.instants.length).toBeGreaterThan(1);
     expect(rendu.durees.reduce((a, b) => a + b, 0)).toBe((calque as { images: number }).images);
-    // Même vidéo avec le style de la série (éteint) : même texte dit, autre décor possible, mêmes instants de texte.
+    // Même vidéo sur un autre décor : le texte dit et les instants du calque texte sont les mêmes (un seul style de sous-titres).
     const aff = chaine({ ...v.fiche, styleTableau: style === "ardoise" ? "paperboard" : "ardoise" });
-    expect(instantsTexte(aff.calque as never).instants.length).toBeGreaterThan(1);
+    const autre = instantsTexte(aff.calque as never);
+    expect(autre.instants.length).toBe(rendu.instants.length);
+    expect(autre.durees).toEqual(rendu.durees);
+  });
+});
+
+/** Styles lus dans les propriétés de CHAQUE scène soumise au rendu par la VRAIE fabrication (`fabriquerTableau`). */
+async function stylesFabriques(f: FicheTableau): Promise<{ styles: string[]; parametres: string }> {
+  const d = doubles(f);
+  await fabriquerTableau({ ...d.outils, lireFiche: async () => structuredClone(f) });
+  const scenes = d.scenesSoumises();
+  const styles = scenes.map((s) => (s.parametres as unknown as { proprietes: { styleReference: { tableau: { style: string } } } }).proprietes.styleReference.tableau.style);
+  const parametres = JSON.stringify(scenes.map((s) => s.parametres)).split(f.videoId).join("VIDEO");
+  return { styles, parametres };
+}
+
+describe("(d bis) par la vraie fabrication : fabriquerTableau soumet au rendu des scènes qui portent le style tiré", () => {
+  it("(i) allumé, deux vidéos de suite : chaque vidéo a un seul style dans toutes ses scènes, égal à fiche.styleTableau, et les deux diffèrent", async () => {
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, true);
+    const a = await decouper();
+    const b = await decouper({ ...donnees, texte: `${donnees.texte} ` });
+    const fa = await stylesFabriques(a.fiche);
+    const fb = await stylesFabriques(b.fiche);
+    expect(fa.styles.length).toBeGreaterThan(0);
+    expect(new Set(fa.styles)).toEqual(new Set([a.fiche.styleTableau]));
+    expect(new Set(fb.styles)).toEqual(new Set([b.fiche.styleTableau]));
+    expect(a.fiche.styleTableau).not.toBe(b.fiche.styleTableau);
+  });
+
+  it("(ii) éteint (absent), deux vidéos de suite : un seul et même style, celui de la série", async () => {
+    const a = await decouper();
+    const b = await decouper({ ...donnees, texte: `${donnees.texte} ` });
+    const fa = await stylesFabriques(a.fiche);
+    const fb = await stylesFabriques(b.fiche);
+    expect(fa.styles.length).toBeGreaterThan(0);
+    expect(new Set([...fa.styles, ...fb.styles]).size).toBe(1);
+  });
+
+  it("(iii) éteint : réglage absent et réglage `false` donnent des paramètres de scènes identiques (videoId mis à part)", async () => {
+    const absent = await stylesFabriques((await decouper()).fiche);
+    reinitialiserDepots();
+    const { texteScript: _s, ...regles } = contexteExemple(fiche);
+    void _s;
+    for (const p of regles.preuves) await depots().preuves.enregistrer(p as never);
+    for (const m of regles.matieres) await depots().matieres.enregistrer(m as never);
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, false);
+    const faux = await stylesFabriques((await decouper()).fiche);
+    expect(faux.parametres).toBe(absent.parametres);
+    expect(faux.styles).toEqual(absent.styles);
   });
 });
