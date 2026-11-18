@@ -118,7 +118,7 @@ export const roleMaquettiste = {
   version: 1,
   consigne: CONSIGNE_MAQUETTISTE,
   schema: schemaSortieMaquettiste,
-  /** Importé, jamais recopié : Opus. Jamais Haiku, jamais Fable. */
+  /** Importé, jamais recopié : le modèle d'écriture (Opus). */
   modele: MODELE_ECRITURE,
   effort: "medium",
   maxTokens: 6000,
