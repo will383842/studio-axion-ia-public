@@ -59,8 +59,9 @@ describe("catalogue des capacités (C1-U1)", () => {
       expect(etatCapacite(id)).toBe("prevu");
       expect(ligneCapacite(id)?.note).toContain("bloqué Q8");
     }
-    expect(etatCapacite(ID.texteRepereEpaule)).toBe("prevu");
-    expect(etatCapacite(ID.texteSortieAnimee)).toBe("prevu");
+    // C2-U17b 18/11 : les 7 capacités de texte livrées passent de « prévu » à « éteint » (seconde lecture du pilote).
+    expect(etatCapacite(ID.texteRepereEpaule)).toBe("eteint");
+    expect(etatCapacite(ID.texteSortieAnimee)).toBe("eteint");
     expect(ligneCapacite(ID.texteSortieAnimee)?.chantier).toBe("2 (U19)");
     expect(ligneCapacite(ID.texteEscalier)?.chantier).toBe("2 (U20a, U20b)");
     expect(etatCapacite(ID.cadrageZoomV4)).toBe("absent");
