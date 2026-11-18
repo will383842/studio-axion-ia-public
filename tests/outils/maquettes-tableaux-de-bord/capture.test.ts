@@ -216,14 +216,16 @@ describe("texte de capturer.mts", () => {
     expect(principal.indexOf("environnementAutorise(process.env")).toBeLessThan(principal.indexOf("passeFilm("));
     expect(principal.indexOf("environnementAutorise(process.env")).toBeLessThan(principal.indexOf("passeControles("));
   });
-  it("recordVideo seulement dans la passe du film", () => {
+  it("recordVideo n'apparaît plus ; film image par image en .mp4", () => {
     expect(filmDebut).toBeGreaterThan(-1);
-    expect(texte.match(/recordVideo/g)).toHaveLength(1);
-    expect(film).toContain("recordVideo");
-    expect(controles).not.toContain("recordVideo");
+    expect(texte).not.toContain("recordVideo");
+    expect(texte).not.toContain("navigation.webm");
+    expect(texte).toContain("navigation.mp4");
   });
-  it("aucune capture d'image pendant le film, seulement dans les contrôles", () => {
-    expect(film).not.toContain("screenshot");
+  it("horloge arrêtée avant la boucle ; captures d'image dans les deux passes", () => {
+    expect(film.indexOf("page.clock.pauseAt")).toBeGreaterThan(-1);
+    expect(film.indexOf("page.clock.pauseAt")).toBeLessThan(film.indexOf("for (let i = 0"));
+    expect(film).toContain("page.screenshot");
     expect(controles).toContain("page.screenshot");
   });
   it("aucune adresse réseau en dur ; garde réseau dans les deux passes", () => {

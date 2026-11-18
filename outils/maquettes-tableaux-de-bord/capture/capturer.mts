@@ -1,18 +1,30 @@
 /**
  * T-EXT-03 : filme la navigation d'une maquette aux durées de la voix DÉJÀ mesurée (cloud ou CI seulement, jamais le PC).
  *
- *   pnpm exec tsx outils/maquettes-tableaux-de-bord/capture/capturer.mts --maquette <dossier> --scenario <fichier.json> [--calage <fichier.json>] --sortie <dossier hors dépôt>
+ *   pnpm exec tsx outils/maquettes-tableaux-de-bord/capture/capturer.mts --maquette <dossier> --scenario <fichier.json> [--calage <fichier.json>] [--poste <poste.json>] --sortie <dossier hors dépôt>
  *
- * Codes : 0 ok · 2 cible introuvable · 3 environnement interdit · 4 entrée refusée.
+ * Codes : 0 ok · 2 cible introuvable · 3 environnement interdit · 4 entrée refusée · 5 FFmpeg absent ou en échec · 6 cadence irrégulière.
+ * Film : image par image (horloge de la page arrêtée, 40 ms par image, PNG 2× vers FFmpeg x264).
  * Zéro euro : aucune voix fabriquée, aucun appel à un fournisseur ; réseau coupé (seuls les fichiers de la maquette passent).
  * Jamais appelé par le Studio. Rien n'est écrit dans le dépôt.
  */
-import { chromium, type BrowserContext, type Page } from "@playwright/test";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chromium, type Page } from "@playwright/test";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { lireScenarioMaquette, type ScenarioMaquette } from "../../../src/moteurs/montage-tutoriel-outil/scenario-maquette";
+import {
+  argumentsEncodage,
+  avancerAnimations,
+  empreinteFilm,
+  instantDeLImage,
+  lireCadence,
+  PAS_IMAGE_MS,
+  planImages,
+  type GesteImage,
+  type PlanImages,
+} from "./film-images";
 import { adresseAutorisee, environnementAutorise, RACINES_PAR_DEFAUT } from "./garde";
 import {
   empreinteCapture,
@@ -33,10 +45,8 @@ import {
 
 const RACINE_DEPOT = fileURLToPath(new URL("../../../", import.meta.url));
 const HEURE_FIGEE = new Date("2026-01-15T09:00:00+01:00");
-const RETARD_NOTE_MS = 100;
 const ATTENTE_CIBLE_MAX_MS = 5000;
 const ATTENTE_ANIMATIONS_MAX_MS = 2000;
-const MARGE_FIN_FILM_MS = 500;
 
 class Arret extends Error {
   constructor(
@@ -52,13 +62,6 @@ interface Rapport {
   retardsMs: { etapeId: string; retardMs: number }[];
   remarques: string[];
   [cle: string]: unknown;
-}
-
-const maintenant = () => performance.now();
-const dormir = (ms: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, ms)));
-async function attendreInstant(cibleAbs: number): Promise<number> {
-  await dormir(cibleAbs - maintenant());
-  return maintenant() - cibleAbs; // retard (≥ 0)
 }
 
 function args(): Record<string, string> {
@@ -102,77 +105,19 @@ async function appelerMaquette(page: Page, methode: "aller" | "reinitialiser", i
   );
 }
 
-/** Passe 1 : le film, une seule prise. AUCUNE capture d'image ici (elle ferait saccader la prise). */
+/** Passe 1 : le film, image par image, à horloge maîtrisée (T-EXT-03b). Le temps de la page n'avance que par nous : 40 ms par image. */
 async function passeFilm(
   scenario: ScenarioMaquette,
+  plan: Extract<PlanImages, { ok: true }>,
   actions: ActionFilm[],
-  calage: Calage,
   urlIndex: string,
   sortie: string,
   rapport: Rapport,
-): Promise<{ mesures: MesureEtape[]; debutFilmMs: number; fichier: string }> {
-  const browser = await chromium.launch();
-  const dossierBrut = join(sortie, "brut");
-  let context: BrowserContext | undefined;
-  try {
-    context = await browser.newContext({
-      viewport: { width: scenario.largeur, height: scenario.hauteur },
-      deviceScaleFactor: 2,
-      locale: "fr-FR",
-      timezoneId: "Europe/Paris",
-      recordVideo: { dir: dossierBrut, size: { width: 2 * scenario.largeur, height: 2 * scenario.hauteur } },
-    });
-    await context.route("**/*", async (route) => {
-      const url = route.request().url();
-      if (adresseAutorisee(url, RACINES_MAQUETTE)) await route.continue();
-      else {
-        rapport.requetesBloquees.push(url);
-        await route.abort();
-      }
-    });
-    const creation = maintenant();
-    const page = await context.newPage();
-    await page.clock.install({ time: HEURE_FIGEE }); // l'heure démarre à une valeur fixe et AVANCE (pas pauseAt)
-    await page.goto(urlIndex);
-    await appelerMaquette(page, "reinitialiser");
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const t0 = maintenant();
-    const debutFilmMs = t0 - creation;
-    const mesures: MesureEtape[] = [];
-    for (const a of actions) {
-      const retard = await attendreInstant(t0 + a.gesteMs);
-      if (retard > RETARD_NOTE_MS) rapport.retardsMs.push({ etapeId: a.etapeId, retardMs: Math.round(retard) });
-      await appelerMaquette(page, "aller", a.aller);
-      const instantMs = maintenant() - t0; // instant MESURÉ du « aller »
-      let rectPx: RectPx | undefined;
-      if (a.cible) rectPx = await attendreCible(page, a.etapeId, a.cible, Math.min(ATTENTE_CIBLE_MAX_MS, a.finMs - a.gesteMs));
-      mesures.push(rectPx ? { etapeId: a.etapeId, rectPx, instantMs, finMs: a.finMs } : { etapeId: a.etapeId, instantMs, finMs: a.finMs });
-    }
-    await attendreInstant(t0 + calage.dureeVoixMs + MARGE_FIN_FILM_MS);
-    const video = page.video();
-    await context.close(); // le film est écrit à la fermeture
-    context = undefined;
-    const brut = await video?.path();
-    if (!brut) throw new Arret(2, "Le film n'a pas été écrit.");
-    const fichier = join(sortie, "navigation.webm");
-    renameSync(brut, fichier);
-    rmSync(dossierBrut, { recursive: true, force: true });
-    return { mesures, debutFilmMs, fichier };
-  } finally {
-    await context?.close().catch(() => undefined);
-    await browser.close();
-  }
-}
-
-/** Passe 2 : une image par étape pour les contrôles, SANS film. */
-async function passeControles(
-  scenario: ScenarioMaquette,
-  actions: ActionCapture[],
-  urlIndex: string,
-  sortie: string,
-  rapport: Rapport,
-): Promise<{ cible: string | undefined; etapeId: string; rectPx?: RectPx }[]> {
-  const browser = await chromium.launch();
+): Promise<{ mesures: MesureEtape[]; debutFilmMs: number; fichier: string; animationsPilotees: number }> {
+  if (!sonde("ffmpeg", ["-version"]).ok) throw new Arret(5, "FFmpeg est nécessaire pour le film.");
+  const fichier = join(sortie, "navigation.mp4");
+  const browser = await chromium.launch({ executablePath: process.env.CAPTURE_CHROMIUM || undefined });
+  let encodeur: ChildProcess | undefined;
   try {
     const context = await browser.newContext({
       viewport: { width: scenario.largeur, height: scenario.hauteur },
@@ -193,7 +138,127 @@ async function passeControles(
     await page.goto(urlIndex);
     await appelerMaquette(page, "reinitialiser");
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const mesures: { cible: string | undefined; etapeId: string; rectPx?: RectPx }[] = [];
+    if (!(await page.evaluate(() => document.fonts.check("16px Manrope")))) {
+      throw new Arret(4, "Police Manrope absente : la charte n'est pas chargée");
+    }
+    if (await page.evaluate(() => document.querySelector("video") !== null)) {
+      rapport.remarques.push("Une <video> dans la maquette ne suit pas l'horloge : arrêt.");
+      throw new Arret(4, "La maquette contient une <video> : elle ne suivrait pas l'horloge du film.");
+    }
+    await page.clock.pauseAt(new Date(HEURE_FIGEE.getTime() + 100)); // à partir d'ici, rien ne bouge sans nous
+
+    const enc = spawn("ffmpeg", argumentsEncodage(fichier), { stdio: ["pipe", "ignore", "pipe"] });
+    encodeur = enc;
+    let stderrEncodeur = "";
+    enc.stderr.on("data", (d: Buffer) => (stderrEncodeur = (stderrEncodeur + d.toString()).slice(-4000)));
+    let erreurEncodeur: Error | undefined;
+    enc.stdin.on("error", (e) => (erreurEncodeur = e));
+    const fini = new Promise<number | null>((ok) => enc.on("close", (code) => ok(code)));
+    const entree = enc.stdin;
+    const ecrire = (png: Buffer): Promise<void> =>
+      new Promise((ok) => {
+        if (entree.write(png)) ok();
+        else entree.once("drain", () => ok());
+      });
+
+    const geste = new Map(plan.gestes.map((g) => [g.image, g] as const));
+    const mesures: MesureEtape[] = [];
+    const finMsParEtape = new Map(actions.map((a) => [a.etapeId, a.finMs] as const));
+    const finDe = (etapeId: string): number => finMsParEtape.get(etapeId) ?? 0;
+    let attente: { g: GesteImage; limite: number } | undefined;
+    let animationsPilotees = 0;
+    for (let i = 0; i < plan.total; i++) {
+      const g = geste.get(i);
+      if (g) {
+        await appelerMaquette(page, "aller", g.aller);
+        if (g.cible) attente = { g, limite: i + g.attenteMaxImages };
+        else mesures.push({ etapeId: g.etapeId, instantMs: instantDeLImage(i), finMs: finDe(g.etapeId) });
+      }
+      await page.clock.runFor(PAS_IMAGE_MS);
+      animationsPilotees = Math.max(animationsPilotees, await page.evaluate<number>(`(${avancerAnimations.toString()})(document, ${PAS_IMAGE_MS})`));
+      if (attente) {
+        const loc = page.locator(attente.g.cible!).first();
+        const b = (await loc.isVisible()) ? await loc.boundingBox() : null;
+        if (b) {
+          mesures.push({ etapeId: attente.g.etapeId, rectPx: { x: b.x, y: b.y, largeur: b.width, hauteur: b.height }, instantMs: instantDeLImage(attente.g.image), finMs: finDe(attente.g.etapeId) });
+          attente = undefined;
+        } else if (i >= attente.limite) {
+          throw new Arret(2, `Étape ${attente.g.etapeId} : cible « ${attente.g.cible} » introuvable`);
+        }
+      }
+      if (erreurEncodeur) break;
+      await ecrire(await page.screenshot({ type: "png", scale: "device", animations: "allow", caret: "hide" }));
+    }
+    if (attente) throw new Arret(2, `Étape ${attente.g.etapeId} : cible « ${attente.g.cible} » introuvable`);
+    entree.end();
+    const code = await fini;
+    encodeur = undefined;
+    if (code !== 0 || erreurEncodeur) throw new Arret(5, `FFmpeg a échoué : ${stderrEncodeur.trim() || erreurEncodeur?.message || `code ${code}`}`);
+    await context.close();
+
+    const sondeCadence = sonde("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "frame=pts_time", "-of", "json", fichier]);
+    const cadence = sondeCadence.ok ? lireCadence(sondeCadence.stdout, { images: plan.total }) : { ok: false, images: 0, ecartsMs: [], remarques: ["ffprobe indisponible"] };
+    if (!cadence.ok) throw new Arret(6, `Cadence irrégulière : ${cadence.remarques.join(" ")}`);
+    mesures.sort((x, y) => x.instantMs - y.instantMs);
+    return { mesures, debutFilmMs: 0, fichier, animationsPilotees };
+  } finally {
+    encodeur?.kill();
+    await browser.close();
+  }
+}
+
+/** Plus petite `font-size` calculée (px CSS) des nœuds texte visibles dans le rectangle ; absent s'il n'y a pas de texte. */
+async function mesurerPoliceMin(page: Page, r: RectPx): Promise<number | undefined> {
+  const v = await page.evaluate((rect) => {
+    let min = Infinity;
+    const marcheur = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = marcheur.nextNode(); n; n = marcheur.nextNode()) {
+      const el = n.parentElement;
+      if (!el || !(n.textContent ?? "").trim()) continue;
+      const st = getComputedStyle(el);
+      if (st.visibility === "hidden" || st.display === "none") continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      const b = range.getBoundingClientRect();
+      if (b.width === 0 || b.height === 0) continue;
+      const dedans = b.left >= rect.x - 1 && b.top >= rect.y - 1 && b.right <= rect.x + rect.largeur + 1 && b.bottom <= rect.y + rect.hauteur + 1;
+      if (dedans) min = Math.min(min, parseFloat(st.fontSize));
+    }
+    return Number.isFinite(min) ? min : null;
+  }, r);
+  return v ?? undefined;
+}
+
+/** Passe 2 : une image par étape pour les contrôles, SANS film. */
+async function passeControles(
+  scenario: ScenarioMaquette,
+  actions: ActionCapture[],
+  urlIndex: string,
+  sortie: string,
+  rapport: Rapport,
+): Promise<{ cible: string | undefined; etapeId: string; rectPx?: RectPx; policeMinPx?: number }[]> {
+  const browser = await chromium.launch({ executablePath: process.env.CAPTURE_CHROMIUM || undefined });
+  try {
+    const context = await browser.newContext({
+      viewport: { width: scenario.largeur, height: scenario.hauteur },
+      deviceScaleFactor: 2,
+      locale: "fr-FR",
+      timezoneId: "Europe/Paris",
+    });
+    await context.route("**/*", async (route) => {
+      const url = route.request().url();
+      if (adresseAutorisee(url, RACINES_MAQUETTE)) await route.continue();
+      else {
+        rapport.requetesBloquees.push(url);
+        await route.abort();
+      }
+    });
+    const page = await context.newPage();
+    await page.clock.install({ time: HEURE_FIGEE });
+    await page.goto(urlIndex);
+    await appelerMaquette(page, "reinitialiser");
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const mesures: { cible: string | undefined; etapeId: string; rectPx?: RectPx; policeMinPx?: number }[] = [];
     for (const a of actions) {
       await appelerMaquette(page, "aller", a.aller);
       const rectPx = a.cible ? await attendreCible(page, a.etapeId, a.cible, ATTENTE_CIBLE_MAX_MS) : undefined;
@@ -206,7 +271,8 @@ async function passeControles(
         ATTENTE_ANIMATIONS_MAX_MS,
       );
       await page.screenshot({ path: join(sortie, a.fichierPng) });
-      mesures.push({ cible: a.cible, etapeId: a.etapeId, ...(rectPx ? { rectPx } : {}) });
+      const policeMinPx = rectPx ? await mesurerPoliceMin(page, rectPx) : undefined;
+      mesures.push({ cible: a.cible, etapeId: a.etapeId, ...(rectPx ? { rectPx } : {}), ...(policeMinPx !== undefined ? { policeMinPx } : {}) });
     }
     await context.close();
     return mesures;
@@ -253,6 +319,12 @@ async function principal(): Promise<void> {
     if (!c.ok) throw new Arret(4, `Calage refusé :\n- ${c.erreurs.join("\n- ")}`);
     calage = c.calage;
   }
+  let poste: string | undefined;
+  if (a.poste) {
+    const p = lireJson(resolve(a.poste));
+    const e = typeof p === "object" && p !== null ? (p as { empreinte?: unknown }).empreinte : undefined;
+    if (typeof e === "string" && e.length > 0) poste = e;
+  }
   const empreinte = empreinteCapture(scenario, calage);
   const sortie = join(sortieBase, nomDossierSortie(scenario.maquette, empreinte));
   mkdirSync(sortie, { recursive: true });
@@ -260,11 +332,14 @@ async function principal(): Promise<void> {
   const urlIndex = pathToFileURL(join(dossierMaquette, "index.html")).href;
   const rapport: Rapport = { requetesBloquees: [], retardsMs: [], remarques: [], empreinteCapture: empreinte };
 
-  let film: { mesures: MesureEtape[]; debutFilmMs: number; fichier: string } | undefined;
+  let film: { mesures: MesureEtape[]; debutFilmMs: number; fichier: string; animationsPilotees: number } | undefined;
   if (calage) {
     const plan = planFilm(scenario, calage);
     if (!plan.ok) throw new Arret(4, `Plan refusé :\n- ${plan.erreurs.join("\n- ")}`);
-    film = await passeFilm(scenario, plan.actions, calage, urlIndex, sortie, rapport);
+    const images = planImages(plan.actions, calage.dureeVoixMs);
+    if (!images.ok) throw new Arret(4, `Plan d'images refusé :\n- ${images.erreurs.join("\n- ")}`);
+    film = await passeFilm(scenario, images, plan.actions, urlIndex, sortie, rapport);
+    rapport.images = images.total;
   }
   const controles = await passeControles(scenario, planCaptures(scenario), urlIndex, sortie, rapport);
 
@@ -286,6 +361,7 @@ async function principal(): Promise<void> {
       rectPx: rect,
       zonePct: rect ? zonePctDepuisRect(rect, scenario.largeur, scenario.hauteur) : undefined,
       instantMs: m ? Math.round(m.instantMs) : undefined,
+      ...(c.policeMinPx !== undefined ? { policeMinPx: c.policeMinPx } : {}),
     };
   });
   writeFileSync(join(sortie, "cibles.json"), JSON.stringify(cibles, null, 2));
@@ -307,7 +383,13 @@ async function principal(): Promise<void> {
     });
     writeFileSync(join(sortie, "navigation.json"), JSON.stringify(nav, null, 2));
     rapport.debutFilmMs = Math.round(film.debutFilmMs);
-    rapport.film = lireFilm(film.fichier);
+    rapport.film = "navigation.mp4";
+    rapport.methode = "images";
+    rapport.imagesParSeconde = 25;
+    rapport.animationsPilotees = film.animationsPilotees;
+    rapport.cadence = "reguliere";
+    rapport.resolution = lireFilm(film.fichier);
+    rapport.empreinteFilm = empreinteFilm({ scenario, calage, ...(poste ? { poste } : {}) });
   }
   rapport.fichiers = readdirSync(sortie).sort();
   writeFileSync(join(sortie, "rapport.json"), JSON.stringify(rapport, null, 2));
