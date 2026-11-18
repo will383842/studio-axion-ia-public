@@ -22,4 +22,7 @@ export const TOILES = {
   "objet-etape": { largeur: 1000, hauteur: 220 },
   "objet-cartes-coche": { largeur: 1000, hauteur: 1000 },
   "objet-coche": { largeur: 1000, hauteur: 1000 },
+  "objet-croquis": { largeur: 1000, hauteur: 1000 },
+  "objet-feutre-entourage": { largeur: 1000, hauteur: 1000 },
+  "objet-feutre-soulignement": { largeur: 1000, hauteur: 1000 },
 } as const;
