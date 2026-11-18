@@ -124,6 +124,11 @@ async function passeFilm(
       deviceScaleFactor: 2,
       locale: "fr-FR",
       timezoneId: "Europe/Paris",
+      // T-EXT-41 : navigateur sans réseau ni téléchargement ni permission ; jamais `bypassCSP`.
+      offline: true,
+      serviceWorkers: "block",
+      acceptDownloads: false,
+      permissions: [],
     });
     await context.route("**/*", async (route) => {
       const url = route.request().url();
@@ -246,6 +251,11 @@ async function passeControles(
       deviceScaleFactor: 2,
       locale: "fr-FR",
       timezoneId: "Europe/Paris",
+      // T-EXT-41 : navigateur sans réseau ni téléchargement ni permission ; jamais `bypassCSP`.
+      offline: true,
+      serviceWorkers: "block",
+      acceptDownloads: false,
+      permissions: [],
     });
     await context.route("**/*", async (route) => {
       const url = route.request().url();
