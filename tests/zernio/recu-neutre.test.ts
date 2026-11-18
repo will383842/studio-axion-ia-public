@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * C5 · reçu neutre quand l'e-mail du guide n'est pas parti (le site répond toujours 200 ; le champ `guide` dit si l'e-mail part).
  * RÈGLE DE CONFIDENTIALITÉ : un seul comportement pour toute issue autre que « parti » ; le texte et le journal ne dépendent JAMAIS de la valeur
  * renvoyée par le site. Données fictives ; port et site FAUX.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Conversation } from "@/domaine/guide-reseau/machine-conversation";
+import type { Evenement } from "@/domaine/types";
 import { issueGuideDepuisCorps } from "@/domaine/guide-reseau/crochet-zernio";
 import { GROUPES_PAR_RESEAU } from "@/domaine/guide-reseau/empreinte-mot";
 import { GROUPES_MP, TEXTES_MP, rendreTexteMp } from "@/domaine/guide-reseau/textes-mp";
@@ -26,9 +27,9 @@ const A = "auteur-fictif-400";
 let port: ReturnType<typeof fauxPort>;
 let site: ReturnType<typeof fauxSite>;
 const passer = (ms = T0) => C.traiterConversations({ port: port.port, comptesPermis: [COMPTE], titreGuide: TITRE, env: ENV, maintenantMs: ms });
-const etatDe = async () => (await Com.lireParametre<Record<string, any>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
+const etatDe = async () => (await Com.lireParametre<Record<string, Conversation>>(C.PARAM_CONVERSATIONS, {}))[cleConversation(A)];
 const corpsGuide = (guide: unknown) => ({ ok: true, demandeId: "dem-fictive-1", nouvelle: true, ...(guide === undefined ? {} : { guide }) });
-const messagesJournal = async () => (await depots().evenements.lister(() => true)).map((e: any) => String(e.message));
+const messagesJournal = async () => (await depots().evenements.lister(() => true)).map((e: Evenement) => String(e.message));
 
 async function ecrireAdresse(idMessage: string, ms = T0 + 1000): Promise<void> {
   port.reponses.texte = () => `Mon adresse ${ADRESSE_FICTIVE}`;
