@@ -34,12 +34,14 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
   const [jourVise, setJourVise] = useState(jour);
   const [enCours, setEnCours] = useState(false);
   const [retour, setRetour] = useState<ResultatDuplication | null>(null);
+  /** Ce que la personne a déjà confirmé d'un clic (date passée, proximité) : jamais plus, pour qu'un autre avertissement s'affiche. */
+  const [accord, setAccord] = useState<{ passe?: true; proximite?: true }>({});
 
-  async function envoyer(confirmerPasse: boolean) {
+  async function envoyer(accordDonne: { passe?: true; proximite?: true }) {
     if (enCours) return;
     setEnCours(true);
     try {
-      const r = await dupliquerEntree({ cle, reseau: reseauVise, jour: jourVise, cleFormulaire, ...(confirmerPasse ? { confirmerPasse: true } : {}) });
+      const r = await dupliquerEntree({ cle, reseau: reseauVise, jour: jourVise, cleFormulaire, ...(accordDonne.passe ? { confirmerPasse: true } : {}), ...(accordDonne.proximite ? { confirmerProximite: true } : {}) });
       setRetour(r);
       if (r.ok) setCleFormulaire(crypto.randomUUID());
     } catch {
@@ -59,13 +61,13 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
     );
   }
   const fait = retour?.ok === true;
-  const aConfirmer = retour?.ok === false && retour.aConfirmer === "passe";
+  const aConfirmer = retour?.ok === false && retour.aConfirmer !== undefined;
   return (
-    <form className="mt-3 max-w-full" aria-label="Dupliquer cette publication" onSubmit={(e) => { e.preventDefault(); void envoyer(false); }}>
+    <form className="mt-3 max-w-full" aria-label="Dupliquer cette publication" onSubmit={(e) => { e.preventDefault(); void envoyer({}); }}>
       <p className="text-sm text-texte">{PHRASE_DUPLIQUER}</p>
       <label className="mt-2 block text-sm font-bold text-texte">
         Réseau
-        <select className={CHAMP} value={reseauVise} onChange={(e) => { setReseauVise(e.target.value as IdReseau); setRetour(null); }} disabled={enCours || fait}>
+        <select className={CHAMP} value={reseauVise} onChange={(e) => { setReseauVise(e.target.value as IdReseau); setRetour(null); setAccord({}); }} disabled={enCours || fait}>
           {RESEAUX.map((r) => (
             <option key={r.id} value={r.id}>{r.nom}</option>
           ))}
@@ -73,7 +75,7 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
       </label>
       <label className="mt-2 block text-sm font-bold text-texte">
         Jour
-        <input className={CHAMP} type="date" value={jourVise} onChange={(e) => { setJourVise(e.target.value); setRetour(null); }} disabled={enCours || fait} />
+        <input className={CHAMP} type="date" value={jourVise} onChange={(e) => { setJourVise(e.target.value); setRetour(null); setAccord({}); }} disabled={enCours || fait} />
       </label>
       <div className="mt-3 flex flex-wrap gap-2">
         {!fait && !aConfirmer && (
@@ -82,11 +84,11 @@ export function DupliquerEntree({ cle, reseau, jour }: { cle: string; reseau: Id
           </button>
         )}
         {aConfirmer && (
-          <button type="button" className={BOUTON} disabled={enCours} onClick={() => void envoyer(true)}>
+          <button type="button" className={BOUTON} disabled={enCours} onClick={() => { const nouveau = { ...accord, ...(retour?.ok === false && retour.aConfirmer === "passe" ? { passe: true as const } : { proximite: true as const }) }; setAccord(nouveau); void envoyer(nouveau); }}>
             Créer quand même
           </button>
         )}
-        <button type="button" className={BOUTON} disabled={enCours} onClick={() => { setOuvert(false); setRetour(null); }}>
+        <button type="button" className={BOUTON} disabled={enCours} onClick={() => { setOuvert(false); setRetour(null); setAccord({}); setCleFormulaire(crypto.randomUUID()); }}>
           {fait ? "Fermer" : "Annuler"}
         </button>
       </div>

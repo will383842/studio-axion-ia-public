@@ -2,19 +2,21 @@
 
 /**
  * CAL-24 (écrite EN AVANCE, attend CAL-22, CAL-23 et RC-08a) : dupliquer une publication vers un autre réseau ou une autre date.
- * Chaque action commence par exigerSession(). Rien ne part d'ici : aucun fournisseur n'est importé, aucun envoi n'est créé.
+ * Chaque action commence par exigerSession(). Rien ne part d'ici : aucun appel, aucun envoi n'est créé ; seule lecture : les comptes gardés au dernier « Tester » (charger-comptes).
  * La copie est une NOUVELLE entrée « propose » créée par le chemin normal du calendrier (creerCreneau), sans date de validation : elle attend
- * le clic Valider du fondateur. Son texte est marqué « À adapter ». L'original n'est jamais modifié ni supprimé ; le lien vers lui est gardé.
+ * le clic Valider du fondateur. Son texte est marqué « À adapter » : ATTENTION, la marque est dans le texte lui-même ; une garde de validation hors de cette fiche doit refuser de valider ou d'envoyer un texte qui la porte encore (à décider par le pilotage). L'original n'est jamais modifié ni supprimé ; le lien vers lui est gardé.
  * Une date dans le passé avertit et se confirme d'un clic (comme un ajout manuel).
  */
 import { revalidatePath } from "next/cache";
 import { lireCleFiche, type EntreeFiche } from "@/components/calendrier/FicheEntree";
 import { cleLienCopie, idCopie, marquerAAdapter } from "@/domaine/calendrier/lien-reseau";
 import type { IdReseau } from "@/domaine/types";
-import { resoudreHeureParis } from "@/lib/horloge-paris";
+import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine/cadence/verifier";
+import { RESEAUX } from "@/reseaux";
+import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { exigerSession } from "@/services/auth";
 import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
-import { chargerFiche, ecrireStockageFiche } from "@/services/calendrier-fiche";
+import { chargerFiche, ecrireStockageFiche, lireStockageFiche } from "@/services/calendrier-fiche";
 import { creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 import { reseauConnu } from "@/components/calendrier/CarteEntreeCalendrier";
 import { compteCibleValide } from "../compte-cible";
@@ -32,6 +34,8 @@ export interface SaisieDuplication {
   cleFormulaire: string;
   /** Vrai après le clic de confirmation d'une date passée. */
   confirmerPasse?: boolean;
+  /** Vrai après le clic de confirmation d'une proximité ou d'un quota atteint. */
+  confirmerProximite?: boolean;
 }
 
 export interface DonneesDuplication {
@@ -45,7 +49,7 @@ export interface DonneesDuplication {
 
 export type ResultatDuplication =
   | { ok: true; donnees: DonneesDuplication }
-  | { ok: false; message: string; aConfirmer?: "passe"; avertissement?: string };
+  | { ok: false; message: string; aConfirmer?: "passe" | "proximite" | "quota"; avertissement?: string };
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -61,6 +65,7 @@ export const PHRASES_DUPLICATION = {
   identique: "Cette copie serait identique à la publication : choisissez un autre réseau ou un autre jour.",
   autreDemande: "Ce formulaire a déjà créé une copie différente : rouvrez-le pour en faire une autre.",
   passe: "Cette date est passée : confirmez pour créer la copie quand même.",
+  visuelVideoSeule: "Ce réseau ne publie que des vidéos : choisissez un autre réseau pour copier ce visuel.",
   creee: "La copie est créée. Son texte est marqué « À adapter » : relisez-le, puis validez-la. Elle ne part pas toute seule.",
   impossible: "La copie n'a pas pu être créée. Réessayez.",
 } as const;
@@ -69,6 +74,36 @@ function jourExiste(j: string): boolean {
   const [a, m, d] = j.split("-").map(Number);
   const t = new Date(Date.UTC(a!, m! - 1, d));
   return t.getUTCFullYear() === a && t.getUTCMonth() === m! - 1 && t.getUTCDate() === d;
+}
+
+const FORMAT_PARIS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+function enParis(instant: string): { jour: string; heure: string } {
+  const p = Object.fromEntries(FORMAT_PARIS.formatToParts(new Date(instant)).map((x) => [x.type, x.value]));
+  return { jour: `${p.year}-${p.month}-${p.day}`, heure: `${p.hour}:${p.minute}` };
+}
+
+/** Un réseau qui n'a qu'un emplacement « vidéo » (TikTok, YouTube, Shorts) ne reçoit pas un visuel. */
+function accepteLesVisuels(reseau: IdReseau): boolean {
+  const d = RESEAUX.find((r) => r.id === reseau);
+  return !d || d.emplacements.some((e) => e.id !== "video");
+}
+
+/** Écart et quota de la copie (veille, jour et lendemain, sur son réseau), comme l'ajout manuel. Ne bloque jamais : se confirme d'un clic. */
+async function verifierVoisinage(reseau: IdReseau, jour: string, instant: string): Promise<{ type: "proximite" | "quota"; message: string } | null> {
+  const fenetre = new Set([ajouterJoursParis(jour, -1), jour, ajouterJoursParis(jour, 1)]);
+  const posts: PostPlanifie[] = [{ id: "nouveau", reseau, ...enParis(instant), pilier: "nouveau", cible: "nouveau" }];
+  for (const c of await depotsPlan().creneaux.lister()) {
+    const inst = c.heuresParReseau[reseau];
+    if (!inst || c.statut === "archive" || c.statut === "echec") continue;
+    const p = enParis(inst);
+    if (fenetre.has(p.jour)) posts.push({ id: c.id, reseau, ...p, pilier: c.id, cible: c.id });
+  }
+  const constats = verifierEspacement(posts, reglesDuReseau(reseau)).filter((x) => x.posts.includes("nouveau"));
+  const ecart = constats.find((x) => x.code === "ecart");
+  if (ecart) return { type: "proximite", message: `${ecart.message} Confirmez pour créer la copie quand même.` };
+  const quota = constats.find((x) => x.code === "quota");
+  if (quota) return { type: "quota", message: `${quota.message} Confirmez pour créer la copie quand même.` };
+  return null;
 }
 
 function depotsPlan(): DepotsPlan {
@@ -121,11 +156,12 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       const retour = (): ResultatDuplication => ({ ok: true, donnees: { creneauId: id, cle: cleCopie.cle, message: PHRASES_DUPLICATION.creee, ...(avertissement ? { avertissement } : {}) } });
       if (existant) {
         const lien = await lireParametre<string | null>(cleLienCopie(id), null);
-        const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau;
+        const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau && existant.heuresParReseau[saisie.reseau] === instant;
         if (!memeDemande) return refus(PHRASES_DUPLICATION.autreDemande);
         // Rejeu après une écriture interrompue : on termine ce qui manque (fiche et lien), sans rien recréer.
         const texte = existant.textes?.[saisie.reseau];
-        if (texte) await ecrireStockageFiche(cleCopie, texte);
+        // La fiche n'est réécrite que si elle n'a aucun texte : un texte déjà adapté n'est jamais écrasé.
+        if (texte && !(await lireStockageFiche(cleCopie)).texte) await ecrireStockageFiche(cleCopie, texte);
         if (lien === null) await ecrireParametre(cleLienCopie(id), saisie.cle);
         return retour();
       }
@@ -133,10 +169,16 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       if (Date.parse(instant) < Date.now() && !saisie.confirmerPasse) {
         return { ok: false as const, message: "Date dans le passé : à confirmer.", aConfirmer: "passe" as const, avertissement: PHRASES_DUPLICATION.passe };
       }
+      if (visuelId && !videoId && !accepteLesVisuels(saisie.reseau)) return refus(PHRASES_DUPLICATION.visuelVideoSeule);
+      if (!saisie.confirmerProximite) {
+        const v = await verifierVoisinage(saisie.reseau, saisie.jour, instant);
+        if (v) return { ok: false as const, message: "Proximité ou quota : à confirmer.", aConfirmer: v.type, avertissement: v.message };
+      }
       const textes = texteOriginal(fiche.entree, original, fiche.entree.reseau);
       const copieTexte = { texte: marquerAAdapter(textes.texte), premierCommentaire: textes.premierCommentaire };
-      // Le lien est écrit AVANT la copie : une copie n'existe jamais sans lien, et un rejeu reprend là où l'écriture s'est arrêtée.
+      // Le lien et le texte de la fiche sont écrits AVANT la copie : une copie n'existe jamais sans lien ni texte visible, et un rejeu reprend là où l'écriture s'est arrêtée.
       await ecrireParametre(cleLienCopie(id), saisie.cle);
+      await ecrireStockageFiche(cleCopie, copieTexte);
       await creerCreneau(
         depotsPlan(),
         {
@@ -151,8 +193,7 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
         },
         maintenant(),
       );
-      // Le texte est aussi rangé là où la fiche le lit. Rien d'autre n'est écrit : ni l'original, ni un envoi.
-      await ecrireStockageFiche(cleCopie, copieTexte);
+      // Rien d'autre n'est écrit : ni l'original, ni un envoi.
       try { revalidatePath("/calendrier"); } catch { /* le rafraîchissement est secondaire : l'écriture a eu lieu */ }
       return retour();
     });

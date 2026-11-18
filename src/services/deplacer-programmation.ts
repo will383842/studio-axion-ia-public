@@ -21,7 +21,7 @@
  */
 import { verifierSaisie } from "@/components/calendrier/FicheEntree";
 import { occupeBuffer } from "@/domaine/buffer";
-import type { JournalDecalage, LotEcritures } from "@/domaine/depots";
+import type { LotEcritures } from "@/domaine/depots";
 import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import type { IdReseau, Publication } from "@/domaine/types";
 import { estReseauDeclinaison } from "@/reseaux/codes";
@@ -50,8 +50,6 @@ export interface DepsDeplacement {
   niveau(creneauId: string): Promise<{ niveau: "libre" | "brouillon" | "en-cours" | "a-verifier" | "programme" | "parti" }>;
   /** Les publications locales dont la clé d'envoi est l'une de ces clés du diffuseur. */
   publicationsDeCles(cles: string[]): Promise<Publication[]>;
-  /** Une ligne du journal des décalages (ajout seul). */
-  journaliser(ligne: JournalDecalage): Promise<void>;
   etats: { lire(cle: string): Promise<string | undefined>; noter(cle: string, valeur: string): Promise<void> };
   /** Cloche seulement. */
   notifier(n: { cle: string; motif: "a-reprogrammer"; raison: string }): Promise<void>;
@@ -149,7 +147,7 @@ const annules = (liste: EnvoiPlanifie[], le: string): LotEcritures["enregistrer"
 
 type Preparation =
   | { ok: false; res: ResultatDeplacement }
-  | { ok: true; c: CreneauPlan; vivants: EnvoiPlanifie[]; avecPost: EnvoiPlanifie[]; versionSuivante: number };
+  | { ok: true; c: CreneauPlan; vivants: EnvoiPlanifie[]; avecPost: EnvoiPlanifie[]; versionSuivante: number; niveau: string };
 
 /** Gardes communes : créneau lisible, programmé ou validé, non partie, non passé, garde L5-02d, aucun envoi en cours. Aucune écriture, aucun appel. */
 async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparation> {
@@ -173,7 +171,21 @@ async function preparer(d: DepsDeplacement, creneauId: string): Promise<Preparat
   for (const e of vivants) if (await aUnPostPossible(e, d.etats)) avecPost.push(e);
   // Version suivante : jamais égale ni inférieure à une clé déjà utilisée (une clé retirée ne se réutilise pas).
   const versionSuivante = Math.max(c.decalages, ...tous.map((e) => e.versionCreneau)) + 1;
-  return { ok: true, c, vivants, avecPost, versionSuivante };
+  // La garde voit un post chez le diffuseur (programmé ou brouillon) que les envois vivants ne montrent pas (ex. envoi annulé gardant sa marque) :
+  // impossible de savoir lequel retirer, rien n'est changé.
+  if (avecPost.length === 0 && (niveau === "programme" || niveau === "brouillon")) return { ok: false, res: { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier } };
+  return { ok: true, c, vivants, avecPost, versionSuivante, niveau };
+}
+
+/** Après un retrait confirmé et l'écriture : l'envoi annulé n'est plus « programmé » aux yeux de la garde L5-02d (sinon l'ancienne date reste annoncée). */
+async function sortirDeLaGarde(d: DepsDeplacement, retires: EnvoiPlanifie[]): Promise<void> {
+  for (const e of retires) {
+    try {
+      await d.etats.noter(`promotion:${e.cle}`, "retire");
+    } catch {
+      /* la marque est une aide : l'écriture principale a eu lieu */
+    }
+  }
 }
 
 /**
@@ -187,6 +199,7 @@ async function retirerTout(d: DepsDeplacement, p: Extract<Preparation, { ok: tru
   const fin = async (r: Extract<ResultatDeplacement, { ok: false }>): Promise<ResultatDeplacement> => {
     if (retires.length === 0) return r;
     await d.appliquer({ supprimer: [], enregistrer: [...annules(retires, le), ...(await liberer(d, retires, le))] });
+    await sortirDeLaGarde(d, retires);
     const restent = p.avecPost.filter((x) => !retires.includes(x));
     return { ...r, message: `${PHRASES_DEPLACEMENT.partielle(retires.map((x) => nomReseau(x.reseau)).join(", "), restent.map((x) => nomReseau(x.reseau)).join(", "))} ${r.message}`, ecritures: true };
   };
@@ -237,6 +250,7 @@ async function reposerDansAPlacer(d: DepsDeplacement, p: Extract<Preparation, { 
       if (v && v.statut === "programme") lot.enregistrer.push({ collection: "visuels", entite: { ...v, statut: "valide", modifieLe: le } as never });
     }
     await d.appliquer(lot);
+    await sortirDeLaGarde(d, p.avecPost);
   } catch {
     for (const e of p.avecPost) await d.etats.noter(`a-verifier:${e.cle}`, "a-verifier");
     return { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
@@ -250,9 +264,18 @@ async function reposerDansAPlacer(d: DepsDeplacement, p: Extract<Preparation, { 
   return { ok: false, etat: "a-reprogrammer", message: PHRASES_DEPLACEMENT.aPlacer, ecritures: true };
 }
 
-async function noterFait(d: DepsDeplacement, cleFait: string, valeur: string): Promise<void> {
+/** Rejeu : la marque porte la version du créneau écrite par la demande ; elle ne vaut que tant que le créneau est à cette version (A, puis B, puis A : trois demandes). */
+async function dejaFait(d: DepsDeplacement, creneauId: string, cle: string, cleFait: string): Promise<boolean> {
+  if (typeof cle !== "string" || !cle) return false;
+  const marque = await d.etats.lire(cleFait);
+  if (marque === undefined) return false;
+  const c = typeof creneauId === "string" && creneauId ? await d.creneau(creneauId) : null;
+  return c !== null && String(c.decalages) === marque;
+}
+
+async function noterFait(d: DepsDeplacement, cleFait: string, version: number): Promise<void> {
   try {
-    await d.etats.noter(cleFait, valeur);
+    await d.etats.noter(cleFait, String(version));
   } catch {
     /* le rejeu est une aide : l'écriture principale a eu lieu */
   }
@@ -265,13 +288,11 @@ function sansAvant(c: CreneauPlan): CreneauPlan {
 }
 
 /** Sans port de retrait et avec un post possible chez le diffuseur : aucun appel, aucune écriture. */
-const bloque = (d: DepsDeplacement, p: Extract<Preparation, { ok: true }>): boolean => d.diffuseur === null && p.avecPost.length > 0;
+const bloque = (d: DepsDeplacement, p: Extract<Preparation, { ok: true }>): boolean => d.diffuseur === null && (p.avecPost.length > 0 || p.niveau === "programme" || p.niveau === "brouillon");
 
 export async function deplacerProgrammation(d: DepsDeplacement, demande: DemandeDeplacement): Promise<ResultatDeplacement> {
   const cleFait = `deplace-fait:${demande?.creneauId}:${demande?.cle}`;
-  if (typeof demande?.cle === "string" && demande.cle && (await d.etats.lire(cleFait)) !== undefined) {
-    return { ok: true, etat: "deja-fait", message: PHRASES_DEPLACEMENT.dejaFait, creneauId: demande.creneauId };
-  }
+  if (await dejaFait(d, demande?.creneauId, demande?.cle, cleFait)) return { ok: true, etat: "deja-fait", message: PHRASES_DEPLACEMENT.dejaFait, creneauId: demande.creneauId };
   const p = await preparer(d, demande?.creneauId);
   if (!p.ok) return p.res;
   const jour = demande.nouveauJour;
@@ -298,20 +319,20 @@ export async function deplacerProgrammation(d: DepsDeplacement, demande: Demande
     const r1 = p.c.statut === "programme" ? transitionner(p.c, "valide", "studio") : { ok: true as const, creneau: p.c };
     if (!r1.ok) throw new Error(r1.raison);
     const creneau: CreneauPlan = sansAvant({ ...r1.creneau, jourVise: jour, heuresParReseau: { ...r1.creneau.heuresParReseau, ...nouvelles }, decalages: p.versionSuivante });
-    await d.journaliser({ id: `decalage:${p.c.id}:${demande.cle}#${p.versionSuivante}`, creneauId: p.c.id, ancienJour: p.c.jourVise, nouveauJour: jour, raison: "Publication programmée déplacée", creeLe: le });
-    await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
+    // La ligne du journal des décalages (ajout seul, comme L4-06) est dans le MÊME lot : une écriture qui échoue n'en laisse aucune.
+    const ligne = { id: `decalage:${p.c.id}:${demande.cle}#${p.versionSuivante}`, creneauId: p.c.id, ancienJour: p.c.jourVise, nouveauJour: jour, raison: "Publication programmée déplacée", creeLe: le };
+    await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, { collection: "journalDecalages", entite: ligne }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
+    await sortirDeLaGarde(d, p.avecPost);
   } catch {
     return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
-  await noterFait(d, cleFait, "fait");
+  await noterFait(d, cleFait, p.versionSuivante);
   return { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, nouvellesCles: p.vivants.map((e) => cleEnvoi(e.videoId, e.reseau, p.versionSuivante)) };
 }
 
 export async function modifierTexteProgramme(d: DepsDeplacement, demande: DemandeTexte): Promise<ResultatDeplacement> {
   const cleFait = `texte-fait:${demande?.creneauId}:${demande?.cle}`;
-  if (typeof demande?.cle === "string" && demande.cle && (await d.etats.lire(cleFait)) !== undefined) {
-    return { ok: true, etat: "deja-fait", message: PHRASES_DEPLACEMENT.dejaFait, creneauId: demande.creneauId };
-  }
+  if (await dejaFait(d, demande?.creneauId, demande?.cle, cleFait)) return { ok: true, etat: "deja-fait", message: PHRASES_DEPLACEMENT.dejaFait, creneauId: demande.creneauId };
   // Une seule garde de saisie : celle de la fiche (retours à la ligne, longueurs, pas de premier commentaire sur TikTok).
   const brut = demande?.reseau as IdReseau;
   if (typeof brut !== "string" || !estReseauDeclinaison(brut)) return refus(PHRASES_DEPLACEMENT.reseauInconnu);
@@ -347,10 +368,11 @@ export async function modifierTexteProgramme(d: DepsDeplacement, demande: Demand
     const creneau: CreneauPlan = sansAvant({ ...r3.creneau, decalages: p.versionSuivante });
     const le = d.maintenant().toISOString();
     await d.appliquer({ supprimer: [], enregistrer: [{ collection: "creneauxEditoriaux", entite: creneau }, ...annules(p.vivants, le), ...(await liberer(d, p.avecPost, le))] });
+    await sortirDeLaGarde(d, p.avecPost);
   } catch {
     return p.avecPost.length > 0 ? reposerDansAPlacer(d, p, modifie) : { ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.aVerifierFin };
   }
-  await noterFait(d, cleFait, "fait");
+  await noterFait(d, cleFait, p.versionSuivante);
   return { ok: true, etat: "modifie", message: demande.auteur === "will" ? PHRASES_DEPLACEMENT.texteModifie : PHRASES_DEPLACEMENT.texteModifiePropose, creneauId: p.c.id };
 }
 
@@ -391,17 +413,16 @@ export function portRetraitDepuisClient(client: () => ClientRetraitCal22): PortR
  * Câblage serveur : dépendances réelles, chargées à l'appel. `diffuseur: null` : AUCUN appel au diffuseur tant que la fonction de retrait
  * n'est pas sur master (bloqué : fonction client manquante `retirer(demande: DemandeRetraitZernio): Promise<ResultatRetraitZernio>`).
  */
-async function depsServeur(): Promise<DepsDeplacement> {
+export async function depsDeplacementServeur(diffuseur: PortRetraitDiffuseur | null = null): Promise<DepsDeplacement> {
   const { depots, maintenant } = await import("@/services/_commun");
   const { appliquerLot } = await import("@/donnees/memoire");
   const { PREFIXE_ETATS_ENVOI_CALENDRIER: prefixe } = await import("@/services/branchement-envoi-calendrier");
   const z = await import("@/services/zernio");
   const d = depots();
   return {
-    diffuseur: null,
+    diffuseur,
     niveau: async (id) => (await import("@/services/garde-creneau-diffuseur")).niveauDiffuseurDuCreneau(id),
     publicationsDeCles: (cles) => d.publications.lister((x) => typeof x.cleEnvoi === "string" && cles.includes(x.cleEnvoi)),
-    journaliser: async (ligne) => void (await d.journalDecalages.enregistrer(ligne)),
     reglagesOuverts: async () => (await z.envoiZernioAutorise()) === true && (await z.envoiCalendrierAutorise()) === true && (await z.editorialeActive()) === true,
     creneau: async (id) => ((await d.creneauxEditoriaux.obtenir(id)) as CreneauPlan | null) ?? null,
     envois: (creneauId) => d.envoisPlanifies.lister((e) => e.creneauId === creneauId),
@@ -427,5 +448,5 @@ async function depsServeur(): Promise<DepsDeplacement> {
   };
 }
 
-export const deplacerProgrammationServeur = async (demande: DemandeDeplacement): Promise<ResultatDeplacement> => deplacerProgrammation(await depsServeur(), demande);
-export const modifierTexteProgrammeServeur = async (demande: DemandeTexte): Promise<ResultatDeplacement> => modifierTexteProgramme(await depsServeur(), demande);
+export const deplacerProgrammationServeur = async (demande: DemandeDeplacement): Promise<ResultatDeplacement> => deplacerProgrammation(await depsDeplacementServeur(), demande);
+export const modifierTexteProgrammeServeur = async (demande: DemandeTexte): Promise<ResultatDeplacement> => modifierTexteProgramme(await depsDeplacementServeur(), demande);

@@ -7,12 +7,26 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { FicheEntree, PHRASE_PROGRAMMEE_MODIFIABLE } from "@/components/calendrier/FicheEntree";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 import type { LotEcritures } from "@/domaine/depots";
 import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { instantParis } from "@/lib/horloge-paris";
 import { occupeBuffer } from "@/domaine/buffer";
+import * as serviceModule from "@/services/deplacer-programmation";
+import { deplacerProgrammationAction, modifierTexteProgrammeAction, modifierTexteProgrammeDepuisFormulaire } from "../../src/app/(studio)/calendrier/actions/deplacer";
 import { CODES_DEPLACEMENT, deplacerProgrammation, modifierTexteProgramme, PHRASES_DEPLACEMENT, portRetraitDepuisClient, type DepsDeplacement, type IssueRetraitDiffuseur } from "@/services/deplacer-programmation";
+
+const revalide = vi.hoisted(() => ({ appels: [] as string[] }));
+vi.mock("next/headers", () => mockHeaders);
+vi.mock("next/navigation", () => mockNavigation);
+vi.mock("next/cache", () => ({ revalidatePath: (p: string) => void revalide.appels.push(p), revalidateTag: () => undefined }));
+vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({ id: "s1" })) }));
+// Les deux câblages serveur passent par le vrai service ; un test peut leur imposer une réponse pour vérifier ce que l'action en fait.
+vi.mock("@/services/deplacer-programmation", async (orig) => {
+  const m = await orig<typeof import("@/services/deplacer-programmation")>();
+  return { ...m, deplacerProgrammationServeur: vi.fn(m.deplacerProgrammationServeur), modifierTexteProgrammeServeur: vi.fn(m.modifierTexteProgrammeServeur) };
+});
 
 const MAINTENANT = new Date("2026-12-10T10:00:00.000Z");
 const DEMAIN = "2026-12-11T08:30:00.000Z";
@@ -56,16 +70,19 @@ function monde(opts: { creneau?: Record<string, unknown>; envois?: EnvoiPlanifie
         if (collection === "envoisPlanifies") envois.set(entite.id, entite as EnvoiPlanifie);
         if (collection === "visuels") visuels.set(entite.id, entite as never);
         if (collection === "publications") pubs.set(entite.id, entite as never);
+        if (collection === "journalDecalages") journal.push(entite as never);
       }
     },
+    // Même règle que la vraie garde L5-02d (garde-creneau-diffuseur.ts) : un statut « programmé » OU une marque promotion « programme » compte, annulé ou non.
     niveau: async () => {
-      const cles = [...envois.values()].map((e) => e.cle);
-      if (cles.some((c) => marques.get(`promotion:${c}`) === "en-cours" || marques.get(`creation:${c}`) === "en-cours")) return { niveau: "en-cours" as const };
-      if (cles.some((c) => marques.get(`a-verifier:${c}`) === "a-verifier")) return { niveau: "a-verifier" as const };
-      return { niveau: "programme" as const };
+      const tous = [...envois.values()];
+      if (tous.some((e) => marques.get(`promotion:${e.cle}`) === "en-cours" || (e.statut !== "annule" && marques.get(`creation:${e.cle}`) === "en-cours"))) return { niveau: "en-cours" as const };
+      if (tous.some((e) => e.statut !== "annule" && marques.get(`a-verifier:${e.cle}`) === "a-verifier")) return { niveau: "a-verifier" as const };
+      if (tous.some((e) => ["programme", "confirme", "a-envoyer"].includes(e.statut) || marques.get(`promotion:${e.cle}`) === "programme")) return { niveau: "programme" as const };
+      if (tous.some((e) => e.statut !== "annule" && ["brouillon", "valide"].includes(e.statut) && typeof e.cleDiffuseur === "string")) return { niveau: "brouillon" as const };
+      return { niveau: "libre" as const };
     },
     publicationsDeCles: async (cles) => [...pubs.values()].filter((x) => cles.includes(String(x.cleEnvoi))) as never,
-    journaliser: async (l) => void journal.push(l),
     etats: { lire: async (c) => marques.get(c), noter: async (c, v) => void marques.set(c, v) },
     notifier: async (n) => void notifs.push(n),
     maintenant: () => MAINTENANT,
@@ -73,6 +90,7 @@ function monde(opts: { creneau?: Record<string, unknown>; envois?: EnvoiPlanifie
   return { deps, creneaux, envois, visuels, marques, pubs, journal, ordre, retraits, notifs, supprime, creneau: () => creneaux.get("cre_1") as Record<string, never> & { heuresParReseau: Record<string, string>; textes: Record<string, { texte: string }>; decalages: number; statut: string; valideeLe?: string; retireLe?: string; jourVise: string } };
 }
 
+beforeEach(() => { revalide.appels.length = 0; });
 const demande = (sur: Record<string, unknown> = {}) => ({ creneauId: "cre_1", nouveauJour: "2026-12-14", cle: "form-1", ...sur });
 const vivants = (m: ReturnType<typeof monde>) => [...m.envois.values()].filter((e) => e.statut !== "annule");
 
@@ -133,6 +151,47 @@ describe("CAL-23 · déplacer : annuler puis recréer, une seule fois, à la nou
     const r = await deplacerProgrammation(m.deps, demande({ nouveauJour: "2026-12-11" }));
     expect(r.ok && r.etat).toBe("inchange");
     expect(m.ordre).toEqual([]);
+  });
+
+  it("après le déplacement, la VRAIE règle de garde voit une publication libre (marque « retire »), pas « programmé » à l'ancienne date", async () => {
+    const m = monde({ marques: { "promotion:envoi:vis_1:linkedin:v0": "programme" } });
+    expect((await m.deps.niveau("cre_1")).niveau).toBe("programme");
+    await deplacerProgrammation(m.deps, demande());
+    expect(m.marques.get("promotion:envoi:vis_1:linkedin:v0")).toBe("retire");
+    expect((await m.deps.niveau("cre_1")).niveau).toBe("libre");
+  });
+
+  it("la garde voit un post (envoi annulé gardant sa marque « programme ») que les envois vivants ne montrent pas : refus, rien n'est changé", async () => {
+    for (const sansDiffuseur of [true, false]) {
+      const m = monde({ envois: [envoi({ statut: "annule", cleDiffuseur: undefined })], creneau: { statut: "valide" }, marques: { "promotion:envoi:vis_1:linkedin:v0": "programme" }, sansDiffuseur });
+      expect(await deplacerProgrammation(m.deps, demande())).toEqual({ ok: false, etat: "a-verifier", message: PHRASES_DEPLACEMENT.dejaAVerifier });
+      expect(m.ordre).toEqual([]);
+      expect(m.creneau().jourVise).toBe("2026-12-11");
+    }
+  });
+
+  it("un appliquer en échec ne laisse aucune ligne de journal ; un rejeu ne l'écrit pas deux fois", async () => {
+    const m = monde({ ecritureEchoue: 1 });
+    await deplacerProgrammation(m.deps, demande());
+    expect(m.journal).toEqual([]);
+    const n = monde();
+    await deplacerProgrammation(n.deps, demande());
+    await deplacerProgrammation(n.deps, demande());
+    expect(n.journal).toHaveLength(1);
+  });
+
+  it("A, puis B, puis de nouveau A : la même clé rejouée APRÈS une autre modification n'est pas prise pour un rejeu", async () => {
+    const m = monde({ envois: [] });
+    const t = (texte: string, cle: string) => modifierTexteProgramme(m.deps, { creneauId: "cre_1", reseau: "linkedin", texte, premierCommentaire: "Et vous ?", auteur: "will", cle } as never);
+    expect((await t("Texte B", "k1")).ok).toBe(true);
+    expect((await t("Texte B", "k1")).ok && (await t("Texte B", "k1")).ok).toBe(true); // vrai rejeu : « déjà fait »
+    expect(m.creneau().decalages).toBe(1);
+    // Le créneau a changé de version depuis (autre modification, nouvelle validation, reprogrammation) : la clé k1 redemandée est une NOUVELLE demande.
+    Object.assign(m.creneau(), { statut: "programme", valideeLe: "2026-12-02T00:00:00Z", decalages: 2 });
+    m.creneau().textes.linkedin.texte = "Texte D";
+    const encore = await t("Texte A", "k1");
+    expect(encore.ok && encore.etat).toBe("modifie");
+    expect(m.creneau().textes.linkedin.texte).toBe("Texte A");
   });
 
   it("deux réseaux : un retrait par envoi, une nouvelle clé par réseau", async () => {
@@ -495,4 +554,106 @@ describe("CAL-23 · périmètre, écran et vocabulaire", () => {
     expect(toutes).not.toMatch(/€|\$|euro|prix|tarif|zernio|buffer/i);
     expect(toutes).toMatch(/vous|Vous|vos|votre|Rechargez|réessayez|relisez|retirez/i);
   });
+});
+
+describe("CAL-23 · l'action rend le code et la phrase exacts, et rafraîchit la page quand quelque chose a bougé", () => {
+  const { deplacerProgrammationServeur, modifierTexteProgrammeServeur } = vi.mocked(serviceModule);
+  const CLE_FICHE = "creneau:cre_1|linkedin";
+
+  it.each([
+    ["reste", PHRASES_DEPLACEMENT.sansRetrait, "DEPLACEMENT_RESTE_PROGRAMME", false],
+    ["a-reprogrammer", PHRASES_DEPLACEMENT.aPlacer, "DEPLACEMENT_A_REPROGRAMMER", true],
+    ["a-verifier", PHRASES_DEPLACEMENT.aVerifier, "DEPLACEMENT_A_VERIFIER", false],
+    ["a-retirer-a-la-main", PHRASES_DEPLACEMENT.aLaMain, "DEPLACEMENT_A_LA_MAIN", false],
+    ["refuse", PHRASES_DEPLACEMENT.passee, "DEPLACEMENT_REFUSE", false],
+  ] as const)("échec « %s » : code %s, phrase exacte, rafraîchissement seulement si des écritures ont eu lieu", async (etat, message, code, ecritures) => {
+    deplacerProgrammationServeur.mockResolvedValueOnce({ ok: false, etat, message, ...(ecritures ? { ecritures: true as const } : {}) });
+    const r = await deplacerProgrammationAction(CLE_FICHE, "2026-12-14", "form-1");
+    expect(r).toEqual({ ok: false, message, code });
+    expect(revalide.appels).toEqual(ecritures ? ["/calendrier"] : []);
+  });
+
+  it("succès : la phrase du service, la page est rafraîchie ; texte : même chemin", async () => {
+    deplacerProgrammationServeur.mockResolvedValueOnce({ ok: true, etat: "deplace", message: "Déplacée.", creneauId: "cre_1" });
+    expect(await deplacerProgrammationAction(CLE_FICHE, "2026-12-14", "form-1")).toEqual({ ok: true, donnees: { creneauId: "cre_1", message: "Déplacée." } });
+    modifierTexteProgrammeServeur.mockResolvedValueOnce({ ok: false, etat: "a-reprogrammer", message: PHRASES_DEPLACEMENT.aPlacer, ecritures: true });
+    const r = await modifierTexteProgrammeAction(CLE_FICHE, { texte: "Un texte", cleFormulaire: "f-1" });
+    expect(r).toEqual({ ok: false, message: PHRASES_DEPLACEMENT.aPlacer, code: "DEPLACEMENT_A_REPROGRAMMER" });
+    expect(revalide.appels).toEqual(["/calendrier", "/calendrier"]);
+  });
+
+  it("une clé de fiche d'une autre origine ou une clé de formulaire illisible : refus, le service n'est pas appelé", async () => {
+    deplacerProgrammationServeur.mockClear();
+    expect((await deplacerProgrammationAction("publication:pub_1|linkedin", "2026-12-14", "form-1")).ok).toBe(false);
+    expect((await deplacerProgrammationAction(CLE_FICHE, "2026-12-14", "")).ok).toBe(false);
+    expect(deplacerProgrammationServeur).not.toHaveBeenCalled();
+  });
+
+  it("adaptateur de formulaire : même contenu = même clé de rejeu, autre contenu = autre clé", async () => {
+    modifierTexteProgrammeServeur.mockClear();
+    modifierTexteProgrammeServeur.mockResolvedValue({ ok: true, etat: "modifie", message: "ok", creneauId: "cre_1" });
+    const f = (texte: string) => {
+      const x = new FormData();
+      x.set("cle", CLE_FICHE);
+      x.set("texte", texte);
+      return x;
+    };
+    await modifierTexteProgrammeDepuisFormulaire(f("Texte A"));
+    await modifierTexteProgrammeDepuisFormulaire(f("Texte A"));
+    await modifierTexteProgrammeDepuisFormulaire(f("Texte B"));
+    const cles = modifierTexteProgrammeServeur.mock.calls.map((c) => c[0].cle);
+    expect(cles[0]).toBe(cles[1]);
+    expect(cles[0]).not.toBe(cles[2]);
+    expect(modifierTexteProgrammeServeur.mock.calls[0][0]).toMatchObject({ creneauId: "cre_1", reseau: "linkedin", texte: "Texte A", auteur: "will" });
+    modifierTexteProgrammeServeur.mockRestore();
+  });
+});
+
+describe("CAL-23 · sur de vrais dépôts en mémoire : le tour d'envoi recrée UNE seule version, la nouvelle", () => {
+  const MIN = 60_000;
+  const JOUR_MS = 24 * 60 * MIN;
+  const arrondi = (x: number): number => Math.floor(x / MIN) * MIN;
+  const heure = (jours: number): string => new Date(arrondi(Date.now() + jours * JOUR_MS)).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const CLE_V0 = "envoi:vis_1:linkedin:v0";
+
+  it("après retrait et déplacement : aucune exclusion « occupe » ni « annule », une seule ligne à envoyer (v1, nouveau jour), garde « libre »", async () => {
+    const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
+    const { ecrireParametre } = await import("@/services/_commun");
+    const { PARAM_EDITORIALE_ACTIVE, PARAM_ENVOI_CALENDRIER, PARAM_ARRET_ZERNIO } = await import("@/services/zernio");
+    const { construireDepsEnvoiCalendrier } = await import("@/services/branchement-envoi-calendrier");
+    const { niveauDiffuseurDuCreneau } = await import("@/services/garde-creneau-diffuseur");
+    const { depsDeplacementServeur } = await import("@/services/deplacer-programmation");
+    reinitialiserDepots();
+    await ecrireParametre(PARAM_EDITORIALE_ACTIVE, true);
+    await ecrireParametre(PARAM_ENVOI_CALENDRIER, true);
+    await ecrireParametre(PARAM_ARRET_ZERNIO, true);
+    const le = "2026-11-10T08:00:00Z";
+    await depots().visuels.enregistrer({ id: "vis_1", famille: "carrousel", titre: "Cinq erreurs", entree: { type: "sujet", sujet: "exemple" }, statut: "programme", modeTexte: "api", versionSpec: 1, coutCentimes: 0, creeLe: le, modifieLe: le, spec: { alt: "Cinq erreurs courantes à éviter" } } as never);
+    await depots().creneauxEditoriaux.enregistrer({
+      id: "cre_1", jourVise: heure(2).slice(0, 10), heuresParReseau: { linkedin: heure(2) }, compteCible: "compte-1:li:42", visuelId: "vis_1",
+      textes: { linkedin: { texte: "Texte linkedin", premierCommentaire: "" } }, statut: "programme", decalages: 0, valideeLe: "2026-11-12T10:00:00Z", valideePar: "le fondateur",
+    } as never);
+    await depots().envoisPlanifies.enregistrer(envoi({ id: CLE_V0, cle: CLE_V0, jour: heure(2).slice(0, 10), creeLe: le, modifieLe: le }) as never);
+    await depots().publications.enregistrer({ id: "pub_1", visuelId: "vis_1", reseau: "linkedin", canalId: "compte-1:li:42", via: "zernio", statut: "programmee", etatEnvoi: "confirme", cleEnvoi: CLE, creeLe: le, modifieLe: le } as never);
+    await depots().parametres.enregistrer({ id: `envoi-calendrier:promotion:${CLE_V0}`, valeur: "programme", creeLe: le, modifieLe: le } as never);
+    expect((await niveauDiffuseurDuCreneau("cre_1")).niveau).toBe("programme");
+
+    const retraits: string[] = [];
+    const deps = await depsDeplacementServeur({ retirer: async (e) => { retraits.push(e.cle); return "retire"; } });
+    const nouveauJour = heure(4).slice(0, 10);
+    const r = await deplacerProgrammation(deps, { creneauId: "cre_1", nouveauJour, cle: "form-1" });
+    expect(r.ok).toBe(true);
+    expect(retraits).toEqual([CLE_V0]);
+
+    const notifs: unknown[] = [];
+    const lignes = await construireDepsEnvoiCalendrier({ client: {} as never, maintenant: () => Date.now(), notifier: async (n) => void notifs.push(n) }).creneaux();
+    expect(notifs).toEqual([]);
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0]).toMatchObject({ id: "cre_1", reseau: "linkedin", versionCreneau: 1, jour: nouveauJour });
+    expect(cleEnvoi("vis_1", "linkedin", lignes[0].versionCreneau)).not.toBe(CLE_V0);
+    expect((await niveauDiffuseurDuCreneau("cre_1")).niveau).toBe("libre");
+    expect((await depots().publications.obtenir("pub_1"))?.etatEnvoi).toBe("absent");
+    expect((await depots().envoisPlanifies.obtenir(CLE_V0))?.statut).toBe("annule");
+    expect((await depots().journalDecalages.lister()).length).toBe(1);
+  }, 60_000);
 });
