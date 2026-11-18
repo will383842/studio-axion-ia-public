@@ -10,6 +10,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
 import { exemplesCommeVraies } from "../helpers/videos-reelles";
 import type { LigneCout } from "@/domaine/types";
+import type { LecteurCredit } from "@/fournisseurs/types";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -129,12 +130,26 @@ describe("l'usine PROPOSE une date (appel 4), Williams décide", () => {
 });
 
 describe("une commande d'origine « usine » garde un budget bloquant (même chemin que les autres formats)", () => {
-  const ligne: LigneCout = { etape: "voix", fournisseur: "simulation", unite: "caractere", quantite: 100, prixUnitaire: eur(1), total: eur(10), nature: "estime" };
+  // Lecteur de solde factice (aucun réseau) : une ligne HeyGen est alors réservée comme pour les autres formats.
+  const lecteurHeygen: LecteurCredit = {
+    fournisseur: "heygen",
+    nom: "HeyGen",
+    mode: "reel",
+    urlRecharge: "https://app.heygen.com/settings/api",
+    variableCle: "HEYGEN_API_KEY",
+    async lireSolde() {
+      return { fournisseur: "heygen", centimes: 1_000_000, devise: "USD", luLe: new Date().toISOString() };
+    },
+    async testerConnexion() {
+      return { ok: true, finCle: "…essai", message: "ok", testeLe: new Date().toISOString() };
+    },
+  };
+  const ligne: LigneCout = { etape: "voix", fournisseur: "heygen", unite: "caractere", quantite: 100, prixUnitaire: eur(1), total: eur(10), nature: "estime" };
   const estimation = { lignes: [ligne], total: eur(10) };
   const demande = () => ({ videoId: VIDEO, travailId: "trv-tuto-1" });
 
   beforeEach(async () => {
-    credits.injecterLecteursPourEssai([], []);
+    credits.injecterLecteursPourEssai([lecteurHeygen], ["heygen"]);
     await ecrireParametre("budget.seuilConfirmation", eur(1_000_000));
     await ecrireParametre("budget.mensuel", eur(100));
   });
@@ -148,6 +163,7 @@ describe("une commande d'origine « usine » garde un budget bloquant (même che
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 5, mois: couts.moisParis() });
     await expect(credits.verifierEtReserverSelonOrigine("usine", estimation, true, "Cette vidéo", demande())).rejects.toMatchObject({ code: "BUDGET_MENSUEL_ATTEINT" });
     await budget.reglerBudgetUsine({ budget_mensuel_cents: 100, mois: couts.moisParis() });
-    await expect(credits.verifierEtReserverSelonOrigine("usine", estimation, true, "Cette vidéo", demande())).resolves.not.toThrow();
+    await credits.verifierEtReserverSelonOrigine("usine", estimation, true, "Cette vidéo", demande());
+    expect((await depots().reservations.lister()).length).toBeGreaterThan(0);
   });
 });

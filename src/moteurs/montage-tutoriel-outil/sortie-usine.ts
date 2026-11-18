@@ -72,6 +72,10 @@ const schemaFiche = z
     // Le cas 5 porte deux gabarits (flux puis décision) ; les autres cas, un seul.
     const attendu = f.cas === 5 ? 2 : 1;
     if (f.gabarits.length !== attendu) ctx.addIssue({ code: "custom", path: ["gabarits"], message: "nombre de gabarits" });
+    // Cas 5 (T-EXT-18, classerParRegles) : flux puis décision, deux gabarits distincts dont G-Flux.
+    if (f.cas === 5 && (new Set(f.gabarits).size !== 2 || !f.gabarits.includes("G-Flux"))) {
+      ctx.addIssue({ code: "custom", path: ["gabarits"], message: "le cas 5 exige deux gabarits distincts dont G-Flux" });
+    }
   });
 
 function nomChamp(chemin: readonly PropertyKey[]): string {

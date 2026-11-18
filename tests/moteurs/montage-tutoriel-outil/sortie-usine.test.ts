@@ -44,6 +44,9 @@ describe("ficheSortieTutoriel", () => {
     expect(fiche({ cas: 5, gabarits: ["G-Flux", "G-Decision"] }).gabarits).toEqual(["G-Flux", "G-Decision"]);
     expect(ficheSortieTutoriel(entree({ cas: 5, gabarits: ["G-Flux"] })).ok).toBe(false);
     expect(ficheSortieTutoriel(entree({ cas: 3, gabarits: ["G-Flux", "G-Decision"] })).ok).toBe(false);
+    expect(ficheSortieTutoriel(entree({ cas: 5, gabarits: ["G-Journee", "G-Journee"] })).ok).toBe(false);
+    expect(ficheSortieTutoriel(entree({ cas: 5, gabarits: ["G-Flux", "G-Flux"] })).ok).toBe(false);
+    expect(ficheSortieTutoriel(entree({ cas: 5, gabarits: ["G-Journee", "G-Decision"] })).ok).toBe(false);
   });
 
   it("la fin choisie est transmise telle quelle", () => {
