@@ -28,8 +28,9 @@ import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import type { FournisseurPublication } from "@/fournisseurs/types";
 import { cleJour } from "@/lib/dates";
 import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant as maintenantIso, sousVerrou } from "./_commun";
-import { tourEnvoisCalendrier, type CreneauCalendrier, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
+import { envoyerDepuisCreneau, tourEnvoisCalendrier, type CreneauCalendrier, type LigneCreneau, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
 import { envoyerVisuelDuCreneau } from "./envoi-visuel-creneau";
+import { dansEssai, essaiCouvre, essaiEnCours, lireEssai } from "./essai-zernio";
 import { annulerEnvoi } from "./envois-planifies";
 import { creerNotification } from "./notifications";
 import type { EtatsPromotion, NotificationPromotion } from "./promotion-envois";
@@ -62,7 +63,9 @@ export interface InjectionsEnvoiCalendrier {
 
 export type TourEnvoisCalendrierServeur =
   | { saute: "porte-fermee" | "debit" | "tour-en-cours" | "non-relie" }
-  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux };
+  | { saute?: undefined; annules: number; resultat: ResultatTourCreneaux; essai?: undefined }
+  /** Tour d'ESSAI borné : UN créneau, un brouillon, jamais de promotion. */
+  | { saute?: undefined; essai: LigneCreneau | undefined; annules?: undefined; resultat?: undefined };
 
 /* ------------------------------------------------------------------ */
 /* Débit et tour unique                                                */
@@ -269,6 +272,8 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       if (typeof v !== "function") return v;
       if (nom !== "promouvoir") return (v as (...a: unknown[]) => unknown).bind(cible);
       return async (d: Parameters<ClientZernio["promouvoir"]>[0]) => {
+        // Défense en profondeur : sous un essai borné, jamais de promotion.
+        if (essaiEnCours()) return { etat: "refuse" as const, raison: "essai borné : brouillon seulement, aucune promotion" };
         const pre = await envoiPerimeAvantPromotion(d.cleJournal, maintenant(), etats);
         if (pre.perime) {
           await notifierUneFois(etats, notifier, `perime:${d.cleJournal}`, { cle: d.cleJournal, videoId: pre.perime, motif: "a-reprogrammer", raison: "Ce créneau a changé (décalé, retiré ou plus validé) pendant l'envoi : il n'a pas été programmé. Vérifiez-le dans le calendrier." });
@@ -407,10 +412,16 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
   } catch {
     ouverte = false;
   }
-  if (!ouverte) return { saute: "porte-fermee" };
+  // Porte générale fermée : l'essai borné d'UN créneau (brouillon seulement) peut encore passer ; sinon, fermé comme avant.
+  const maintenant = (options.maintenant ?? (() => Date.parse(maintenantIso())))();
+  let essaiId: string | undefined;
+  if (!ouverte) {
+    const e = await lireEssai(maintenant);
+    if (!e || !(await essaiCouvre(e.creneauId, "brouillon", maintenant))) return { saute: "porte-fermee" };
+    essaiId = e.creneauId;
+  }
 
   // 2 et 3. Un tour à la fois, au plus toutes les 5 minutes : le drapeau est posé avant toute lecture (aucune attente entre le test et la pose).
-  const maintenant = (options.maintenant ?? (() => Date.parse(maintenantIso())))();
   if (etatTour.enCours) return { saute: "tour-en-cours" };
   if (etatTour.dernier !== undefined && maintenant - etatTour.dernier < INTERVALLE_TOUR_ENVOIS_MS) return { saute: "debit" };
   etatTour.enCours = true;
@@ -425,6 +436,12 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
     }
     await marquerPromotionsOrphelines(deps.etats);
     const annules = await annulerVersionsPerimees(maintenant, deps.etats);
+    if (essaiId !== undefined) {
+      // Tour d'essai : UN seul créneau, jamais `tourEnvoisCalendrier` (qui promeut). Chaque porte relit l'essai.
+      const id = essaiId;
+      const ligne = await dansEssai(id, () => envoyerDepuisCreneau({ ...deps, porteEssai: (c) => essaiCouvre(c, "brouillon") }, id));
+      return { essai: ligne };
+    }
     const resultat = await tourEnvoisCalendrier(deps);
     return { annules, resultat };
   } finally {

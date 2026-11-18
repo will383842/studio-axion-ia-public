@@ -36,6 +36,8 @@ export interface DepsRetrait {
   appliquer(lot: LotEcritures): Promise<void>;
   etats: EtatsRetrait;
   maintenant(): Date;
+  /** Essai borné : le retrait de CE créneau est-il couvert (fenêtre de nettoyage comprise) alors que les réglages généraux sont fermés ? Absent = non. */
+  essai?(creneauId: string, geste: "retrait"): Promise<boolean>;
 }
 
 export type EtatRetrait = "retire" | "refuse" | "reste-programme" | "a-verifier" | "a-retirer-a-la-main";
@@ -108,6 +110,15 @@ async function listerPosts(client: DepsRetrait["client"], status: string): Promi
   return tous;
 }
 
+/** Essai borné : une erreur = fermé. */
+async function essaiCouvert(d: DepsRetrait, creneauId: string): Promise<boolean> {
+  try {
+    return typeof d.essai === "function" && (await d.essai(creneauId, "retrait")) === true;
+  } catch {
+    return false;
+  }
+}
+
 /** Un post existe-t-il (ou a-t-il pu exister) chez le diffuseur pour cet envoi ? Sinon : rien à retirer, aucun appel. */
 async function aUnPostPossible(e: EnvoiPlanifie, etats: EtatsRetrait): Promise<boolean> {
   if (typeof e.cleDiffuseur === "string") return true;
@@ -148,7 +159,7 @@ export async function retirerProgrammation(d: DepsRetrait, creneauId: string): P
   };
 
   if (avecPost.length > 0) {
-    if (!(await ouverts(d.reglages))) return sansEcriture("reste-programme", PHRASES_RETRAIT_PROGRAMMATION.eteint);
+    if (!(await ouverts(d.reglages)) && !(await essaiCouvert(d, c.id))) return sansEcriture("reste-programme", PHRASES_RETRAIT_PROGRAMMATION.eteint);
     let posts: PostZernio[];
     try {
       posts = [...(await listerPosts(d.client, "draft")), ...(await listerPosts(d.client, "scheduled"))];
@@ -306,6 +317,7 @@ async function depsServeur(): Promise<DepsRetrait> {
       },
     },
     maintenant: () => new Date(maintenant()),
+    essai: async (id, geste) => (await import("@/services/essai-zernio")).essaiCouvre(id, geste),
   };
 }
 
