@@ -1,0 +1,204 @@
+// T-EXT-25a : rôle « maquettiste » du tutoriel d'outil. Il COMPLÈTE le manque que l'analyste a nommé, et seulement lui.
+// Il n'écrit jamais de code : sa sortie est une description stricte (JSON) relue par un lecteur ; tout ce qui sort est une
+// PROPOSITION (registre des textes T-EXT-40, écran de validation T-EXT-24) : rien n'est utilisé sans le oui de Williams.
+// Pur, éteint : rien ne l'importe en production (le branchement est la fiche d'intégration des rôles, V5). L'appel réel
+// passera par `executerRolePourVideo` (plafond `tuto` de T-EXT-30) : ce fichier n'appelle rien lui-même.
+import { z } from "zod";
+import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
+import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
+import {
+  controlerTexteVisible,
+  garderNombresDesTextes,
+  lireDescriptionMaquette,
+  lireDonneesExemple,
+  VERSION_DESCRIPTION_MAQUETTE,
+  VERSION_DONNEES_EXEMPLE,
+  type DescriptionMaquette,
+  type DonneesExemple,
+  type OptionsLecture,
+} from "../description-maquette";
+import { lireScenarioMaquette, VERSION_SCENARIO_MAQUETTE, type ScenarioMaquette } from "../scenario-maquette";
+
+/** Les manques de 25a. « flux-automatisation » arrive avec 25b (après T-EXT-50). */
+export const MANQUES_MAQUETTISTE = ["scenario-parcours", "donnees-exemple", "maquette"] as const;
+export type ManqueMaquettiste = (typeof MANQUES_MAQUETTISTE)[number];
+
+export interface ZoneCarte {
+  id: string;
+  libelle: string;
+}
+
+export interface ContexteMaquettiste {
+  /** Métier de l'entreprise exemple. */
+  metier: string;
+  /** Carte des zones de l'analyste (T-EXT-19) : le scénario ne peut citer que ces zones. */
+  carteZones: readonly ZoneCarte[];
+  /** Noms interdits de `noms-neutres.json`. */
+  interdits: readonly string[];
+  /** Écrans neutres connus (T-EXT-49). */
+  modelesConnus?: readonly string[];
+  /** Nom de la maquette du scénario (ex. « 05-stocks »). */
+  maquette?: string;
+}
+
+/** Pièces déjà fournies par Williams : jamais réécrites. */
+export interface PiecesFournies {
+  scenario?: unknown;
+  donneesExemple?: unknown;
+  maquette?: unknown;
+}
+
+export const schemaSortieMaquettiste = z.object({ manque: z.enum(MANQUES_MAQUETTISTE), contenu: z.record(z.string(), z.unknown()) }).strict();
+type SortieMaquettiste = z.infer<typeof schemaSortieMaquettiste>;
+
+export const CONSIGNE_MAQUETTISTE = `Tu es le maquettiste d'une vidéo qui montre un outil. Le dossier de Williams est incomplet : tu complètes UNIQUEMENT le manque nommé dans <manque>, rien d'autre. Une pièce que Williams a fournie n'est jamais réécrite.
+Tu n'écris JAMAIS de code, ni de page, ni de script, ni d'adresse : tu remplis une description JSON stricte, et un constructeur sans IA fabrique la maquette. Tu n'écris jamais une phrase dite : la voix reste le script validé par Williams.
+Règles de la marque : noms neutres seulement (« Espace démo · <métier> », « Entreprise exemple »), aucune marque réelle, aucun montant d'argent, aucun mot « garanti », « certifié », « Qualiopi », « intégrateur », ni bleu, ni jaune, ni dégradé.
+Toute donnée chiffrée porte « exemple »: true ; un nombre dans un texte vient d'une donnée exemple, jamais inventé.
+Selon le manque, « contenu » est :
+- scenario-parcours : un objet « scenario-maquette.v1 » (version, maquette, largeur, hauteur, etapes). Chaque étape vise (champ « aller ») l'identifiant d'une zone de <carte_zones> ; tu n'inventes aucune zone ; aucune durée ; la dernière étape a le rôle « appel ».
+- donnees-exemple : un objet « ${VERSION_DONNEES_EXEMPLE} » (version, zones : [{ zone, donnees : [{ id, libelle, valeur, exemple }] }]) pour les zones de <carte_zones>.
+- maquette : un objet « ${VERSION_DESCRIPTION_MAQUETTE} » (version, nom, entreprise, metier, ecrans de 1 à 6, etats { avant, maintenant }) ; zones de type kpi, liste, tableau, graphique, fiche ou message ; titres et libellés de 40 caractères au plus.
+Ta réponse est { "manque": <le manque>, "contenu": <l'objet> }.`;
+
+/** Entrée du rôle : le manque, le métier, la carte des zones (et rien qui vienne d'une pièce de Williams). */
+export function entreeMaquettiste(manque: ManqueMaquettiste, contexte: ContexteMaquettiste): EntreeRole {
+  const zones = contexte.carteZones.map((z) => `<zone id="${z.id}" libelle="${z.libelle.replace(/"/g, "'")}"/>`).join("\n");
+  const maquette = contexte.maquette ? `\n<maquette>${contexte.maquette}</maquette>` : "";
+  return { contexte: {}, variable: `<manque>${manque}</manque>\n<metier>${contexte.metier}</metier>${maquette}\n<carte_zones>\n${zones}\n</carte_zones>` };
+}
+
+function simulerMaquettiste(entree: EntreeRole): SortieMaquettiste {
+  const manque = (entree.variable.match(/<manque>([^<]+)<\/manque>/)?.[1] ?? "maquette") as ManqueMaquettiste;
+  const ids = [...entree.variable.matchAll(/<zone id="([a-z][a-z0-9-]*)"/g)].map((m) => m[1]!);
+  const zones = ids.length > 0 ? ids.slice(0, 6) : ["zone-principale"];
+  if (manque === "scenario-parcours") {
+    const maquette = entree.variable.match(/<maquette>([^<]+)<\/maquette>/)?.[1] ?? "maquette-exemple";
+    const scenario: ScenarioMaquette = {
+      version: VERSION_SCENARIO_MAQUETTE,
+      maquette,
+      largeur: 1280,
+      hauteur: 720,
+      etapes: zones.map((z, i) => ({
+        id: `etape-${i + 1}`,
+        role: i === zones.length - 1 ? "appel" : i === 0 ? "accroche" : "parcours",
+        aller: z,
+        ancre: i === 0 ? { surMot: "Voici" } : { apresEtape: `etape-${i}`, delaiMs: 800 },
+      })),
+    };
+    return { manque, contenu: scenario as unknown as Record<string, unknown> };
+  }
+  if (manque === "donnees-exemple") {
+    const donnees: DonneesExemple = {
+      version: VERSION_DONNEES_EXEMPLE,
+      zones: zones.map((zone) => ({ zone, donnees: [{ id: "exemple-un", libelle: "Exemple un", valeur: 12, exemple: true }, { id: "exemple-deux", libelle: "Exemple deux", valeur: "Prêt", exemple: true }] })),
+    };
+    return { manque, contenu: donnees as unknown as Record<string, unknown> };
+  }
+  const description: DescriptionMaquette = {
+    version: VERSION_DESCRIPTION_MAQUETTE,
+    nom: "Espace démo · Atelier",
+    entreprise: "Entreprise exemple",
+    metier: "Atelier",
+    ecrans: [
+      {
+        id: "accueil",
+        modele: "tableau-de-bord",
+        titre: "Votre journée",
+        zones: [{ id: "resume", type: "kpi", libelle: "À traiter", donnees: [{ id: "a-traiter", libelle: "À traiter", valeur: 8, exemple: true }] }],
+      },
+    ],
+    etats: { avant: "Avant : tout à la main", maintenant: "Maintenant : tout est prêt" },
+  };
+  return { manque: "maquette", contenu: description as unknown as Record<string, unknown> };
+}
+
+export const roleMaquettiste = {
+  id: "maquettiste-tutoriel",
+  version: 1,
+  consigne: CONSIGNE_MAQUETTISTE,
+  schema: schemaSortieMaquettiste,
+  /** Importé, jamais recopié : Opus. Jamais Haiku, jamais Fable. */
+  modele: MODELE_ECRITURE,
+  effort: "medium",
+  maxTokens: 6000,
+  sansPhrasesFixes: true,
+  simuler: simulerMaquettiste,
+} satisfies DefinitionRole<typeof schemaSortieMaquettiste>;
+
+export type PropositionMaquettiste =
+  | { statut: "fournie"; manque: ManqueMaquettiste }
+  | { statut: "proposition"; manque: "scenario-parcours"; scenario: ScenarioMaquette }
+  | { statut: "proposition"; manque: "donnees-exemple"; donnees: DonneesExemple }
+  | { statut: "proposition"; manque: "maquette"; description: DescriptionMaquette }
+  | { statut: "a-revoir"; manque: string; erreurs: string[] };
+
+/** Appel du rôle, injecté : le vrai (V5) passe par `executerRolePourVideo` ; les tests passent un double à 0 €. */
+export type AppelMaquettiste = (entree: EntreeRole) => Promise<unknown>;
+
+const PIECE_DU_MANQUE: Record<ManqueMaquettiste, keyof PiecesFournies> = { "scenario-parcours": "scenario", "donnees-exemple": "donneesExemple", maquette: "maquette" };
+
+const estManque = (m: string): m is ManqueMaquettiste => (MANQUES_MAQUETTISTE as readonly string[]).includes(m);
+const aRevoir = (manque: string, erreurs: string[]): PropositionMaquettiste => ({ statut: "a-revoir", manque, erreurs });
+
+function lireReponse(brut: unknown): unknown {
+  if (typeof brut !== "string") return brut;
+  try {
+    return JSON.parse(brut);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Le scénario ne peut viser que des zones de la carte, et ses textes passent les mêmes refus que la maquette. */
+function controlerScenario(s: ScenarioMaquette, contexte: ContexteMaquettiste): string[] {
+  const erreurs: string[] = [];
+  const connues = new Set(contexte.carteZones.map((z) => z.id));
+  s.etapes.forEach((e, i) => {
+    if (!connues.has(e.aller)) erreurs.push(`Étape ${i + 1} : la zone « ${e.aller} » est absente de la carte des zones.`);
+    for (const m of e.cible?.matchAll(/data-zone\s*=\s*["']?([\w-]+)/g) ?? []) {
+      if (!connues.has(m[1]!)) erreurs.push(`Étape ${i + 1} : la cible vise la zone « ${m[1]} », absente de la carte des zones.`);
+    }
+    for (const t of [e.annotation, ...(e.textesEcran ?? [])]) {
+      const d = t === undefined ? null : controlerTexteVisible(t, contexte.interdits);
+      if (d) erreurs.push(`Étape ${i + 1} : ${d}`);
+    }
+  });
+  garderNombresDesTextes(s.etapes.flatMap((e) => [...(e.annotation ? [e.annotation] : []), ...(e.textesEcran ?? [])]), [], erreurs);
+  return erreurs;
+}
+
+/**
+ * Complète UN manque. Pièce déjà fournie : le rôle n'est pas appelé. Sortie refusée : « à revoir », jamais une sortie
+ * corrigée en silence. Ne lève jamais.
+ */
+export async function completerManque(args: { manque: string; contexte: ContexteMaquettiste; fournies?: PiecesFournies; appeler: AppelMaquettiste }): Promise<PropositionMaquettiste> {
+  const { manque, contexte, fournies, appeler } = args;
+  if (!estManque(manque)) return aRevoir(manque, [`Manque « ${manque} » : non pris en charge ici.`]);
+  if (fournies?.[PIECE_DU_MANQUE[manque]] !== undefined) return { statut: "fournie", manque };
+  let brut: unknown;
+  try {
+    brut = await appeler(entreeMaquettiste(manque, contexte));
+  } catch {
+    return aRevoir(manque, ["L'appel au maquettiste a échoué : aucune proposition."]);
+  }
+  const lu = schemaSortieMaquettiste.safeParse(lireReponse(brut));
+  if (!lu.success) return aRevoir(manque, ["La réponse du maquettiste est illisible : aucune proposition."]);
+  if (lu.data.manque !== manque) return aRevoir(manque, [`Le maquettiste a répondu pour un autre manque (« ${lu.data.manque} »).`]);
+  const options: OptionsLecture = { interdits: contexte.interdits, ...(contexte.modelesConnus ? { modelesConnus: contexte.modelesConnus } : {}) };
+  if (manque === "scenario-parcours") {
+    const s = lireScenarioMaquette(lu.data.contenu);
+    if (!s.ok) return aRevoir(manque, s.erreurs);
+    const erreurs = controlerScenario(s.scenario, contexte);
+    return erreurs.length > 0 ? aRevoir(manque, erreurs) : { statut: "proposition", manque, scenario: s.scenario };
+  }
+  if (manque === "donnees-exemple") {
+    const d = lireDonneesExemple(lu.data.contenu, options);
+    if (!d.ok) return aRevoir(manque, d.erreurs);
+    const connues = new Set(contexte.carteZones.map((z) => z.id));
+    const inconnues = d.donnees.zones.filter((z) => !connues.has(z.zone)).map((z) => `La zone « ${z.zone} » est absente de la carte des zones.`);
+    return inconnues.length > 0 ? aRevoir(manque, inconnues) : { statut: "proposition", manque, donnees: d.donnees };
+  }
+  const m = lireDescriptionMaquette(lu.data.contenu, options);
+  return m.ok ? { statut: "proposition", manque, description: m.description } : aRevoir(manque, m.erreurs);
+}
