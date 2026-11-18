@@ -20,6 +20,7 @@ import {
   videoEligible,
   type PolitiqueSources,
 } from "@/briques/archive-extraits/inscription";
+import { eligibiliteNotees, estPolitiqueNotees, ficheAvecAttente } from "@/briques/archive-extraits/eligibilite-notees";
 import { depots, ecrireParametre, journaliser, lireParametre, sousVerrou } from "./_commun";
 
 export const REGLAGE_INSCRIPTION = "bibliothequeVideo.archive.inscription";
@@ -38,7 +39,7 @@ const SEPARATEUR_NOM = " · ";
 export interface PortsArchive {
   depots?: typeof depots;
   maintenant?: () => string;
-  politique?: PolitiqueSources;
+  politique?: PolitiqueSources | "notees";
   cochees?: string[];
 }
 
@@ -47,8 +48,9 @@ const horloge = (p?: PortsArchive) => (p?.maintenant ?? (() => new Date().toISOS
 
 export const idElementArchive = (videoId: string): string => `archive-extraits-${videoId}`;
 
-async function politiqueDesSources(): Promise<PolitiqueSources> {
+async function politiqueDesSources(): Promise<PolitiqueSources | "notees"> {
   const v = await lireParametre<unknown>(REGLAGE_SOURCES, null);
+  if (estPolitiqueNotees(v)) return "notees"; // X4-11b
   return v === "publiees" || v === "pretes" || v === "cochees" ? v : POLITIQUE_SOURCES_PAR_DEFAUT;
 }
 
@@ -103,7 +105,9 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
   const fichierSortie = sortie ? await d.fichiers.obtenir(sortie.fichierId) : null;
   const segments = sousTitres.flatMap((s: SousTitres) => s.segments);
 
-  const politique = ports?.politique ?? (await politiqueDesSources());
+  const lue = ports?.politique ?? (await politiqueDesSources());
+  const notees = lue === "notees"; // X4-11b : admise comme « pretes », puis mise en attente tant que non publiée
+  const politique = lue === "notees" ? "pretes" : lue;
   const cochee = politique === "cochees" ? (ports?.cochees ?? (await videosCochees())).includes(video.id) : undefined;
   const { commandeEnEssai } = await import("@/moteurs");
   const { estFichierDemo } = await import("./travaux");
@@ -115,6 +119,7 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
     aSousTitres: segments.some((s) => s.mots.length > 0),
   });
   if (!verdict.eligible) return { ecrite: false, raison: verdict.raison };
+  const attente = notees ? eligibiliteNotees(video, { versionEnEssai: commandeEnEssai(version.commande), sortieDemo: estFichierDemo(fichierSortie?.cleStockage), aSousTitres: segments.some((s) => s.mots.length > 0) }).attentePublication : false; // X4-11b
   if (!choisie || !sortie) return { ecrite: false, raison: "pas de source" };
 
   const plans = await d.plans.lister((p) => p.versionId === version.id);
@@ -127,6 +132,7 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
   const note = await (await import("./note-extraits")).etatNote(lireParametre);
   const empreinte = createHash("sha256")
     .update(JSON.stringify({ v: version.id, s: sortie.id, f: sortie.fichierId, src: choisie.fichierId, seg: segments, fen: fenetres, n: note.empreinte }))
+    .update(attente ? "attente" : "") // X4-11b : passer d'« en attente » à « publiée » réécrit la fiche
     .digest("hex")
     .slice(0, 32);
   if (existant && ancienneFiche && empreinteDeNom(existant.nom) === empreinte) {
@@ -159,6 +165,7 @@ export async function inscrireVideo(videoId: string, ports?: PortsArchive): Prom
     rangee: estRangee(video),
     sourcePreferee: true,
   });
+  if (attente) Object.assign(fiche, ficheAvecAttente(fiche, true)); // X4-11b
   if (note.actif) Object.assign(fiche, entrerDansLaTaille(await (await import("./note-extraits")).appliquerNote(fiche, { video, version, ancienne: ancienneFiche }, note.seuils, { journal: (m) => journaliser("archive-extraits", m, { type: "video", id: video.id }) })));
 
   const maintenant = horloge(ports);
