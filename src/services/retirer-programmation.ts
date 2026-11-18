@@ -120,7 +120,7 @@ async function essaiCouvert(d: DepsRetrait, creneauId: string): Promise<boolean>
 }
 
 /** Un post existe-t-il (ou a-t-il pu exister) chez le diffuseur pour cet envoi ? Sinon : rien à retirer, aucun appel. */
-async function aUnPostPossible(e: EnvoiPlanifie, etats: EtatsRetrait): Promise<boolean> {
+export async function aUnPostPossible(e: EnvoiPlanifie, etats: EtatsRetrait): Promise<boolean> {
   if (typeof e.cleDiffuseur === "string") return true;
   const [creation, promotion] = await Promise.all([etats.lire(`creation:${e.cle}`), etats.lire(`promotion:${e.cle}`)]);
   return creation === "cree" || creation === "en-cours" || promotion === "programme" || promotion === "en-cours" || promotion === "a-verifier";

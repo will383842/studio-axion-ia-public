@@ -462,14 +462,15 @@ describe("Réserves de l'audit · marque d'essai, retrait d'abord, cible complè
     await poserEssai(null);
     await ouvrirTout();
     aller(T0 + 6 * MIN);
+    await tour({ attendre: async () => undefined }); // crée le brouillon de B (promotion : pas avant 3 h de l'échéance)
+    aller(T0 + 2 * JOUR - 2 * H);
     await tour({ attendre: async () => undefined });
     const envoiA = (await depots().envoisPlanifies.lister((e) => e.creneauId === "cA"))[0];
     expect(envoiA.statut).not.toBe("programme");
     expect(posts.get("post-1")?.status).toBe("draft");
     expect(putsPromotion().every((a) => !a.url.endsWith("/post-1"))).toBe(true);
-    expect(methodesClient).toContain("promouvoir"); // B, envoi normal, a bien été promu
-    const envoiB = (await depots().envoisPlanifies.lister((e) => e.creneauId === "cB"))[0];
-    expect(envoiB.statut).toBe("programme");
+    // B, envoi normal, a bien été promu (PUT sur son post) ; A, jamais
+    expect(putsPromotion().map((a) => a.url.split("/").pop())).toEqual(["post-2"]);
   });
 
   it("2. retirer l'essai ou en poser un autre : refusé tant que le brouillon existe chez le diffuseur ; accepté après retrait", async () => {

@@ -438,7 +438,15 @@ export async function tourEnvoisCalendrierServeur(options: InjectionsEnvoiCalend
     if (essaiId !== undefined) {
       // Tour d'essai : UN seul créneau, jamais `tourEnvoisCalendrier` (qui promeut). Chaque porte relit l'essai.
       const id = essaiId;
-      const ligne = await dansEssai(id, () => envoyerDepuisCreneau({ ...deps, porteEssai: (c) => essaiCouvre(c, "brouillon") }, id));
+      // Marque durable `essai:<clé>`, posée AVANT `creation:<clé>` : la promotion générale ne touchera jamais ce brouillon.
+      const etatsEssai: EtatsPromotion = {
+        lire: (cle) => deps.etats.lire(cle),
+        async noter(cle, valeur) {
+          if (cle.startsWith("creation:")) await deps.etats.noter(`essai:${cle.slice("creation:".length)}`, maintenantIso());
+          await deps.etats.noter(cle, valeur);
+        },
+      };
+      const ligne = await dansEssai(id, () => envoyerDepuisCreneau({ ...deps, etats: etatsEssai, porteEssai: (c) => essaiCouvre(c, "brouillon") }, id));
       return { annules, resultat: { lignes: ligne ? [ligne] : [], erreurs: [] }, essai: ligne };
     }
     const resultat = await tourEnvoisCalendrier(deps);

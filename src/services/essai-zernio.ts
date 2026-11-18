@@ -122,19 +122,23 @@ export async function porteClientEssai(): Promise<boolean> {
  * Garde du fournisseur, AVANT la création d'un post : sous essai, `isDraft` doit valoir `true` et le compte du corps doit être celui de l'essai.
  * Hors essai : ne fait rien (les chemins généraux sont inchangés).
  */
-export async function verifierCorpsSousEssai(corps: { isDraft?: unknown; platforms?: { accountId?: unknown }[] }): Promise<void> {
+export async function verifierCorpsSousEssai(corps: { isDraft?: unknown; platforms?: { accountId?: unknown; platformSpecificData?: unknown }[] }): Promise<void> {
   const id = essaiEnCours();
   if (!id) return;
   const refus = (m: string) => new ErreurZernio("envoi-coupe", `Essai borné : ${m} Rien n'a été envoyé.`);
   const e = await lireEssai();
   if (!e || !(await essaiCouvre(id, "brouillon"))) throw refus("l'essai n'est plus valable.");
   if (corps.isDraft !== true) throw refus("seul un brouillon est permis.");
-  let attendu: string;
+  let attendue: ReturnType<typeof analyserCible>;
   try {
-    attendu = analyserCible(e.compte).accountId;
+    attendue = analyserCible(e.compte);
   } catch {
     throw refus("le compte de l'essai est illisible.");
   }
   const cibles = corps.platforms ?? [];
-  if (cibles.length !== 1 || cibles[0]?.accountId !== attendu) throw refus("le compte n'est pas celui de l'essai.");
+  if (cibles.length !== 1 || cibles[0]?.accountId !== attendue.accountId) throw refus("le compte n'est pas celui de l'essai.");
+  // Cible COMPLÈTE : la page (Facebook) ou l'organisation (LinkedIn) doivent aussi être celles de l'essai.
+  const sp = cibles[0]?.platformSpecificData;
+  const spec = sp && typeof sp === "object" ? (sp as Record<string, unknown>) : {};
+  if (spec.pageId !== attendue.pageId || spec.organizationUrn !== attendue.organizationUrn) throw refus("la page ou l'organisation n'est pas celle de l'essai.");
 }
