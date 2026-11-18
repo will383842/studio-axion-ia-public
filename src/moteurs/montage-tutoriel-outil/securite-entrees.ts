@@ -85,7 +85,6 @@ export function lireRepertoireZip(octets: Uint8Array): LectureRepertoire {
     const limite = decalageRep + tailleRep;
     for (let k = 0; k < total; k++) {
       if (p + 46 > limite || v.getUint32(p, true) !== SIG_CENTRAL) return refus("Répertoire de l'archive corrompu : refusé.");
-      const hote = v.getUint8(p + 5);
       const drapeaux = v.getUint16(p + 8, true);
       const methode = v.getUint16(p + 10, true);
       const crc = v.getUint32(p + 16, true);
