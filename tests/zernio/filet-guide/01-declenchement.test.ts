@@ -37,10 +37,12 @@ describe("1 · le mot GUIDE déclenche le parcours sur un compte Facebook autori
     expect(Object.values(await toutesLesConversations())[0]).toMatchObject({ etat: "attente_email" });
   });
 
-  it.each(["\tGuide\t", "GUIDE\n", "\nguide"])("COMPORTEMENT SURPRENANT FIGÉ : %j (tabulation ou retour à la ligne autour du mot) n'est PAS reconnu — rien n'est déposé", async (texte) => {
+  it.each(["\tGuide\t", "GUIDE\n", "\nguide"])("C4-b : %j (tabulation ou retour à la ligne autour du mot, lus comme des espaces) EST reconnu — un événement est déposé puis le parcours démarre", async (texte) => {
     const r = await crochetCommentaire(texte, { reseau: "facebook" });
     expect(r.statut).toBe(200);
-    expect(r.deposes).toHaveLength(0);
+    expect(r.deposes).toHaveLength(1);
+    await passer();
+    expect(banc.port.prive).toHaveLength(1);
   });
 
   it("le même mot sur un compte Instagram déclenche aussi (réseaux pris en charge : instagram et facebook)", async () => {
@@ -78,8 +80,8 @@ describe("1 · le mot GUIDE déclenche le parcours sur un compte Facebook autori
   });
 
   it("un mot d'opposition en commentaire ne démarre jamais le parcours : rien n'est envoyé (voir fichier 03)", async () => {
-    for (const mot of ["STOP", "arrêt", "Arrêtez !"]) {
-      const r = await crochetCommentaire(mot, { reseau: "facebook", idAuteur: `auteur-fictif-opp-${mot.length}` });
+    for (const [i, mot] of ["STOP", "arrêt", "Arrêtez !", "STOP\n"].entries()) {
+      const r = await crochetCommentaire(mot, { reseau: "facebook", idAuteur: `auteur-fictif-opp-${i}` });
       expect(r.deposes).toHaveLength(1);
     }
     await passer();

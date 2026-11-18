@@ -409,7 +409,7 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
     });
     const evt = await commenter("GUIDE");
     await passer(T0);
-    expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+    expect(compter()).toMatchObject({ pub: 0, prive: 0 });
     expect(await decrire(evt)).toBe("public_seul/plafond_personne");
     expect(cleDuDossier(await toutesLesConversations())).toHaveLength(3);
   });
@@ -440,10 +440,10 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
       expect(premierLien).toBeTruthy();
       await commenter("GUIDE", { id: "com-e-2", a: T0 + 23 * H });
       await passer(T0 + 23 * H, { env: ENV_LIEN });
-      expect(compter()).toMatchObject({ pub: 2, prive: 1 });
+      expect(compter()).toMatchObject({ pub: 1, prive: 1 });
       await commenter("GUIDE", { id: "com-e-3", a: T0 + 25 * H });
       await passer(T0 + 25 * H, { env: ENV_LIEN });
-      expect(compter()).toMatchObject({ pub: 3, prive: 2 });
+      expect(compter()).toMatchObject({ pub: 2, prive: 2 });
       const conv = await toutesLesConversations();
       const neuf = Object.values(conv).find(
         (x: any) => x.nature === "renvoi",
@@ -466,10 +466,10 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
       await premierEnvoi();
       await commenter("GUIDE", { id: "com-e-2", a: T0 + 47 * H });
       await passer(T0 + 47 * H, { env: ENV_LIEN });
-      expect(compter()).toMatchObject({ pub: 2, prive: 1 });
+      expect(compter()).toMatchObject({ pub: 1, prive: 1 });
       await commenter("GUIDE", { id: "com-e-3", a: T0 + 49 * H });
       await passer(T0 + 49 * H, { env: ENV_LIEN });
-      expect(compter()).toMatchObject({ pub: 3, prive: 2 });
+      expect(compter()).toMatchObject({ pub: 2, prive: 2 });
       const neuf = Object.values(await toutesLesConversations()).find(
         (x: any) => x.nature === "renvoi",
       ) as any;
@@ -502,7 +502,7 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
     await commenter("GUIDE", { id: "com-f-1" });
     const second = await commenter("ALPHA", { id: "com-f-2" });
     await passer(T0);
-    expect(compter()).toMatchObject({ pub: 2, prive: 1 });
+    expect(compter()).toMatchObject({ pub: 1, prive: 1 });
     expect(await decrire(second)).toBe("public_seul/deja_envoye");
     expect(cleDuDossier(await toutesLesConversations())).toHaveLength(1);
   });
@@ -624,8 +624,21 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
     });
     await commenter("GUIDE", { id: "com-jb" });
     await passer(T0);
-    expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+    expect(compter()).toMatchObject({ pub: 0, prive: 0 });
     const rejeu = await commenter("GUIDE", { id: "com-jb" });
+    await passer(T0 + 30_000);
+    expect(compter()).toMatchObject({ pub: 0, prive: 0 });
+    expect(await decrire(rejeu)).toBe("silence/deja_traite");
+  });
+
+  it("(j bis, en_cours) rejeu d'un commentaire dont la raison est `en_cours` : la réponse publique part une fois, le rejeu n'en publie pas une seconde", async () => {
+    await semer("j2", "pub_ok", {
+      m1Le: new Date(T0 - 60_000).toISOString(),
+    });
+    await commenter("GUIDE", { id: "com-jb-ec" });
+    await passer(T0);
+    expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+    const rejeu = await commenter("GUIDE", { id: "com-jb-ec" });
     await passer(T0 + 30_000);
     expect(compter()).toMatchObject({ pub: 1, prive: 0 });
     expect(await decrire(rejeu)).toBe("silence/deja_traite");
@@ -640,7 +653,7 @@ describe("LIA-C · réglage allumé : un parcours par personne ET par mot", () =
     await commenter("GUIDE", { id: "com-k-2" });
     await passer(T0);
     expect((await toutesLesConversations())[cle].etat).toBe("m1_a_verifier");
-    expect(compter()).toMatchObject({ pub: 1, prive: 0 });
+    expect(compter()).toMatchObject({ pub: 0, prive: 0 });
   });
 
   it("(l) doute d'opposition : SILENCE TOTAL, aucun appel du port (ni réponse publique, ni privé, ni lecture)", async () => {

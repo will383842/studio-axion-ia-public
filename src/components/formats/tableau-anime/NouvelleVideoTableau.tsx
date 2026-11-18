@@ -53,6 +53,7 @@ import { CoutVoixTableau } from "./CoutVoix";
 import { DUREE_DECOUPAGE_TEXTE } from "./durees";
 import { EcrireScriptTableau } from "./EcrireScriptTableau";
 import { FicheScenesTableau } from "./FicheScenes";
+import { ApercuSorties } from "./ApercuSorties";
 import { SuiviTacheTableau } from "./SuiviTacheTableau";
 import { refusDecoupagePerime } from "./vue";
 
@@ -564,6 +565,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
             </p>
           )}
           <FicheScenesTableau fiche={b.fiche} problemes={b.problemes} />
+          <ApercuSorties apercu={b.apercu ?? []} />
           {corriger ? (
             <div className="space-y-4">
               <div className="space-y-2 rounded-2xl border border-trait bg-surface-1 px-4 py-3">

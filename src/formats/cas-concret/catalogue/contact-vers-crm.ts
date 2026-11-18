@@ -13,7 +13,7 @@ export const contactVersCrm: CasConcret = {
   cible: "Une entreprise dont les formulaires du site et le CRM ne se parlent pas.",
   avant: { taches: ["Recopier chaque demande dans le CRM", "Perdre un contact entre les outils", "Ne pas savoir si la synchro a marché"] },
   etapes: [
-    { titre: "Le formulaire", ligne: "Un visiteur envoie un formulaire.", detail: "Contact, audit, devis ou lettre d'information.", visuel: { sorte: "ecran", adresse: "https://axion-ia.com/fr/contact", mouvement: "image", repli: "e-mail" } },
+    { titre: "Le formulaire", ligne: "Un visiteur envoie un formulaire.", detail: "Contact, audit, devis ou lettre d'information.", visuel: { sorte: "ecran", adresse: "https://axion-ia.com/fr/contact", mouvement: "page-entiere", repli: "e-mail" } },
     { titre: "L'enregistrement", ligne: "La demande est enregistrée, protégée.", detail: "Anti-robot, limite de fréquence, données personnelles chiffrées.", visuel: { sorte: "objet", objet: "bouclier-coche" } },
     { titre: "La boîte d'envoi", ligne: "Une ligne est posée dans une boîte d'envoi.", detail: "Interne, en attente de transmission.", visuel: { sorte: "objet", objet: "dossier-classe" } },
     { titre: "Le CRM", ligne: "Elle est transmise au CRM en quelques secondes.", detail: "La fiche se crée sans ressaisie.", visuel: { sorte: "objet", objet: "outils-relies" } },

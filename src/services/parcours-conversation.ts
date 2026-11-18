@@ -19,7 +19,7 @@ import { extraireAdresse } from "@/domaine/guide-reseau/adresse-email";
 import { RE_CLE_IDEMPOTENCE } from "@/domaine/guide-reseau/cle-idempotence";
 import { cibleDuMot, reseauSite } from "@/domaine/guide-reseau/cibles-contrat";
 import { dossierDe, racineDe } from "@/domaine/guide-reseau/cles-parcours";
-import { conduiteApresReponse, corpsDemandeGuide, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, GUIDES_RESEAU_CONNUS, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
+import { conduiteApresReponse, corpsDemandeGuide, issueGuideDepuisCorps, DISJONCTEUR_PAUSE_MS, DISJONCTEUR_SEUIL, GUIDES_RESEAU_CONNUS, runValide, type RunLu } from "@/domaine/guide-reseau/crochet-zernio";
 import { construireOrigineV3, corpsDemandeGuideV3, compteAutoriseOrigineV3, origineV3Active, prefixesComptesConfigures } from "@/domaine/guide-reseau/origine-v3";
 import { cleIdempotenceOpaque, empreintePersonne, lireClesEmpreinte, type CleEmpreinte, type EtatCles } from "@/domaine/guide-reseau/empreinte-personne";
 import { debutHeure, decider, LOT_MAX_PAR_PASSAGE_CONVERSATION, msJusquaHeureSuivante, plafondHeureCompte } from "@/domaine/guide-reseau/plafonds-conversation";
@@ -706,9 +706,10 @@ async function verifierRacine(env: Env, cles: ClesOk, racine: string, charge: Re
 
 /**
  * Réponse publique au commentaire. Facebook : formulation du groupe « pub-commentaire » VALIDÉE par le fondateur (choix stable par personne, figé dans
- * l'état s'il y en a un) ; sinon, ou sur tout autre réseau, l'ancien texte « mp-pub-igfb-v1 », inchangé. Jamais une formulation non validée.
+ * l'état s'il y en a un). Instagram : même règle avec le groupe « pub-instagram ». Sinon, ou sur tout autre réseau, l'ancien texte « mp-pub-igfb-v1 », inchangé.
+ * Jamais une formulation non validée. `figee` = formulation déjà figée pour le groupe du réseau.
  */
-async function textePublic(reseau: string, cleConversation: string, figee?: string | null): Promise<{ texte: string | null; formulation?: string }> {
+async function textePublic(reseau: string, cleConversation: string, figee?: string | null): Promise<{ texte: string | null; formulation?: string; groupe?: "pub-commentaire" | "pub-instagram" }> {
   if (reseau === "facebook") {
     const choix = choisirFormulation({
       groupe: "pub-commentaire",
@@ -718,11 +719,23 @@ async function textePublic(reseau: string, cleConversation: string, figee?: stri
       rendre: (v) => rendreTexteMp(v, {}),
       conforme: (t) => texteDuDictionnaire(t, true),
     });
-    if (choix !== null) return { texte: choix.texte, formulation: choix.version };
+    if (choix !== null) return { texte: choix.texte, formulation: choix.version, groupe: "pub-commentaire" };
+  }
+  if (reseau === "instagram") {
+    // Instagram : formulation « pub-instagram » VALIDÉE seulement ; sinon le texte fixe ci-dessous, inchangé.
+    const choix = choisirFormulation({
+      groupe: "pub-instagram",
+      cleConversation,
+      figee,
+      validees: await formulationsValidees(),
+      rendre: (v) => rendreTexteMp(v, {}),
+      conforme: (t) => texteDuDictionnaire(t, true),
+    });
+    if (choix !== null) return { texte: choix.texte, formulation: choix.version, groupe: "pub-instagram" };
   }
   return { texte: rendreTexteMp("mp-pub-igfb-v1", {}) };
 }
-/** Réponse publique SEULE (cible déjà servie, en cours, plafond par personne) : aucun enregistrement, aucun message privé. Plafond par heure respecté. */
+/** Réponse publique SEULE : seule la raison `en_cours` répond en public (un message privé est peut-être en route) ; `deja_envoye` et `plafond_personne` closent sans rien envoyer. Aucun enregistrement, aucun message privé. Plafond par heure respecté. */
 async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversation, env: Env, cles: ClesOk, racine: string, idCommentaire: string, raison: string, now: number): Promise<"traite" | "bloque"> {
   const c = ev.charge;
   const idCompte = String(c.idCompte ?? "");
@@ -735,6 +748,17 @@ async function repondrePubliqueSeule(ev: EvenementFournisseur, d: DepsConversati
   const deja = await depots().evenementsFournisseurs.lister((x) => x.id !== ev.id && x.type === TYPE_COMMENTAIRE && x.charge.idCommentaire === idCommentaire && x.charge.etat === "public_seul");
   if (deja.length > 0) {
     await clore(ev, "silence", "deja_traite");
+    return "traite";
+  }
+  // Sans promesse : « déjà envoyé » et « plafond par personne » ne produisent AUCUN message privé ; la réponse publique (« je vous écris en message
+  // privé ») serait une promesse non tenue. Événement clos proprement (même classement), rien ne part, aucune place d'envoi consommée.
+  if (raison === "deja_envoye" || raison === "plafond_personne") {
+    const v = await verifierRacine(env, cles, racine, c, now);
+    if (!("jeton" in v)) {
+      await clore(ev, "silence", v.source === "doute" ? "doute_opposition" : "opposee");
+      return "traite";
+    }
+    await clore(ev, "public_seul", raison);
     return "traite";
   }
   const { texte } = await textePublic(texteDe(c.reseau) ?? "", racine);
@@ -829,6 +853,21 @@ async function formuler(o: { groupe: GroupeMp; e: Pick<Conversation, "cleIdempot
     conforme: (t) => texteDuDictionnaire(t, false),
   });
   if (choix === null) return { texte: rendreTexteMp(o.ancien, o.valeurs), version: TEXTES_MP[o.ancien].version };
+  if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
+  return { texte: choix.texte, version: choix.version, formulation: choix.version };
+}
+
+/** Reçu neutre : formulation VALIDÉE du groupe « recu-neutre » (choix stable par personne, figé) ; `null` si aucune n'est validée ou si le texte n'est pas conforme. */
+async function formulerRecuNeutre(e: Pick<Conversation, "cleIdempotenceGuide" | "formulations">): Promise<{ texte: string | null; version: string; formulation: string } | null> {
+  const choix = choisirFormulation({
+    groupe: "recu-neutre",
+    cleConversation: e.cleIdempotenceGuide,
+    figee: e.formulations?.["recu-neutre"],
+    validees: await formulationsValidees(),
+    rendre: (v) => rendreTexteMp(v, {}),
+    conforme: (t) => texteDuDictionnaire(t, false),
+  });
+  if (choix === null) return null;
   if (choix.figeeAbandonnee) await journaliser("parcours_conversation", "formulation_figee_non_validee");
   return { texte: choix.texte, version: choix.version, formulation: choix.version };
 }
@@ -1155,7 +1194,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
     return "traite";
   }
   if (e.etat === "nouveau") {
-    const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.["pub-commentaire"]);
+    const pub = await textePublic(e.reseau, e.cleIdempotenceGuide, e.formulations?.[e.reseau === "instagram" ? "pub-instagram" : "pub-commentaire"]);
     const texte = pub.texte;
     if (texte === null) {
       await patcher(cle, { etat: "pub_ok", dernierCode: "texte_incomplet" });
@@ -1173,7 +1212,7 @@ async function etapesCommentaire(ev: EvenementFournisseur, d: DepsConversation, 
         await clore(ev, "bloque", s.code ?? null);
         return "traite";
       }
-      await patcher(cle, { ...(s.patch ?? {}), refusPublic: res.statut === "refuse" && estRaisonRefus(res.raison) ? { ...res.raison, le: new Date(now).toISOString() } : undefined, ...(pub.formulation ? { formulations: { ...e.formulations, "pub-commentaire": pub.formulation } } : {}) });
+      await patcher(cle, { ...(s.patch ?? {}), refusPublic: res.statut === "refuse" && estRaisonRefus(res.raison) ? { ...res.raison, le: new Date(now).toISOString() } : undefined, ...(pub.formulation && pub.groupe ? { formulations: { ...e.formulations, [pub.groupe]: pub.formulation } } : {}) });
       if (s.action === "reessayer") {
         await reporter(ev, now, s.apresMs ?? 30_000, s.code ?? "a_reessayer");
         return "traite";
@@ -2044,7 +2083,7 @@ async function demanderGuide(ev: EvenementFournisseur, d: DepsConversation, env:
   // Une personne passée à « oppose » pendant ce traitement (vérification « stop partout ») le reste : l'état du site ne l'écrase jamais.
   const patchSite: Partial<Conversation> = { ...(s.patch ?? {}) };
   if (patchSite.etat !== undefined && (await lireEtat(cle))?.etat === "oppose") delete patchSite.etat;
-  await patcher(cle, { ...patchSite, ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage } : {}) });
+  await patcher(cle, { ...patchSite, ...(etat.adresseRefuseeEnAttente ? { adresseRefuseeEnAttente: false } : {}), ...(s.action === "guide_ok" ? { idMessageGuide: idMessage, idMessageAdresse: idMessage, ...(issueGuideDepuisCorps(corpsReponse) === "incertain" ? { guideIncertain: true } : {}) } : {}) });
   if (s.action === "site_reessai") {
     await reporter(ev, now, s.apresMs ?? 60_000, s.code ?? "reessai", code === "409_en_cours" ? { enCours: Number(c.enCours ?? 0) + 1 } : {});
     return "traite";
@@ -2107,7 +2146,11 @@ async function prevenirAdresseRefusee(ev: EvenementFournisseur, d: DepsConversat
 }
 
 async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: Env, cle: string, etat: Conversation, idConversation: string, idMessage: string, now: number, igSuivre = false): Promise<"traite" | "bloque"> {
-  const recu = await formuler({ groupe: "recu", e: (await lireEtat(cle)) ?? etat, ancien: "mp-recu-v2", valeurs: { titre: etat.titreCible ?? d.titreGuide } });
+  const courant = (await lireEtat(cle)) ?? etat;
+  // Issue « incertain » (le site n'a pas annoncé d'e-mail) : UN SEUL texte neutre, jamais fonction de la valeur du site. Aucune formulation validée : reçu d'aujourd'hui + événement sans adresse.
+  const neutre = courant.guideIncertain === true ? await formulerRecuNeutre(courant) : null;
+  const evenementNeutre = courant.guideIncertain === true && neutre === null && courant.recuNeutreNonValideJournale !== true;
+  const recu = neutre ?? (await formuler({ groupe: "recu", e: courant, ancien: "mp-recu-v2", valeurs: { titre: etat.titreCible ?? d.titreGuide } }));
   const texte = recu.texte;
   let code: string | null = "texte_incomplet";
   if (texte !== null) {
@@ -2139,7 +2182,9 @@ async function envoyerRecu(ev: EvenementFournisseur, d: DepsConversation, env: E
     }
     if (!(await reserverOuReporter(ev, etat.idCompte, now))) return "bloque";
     // Formulation figée AVANT l'envoi : un nouvel essai garde exactement le même texte. La date d'essai (plafond par personne) est écrite avant l'envoi.
-    if (recu.formulation || ig) await patcher(cle, { ...(recu.formulation ? { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, recu: recu.formulation } } : {}), ...(ig ? { accuseLe: new Date(now).toISOString() } : {}) });
+    // Événement « recu_neutre_non_valide » : une seule fois par conversation, et seulement quand un reçu part réellement.
+    if (evenementNeutre) await journaliser("parcours_conversation", "recu_neutre_non_valide");
+    if (recu.formulation || ig || evenementNeutre) await patcher(cle, { ...(evenementNeutre ? { recuNeutreNonValideJournale: true } : {}), ...(recu.formulation ? { formulations: { ...((await lireEtat(cle)) ?? etat).formulations, [neutre ? "recu-neutre" : "recu"]: recu.formulation } } : {}), ...(ig ? { accuseLe: new Date(now).toISOString() } : {}) });
     const res = await appeler(() => d.port.envoyerMessage({ idCompte: etat.idCompte, idConversation, texte, cle: idMessage, nonOpposee: nonOpposeeRecu }));
     await reagir(transition(etat, { t: "m1", res, maintenantMs: now }), now);
     code = res.statut === "envoye" ? null : (res.code ?? res.statut);

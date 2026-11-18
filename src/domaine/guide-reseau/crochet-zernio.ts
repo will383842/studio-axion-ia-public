@@ -137,7 +137,9 @@ export const MOTS_DECLENCHEURS_CONNUS: readonly string[] = ["GUIDE"];
  * pareil ici et dans le module de normalisation (« Guidé » et « GUIDE ! » donnent le même résultat). L'opposition reste prioritaire (mot ou phrase : « Stop, merci » → « STOP »).
  */
 export function motSeulDe(v: unknown, motsConnus: readonly string[] = MOTS_DECLENCHEURS_CONNUS): string | null {
-  const t = texteBorne(v, 200);
+  // Commentaire sur plusieurs lignes accepté : retours à la ligne et tabulations (\r, \n, \t) lus comme des espaces, un pour un (la borne de 200 reste la même).
+  // Les AUTRES caractères de contrôle restent refusés par `texteBorne`.
+  const t = texteBorne(typeof v === "string" ? v.replace(/[\r\n\t]/g, " ") : v, 200);
   if (t === null) return null;
   if (estMotOpposition(t)) return formeCanonique(t); // forme canonique (« STOP »), jamais le texte brut
   return motAvecPolitesse(t, motsConnus); // forme canonique (« GUIDE ») : jamais le texte brut ; accepte « GUIDE merci », « merci GUIDE »
@@ -323,6 +325,17 @@ export type Conduite =
   | { genre: "termine" }
   | { genre: "reessayer"; apresMs: number; code: string; nouveauNonce?: boolean }
   | { genre: "definitif"; code: string };
+
+/**
+ * Issue de la demande de guide d'après le corps d'une réponse 200 du site : `parti` si le site annonce que l'e-mail part ou partira (`en-file`, `en-validation`),
+ * `incertain` pour TOUTE autre valeur, champ absent, corps nul ou non-objet (choix fermé). Fonction pure : la valeur brute ne sort jamais d'ici
+ * (ni message, ni journal) ; l'appelant ne voit qu'un des deux mots.
+ */
+export function issueGuideDepuisCorps(corps: unknown): "parti" | "incertain" {
+  if (corps === null || typeof corps !== "object" || Array.isArray(corps)) return "incertain";
+  const g = (corps as Record<string, unknown>).guide;
+  return g === "en-file" || g === "en-validation" ? "parti" : "incertain";
+}
 
 /** `statut` 0 = site injoignable. `essai` = numéro de l'essai qui vient d'échouer (1 pour le premier). */
 export function conduiteApresReponse(statut: number, corps: unknown, essai: number): Conduite {

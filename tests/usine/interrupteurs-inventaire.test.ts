@@ -299,6 +299,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "casConcret.validations": "memoire",
   "cibles.miroir": "memoire",
   "claude.sources": "memoire",
+  "commentaires.depot": "memoire",
   "corbeille-visuels.dernierPassage": "memoire",
   "corbeille.dernierPassage": "memoire",
   "decors.lots": "memoire",
@@ -445,6 +446,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/fabrication-reseaux.ts:cle": { exclu: "dedoublonnage" },
   "services/fabrication-reseaux.ts:cleDebit(video.formatId)": { exclu: "memoire" },
   "services/fabrication-reseaux.ts:cleDebit(formatId)": { exclu: "memoire" },
+  "services/garde-creneau-diffuseur.ts:`${PREFIXE_ETATS_GARDE}${nom}:${cle}`": { exclu: "memoire" }, // état de la garde par créneau (marques « envoi-calendrier:<nom>:<clé> », lecture seule) : pas un interrupteur
   "services/generateur-ecran.ts:cleRetouches(c)": { exclu: "memoire" },
   "services/generateur-ecran.ts:cleScriptRelu(o.operationId)": { exclu: "memoire" },
   "services/generation-claude.ts:paramAttente(generationId)": { exclu: "memoire" },

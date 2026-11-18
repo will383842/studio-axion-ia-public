@@ -13,6 +13,8 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { Remarque } from "@/briques/plan-scenes/validateur";
 import { adapterPlan } from "@/briques/plan-scenes-generateurs/adaptateur";
 import { tranchePlan } from "@/briques/plan-scenes-generateurs/tranche";
+import { PLAFONDS_PAR_DEFAUT } from "@/briques/motion/habillage-commun/types";
+import { graineHabillage, habillerTranches } from "./habillage-plan";
 
 export interface EcranPourPlan {
   id: string;
@@ -42,7 +44,7 @@ export const FORMAT_PLAN_CAS_CONCRET = { largeur: 1080, hauteur: 1920, fps: 25 a
 
 export const cleTranche = (groupe: string, ecran: string) => `${groupe}/${ecran}`;
 
-export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appeler?: AppelClaude; memo?: MemoPlanScenes; format?: typeof FORMAT_PLAN_CAS_CONCRET }): Promise<ResultatPlanCasConcret> {
+export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appeler?: AppelClaude; memo?: MemoPlanScenes; format?: typeof FORMAT_PLAN_CAS_CONCRET; habillage?: { actif: boolean; graine: string } }): Promise<ResultatPlanCasConcret> {
   const format = o.format ?? FORMAT_PLAN_CAS_CONCRET;
   const tranches: Record<string, PlanValide> = {};
   const memo: MemoPlanScenes = {};
@@ -58,6 +60,21 @@ export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appel
     for (const e of g.ecrans) {
       const t = tranchePlan(r.plan, e.debutMs, e.finMs);
       if (t) tranches[cleTranche(g.id, e.id)] = t;
+    }
+    // BR-TRANSITIONS-CC-a : habillage posé APRÈS le plan (hors empreinte `entree`, aucun appel Claude refait) ; éteint = rien ne change.
+    if (o.habillage?.actif === true) {
+      const habillees = habillerTranches({
+        actif: true,
+        plan: r.plan,
+        ecrans: g.ecrans.map((e) => ({ cle: cleTranche(g.id, e.id), debutMs: e.debutMs, finMs: e.finMs })),
+        tranches,
+        plafonds: PLAFONDS_PAR_DEFAUT,
+        graine: graineHabillage(`${o.habillage.graine}/${g.id}`),
+      });
+      for (const e of g.ecrans) {
+        const cle = cleTranche(g.id, e.id);
+        if (habillees[cle]) tranches[cle] = habillees[cle];
+      }
     }
   }
   return { tranches, remarques, memo };

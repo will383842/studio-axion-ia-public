@@ -43,6 +43,7 @@ import type { CaseDejaVu } from "@/moteurs/montage-tableau/controles";
 import { estimerFabrication } from "@/moteurs/montage-tableau/fabriquer";
 import { lecturesVoixMaxDuReglage } from "./voix-ressemblance";
 import { relireFicheTableau, type PointRelecture } from "@/moteurs/montage-tableau/relecture";
+import type { ApercuSortie } from "@/moteurs/montage-tableau/apercu-sorties";
 import { descriptionSortie, sortiesDesReseaux, type IdSortie } from "@/moteurs/montage-tableau/formats-sortie";
 import { DESCRIPTIONS_STRUCTURES, STRUCTURES_TABLEAU, STYLE_PAR_DEFAUT_TABLEAU, STYLE_REFERENCE_2, STYLE_REFERENCE_3, validerFicheTableau, type ElementTableau, type FicheTableau, type StructureTableau } from "@/moteurs/montage-tableau/fiche";
 import { regleTexteMotPourMot, type ContexteTableau } from "@/moteurs/montage-tableau/regles";
@@ -333,6 +334,8 @@ export interface EtatBrouillonTableau {
   generation: (GenerationBrouillon & { proposition: DonneesScriptTableau | null }) | null;
   fiche: FicheTableau | null;
   problemes: ProblemeFiche[];
+  /** Ce que chaque fichier dira et écrira, page de fin comprise (FIX-ECRAN-SCENES-COMPLET). */
+  apercu?: ApercuSortie[];
   /** La dernière fiche est celle d'un découpage refusé par les règles, gardée « à corriger ». */
   ficheACorriger: boolean;
   /** Prix de la voix de la dernière fiche (centimes d'euro, jamais sous-estimé) ; 0 quand la voix déjà payée est reprise. */
@@ -537,6 +540,7 @@ async function etatBrouillon(video: Video, b: BrouillonTableau, contexte: Omit<C
     generation: b.generation ? { ...b.generation, proposition: propositionDe(b.generation) } : null,
     fiche: derniere,
     problemes,
+    apercu: relecture?.apercu ?? [],
     ficheACorriger: aCorriger,
     coutVoixCentimes: derniere && dejaPayee?.etat !== "reutilisee" ? coutVoixDe(derniere, await lecturesVoixMaxDuReglage()) : 0,
     voix: dejaPayee?.etat ?? "neuve",

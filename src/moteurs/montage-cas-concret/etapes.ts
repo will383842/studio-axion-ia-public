@@ -71,6 +71,8 @@ export interface EntreesCasConcret {
   faitsConfirmes?: string[];
   /** C8-Z04 · plafond de caméra (1,035 < x ≤ 1,048) figé au lancement par le réglage `casConcret.cameraPlus` ; absent : 1,035. */
   cameraPlus?: number;
+  /** BR-TRANSITIONS-CC-a · transitions dessinées entre écrans, figées au lancement par `habillage.transitionsPlanScenes` ; absent : coupes sèches. */
+  habillageTransitions?: true;
 }
 
 const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -100,6 +102,7 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(porte === "porte-b" && texteNonVide(b.description) ? { description: b.description } : {}),
     ...(porte === "porte-b" && Array.isArray(b.faitsConfirmes) ? { faitsConfirmes: b.faitsConfirmes.filter(texteNonVide) } : {}),
     ...(lireCameraPlus(b.cameraPlus) !== undefined ? { cameraPlus: lireCameraPlus(b.cameraPlus) } : {}),
+    ...(b.habillageTransitions === true ? { habillageTransitions: true as const } : {}),
   };
 }
 
