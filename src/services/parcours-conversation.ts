@@ -2725,6 +2725,9 @@ async function nettoyageImpossible(): Promise<void> {
  */
 async function annulerMerciEnVol(ref: string, cle: string, leIso: string, essaiAvant: string | undefined): Promise<void> {
   await sousVerrou(async () => {
+    // Le journal est lu d'abord : sans entrée encore intacte (même état, même date, même clé), cet appel ne possède plus rien et n'écrit RIEN (ni conversation, ni journal).
+    const j = await lireJournalMerci();
+    if (!(j[ref]?.etat === "en_vol" && j[ref].le === leIso && j[ref].cle === cle)) return;
     const tout = await lireParametre<Conversations>(PARAM_CONVERSATIONS, {});
     if (tout[cle]?.merciEtat === "en_vol") {
       const { merciEtat, merciEssaiLe, ...autres } = tout[cle];
@@ -2732,12 +2735,9 @@ async function annulerMerciEnVol(ref: string, cle: string, leIso: string, essaiA
       void merciEssaiLe;
       await ecrireParametre(PARAM_CONVERSATIONS, { ...tout, [cle]: { ...autres, ...(essaiAvant !== undefined ? { merciEssaiLe: essaiAvant } : {}) } });
     }
-    const j = await lireJournalMerci();
-    if (j[ref]?.etat === "en_vol" && j[ref].le === leIso && j[ref].cle === cle) {
-      const { [ref]: _retire, ...reste } = j;
-      void _retire;
-      await ecrireParametre(PARAM_MERCI_JOURNAL, reste);
-    }
+    const { [ref]: _retire, ...reste } = j;
+    void _retire;
+    await ecrireParametre(PARAM_MERCI_JOURNAL, reste);
   });
 }
 
