@@ -1,0 +1,22 @@
+{
+  "etat": "attend-oui-williams",
+  "lancer": false,
+  "format": "tutoriel-outil",
+  "script": {
+    "texteComplet": "Votre stock est déjà sous le seuil. Qui l’a vu ?\n\nUn produit manquant peut bloquer une préparation. Encore faut-il détecter le problème et vérifier les chiffres.\n\nDans cet exemple simulé, l’outil rapproche les mouvements, le stock restant et les informations fournisseurs.\n\nIl propose un réapprovisionnement. Mais le fournisseur n’a pas été interrogé, et les quantités doivent être contrôlées.\n\nLe responsable modifie, refuse ou valide. La commande apparaît dans le suivi, sans envoi réel au fournisseur et sans augmenter artificiellement le stock.\n\nCommentez « STOCK » pour recevoir « Les 12 automatisations pour mieux gérer ses stocks ». Vous pouvez aussi demander un Diagnostic IA gratuit de 45 minutes pour identifier les premières priorités.\n"
+  },
+  "entrees": {
+    "tutorielOutil": {
+      "scriptColle": true
+    }
+  },
+  "maquette": "05-stocks",
+  "scenario": "scenario.json",
+  "ratios": [
+    "4:5",
+    "9:16",
+    "1:1"
+  ],
+  "musique": false,
+  "fin": "prendre-rendez-vous"
+}
