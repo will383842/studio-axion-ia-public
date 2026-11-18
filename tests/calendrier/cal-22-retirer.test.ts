@@ -20,7 +20,7 @@ interface Appel { methode: string; chemin: string }
 type Reponse = { statut: number; corps?: unknown } | "coupure";
 
 /** Faux diffuseur à état : un post par clé, un script de réponses par « METHODE chemin ». */
-function fauxDiffuseur(posts: Record<string, { status: string; cle: string; origine?: string }>, scripts: Record<string, Reponse[]> = {}) {
+function fauxDiffuseur(posts: Record<string, { status: string; cle: string; origine?: string; programmeLe?: string; statutReseau?: string }>, scripts: Record<string, Reponse[]> = {}) {
   const appels: Appel[] = [];
   const fetchFaux: FetchZernio = async (url, init) => {
     const chemin = new URL(url).pathname.replace(/^\/api/, "");
@@ -31,7 +31,7 @@ function fauxDiffuseur(posts: Record<string, { status: string; cle: string; orig
     if (scripte) return new Response(JSON.stringify(scripte.corps ?? {}), { status: scripte.statut });
     const id = chemin.split("/")[3];
     const p = id ? posts[id] : undefined;
-    const rendu = (id: string) => ({ post: { _id: id, status: posts[id].status, platforms: [{ platform: "linkedin" }], metadata: { origine: posts[id].origine ?? "studio", studioCle: posts[id].cle } } });
+    const rendu = (id: string) => ({ post: { _id: id, status: posts[id].status, scheduledFor: posts[id].programmeLe ?? DEMAIN, platforms: [{ platform: "linkedin", status: posts[id].statutReseau ?? posts[id].status }], metadata: { origine: posts[id].origine ?? "studio", studioCle: posts[id].cle } } });
     if (init.method === "GET" && chemin === "/v1/posts") {
       const status = new URL(url).searchParams.get("status");
       return new Response(JSON.stringify({ posts: Object.keys(posts).filter((k) => posts[k].status === status).map((k) => rendu(k).post) }), { status: 200 });
@@ -55,7 +55,7 @@ const envoi = (sur: Partial<EnvoiPlanifie> = {}): EnvoiPlanifie => ({
   reseau: "linkedin", versionCreneau: 0, jour: "2026-12-11", heure: "09:30", statut: "programme", creeLe: "2026-12-01T00:00:00Z", modifieLe: "2026-12-01T00:00:00Z", ...sur,
 });
 
-function monde(opts: { creneau?: Record<string, unknown>; envois?: EnvoiPlanifie[]; posts?: Record<string, { status: string; cle: string; origine?: string }>; scripts?: Record<string, Reponse[]>; reglages?: boolean; marques?: Record<string, string> } = {}) {
+function monde(opts: { creneau?: Record<string, unknown>; envois?: EnvoiPlanifie[]; posts?: Record<string, { status: string; cle: string; origine?: string; programmeLe?: string; statutReseau?: string }>; scripts?: Record<string, Reponse[]>; reglages?: boolean; marques?: Record<string, string> } = {}) {
   const creneaux = new Map<string, Record<string, unknown>>([["cre_1", {
     id: "cre_1", jourVise: "2026-12-11", heuresParReseau: { linkedin: DEMAIN }, compteCible: "c1", visuelId: "vis_1", statut: "programme", decalages: 0,
     valideeLe: "2026-12-01T00:00:00Z", valideePar: "fondateur", textes: { linkedin: { texte: "Le texte", premierCommentaire: "Et vous ?" } }, ...opts.creneau,
@@ -112,22 +112,34 @@ describe("CAL-22 · le vrai client : DELETE réservé, garde avant, relecture ap
     expect(r).toMatchObject({ etat: "refuse", raison: expect.stringMatching(raison) });
     expect(f.appels.some((a) => a.methode === "DELETE")).toBe(false);
   });
+  it("garde avant : un réseau déjà en ligne → « refuse », AUCUN DELETE", async () => {
+    const f = fauxDiffuseur({ post_1: { status: "scheduled", cle: CLE, statutReseau: "published" } });
+    const r = await clientReel(f.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE });
+    expect(r).toMatchObject({ etat: "refuse", raison: expect.stringMatching(/déjà en ligne/) });
+    expect(f.appels.some((a) => a.methode === "DELETE")).toBe(false);
+  });
+  it("garde avant : programmé à moins de 30 minutes → « a-verifier », AUCUN DELETE", async () => {
+    const f = fauxDiffuseur({ post_1: { status: "scheduled", cle: CLE, programmeLe: "2026-12-10T10:20:00.000Z" } });
+    const r = await clientReel(f.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE });
+    expect(r).toMatchObject({ etat: "a-verifier", raison: expect.stringMatching(/moins de 30 min/) });
+    expect(f.appels.some((a) => a.methode === "DELETE")).toBe(false);
+  });
   it("200 au DELETE mais le post est encore là à la relecture → « a-verifier » (jamais « retire » sur le seul code)", async () => {
     const f = fauxDiffuseur({ post_1: { status: "scheduled", cle: CLE } }, { "DELETE /v1/posts/post_1": [{ statut: 200 }] });
     const r = await clientReel(f.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE });
     expect(r.etat).toBe("a-verifier");
   });
   it("coupure pendant le DELETE puis relecture : post parti → « retire » ; post encore là → « a-verifier »", async () => {
-    const parti = fauxDiffuseur({}, { "GET /v1/posts/post_1": [{ statut: 200, corps: { post: { _id: "post_1", status: "draft", platforms: [{ platform: "linkedin" }], metadata: { origine: "studio", studioCle: CLE } } } }], "DELETE /v1/posts/post_1": ["coupure"] });
+    const parti = fauxDiffuseur({}, { "GET /v1/posts/post_1": [{ statut: 200, corps: { post: { _id: "post_1", status: "draft", platforms: [{ platform: "linkedin", status: "scheduled" }], scheduledFor: DEMAIN, metadata: { origine: "studio", studioCle: CLE } } } }], "DELETE /v1/posts/post_1": ["coupure"] });
     expect((await clientReel(parti.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("retire");
     const la = fauxDiffuseur({ post_1: { status: "draft", cle: CLE } }, { "DELETE /v1/posts/post_1": ["coupure"] });
     expect((await clientReel(la.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("a-verifier");
   });
   it("DELETE en 404 puis relecture en 404 → « retire » ; relecture « cancelled » → « retire »", async () => {
-    const avant = { statut: 200, corps: { post: { _id: "post_1", status: "scheduled", platforms: [{ platform: "linkedin" }], metadata: { origine: "studio", studioCle: CLE } } } };
+    const avant = { statut: 200, corps: { post: { _id: "post_1", status: "scheduled", platforms: [{ platform: "linkedin", status: "scheduled" }], scheduledFor: DEMAIN, metadata: { origine: "studio", studioCle: CLE } } } };
     const a = fauxDiffuseur({}, { "GET /v1/posts/post_1": [avant], "DELETE /v1/posts/post_1": [{ statut: 404 }] });
     expect((await clientReel(a.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("retire");
-    const annule = { statut: 200, corps: { post: { _id: "post_1", status: "cancelled", platforms: [{ platform: "linkedin" }], metadata: { origine: "studio", studioCle: CLE } } } };
+    const annule = { statut: 200, corps: { post: { _id: "post_1", status: "cancelled", platforms: [{ platform: "linkedin", status: "scheduled" }], scheduledFor: DEMAIN, metadata: { origine: "studio", studioCle: CLE } } } };
     const b = fauxDiffuseur({ post_1: { status: "scheduled", cle: CLE } }, { "GET /v1/posts/post_1": [avant, annule] });
     expect((await clientReel(b.fetchFaux).retirer({ postId: "post_1", cleJournal: CLE })).etat).toBe("retire");
   });
@@ -167,6 +179,22 @@ describe("CAL-22 · retirerProgrammation", () => {
     expect(m.marques.get("a-verifier:envoi:vis_1:linkedin:v0")).toBe("a-verifier");
     expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });
     expect(m.supprime).toEqual([]);
+  });
+  it("un réseau déjà en ligne chez le diffuseur : « à retirer à la main », reste programmé, aucun DELETE", async () => {
+    const m = monde({ posts: { post_1: { status: "scheduled", cle: CLE, statutReseau: "published" } } });
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    expect(r).toMatchObject({ ok: false, etat: "a-retirer-a-la-main" });
+    expect(m.faux.appels.some((a) => a.methode === "DELETE")).toBe(false);
+    expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });
+    expect(m.supprime).toEqual([]);
+  });
+  it("programmé chez le diffuseur à moins de 30 minutes : « à vérifier », reste programmé, aucun DELETE", async () => {
+    const m = monde({ posts: { post_1: { status: "scheduled", cle: CLE, programmeLe: "2026-12-10T10:20:00.000Z" } } });
+    const r = await retirerProgrammation(m.deps, "cre_1");
+    expect(r).toMatchObject({ ok: false, etat: "a-verifier" });
+    expect(m.marques.get("a-verifier:envoi:vis_1:linkedin:v0")).toBe("a-verifier");
+    expect(m.faux.appels.some((a) => a.methode === "DELETE")).toBe(false);
+    expect(m.creneaux.get("cre_1")).toMatchObject({ statut: "programme" });
   });
   it("critère 4 : annulation impossible chez le diffuseur → « à retirer à la main », reste programmé", async () => {
     const m = monde({ scripts: { "DELETE /v1/posts/post_1": [{ statut: 400, corps: { error: "non annulable" } }] } });
