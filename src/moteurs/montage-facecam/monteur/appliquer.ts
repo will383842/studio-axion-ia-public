@@ -18,6 +18,7 @@ import { coupesActives, priseVersMontee, type CoupeDemandee, type MotMonteur } f
 import { appliquerEffetSpecial, estEffetSpecial } from "./effets";
 import { preparerEffetRealiste, type EffetAConfirmer } from "./effet-realiste";
 import type { AjustementCarteAuto } from "../cartes-video";
+import { carteDepuisTextesTous, CONVENTION_TEXTES_TOUS, type IdModeleMotionTous } from "@/briques/motion";
 import { bruitageDeLaBanque, disponibiliteOperation } from "./disponibilite";
 
 /** D'où vient une opération : décidée seule par le studio, ou demandée par Will (consigne dite, écrite, fil). */
@@ -340,6 +341,24 @@ export function appliquerOperations(depart: EtatMonteur, operations: OperationFa
           alertes.push("Élément à retirer introuvable.");
           return;
         }
+        appliquees.push(op);
+        return;
+      }
+      case "modifierCarte": {
+        // S-09a : la MÊME carte (id, ancre, textes, disposition) change de modèle d'animation ; rien n'est retiré puis reposé.
+        const { passageId, modele } = op;
+        const i = facecam.passages.findIndex((p) => p.id === passageId);
+        const p = i >= 0 ? (facecam.passages[i] as PassageMonteur) : null;
+        const refuser = (phrase: string) => {
+          refusees.push(index);
+          alertes.push(phrase);
+        };
+        if (!p) return refuser(passageId.startsWith("auto-") || estCarteAutoActive(facecam, reglages, passageId) ? "Les cartes automatiques changent de modèle depuis la fiche (bientôt)." : "Carte à modifier introuvable.");
+        if (p.operation?.type !== "ajouterCarte") return refuser("Ce passage n'est pas une carte : seule une carte change de modèle.");
+        if (p.operation.modele === null) return refuser("Cette carte est faite sur mesure : demandez une nouvelle carte.");
+        if (!carteDepuisTextesTous(modele as IdModeleMotionTous, p.operation.textes)) return refuser(`Ces textes ne tiennent pas dans ce modèle. Il attend : ${CONVENTION_TEXTES_TOUS[modele as IdModeleMotionTous]}.`);
+        const nouvelle: PassageMonteur = { ...p, modele, operation: { ...p.operation, modele } };
+        facecam.passages[i] = nouvelle;
         appliquees.push(op);
         return;
       }

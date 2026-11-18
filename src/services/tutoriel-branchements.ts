@@ -15,6 +15,9 @@ import { cleDepenseUsine } from "./cle-depense-usine";
 import { appelClaudeTutoriel, claudeTutorielActif } from "./tutoriel-claude";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
+import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
+import { lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
+import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
 
 brancherServicesTutoriel({
   outils: async (c, travailId): Promise<OutilsTutoriel | null> => {
@@ -36,7 +39,24 @@ brancherServicesTutoriel({
     // T-EXT-31 : mixage, mesure du son et vignette. Réglage absent ou autre que `true` = éteint.
     const { lireParametre } = await import("./_commun");
     const finitions = (await lireParametre<boolean>("tutoriel.finitions", false)) === true;
+    // T-EXT-42 : devis et plafond par vidéo, en quantités, montrés avant toute dépense. Seul `true` exact allume ; éteint, `devis` est absent.
+    const devis = (await lireParametre<boolean>("tutoriel.devisAvantDepense", false)) === true;
+    const idee = "aEcrire" in scriptRetenu(c.script.texteComplet, lireEntreesTutoriel(c.entrees));
     return {
+      ...(devis
+        ? {
+            devis: {
+              // Rôles appelés par la chaîne (pas encore intégrés en équipe) : plan (2 essais) et, depuis une idée, script (1 essai).
+              roles: [...(idee ? [{ id: "script", essaisMax: 1 }] : []), { id: "plan", essaisMax: 2 }],
+              accord: lireAccordDevis(c.entrees),
+              consomme: async (etat) => ({
+                appelsClaude: (etat.appelsClaude?.script ?? 0) + (etat.appelsClaude?.plan ?? 0),
+                caracteresVoix: etat.audio && !etat.audio.reutilise ? etat.audio.caracteres : 0,
+                rendus: etat.rendus.length,
+              }),
+            },
+          }
+        : {}),
       ...(finitions ? { finitions: { actif: true as const } } : {}),
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       voix: {

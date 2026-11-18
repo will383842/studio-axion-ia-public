@@ -1,0 +1,171 @@
+{
+  "version": "scenario-maquette.v1",
+  "maquette": "07-taches",
+  "largeur": 1080,
+  "hauteur": 1350,
+  "etapes": [
+    {
+      "id": "accroche",
+      "role": "accroche",
+      "aller": "taches",
+      "cible": ".kpis",
+      "zone": {
+        "x": 25.6,
+        "y": 17.1,
+        "largeur": 71.5,
+        "hauteur": 26.1
+      },
+      "ancre": {
+        "surMot": "petites"
+      },
+      "textesEcran": [
+        "Automatisations actives 3",
+        "+ 12 % ce mois · exemple",
+        "Demandes traitées 248",
+        "+ 24 % ce mois · exemple",
+        "Temps estimé libéré 97 h",
+        "Actions à valider 4 · 2 prioritaires"
+      ]
+    },
+    {
+      "id": "eparpille",
+      "role": "probleme",
+      "aller": "taches",
+      "cible": ".kpis",
+      "zone": {
+        "x": 25.6,
+        "y": 17.1,
+        "largeur": 71.5,
+        "hauteur": 26.1
+      },
+      "ancre": {
+        "surMot": "dispersent"
+      },
+      "textesEcran": [
+        "Actions à valider 4 · 2 prioritaires"
+      ]
+    },
+    {
+      "id": "ensemble",
+      "role": "parcours",
+      "aller": "ensemble",
+      "cible": ".cols",
+      "zone": {
+        "x": 25.6,
+        "y": 44.5,
+        "largeur": 71.5,
+        "hauteur": 32.6
+      },
+      "ancre": {
+        "surMot": "rassemble"
+      },
+      "textesEcran": [
+        "5 sources indexées",
+        "4 processus configurés",
+        "0",
+        "70",
+        "140",
+        "210",
+        "280"
+      ]
+    },
+    {
+      "id": "reponse",
+      "role": "parcours",
+      "aller": "reponse",
+      "cible": ".panel",
+      "zone": {
+        "x": 25.6,
+        "y": 17.1,
+        "largeur": 71.5,
+        "hauteur": 32.6
+      },
+      "ancre": {
+        "surMot": "réponse"
+      }
+    },
+    {
+      "id": "relance",
+      "role": "parcours",
+      "aller": "relance",
+      "cible": ".table",
+      "zone": {
+        "x": 27.8,
+        "y": 51.3,
+        "largeur": 67,
+        "hauteur": 28.7
+      },
+      "ancre": {
+        "surMot": "relance"
+      },
+      "textesEcran": [
+        "Tri des demandes entrantes 158 exécutions",
+        "Taux de réussite 99 %",
+        "Relance des devis en attente 71 exécutions",
+        "Taux de réussite 98 %",
+        "Synthèse quotidienne des e-mails 22 exécutions",
+        "Taux de réussite 100 %",
+        "Préparation des fiches clients 36 exécutions",
+        "Taux de réussite 97 %"
+      ]
+    },
+    {
+      "id": "recherche",
+      "role": "parcours",
+      "aller": "recherche",
+      "cible": ".panel",
+      "zone": {
+        "x": 25.6,
+        "y": 17.1,
+        "largeur": 71.5,
+        "hauteur": 32.6
+      },
+      "ancre": {
+        "surMot": "retrouver"
+      },
+      "textesEcran": [
+        "Fiches disponibles 5",
+        "Qualité moyenne 93 % · exemple",
+        "Présentation de l’entreprise 100 %",
+        "Offres et prestations 97 %",
+        "Questions fréquentes 94 %"
+      ]
+    },
+    {
+      "id": "controle",
+      "role": "mise-en-garde",
+      "aller": "controle",
+      "cible": ".blocksp",
+      "zone": {
+        "x": 25.6,
+        "y": 74.8,
+        "largeur": 71.5,
+        "hauteur": 21.6
+      },
+      "ancre": {
+        "surMot": "vérifiée"
+      },
+      "textesEcran": [
+        "Actions à valider 4 · 2 prioritaires"
+      ]
+    },
+    {
+      "id": "fin",
+      "role": "appel",
+      "aller": "fin",
+      "cible": ".kpis",
+      "zone": {
+        "x": 25.6,
+        "y": 17.1,
+        "largeur": 71.5,
+        "hauteur": 26.1
+      },
+      "ancre": {
+        "surMot": "Pour"
+      },
+      "textesEcran": [
+        "Actions à valider 4 · 2 prioritaires"
+      ]
+    }
+  ]
+}

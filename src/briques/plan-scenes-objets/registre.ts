@@ -23,6 +23,7 @@ import { OBJET_FRISE_MONTAGE } from "../motion/petits-objets/frise-montage";
 import { OBJET_GRILLE_POINTILLEE, OBJET_VIGNETTES_NUMEROTEES } from "../motion/petits-objets/grille-vignettes";
 import { OBJET_GROS_CHIFFRE } from "../motion/petits-objets/gros-chiffre";
 import { OBJET_COCHE, OBJET_CROIX, OBJET_MOT_BARRE } from "../motion/petits-objets/marques";
+import { OBJET_CROQUIS, OBJET_FEUTRE_ENTOURAGE, OBJET_FEUTRE_SOULIGNEMENT } from "../motion/petits-objets/objets-2027";
 import { OBJET_TOURNE } from "../motion/petits-objets/objet-tourne";
 import { OBJET_ONDE_MOTIF } from "../motion/petits-objets/onde";
 import { OBJET_PANNEAU_REGLAGES } from "../motion/petits-objets/panneau-reglages";
@@ -62,6 +63,7 @@ const LISTE: readonly DefinitionObjet<unknown>[] = [
   DEF_PASTILLE_ICONE as DefinitionObjet<unknown>, // etiquette · objet-pastille-icone
   DEF_POST_IT as DefinitionObjet<unknown>, // etiquette · objet-post-it
   DEF_TAMPON as DefinitionObjet<unknown>, // etiquette · objet-tampon
+  OBJET_CROQUIS as DefinitionObjet<unknown>, // manuscrit · objet-croquis
   OBJET_COCHE as DefinitionObjet<unknown>, // marque · objet-coche
   OBJET_CROIX as DefinitionObjet<unknown>, // marque · objet-croix
   OBJET_MOT_BARRE as DefinitionObjet<unknown>, // marque · objet-mot-barre
@@ -80,6 +82,8 @@ const LISTE: readonly DefinitionObjet<unknown>[] = [
   DEF_CADRE_RECTANGLE as DefinitionObjet<unknown>, // trait · objet-cadre-rectangle
   DEF_CERCLE as DefinitionObjet<unknown>, // trait · objet-cercle
   DEF_DOUBLE_BOUCLE as DefinitionObjet<unknown>, // trait · objet-double-boucle
+  OBJET_FEUTRE_ENTOURAGE as DefinitionObjet<unknown>, // trait · objet-feutre-entourage
+  OBJET_FEUTRE_SOULIGNEMENT as DefinitionObjet<unknown>, // trait · objet-feutre-soulignement
   OBJET_FLECHE_COURBE as DefinitionObjet<unknown>, // trait · objet-fleche-courbe
   OBJET_FLECHE_DROITE as DefinitionObjet<unknown>, // trait · objet-fleche-droite
   OBJET_FLECHE_MAIN_LEVEE as DefinitionObjet<unknown>, // trait · objet-fleche-main-levee

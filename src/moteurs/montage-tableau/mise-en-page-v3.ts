@@ -18,7 +18,7 @@
  *     descend jamais.
  * L'accroche (page 1) est la douleur, en très grand (112 px), ses mots importants entourés au crayon quand ils sont
  * dits. La page d'appel garde le fond ivoire : la phrase finale en grand (fin en orange), le bouton plein à l'encre
- * « Réservez un appel de diagnostic », axion-ia.com dessous.
+ * reprend vos mots (repli « Réservez un appel de diagnostic » s'ils sont trop longs), axion-ia.com dessous.
  * Visuels : liste à pastilles à l'encre (✓, ✎, ✕), liste cochée, exemple concret dans une carte arrondie (« Monsieur
  * Martin → Client A »), avant / maintenant (✕ et texte barré, ✓), idée reçue (✕, barrée). En horizontal (et en carré
  * si une colonne ne suffit pas) : deux colonnes, titre et phrase clé à gauche, le visuel à droite.
@@ -154,6 +154,11 @@ const ordreEcriture = (s: SceneTableau) =>
 const cleTexte = (t: string) => t.split(/\s+/).map(cleMot).filter(Boolean).join(" ");
 /** L'appel à réserver (il devient le bouton de la page d'appel). */
 export const estBouton = (t: string) => /r[ée]serv/iu.test(t) && /appel/iu.test(t);
+/** Le texte du bouton : les mots de l'utilisateur (point final retiré) ; la constante s'ils sont vides ou au-delà de 48 caractères. */
+export const texteDuBouton = (t: string): string => {
+  const m = t.trim().replace(/[.\s]+$/u, "");
+  return m && m.length <= 48 ? m : BOUTON_APPEL_3;
+};
 /** Code d'une liste à pastilles : le nom de la couleur n'est plus écrit (le signe ✓, ✎, ✕ le montre). */
 const sansCouleur = (t: string) => {
   const r = t.replace(/^\s*(vert|orange|rouge)\s*:\s*/iu, "");
@@ -342,7 +347,7 @@ function contenus(fiche: FicheTableau, options: OptionsMiseEnPage): ContenuPage[
       const bouton = phrase ? undefined : candidats.find((x) => estBouton(x.l.texte));
       const grand = phrase ?? (bouton ? candidats.find((x) => x !== bouton && !estDemande(x.l.texte)) : (candidats.find((x) => estDemande(x.l.texte)) ?? candidats[0])) ?? bouton;
       if (grand && p.scenes.includes(derniereScene)) {
-        const b: Ligne | undefined = bouton && bouton !== grand ? { ...bouton, l: { ...bouton.l, texte: BOUTON_APPEL_3 } } : undefined;
+        const b: Ligne | undefined = bouton && bouton !== grand ? { ...bouton, l: { ...bouton.l, texte: texteDuBouton(bouton.l.texte) } } : undefined;
         // La fin « adresse seule » (TikTok et Shorts, LinkedIn sans phrase de fin) écrit déjà le site en grand : il n'est
         // pas écrit une seconde fois dessous.
         const memeSite = grand.l.texte.trim().toLowerCase().replace(/[.\s]+$/u, "") === SIGNATURE_REFERENCE.toLowerCase();
@@ -559,17 +564,11 @@ function bloc(g: Groupe, c: ContenuPage, x0: number, x1: number, t: Tailles, enL
       return fini([r.pose]);
     }
     case "idee": {
-      // « ✕ Idée reçue », puis le texte (barré quand la voix a fini de le dire).
-      const tl = Math.round(t.detail * 0.95);
-      const s = libelleSigne("Idée reçue", x0, tl, k);
+      // La phrase seule, barrée quand la voix a fini de la dire (plus de « ✕ Idée reçue » écrit d'office, D1 Williams 18/11).
       const r = texte(g.ligne, x0, L, t.phrase, T.interlignePhrase, 3, { couleur: C.encre });
       if (!r) return null;
-      delete r.pose.marque;
-      const dy = s.cadre.hauteur + Math.round(16 * k);
-      const pose = decalerPose(r.pose, 0, dy);
-      pose.gabarit = { sorte: "idee", cadre: s.cadre, signe: s.disque, texte: { texte: s.ligne.texte, x: s.ligne.px.x, y: s.ligne.px.y, largeur: s.ligne.px.largeur, hauteur: s.ligne.px.hauteur, taille: tl }, couleur: C.encre };
-      pose.enc = union([pose.px, s.cadre]);
-      return fini([pose]);
+      r.pose.marque = "barre";
+      return fini([r.pose]);
     }
     case "code":
     case "coche":
@@ -702,7 +701,10 @@ function bloc(g: Groupe, c: ContenuPage, x0: number, x1: number, t: Tailles, enL
         const tb = Math.round(Math.max(T.bouton * k, t.detail) * Math.max(1, Math.min(1.12, t.f)));
         const mx = Math.round(T.margeBoutonX * k);
         const my = Math.round(T.margeBoutonY * k);
-        const b = texte(g.bouton, x0 + mx, L - 2 * mx, tb, 1.18, 2, { couleur: C.fond, fond: C.encre }, "bouton");
+        // Les mots de l'utilisateur ne tiennent pas dans la largeur du bouton : repli sur la constante.
+        const b =
+          texte(g.bouton, x0 + mx, L - 2 * mx, tb, 1.18, 2, { couleur: C.fond, fond: C.encre }, "bouton") ??
+          (g.bouton.l.texte === BOUTON_APPEL_3 ? null : texte({ ...g.bouton, l: { ...g.bouton.l, texte: BOUTON_APPEL_3 } }, x0 + mx, L - 2 * mx, tb, 1.18, 2, { couleur: C.fond, fond: C.encre }, "bouton"));
         if (!b) return null;
         delete b.pose.marque;
         y += Math.round(64 * k * Math.min(1.3, t.f) * t.aere);
