@@ -19,8 +19,8 @@ const { monter, trouver, texteDe, attendre } = await import("./aides/crochets-fa
 
 const ENV = { USINE_URL: "https://usine.test/", USINE_PORTE_SECRET: "s".repeat(40) };
 const LUNDI = "2026-12-14";
-const JOUR1 = new Date("2026-12-10T10:00:00.000Z");
-const JOUR2 = new Date("2026-12-11T10:00:00.000Z");
+const JOUR1 = new Date("2026-12-10T22:30:00.000Z"); // le 10 à Paris
+const JOUR2 = new Date("2026-12-10T23:30:00.000Z"); // déjà le 11 à Paris, encore le 10 en UTC
 const ligne = (o: Record<string, unknown> = {}) => ({ cle: "u1|linkedin", jour: "2026-12-15", reseau: "linkedin", type: "video", heure: "09:00", titre: "Comment préparer un devis", pourquoi: "Jour sans publication", ressemble_a: "Publication du 4 décembre", ...o });
 const reponse = (corps: unknown, statut = 200) => new Response(JSON.stringify(corps), { status: statut, headers: { "content-type": "application/json" } });
 const doublure = (corps: unknown = { propositions: [ligne()] }) => vi.fn(async () => reponse(corps));
