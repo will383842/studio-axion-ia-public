@@ -6,7 +6,6 @@
 import { empreinteExport } from "@/briques/export-partiel";
 import { fnv1a64, jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import { TRANSITION_MAX_MS } from "@/briques/plan-scenes/zones";
 import type { Ratio } from "@/domaine/types";
 
 /** Film de navigation (forme lue dans les entrées, T-EXT-38 ; empreinte de T-EXT-03b). Types recopiés, aucun import d'`outils/`. */
@@ -74,56 +73,5 @@ export function formatsARefaire(avant: Partial<Record<Ratio, string>> | undefine
   return { aRefaire, gardes, phrase };
 }
 
-export interface PlageImages {
-  debut: number;
-  fin: number;
-}
-
-export interface PlagesARerendre {
-  mode: "aucun" | "plages" | "entier";
-  plages: PlageImages[];
-}
-
-/** Au-delà de cette part du film, mieux vaut tout rendre. */
-const PART_MAX_PLAGES = 0.6;
-
-export function plagesARerendre(
-  plan: PlanValide,
-  scenesTouchees: string[],
-  e: { fps: 25; dureeTotaleImages: number; transitionMaxMs: number; imagesCle?: number[] },
-): PlagesARerendre {
-  const touchees = new Set(scenesTouchees);
-  const scenes = plan.scenes.filter((s) => touchees.has(s.id));
-  if (scenes.length === 0 || e.dureeTotaleImages <= 0) return { mode: "aucun", plages: [] };
-
-  const dernier = e.dureeTotaleImages - 1;
-  const bornes = (n: number) => Math.min(dernier, Math.max(0, n));
-  // `transitionMaxMs` vient de TRANSITION_MAX_MS ; on ne dépasse jamais cette valeur.
-  const transition = Math.ceil((Math.min(e.transitionMaxMs, TRANSITION_MAX_MS) * e.fps) / 1000);
-  const cles = e.imagesCle?.length ? [...e.imagesCle].sort((a, b) => a - b) : undefined;
-
-  const brutes = scenes
-    .map((s) => ({
-      debut: bornes(Math.floor((s.debutMs * e.fps) / 1000) - transition),
-      fin: bornes(Math.ceil((s.finMs * e.fps) / 1000) + transition),
-    }))
-    .sort((a, b) => a.debut - b.debut);
-
-  const elargies = brutes.map((p) => {
-    if (!cles) return p;
-    const avant = cles.filter((c) => c <= p.debut).pop() ?? 0;
-    const apres = cles.find((c) => c >= p.fin) ?? dernier;
-    return { debut: Math.min(avant, p.debut), fin: Math.max(apres, p.fin) };
-  });
-
-  const fusion: PlageImages[] = [];
-  for (const p of elargies.sort((a, b) => a.debut - b.debut)) {
-    const derniere = fusion[fusion.length - 1];
-    if (derniere && p.debut <= derniere.fin + 1) derniere.fin = Math.max(derniere.fin, p.fin);
-    else fusion.push({ ...p });
-  }
-
-  const total = fusion.reduce((n, p) => n + (p.fin - p.debut + 1), 0);
-  if (total > PART_MAX_PLAGES * e.dureeTotaleImages) return { mode: "entier", plages: [] };
-  return { mode: "plages", plages: fusion };
-}
+export { plagesARerendre } from "@/briques/rendu-par-plages";
+export type { PlageImages, PlagesARerendre } from "@/briques/rendu-par-plages";
