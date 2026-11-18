@@ -20,7 +20,7 @@ export function jugerRegard(e: { instants: InstantRegard[]; lecture: LectureRega
 function juger(e: { instants: InstantRegard[]; lecture: LectureRegard | null; textesPermis: string[]; fin?: FinAttendue }): VerdictRegard {
   const parNom = new Map<string, ImageLue>((e.lecture ? e.lecture.images : []).map((i) => [i.nom, i]));
   const permis = normaliser(e.textesPermis.join(" "));
-  const lignes = e.textesPermis.flatMap((t) => [t, ...t.split(/[.!?\n]+/)]).map((t) => new Set(mots(t)));
+  const lignes = e.textesPermis.flatMap((t) => t.split(/[.!?\n]+/)).map((t) => new Set(mots(t)));
   const defauts: DefautVu[] = [];
   let relues = 0;
   let nonRelues = 0;
@@ -53,7 +53,7 @@ function juger(e: { instants: InstantRegard[]; lecture: LectureRegard | null; te
       const jugés = t.coupe ? entiers.slice(0, -1) : entiers;
       if (jugés.length === 0 || contient(permis, jugés.join(" "))) continue;
       const longs = jugés.filter((m) => m.length >= 4);
-      if (lignes.some((l) => longs.every((m) => l.has(m)))) continue;
+      if (longs.length > 0 && lignes.some((l) => longs.every((m) => l.has(m)))) continue;
       ajouter(i, "phrase-non-choisie", `Texte à l'écran qui ne fait pas partie des textes choisis : « ${t.texte} »`);
     }
     if (img.sousTitre && img.sousTitre.trim() !== "" && i.motsDits.length > 0) {

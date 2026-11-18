@@ -16,6 +16,16 @@ describe("jugerRegard", () => {
     const v = jugerRegard({ instants: i, lecture: { images: [img("i01", { textes: [t("Gagnez 3 heures par semaine")] })] }, textesPermis: PERMIS });
     expect(v.defauts.map((d) => d.code)).toEqual(["phrase-non-choisie"]);
     expect(v.defauts[0]!.detail).toContain("Gagnez 3 heures par semaine");
+    // mélange de deux phrases permises : faux à l'écran
+    for (const texte of ["Un outil pour les e-mails"]) {
+      const m = jugerRegard({ instants: i, lecture: { images: [img("i01", { textes: [t(texte)] })] }, textesPermis: PERMIS });
+      expect(m.defauts.map((d) => d.code)).toEqual(["phrase-non-choisie"]);
+    }
+    // aucun mot de 4 lettres et plus : seule la sous-chaîne permise compte
+    for (const texte of ["on a dit non", "il y a un an"]) {
+      const c = jugerRegard({ instants: i, lecture: { images: [img("i01", { textes: [t(texte)] })] }, textesPermis: PERMIS });
+      expect(c.defauts.map((d) => d.code)).toEqual(["phrase-non-choisie"]);
+    }
   });
 
   it("b) fin choisie", () => {
