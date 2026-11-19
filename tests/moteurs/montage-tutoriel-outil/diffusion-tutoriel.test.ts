@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PAIRES_TEXTE, contrasteWcag } from "@/briques/charte/axion-2026";
 import { formatTutorielOutil } from "@/formats/tutoriel-outil";
-import { DUREE_CIBLE_SEC } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
-import { controlerAvantValidation } from "@/moteurs/montage-tutoriel-outil/equipe/controleur";
+import { DUREE_CIBLE_SEC as DUREE_CIBLE_SOURCE } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
+import { DUREE_CIBLE_SEC, controlerAvantValidation } from "@/moteurs/montage-tutoriel-outil/equipe/controleur";
 import {
   CONTRASTE_MIN_GRAND_TEXTE,
   CONTRASTE_MIN_TEXTE,
@@ -54,7 +54,8 @@ describe("ratios", () => {
 describe("durée : une seule source", () => {
   it("aucune constante propre dans src ; DUREE_CIBLE_SEC importée", () => {
     const src = readFileSync("src/moteurs/montage-tutoriel-outil/diffusion-tutoriel.ts", "utf8");
-    expect(src).toMatch(/import \{ DUREE_CIBLE_SEC \} from "\.\/equipe\/chef-de-projet"/);
+    expect(src).toMatch(/import \{ DUREE_CIBLE_SEC, type ResultatControleTutoriel \} from "\.\/equipe\/controleur"/);
+    expect(DUREE_CIBLE_SEC).toBe(DUREE_CIBLE_SOURCE);
     expect(src).not.toMatch(/DUREE_MIN_SEC|DUREE_MAX_SEC/);
   });
   it("la zone du format égale DUREE_CIBLE_SEC", () => expect((formatTutorielOutil.durees as { zoneSec: readonly number[] }).zoneSec).toEqual(DUREE_CIBLE_SEC));
