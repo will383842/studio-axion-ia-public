@@ -10,6 +10,7 @@ import type { CSSProperties } from "react";
 import { CalquePlanScenes } from "../plan-scenes/CalquePlanScenes";
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import { boiteAccessoire, entreeEcranPartage, geometrieEcranPartage, margeFlou, planAuTemps, SOURCE_DOUBLE, transformation, type ProprietesImageComposition, type SourceDouble } from "../../../src/briques/composition/scene";
+import { etatRaccordA } from "../../src/composition/raccords-instants";
 import { ContenuAccessoire } from "./Accessoire";
 import { Silhouette } from "./Silhouette";
 
@@ -91,6 +92,12 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
   // Facecam lot C : écran partagé par passages (carte en haut, la personne glisse en bas). Absent : rien ne change.
   const ep = plan?.type === "double" ? plan.ecranPartage : undefined;
   const geo = ep ? geometrieEcranPartage(ep, entreeEcranPartage(image - Math.round(plan!.debutSec * fps), ep.entreeImages)) : null;
+  // Raccords entre deux illustrations voisines (même règle que le chemin FFmpeg) : absents ou inutiles, rien ne change.
+  const voisines = (a: number) => [a, a + 1].every((j) => { const x = p.plans[j]; return x?.type === "illustration" && !!x.illustration && !x.ecranPartage && !x.miseEnPage; });
+  const raccordsUtiles = (p.raccords ?? []).filter((r) => voisines(r.indexAvant));
+  const raccord = raccordsUtiles.length
+    ? etatRaccordA(image, fps, p.plans.map((x) => ({ debutImage: Math.round(x.debutSec * fps), finImage: Math.round(x.finSec * fps) })), raccordsUtiles, { largeurPx: p.largeur })
+    : null;
   const scene = (
     <AbsoluteFill style={{ backgroundColor: decor.teinte, overflow: "hidden" }}>
       {/* 4:5 et 1:1 : le décor reste fixe et s'étend sur les côtés ; seul le double change de taille. */}
@@ -117,20 +124,32 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
           {p.accessoire && <AccessoireDansLeCadre p={p} echelleBoite={boite.largeur / SOURCE_DOUBLE.largeur} k={k} />}
         </div>
       </div>
-      {/* 5. Illustrations plein écran : chacune démarre au début de son plan (coupe franche, aucune transition). */}
-      {p.plans.map((pl, i) =>
-        pl.type === "illustration" && pl.illustration ? (
-          <Sequence key={i} from={Math.round(pl.debutSec * fps)} durationInFrames={Math.max(1, Math.round((pl.finSec - pl.debutSec) * fps))} layout="none">
-            <AbsoluteFill style={{ backgroundColor: "#000" }}>
-              {pl.illustration.video ? (
-                <OffthreadVideo src={pl.illustration.url} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <Img src={pl.illustration.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              )}
-            </AbsoluteFill>
+      {/* 5. Illustrations plein écran : chacune démarre au début de son plan (coupe franche, sauf raccord demandé). */}
+      {p.plans.map((pl, i) => {
+        if (!(pl.type === "illustration" && pl.illustration)) return null;
+        const de = Math.round(pl.debutSec * fps);
+        const duree = Math.max(1, Math.round((pl.finSec - pl.debutSec) * fps));
+        // Raccord (champ facultatif, jamais sur un plan avec la personne) : le plan déborde de la demi-fenêtre, le plan entrant est posé au-dessus.
+        const marge = raccordsUtiles.length ? Math.ceil(fps / 2) : 0;
+        const dans = raccord && (i === raccord.indexAvant || i === raccord.indexAvant + 1);
+        const style = dans ? { opacity: i === raccord.indexAvant ? raccord.opaciteAvant : raccord.opaciteApres, transform: `translateX(${(i === raccord.indexAvant ? raccord.decalageAvantPx : raccord.decalageApresPx).toFixed(2)}px)` } : {};
+        const corps = (
+          <AbsoluteFill style={{ backgroundColor: "#000", ...style }}>
+            {pl.illustration.video ? (
+              <OffthreadVideo src={pl.illustration.url} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <Img src={pl.illustration.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            )}
+          </AbsoluteFill>
+        );
+        if (!marge) return <Sequence key={i} from={de} durationInFrames={duree} layout="none">{corps}</Sequence>;
+        const debut = Math.max(0, de - marge);
+        return (
+          <Sequence key={i} from={debut} durationInFrames={duree + marge + (de - debut)} layout="none">
+            {(image >= de && image < de + duree) || dans ? corps : null}
           </Sequence>
-        ) : null,
-      )}
+        );
+      })}
     </AbsoluteFill>
   );
   if (!ep || !geo) return scene;
