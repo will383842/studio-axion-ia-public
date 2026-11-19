@@ -335,7 +335,9 @@ export async function poserEssaiZernioAction(demande: { creneauId: string; duree
       // Créneau programmé en un clic (« rien de choisi ») : l'essai garde la cible RÉELLE que l'envoi prendra (mêmes règles, lecture seule), jamais le marqueur.
       let compte = c.compteCible;
       if (estCompteParDefaut(compte)) {
-        const cibles = await ciblesZernioPour(fournisseurParId("publication", "zernio"), reseau as IdReseau);
+        const cibles = await ciblesZernioPour(fournisseurParId("publication", "zernio"), reseau as IdReseau).catch(() => {
+          throw new ErreurStudio("ESSAI_NON_ELIGIBLE", "La liste des comptes de l'outil de publication n'a pas pu être lue : l'essai n'est pas posé.");
+        });
         if (!cibles.ok || cibles.canaux.length !== 1) throw new ErreurStudio("ESSAI_NON_ELIGIBLE", cibles.ok ? "Plusieurs comptes sont reliés pour ce réseau : l'essai exige un seul compte." : cibles.message);
         compte = cibles.canaux[0].id;
       }
