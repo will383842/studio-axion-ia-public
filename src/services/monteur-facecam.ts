@@ -68,6 +68,8 @@ import { choisirMiniature, choisirVersion, renommerVideo } from "./videos";
 import { appliquerDemandeFormats, arreterFormatsRepris, comprendreDemandeFormats, reprendreFormatsEnCours, vueFormatsFacecam, type VueFormatsFacecam } from "./formats-facecam";
 import { decouperDemande, morceauxEt } from "@/moteurs/montage-facecam/monteur/regles-simples";
 import { corrigerMots } from "@/moteurs/montage-facecam/habillage";
+import { appliquerOperations } from "@/moteurs/montage-facecam/monteur/appliquer";
+import type { ModeleCarte } from "@/moteurs/montage-facecam/monteur/operations";
 
 /* ------------------------------------------------------------------ */
 /* Fil de discussion                                                   */
@@ -841,6 +843,20 @@ export async function changerTexteCarte(videoId: Id, origine: "auto" | "monteur"
   const change: PassageMonteur = { ...p, texte: propres.join(" · "), operation: { ...op, textes: propres } };
   const suivant: EtatMonteur = { ...etat, facecam: { ...etat.facecam, passages: etat.facecam.passages.map((x) => (x.id === id ? change : x)) } };
   const v = await nouvelleVersion(videoId, entreesAvec(entrees, suivant), `Texte de carte changé : ${resumeCarte(propres)}`);
+  return { travailId: v.travailId };
+}
+
+/** « Changer l'animation » d'une carte du monteur (S-09b) : même carte (id, ancre, textes), autre modèle ; 0 € et sans Claude. */
+export async function changerAnimationCarte(videoId: Id, id: string, modele: ModeleCarte): Promise<{ travailId: Id }> {
+  await exigerSession();
+  const { courante } = await versionCourante(videoId);
+  const entrees = courante.commande.entrees ?? {};
+  const etat = etatDe(entrees);
+  const p = etat.facecam.passages.find((x) => x.id === id) as PassageMonteur | undefined;
+  if (!p?.operation) throw new ErreurStudio("INTROUVABLE", "Cette carte n'est plus dans la vidéo, ou elle est automatique : son animation ne change pas encore ici.");
+  const r = appliquerOperations(etat, [{ type: "modifierCarte", passageId: id, modele }], { mots: [], dureePriseSec: 0, origine: "demande", nouvelId });
+  if (!r.appliquees.length) throw new ErreurStudio("TEXTE_CARTE", r.alertes[0] ?? "Cette animation ne convient pas à cette carte.");
+  const v = await nouvelleVersion(videoId, entreesAvec(entrees, r.etat), `Animation de carte changée : ${modele}`);
   return { travailId: v.travailId };
 }
 
