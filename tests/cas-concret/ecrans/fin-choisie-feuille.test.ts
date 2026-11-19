@@ -27,13 +27,13 @@ const rendre = (extra: Record<string, unknown>) =>
   renderToStaticMarkup(createElement(ContenuVotreVideo, { cas, essai: false, reseaux: ["facebook"], onReseaux: () => undefined, mot: cas.mot, onMot: () => undefined, avecMot: false, onAvecMot: () => undefined, onValider: () => undefined, ...extra } as never));
 
 describe("FIX-CC-FIN-CHOIX-b4 · « La phrase de fin », éteinte par défaut", () => {
-  it("par défaut : interrupteur non coché, la phrase D1 mot pour mot et « Sinon »", () => {
+  it("par défaut : interrupteur non coché, la phrase D1 mot pour mot entre guillemets et « Décoché »", () => {
     const html = rendre({ finRdv: false, onFinRdv: () => undefined });
     const t = texte(html);
     expect(html).toContain('aria-label="La phrase de fin"');
     expect(t).toContain("La phrase de fin");
     expect(t).toContain(DIT_FIN_RENDEZ_VOUS);
-    expect(t).toContain("Sinon : rien n'est dit après la question.");
+    expect(t).toContain("La vidéo finit par : « " + DIT_FIN_RENDEZ_VOUS + " » Décoché : la vidéo ne dit rien de plus à la fin.");
     expect(t).not.toContain("quelques minutes");
     const section = html.slice(html.indexOf('aria-label="La phrase de fin"'));
     expect(section).toMatch(/aria-checked="false"/);

@@ -481,8 +481,8 @@ export function ContenuVotreVideo({
       </section>
       {onFinRdv && (
         <section aria-label="La phrase de fin" className="space-y-2">
-          <Interrupteur libelle="La phrase de fin" detail={`${DIT_FIN_RENDEZ_VOUS} Sinon : rien n'est dit après la question.`} coche={finRdv} onChange={onFinRdv} />
-          {finRdv && avecMot && disponible && <p className="px-1 text-[15px] text-texte-doux">Sur {listeReseaux(surReseaux.map((r) => r.libelle))}, la fin au mot reste dite.</p>}
+          <Interrupteur libelle="La phrase de fin" detail={`La vidéo finit par : « ${DIT_FIN_RENDEZ_VOUS} » Décoché : la vidéo ne dit rien de plus à la fin.`} coche={finRdv} onChange={onFinRdv} />
+          {finRdv && avecMot && disponible && <p className="px-1 text-[15px] text-texte-doux">Sur {listeReseaux(surReseaux.map((r) => r.libelle))}, la vidéo invite plutôt à écrire le mot : cette phrase n&rsquo;y est pas dite.</p>}
         </section>
       )}
       {!cas.valide && !essai && !cas.porteB && (
