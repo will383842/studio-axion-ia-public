@@ -9,6 +9,7 @@ import manropeBold from "../../../src/briques/sous-titres/polices/Manrope-Bold.t
 import manropeExtraBold from "../../../src/briques/sous-titres/polices/Manrope-ExtraBold.ttf";
 import manropeMedium from "../../../src/briques/sous-titres/polices/Manrope-Medium.ttf";
 import manropeSemiBold from "../../../src/briques/sous-titres/polices/Manrope-SemiBold.ttf";
+import manropeVariable from "../../../src/briques/sous-titres/polices/Manrope-Variable.ttf";
 
 /** Nom CSS de chaque police dans le rendu (une famille par fichier : aucune synthèse de graisse). */
 export const FAMILLES: Record<NomPolice, string> = {
@@ -43,4 +44,19 @@ export function chargerPolices(noms: readonly NomPolice[] = ["Manrope Medium", "
       })().then(() => continueRender(attente)),
     );
   }
+}
+
+/** BR-POIDS-VARIABLE-IV-a : famille CSS de Manrope Variable (axe de graisse 200 à 800), pour le mot qui s'épaissit. */
+export const FAMILLE_VARIABLE = "Axion Manrope Variable";
+let chargementVariable: Promise<void> | null = null;
+
+/** Charge Manrope Variable une seule fois (même patron que `chargerPolices`) ; appelée seulement quand `poidsVariable` est posé. */
+export function chargerPoliceVariable(): void {
+  if (typeof document === "undefined" || chargementVariable) return;
+  const attente = delayRender("Police des sous-titres : Manrope Variable");
+  chargementVariable = (async () => {
+    const face = new FontFace(FAMILLE_VARIABLE, `url(${manropeVariable})`, { weight: "200 800" });
+    await face.load();
+    document.fonts.add(face);
+  })().then(() => continueRender(attente));
 }
