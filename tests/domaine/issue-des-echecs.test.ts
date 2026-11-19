@@ -82,9 +82,14 @@ describe("éteint = identique", () => {
       return /\.(ts|tsx)$/.test(nom) ? [chemin] : [];
     });
   }
-  it("aucun fichier de src/** n'importe issue-des-echecs", () => {
+  // S-13-AFFICHAGE-v19c 19/11 (voulue, verdict des 2 relecteurs) : liste fermée exacte, seule la page neuve importe le service.
+  it("seule la page neuve importe issue-des-echecs (service) ; le domaine n'est importé que par le service", () => {
+    const PAGE = join("src", "app", "(studio)", "reglages", "echecs", "issues", "page.tsx");
+    const SERVICE = join("src", "services", "issue-des-echecs.ts");
     const fautifs = fichiers("src").filter((f) => !f.endsWith("issue-des-echecs.ts") && /issue-des-echecs/.test(readFileSync(f, "utf8")));
-    expect(fautifs).toEqual([]);
+    expect(fautifs).toEqual([PAGE]);
+    const domaine = fichiers("src").filter((f) => f !== SERVICE && f !== join("src", "domaine", "issue-des-echecs.ts") && /domaine\/issue-des-echecs/.test(readFileSync(f, "utf8")));
+    expect(domaine).toEqual([]);
   });
   it("compterEchecs rend le même bilan sur les lignes à plusieurs essais", () => {
     const lignes = [ligne("a", 1, "FOURNISSEUR_INDISPONIBLE", "fournisseur", 1), ligne("a", 2, "FOURNISSEUR_INDISPONIBLE", "fournisseur", 2), ligne("a", 3, "FOURNISSEUR_INDISPONIBLE", "fournisseur", 3)];
