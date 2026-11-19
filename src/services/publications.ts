@@ -27,6 +27,7 @@ import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer, refusDoublonEntreOutils, serviceHistorique, type ComptesPourReseau } from "@/domaine/buffer";
 import { cleEnvoiPublication, estChezUnOutil, OUTILS_ENVOI, outilDe, type OutilPublication } from "@/domaine/outil-publication";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
+import { creneauEnvoyable, visuelEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
@@ -49,7 +50,6 @@ import { construireDemandeVisuel, type FichierVisuel } from "./demande-publicati
 import { porteCalendrierPour } from "./essai-zernio";
 import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
-import { adresseRelaisBuffer } from "./relais-buffer";
 import { versCarte } from "./presentation";
 import { creditsVideo, obtenirVideo } from "./videos";
 import { synchroniserEtats, versionDeVideo } from "./generateur";
@@ -928,22 +928,25 @@ async function rappelerVotreMarque(videoId: Id, essai: boolean): Promise<void> {
   await creerNotification({ type: "publication", titre: essai ? "Essai · vidéo « Votre marque »" : "TikTok : vidéo « Votre marque »", message: `${RAPPEL_VOTRE_MARQUE}, avant de publier le brouillon.`, lien: `/videos/${videoId}` });
 }
 
-/** Lot R1 (C10) : Buffer télécharge la vidéo quand il veut, jusqu'à la publication : adresse signée 7 jours. */
+/** Lot R1 (C10) : durée limite de programmation côté Buffer (historique, garde conservée). */
 export const DUREE_URL_BUFFER_SEC = 604_800;
 
+/** Durée de l'adresse signée de la vidéo donnée à l'envoi (le Studio la relit aussitôt pour la téléverser chez Zernio). */
+export const DUREE_URL_VIDEO_SEC = 3600;
+
 /**
- * Adresse de la vidéo lisible par Buffer (https), ou une erreur claire. Buffer vérifie l'adresse par un HEAD, que l'adresse R2
- * signée (GET seulement) refuse : l'adresse donnée est celle du relais du Studio (jeton signé, 30 jours), jamais l'adresse R2.
+ * Adresse de la vidéo à l'envoi : adresse de stockage signée (GET, 3 600 s), comme les visuels. Le Studio la relit lui-même
+ * (zernio-medias) puis téléverse la vidéo chez Zernio, qui ne voit jamais cette adresse. Aucun jeton public de 30 jours n'est
+ * émis. Elle ne doit jamais apparaître dans un journal ni une erreur.
  */
 export async function urlVideoPourBuffer(fichierId: Id | undefined): Promise<string> {
   const f = fichierId ? await depots().fichiers.obtenir(fichierId) : null;
-  // CORRECTEUR FINAL A : un fichier de démonstration (dossier du studio) n'est jamais donné à Buffer.
+  // CORRECTEUR FINAL A : un fichier de démonstration (dossier du studio) n'est jamais donné au diffuseur.
   if (estCleDemo(f?.cleStockage)) throw new ErreurStudio("VIDEO_ESSAI", "C'est une vidéo d'essai (vidéo de démonstration) : elle ne part pas sur vos réseaux. Fabriquez-la pour de vrai d'abord.");
   const stockage = await fournisseur("stockage");
-  // Le fichier est-il sur le stockage en ligne ? (l'adresse signée ne sert qu'à le savoir : elle n'est jamais donnée à Buffer)
-  const enLigne = f?.cleStockage && stockage.urlLectureDuree ? await stockage.urlLectureDuree(f.cleStockage, 60) : "";
-  if (!f || !/^https:\/\//.test(enLigne)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "La vidéo n'est pas sur le stockage en ligne : l'ancien outil ne pourrait pas la lire.");
-  return adresseRelaisBuffer(f.id);
+  const adresse = f?.cleStockage && stockage.urlLectureDuree ? await stockage.urlLectureDuree(f.cleStockage, DUREE_URL_VIDEO_SEC) : "";
+  if (!f || !/^https:\/\//.test(adresse)) throw new ErreurStudio("FICHIER_HORS_LIGNE", "La vidéo n'est pas sur le stockage en ligne : elle ne peut pas partir.");
+  return adresse;
 }
 
 export interface ProblemeEnvoi {
@@ -1035,7 +1038,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     throw new ErreurStudio("TROP_LOIN", "Programmez à moins de 7 jours, ou passez par un brouillon chez le diffuseur.");
   }
   // 1. Préparation complète avant le moindre envoi : un envoi par compte (un seul texte par réseau, pour tous ses comptes).
-  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; url: string; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean; format?: string; dureeSec?: number }[] = [];
+  const prets: { reseau: IdReseau; nom: string; texte: string; premierCommentaire?: string; titre?: string; fichierId: Id; canal: CanalPublication; sortieId?: Id; votreMarque?: boolean; format?: string; dureeSec?: number }[] = [];
   // Seuls les comptes cochés ET validés (réseau envoyé, compte connu de ce réseau) sont mémorisés.
   const valides: Partial<Record<IdReseau, string[]>> = {};
   const aPoserALaMain = new Set<IdReseau>();
@@ -1048,7 +1051,9 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     if (!comptes.ok) throw new ErreurStudio(outil === "buffer" ? "COMPTE_BUFFER" : "CIBLE_ZERNIO", comptes.message);
     if (outil === "buffer" && comptes.source === "choisi") valides[reseau] = comptes.canaux.map((c) => c.id);
     if (!r.sortieConseillee) throw new ErreurStudio("RESEAU", `Aucun fichier au bon format pour ${r.nom}.`);
-    const url = await urlVideoPourBuffer(r.sortieConseillee.fichierId);
+    // Contrôle précoce (vidéo d'essai, hors ligne) : refus avant toute réservation. L'adresse signée, elle, est refaite juste avant chaque téléversement (les envois se font l'un après l'autre et peuvent dépasser 1 h).
+    await urlVideoPourBuffer(r.sortieConseillee.fichierId);
+    const fichierId = r.sortieConseillee.fichierId;
     const nomReseau = obtenirReseau(reseau).nom;
     const { texte, commentaire } = await preparerEnvoi(kitVue, r, commentaires[reseau], avecVideo, outil, placements);
     if (commentaire.aLaMain) aPoserALaMain.add(reseau);
@@ -1056,7 +1061,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     for (const canal of comptes.canaux) {
       // Compte choisi (réseau à plusieurs comptes) : son nom accompagne celui du réseau dans chaque phrase.
       const nom = comptes.source === "auto" ? nomReseau : `${nomReseau} (${canal.nom})`;
-      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, url, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}),
+      prets.push({ reseau, nom, texte, ...(commentaire.texte ? { premierCommentaire: commentaire.texte } : {}), titre: r.titre, fichierId, canal, sortieId: r.sortieConseillee.id, ...(reseau === "tiktok" && kitVue.votreMarque.cochee ? { votreMarque: true } : {}),
         // YouTube Shorts (garde « vrai Short ») et Facebook (Reel) ont besoin du format et de la durée : les autres réseaux n'en reçoivent pas.
         ...(reseau === "youtube-shorts" || reseau === "facebook" ? { format: r.sortieConseillee.ratio, dureeSec: r.sortieConseillee.dureeSec } : {}) });
     }
@@ -1144,7 +1149,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
       // 3. Appel HORS verrou.
       try {
         const envoi = await service.envoyer({
-          reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: p.url, mode, canalId: p.canal.id, titre: p.titre, cleEnvoi,
+          reseau: p.reseau, texte: p.texte, date: dateIso, fichierCle: await urlVideoPourBuffer(p.fichierId), mode, canalId: p.canal.id, titre: p.titre, cleEnvoi,
           ...(p.premierCommentaire ? { premierCommentaire: p.premierCommentaire } : {}),
           ...(p.votreMarque ? { votreMarque: true } : {}),
           ...(p.format !== undefined && p.dureeSec !== undefined ? { format: p.format, dureeSec: p.dureeSec } : {}),
@@ -1276,7 +1281,7 @@ export async function envoyerVisuel(service: FournisseurPublication, creneauId: 
   // La porte passe AVANT toute lecture : éteint = rien n'est lu, rien n'est écrit. Générale, ou essai borné de CE créneau.
   if (!(await porteCalendrierPour(creneauId))) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
-  if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
+  if (!c || !creneauEnvoyable(c)) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
   const validee = typeof c.valideeLe === "string" && c.valideeLe ? Date.parse(c.valideeLe) : NaN;
   if (!Number.isFinite(validee) || validee > Date.parse(maintenant())) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Le créneau n'a pas de validation datée : rien n'est envoyé.");
   if (!c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas celui d'un visuel : rien n'est envoyé.");
@@ -1325,7 +1330,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   await refuserSiStockageSimule();
   const d = depots();
   const v = await d.visuels.obtenir(visuelId);
-  if (!v || v.statut !== "valide" || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
+  if (!v || !visuelEnvoyable(v) || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
   if (v.estDemo) throw new ErreurStudio("VISUEL_EXEMPLE", "C'est un visuel d'exemple : il ne part pas sur vos réseaux.");
   if (v.modeTexte === "simulation") throw new ErreurStudio("VISUEL_ESSAI", "C'est un visuel d'essai (texte simulé) : il ne part pas sur vos réseaux.");
   const rendu = v.rendu;

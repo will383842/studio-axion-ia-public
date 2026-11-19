@@ -112,17 +112,39 @@ describe("R1 — envoi réel (Zernio, Buffer ne peut plus envoyer), brouillon d'
     expect(await depots().publications.compter((x) => x.via === ("buffer" as string))).toBe(0);
   });
 
-  it("ROUGE 2 : la vidéo est donnée à Zernio par l'adresse du relais du Studio (https, /video.mp4, jeton de 30 jours, aucune signature R2, aucune adresse Buffer)", async () => {
+  it("ROUGE 2 : la vidéo est donnée par une adresse R2 signée GET à durée bornée, jamais par /api/media-buffer/, signée au moment de l'envoi", async () => {
     await cocherTout();
     await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
     expect(envoyer).toHaveBeenCalledTimes(1);
     const adresse = String(demande(0).fichierCle);
     const url = new URL(adresse);
     expect(url.protocol).toBe("https:");
-    expect(url.pathname).toMatch(/^\/api\/media-buffer\/[^/]+\/video\.mp4$/);
-    expect(adresse).not.toMatch(/X-Amz|r2\.cloudflarestorage|api\.buffer\.com/i);
-    const { verifierJetonMediaBuffer } = await import("@/lib/jeton-media-buffer");
-    expect(verifierJetonMediaBuffer(url.pathname.split("/")[3], Date.now() + 29 * 24 * 3600 * 1000)).toEqual(expect.any(String));
+    expect(url.hostname).toMatch(/r2\.cloudflarestorage\.com$/);
+    expect(adresse).not.toContain("/api/media-buffer/");
+    expect(adresse).not.toMatch(/api\.buffer\.com/i);
+    expect(url.searchParams.get("X-Amz-Algorithm")).toBeTruthy();
+    expect(Number(url.searchParams.get("X-Amz-Expires"))).toBeGreaterThan(0);
+    expect(Number(url.searchParams.get("X-Amz-Expires"))).toBeLessThanOrEqual(21_600);
+    expect(adresse).not.toContain(CLE);
+  });
+
+  it("ROUGE 2 bis : deux envois l'un après l'autre sur plus d'une heure → chaque adresse est signée au moment de SON envoi", async () => {
+    await cocherTout();
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date() });
+    try {
+      let n = 0;
+      envoyer.mockImplementation(async () => {
+        n++;
+        vi.setSystemTime(Date.now() + 2 * 3600_000);
+        return { idExterne: `exemple-post-${n}`, via: "zernio" as const, statut: "brouillon" as const };
+      });
+      await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { comptes: { linkedin: [CANAUX.linkedinProfil.id, CANAUX.linkedinPage.id] } });
+      const dates = envoyer.mock.calls.map((c) => new URL(String((c[0] as unknown as Record<string, unknown>).fichierCle)).searchParams.get("X-Amz-Date"));
+      expect(dates).toHaveLength(2);
+      expect(dates[1]).not.toBe(dates[0]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("ROUGE 3 : coupure APRÈS l'envoi (réponse perdue) → « à vérifier », puis aucune seconde demande, jamais", async () => {
