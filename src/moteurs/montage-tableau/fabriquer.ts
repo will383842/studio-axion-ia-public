@@ -1374,6 +1374,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     const controles = await controlerVideoTableau(
       {
         fiche: calageS.fiche,
+        ficheReference: fiche,
         contexte: contexteDe(ficheS),
         historique: o.historique ?? [],
         ...(o.dejaVu ? { dejaVu: o.dejaVu } : {}),
