@@ -34,7 +34,7 @@ describe("TEXTES-ANCIEN-OUTIL-2b — messages du service de publication", () => 
   const f = "src/services/publications.ts";
   it.each([
     ["essai d'envoi (journal)", "Essai d'envoi vers"],
-    ["vidéo hors ligne", "ne pourrait pas la lire"],
+    ["vidéo hors ligne", "elle ne peut pas partir"],
     ["nom de l'outil dans les messages (lui)", "const lui ="],
     ["programmation trop lointaine", "ou passez par un brouillon"],
     ["envoi absent", "n'avait rien reçu"],

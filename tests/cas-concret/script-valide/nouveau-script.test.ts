@@ -111,7 +111,8 @@ describe("service : le lancement avec l'option", () => {
     const relu = scripts.empreinteScriptValide(SCRIPT_V4_RECRUTEMENT);
     expect((await service.preparerEtLancer(demande({ empreinteScriptRelu: relu }), { lancer })).statut).toBe("lancee");
     const e = await entreesCasConcret();
-    expect(Object.keys(e).sort()).toEqual(["avecMot", "casId", "codeSuivi", "empreinteCas", "essai", "mot", "motDit", "motSur", "porte", "reseaux", "scriptRelu"]);
+    // 18/11 ALLUME-VAGUE-A-CODE-a : cameraPlus allumé par défaut (1,048)
+    expect(Object.keys(e).sort()).toEqual(["avecMot", "cameraPlus", "casId", "codeSuivi", "empreinteCas", "essai", "mot", "motDit", "motSur", "porte", "reseaux", "scriptRelu"]);
     // `nouveauScript: false` vaut « sans l'option ».
     expect(await service.preparerEtLancer(demande({ nouveauScript: false }), { lancer })).toEqual({ statut: "refusee", phrase: scripts.PHRASE_SCRIPT_NON_RELU });
   });

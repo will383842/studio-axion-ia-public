@@ -171,17 +171,24 @@ export async function mesurerNoirEtFigeParFfmpeg(octets: Uint8Array, dureeSec: n
   }
 }
 
-/** Lit un fichier EN ENTIER par une adresse signée (`null` : illisible, vide ou trop gros). */
-export async function lireOctets(adresse: string, max = 32 * 1024 * 1024, appeler: typeof fetch = fetch): Promise<Uint8Array | null> {
+/**
+ * Lit un fichier EN ENTIER par une adresse signée (`null` : absent ou refusé (4xx), vide ou trop gros).
+ * `leverSurPanne` (défaut faux = comportement d'avant, `null` partout) : une coupure réseau, un délai ou un 5xx LÈVE alors une
+ * panne réessayable ; les autres 4xx (404, 403 d'adresse expirée…) restent `null`.
+ */
+export async function lireOctets(adresse: string, max = 32 * 1024 * 1024, appeler: typeof fetch = fetch, leverSurPanne = false): Promise<Uint8Array | null> {
+  const panne = (raison: string) => Object.assign(new Error(`Lecture du fichier impossible pour l'instant (${raison}).`), { reessayable: true as const });
   try {
     const r = await appeler(adresse, { signal: AbortSignal.timeout(60_000) });
+    if (r.status >= 500) throw new Error(`réponse ${r.status}`);
     if (!r.ok) return null;
     const annonce = Number(r.headers.get("content-length"));
     if (Number.isFinite(annonce) && annonce > max) return null;
     const o = new Uint8Array(await r.arrayBuffer());
     return o.byteLength && o.byteLength <= max ? o : null;
-  } catch {
-    return null;
+  } catch (err) {
+    if (!leverSurPanne) return null;
+    throw panne(err instanceof Error ? err.message : "réseau");
   }
 }
 

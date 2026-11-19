@@ -17,10 +17,11 @@ describe("dosage-motion : réglages", () => {
     for (const v of ["true", 1, null, undefined, false, {}, "oui"]) expect(await dosageActif(lireVal(v))).toBe(false);
     expect(await dosageActif(lireEchec)).toBe(false);
   });
-  it("dosageActif : lit la bonne clé avec défaut false", async () => {
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec false écrit en base.
+  it("dosageActif : lit la bonne clé avec défaut true", async () => {
     const vus: unknown[][] = [];
     await dosageActif(async (id, d) => { vus.push([id, d]); return d; });
-    expect(vus).toEqual([["dosageMotion.actif", false]]);
+    expect(vus).toEqual([["dosageMotion.actif", true]]);
   });
   it("defautsLus : valeurs valides gardées, inconnues ou non permises = défaut du code", async () => {
     const r = await defautsLus(lireVal({ avocat: "sobre", tableau: "aucun", "cas-concret": "bizarre", facecam: 3, "facecam-animee": "sobre", "demo-facecam": "aucun" }));

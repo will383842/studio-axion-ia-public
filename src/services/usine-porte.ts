@@ -11,7 +11,7 @@ export const DELAI_PORTE_USINE_MS = 10_000;
 
 type Env = { USINE_URL?: string; USINE_PORTE_SECRET?: string };
 type Appel = typeof fetch;
-interface Options {
+export interface Options {
   env?: Env;
   fetchImpl?: Appel;
   delaiMs?: number;
@@ -95,4 +95,46 @@ export async function retenirSujetUsine(origine: OrigineUsine, referenceStudio: 
     retenuesEchouees += 1;
     return false;
   }
+}
+
+/** Une ligne de la semaine proposée par l'usine, telle que la porte la dit (lue champ par champ, aucun statut n'est repris). */
+export interface LigneSemaineUsine {
+  cle: string;
+  jour: string;
+  reseau: string;
+  type: string;
+  heure?: string;
+  titre?: string;
+  pourquoi?: string;
+  ressembleA?: string;
+}
+
+const texteOptionnel = (v: unknown, max = 300): string | undefined => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
+
+/** Lit la réponse `{ propositions: [...] }` ; une ligne qui n'est pas un objet avec clé, jour, réseau et type est ignorée. Le statut de l'usine n'est jamais lu. */
+export function lireSemaineUsine(corps: unknown): LigneSemaineUsine[] {
+  const lignes = corps && typeof corps === "object" ? (corps as { propositions?: unknown }).propositions : undefined;
+  if (!Array.isArray(lignes)) return [];
+  const sortie: LigneSemaineUsine[] = [];
+  for (const l of lignes) {
+    if (!l || typeof l !== "object") continue;
+    const o = l as Record<string, unknown>;
+    const cle = texteOptionnel(o.cle, 120);
+    if (!cle || typeof o.jour !== "string" || typeof o.reseau !== "string" || typeof o.type !== "string") continue;
+    const heure = texteOptionnel(o.heure, 5);
+    const titre = texteOptionnel(o.titre);
+    const pourquoi = texteOptionnel(o.pourquoi);
+    const ressembleA = texteOptionnel(o.ressemble_a);
+    sortie.push({ cle, jour: o.jour, reseau: o.reseau, type: o.type, ...(heure ? { heure } : {}), ...(titre ? { titre } : {}), ...(pourquoi ? { pourquoi } : {}), ...(ressembleA ? { ressembleA } : {}) });
+  }
+  return sortie;
+}
+
+/**
+ * Demande à l'usine de PROPOSER une semaine (tirage, rythmes, anti-répétition : tout se passe côté usine, le Studio ne choisit aucun sujet).
+ * La demande ne porte aucun statut : l'usine ne peut rien écrire dans le calendrier par cet appel, le Studio affiche seulement.
+ */
+export async function proposerSemaineUsine(demande: { debut: string; reseaux?: readonly string[] }, o: Options = {}): Promise<LigneSemaineUsine[]> {
+  const corps = { debut: demande.debut, ...(demande.reseaux?.length ? { reseaux: [...demande.reseaux] } : {}) };
+  return lireSemaineUsine(await appeler("/api/porte/planification/semaine", { methode: "POST", corps }, o));
 }

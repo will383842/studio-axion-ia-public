@@ -39,6 +39,13 @@ export function estFinAuMot(f: Pick<FinTable, "type" | "dit" | "ecran">): boolea
 /** Message du refus de la fin au mot pour TikTok ou Shorts. */
 export const FIN_AU_MOT_REFUSEE = "La fin « Écrivez … en commentaire. Je vous l'envoie. » n'est jamais utilisée sur TikTok ni sur YouTube Shorts : rien n'y est envoyé.";
 
+/**
+ * 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin CHOISIE fait loi. Les 2 interdictions du 12/10 la
+ * RETIRENT du fichier (rien n'est mis à sa place) et le disent ; `${ecran}` : l'écran de la fin, mot rempli.
+ */
+export const avisFinTikTok = (ecran: string): string => `Sur TikTok et Shorts, votre fin « ${ecran} » n'est pas dite : rien n'y est envoyé (règle du 12/10). Ce fichier se termine sur votre dernière phrase ; rien n'est ajouté.`;
+export const avisFinLinkedIn = (ecran: string): string => `Sur LinkedIn, votre fin « ${ecran} » n'est pas dite : aucun appel à commenter dans une vidéo LinkedIn (règle du 12/10 ; le mot va en dernière ligne du texte de la publication). Ce fichier se termine sur votre dernière phrase ; rien n'est ajouté.`;
+
 /** Réseaux servis par chaque sortie : la table de `formats-sortie.ts` (réexportée ici pour ses lecteurs d'avant). */
 export { RESEAUX_DES_SORTIES };
 
@@ -94,6 +101,15 @@ function choixDuTableau(reseau: ReseauFin, appelId: string | null, table: readon
   try {
     const demandee = appelId ? table.find((f) => f.id === appelId) : appelsValides(reseau, table)[0];
     let fin = demandee ? finDuGroupe(demandee, reseau, table) : undefined;
+    // 18/11 : fin CHOISIE (validée) sur TikTok, Shorts ou LinkedIn : interdite par le 12/10 → retirée et signalée ; sinon
+    // gardée telle quelle (jamais une fin de la banque à sa place), même sans équivalent dans le groupe du réseau.
+    if (appelId && demandee?.validee && (sansEnvoi || sansCommentaire)) {
+      const mot = options.mot?.trim().toUpperCase() || "MOT";
+      const ecranDemande = demandee.ecran.split(EMPLACEMENT_MOT).join(mot);
+      if (sansEnvoi && estFinAuMot(demandee)) return { absente: avisFinTikTok(ecranDemande) };
+      if (sansCommentaire && estAppelACommenter(demandee)) return { absente: avisFinLinkedIn(ecranDemande) };
+      if (fin && !permise(fin, reseau)) return { id: fin.id, ecran: fin.ecran.split(EMPLACEMENT_MOT).join(mot), dit: fin.dit.split(EMPLACEMENT_MOT).join(mot) };
+    }
     // LinkedIn : un appel à commenter n'y est jamais dit (quel que soit le groupe de la fin demandée) ; aucun appel.
     if (sansCommentaire && fin && (estAppelACommenter(fin) || (demandee && estAppelACommenter(demandee)))) return { absente: `${APPEL_A_COMMENTER_LINKEDIN} ${FIN_SANS_APPEL_LINKEDIN}` };
     // TikTok, Shorts : une fin au mot (ou une fin qui n'y est pas permise) cède la place à la fin validée du réseau.
