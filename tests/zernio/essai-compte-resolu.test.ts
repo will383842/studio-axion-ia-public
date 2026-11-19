@@ -6,6 +6,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 
+process.env.ZERNIO_API_KEY = "cle-essai-fictive";
+
 const canaux = vi.hoisted(() => ({ liste: [] as unknown[] }));
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -63,5 +65,12 @@ describe("essai : compte réel résolu à la pose", () => {
     const r = await actions.poserEssaiZernioAction({ creneauId: "cA", dureeHeures: 4 });
     expect(r.ok).toBe(true);
     expect(await lireEssai(Date.now())).toMatchObject({ compte: "compte-1:li:42" });
+  });
+
+  it("créneau « compte-studio » : un essai qui porterait le marqueur lui-même ne se relit pas (fermé)", async () => {
+    await creneau("compte-studio");
+    const pose = new Date(Date.now() - 60_000).toISOString();
+    await depots().parametres.enregistrer({ id: PARAM_ESSAI_BROUILLON, valeur: { version: 1, creneauId: "cA", compte: "compte-studio", reseau: "linkedin", poseLe: pose, expireLe: new Date(Date.now() + 3600_000).toISOString() }, creeLe: pose, modifieLe: pose } as never);
+    expect(await lireEssai(Date.now())).toBeNull();
   });
 });
