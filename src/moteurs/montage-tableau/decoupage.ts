@@ -5,15 +5,17 @@
  * Entrée : texte VALIDÉ du script, structure, série, douleur, geste de la minute, preuves disponibles, banque de dessins
  * (identifiants et mots-clés). Sortie : la fiche de scènes BRUTE (sans calage), validée par `validerFicheTableau`.
  *
- * Déroulé, au plus DEUX appels :
+ * Déroulé, au plus QUATRE appels (un appel, puis jusqu'à TROIS relances) :
  *  1. coût estimé au PIRE (tarifs du studio) puis réservation par l'outil budget injecté, AVANT l'appel ; refusée →
  *     aucun appel, échec motivé ;
  *  2. UN appel Claude (`roleDecoupageTableau`, modèle d'écriture du studio, jamais un modèle Haiku), même contrat que le
  *     monteur face caméra : le service le branche sur le chemin de dépense existant (`executerRolePourVideo`) ;
  *  3. la réponse (JSON) est lue, contrôlée (champs fixes, dessins et preuves fournis) puis validée par
  *     `validerFicheTableau` (règles 1 à 17, dont le texte dit mot pour mot) ;
- *  4. refusée → UNE relance automatique, avec la liste des refus (étapes 1 à 3) ; encore refusée → échec motivé (refus en
- *     français), la main revient à Will. Jamais de troisième appel.
+ *  4. refusée → une relance automatique, avec la liste des refus (étapes 1 à 3), jusqu'à TROIS relances ; chaque appel garde sa
+ *     réservation et son `appelId`. On s'arrête sans payer de plus si une relance rend EXACTEMENT les mêmes refus que la
+ *     précédente (le modèle tourne en rond). Encore refusée → échec motivé (refus en français), la main revient à Will.
+ *     Jamais de cinquième appel.
  * Trois issues distinctes (constat du 12/10 en production) : fiche valide ; fiche REFUSÉE par les règles (liste des
  * règles, et la fiche lisible rendue à part pour être gardée « à corriger » : le travail payé n'est jamais jeté) ;
  * réponse COUPÉE (`stopReason` « max_tokens ») ou illisible. Une réponse coupée n'est JAMAIS rejouée à l'identique :
@@ -75,6 +77,7 @@ import { ECART_VISE_MS, reparerRythme, type ReglagesRythme } from "./rythme";
 // ORDRE À GARDER : après `./rythme`. Importer `reparation-refus` plus haut (ou seul) plante au chargement (cycle fiche/gabarit hérité,
 // `fiche.ts:155` ; `densite.ts` seul plante déjà de même sur master).
 import { reparerRefusDeForme, type ReparationForme } from "./reparation-refus";
+import { cleRefus, compterCles, reparesDe, type BilanDecoupage, type EssaiBilan, type IssueDecoupage } from "./bilan-refus";
 import { CARACTERES_DITS_MAX_TABLEAU, caracteresEn } from "@/domaine/duree-tableau";
 import { cleSimple, REGLES_TABLEAU, ACCROCHE_MOTS_MAX, CARACTERES_PAR_SECONDE, DUREE_MAX_MS, ECART_EVENEMENT_MAX_MS, PAGE_LIGNES_MAX, PAGE_MOTS_MAX, type ContexteTableau } from "./regles";
 
@@ -82,8 +85,8 @@ import { cleSimple, REGLES_TABLEAU, ACCROCHE_MOTS_MAX, CARACTERES_PAR_SECONDE, D
 /* Réglages                                                              */
 /* ------------------------------------------------------------------ */
 
-/** Appels Claude au plus : le premier et UNE relance (§ 4.2, étape 2). */
-export const APPELS_MAX = 2;
+/** Appels Claude au plus : le premier et jusqu'à TROIS relances (demande du fondateur, 18/11 ; § 4.2, étape 2). */
+export const APPELS_MAX = 4;
 /** Libellé de l'étape (dépense rattachée à la vidéo). */
 export const ETAPE_DECOUPAGE = "Tableau · découpage en scènes";
 /** Préfixe des appels (réservations retrouvables). */
@@ -231,6 +234,8 @@ export interface OutilsDecoupage {
   appeler: (role: DefinitionRole, entree: EntreeRole) => Promise<ReponseAppelDecoupage>;
   /** Budget du studio : réserve le coût estimé AVANT l'appel ; refus → aucun appel. */
   budget: { reserver: (demande: DemandeReservation) => Promise<{ ok: true } | { ok: false; message: string }> };
+  /** Bilan des refus, rendu UNE fois à chaque issue. Un rappel qui lève ne change rien à l'issue. */
+  noterBilan?: (bilan: BilanDecoupage) => void;
 }
 
 /** `refusee` : fiche lisible refusée par les règles ; `tronquee` : réponse coupée ; `illisible` : réponse vide ou hors JSON. */
@@ -238,7 +243,7 @@ export type MotifEchec = "refusee" | "tronquee" | "illisible" | "budget" | "appe
 
 export type ResultatDecoupage =
   /** `retraits` : ce que l'allègement de dernier recours a retiré de la fiche (page trop chargée), s'il y en a eu. */
-  | { ok: true; fiche: FicheTableau; appels: number; relance: boolean; retraits?: RetraitAllegement[]; reparations?: ReparationForme[] }
+  | { ok: true; fiche: FicheTableau; appels: number; relance: boolean; relances?: number; retraits?: RetraitAllegement[]; reparations?: ReparationForme[] }
   /** `aCorriger` : la dernière fiche LISIBLE refusée par les règles (champs fixes remis à leur valeur), à garder. */
   | { ok: false; motif: MotifEchec; message: string; refus: string[]; appels: number; aCorriger?: FicheTableau };
 
@@ -462,14 +467,14 @@ export function coutEstimeUsd(role: DefinitionRole, entree: EntreeRole): number 
 const REFUS_ESTIMATION = ["x".repeat(4000)];
 
 /**
- * Coût PIRE d'un découpage entier (premier appel, puis la relance au pire : réponse précédente de la taille maximale et
- * ses refus), en dollars. C'est le prix à confirmer à l'écran, et l'enveloppe du plafond propre de ce découpage.
+ * Coût PIRE d'un découpage entier (premier appel, puis chacune des `APPELS_MAX - 1` relances au pire : réponse précédente de
+ * la taille maximale et ses refus), en dollars. C'est le prix à confirmer à l'écran, et l'enveloppe du plafond propre de ce découpage.
  */
 export function coutPireDecoupageUsd(entree: EntreeDecoupage, role: DefinitionRole = roleDecoupageTableau): number {
   const base = variableDecoupage(entree);
   const premier = coutEstimeUsd(role, { contexte: {}, variable: base });
   const relance = coutEstimeUsd(role, { contexte: {}, variable: variableRelance(base, "x".repeat(role.maxTokens * 4), REFUS_ESTIMATION) });
-  return premier + (APPELS_MAX > 1 ? relance : 0);
+  return premier + (APPELS_MAX - 1) * relance;
 }
 
 /* ------------------------------------------------------------------ */
@@ -659,7 +664,7 @@ export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habill
 }
 
 /** Juge une réponse lue : contrôles du découpage, puis validation complète de la fiche. */
-export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[]; reparations?: ReparationForme[] } | { ok: false; refus: string[]; reparations?: ReparationForme[] } {
+export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[]; reparations?: ReparationForme[]; clesAvant?: string[] } | { ok: false; refus: string[]; cles: string[]; reparations?: ReparationForme[]; clesAvant?: string[] } {
   // Remises en forme déterministes : mots forts et importants, formes (ancres bornées…), puis rythme.
   // Les parties du script (quand le générateur les rend) fixent la partie de chaque page et les numéros d'étape.
   const lue = appliquerParties(rendue, e.parties);
@@ -677,11 +682,13 @@ export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fic
     const v = validerFicheTableau(b, { ...e.controle, texteScript: e.texteScript });
     const dejaTraitees = new Set<number>();
     const refus = [...propres, ...(v.ok ? [] : v.problemes.map((p) => p.message + conseilDe(p.regle) + raisonPageDePlus(p, b, dejaTraitees)))];
-    return { propres, v, refus };
+    const cles = [...propres.map((message) => cleRefus({ regle: "", message })), ...(v.ok ? [] : v.problemes.map((p) => cleRefus(p)))];
+    return { propres, v, refus, cles };
   };
   let jugement = evaluer(brute);
   // Cinquième remise en forme, au découpage seulement : un refus de FORME est réparé sans IA, mêmes mots, avant toute relance.
   let reparations: ReparationForme[] = [];
+  let clesAvant: string[] | undefined;
   if (jugement.refus.length || !jugement.v.ok) {
     const juger = (f: FicheTableau) => {
       const r = validerFicheTableau(f, { ...e.controle, texteScript: e.texteScript });
@@ -692,12 +699,13 @@ export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fic
     if (r.reparations.length) {
       brute = r.fiche;
       reparations = r.reparations;
+      clesAvant = jugement.cles;
       jugement = evaluer(brute);
     }
   }
-  const { v, refus } = jugement;
-  const avecReparations = reparations.length ? { reparations } : {};
-  if (refus.length || !v.ok) return { ok: false, refus, ...avecReparations };
+  const { v, refus, cles } = jugement;
+  const avecReparations = reparations.length ? { reparations, ...(clesAvant ? { clesAvant } : {}) } : {};
+  if (refus.length || !v.ok) return { ok: false, refus, cles, ...avecReparations };
   // Style tiré ou imposé : il reste dans la fiche (la fabrication le relit via `styleTableauDe`, sinon elle retomberait sur
   // le style de la série). Sinon le style de la série n'a servi qu'à juger : la fabrication le pose à son tour.
   if (jugee === lue || e.tirage || estStyleTableau(e.styleImpose)) return { ok: true, fiche: v.fiche, retraits, ...avecReparations };
@@ -756,9 +764,13 @@ function conseilDe(regle: string): string {
 /* Découpage                                                             */
 /* ------------------------------------------------------------------ */
 
+/** Messages comparés SANS leurs nombres (comme `densite.ts`) : « même refus » malgré un numéro de page ou un compte qui change. */
+const sansChiffres = (m: string) => m.replace(/\d+/g, "#");
+const memesRefus = (a: readonly string[], b: readonly string[]) => a.length > 0 && a.length === b.length && a.every((m, k) => sansChiffres(m) === sansChiffres(b[k]));
+
 /**
- * Découpe un script validé en fiche de scènes brute (voir l'en-tête). Au plus 2 appels Claude, chacun précédé de sa
- * réservation. `ok: false` : la main revient à Will avec les refus en français.
+ * Découpe un script validé en fiche de scènes brute (voir l'en-tête). Au plus `APPELS_MAX` (4) appels Claude, chacun
+ * précédé de sa réservation. `ok: false` : la main revient à Will avec les refus en français.
  */
 export async function decouperEnScenes(entree: EntreeDecoupage, outils: OutilsDecoupage): Promise<ResultatDecoupage> {
   const role = roleDecoupageTableau;
@@ -769,46 +781,86 @@ export async function decouperEnScenes(entree: EntreeDecoupage, outils: OutilsDe
   /** Dernière fiche lisible refusée par les règles (gardée « à corriger »), et si la dernière réponse était illisible. */
   let aCorriger: FicheTableau | undefined;
   let illisible = false;
+  let sansProgres = false;
+  const essais: EssaiBilan[] = [];
+
+  /** Le bilan : UNE fois par issue, dans un `try` (un rappel qui lève ne change rien), plus une ligne de trace. */
+  const noter = (issue: IssueDecoupage) => {
+    try {
+      const bilan: BilanDecoupage = { videoId: entree.videoId, versionId: entree.versionId, issue, appels, essais };
+      console.info("[tableau] bilan-decoupage " + JSON.stringify(bilan));
+      outils.noterBilan?.(bilan);
+    } catch {
+      /* le bilan n'est jamais une raison de changer l'issue */
+    }
+  };
 
   for (let essai = 1; essai <= APPELS_MAX; essai++) {
     const entreeRole: EntreeRole = { contexte: {}, variable };
     const appelId = `${PREFIXE_APPEL_DECOUPAGE}-${entree.videoId}-${entree.versionId}-${essai}`;
     const reservation = await outils.budget.reserver({ appelId, videoId: entree.videoId, etape: ETAPE_DECOUPAGE, modele: role.modele, coutEstimeUsd: coutEstimeUsd(role, entreeRole) });
     if (!reservation.ok) {
+      noter("budget");
       return { ok: false, motif: "budget", message: `Découpage non lancé : ${reservation.message}`, refus, appels };
     }
 
     appels++;
     const reponse = await outils.appeler(role, entreeRole);
-    if (!reponse.ok) return { ok: false, motif: "appel", message: `Découpage interrompu : ${reponse.message}`, refus, appels };
-    if (reponse.simule) return { ok: false, motif: "simulation", message: "Claude n'est pas relié : aucun découpage automatique, la fiche est à faire à la main.", refus, appels };
+    if (!reponse.ok) {
+      noter("appel");
+      return { ok: false, motif: "appel", message: `Découpage interrompu : ${reponse.message}`, refus, appels };
+    }
+    if (reponse.simule) {
+      noter("simulation");
+      return { ok: false, motif: "simulation", message: "Claude n'est pas relié : aucun découpage automatique, la fiche est à faire à la main.", refus, appels };
+    }
 
     // Réponse coupée : JAMAIS rejouée à l'identique (elle serait coupée de même) ; la main revient à Will.
-    if (reponse.stopReason === "max_tokens") return { ok: false, motif: "tronquee", message: MESSAGE_TRONQUEE, refus: [MESSAGE_TRONQUEE], appels, ...(aCorriger ? { aCorriger } : {}) };
-    if (reponse.stopReason === "refusal") return { ok: false, motif: "illisible", message: "Claude a refusé de rendre la fiche : rien n'a pu être lu.", refus, appels, ...(aCorriger ? { aCorriger } : {}) };
+    if (reponse.stopReason === "max_tokens") {
+      noter("tronque");
+      return { ok: false, motif: "tronquee", message: MESSAGE_TRONQUEE, refus: [MESSAGE_TRONQUEE], appels, ...(aCorriger ? { aCorriger } : {}) };
+    }
+    if (reponse.stopReason === "refusal") {
+      noter("illisible");
+      return { ok: false, motif: "illisible", message: "Claude a refusé de rendre la fiche : rien n'a pu être lu.", refus, appels, ...(aCorriger ? { aCorriger } : {}) };
+    }
 
     const lecture = lireReponse(reponse.donnees);
-    const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus] };
+    const jugement = lecture.ok ? jugerFiche(lecture.brute, entree) : { ok: false as const, refus: [lecture.refus], cles: ["illisible"] };
     if (jugement.ok) {
       // Un allègement de dernier recours a retiré du contenu écrit : jamais en silence (trace serveur + résultat).
       if (jugement.retraits.length) console.warn(`[tableau] découpage ${entree.videoId} : page allégée, retraits ${jugement.retraits.map((r) => `${r.sceneId}/${r.elementId} (${r.type}, page ${r.page})`).join(", ")}`);
       if (jugement.reparations?.length) console.warn(`[tableau] découpage ${entree.videoId} : réparé sans IA : ${jugement.reparations.map((r) => `${r.cle} ${r.sceneId}${r.elementId ? `/${r.elementId}` : ""} (page ${r.page}) : ${r.quoi}`).join(" ; ")}`);
-      return { ok: true, fiche: jugement.fiche, appels, relance: essai > 1, ...(jugement.retraits.length ? { retraits: jugement.retraits } : {}), ...(jugement.reparations?.length ? { reparations: jugement.reparations } : {}) };
+      const avant = compterCles(jugement.clesAvant ?? []);
+      essais.push({ essai, refusAvant: avant, reparesSansIA: reparesDe(avant, {}), restes: {} });
+      noter(essai === 1 ? (jugement.reparations?.length ? "accepte-par-reparation" : "accepte-1er-essai") : (`accepte-apres-relance-${Math.min(essai - 1, 3)}` as IssueDecoupage));
+      return { ok: true, fiche: jugement.fiche, appels, relance: essai > 1, ...(essai > 2 ? { relances: essai - 1 } : {}), ...(jugement.retraits.length ? { retraits: jugement.retraits } : {}), ...(jugement.reparations?.length ? { reparations: jugement.reparations } : {}) };
     }
 
+    const restes = compterCles(jugement.cles);
+    const avant = "clesAvant" in jugement && jugement.clesAvant ? compterCles(jugement.clesAvant) : restes;
+    essais.push({ essai, refusAvant: avant, reparesSansIA: reparesDe(avant, restes), restes });
     illisible = !lecture.ok;
     if (lecture.ok && ficheLisible(lecture.brute)) aCorriger = ficheACorriger(lecture.brute, entree);
+    const refusPrecedent = refus;
     refus = jugement.refus;
+    // Arrêt sans progrès : exactement les mêmes refus qu'à l'essai d'avant, un nouvel essai paierait pour rien.
+    if (essai >= 2 && memesRefus(refus, refusPrecedent)) {
+      sansProgres = true;
+      break;
+    }
     variable = variableRelance(base, lecture.texte, refus, "reparations" in jugement ? jugement.reparations : undefined);
   }
 
   if (illisible && !aCorriger) {
-    return { ok: false, motif: "illisible", message: `Aucune fiche lisible après ${APPELS_MAX} essais : réessayez.`, refus, appels };
+    noter("illisible");
+    return { ok: false, motif: "illisible", message: `Aucune fiche lisible après ${appels} essais : réessayez.`, refus, appels };
   }
+  noter(sansProgres ? "refuse-sans-progres" : "refuse");
   return {
     ok: false,
     motif: "refusee",
-    message: `Fiche de scènes refusée par les règles après ${APPELS_MAX} essais (${refus.length} refus)${aCorriger ? " : elle est gardée, à corriger à la main ou à refaire." : " : à reprendre à la main."}`,
+    message: `Fiche de scènes refusée par les règles après ${appels} essais (${refus.length} refus)${aCorriger ? " : elle est gardée, à corriger à la main ou à refaire." : " : à reprendre à la main."}`,
     refus,
     appels,
     ...(aCorriger ? { aCorriger } : {}),
