@@ -103,9 +103,9 @@ export interface DonneesCalque {
   paveAnime?: true;
   /** BR-PAVE-MARQUES : marque posée sous la plaque animée (id du segment → marque). Sans `paveAnime` : sans effet. */
   marques?: Record<string, MarqueMot>;
-  /** BR-MINIMAL-IV-b : boîte arrondie derrière le groupe affiché (rayon et marge en em de la taille du texte). Absent : rien ne change. */
   /** BR-POIDS-VARIABLE-IV-a : seul `true` fait passer le mot dit de la graisse 500 à 800 ; absent : inchangé. */
   poidsVariable?: true;
+  /** BR-MINIMAL-IV-b : boîte arrondie derrière le groupe affiché (rayon et marge en em de la taille du texte). Absent : rien ne change. */
   boite?: { rayonEm: number; margeEm: number; couleurs: { fond: string; texte: string } };
 }
 
