@@ -21,7 +21,8 @@
 import { verifierSaisie } from "@/components/calendrier/FicheEntree";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { LotEcritures } from "@/domaine/depots";
-import { cleEnvoi, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { type EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { resoudreCleEnvoi } from "@/services/envois-planifies";
 import type { IdReseau, Publication } from "@/domaine/types";
 import { estReseauDeclinaison } from "@/reseaux/codes";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
@@ -44,6 +45,8 @@ export interface DepsDeplacement {
   reglagesOuverts(creneauId?: string): Promise<boolean>;
   creneau(id: string): Promise<CreneauPlan | null>;
   envois(creneauId: string): Promise<EnvoiPlanifie[]>;
+  /** Une entrée d'envoi par sa clé (pour résoudre la clé propre au créneau) ; absent = clé ancienne. */
+  envoiParCle?(cle: string): Promise<EnvoiPlanifie | null | undefined>;
   visuel(id: string): Promise<{ id: string; statut: string } | null>;
   appliquer(lot: LotEcritures): Promise<void>;
   /** La garde L5-02d (`niveauDiffuseurDuCreneau`), lue dans la même section que l'écriture. */
@@ -363,7 +366,7 @@ export async function deplacerProgrammation(d: DepsDeplacement, demande: Demande
     return p.avecPost.length > 0 ? reposerDansAPlacer(d, p) : { ok: false, etat: "reste", message: PHRASES_DEPLACEMENT.rienChange };
   }
   await noterFait(d, cleFait, p.versionSuivante);
-  return { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, nouvellesCles: p.vivants.map((e) => cleEnvoi(e.videoId, e.reseau, p.versionSuivante)) };
+  return { ok: true, etat: "deplace", message: PHRASES_DEPLACEMENT.deplace(jourLisible(jour)), creneauId: p.c.id, nouvellesCles: await Promise.all(p.vivants.map((e) => resoudreCleEnvoi({ obtenir: async (id) => (await d.envoiParCle?.(id)) ?? null }, { videoId: e.videoId, reseau: e.reseau, versionCreneau: p.versionSuivante, creneauId: p.c.id }))) };
 }
 
 export async function modifierTexteProgramme(d: DepsDeplacement, demande: DemandeTexte): Promise<ResultatDeplacement> {
@@ -486,6 +489,7 @@ export async function depsDeplacementServeur(diffuseur?: PortRetraitDiffuseur | 
       (await (await import("@/services/essai-zernio")).essaiCouvre(creneauId, "deplacement")),
     creneau: async (id) => ((await d.creneauxEditoriaux.obtenir(id)) as CreneauPlan | null) ?? null,
     envois: (creneauId) => d.envoisPlanifies.lister((e) => e.creneauId === creneauId),
+    envoiParCle: (cle) => d.envoisPlanifies.obtenir(cle),
     visuel: async (id) => (await d.visuels.obtenir(id)) ?? null,
     appliquer: appliquerLot,
     etats: {
