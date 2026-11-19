@@ -15,6 +15,7 @@ import { createHash } from "node:crypto";
 import type { Depot } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { CLE_DIFFUSEUR, cleEnvoi } from "@/domaine/envoi-planifie";
+import { STATUTS_CRENEAU_ENVOYABLES } from "@/domaine/plan-editorial/envoyable";
 import type { ReseauDeclinaison } from "@/domaine/types";
 import { CODES_AVANT_RESEAU, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, enteteIdempotenceStudio } from "@/fournisseurs/publication/zernio-client";
@@ -179,7 +180,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
   const ligne: LigneCreneau = { cle, creneauId: c.id, etat: "refuse" };
   const debut = deps.maintenant();
 
-  if (c.statut !== "valide" || !valideeLisible(c, debut)) {
+  if (!STATUTS_CRENEAU_ENVOYABLES.includes(c.statut as never) || !valideeLisible(c, debut)) {
     ligne.etat = "non-valide";
     ligne.raison = "pas de validation datée : rien n'est envoyé";
     return ligne;

@@ -573,7 +573,7 @@ describe("Essai · créneau programmé en un clic (statut « programme »)", () 
 
   it("1b. contre-cas toujours refusés : sans validation datée, retiré, à renvoyer, deux réseaux, vidéo", async () => {
     const id = await programmerLeVisuel("vis_1");
-    const c = (await depots().creneauxEditoriaux.obtenir(id)) as Record<string, unknown> & { heuresParReseau: Record<string, string> };
+    const c = (await depots().creneauxEditoriaux.obtenir(id)) as unknown as Record<string, unknown> & { heuresParReseau: Record<string, string> };
     const h = c.heuresParReseau.linkedin;
     for (const p of [{ valideeLe: undefined }, { retireLe: iso(T0) }, { aRenvoyer: true }, { heuresParReseau: { linkedin: h, instagram: h } }, { videoId: "vid_1" }]) {
       expect(raisonNonEligible({ ...c, ...p } as never, T0)).not.toBeNull();

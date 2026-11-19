@@ -735,8 +735,13 @@ describe("Créneau programmé en un clic (statut « programme ») : le chemin r�
     await ouvrirTout();
     await creerVisuel({ statut: "programme" });
     await creerCreneau("c-vid", "linkedin", { statut: "programme", videoId: "vid_1", visuelId: undefined });
-    await creerCreneau("c-usine", "linkedin", { statut: "programme", valideePar: "usine:compte-1" });
     await tour();
+    expect(appelsFournisseur).toHaveLength(0);
+    expect(await depots().envoisPlanifies.compter()).toBe(0);
+    await depots().creneauxEditoriaux.supprimer("c-vid");
+    notifications.length = 0;
+    await creerCreneau("c-usine", "linkedin", { statut: "programme", valideePar: "usine:compte-1" });
+    await tourSuivant();
     expect(appelsFournisseur).toHaveLength(0);
     expect(await depots().envoisPlanifies.compter()).toBe(0);
     expect(notifications).toHaveLength(0);
