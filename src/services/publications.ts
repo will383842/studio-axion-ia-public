@@ -65,6 +65,7 @@ import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
 import { construirePasseportDEssai, pagePourYoutube, passeportDeLaVideo } from "./site-videos";
 import { descriptionAvecPage, RESEAUX_LIEN_SITE } from "@/domaine/site-videos/youtube";
+import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 
 /*
  * Lot R2 : les textes du kit s'écrivent sous le verrou local du kit (`verrou-kit.ts`, un seul processus studio) : la
@@ -1359,14 +1360,17 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   }
 
   // Le compte doit être dans la liste des comptes reliés (ni inconnu, ni déconnecté, ni interdit).
-  const cibles = await ciblesZernioPour(service, reseau, [options.cible]);
+  const cibles = await ciblesZernioPour(service, reseau, estCompteParDefaut(options.cible) ? undefined : [options.cible]);
   if (!cibles.ok) throw new ErreurStudio(cibles.code, cibles.message);
-  const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, options.cible);
+  if (cibles.canaux.length !== 1) throw new ErreurStudio("CIBLE_AMBIGUE", "Plusieurs comptes sont ciblés : choisissez-en un seul. Rien n'est parti.");
+  // La cible RÉSOLUE remplace le marqueur partout en aval (clé d'envoi, anti-doublon, canal, cible).
+  const cible = cibles.canaux[0].id;
+  const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, cible);
   const nom = obtenirReseau(reseau).nom;
   // Une seule réservation, sous le verrou, AVANT l'appel.
   const decision = await sousVerrou(async (): Promise<{ existante: Publication } | { nouvelle: Publication }> => {
     // Par visuel, réseau et compte, quelle que soit la date : une autre date ne contourne jamais l'anti-doublon.
-    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && (!x.canalId || x.canalId === options.cible) && outilDe(x) === "zernio" && occupeBuffer(x));
+    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && (!x.canalId || x.canalId === cible) && outilDe(x) === "zernio" && occupeBuffer(x));
     const meme = deja.find((x) => x.etatEnvoi === "envoye" && x.cleEnvoi === cleEnvoi);
     if (meme) return { existante: meme };
     if (deja.some((x) => x.etatEnvoi === "a-verifier")) throw new ErreurStudio("ENVOI_A_VERIFIER", `L'envoi précédent vers ${nom} est à vérifier : le studio ne renverra rien sans en être sûr. Regardez dans l'outil de publication.`);
@@ -1381,7 +1385,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
       date: dateIso,
       texte: options.legende,
       etatEnvoi: "en-cours",
-      canalId: options.cible,
+      canalId: cible,
       modeBuffer: "brouillon",
       cleEnvoi,
       envoiCommenceLe: maintenant(),
@@ -1400,8 +1404,8 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
       date: dateIso,
       fichierCle: urls[0],
       mode: "brouillon",
-      canalId: options.cible,
-      cible: options.cible,
+      canalId: cible,
+      cible,
       cleEnvoi,
       ...(options.premierCommentaire?.trim() ? { premierCommentaire: options.premierCommentaire } : {}),
       ...(reseau === "linkedin" ? { document: { url: urls[0], titre: titreDocument } } : { images: demande.demande.medias.map((m, i) => ({ url: urls[i], texteAlternatif: m.alt })) }),
@@ -1412,6 +1416,11 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
     return { publication: ecrite, deja: false };
   } catch (e) {
     const { incertain, message } = lireErreurEnvoi("zernio", e);
+    // Console serveur seulement (jamais le journal ni l'écran) : code, statut et détail du fournisseur, adresses retirées.
+    if (e instanceof ErreurZernio) {
+      const brut = (e.detailTechnique ?? "").replace(/https?:\/\/\S+/g, "<adresse>").slice(0, 300);
+      console.warn(`[studio] outil de publication, envoi du visuel sur ${reseau} : ${[e.code, e.statut].filter((x) => x !== undefined).join(" ")}${brut ? ` · ${brut}` : ""}`);
+    }
     await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
     throw new ErreurStudio(incertain ? "ENVOI_A_VERIFIER" : "ENVOI_REFUSE", incertain ? `${nom} : la réponse de l'outil de publication s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` : message);
   }

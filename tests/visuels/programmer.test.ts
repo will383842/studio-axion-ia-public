@@ -188,3 +188,42 @@ describe("fiche carrousel", () => {
     expect(actions).not.toMatch(/fournisseur|diffus|fetch\(/i);
   });
 });
+
+describe("programmer en un clic : légende par réseau (lot C)", () => {
+  const LI = { texte: "Légende LinkedIn relue.", premierCommentaire: "" };
+  it("copie la légende enregistrée dans le créneau, qui reste programmé et validé par le fondateur", async () => {
+    const d = await monter();
+    const r = await programmerEnUnClic(d, "vis_1", "2026-11-25", T0, { linkedin: LI, instagram: { texte: "Légende Instagram.", premierCommentaire: "" } });
+    const c = await d.creneaux.obtenir(r.creneauId);
+    expect(c?.textes?.linkedin?.texte).toBe("Légende LinkedIn relue.");
+    expect(c?.textes?.instagram?.texte).toBe("Légende Instagram.");
+    expect(c?.statut).toBe("programme");
+    expect(c?.valideeLe).toBeTruthy();
+    expect(r.aCompleter).toEqual([]);
+  });
+  it("sans légende : le créneau est créé, le réseau est « à compléter »", async () => {
+    const d = await monter();
+    const r = await programmerEnUnClic(d, "vis_1", "2026-11-25", T0, { linkedin: LI });
+    expect(r.aCompleter).toEqual(["instagram"]);
+    const c = await d.creneaux.obtenir(r.creneauId);
+    expect(c?.statut).toBe("programme");
+    expect(c?.textes?.instagram).toBeUndefined();
+    const r2 = await programmerEnUnClic(await monter(), "vis_1", "2026-11-25", T0);
+    expect(r2.aCompleter).toEqual(["linkedin", "instagram"]);
+  });
+  it("ignore le texte d'un réseau non préparé et un texte vide", async () => {
+    const d = await monter();
+    const r = await programmerEnUnClic(d, "vis_1", "2026-11-25", T0, { facebook: LI, linkedin: { texte: "  ", premierCommentaire: "" } });
+    const c = await d.creneaux.obtenir(r.creneauId);
+    expect(c?.textes?.facebook).toBeUndefined();
+    expect(c?.textes?.linkedin).toBeUndefined();
+    expect(r.aCompleter).toEqual(["linkedin", "instagram"]);
+  });
+  it("la Publication « manuel » porte la légende, sinon le titre", async () => {
+    const d = await monter();
+    await programmerEnUnClic(d, "vis_1", "2026-11-25", T0, { linkedin: LI });
+    const pubs = await d.publications.lister();
+    expect(pubs.find((p) => p.reseau === "linkedin")?.texte).toBe("Légende LinkedIn relue.");
+    expect(pubs.find((p) => p.reseau === "instagram")?.texte).toBe("Visuel fictif");
+  });
+});

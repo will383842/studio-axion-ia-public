@@ -92,7 +92,7 @@ import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, IntensiteSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurProfilSon, ValeurStyleSousTitres } from "@/domaine/types";
 import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, INTENSITE_SOUS_TITRES_TABLEAU, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
 import { calerFicheTableau, type ElementCale } from "./calage";
-import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau } from "./controles";
+import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau, type RelectureImagesCles } from "./controles";
 import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTableau, type SceneTableau } from "./fiche";
 import { ErreurMiseEnPage, mettreEnPage, reseauxVerticaux, type MiseEnPageTableau } from "./mise-en-page";
 import { controlerSortie, type ControleSortie } from "./controles-sortie";
@@ -377,7 +377,7 @@ export interface OutilsFabrication {
   /** Personnage qui prête sa voix (inscrit dans la distribution de la commande). */
   personnageId?: string;
   /** Relecture indicative des 6 images clés (absente : « non faite »). */
-  relireImagesCles?: OutilsControleTableau["relireImagesCles"];
+  relireImagesCles?: (fiche: FicheTableau, miseEnPage: MiseEnPageTableau, video: { cle: string; dureeSec: number; attendre?: () => Promise<void> }) => Promise<RelectureImagesCles> | RelectureImagesCles;
   /** Attente entre deux tours d'une étape suivie (tests : rien). */
   attendre?: () => Promise<void>;
   /** Horloge des durées d'étape (ms). */
@@ -1387,7 +1387,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         // La mise en page de CETTE sortie (format, écran d'appel, bulles), celle qui a été rendue.
         sorties: [{ id, libelle: format.libelle, fiche: calageS.fiche, options: { preuves, ...(imageVerticale ? {} : { format: image }), ...(appel ? { appel } : {}) } }],
       },
-      o.relireImagesCles ? { relireImagesCles: o.relireImagesCles } : {},
+      // CLAUDE-REGARD-c-a : dépendance facultative, absente par défaut (alors « non faite », rien n'est appelé) ; reçoit la vidéo finie.
+      o.relireImagesCles ? { relireImagesCles: (f, m) => o.relireImagesCles!(f, m, { cle: composition.sortieCle, dureeSec: Number.isFinite(composition.mesures.dureeSec) && composition.mesures.dureeSec! > 0 ? composition.mesures.dureeSec! : dureeSec, ...(o.attendre ? { attendre: o.attendre } : {}) }) } : {},
     );
     // Les contrôles du fichier fini déclassés en alertes : dits sur la sortie livrée et au rapport, sans jeter la vidéo.
     for (const l of controles.indicatifs.filter((x) => x.declasse)) {
