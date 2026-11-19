@@ -39,7 +39,7 @@ describe("C10-13-v19b · registre : objet-appel-rdv", () => {
     expect(r).toContain("objet-appel-mot");
     expect(piecesPermisesDesEntrees({})).toEqual([]);
     expect(piecesPermisesDesEntrees(entrees({}))).toEqual([]);
-    const reel: EntreeBibliotheque = { version: VERSION_BIBLIOTHEQUE, profil: PROFILS_DU_CODE["demo-facecam"], recents: [], graine: "G", figeeLe: "2026-11-19" };
+    const reel: EntreeBibliotheque = { version: VERSION_BIBLIOTHEQUE, profil: PROFILS_DU_CODE["cas-concret"], recents: [], graine: "G", figeeLe: "2026-11-19" };
     expect(piecesPermisesDesEntrees({ bibliothequeVideo: reel })).toEqual([]);
   });
 
