@@ -8,6 +8,7 @@
  *  - Aucun interrupteur ajouté ni changé ; aucune écriture ici : tout est écrit par `envoyerVisuel`.
  */
 import type { FournisseurPublication } from "@/fournisseurs/types";
+import { creneauEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { depots, ErreurStudio, fournisseur } from "./_commun";
 import { envoyerVisuel, type ReseauVisuelEnvoi } from "./publications";
 import { porteCalendrierPour } from "./essai-zernio";
@@ -82,7 +83,7 @@ export async function envoyerVisuelDuCreneau(service: FournisseurPublication, cr
   if (!(await porteCalendrierPour(creneauId).catch(() => false))) throw FERME();
   if (!RESEAUX_VISUELS.includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
-  if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe || !c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas un créneau validé portant un visuel : rien n'est envoyé.");
+  if (!c || !creneauEnvoyable(c) || !c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas un créneau validé portant un visuel : rien n'est envoyé.");
   await verifierFichiers(c.visuelId, reseau, options);
   return envoyerVisuel(service, creneauId, reseau, { textesAlternatifs: options.textesAlternatifs, lireUrl: options.lireUrl });
 }

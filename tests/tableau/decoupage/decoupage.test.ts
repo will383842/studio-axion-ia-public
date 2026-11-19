@@ -140,10 +140,12 @@ describe("decouperEnScenes", () => {
     expect(relance).toContain("floues");
   });
 
-  it("deux sorties invalides : échec motivé, 2 appels, jamais 3", async () => {
+  it("deux sorties invalides IDENTIQUES : échec motivé, 2 appels (arrêt sans progrès), jamais 5", async () => {
     const d = double([ficheMotChange(), ficheMotChange(), fiche]);
     const r = await decouperEnScenes(entree(), d);
-    expect(d.appels).toHaveLength(APPELS_MAX);
+    // FIX-DECOUPAGE-RELANCES-b : la même liste de refus deux fois de suite arrête le découpage à 2 appels (le modèle tourne en rond).
+    expect(d.appels).toHaveLength(2);
+    expect(APPELS_MAX).toBe(4);
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.motif).toBe("refusee");
@@ -152,6 +154,23 @@ describe("decouperEnScenes", () => {
     expect(r.refus.length).toBeGreaterThan(0);
     // Le travail payé n'est jamais jeté : la dernière fiche lisible est rendue « à corriger », telle que rendue.
     expect(r.aCorriger?.scenes[0].texteDit).toContain("floues");
+  });
+
+  it("quatre sorties invalides toutes DIFFÉRENTES : échec motivé, 4 appels, jamais 5", async () => {
+    const autre = (mot: string) => {
+      const f = copie(fiche);
+      f.scenes[0].texteDit = f.scenes[0].texteDit.replace("vagues", mot);
+      return f;
+    };
+    const d = double([autre("floues"), autre("molles"), autre("vides"), autre("rares"), fiche]);
+    const r = await decouperEnScenes(entree(), d);
+    expect(d.appels).toHaveLength(4);
+    expect(d.reservations).toHaveLength(4);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.motif).toBe("refusee");
+    expect(r.appels).toBe(4);
+    expect(r.message).toMatch(/refusée par les règles après 4 essais/);
   });
 
   it("texte dit modifié d'un mot : refus, jamais corrigé en silence", async () => {
@@ -180,12 +199,13 @@ describe("decouperEnScenes", () => {
     if (!r.ok) expect(r.refus.join(" ")).toMatch(/texte dit mot pour mot/);
   });
 
-  it("JSON mal formé : refus lisible, relance, puis échec sans 3e appel", async () => {
-    const d = double(["{ \"version\": \"fiche-scenes/1\", ", "Voici la fiche : {}"]);
+  it("JSON mal formé : refus lisible, relances, puis échec sans 5e appel", async () => {
+    // Réponses illisibles DIFFÉRENTES (sinon arrêt sans progrès) : 4 appels, jamais 5.
+    const d = double(["{ \"version\": \"fiche-scenes/1\", ", "Voici la fiche : {}", "Désolé, je ne peux pas.", "[1, 2,", "dernière réponse de trop"]);
     const r = await decouperEnScenes(entree(), d);
-    expect(d.appels).toHaveLength(2);
+    expect(d.appels).toHaveLength(4);
     expect(d.appels[1].variable).toMatch(/n'est pas un JSON lisible/);
-    expect(r).toMatchObject({ ok: false, motif: "illisible", appels: 2 });
+    expect(r).toMatchObject({ ok: false, motif: "illisible", appels: 4 });
     if (!r.ok) {
       expect(r.refus).toEqual([expect.stringMatching(/^La réponse n'est pas un JSON lisible/)]);
       expect(r.aCorriger).toBeUndefined();

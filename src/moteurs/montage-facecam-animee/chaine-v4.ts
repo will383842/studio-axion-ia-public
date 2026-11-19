@@ -23,6 +23,7 @@ import type { ElementV4Plan, PlanFacecamAnimee } from "@/domaine/facecam-animee/
 import type { MotHorodate } from "@/domaine/types";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generateurs/video";
+import { intervallesV4, retirerPiecesSousV4 } from "@/briques/plan-scenes-generateurs/filtre-v4";
 import { MENTION_PLAFOND_FACECAM_ANIMEE } from "./index";
 import { PHRASE_REALISATEUR_PANNE, realiser, type DependancesRealisateur, type EntreeRealisateur, type HistoriqueVideo, type MotTranscrit } from "./realisateur";
 import { controlerDiversiteV4, estRendableV4 } from "./realisateur/regles-v4";
@@ -682,7 +683,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
         const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler });
         return { ...etat, planScenes: memo };
       }
-      const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: etat.planScenes.plan } : etat.realisation.plan;
+      const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: retirerPiecesSousV4(etat.planScenes.plan, intervallesV4(etat.realisation.plan)) } : etat.realisation.plan;
       const gardes = etat.coupes.gardes;
       const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}), ...(outils.finDouce ? { finDouce: true } : {}), ...(outils.garderMaster ? { garderMaster: true } : {}) }));
       return { ...etat, ...(etat.muets ? { muets: { ...etat.muets, rendu: 0 } } : {}), etape: "prete", rendu };

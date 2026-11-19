@@ -27,6 +27,7 @@ import { trouverFormat } from "@/formats";
 import { FOND_UNI_AVATAR } from "@/fournisseurs/heygen/rendus";
 import type { PlanProduit } from "@/moteurs/types";
 import { basSousTitres, placerEncadre } from "./encadre";
+import { raccordsStyleMontage } from "./raccords";
 import { coteContour, decorScene, plagesDesLuts, sourceDuDouble } from "./image";
 import { masquerMontantsDits, masquerPendantCartesPleinEcran, masquerTextesAffiches, placerIncrustations, recalerObjets } from "./incrustations";
 import type { RecetteComposition } from "./recette";
@@ -317,6 +318,8 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (e.source10bits) image.source10bits = true;
   if (cameras) image.cameras = cameras;
   if (e.planScenes) image.planScenes = e.planScenes;
+  // BR-TABLEAU-RACCORDS-b : fondus entre scènes, seulement si la commande porte `raccordsTableau === true` (jamais une chaîne).
+  if ((c.entrees as Record<string, unknown> | undefined)?.raccordsTableau === true) { const r = raccordsStyleMontage(image.plans, "fondu"); if (r.length) image.raccords = r; }
 
   // --- Texte : sous-titres (M2), encadré, incrustations ---
   const style = c.styles.sousTitres?.valeur;

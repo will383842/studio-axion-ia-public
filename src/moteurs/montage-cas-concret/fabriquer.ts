@@ -214,6 +214,8 @@ export interface OptionsFabricationCasConcret {
   baseSousTitres?: BaseSousTitres;
   /** C2-U5bis : capacité `texte.style-varie` permise par la bibliothèque de la commande ; absente : comportement actuel. Seul `true` allume. */
   styleVarie?: boolean;
+  /** BR-CC-BRANCHER · pièces d'objets permises par l'entrée bibliothèque (lues par index.ts) ; absent ou vide : aucun objet. */
+  objetsPermis?: readonly string[];
   /** X3-07 : cran du dosage figé dans la commande (X3-03) ; absent : tirage inchangé. */
   dosage?: DosageMotion;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
@@ -1101,6 +1103,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       groupes: [groupe("corps", corpsCales, dit(calage.fiche.ecrans)), ...finsCales.map((f) => groupe(f.id, f.cales, dit(calage.fins.find((x) => x.fin.id === f.id)?.fin.ecrans ?? [])))],
       appeler: o.planScenes.appeler,
       memo: journal.planScenes,
+      ...(entrees.habillageTransitions === true ? { habillage: { actif: true, graine: o.videoId } } : {}),
+      ...(o.objetsPermis?.length ? { objetsPermis: o.objetsPermis } : {}),
     });
     journal.planScenes = r.memo;
     await ecrire();

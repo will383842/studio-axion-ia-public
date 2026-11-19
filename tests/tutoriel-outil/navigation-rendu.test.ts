@@ -91,8 +91,16 @@ describe("avec film", () => {
   });
 
   it("écran immobile mesuré : la plage est signalée en secondes", async () => {
-    const r = await fabriquer(avecFilm(film({ figees: [{ debutMs: 500, finMs: 2300 }] })));
-    expect(alertes(r)).toContain("À vérifier · Navigation : écran immobile de 0,5 s à 2,3 s");
+    // Calcul : le 1er mot est à 4 000 ms. La montée 1 → 1,6 vers la 1re zone dure 1 700 ms
+    // (motion-film.ts : vitesse ≤ 1,2 écran/s, accélération ≤ 3 écrans/s², marge 10 %,
+    // multiple de 20 ms). La caméra arrive 250 ms avant le mot (3 750 ms) : elle part donc
+    // à 2 050 ms. L'écran n'est immobile que jusqu'au dernier pas de 20 ms avant ce départ,
+    // soit 2 040 ms → « de 0,5 s à 2,0 s ». Tolérance de 1,5 s inchangée.
+    const cibles = film().cibles;
+    const r = await fabriquer(
+      avecFilm(film({ figees: [{ debutMs: 500, finMs: 2300 }], cibles: [{ ...cibles[0], instantMs: 4000, finMs: 6000 }, cibles[1]] })),
+    );
+    expect(alertes(r)).toContain("À vérifier · Navigation : écran immobile de 0,5 s à 2,0 s");
   });
 
   it("film plus court que la voix : réserve, jamais un échec", async () => {

@@ -9,6 +9,7 @@ import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import type { IdReseau } from "@/domaine/types";
 import { pageInterdite } from "@/fournisseurs/publication/zernio-pages-interdites";
+import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 import { journaliserEnvoi } from "./journal-envoi";
 
 export type CiblesZernio = { ok: true; canaux: CanalPublication[] } | { ok: false; code: "CIBLE_ABSENTE" | "CIBLE_INCONNUE" | "CIBLE_AMBIGUE"; message: string };
@@ -27,7 +28,8 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
   if (!service.listerCanaux) return { ok: false, code: "CIBLE_ABSENTE", message: "L'outil de publication ne donne pas la liste de ses comptes : l'envoi est refusé." };
   const plateforme = plateformeZernio(reseau);
   const disponibles = (await service.listerCanaux()).filter((c) => c.service === plateforme && !c.deconnecte && !canalInterdit(c));
-  const demandees = [...new Set((choisies ?? []).filter((c) => typeof c === "string" && c.trim()))];
+  // Le marqueur « compte-studio » n'est jamais une cible choisie : il retombe sur la règle « rien de choisi ».
+  const demandees = [...new Set((choisies ?? []).filter((c) => typeof c === "string" && c.trim() && !estCompteParDefaut(c)))];
   if (demandees.length) {
     // Traduction ambiguë (deux comptes de Zernio portent le nom choisi) : le refus nomme les choix, jamais un tirage au sort.
     const ambigu = demandees.find((id) => id.startsWith(`${SELECTION_NON_TRADUITE}|`));

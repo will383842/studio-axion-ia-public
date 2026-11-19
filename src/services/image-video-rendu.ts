@@ -278,6 +278,8 @@ export interface OutilsRenduIV {
   mesurer?: (cle: string, dureeSec: number) => Promise<MesuresLocalesIV>;
   /** BR-MINIMAL-IV-a : sous-titres en groupes de 1 à 3 mots (réglage `imageVideo.sousTitresMinimal`, éteint par défaut). */
   sousTitresMinimal?: true;
+  /** BR-POIDS-VARIABLE-IV-a : le mot dit s'épaissit (500 → 800). Personne ne le passe encore (réglage : -b). */
+  poidsVariable?: true;
 }
 
 /** Erreur de rendu : une phrase simple pour Will (jamais le message du serveur). */
@@ -289,10 +291,10 @@ export class ErreurRenduIV extends Error {
 }
 
 /** Commande minimale de la composition finale d'une version (PUR). */
-export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[], sons: readonly SonValideIV[], options?: { boite?: true }): CommandeFabrication {
+export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[], sons: readonly SonValideIV[], options?: { boite?: true; poids?: true }): CommandeFabrication {
   const format = ratioDeLaLigneIV(d.ligne);
   const retenu = styleRetenuIV(d.styleSousTitres, format);
-  const style = d.styleSousTitres?.valeur ? { id: d.styleSousTitres.id, nom: d.styleSousTitres.nom, valeur: { ...retenu.valeur, ...surlignageSousTitresIV(d.ligne), ...(options?.boite ? { boiteArrondie: true as const } : {}) } } : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_IV, ...(format === "4:5" ? { positionPct: CENTRE_SOUS_TITRES_IV_4X5_PCT } : {}), ...surlignageSousTitresIV(d.ligne), ...(options?.boite ? { boiteArrondie: true as const } : {}) } };
+  const style = d.styleSousTitres?.valeur ? { id: d.styleSousTitres.id, nom: d.styleSousTitres.nom, valeur: { ...retenu.valeur, ...surlignageSousTitresIV(d.ligne), ...(options?.boite ? { boiteArrondie: true as const } : {}), ...(options?.poids ? { poidsVariable: true as const } : {}) } } : { id: "sous-titres-duo", nom: "Charte duo", valeur: { ...STYLE_SOUS_TITRES_IV, ...(format === "4:5" ? { positionPct: CENTRE_SOUS_TITRES_IV_4X5_PCT } : {}), ...surlignageSousTitresIV(d.ligne), ...(options?.boite ? { boiteArrondie: true as const } : {}), ...(options?.poids ? { poidsVariable: true as const } : {}) } };
   const c = commandeMinimale({
     moteurId: MOTEUR_IV,
     formatId: FORMAT_IV,
@@ -369,7 +371,7 @@ export async function rendreVersionIV(d: DemandeRenduIV, o: OutilsRenduIV): Prom
 
   // 2. Montage final : une composition `complet` (son, sous-titres, export).
   const posees: ScenePosee[] = scenes.map((s) => ({ id: s.id, debutSec: s.debutSec, finSec: s.finSec, cle: s.cle }));
-  const commande = commandeDuMontageIV(d, posees, o.sons, o.sousTitresMinimal ? { boite: true } : undefined);
+  const commande = commandeDuMontageIV(d, posees, o.sons, o.sousTitresMinimal || o.poidsVariable ? { ...(o.sousTitresMinimal ? { boite: true as const } : {}), ...(o.poidsVariable ? { poids: true as const } : {}) } : undefined);
   const ratio = ratioDeLaLigneIV(d.ligne);
   const outilsMontage = outilsMontageIV(o, d.videoId, ratio);
   const { demande } = await demandeComposition(commande, ratio, baseDuMontageIV(d, posees, o.sousTitresMinimal ? { minimal: true } : undefined), "complet", d.id, outilsMontage, essai);
@@ -392,11 +394,11 @@ export async function rendreVersionIV(d: DemandeRenduIV, o: OutilsRenduIV): Prom
 }
 
 /** Demande de la composition finale d'une version, telle que le rendu la soumet (tests, diagnostic). */
-export async function demandeMontageIV(d: DemandeRenduIV, o: Pick<OutilsRenduIV, "rendu" | "env" | "signerLecture" | "signerDepot" | "sons" | "sousTitresMinimal">): Promise<DemandeRendu> {
+export async function demandeMontageIV(d: DemandeRenduIV, o: Pick<OutilsRenduIV, "rendu" | "env" | "signerLecture" | "signerDepot" | "sons" | "sousTitresMinimal" | "poidsVariable">): Promise<DemandeRendu> {
   const scenes = scenesDeLaLigne(d.ligne, { env: o.env, videoId: d.videoId }).map((s) => ({ id: s.id, debutSec: s.debutSec, finSec: s.finSec, cle: s.cle }));
   const ratio = ratioDeLaLigneIV(d.ligne);
   const outilsMontage = outilsMontageIV(o, d.videoId, ratio);
-  return (await demandeComposition(commandeDuMontageIV(d, scenes, o.sons, o.sousTitresMinimal ? { boite: true } : undefined), ratio, baseDuMontageIV(d, scenes, o.sousTitresMinimal ? { minimal: true } : undefined), "complet", d.id, outilsMontage, Math.max(0, (d.essai ?? 1) - 1))).demande;
+  return (await demandeComposition(commandeDuMontageIV(d, scenes, o.sons, o.sousTitresMinimal || o.poidsVariable ? { ...(o.sousTitresMinimal ? { boite: true as const } : {}), ...(o.poidsVariable ? { poids: true as const } : {}) } : undefined), ratio, baseDuMontageIV(d, scenes, o.sousTitresMinimal ? { minimal: true } : undefined), "complet", d.id, outilsMontage, Math.max(0, (d.essai ?? 1) - 1))).demande;
 }
 
 /* ------------------------------------------------------------------ */
