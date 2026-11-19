@@ -62,7 +62,7 @@ describe("creerEnvoi : clé par créneau", () => {
     expect((await creerEnvoi(d, demande("cre_A"), T)).cle).toBe(ANCIENNE);
     reinitialiserDepots();
     const d2 = depots().envoisPlanifies;
-    await d2.enregistrer({ ...entree(), creneauId: undefined });
+    await d2.enregistrer({ ...(entree() as object), creneauId: undefined } as never);
     expect(await resoudreCleEnvoi(d2, { videoId: "vis_1", reseau: "linkedin", versionCreneau: 0, creneauId: "cre_B" })).toBe(ANCIENNE);
     expect(await resoudreCleEnvoi(d2, { videoId: "vis_1", reseau: "linkedin", versionCreneau: 0 })).toBe(ANCIENNE);
   });
