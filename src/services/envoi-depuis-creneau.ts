@@ -68,7 +68,7 @@ export interface DemandeBrouillonCreneau {
   niveauConfidentialiteTiktok?: string;
 }
 
-export type EtatLigneCreneau = "brouillon-cree" | "deja-cree" | "envoi-eteint" | "non-valide" | "a-verifier" | "a-reprogrammer" | "pas-encore" | "a-corriger" | "refuse";
+export type EtatLigneCreneau = "brouillon-cree" | "deja-cree" | "envoi-eteint" | "non-valide" | "a-verifier" | "a-reprogrammer" | "pas-encore" | "a-corriger" | "refuse" | "a-completer";
 
 /** Création du brouillon au plus tôt 6 jours avant la date : le diffuseur garde les médias 7 jours (zernio-client.ts). */
 export const FENETRE_CREATION_MS = 6 * 24 * 60 * 60 * 1000;
@@ -132,6 +132,46 @@ const cleNotifie = (cle: string, jour: string, heure?: string): string => `a-rep
 const cleTiktok = (cle: string): string => `tiktok-incomplet:${cle}`;
 const cleEssais = (cle: string): string => `essais:${cle}`;
 const cleCorrigerNotifie = (cle: string): string => `a-corriger-notifie:${cle}`;
+const cleCompleterNotifie = (cle: string): string => `a-completer-notifie:${cle}`;
+const cleDernierRefus = (cle: string): string => `dernier-refus:${cle}`;
+const cleDernierRefusLe = (cle: string): string => `dernier-refus-le:${cle}`;
+
+/** Raison affichée quand le texte du créneau est vide : rien n'est envoyé, aucun essai n'est consommé. */
+export const RAISON_A_COMPLETER = "Légende à écrire : ouvrez le carrousel et écrivez sa légende. Rien n'est envoyé sans elle.";
+const RAISON_MAX = 300;
+
+/** Garde la dernière raison de refus de cette clé d'envoi (instant d'abord, raison ensuite). Jamais au journal : elle peut nommer des pages. */
+async function noterDernierRefus(deps: DepsEnvoiCreneau, cle: string, raison: string): Promise<void> {
+  try {
+    await deps.etats.noter(cleDernierRefusLe(cle), new Date(deps.maintenant()).toISOString());
+    await deps.etats.noter(cleDernierRefus(cle), raison.slice(0, RAISON_MAX));
+  } catch {
+    /* la mémoire de la raison ne bloque jamais un tour */
+  }
+}
+
+/** Remet la raison à vide après un brouillon créé ; rien n'est écrit s'il n'y en avait pas. */
+async function effacerDernierRefus(deps: DepsEnvoiCreneau, cle: string): Promise<void> {
+  try {
+    if (await deps.etats.lire(cleDernierRefus(cle))) {
+      await deps.etats.noter(cleDernierRefus(cle), "");
+      await deps.etats.noter(cleDernierRefusLe(cle), "");
+    }
+  } catch {
+    /* idem */
+  }
+}
+
+/** Dernière raison de refus gardée pour cette clé d'envoi (lecture seule, ne lève jamais). */
+export async function lireDernierRefus(etats: Pick<EtatsPromotion, "lire">, cle: string): Promise<{ raison: string; le: string } | undefined> {
+  try {
+    const raison = await etats.lire(cleDernierRefus(cle));
+    if (!raison) return undefined;
+    return { raison, le: (await etats.lire(cleDernierRefusLe(cle))) ?? "" };
+  } catch {
+    return undefined;
+  }
+}
 
 /** Erreur du Studio (`ErreurStudio`) reconnue sans l'importer (ce service est réservé au serveur) : un `code` en chaîne. */
 const codeStudio = (e: unknown): string | undefined => (e instanceof Error && typeof (e as unknown as { code?: unknown }).code === "string" ? (e as unknown as { code: string }).code : undefined);
@@ -195,13 +235,25 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
     ligne.raison = "à vérifier chez le diffuseur : aucun nouvel essai automatique";
     return ligne;
   }
+  if (!c.texte?.trim()) {
+    ligne.etat = "a-completer";
+    ligne.raison = RAISON_A_COMPLETER;
+    await noterDernierRefus(deps, cle, ligne.raison);
+    if ((await deps.etats.lire(cleCompleterNotifie(cle))) !== "notifie") {
+      await deps.notifier({ cle, videoId: c.videoId, motif: "a-reprogrammer", raison: ligne.raison });
+      await deps.etats.noter(cleCompleterNotifie(cle), "notifie");
+    }
+    return ligne;
+  }
   if (!c.heure) {
     ligne.raison = "heure absente : aucune heure n'est inventée";
+    await noterDernierRefus(deps, cle, ligne.raison);
     return ligne;
   }
   const t = Date.parse(instantParis(c.jour, c.heure));
   if (!Number.isFinite(t)) {
     ligne.raison = "date illisible";
+    await noterDernierRefus(deps, cle, ligne.raison);
     return ligne;
   }
   if (t - debut <= PROMOTION_MARGE_MIN_MS) {
@@ -241,6 +293,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
 
   if ((await deps.etats.lire(cleCreation(cle))) === "cree") {
     ligne.etat = "deja-cree";
+    await effacerDernierRefus(deps, cle);
     return ligne;
   }
   // Rejeu après plantage entre la création et l'écriture locale (ou état « à vérifier » du client) : relire avant d'écrire.
@@ -250,6 +303,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
     if (vus.some((p) => p.metadata?.studioCle === cle || (e.cleDiffuseur !== undefined && p.metadata?.studioCle === e.cleDiffuseur))) {
       await deps.etats.noter(cleCreation(cle), "cree");
       ligne.etat = "deja-cree";
+      await effacerDernierRefus(deps, cle);
       return ligne;
     }
     if (etatCreation === "en-cours") {
@@ -295,6 +349,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
     }
     await deps.etats.noter(cleCreation(cle), "cree");
     ligne.etat = "brouillon-cree";
+    await effacerDernierRefus(deps, cle);
   } catch (err) {
     const code = estErreurZernio(err) ? err.code : codeStudio(err);
     const refusAvantReseau =
@@ -307,6 +362,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
       await deps.etats.noter(cleCreation(cle), "refuse");
       ligne.etat = "refuse";
       ligne.raison = err instanceof Error ? err.message : "refus";
+      await noterDernierRefus(deps, cle, ligne.raison);
     } else {
       // Réponse perdue (délai, 5xx, coupure) ou erreur inconnue : peut-être créé. « À vérifier », plus aucun appel.
       await deps.etats.noter(cleVerifier(cle), "a-verifier");

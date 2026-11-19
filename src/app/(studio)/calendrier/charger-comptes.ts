@@ -4,8 +4,8 @@ import { compteCibleValide } from "./compte-cible";
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { pageInterdite } from "@/fournisseurs/publication/zernio-pages-interdites";
 import { canauxZernioEnregistres } from "@/services/comptes-envoi-zernio";
+import { COMPTE_PAR_DEFAUT } from "@/domaine/plan-editorial/compte-par-defaut";
 
-const COMPTE_PAR_DEFAUT = "compte-studio";
 
 /**
  * Compte cible de chaque réseau pour un ajout manuel. Lecture seule : les comptes gardés au dernier « Tester » (aucun appel fournisseur).
