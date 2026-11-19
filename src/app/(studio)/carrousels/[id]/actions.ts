@@ -13,8 +13,7 @@ import { texteDeterministeVisuel } from "@/generateur/roles/publication-visuel";
 import { depots, journaliser, maintenant, sousVerrou } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { appliquerLot } from "@/donnees/memoire";
-import { modifierTexteProgrammeServeur } from "@/services/deplacer-programmation";
-import { legendesEnregistrees, reporterLegendeSurCreneau } from "@/services/legende-vers-creneau";
+import { legendesEnregistrees, modifierTexteSansRetrait, reporterLegendeSurCreneau } from "@/services/legende-vers-creneau";
 import { retirerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 import { ErreurVisuel, lancerRendu, lireVisuel, preparerPourReseaux, PHRASE_GENERATEUR_ETEINT, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { mettreALaCorbeille, restaurer } from "@/visuels/services/corbeille";
@@ -159,7 +158,7 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
   const verdict = verifierLegende(texte, reseau);
   if (!verdict.ok) redirect(`/carrousels/${encodeURIComponent(id)}?legende=${verdict.code}&reseau=${reseau}`);
   let erreur: string | undefined;
-  let reportRefuse: string | undefined;
+  let reportRefuse = false;
   try {
     const deps = dependancesCarrousels();
     await lireVisuel(id, deps);
@@ -180,14 +179,14 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
       visuels: d.visuels,
     };
     const report = await sousVerrou(async () =>
-      reporterLegendeSurCreneau({ passerelle, modifierTexte: (dem) => modifierTexteProgrammeServeur(dem) }, id, reseau, texte, maintenant()),
+      reporterLegendeSurCreneau({ passerelle, modifierTexte: modifierTexteSansRetrait }, id, reseau, texte, maintenant()),
     );
-    if (!report.ok) reportRefuse = report.message;
+    if (!report.ok) reportRefuse = true;
   } catch (e) {
     erreur = codeErreur(e);
   }
   revalidatePath(`/carrousels/${id}`);
-  redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : reportRefuse ? `?report=${encodeURIComponent(reportRefuse)}` : ""}`);
+  redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : reportRefuse ? `?report=refus` : ""}`);
 }
 
 /**

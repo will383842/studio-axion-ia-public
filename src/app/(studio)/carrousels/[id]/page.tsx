@@ -11,7 +11,10 @@ import { LegendeReseaux, type LegendeStockee } from "@/components/visuels/Legend
 import { MessagesFiche } from "@/components/visuels/MessagesFiche";
 import { RangeePages } from "@/components/visuels/RangeePages";
 import { Voyant, Voyants } from "@/components/visuels/Voyants";
+import { depots } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
+import { phraseDuCodeReport, reseauxACompleter } from "@/services/legende-vers-creneau";
+import type { DepotsPasserelle } from "@/services/plan-vers-publication";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesCarrousels, phraseDuCode } from "@/visuels/services/production";
 import { ficheCarrousel } from "@/visuels/services/vues";
@@ -53,7 +56,10 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
       if (l && typeof l.texte === "string") legendes[r] = { texte: l.texte, ...(l.simulation === true ? { simulation: true } : {}) };
     }
   }
-  const aCompleter = (sp.completer ?? "").split(",").filter(Boolean);
+  const dansLUrl = (sp.completer ?? "").split(",").filter(Boolean);
+  const dCreneau = fiche.statut === "valide" || fiche.statut === "programme" ? await reseauxACompleter(depots().creneauxEditoriaux as unknown as DepotsPasserelle["creneaux"], id, reseauxPrepares, legendes) : [];
+  const aCompleter = [...new Set([...dansLUrl, ...dCreneau])];
+  const refus = phraseDuCodeReport(sp.report);
   // Cases cochées : les réseaux déjà préparés ; sans choix enregistré, le comportement habituel.
   const coche = (r: "linkedin" | "instagram" | "facebook"): boolean => (fiche.reseaux ? fiche.reseaux.includes(r) : r !== "facebook");
   return (
@@ -93,7 +99,7 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
         </form>
       )}
       {(fiche.statut === "valide" || fiche.statut === "programme") && (
-        <LegendeReseaux id={fiche.id} reseaux={reseauxPrepares} legendes={legendes} statut={fiche.statut} aCompleter={aCompleter} {...(sp.report ? { refus: sp.report.slice(0, 300) } : {})} enregistrer={enregistrerLegendeAction} />
+        <LegendeReseaux id={fiche.id} reseaux={reseauxPrepares} legendes={legendes} statut={fiche.statut} aCompleter={aCompleter} {...(refus ? { refus } : {})} enregistrer={enregistrerLegendeAction} />
       )}
       {fiche.statut === "valide" && <BoutonProgrammerVisuel id={fiche.id} action={programmerAction} jourParDefaut={jourParDefautParis(new Date().toISOString())} />}
       {fiche.statut === "programme" && (

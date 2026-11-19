@@ -30,7 +30,8 @@ export function LegendeReseaux({ id, reseaux, legendes, statut, aCompleter = [],
       {reseaux.map((r) => {
         const l = legendes[r];
         const auto = l?.simulation === true;
-        const manque = aCompleter.includes(r) || !l?.texte?.trim() || auto;
+        // « À compléter » vient de la page (texte du créneau vivant), pas de la légende du visuel.
+        const manque = aCompleter.includes(r) || auto;
         const champ = `legende-${r}`;
         const nom = NOMS[r] ?? r;
         return (

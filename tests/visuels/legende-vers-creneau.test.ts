@@ -6,7 +6,7 @@ import type { Visuel } from "@/domaine/visuels/visuel";
 import type { CreneauPlan } from "@/services/plan-editorial";
 import type { DepotsPasserelle } from "@/services/plan-vers-publication";
 import { programmerEnUnClic } from "@/components/visuels/BoutonProgrammerVisuel";
-import { legendesEnregistrees, reporterLegendeSurCreneau } from "@/services/legende-vers-creneau";
+import { legendesEnregistrees, phraseDuCodeReport, PHRASE_REPORT_REFUSE, reporterLegendeSurCreneau, reseauxACompleter } from "@/services/legende-vers-creneau";
 
 function faux<T extends { id: string }>(): Depot<T> {
   const m = new Map<string, T>();
@@ -88,5 +88,47 @@ describe("reporterLegendeSurCreneau", () => {
     const r = await reporterLegendeSurCreneau({ passerelle: d, modifierTexte: modifier }, "vis_1", "linkedin", "Texte.", T1);
     expect(r).toEqual({ ok: true });
     expect(modifier).not.toHaveBeenCalled();
+  });
+});
+
+describe("reprise après une panne", () => {
+  it("texte déjà écrit (créneau « a_valider ») mais jamais reprogrammé : le clic suivant termine le travail", async () => {
+    const { d, creneauId } = await programme();
+    const modifier = modifierDoublure(d);
+    // État laissé par la panne : le texte est écrit (version +1, « a_valider »), `programmerEnUnClic` n'a pas abouti.
+    await modifier({ creneauId, reseau: "linkedin", texte: "Ma légende." });
+    expect((await d.creneaux.obtenir(creneauId))!.statut).toBe("a_valider");
+    modifier.mockClear();
+    const r = await reporterLegendeSurCreneau({ passerelle: d, modifierTexte: modifier }, "vis_1", "linkedin", "Ma légende.", T1);
+    expect(r).toEqual({ ok: true });
+    const c = (await d.creneaux.obtenir(creneauId))!;
+    expect(c.statut).toBe("programme");
+    expect(c.textes?.linkedin?.texte).toBe("Ma légende.");
+    expect(modifier).not.toHaveBeenCalled();
+  });
+});
+
+describe("« à compléter » d'après le créneau vivant", () => {
+  it("légende du visuel enregistrée mais créneau sans texte : le réseau reste à compléter", async () => {
+    const { d } = await programme();
+    const r = await reseauxACompleter(d.creneaux, "vis_1", ["linkedin"], { linkedin: { texte: "Enregistrée mais jamais reportée." } });
+    expect(r).toEqual(["linkedin"]);
+  });
+  it("texte présent sur le créneau : rien à compléter", async () => {
+    const { d } = await programme();
+    await reporterLegendeSurCreneau({ passerelle: d, modifierTexte: modifierDoublure(d) }, "vis_1", "linkedin", "Ma légende.", T1);
+    expect(await reseauxACompleter(d.creneaux, "vis_1", ["linkedin"], {})).toEqual([]);
+  });
+  it("sans créneau : d'après la légende enregistrée", async () => {
+    const d: DepotsPasserelle = { creneaux: faux<CreneauPlan>(), journal: faux<JournalDecalage>(), publications: faux<Publication>(), visuels: faux<Visuel>() };
+    expect(await reseauxACompleter(d.creneaux, "vis_1", ["linkedin", "facebook"], { linkedin: { texte: "Ok." } })).toEqual(["facebook"]);
+  });
+});
+
+describe("code `?report=`", () => {
+  it("un code connu rend la phrase du serveur ; un code inconnu ou une phrase forgée ne rend rien", () => {
+    expect(phraseDuCodeReport("refus")).toBe(PHRASE_REPORT_REFUSE);
+    expect(phraseDuCodeReport("Faux message")).toBeUndefined();
+    expect(phraseDuCodeReport(undefined)).toBeUndefined();
   });
 });
