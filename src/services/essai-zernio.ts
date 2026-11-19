@@ -16,6 +16,7 @@ import { analyserCible } from "@/fournisseurs/publication/zernio-corps";
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { depots, lireParametre, maintenant as maintenantIso } from "./_commun";
 import { cleZernioPresente, envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
+import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 
 export const PARAM_ESSAI_BROUILLON = "zernio.essai_brouillon";
 export const DUREE_MAX_ESSAI_MS = 24 * 60 * 60 * 1000;
@@ -64,7 +65,9 @@ export async function lireEssai(maintenant: number = maintenantMs()): Promise<Es
     // Au-delà de la fenêtre de nettoyage, plus rien n'est lu (aucun geste ne passe).
     if (maintenant >= expire + FENETRE_NETTOYAGE_MS) return null;
     const c = await depots().creneauxEditoriaux.obtenir(o.creneauId);
-    if (!c || c.videoId || !c.visuelId || c.compteCible !== o.compte) return null;
+    // Créneau « rien de choisi » (un clic) : l'essai porte la cible réelle résolue à la pose (jamais le marqueur lui-même) ; sinon égalité stricte.
+    if (!c || c.videoId || !c.visuelId) return null;
+    if (estCompteParDefaut(c.compteCible) ? estCompteParDefaut(o.compte) : c.compteCible !== o.compte) return null;
     const reseaux = Object.keys(c.heuresParReseau ?? {});
     if (reseaux.length !== 1 || reseaux[0] !== o.reseau) return null;
     if ((await envoiZernioAutorise()) === false) return null;
