@@ -15,6 +15,7 @@ import { faitsDuScript, familleUnite, type ElementFait, type Fait } from "../fai
 import { CATALOGUE_BRIQUES, pieceLaPlusProche, poserInstantsSurMot, type DefinitionBrique, type IdPiece } from "./catalogue";
 import { appliquerControles } from "./controles";
 import { avecEmpreintes } from "./empreinte";
+import { estGardee } from "./pieces-gardees";
 import { schemaFormat, schemaMot, schemaPlanBrut, VERSION_PLAN_SCENES, type Calque, type FormatPlan, type HabillagePlan, type MotMinute, type Niveau, type PlanValide, type ScenePlan } from "./schema";
 import { devantLeVisage, POSITIONS, POSITION_SURE_FACECAM, SCENE_MIN_MS, TRANSITIONS, TRANSITION_MAX_MS, TRANSITION_MIN_MS, type Position, type Rectangle } from "./zones";
 
@@ -122,7 +123,7 @@ export function reparerParametres(piece: IdPiece, brut: unknown): { parametres: 
   const def = CATALOGUE_BRIQUES[piece];
   const direct = def.schema.safeParse(brut);
   if (direct.success) return { parametres: direct.data, champs: [] };
-  if ((def as DefinitionBrique).famille === "objet") return { parametres: null, champs: ["objet"] }; // BR-OBJETS-a : rien n'est inventé, jamais l'exemple
+  if (estGardee(def as DefinitionBrique)) return { parametres: null, champs: ["objet"] }; // BR-OBJETS-a : rien n'est inventé, jamais l'exemple
   const forme = (def.schema as unknown as z.ZodObject<z.ZodRawShape>).shape;
   const exemple = def.exemple as Record<string, unknown>;
   const source = estObjet(brut) ? brut : {};
@@ -384,7 +385,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
     // Pièce niveau 1 (toujours présente : c'est aussi le repli des niveaux 2 et 3).
     const pieceDemandee = s.piece;
     const objetsPermis = contexte.objetsPermis ?? [];
-    const objetRefuse = (id: unknown) => typeof id === "string" && Object.hasOwn(CATALOGUE_BRIQUES, id) && (CATALOGUE_BRIQUES[id as IdPiece] as DefinitionBrique).famille === "objet" && !objetsPermis.includes(id);
+    const objetRefuse = (id: unknown) => typeof id === "string" && Object.hasOwn(CATALOGUE_BRIQUES, id) && estGardee(CATALOGUE_BRIQUES[id as IdPiece] as DefinitionBrique) && !objetsPermis.includes(id);
     let piece = pieceLaPlusProche(pieceDemandee, texteScene, objetsPermis);
     let parametres: unknown;
     if (piece !== pieceDemandee) {
@@ -432,7 +433,7 @@ function validerPlanInterne(p: Record<string, unknown> & { scenes: unknown[] }, 
       niveau = 1;
     }
 
-    if (piece !== pieceDemandee && (CATALOGUE_BRIQUES[piece] as DefinitionBrique).famille === "objet") return signaler("SCENE_RETIREE", `Objet « ${piece} » sans paramètres écrits par le plan : scène retirée (jamais l'exemple).`); // BR-OBJETS-a
+    if (piece !== pieceDemandee && estGardee(CATALOGUE_BRIQUES[piece] as DefinitionBrique)) return signaler("SCENE_RETIREE", `Objet « ${piece} » sans paramètres écrits par le plan : scène retirée (jamais l'exemple).`); // BR-OBJETS-a
     // Position (jamais devant le visage en face caméra) et transition douce.
     let position: Position = POSITIONS.includes(s.position as Position) ? (s.position as Position) : facecam ? POSITION_SURE_FACECAM : "centre";
     if (facecam && devantLeVisage(position)) {
