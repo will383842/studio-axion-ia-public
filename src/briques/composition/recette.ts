@@ -55,6 +55,8 @@ export interface RecetteComposition {
    * (`ParametresExport.mesurerBords`). Absent : export d'avant, inchangé.
    */
   exportBordsSurs?: boolean;
+  /** FIX-RENDU-IMAGE-FIGEE (ajout pur) : mesurer les images figées du fichier exporté, passages d'au moins `seuilSec`. Absent : non mesuré. */
+  exportFiges?: { seuilSec: number };
   /**
    * 14/10, « la vidéo s'arrête net » (ajout pur) : fin propre à l'export — image finale tenue puis fondu image + son
    * (`ParametresExport.finPropre`). Absent : coupe sèche d'avant (face caméra : sa boucle en dépend).

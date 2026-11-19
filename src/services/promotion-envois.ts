@@ -126,6 +126,8 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
   const entrees = await o.depot.lister((e) => e.statut === "brouillon" || e.statut === "valide");
   const candidates: { e: EnvoiPlanifie; t: number; ligne: LigneEnvoiPromotion }[] = [];
   for (const e of entrees.sort((a, b) => a.cle.localeCompare(b.cle))) {
+    // Brouillon d'ESSAI (marque `essai:<clé>`) : jamais promu par la promotion générale.
+    if ((await o.etats.lire(`essai:${e.cle}`)) !== undefined) continue;
     const ligne: LigneEnvoiPromotion = { cle: e.cle, etat: "arret" };
     if (e.statut !== "valide" || !valideeLisible(e, debut)) {
       // Jamais promue sans valideeLe : brouillon, ou « valide » dont la validation manque ou est illisible.

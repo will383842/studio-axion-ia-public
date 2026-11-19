@@ -8,6 +8,7 @@ import { estReseauDeclinaison } from "@/reseaux/codes";
 import { controlerProgrammation } from "@/services/controle-programmation";
 import { libelleJour } from "./BarreVue";
 import { MonogrammeReseau, TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { RetirerProgrammation } from "./RetirerProgrammation";
 import { ETATS_CALENDRIER, PastilleStatutPlan, type EtatAffiche, type TableLibelles } from "./PastilleStatutPlan";
 import { libelleOrigineDate } from "@/domaine/plan-editorial/origine-date";
 import { boutonsTiroir } from "@/domaine/plan-editorial/statuts";
@@ -114,6 +115,9 @@ export function verrouFiche(entree: Pick<EntreeFiche, "etat" | "jour" | "confiee
   if (!ETATS_MODIFIABLES.includes(entree.etat)) return "etat";
   return null;
 }
+
+/** CAL-23 : dite à la place du verrou « confiee » quand le texte d'une publication programmée peut se changer. */
+export const PHRASE_PROGRAMMEE_MODIFIABLE = "Cette publication est déjà programmée. Si vous changez son texte, il doit être validé de nouveau : rien ne part avant votre clic sur Valider.";
 
 /** La raison d'un verrou, dite à la personne. */
 export const PHRASES_VERROU: Readonly<Record<RaisonVerrou, string>> = {
@@ -248,6 +252,16 @@ export interface ProprietesFicheEntree {
    * rouvrir, accepter). Ce bouton est en `type="button"` : il n'enregistre jamais le texte. Absent : pas de bouton (jamais un bouton mort).
    */
   surPrincipal?: () => void;
+  /**
+   * CAL-23 : vrai quand l'hôte sait changer le texte d'une publication DÉJÀ programmée (retrait chez le diffuseur, puis nouvelle validation).
+   * La fiche « Programmé » devient alors modifiable et le dit ; faux par défaut : elle reste verrouillée comme avant.
+   */
+  texteProgrammeModifiable?: boolean;
+  /**
+   * CAL-23 : vrai quand l'hôte veut le geste « Retirer » d'une publication programmée (entrée de créneau). Le geste appelle
+   * `retirerProgrammationAction` (confirmation avant, retrait relu chez le diffuseur, jamais de faux succès). Faux par défaut.
+   */
+  retraitProgrammation?: boolean;
   /** Refus rendu par l'action, à dire à la personne. */
   erreur?: string;
   /** Vrai seulement quand l'envoi est allumé : sinon une entrée programmée dit « envoi éteint ». */
@@ -298,6 +312,8 @@ export function FicheEntree({
   boutonPrincipal: boutonPrincipalDonne = "Enregistrer le texte",
   selonStatut = false,
   surPrincipal,
+  texteProgrammeModifiable = false,
+  retraitProgrammation = false,
   erreur,
   envoiAllume,
   libellesEtat,
@@ -313,7 +329,11 @@ export function FicheEntree({
   className,
 }: ProprietesFicheEntree) {
   const verrou = verrouFiche(entree, aujourdhui);
-  const modifiable = verrou === null && action !== undefined;
+  // CAL-23 : une publication programmée (déjà confiée, pas passée) se modifie seulement si l'hôte sait la retirer puis la faire revalider.
+  const programmeModifiable = texteProgrammeModifiable && verrou === "confiee" && entree.etat === "programme";
+  const modifiable = (verrou === null || programmeModifiable) && action !== undefined;
+  // CAL-23 : « Retirer » seulement pour une entrée programmée par le diffuseur (origine créneau), à venir ; les autres gardent leur geste local.
+  const retirable = retraitProgrammation && entree.etat === "programme" && lireCleFiche(entree.cle)?.origine === "creneau" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
   const boutons = selonStatut ? boutonsTiroir(entree.etat, entree.jour, aujourdhui) : null;
   const boutonPrincipal = boutons ? boutons.principal : boutonPrincipalDonne;
   // À valider, À corriger, Programmée, Idée (« Accepter l'idée ») : le bouton principal est un geste de l'hôte, il n'enregistre rien. Sans rappel, pas de bouton.
@@ -356,7 +376,11 @@ export function FicheEntree({
                 ))}
               </ul>
             )}
-            {controle.voyant !== "vert" && <p className="mt-1 text-xs text-texte-faible">Ce contrôle avertit seulement : vous pouvez enregistrer quand même.</p>}
+            {controle.voyant !== "vert" && (
+              <p className="mt-1 text-xs text-texte-faible">
+                {programmeModifiable && controle.voyant === "rouge" ? "Ce texte sera refusé tant qu'il n'est pas corrigé." : "Ce contrôle avertit seulement : vous pouvez enregistrer quand même."}
+              </p>
+            )}
           </div>
         )}
         {!entree.texte.trim() && verrou === null && <p className="mt-1.5 text-sm font-semibold text-ambre">Il manque le texte.</p>}
@@ -451,8 +475,8 @@ export function FicheEntree({
       </div>
       {verrou && verrou !== "publiee" && (
         <p className="flex items-start gap-1.5 text-sm text-texte-doux">
-          <Icone nom="cadenas" size={14} className="mt-0.5 shrink-0" />
-          {PHRASES_VERROU[verrou]}
+          {!programmeModifiable && <Icone nom="cadenas" size={14} className="mt-0.5 shrink-0" />}
+          {programmeModifiable ? PHRASE_PROGRAMMEE_MODIFIABLE : PHRASES_VERROU[verrou]}
         </p>
       )}
       {entree.message && <p className={cn("rounded-champ border px-3 py-2 text-sm font-semibold", entree.etat === "a_corriger" ? TONS_ETAT.a_corriger : TONS_ETAT.a_valider)}>{entree.message}</p>}
@@ -466,6 +490,7 @@ export function FicheEntree({
       ) : (
         <div className="flex flex-col gap-4">{champs}</div>
       )}
+      {retirable && <RetirerProgrammation key={entree.cle} cle={entree.cle} />}
     </section>
   );
 }

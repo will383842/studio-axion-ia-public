@@ -41,6 +41,7 @@
  */
 import { PALETTE } from "@/briques/charte/axion-2026";
 import { joindrePhrasesPourVoix, ponctuerPhrase } from "@/domaine/voix-phrases";
+import { siglesEcrits } from "./sigles-sous-titres";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
 import { creerSuivi, empreinteStable, plansDesScenes, commandeMinimale, type EtapeComptee, type Journal, type ScenePosee } from "@/briques/chaine-scenes";
 import { avancerCompositions, montageFini, type BaseComposition, type EtatComposition, type EtatMontage, type OutilsMontage } from "@/briques/composition/montage";
@@ -619,7 +620,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const reseaux = [...new Set(ctx.reseaux.length ? ctx.reseaux : entrees.reseaux)];
   const mot = entrees.mot ?? cas.mot;
   const motDit = entrees.motDit ?? cas.motDit;
-  const planBrut = planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: ctx.tableDesFins });
+  const planBrut = planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: ctx.tableDesFins, ...(entrees.finDemandee ? { finDemandee: entrees.finDemandee } : {}) });
   const plan = regrouperFins(planBrut);
   // R21 (durée totale) compte les fins réellement planifiées pour les réseaux cochés ; l'écriture les connaît et vise la
   // durée du corps qui les fait tenir. Même contexte pour l'écriture et la relecture : une fiche écrite n'est jamais
@@ -1215,7 +1216,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     // GV2-30 : les sous-titres reçoivent la ponctuation de fin d'écran de la voix (`ponctuerPhrase`) là où une phrase finit
     // (écran suivant en majuscule), sans les prononciations. Une phrase coupée entre deux écrans (« Et le » / « dossier est
     // classé. ») n'affiche aucun point inventé. Le texte envoyé à la voix, lui, ne change pas.
-    const textesEcrans = [...calage.fiche.ecrans, ...f.ecrans].map((e) => e.texteDit.trim()).filter(Boolean);
+    const textesEcrans = [...calage.fiche.ecrans, ...f.ecrans].map((e) => siglesEcrits(e.texteDit.trim())).filter(Boolean);
     const texteSousTitres = textesEcrans.map((t, i) => (i + 1 < textesEcrans.length && /^\p{Ll}/u.test(textesEcrans[i + 1]) ? t : ponctuerPhrase(t))).join(" ");
     // Essai réel du 14/10 : sous-titres clairs illisibles sur l'ivoire ; la v4 les écrit en #15100c sur l'ivoire.
     const clairs = [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales].filter((e) => e.fond === "ivoire").map((e) => ({ debutSec: e.debutMs / 1000, finSec: e.finMs / 1000, texte: ENCRE_SOUS_TITRES_IVOIRE }));

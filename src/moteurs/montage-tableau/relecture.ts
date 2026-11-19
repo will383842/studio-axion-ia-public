@@ -30,7 +30,11 @@ import { pagesDuStyle } from "./densite";
 export type FinRetenue = { id: string; ecran: string; type?: string; mot?: string; dit?: string; objectif?: string } | { absente: string };
 
 /** Alerte : le fichier de LinkedIn (portrait 4:5 depuis T5, carré avant) se termine sans appel (rien n'est dit dans une vidéo LinkedIn). */
-export const FIN_SANS_APPEL_LINKEDIN = "Fin sans appel pour LinkedIn : aucun appel à commenter n'est dit dans une vidéo LinkedIn (le mot va en dernière ligne du texte). Sa vidéo se termine sur axion-ia.com.";
+export const FIN_SANS_APPEL_LINKEDIN = "Fin sans appel pour LinkedIn : aucun appel à commenter n'est dit dans une vidéo LinkedIn (le mot va en dernière ligne du texte). Sa vidéo se termine sur votre dernière phrase.";
+
+/** Avis d'une fin choisie retirée sur TikTok, Shorts ou LinkedIn (messages de `tableau-fin.ts` : « Sur TikTok et Shorts, votre fin « … » », « Sur LinkedIn, … »). */
+const AVIS_FIN_RETIREE = /^Sur (TikTok et Shorts|LinkedIn), votre fin « /;
+export const estAvisFinRetiree = (fin: FinRetenue | undefined): boolean => !!fin && "absente" in fin && AVIS_FIN_RETIREE.test(fin.absente);
 
 /** Fin « Aucune » choisie par l'utilisateur : rien n'est ajouté à la voix ni à l'écran, dans aucun format. */
 export const FIN_AUCUNE_CHOISIE = "Fin : aucune (votre choix). Aucune phrase n'est ajoutée à la voix ni à l'écran.";
@@ -44,8 +48,12 @@ export const FIN_AUCUNE_CHOISIE = "Fin : aucune (votre choix). Aucune phrase n'e
 export function finDeLaSortie(id: IdSortie, fin: FinRetenue | undefined, fiche?: Pick<FicheTableau, "scenes" | "structure">): FinRetenue | undefined {
   if (fin && "absente" in fin && fin.absente === FIN_AUCUNE_CHOISIE) return fin;
   if (!sansAppelAuMot(id)) return fin;
+  // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : retirée et signalée, ou gardée telle quelle.
+  if (estAvisFinRetiree(fin)) return fin;
+  if (fin && "ecran" in fin && !fin.objectif && !finAuMot(fin) && !/^\s*(écrivez|commentez)\b|\bje vous (l['’]\s?|les )?envoie\b/i.test(`${fin.ecran} ${fin.dit ?? ""}`)) return fin;
   // TikTok et Shorts (Will, 14/10) : UNE demande de la banque, choisie selon le type de la fiche (`objectif` : choix forcé).
-  const liens = id === VERTICAL_LIENS && fiche ? finDesLiens(fiche, fin && "ecran" in fin ? fin.objectif : undefined) : undefined;
+  const choisie = !!fin && "ecran" in fin && !fin.objectif;
+  const liens = id === VERTICAL_LIENS && fiche && !choisie ? finDesLiens(fiche, fin && "ecran" in fin ? fin.objectif : undefined) : undefined;
   if (liens) return liens;
   const sansAppel = id === VERTICAL_LIENS ? FIN_SANS_APPEL_LIENS : FIN_SANS_APPEL_LINKEDIN;
   if (fin && "absente" in fin && fin.absente.includes(sansAppel)) return fin;
@@ -175,7 +183,10 @@ export async function relireFicheTableau(e0: EntreeRelecture): Promise<Relecture
   });
   let apercu: ApercuSortie[] = [];
   try {
-    if (brute && relues.length) apercu = apercuDesSorties(brute, relues);
+    if (brute && relues.length) apercu = apercuDesSorties(brute, relues).map((a) => {
+      const retiree = finsRetenues.get(a.sortie);
+      return retiree && "absente" in retiree && estAvisFinRetiree(retiree) ? { ...a, avisFin: retiree.absente } : a;
+    });
   } catch {
     apercu = [];
   }

@@ -12,13 +12,15 @@ import { estimerFabrication, fabriquerTableau } from "../../../src/moteurs/monta
 import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { sortiesDesReseaux } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { finDeLaSortie, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
-import { indicesDeLaFiche, planVoixSorties, SITE_FIN } from "../../../src/moteurs/montage-tableau/variantes-fin";
+import { finDesLiens, indicesDeLaFiche, planVoixSorties, SITE_FIN } from "../../../src/moteurs/montage-tableau/variantes-fin";
 import { choisirFinTableau } from "../../../src/services/tableau-fin";
 import { doubles } from "../fabriquer/doubles";
 
 const temoin = JSON.parse(readFileSync(new URL("../temoins/blocage-fin-tiktok-2026-10-14.json", import.meta.url), "utf8")) as { fiche: FicheTableau };
 const sorties = sortiesDesReseaux(["verticaux"]);
-const choisirFin = choisirFinTableau({}, { sorties, mot: "REPONSES" });
+// 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la phrase de la banque de TikTok et
+// Shorts vient du réglage explicite `finLiens` (l'objectif que ce test attend), plus d'un choix « fin-if-mot-envoi ».
+const choisirFinPour = (f: FicheTableau) => choisirFinTableau({}, { sorties, mot: "REPONSES", finLiens: ((x) => (x && "objectif" in x ? x.objectif : undefined))(finDesLiens(f)) });
 const mots = (t: string) => t.split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m)).length;
 
 /** Le témoin « réponses types » : méthode en quatre étapes, avec le mot REPONSES. */
@@ -30,7 +32,7 @@ const avecQuestion = (): FicheTableau => ({ ...sansEtapes(temoin.fiche), structu
 const avecMot = () => sansEtapes(reponsesTypes);
 
 /** La fin de TikTok et Shorts d'une fiche, comme la relecture et la fabrication la prennent. */
-const finLiens = (f: FicheTableau) => finDeLaSortie("vertical-liens", choisirFin(f.appelId ?? null, "vertical-liens"), f);
+const finLiens = (f: FicheTableau) => finDeLaSortie("vertical-liens", choisirFinPour(f)(f.appelId ?? null, "vertical-liens"), f);
 
 describe("codes de la banque permis sur TikTok et Shorts", () => {
   it("public clients : la question, « enregistrez », « envoyez-la », « le lien est dans mon profil » ; rien d'autre", () => {
@@ -112,7 +114,7 @@ describe("la fin de TikTok et Shorts d'une vraie fiche", () => {
 });
 
 describe("branchée dans la variante « vertical-liens »", () => {
-  const fins = (f: FicheTableau) => (id: (typeof sorties)[number]) => finDeLaSortie(id, choisirFin(f.appelId ?? null, id), f);
+  const fins = (f: FicheTableau) => (id: (typeof sorties)[number]) => finDeLaSortie(id, choisirFinPour(f)(f.appelId ?? null, id), f);
 
   for (const [nom, f, dit] of [
     ["réponses types", reponsesTypes, "Enregistrez cette vidéo pour la retrouver le jour venu."],
@@ -141,7 +143,7 @@ describe("branchée dans la variante « vertical-liens »", () => {
       expect(plan.lectures.filter((l) => l.role === "fin").map((l) => l.texte)).toContain(dit);
       const liens = plan.variantes.find((v) => v.sorties.includes("vertical-liens"))!;
       expect(plan.lectures.find((l) => l.id === liens.fin)?.texte).toBe(dit);
-      const e = estimerFabrication(f, 0.03, [], { sorties: sorties.map((id) => ({ id, fin: choisirFin(f.appelId ?? null, id) })) });
+      const e = estimerFabrication(f, 0.03, [], { sorties: sorties.map((id) => ({ id, fin: choisirFinPour(f)(f.appelId ?? null, id) })) });
       expect(e.phraseSurcout).toMatch(/phrases de fin lues à part/);
     });
   }
@@ -152,7 +154,7 @@ describe("traçabilité : code de fin et objectif de la sortie TikTok et Shorts"
     const d = doubles(reponsesTypes);
     const traces: { type: string; donnees: Record<string, unknown> }[] = [];
     const contexte = { aujourdhui: "2026-10-14", sourcesChiffres: [], preuves: [], matieres: [...new Set(reponsesTypes.scenes.flatMap((s) => s.elements).flatMap((e) => (e.type === "preuve" ? [e.preuveId] : [])))].map((id) => ({ id, type: "demonstration" as const, statut: "validee" as const, perimeLe: "2027-01-09" })), texteScript: reponsesTypes.scenes.map((s) => s.texteDit).join(" ") };
-    const fab = await fabriquerTableau({ ...d.outils, contexte, sorties, choisirFin, dejaVu: { coche: true, le: "2026-10-14" }, tracer: async (e) => void traces.push(e as never) });
+    const fab = await fabriquerTableau({ ...d.outils, contexte, sorties, choisirFin: choisirFinPour(reponsesTypes), dejaVu: { coche: true, le: "2026-10-14" }, tracer: async (e) => void traces.push(e as never) });
     const liens = fab.sorties.find((s) => s.format === "vertical-liens")!;
     expect(liens.fin).toMatchObject({ id: "fin-ty-enregistrement", objectif: "ENREGISTRER" });
     const videos = traces.filter((t) => t.type === "fichier" && t.donnees.role === "video");
