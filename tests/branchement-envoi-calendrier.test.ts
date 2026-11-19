@@ -409,6 +409,46 @@ describe("L5-02c · exclusions", () => {
     expect(await depots().envoisPlanifies.compter()).toBe(0);
   });
 
+  it("créneau au marqueur « compte-studio » + publication du même visuel sous un canalId réel : exclu « occupe », 0 appel", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1", "linkedin", { compteCible: "compte-studio" });
+    await depots().publications.enregistrer({ id: "pub-x", visuelId: "vis_1", reseau: "linkedin", via: "zernio", statut: "brouillon", etatEnvoi: "envoye", cleEnvoi: "f".repeat(64), date: heureDu(4), texte: "t", canalId: COMPTES.linkedin, creeLe: VALIDEE, modifieLe: VALIDEE } as never);
+    for (let i = 0; i < 2; i++) await tourSuivant();
+    expect(appelsFournisseur).toHaveLength(0);
+    expect(espion.visuel).not.toHaveBeenCalled();
+    expect(notifications).toHaveLength(1);
+  });
+
+  it("créneau sans texte : ligne « à compléter », envoyerReel jamais appelé, aucun essai écrit, une seule notification sur deux tours", async () => {
+    await ouvrirTout();
+    await creerVisuel();
+    await creerCreneau("c1", "linkedin", { textes: {} });
+    const r1 = await tour();
+    const r2 = await tourSuivant();
+    const lignes = [r1, r2].flatMap((r) => ("resultat" in r ? r.resultat.lignes : []));
+    expect(lignes.length).toBeGreaterThan(0);
+    expect(lignes.every((l) => l.etat === "a-completer")).toBe(true);
+    expect(espion.reel).not.toHaveBeenCalled();
+    expect(espion.visuel).not.toHaveBeenCalled();
+    expect(appelsFournisseur).toHaveLength(0);
+    const essais = await depots().parametres.lister((p) => String((p as { id?: string }).id ?? "").includes("essais:"));
+    expect(essais).toHaveLength(0);
+    expect(notifications).toHaveLength(1);
+  });
+
+  it("etatEnvoiDuCreneau : « à compléter » sans texte, dernier refus gardé pour la version courante, jamais d'exception", async () => {
+    const { etatEnvoiDuCreneau } = branchement;
+    const base = { id: "c1", jourVise: "2026-11-20", heuresParReseau: {}, compteCible: "compte-studio", visuelId: "vis_1", statut: "valide", decalages: 2 } as never;
+    expect(await etatEnvoiDuCreneau({ ...(base as object), textes: {} } as never, "linkedin")).toMatchObject({ aCompleter: expect.stringContaining("Légende à écrire") });
+    expect(await etatEnvoiDuCreneau({ ...(base as object), textes: { linkedin: { texte: "ok", premierCommentaire: "" } } } as never, "linkedin")).toEqual({});
+    const { cleEnvoi } = await import("@/domaine/envoi-planifie");
+    await ecrireParametre(`envoi-calendrier:dernier-refus:${cleEnvoi("vis_1", "linkedin", 2)}`, "Cochez la page.");
+    await ecrireParametre(`envoi-calendrier:dernier-refus-le:${cleEnvoi("vis_1", "linkedin", 2)}`, "2026-11-19T10:00:00.000Z");
+    expect(await etatEnvoiDuCreneau({ ...(base as object), textes: { linkedin: { texte: "ok", premierCommentaire: "" } } } as never, "linkedin")).toEqual({ dernierRefus: { raison: "Cochez la page.", le: "2026-11-19T10:00:00.000Z" } });
+    expect(await etatEnvoiDuCreneau({ ...(base as object), decalages: 3, textes: { linkedin: { texte: "ok", premierCommentaire: "" } } } as never, "linkedin")).toEqual({});
+  });
+
   it("une publication refusée (non occupante) n'exclut pas le créneau", async () => {
     await ouvrirTout();
     await creerVisuel();

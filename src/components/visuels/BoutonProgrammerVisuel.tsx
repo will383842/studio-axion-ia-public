@@ -8,6 +8,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import type { IdReseau } from "@/domaine/types";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { cleJour } from "@/lib/dates";
+import { COMPTE_PAR_DEFAUT } from "@/domaine/plan-editorial/compte-par-defaut";
 import { validerProposition } from "@/domaine/plan-editorial/statuts";
 import { changerStatut, creerCreneau, type CreneauPlan } from "@/services/plan-editorial";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
@@ -15,7 +16,6 @@ import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-pu
 
 /** Heure de publication (Paris) par réseau : fixe, le fondateur peut décaler ensuite depuis le calendrier. */
 const HEURES: Partial<Record<IdReseau, string>> = { linkedin: "08:30", instagram: "12:30", facebook: "17:30" };
-const COMPTE_CIBLE = "compte-studio";
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Le jour (AAAA-MM-JJ) qu'il est à Paris à cet instant ISO : jamais le jour UTC (`cleJour`, heure de Paris). */
@@ -77,7 +77,7 @@ export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, 
     for (const r of v.reseaux) heuresParReseau[r] = instantParis(jour, HEURES[r]!);
     const passes = v.reseaux.filter((r) => Date.parse(heuresParReseau[r]!) <= Date.parse(maintenant));
     if (passes.length > 0) throw new ErreurVisuel("PROGRAMMER_DATE", `Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
-    await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_CIBLE, visuelId: v.id }, maintenant);
+    await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_PAR_DEFAUT, visuelId: v.id }, maintenant);
   }
   await validerParLeFondateur(d, creneauId, maintenant);
   await programmerVisuel(d, creneauId, maintenant);
