@@ -17,7 +17,7 @@ import { Pastille } from "@/components/ui/Pastille";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { cn } from "@/lib/cn";
 import { modelesPossibles } from "@/moteurs/montage-facecam/monteur/modeles-possibles";
-import type { ModeleCarte } from "@/moteurs/montage-facecam/monteur/operations";
+import { MODELES_CARTE, type ModeleCarte } from "@/moteurs/montage-facecam/monteur/operations";
 import { horloge } from "@/moteurs/montage-facecam/monteur/temps";
 import type { VueCarteVideo } from "@/services/monteur-facecam";
 
@@ -118,7 +118,7 @@ export function CartesVideoFacecam({ videoId, cartes, possible, envoi, geste }: 
                   </Bouton>
                 ) : (
                   <span className="flex shrink-0 items-center gap-1">
-                    {c.origine === "monteur" && c.type === "carte" && c.modele && modelesPossibles(c.textes, c.modele).length > 0 && (
+                    {c.origine === "monteur" && c.type === "carte" && (MODELES_CARTE as readonly string[]).includes(c.modele ?? "") && modelesPossibles(c.textes, c.modele).length > 0 && (
                       <select
                         aria-label="Changer l'animation"
                         value=""

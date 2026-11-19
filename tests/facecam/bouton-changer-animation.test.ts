@@ -150,7 +150,7 @@ describe("CartesVideoFacecam : choix de l'animation", () => {
   });
 
   it("d) pas de choix sur une carte automatique, une carte sur mesure ou un zoom", () => {
-    for (const c of [carte({ origine: "auto" }), carte({ modele: undefined }), carte({ type: "zoom" })]) expect(rendre([c])).not.toContain("Changer l&#x27;animation");
+    for (const c of [carte({ origine: "auto" }), carte({ modele: "sur-mesure" }), carte({ type: "zoom" })]) expect(rendre([c])).not.toContain("Changer l&#x27;animation");
   });
 
   it("d) le choix appelle l'action avec la vidéo, la carte et le modèle", async () => {

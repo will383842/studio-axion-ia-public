@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { entreesFacecamVides } from "@/domaine/facecam";
 import { appliquerOperations, reglagesMonteurVides, type EtatMonteur, type OperationFacecam, type PassageMonteur } from "@/moteurs/montage-facecam/monteur";
 import { MODELES_CARTE } from "@/moteurs/montage-facecam/monteur/operations";
@@ -64,7 +64,7 @@ describe("S-09b-v19b · modelesPossibles", () => {
     expect(modelesPossibles(TEXTES, null)).toContain("liste");
   });
 
-  it("d) éteint = identique : aucun fichier de src/ n'importe modeles-possibles", () => {
+  it("d) éteint = identique : seul src/components/facecam/CartesVideoFacecam.tsx importe modeles-possibles", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => {
       for (const e of readdirSync(d)) {
@@ -76,6 +76,6 @@ describe("S-09b-v19b · modelesPossibles", () => {
     parcourir(join(process.cwd(), "src"));
     expect(fichiers.length).toBeGreaterThan(100);
     const fautifs = fichiers.filter((f) => readFileSync(f, "utf8").includes("modeles-possibles"));
-    expect(fautifs).toEqual([]);
+    expect(fautifs.map((f) => f.split(sep).join("/").replace(/^.*\/src\//, "src/"))).toEqual(["src/components/facecam/CartesVideoFacecam.tsx"]);
   });
 });
