@@ -3,12 +3,11 @@
 import { useRef, useState } from "react";
 import { creerDemoDepuisEnvoi } from "@/app/(studio)/demo-facecam/actions-envoi";
 import { lancerDemoFacecam } from "@/app/(studio)/demo-facecam/actions-lancement";
+import type { IssueLancementDemo } from "@/domaine/demo-facecam/prix";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { envoyerFichier, MESSAGE_ENVOI_RATE } from "@/lib/envoi-multipart";
-import { centimes, formaterMontant } from "@/lib/montants";
 import type { Resultat } from "@/services/_commun";
-import type { IssueLancement } from "@/services/creation-format";
 
 type Cible = { typeEntite: string; entiteId: string };
 
@@ -42,8 +41,8 @@ export async function enchainerEnvoiDemo(d: DepsEnvoiDemo): Promise<{ ok: true; 
 export type EtatLancement = { statut: "lancee"; travailId: string } | { statut: "accord-requis"; centimes: number; prix: string } | { statut: "erreur"; message: string };
 
 /** 1er appel : `accord` = null (le serveur répond par le prix). 2e appel : le prix montré, après « Confirmer et lancer ». */
-export async function demanderLancementDemo(lancer: (videoId: string, accord: number | null) => Promise<Resultat<IssueLancement>>, videoId: string, accord: number | null): Promise<EtatLancement> {
-  let r: Resultat<IssueLancement>;
+export async function demanderLancementDemo(lancer: (videoId: string, accord: number | null) => Promise<Resultat<IssueLancementDemo>>, videoId: string, accord: number | null): Promise<EtatLancement> {
+  let r: Resultat<IssueLancementDemo>;
   try {
     r = await lancer(videoId, accord);
   } catch {
@@ -51,7 +50,7 @@ export async function demanderLancementDemo(lancer: (videoId: string, accord: nu
   }
   if (!r.ok) return { statut: "erreur", message: r.message };
   if (r.donnees.statut === "lancee") return { statut: "lancee", travailId: r.donnees.travailId };
-  return { statut: "accord-requis", centimes: r.donnees.centimes, prix: formaterMontant(centimes(r.donnees.centimes)) };
+  return { statut: "accord-requis", centimes: r.donnees.centimes, prix: r.donnees.prix };
 }
 
 function ChoixVideo({ libelle, onFichier }: { libelle: string; onFichier: (f: File | null) => void }) {
@@ -126,7 +125,7 @@ export function EnvoiDemoFacecam() {
         <div className="space-y-2">
           <p className="text-sm text-texte-doux">Démo préparée. Rien n&rsquo;est lancé tant que vous n&rsquo;avez pas cliqué.</p>
           <Bouton type="button" disabled={occupe} onClick={() => void lancer(null)}>
-            Lancer la démo · 0,00 €
+            Lancer la démo
           </Bouton>
         </div>
       )}

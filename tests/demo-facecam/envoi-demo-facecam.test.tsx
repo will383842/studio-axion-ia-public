@@ -149,7 +149,7 @@ describe("c) enchaînement de l'écran", () => {
   it("lancement : accord-requis montre le prix, 2e appel avec le prix", async () => {
     const lancer = vi.fn(async (_id: string, accord: unknown) =>
       accord === null
-        ? { ok: true as const, donnees: { statut: "accord-requis" as const, centimes: 0, phrase: "x" } }
+        ? { ok: true as const, donnees: { statut: "accord-requis" as const, centimes: 0, phrase: "x", prix: "0,00\u00a0€" } }
         : { ok: true as const, donnees: { statut: "lancee" as const, travailId: "t1" } },
     );
     const a = await demanderLancementDemo(lancer, "v1", null);
