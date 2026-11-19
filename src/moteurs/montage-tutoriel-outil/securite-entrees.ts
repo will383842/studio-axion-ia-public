@@ -230,6 +230,8 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
   const n = texte.length;
   const budget = 40 * n + 1_000_000;
   let depense = 0;
+  // Dernière position de chaque guillemet : au-delà, aucune recherche de fermant n'est utile (pas de parcours répété jusqu'à la fin).
+  const dernier: Record<string, number> = { '"': texte.lastIndexOf('"'), "'": texte.lastIndexOf("'") };
   let debut = texte.indexOf("<");
   while (debut !== -1 && debut < n - 1) {
     const c = texte.charCodeAt(debut + 1) | 32;
@@ -239,6 +241,8 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
     }
     let i = debut + 2;
     let guillemet = false;
+    let saute = false; // une valeur entre guillemets a été sautée dans cette balise
+    let bloque = false; // arrêt sur un guillemet sans fermant
     let fin = -1;
     while (i < n) {
       const ch = texte[i]!;
@@ -248,8 +252,13 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
       }
       if (ch === '"' || ch === "'") {
         guillemet = true;
+        if (i >= dernier[ch]!) {
+          bloque = true;
+          break;
+        }
         const f = texte.indexOf(ch, i + 1);
         if (f === -1) break;
+        saute = true;
         i = f + 1;
         continue;
       }
@@ -262,10 +271,49 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
       debut = texte.indexOf("<", fin + 1);
     } else {
       if (!guillemet && i >= n) break;
-      debut = texte.indexOf("<", debut + 1);
+      // Arrêt sur un guillemet sans fermant, sans valeur sautée avant : tout « < » entre le début et ce guillemet lit les mêmes
+      // caractères sans « > » et butte sur le même guillemet. On les saute d'un bloc (sinon : temps quadratique).
+      debut = texte.indexOf("<", bloque && !saute ? i : debut + 1);
     }
   }
   return balises;
+}
+
+/**
+ * Attributs d'UNE balise (texte de `<` à `>`), lus à la main en un seul passage (aucune expression régulière : temps linéaire).
+ * Nom jusqu'à un blanc, « = », « / » ou « > » ; puis « = » et la valeur, entre guillemets ou non. Seuls les attributs avec valeur sont rendus.
+ */
+function attributsDe(balise: string): { nom: string; valeur: string; index: number }[] {
+  const sortie: { nom: string; valeur: string; index: number }[] = [];
+  const n = balise.length;
+  const blanc = (c: string) => c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
+  let i = 1;
+  while (i < n && !blanc(balise[i]!) && balise[i] !== "/" && balise[i] !== ">") i++;
+  while (i < n) {
+    while (i < n && (blanc(balise[i]!) || balise[i] === "/" || balise[i] === "=")) i++;
+    if (i >= n || balise[i] === ">") break;
+    const debutNom = i;
+    while (i < n && !blanc(balise[i]!) && balise[i] !== "=" && balise[i] !== "/" && balise[i] !== ">") i++;
+    const nom = balise.slice(debutNom, i);
+    while (i < n && blanc(balise[i]!)) i++;
+    if (balise[i] !== "=") continue;
+    i++;
+    while (i < n && blanc(balise[i]!)) i++;
+    let valeur = "";
+    const q = balise[i];
+    if (q === '"' || q === "'") {
+      const f = balise.indexOf(q, i + 1);
+      const fin = f === -1 ? n : f;
+      valeur = balise.slice(i + 1, fin);
+      i = fin + 1;
+    } else {
+      const d = i;
+      while (i < n && !blanc(balise[i]!) && balise[i] !== ">") i++;
+      valeur = balise.slice(d, i);
+    }
+    sortie.push({ nom, valeur, index: debutNom });
+  }
+  return sortie;
 }
 
 /** Une référence (src, href, url(), @import…) est-elle hors du dossier de la maquette ? Retourne le motif ou null. */
@@ -421,10 +469,10 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
         const balises = balisesDe(texte);
         if (!balises) refus.push({ chemin, ligne: 1, motif: "balises trop imbriquées ou sans fin : maquette illisible" });
         for (const t of balises ?? []) {
-          for (const a of t.texte.matchAll(/([^\s"'<>/=]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
-            const nom = a[1]!.toLowerCase();
-            const valeur = decoderEntites(a[2] ?? a[3] ?? a[4] ?? "");
-            const ligne = () => ligneDe(texte, t.index + (a.index ?? 0));
+          for (const a of attributsDe(t.texte)) {
+            const nom = a.nom.toLowerCase();
+            const valeur = decoderEntites(a.valeur);
+            const ligne = () => ligneDe(texte, t.index + a.index);
             if (nom === "style") {
               const dansStyle: RefusMaquette[] = [];
               verifierCss(chemin, valeur, 0, valeur, dansStyle);

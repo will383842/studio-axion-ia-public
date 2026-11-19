@@ -576,6 +576,9 @@ describe("verdict Opus : temps de calcul de verifierMaquette (ReDoS, lignes)", (
     ["balises sans fin « <a␠ »", () => "<a ".repeat(350_000)],
     ["balises à attribut, une par ligne", () => "<a b=c>\n".repeat(131_072)],
     ["guillemets ouvrants sans fin", () => '<a "'.repeat(200_000)],
+    ["un nom d'attribut de 1 Mo sans « = »", () => "<a " + "b".repeat(1_000_000) + ">"],
+    ["500 000 noms d'attribut sans « = »", () => "<a " + "b ".repeat(500_000) + ">"],
+    ["20 000 balises avant un guillemet sans fermant, puis 10 Mo", () => "<a".repeat(20_000) + '"' + "x".repeat(10_000_000)],
   ])("%s : moins d'une seconde", (_nom, fabrique) => {
     const { ms } = duree(fabrique());
     expect(ms).toBeLessThan(1000);
