@@ -6,7 +6,8 @@
  * Lecture seule de src/ : on exerce le vrai parcours (`traiterConversations`) et la matrice des capacités.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CAPACITES, RESEAUX, construireGrapheReseau, type Reseau } from "@/services/mots-capacites";
+import { textesDepuisSaisie, validerTextes } from "@/services/mots-textes";
+import { CAPACITES, RESEAUX, construireGrapheReseau, grapheConformeAuReseau } from "@/services/mots-capacites";
 import { deposerCommentaire, evenement } from "./zernio/aides/conversation";
 import { banc, C, Com, COMPTE, depots, envoisSortants, nettoyer, passer, preparer, T0 } from "./zernio/filet-guide/_amorce";
 
@@ -18,6 +19,8 @@ const { PARAM_INSTAGRAM_PUBLIC, PARAM_INSTAGRAM_SUIVRE } = await import("@/servi
 /** Tous les noms sous lesquels un évènement pourrait annoncer ces réseaux (réseau du fournisseur, matrice, variantes de casse). */
 const INTERDITS = ["linkedin", "linkedin_page", "linkedin_profil", "tiktok", "LinkedIn", "TikTok", " tiktok "] as const;
 const AUTORISES = ["facebook", "instagram"] as const;
+/** Textes complets et validés par le vrai validateur (sinon le refus pourrait venir des textes et non du réseau). Fictifs. */
+const TEXTES = validerTextes(textesDepuisSaisie({ mot: "GUIDE", reponsePublique: "Bonjour ! le guide est sur la page indiquée.", messagePrive: "Bonjour ! Quelle adresse pour le guide ?", relance: null, fin: "Bonjour ! Merci, c'est noté." }));
 
 /** TOUS les réglages allumés : interrupteur général (déjà dans ENV), mots multiples, Instagram public, Instagram « suivre », mot actif, textes validés. */
 async function toutAllumer(multi: boolean): Promise<void> {
@@ -37,12 +40,22 @@ describe("AUTO-REP-01 · la matrice des capacités", () => {
       expect(CAPACITES[r].automatisable).toBe(false);
     }
   });
-  it("tout réseau dont le nom évoque LinkedIn ou TikTok est refusé en construction de workflow (couvre un réseau ajouté plus tard)", () => {
+  it("tout réseau dont le nom évoque LinkedIn ou TikTok est refusé « manuel_seulement » en construction de workflow, textes valides (couvre un réseau ajouté plus tard)", () => {
     const sensibles = RESEAUX.filter((r) => /linkedin|tiktok/.test(r));
     expect(sensibles.length).toBeGreaterThanOrEqual(3);
     for (const r of sensibles) {
-      const g = construireGrapheReseau({ reponsePublique: "Merci.", messagePrive: "Voici." } as never, r as Reseau);
+      const g = construireGrapheReseau(TEXTES, r);
       expect(g.ok).toBe(false);
+      if (!g.ok) expect(g.code).toBe("manuel_seulement");
+      // Un workflow quelconque n'est jamais déclaré conforme pour ces réseaux.
+      expect(grapheConformeAuReseau({ nom: "x", etapes: [{ id: "e1", type: "repondre_commentaire", texte: "Merci", suite: null }] } as never, r)).toBe(false);
+    }
+  });
+  it("témoin : les mêmes textes valides donnent un workflow pour Facebook et Instagram (le refus ci-dessus vient bien de la règle réseau)", () => {
+    for (const r of AUTORISES) {
+      const g = construireGrapheReseau(TEXTES, r);
+      expect(g.ok).toBe(true);
+      if (g.ok) expect(grapheConformeAuReseau(g.workflow, r)).toBe(true);
     }
   });
   it("témoin : Facebook et Instagram restent automatiques", () => {
@@ -73,8 +86,8 @@ describe.each([
     await passer(T0 + 3_600_000, { comptesPermis: [COMPTE] });
     expect(envoisSortants()).toBe(0);
     // L'évènement n'est jamais « traité » en envoi : il est écarté ou reporté, jamais clos par un envoi.
-    const ev = await evenement(depots, id);
-    expect(["public_seul", "m1_envoye", "envoye"]).not.toContain(ev.charge.etat);
+    // Le blocage vient bien de la règle réseau, pas d'une autre garde qui masquerait son absence.
+    expect((await evenement(depots, id)).charge.dernierCode).toBe("garde_reseau");
   });
 
   it("même un commentaire sur LinkedIn/TikTok dont l'auteur a déjà une conversation ouverte ne reçoit rien", async () => {
@@ -84,12 +97,14 @@ describe.each([
     await passer(T0);
     const apresFacebook = envoisSortants();
     expect(apresFacebook).toBeGreaterThan(0); // témoin : Facebook a bien répondu
-    for (const reseau of ["linkedin", "tiktok"]) await deposerCommentaire(depots, { reseau, idAuteur: auteur });
+    const ids: string[] = [];
+    for (const reseau of ["linkedin", "tiktok"]) ids.push(await deposerCommentaire(depots, { reseau, idAuteur: auteur }));
     await passer(T0 + 60_000);
     expect(envoisSortants()).toBe(apresFacebook); // rien de plus
+    for (const id of ids) expect((await evenement(depots, id)).charge.dernierCode).toBe("garde_reseau");
   });
 
-  it.each(AUTORISES)("témoin « %s » : la réponse publique automatique part bien (le test ne passe pas parce que tout est coupé)", async (reseau) => {
+  it.each(AUTORISES)("témoin « %s » (avec « suivre le compte » éteint, qui exige une formulation validée en plus) : la réponse publique automatique part bien", async (reseau) => {
     // « Instagram : suivre le compte » exige une formulation validée en plus : éteint ici pour que le témoin prouve le chemin de base.
     await Com.ecrireParametre(PARAM_INSTAGRAM_SUIVRE, false);
     await deposerCommentaire(depots, { reseau });
@@ -98,18 +113,19 @@ describe.each([
   });
 });
 
-describe("AUTO-REP-01 · de bout en bout par le crochet Zernio (faux client)", () => {
-  it("un commentaire annoncé par LinkedIn ou TikTok ne produit aucun envoi, tout allumé", async () => {
+describe("AUTO-REP-01 · défense d'entrée : le crochet Zernio", () => {
+  // Cette barrière est EN PLUS de la garde du parcours (testée plus haut) ; elle ne la remplace pas.
+  it("un commentaire annoncé par LinkedIn ou TikTok n'est même pas déposé, et rien ne part", async () => {
     await toutAllumer(true);
     const { crochetCommentaire } = await import("./zernio/filet-guide/_amorce");
     for (const reseau of ["linkedin", "tiktok"] as const) {
-      await crochetCommentaire("GUIDE", { reseau: reseau as never, idAuteur: `auteur-fictif-${reseau}` });
+      const r = await crochetCommentaire("GUIDE", { reseau: reseau as never, idAuteur: `auteur-fictif-${reseau}` });
+      expect(r.deposes).toHaveLength(0);
     }
     await passer(T0);
-    await passer(T0 + 120_000);
     expect(envoisSortants()).toBe(0);
   });
-  it("témoin : le même chemin sur Facebook répond bien", async () => {
+  it("témoin : le même crochet dépose le commentaire Facebook, et la réponse part", async () => {
     await toutAllumer(true);
     const { crochetCommentaire } = await import("./zernio/filet-guide/_amorce");
     const r = await crochetCommentaire("GUIDE", { reseau: "facebook", idAuteur: "auteur-fictif-fb" });
@@ -119,16 +135,6 @@ describe("AUTO-REP-01 · de bout en bout par le crochet Zernio (faux client)", (
   });
 });
 
-describe("AUTO-REP-01 · le code de garde vise le bon motif", () => {
-  it("sur LinkedIn l'évènement est reporté avec le code « garde_reseau » (et non par hasard par une autre garde)", async () => {
-    await toutAllumer(false);
-    const id = await deposerCommentaire(depots, { reseau: "linkedin" });
-    await passer(T0);
-    expect((await evenement(depots, id)).charge.dernierCode).toBe("garde_reseau");
-  });
-});
-
-// Garde de lecture : le test doit rester branché sur le vrai parcours.
 describe("AUTO-REP-01 · branchement", () => {
   it("le parcours exporte bien traiterConversations", () => {
     expect(typeof C.traiterConversations).toBe("function");
