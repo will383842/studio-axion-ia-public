@@ -254,19 +254,27 @@ export interface TrameGFlux {
   debuts: { avant: number; flux: number; schema: number; gainFin: number };
 }
 
-export type LectureTrame = { ok: true; trame: TrameGFlux } | { ok: false; erreurs: string[] };
+export type LectureTrame = { ok: true; trame: TrameGFlux; remarques: string[] } | { ok: false; erreurs: string[] };
 
-/** Avant ≤ 15 %, flux filmé ≥ 50 %, schéma de 5 à 8 s (≤ 20 %), gain et fin le reste. Voix de 40 à 55 s seulement. */
+/**
+ * Avant ≤ 15 %, flux filmé ≥ 50 %, schéma de 5 à 8 s (≤ 20 %), gain et fin le reste.
+ * Une durée hors de 40 à 55 s n'est JAMAIS un refus (décision de Williams du 18/11) : la trame est calculée avec les mêmes parts
+ * et une remarque l'accompagne. Seule une durée illisible (NaN, ≤ 0) est refusée.
+ */
 export function trameGFlux(dureeVoixMs: number): LectureTrame {
-  if (typeof dureeVoixMs !== "number" || !Number.isFinite(dureeVoixMs)) return { ok: false, erreurs: ["La durée de la voix est inconnue."] };
-  if (dureeVoixMs < VOIX_MIN_MS) return { ok: false, erreurs: [`La voix fait moins de ${VOIX_MIN_MS / 1000} s : le flux n'a pas la place de se montrer.`] };
-  if (dureeVoixMs > VOIX_MAX_MS) return { ok: false, erreurs: [`La voix fait plus de ${VOIX_MAX_MS / 1000} s : raccourcissez le script.`] };
+  if (typeof dureeVoixMs !== "number" || !Number.isFinite(dureeVoixMs) || dureeVoixMs <= 0) return { ok: false, erreurs: ["La durée de la voix est inconnue."] };
+  const remarques: string[] = [];
+  if (dureeVoixMs < VOIX_MIN_MS) remarques.push(`La voix fait moins de ${VOIX_MIN_MS / 1000} s : le flux a peu de place pour se montrer.`);
+  if (dureeVoixMs > VOIX_MAX_MS) remarques.push(`La voix fait plus de ${VOIX_MAX_MS / 1000} s : vous pouvez raccourcir le script.`);
   const avantMs = Math.round(dureeVoixMs * PART_AVANT);
   const fluxMs = Math.round(dureeVoixMs * PART_FLUX);
   const schemaMs = SCHEMA_MS;
   const gainFinMs = dureeVoixMs - avantMs - fluxMs - schemaMs;
+  if (schemaMs < 5000 || schemaMs > 0.2 * dureeVoixMs) remarques.push("Le schéma ne tient pas dans cette durée : il dure plus de 20 % de la voix.");
+  if (gainFinMs <= 0) remarques.push("Il ne reste pas de place pour le gain et la fin : allongez la voix.");
   return {
     ok: true,
     trame: { avantMs, fluxMs, schemaMs, gainFinMs, debuts: { avant: 0, flux: avantMs, schema: avantMs + fluxMs, gainFin: avantMs + fluxMs + schemaMs } },
+    remarques,
   };
 }

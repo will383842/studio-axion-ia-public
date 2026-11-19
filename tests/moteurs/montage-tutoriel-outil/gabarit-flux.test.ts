@@ -2,6 +2,7 @@
  * T-EXT-50 · Gabarit G-Flux : lecteur du flux d'automatisation, scénario de maquette, données des écrans, trame.
  * Purs : aucun navigateur, aucun appel, 0 €.
  */
+import { DUREE_CIBLE_SEC } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import vm from "node:vm";
@@ -259,11 +260,38 @@ describe("trameGFlux", () => {
     }
   });
 
-  it("38 s et 57 s : refus clair ; durée illisible : refus", () => {
+  it("38 s et 57 s : une trame ET une remarque, jamais un refus ; durée illisible : refus", () => {
     const court = trameGFlux(38_000);
     const long = trameGFlux(57_000);
-    expect(court.ok ? "" : court.erreurs.join()).toMatch(/moins de 40 s/);
-    expect(long.ok ? "" : long.erreurs.join()).toMatch(/plus de 55 s/);
+    expect(court.ok).toBe(true);
+    expect(long.ok).toBe(true);
+    if (!court.ok || !long.ok) return;
+    expect(court.remarques.join()).toMatch(/moins de 40 s/);
+    expect(long.remarques.join()).toMatch(/plus de 55 s/);
+    // mêmes parts qu'à l'intérieur de la cible
+    expect(court.trame.avantMs).toBe(Math.round(38_000 * 0.12));
+    expect(long.trame.fluxMs).toBe(Math.round(57_000 * 0.55));
+    expect(court.trame.avantMs + court.trame.fluxMs + court.trame.schemaMs + court.trame.gainFinMs).toBe(38_000);
     expect(trameGFlux(Number.NaN).ok).toBe(false);
+    expect(trameGFlux(0).ok).toBe(false);
+    expect(trameGFlux(-1).ok).toBe(false);
+  });
+
+  it("dans la cible : aucune remarque", () => {
+    for (const d of [VOIX_MIN_MS, 48_000, VOIX_MAX_MS]) {
+      const r = trameGFlux(d);
+      expect(r.ok ? r.remarques : ["refus"]).toEqual([]);
+    }
+  });
+
+  it("voix très courte : le schéma qui ne tient pas est signalé par une remarque, sans refus", () => {
+    const r = trameGFlux(20_000);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.remarques.join()).toMatch(/schéma ne tient pas/);
+  });
+
+  it("les bornes 40 et 55 s égalent DUREE_CIBLE_SEC × 1000 (seule source, T-EXT-18)", () => {
+    expect([VOIX_MIN_MS, VOIX_MAX_MS]).toEqual([DUREE_CIBLE_SEC[0] * 1000, DUREE_CIBLE_SEC[1] * 1000]);
   });
 });
