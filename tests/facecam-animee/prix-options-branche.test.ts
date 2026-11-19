@@ -41,6 +41,8 @@ describe("BR-PRIX-FA-b : prix et options payantes", () => {
   it("(b) réglages absents, éteints ou en échec : estimation identique", async () => {
     regler({});
     const base = await estimerFacecamAnimee(PRISES);
+    // Valeur FIGÉE de master (mesurée sur origin/master 2d29c8a0, mêmes simulations) : protège le chemin éteint contre toute dérive.
+    expect(base).toMatchObject({ unEssaiCentimesEur: 727, pireCasCentimesEur: 4241, pireCasLotCentimesEur: 4241, plafondCentimesEur: 92000, videos: 1 });
     regler({ [PARAM_CALAGE_AU_MOT_FA]: false, [PARAM_TELEPHONE_VIDEO_FA]: "true" });
     expect(await estimerFacecamAnimee(PRISES)).toEqual(base);
     lire.mockImplementation(async (id: string, defaut: unknown) => { if (id === PARAM_CALAGE_AU_MOT_FA || id === PARAM_TELEPHONE_VIDEO_FA) throw new Error("lecture"); return id === PARAM_PLAFOND_CLAUDE_FA ? 100 : defaut; });
