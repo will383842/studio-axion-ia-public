@@ -16,7 +16,6 @@ process.env.STUDIO_ADRESSE = "https://studio.essai.example/";
 const { creerJetonMediaBuffer, verifierJetonMediaBuffer, DUREE_JETON_MEDIA_BUFFER_SEC } = await import("@/lib/jeton-media-buffer");
 const { GET, HEAD } = await import("@/app/api/media-buffer/[jeton]/[nom]/route");
 const { servirRelaisBuffer, reinitialiserLimitePourEssai, LIMITE_REQUETES_PAR_MINUTE, LIMITE_GET_ENTIERS_PAR_MINUTE, LIMITE_FLUX_SIMULTANES } = await import("@/services/relais-buffer");
-const { urlVideoPourBuffer } = await import("@/services/publications");
 const { depots } = await import("@/services/_commun");
 
 const OCTETS = new TextEncoder().encode("0123456789abcdefghij"); // 20 octets
@@ -288,21 +287,5 @@ describe("relais : durcissements", () => {
     for (const j of journaux) expect(j).not.toMatch(/postgres|motdepasse/);
     espion.mockRestore();
     expect((await GET(requete("GET"), ctx(jeton))).status).toBe(200);
-  });
-});
-
-describe("urlVideoPourBuffer", () => {
-  it("rend l'adresse du relais : https, finit par /video.mp4, aucune signature R2, jeton valable pour ce fichier", async () => {
-    const url = await urlVideoPourBuffer("f-reel");
-    expect(url).toMatch(/^https:\/\/studio\.essai\.example\/api\/media-buffer\/[A-Za-z0-9_.-]+\/video\.mp4$/);
-    expect(url).not.toMatch(/X-Amz|r2\.cloudflarestorage|seau-essai/i);
-    const jeton = url.split("/").at(-2)!;
-    expect(verifierJetonMediaBuffer(jeton)).toBe("f-reel");
-    expect(url).not.toContain(process.env.SESSION_SECRET!);
-  });
-  it("garde : vidéo d'essai refusée, fichier absent hors ligne", async () => {
-    await expect(urlVideoPourBuffer("f-demo")).rejects.toThrow(/essai|démonstration/i);
-    await expect(urlVideoPourBuffer(undefined)).rejects.toMatchObject({ code: "FICHIER_HORS_LIGNE" });
-    await expect(urlVideoPourBuffer("f-inconnu")).rejects.toMatchObject({ code: "FICHIER_HORS_LIGNE" });
   });
 });

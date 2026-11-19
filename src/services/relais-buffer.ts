@@ -3,13 +3,11 @@
  * et l'ancienne adresse /api/media-buffer/<jeton>/video.mp4 restent intacts, avec les mêmes noms de fonctions.
  * L'ancienne adresse ne sert que la vidéo : tout autre nom y donne 404.
  *
- * ENCORE VIVANT (fiche L7-31) : l'adresse est encore émise par `urlVideoPourBuffer` (publications.ts) pour l'envoi actuel,
- * Zernio compris, et des jetons déjà donnés au diffuseur valent jusqu'à 30 jours. Ne rien supprimer ici ni dans la route
- * /api/media-buffer, le jeton (src/lib/jeton-media-buffer.ts) ou la liste blanche de src/proxy.ts. Le test
- * tests/l7-31-relais-media-vivant.test.ts garde ces points. La suppression (fiche L7-31b) attend les trois conditions :
- *  (a) `urlVideoPourBuffer` donne /api/medias-publics/... (fiche à part, accord de la session Zernio et essai réel) ;
- *  (b) 30 jours depuis le dernier jeton /api/media-buffer émis ;
- *  (c) la reprise des posts BF-01 est tranchée.
+ * Le relais ne sert plus que les envois déjà programmés avant le retrait de l'ancien outil : `urlVideoPourBuffer`
+ * (publications.ts) n'émet plus cette adresse, la vidéo part par une adresse de stockage signée courte (tests/l7-31-video-adresse-signee.test.ts).
+ * Des jetons déjà donnés au diffuseur valent jusqu'à 30 jours : ne rien supprimer ici ni dans la route /api/media-buffer,
+ * le jeton (src/lib/jeton-media-buffer.ts) ou la liste blanche de src/proxy.ts avant (a) 30 jours après le dernier jeton émis
+ * et (b) la décision sur la reprise des posts BF-01 (fiche L7-31b).
  */
 import "server-only";
 import { NOM_VIDEO_RELAIS, servirRelaisMedias } from "./relais-medias";
