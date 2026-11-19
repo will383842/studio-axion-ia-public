@@ -8,7 +8,12 @@ import { ErreurClaude, type RequeteClaude } from "@/fournisseurs/claude/client";
 import { creerMoteurTutorielOutil, validerScriptTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import type { OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import type { Travail } from "@/domaine/types";
-import { appelClaudeTutoriel, claudeTutorielActif, entreeDepuisRequete, plafondTutorielParDefautUsd } from "@/services/tutoriel-claude";
+import { appelClaudeTutoriel, claudeTutorielActif, entreeDepuisRequete, ETAPE_REGARD_TUTORIEL, IMAGES_REGARD_TUTORIEL, PARAM_REGARD_TUTORIEL, plafondPropreTutoriel, plafondTutorielParDefautUsd, regardTutorielActif, roleDepuisRequete } from "@/services/tutoriel-claude";
+import { coutPireRegardUsd, IMAGES_REGARD_MAX } from "@/briques/regardeur";
+import { construireRequetePlan, MAX_JETONS_PLAN_SCENES } from "@/briques/plan-scenes/generateur";
+import type { MotMinute } from "@/briques/plan-scenes/schema";
+import { formatDuRatio } from "@/moteurs/montage-tutoriel-outil/proprietes";
+import { pireCasRequete } from "@/generateur/roles/types";
 import { requeteScript } from "@/moteurs/montage-tutoriel-outil/script";
 import { commandeTutoriel, outilsDoubles, SCRIPT, une, type Journal } from "./doubles";
 
@@ -216,5 +221,52 @@ describe("T-EXT-30 : garde de texte du service", () => {
     expect(decimaux).toEqual([]);
     const bloc = texte.slice(texte.indexOf("export function plafondTutorielParDefautUsd"), texte.indexOf("/** Phrases rendues"));
     expect(bloc).not.toMatch(/\bawait\b|\basync\b|genererPlan\(/);
+  });
+});
+
+describe("T-EXT-27b : réglage du regard, plafond propre et plafond par défaut", () => {
+  const lecteur = (valeurs: Record<string, unknown>) => (async (id: string, defaut: unknown) => (id in valeurs ? valeurs[id] : defaut)) as <T>(id: string, defaut: T) => Promise<T>;
+
+  it("clé absente, \"true\", 1, lecture en échec : éteint", async () => {
+    expect(await regardTutorielActif(lecteur({ "tutoriel.claude": true }))).toBe(false);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: "true", "tutoriel.claude": true }))).toBe(false);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: 1, "tutoriel.claude": true }))).toBe(false);
+    expect(await regardTutorielActif((async () => { throw new Error("lecture en échec"); }) as never)).toBe(false);
+  });
+
+  it("le regard seul ne suffit pas : `tutoriel.claude` doit aussi être exactement `true`", async () => {
+    expect(PARAM_REGARD_TUTORIEL).toBe("tutoriel.regardeur");
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true }))).toBe(false);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true, "tutoriel.claude": "true" }))).toBe(false);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true, "tutoriel.claude": true }))).toBe(true);
+  });
+
+  it("étape du regard bâtie sur le préfixe du tutoriel, 12 images au plus, jamais plus que le plafond commun", () => {
+    expect(ETAPE_REGARD_TUTORIEL).toBe("Tutoriel · Regardeur");
+    expect(ETAPE_REGARD_TUTORIEL.startsWith("Tutoriel ·")).toBe(true);
+    expect(IMAGES_REGARD_TUTORIEL).toBe(12);
+    expect(IMAGES_REGARD_TUTORIEL).toBeLessThanOrEqual(IMAGES_REGARD_MAX);
+  });
+
+  it("`plafondPropreTutoriel()` est l'objet exact passé par `appelClaudeTutoriel`", async () => {
+    const recu: unknown[][] = [];
+    const executer = (async (...a: unknown[]) => (recu.push(a), { ok: true, simule: false, texte: "{}", coutUsd: 0, modele: "m", stopReason: "end_turn" })) as never;
+    await appelClaudeTutoriel("v", "usine", { executer })(REQ_PLAN);
+    const options = recu[0][3] as { plafondPropre: unknown };
+    expect(options.plafondPropre).toEqual(plafondPropreTutoriel());
+    expect(plafondPropreTutoriel({ plafondUsd: () => 2 })).toEqual({ id: "tuto", parametre: "tutoriel.plafondClaudeUsd", defautUsd: 2, prefixeEtape: "Tutoriel ·" });
+  });
+
+  it("plafond par défaut = ancien total + regard au pire (mêmes fonctions), arrondi au 0,05 $ supérieur", () => {
+    const nbMots = 143;
+    const mots: MotMinute[] = Array.from({ length: nbMots }, (_, i) => ({ texte: "exemple", debutMs: Math.round((i * 55_000) / nbMots), finMs: Math.round(((i + 1) * 55_000) / nbMots) }));
+    const e = { script: mots.map((m) => m.texte).join(" "), mots, format: formatDuRatio("4:5"), facecam: false };
+    const pire = (r: ReturnType<typeof construireRequetePlan>, id: "tutoriel-plan" | "tutoriel-script") => pireCasRequete(roleDepuisRequete(r, id), entreeDepuisRequete(r));
+    const reponseMax = "x".repeat(MAX_JETONS_PLAN_SCENES * 3);
+    const ancien = pire(construireRequetePlan(e), "tutoriel-plan") + pire(construireRequetePlan(e, [{ reponse: reponseMax, motif: "ce n'est pas du JSON lisible" }]), "tutoriel-plan") + pire(requeteScript("Une idée de tutoriel pour un tableau de bord de suivi des commandes."), "tutoriel-script");
+    const arrondi = (x: number) => Math.round(Math.ceil(Math.round(x * 1e6) / 1e6 / 0.05) * 5) / 100;
+    expect(plafondTutorielParDefautUsd()).toBe(arrondi(ancien + coutPireRegardUsd(IMAGES_REGARD_TUTORIEL)));
+    expect(plafondTutorielParDefautUsd()).toBeGreaterThanOrEqual(arrondi(ancien));
+    console.info(`T-EXT-27b plafond par défaut : avant ${arrondi(ancien)} USD, après ${plafondTutorielParDefautUsd()} USD ; regard au pire (12 images) ${coutPireRegardUsd(IMAGES_REGARD_TUTORIEL)} USD`);
   });
 });
