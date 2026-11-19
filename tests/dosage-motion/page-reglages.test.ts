@@ -38,8 +38,9 @@ describe("Réglages : carte « Animations par défaut »", () => {
     expect(resume).not.toMatch(INTERDIT);
   });
 
-  it("éteint : absent, false ou \"true\" → dosage inactif, donc carte absente", async () => {
-    expect(await dosageActif(async (_id, d) => d)).toBe(false);
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec false écrit en base.
+  it("éteint : false ou \"true\" → dosage inactif, donc carte absente ; absent → carte présente", async () => {
+    expect(await dosageActif(async (_id, d) => d)).toBe(true);
     expect(await dosageActif(async () => false)).toBe(false);
     expect(await dosageActif(async () => "true")).toBe(false);
     expect(await dosageActif(async () => true)).toBe(true);

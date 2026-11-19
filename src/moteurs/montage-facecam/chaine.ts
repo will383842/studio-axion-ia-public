@@ -192,6 +192,8 @@ export interface EtatHabillage {
   sortie?: { fichierCle: string; masterCle?: string; vignetteCle: string; alertes: AlerteQualite[]; mesures?: Record<string, number> };
   /** Habillage abandonné (panne définitive) : la piste montée est livrée sans lui. */
   abandonne?: boolean;
+  /** S-04c : couleurs anormales déjà constatées une fois, habillage refait et remesuré ; un 2e constat est le refus définitif. */
+  remesureCouleurs?: boolean;
   /**
    * 10/10 : cartes automatiques (vue de chacune, fiche « Cartes et effets ») et gestes de Will résolus en temps du
    * montage, avec les retraits du chat (formats ajoutés après coup).
@@ -811,6 +813,13 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     }
     // 10/10 : couleurs de l'export aberrantes face à la prise étalonnée → jamais livrée (la version d'avant reste en ligne).
     if (couleursBloquent(etat.habillage?.sortie?.mesures)) {
+      if (!etat.habillage!.remesureCouleurs) {
+        // S-04c : 1er constat : l'habillage est refait et remesuré UNE fois (rendu local, 0 €) ; cartes reprises, prise et son intacts.
+        etat.habillage = { ...etat.habillage!, remesureCouleurs: true };
+        delete etat.habillage.sortie;
+        delete etat.habillage.composition;
+        return etat;
+      }
       etat.echec = { brique: "export", message: MESSAGE_COULEURS, reessayable: false };
       return etat;
     }
@@ -1083,7 +1092,7 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
     if (hab.effets?.length && (await avancerEffetsChaine(hab, outils, sauter))) return;
     if (hab.cartes.some((x) => x.statut === "soumise")) return;
     // Composition finale (une seule, 9:16) : mêmes reprises que l'avocat (séries d'essais, échec définitif).
-    hab.composition = await avancerCompositions(hab.composition ?? {}, commandeAvecVerre(c, hab.base), ["9:16"], hab.base, "complet", `${ctx.travailId}-facecam`, outils);
+    hab.composition = await avancerCompositions(hab.composition ?? {}, commandeAvecVerre(c, hab.base), ["9:16"], hab.base, "complet", `${ctx.travailId}-facecam${hab.remesureCouleurs ? "-remesure" : ""}`, outils);
     const faite = hab.composition["9:16"];
     if (faite?.phase === "faite") hab.sortie = { fichierCle: faite.sortieCle, ...(faite.masterCle ? { masterCle: faite.masterCle } : {}), vignetteCle: faite.vignetteCle, alertes: faite.alertes, ...(faite.mesures ? { mesures: faite.mesures } : {}) };
   }

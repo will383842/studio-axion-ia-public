@@ -65,12 +65,18 @@ export function brancherServicesFacecamAnimee(s: { outils?: FabriqueOutilsFaceca
   servicesBranches = s;
 }
 
+/** G12-09b-a : retouche gratuite v4 (re-rendu du projet gardé). Dernière valeur connue, écrite par le service (G12-09b-b) ; seul `true` exact allume. */
+export const CLE_RETOUCHE_GRATUITE_FA = Symbol.for("studio-axion-ia.facecam-animee-retouche-gratuite");
+const retoucheGratuiteConnue = (): boolean => (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_GRATUITE_FA] === true;
+
 export const PHRASE_FORMAT_MASQUE_FA = "Le format « Face caméra animée » est en essai : un essai réel demande l'accord de Will.";
 const NON_RELIE_FA = "« Face caméra animée » n'est pas relié (stockage, transcription ou serveur de rendu). Vérifiez Réglages > Connexions, puis réessayez.";
 
 export interface DependancesMoteurFacecamAnimee {
   /** Outils réels de la chaîne v4 (tests : doubles) ; absent : ceux branchés par le service. */
   outils?: FabriqueOutilsFacecamV4;
+  /** G12-09b-a (tests) : retouche gratuite v4 allumée ; absent : la dernière valeur connue. */
+  retoucheGratuite?: () => boolean;
   /** Statut du format (tests) ; absent : celui de la fiche. */
   statutFormat?: "actif" | "bientot" | "masque";
   /** Relecture Claude des images de contrôle (lot H). Jamais appelée quand le plafond du mois est atteint. */
@@ -319,6 +325,7 @@ export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
 export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFacecamAnimee = {}): MoteurVideo {
   const fabrique = (): FabriqueOutilsFacecamV4 | undefined => dependances.outils ?? servicesBranches.outils;
   const statut = () => dependances.statutFormat ?? formatFacecamAnimee.statut;
+  const gratuite = () => (dependances.retoucheGratuite ?? retoucheGratuiteConnue)() === true;
   return {
     id: ID_MOTEUR_FACECAM_ANIMEE,
     nom: "Montage face caméra animée",
@@ -326,7 +333,9 @@ export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFa
       dureeMaxSec: 300,
       ratios: ["9:16"],
       langues: ["fr-FR"],
-      retoucheParPlan: false,
+      get retoucheParPlan() {
+        return gratuite();
+      },
       asynchrone: true,
       accordExige: false,
       maquette: false,
@@ -351,7 +360,8 @@ export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFa
       if ((statut() === "masque" || formatFacecamAnimee.reserveAWill) && !e.accordEssaiReel) return { code: "FACECAM_ANIMEE_FORMAT_MASQUE", message: PHRASE_FORMAT_MASQUE_FA };
       return null;
     },
-    refusRetouche: (commande) => (avecPrise(commande) ? { code: "RETOUCHE_NON_PRISE_EN_CHARGE", message: "La retouche d'une vidéo face caméra animée viendra plus tard : déposez la prise à nouveau pour une nouvelle mise en scène." } : null),
+    // G12-09b-a : allumée, la retouche gratuite est acceptée AVEC prise (refusée sans) ; éteinte : expression d'avant.
+    refusRetouche: (commande) => ((gratuite() ? !avecPrise(commande) : avecPrise(commande)) ? { code: "RETOUCHE_NON_PRISE_EN_CHARGE", message: "La retouche d'une vidéo face caméra animée viendra plus tard : déposez la prise à nouveau pour une nouvelle mise en scène." } : null),
 
     async lancer(commande, contexte) {
       const e = lireEntreesFacecamAnimee(commande.entrees);
@@ -472,12 +482,31 @@ export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFa
     },
 
     // Retouche par la conversation (lot G) : seule la mise en scène touchée est refaite, puis la vidéo finale.
-    async retoucher({ commande, contexte, planIds }) {
+    // G12-09b-a : allumée et avec prise, la version GARDÉE est re-rendue (pas « rendu » seul : 0 €, sans Opus, sans vidéos, sans IA).
+    async retoucher({ commande, contexte, planIds, operations, parent }) {
       const defs: DefinitionEtapeMoteur[] = [
         { cle: "mise-en-scene", nom: "La mise en scène", icone: "baguette", dependDe: [], dureeEstimeeSec: 3 },
         { cle: "montage", nom: "Le montage", icone: "film", dependDe: ["mise-en-scene"], dureeEstimeeSec: 3 },
         { cle: "export", nom: "La vidéo finale", icone: "telecharger", dependDe: ["montage"], dureeEstimeeSec: 2 },
       ];
+      const entrees = lireEntreesFacecamAnimee(commande.entrees);
+      if (gratuite() && entrees.priseCle) {
+        const ctx = { ...contexte, type: "retouche" as const };
+        // Échec motivé, jamais réessayable : la 1re étape porte l'erreur, les suivantes restent bloquées (aucune sortie de démonstration).
+        const echec = (code: string, messagePourWill: string): Travail => {
+          const erreur = { code, reessayable: false, messagePourWill };
+          const t = nouveauTravail(defs, ctx, commande);
+          return { ...t, statut: "echec", erreur, etapes: t.etapes.map((x, i) => (i === 0 ? { ...x, statut: "echec" as const, erreur } : x)), parametres: { ...t.parametres, planIds } };
+        };
+        if (operations?.length) return echec("RETOUCHE_NON_PRISE_EN_CHARGE", "Les changements de la mise en scène par la conversation viendront plus tard : seule la version gardée peut être refaite.");
+        // Imports dynamiques : `chaine-v4.ts` importe `./index` (cycle sinon), comme dans `lancer`.
+        const { lireProjetGardeV4, refusRetoucheGratuiteV4, CODE_RETOUCHE_GRATUITE_IMPOSSIBLE } = await import("./retouche-gratuite");
+        const { etatRepriseAuRenduV4 } = await import("./reprise-rendu-v4");
+        const projet = lireProjetGardeV4(parent?.projetMontage);
+        const etat = projet && etatRepriseAuRenduV4(projet, { videoId: commande.videoId, versionId: contexte.versionId, priseCle: projet.priseCle, titre: contexte.titre, ...(entrees.texteValide ? { texteValide: entrees.texteValide } : {}) });
+        if (!etat) return echec(CODE_RETOUCHE_GRATUITE_IMPOSSIBLE, refusRetoucheGratuiteV4(parent?.projetMontage)?.message ?? "Les coupes de cette version n'ont pas été retrouvées à l'identique : déposez la prise à nouveau pour une nouvelle mise en scène.");
+        return travailV4(etapesV4(commande), ctx, commande, etat);
+      }
       return { ...nouveauTravail(defs, { ...contexte, type: "retouche" }, commande), parametres: { planIds, version: versionSelonPlafond(commande), charte: CHARTE_FACECAM_ANIMEE } };
     },
 

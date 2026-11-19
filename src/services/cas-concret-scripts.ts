@@ -179,7 +179,7 @@ async function finsDeLApercu(videoId: Id, casId: string): Promise<ApercuScriptCa
     const entrees = lireEntreesCasConcret(derniere.commande.entrees);
     const cas = (await casDeLaVideo(videoId, casId)) ?? casDesEntrees(entrees);
     if (!cas || !entrees.reseaux.length) return [];
-    const plan = regrouperFins(planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC }));
+    const plan = regrouperFins(planDesFins({ reseaux: entrees.reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...((entrees.motDit ?? cas.motDit) ? { motDit: (entrees.motDit ?? cas.motDit)! } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: TABLE_FINS_DIAGNOSTIC, ...(entrees.finDemandee ? { finDemandee: entrees.finDemandee } : {}) }));
     return plan.fins.map((f) =>
       f.appels.length
         // 18/11 (relecteur A) : les écrits de la fin = les lignes `ecran` de la table posées (ce que `contenuEcran` découpe en invite / mot / suite).

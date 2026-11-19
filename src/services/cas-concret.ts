@@ -197,6 +197,8 @@ export interface ChoixAvantPrix {
   porteB?: Id;
   /** LOT F · « Nouveau script (autre structure) » : le prix compte l'écriture d'un script neuf (cas à script validé). */
   nouveauScript?: boolean;
+  /** FIX-CC-FIN-CHOIX : « La phrase de fin » choisie dans la feuille ; absente : aucune fin. */
+  finDemandee?: "rendez-vous";
   /** Lot L3 : le choix de Will devant un cas déjà traité (confirmation : choix + jeton reçus du refus). */
   sujet?: Confirmation;
 }
@@ -264,6 +266,7 @@ async function controleAvantPrix(casId: string, choix: ChoixAvantPrix, maintenan
     mot,
     avecMot: choix.avecMot,
     motSur,
+    ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}),
     essai: choix.essai === true,
     // Porte B : jamais au catalogue, jamais « validé » ; la garde d'honnêteté et les faits à confirmer en tiennent lieu.
     ...(porteB ? { description: porteB.description, faitsConfirmes: porteB.faitsConfirmes } : { valide: cas ? estValide(cas, empreinteCas(cas), validations, maintenant) : false }),
@@ -305,7 +308,7 @@ export async function estimerCas(casId: string, reseaux: readonly string[], avec
   if (!c.cas) throw new ErreurStudio("CAS_INCONNU", "Ce cas n'existe plus.");
   // 14/10 : contrôle de ressemblance de la voix : le prix affiché couvre toutes les lectures possibles.
   const forcer = choix.sujet?.choix === "nouvel-angle" || choix.nouveauScript === true;
-  const e = estimerDepuisCas(c.cas, c.reseaux, avecMot, { voix: c.voix ? { fournisseur: c.voix.fournisseur } : {}, motSur: c.motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(forcer ? { nouveauScript: true } : {}) });
+  const e = estimerDepuisCas(c.cas, c.reseaux, avecMot, { voix: c.voix ? { fournisseur: c.voix.fournisseur } : {}, motSur: c.motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(forcer ? { nouveauScript: true } : {}), ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}) });
   // Lot L3 : annonce du sujet déjà traité pour la fiche de prix (rien n'est créé, rien n'est payé).
   const sujet = c.refus ? null : await controleSujetCas(c.cas, c, choix.sujet);
   return {
@@ -343,6 +346,8 @@ export interface DemandeCasConcret {
    * Sans script validé pour ce cas : ignoré (rien ne change).
    */
   nouveauScript?: boolean;
+  /** FIX-CC-FIN-CHOIX : « La phrase de fin » choisie ; absente : aucune fin. Figée dans les entrées au lancement. */
+  finDemandee?: "rendez-vous";
   /**
    * Lot L3 · cas déjà traité : « Refaire quand même » ou « Nouvel angle » + le jeton reçu avec le refus. « Nouvel angle »
    * force `nouveauScript` pour CETTE vidéo. Jamais lu pour une reprise du script validé de la vidéo, une retouche ou un
@@ -434,7 +439,7 @@ export async function preparerEtLancer(demande: DemandeCasConcret, dependances: 
 async function preparerSousVerrou(demande: DemandeCasConcret, dependances: DependancesCasConcret): Promise<IssueCasConcret> {
   // X7 : le même contrôle que la feuille, avant de créer quoi que ce soit.
   const essai = demande.essai === true;
-  const c = await controleAvantPrix(demande.casId, { reseaux: demande.reseaux, mot: demande.mot, avecMot: demande.avecMot, essai, ...(demande.empreinteVue ? { empreinteVue: demande.empreinteVue } : {}), ...(demande.porteB ? { porteB: demande.porteB } : {}) }, dependances.maintenant ?? Date.now());
+  const c = await controleAvantPrix(demande.casId, { reseaux: demande.reseaux, mot: demande.mot, avecMot: demande.avecMot, essai, ...(demande.finDemandee ? { finDemandee: demande.finDemandee } : {}), ...(demande.empreinteVue ? { empreinteVue: demande.empreinteVue } : {}), ...(demande.porteB ? { porteB: demande.porteB } : {}) }, dependances.maintenant ?? Date.now());
   if (c.refus) return refus(c.refus);
   const { cas, reseaux, mot, motSur, voix, reprise } = c;
   if (!cas || !voix) return refus("Ce cas n'existe plus.");
@@ -453,12 +458,13 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
   }
   const empreinte = empreinteCas(cas);
 
-  const estimation = estimerDepuisCas(cas, reseaux, demande.avecMot, { voix: { fournisseur: voix.fournisseur }, motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(ecarte ? { nouveauScript: true } : {}) });
+  const estimation = estimerDepuisCas(cas, reseaux, demande.avecMot, { voix: { fournisseur: voix.fournisseur }, motSur, lecturesVoixMax: await lecturesVoixMaxDuReglage(), ...(await socleEstime()), ...(ecarte ? { nouveauScript: true } : {}), ...(demande.finDemandee ? { finDemandee: demande.finDemandee } : {}) });
 
   const motDit = motNormalise(mot) === motNormalise(cas.mot) ? cas.motDit : undefined;
   const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
   // C8-Z04 : le réglage est lu ICI, une seule fois, puis figé dans les entrées (un moteur ne lit jamais les réglages).
-  const cameraPlus = lireCameraPlus(await lireParametre<unknown>("casConcret.cameraPlus", null));
+  // ALLUME-VAGUE-A-CODE-a (18/11/2026) : défaut 1,048 (= `CAMERA_PLUS_MAX`) ; écrire 1.035 en base éteint.
+  const cameraPlus = lireCameraPlus(await lireParametre<unknown>("casConcret.cameraPlus", 1.048));
   const habillageTransitions = await habillageActif("transitionsPlanScenes", lireParametre);
   const entreesBase = {
     casId: cas.id,
@@ -470,6 +476,7 @@ async function preparerSousVerrou(demande: DemandeCasConcret, dependances: Depen
     ...(demande.avecMot && motDit ? { motDit } : !demande.avecMot && cas.motDit ? { motDit: cas.motDit } : {}),
     avecMot: demande.avecMot,
     motSur,
+    ...(demande.finDemandee === "rendez-vous" ? { finDemandee: "rendez-vous" as const } : {}),
     reseaux,
     essai,
     ...(demande.empreinteScriptRelu && !ecarte ? { scriptRelu: demande.empreinteScriptRelu } : {}),

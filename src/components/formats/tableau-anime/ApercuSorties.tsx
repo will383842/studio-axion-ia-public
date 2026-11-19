@@ -98,11 +98,13 @@ export function ApercuSorties({ apercu }: { apercu: readonly ApercuSortie[] }) {
       )}
       <div className="space-y-2 rounded-2xl border border-trait bg-surface-1 px-4 py-3">
         <p className="text-[15px] font-semibold text-texte">{premiere.libelle}</p>
+        {premiere.avisFin ? <p className="text-sm text-texte-doux">{premiere.avisFin}</p> : null}
         <Entier a={premiere} />
       </div>
       {autres.map((a) => (
         <div key={a.sortie} className="space-y-2 rounded-2xl border border-trait bg-surface-1 px-4 py-3">
           <p className="text-[15px] font-semibold text-texte">{a.libelle}</p>
+          {a.avisFin ? <p className="text-sm text-texte-doux">{a.avisFin}</p> : null}
           <Difference a={a} premiere={premiere} />
         </div>
       ))}
