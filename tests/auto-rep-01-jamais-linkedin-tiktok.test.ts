@@ -7,6 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { textesDepuisSaisie, validerTextes } from "@/services/mots-textes";
+import { construireGrapheMot, RESEAUX_AUTOMATIQUES } from "@/services/mots-graphe";
 import { CAPACITES, RESEAUX, construireGrapheReseau, grapheConformeAuReseau } from "@/services/mots-capacites";
 import { deposerCommentaire, evenement } from "./zernio/aides/conversation";
 import { banc, C, Com, COMPTE, depots, envoisSortants, nettoyer, passer, preparer, T0 } from "./zernio/filet-guide/_amorce";
@@ -22,7 +23,7 @@ const AUTORISES = ["facebook", "instagram"] as const;
 /** Textes complets et validés par le vrai validateur (sinon le refus pourrait venir des textes et non du réseau). Fictifs. */
 const TEXTES = validerTextes(textesDepuisSaisie({ mot: "GUIDE", reponsePublique: "Bonjour ! le guide est sur la page indiquée.", messagePrive: "Bonjour ! Quelle adresse pour le guide ?", relance: null, fin: "Bonjour ! Merci, c'est noté." }));
 
-/** TOUS les réglages allumés : interrupteur général (déjà dans ENV), mots multiples, Instagram public, Instagram « suivre », mot actif, textes validés. */
+/** TOUS les réglages allumés : interrupteur général (déjà dans ENV), « Tout arrêter » à sa valeur par défaut (envois autorisés), mots multiples, Instagram public, Instagram « suivre », mot actif, textes validés. */
 async function toutAllumer(multi: boolean): Promise<void> {
   await Com.ecrireParametre(PARAM_MOTS_MULTIPLES, multi);
   await Com.ecrireParametre(PARAM_INSTAGRAM_PUBLIC, true);
@@ -50,6 +51,18 @@ describe("AUTO-REP-01 · la matrice des capacités", () => {
       // Un workflow quelconque n'est jamais déclaré conforme pour ces réseaux.
       expect(grapheConformeAuReseau({ nom: "x", etapes: [{ id: "e1", type: "repondre_commentaire", texte: "Merci", suite: null }] } as never, r)).toBe(false);
     }
+  });
+  it("le workflow réellement posé chez Zernio (construireGrapheMot, utilisé par la pose des mots) ne se déclenche que sur Facebook et Instagram", () => {
+    expect([...RESEAUX_AUTOMATIQUES].sort()).toEqual(["facebook", "instagram"]);
+    const g = construireGrapheMot(TEXTES);
+    expect(g.ok).toBe(true);
+    if (!g.ok) return;
+    const decl = g.workflow.declencheur;
+    expect(decl.type).toBe("commentaire_mot_seul");
+    const reseaux = decl.type === "commentaire_mot_seul" ? [...decl.reseaux] : [];
+    expect(reseaux.length).toBeGreaterThan(0);
+    for (const r of reseaux) expect(["facebook", "instagram"]).toContain(r);
+    expect(JSON.stringify(g.workflow)).not.toMatch(/linkedin|tiktok/i);
   });
   it("témoin : les mêmes textes valides donnent un workflow pour Facebook et Instagram (le refus ci-dessus vient bien de la règle réseau)", () => {
     for (const r of AUTORISES) {
@@ -90,7 +103,7 @@ describe.each([
     expect((await evenement(depots, id)).charge.dernierCode).toBe("garde_reseau");
   });
 
-  it("même un commentaire sur LinkedIn/TikTok dont l'auteur a déjà une conversation ouverte ne reçoit rien", async () => {
+  it("auteur déjà servi sur Facebook : ses commentaires LinkedIn/TikTok sont refusés par la garde réseau (code « garde_reseau ») et rien de plus ne part", async () => {
     // Un parcours Facebook existe pour cet auteur ; un commentaire LinkedIn du même auteur ne doit rien déclencher.
     const auteur = "auteur-fictif-croise";
     await deposerCommentaire(depots, { reseau: "facebook", idAuteur: auteur });
@@ -102,6 +115,13 @@ describe.each([
     await passer(T0 + 60_000);
     expect(envoisSortants()).toBe(apresFacebook); // rien de plus
     for (const id of ids) expect((await evenement(depots, id)).charge.dernierCode).toBe("garde_reseau");
+  });
+
+  it.each(["youtube", "threads", ""])("réseau inconnu « %s » : fermé aussi (liste blanche), aucun envoi", async (reseau) => {
+    const id = await deposerCommentaire(depots, { reseau });
+    await passer(T0);
+    expect(envoisSortants()).toBe(0);
+    expect((await evenement(depots, id)).charge.dernierCode).toBe("garde_reseau");
   });
 
   it.each(AUTORISES)("témoin « %s » (avec « suivre le compte » éteint, qui exige une formulation validée en plus) : la réponse publique automatique part bien", async (reseau) => {
@@ -120,10 +140,10 @@ describe("AUTO-REP-01 · défense d'entrée : le crochet Zernio", () => {
     const { crochetCommentaire } = await import("./zernio/filet-guide/_amorce");
     for (const reseau of ["linkedin", "tiktok"] as const) {
       const r = await crochetCommentaire("GUIDE", { reseau: reseau as never, idAuteur: `auteur-fictif-${reseau}` });
-      expect(r.deposes).toHaveLength(0);
+      expect(r.deposes).toHaveLength(0); // seule assertion discriminante de ce bloc : la barrière d'entrée refuse le dépôt
     }
     await passer(T0);
-    expect(envoisSortants()).toBe(0);
+    expect(envoisSortants()).toBe(0); // conséquence directe (rien n'est déposé)
   });
   it("témoin : le même crochet dépose le commentaire Facebook, et la réponse part", async () => {
     await toutAllumer(true);
