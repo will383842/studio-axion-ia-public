@@ -205,7 +205,10 @@ describe("rôle Opus", () => {
     } catch {
       sortie = ""; // code 1 = aucune ligne trouvée
     }
-    const appelants = sortie.split("\n").filter((l) => l && !l.startsWith("src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet.ts:"));
+    // Appelants permis : le chef de projet lui-même, et diffusion-tutoriel.ts (T-EXT-43, qui lit DUREE_CIBLE_SEC, seule source de la durée).
+    // AUTORISATION PERMANENTE (a) : ajout d'un appelant permis, rien de retiré.
+    const PERMIS = ["src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet.ts:", "src/moteurs/montage-tutoriel-outil/diffusion-tutoriel.ts:"];
+    const appelants = sortie.split("\n").filter((l) => l && !PERMIS.some((p) => l.startsWith(p)));
     expect(appelants).toEqual([]);
   });
 });
