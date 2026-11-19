@@ -17,6 +17,7 @@ type Module = {
   planExempleV4: () => Entree;
   fenetresPlancheV4: (e: Entree) => Fenetre[];
   casesPlancheV4: (f: Fenetre[], plan?: Entree["plan"]) => Case[];
+  maxParMinuteV4: (f: Fenetre[]) => number;
   rapportPlancheV4: (f: Fenetre[], plan: Entree["plan"]) => string[];
   argumentsFfmpegPlancheV4: (e: { t: number; fenetres: Fenetre[]; avec: boolean; largeur: number; hauteur: number; prise?: string; sortie: string }) => string[];
 };
@@ -34,7 +35,9 @@ describe("a) fenêtres de l'exemple", () => {
       expect(f.finSec).toBeLessThanOrEqual(ex.dureeSec - 1);
       expect(f.facteur).toBeLessThanOrEqual(1.06);
     }
-    expect((fen.length / ex.dureeSec) * 60 <= 4 || fen.length <= 4).toBe(true);
+    const pic = Math.max(...fen.map((m) => fen.filter((g) => g.debutSec <= m.debutSec && g.debutSec > m.debutSec - 60).length));
+    expect(pic).toBeLessThanOrEqual(4);
+    expect(mod.maxParMinuteV4(fen)).toBe(pic);
   });
   it("l'exemple : 40 s, 1080 × 1920, 9 gardes, 2 plaquettes", () => {
     expect([ex.dureeSec, ex.largeur, ex.hauteur, ex.gardes.length, ex.plan.elementsV4?.length]).toEqual([40, 1080, 1920, 9, 2]);
@@ -115,5 +118,23 @@ describe("f) déterminisme", () => {
     expect(mod.casesPlancheV4(fen, ex.plan)).toEqual(mod.casesPlancheV4(fen, ex.plan));
     expect(mod.rapportPlancheV4(fen, ex.plan)).toEqual(mod.rapportPlancheV4(fen, ex.plan));
     expect(Object.isFrozen(mod.planExempleV4())).toBe(true);
+  });
+});
+
+describe("g) rapport : jamais un dépassement présenté comme normal", () => {
+  it("l'exemple (3 zooms en 40 s) : compte glissant ≤ 4, pas de « 4,5 par minute », pas d'alerte", () => {
+    const l = mod.rapportPlancheV4(fen, ex.plan).at(-1)!;
+    expect(l).toContain(`au plus ${mod.maxParMinuteV4(fen)} dans une même minute (maximum 4)`);
+    expect(l).not.toMatch(/par minute/);
+    expect(l).not.toContain("ATTENTION");
+  });
+  it("5 zooms dans une minute : la ligne signale clairement le dépassement", () => {
+    const cinq = [0, 1, 2, 3, 4].map((i) => ({ debutSec: 5 + i * 10, finSec: 6 + i * 10, facteur: 1.05 }));
+    expect(mod.maxParMinuteV4(cinq)).toBe(5);
+    expect(mod.rapportPlancheV4(cinq, {}).at(-1)).toContain("ATTENTION : dépassement");
+  });
+  it("zooms espacés de plus d'une minute : le compte glissant ne les additionne pas", () => {
+    const e = [10, 80, 150].map((d) => ({ debutSec: d, finSec: d + 1, facteur: 1.05 }));
+    expect(mod.maxParMinuteV4(e)).toBe(1);
   });
 });

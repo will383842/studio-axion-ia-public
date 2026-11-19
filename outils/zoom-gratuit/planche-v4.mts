@@ -45,13 +45,19 @@ export function casesPlancheV4(fenetres: readonly FenetreV4[], plan: PlanV4 = {}
   return cases.map((c, i) => ({ c, i })).sort((a, b) => a.c.t - b.c.t || a.i - b.i).map((x) => x.c);
 }
 
+/** Plus grand nombre de zooms commencés dans une fenêtre glissante de 60 s (même calcul que `regles.ts` : `debutSec > début − 60`). */
+export function maxParMinuteV4(fenetres: readonly FenetreV4[]): number {
+  return Math.max(0, ...fenetres.map((m) => fenetres.filter((g) => g.debutSec <= m.debutSec && g.debutSec > m.debutSec - 60).length));
+}
+
 export function rapportPlancheV4(fenetres: readonly FenetreV4[], plan: PlanV4, dureeSec = 40): string[] {
   const lignes = fenetres.map((f, i) => {
     const ecarts = (plan.elementsV4 ?? []).map((p) => Math.max(0, p.debut - f.finSec, f.debutSec - p.fin));
     const proche = ecarts.length ? `plaquette la plus proche à ${virgule(Math.min(...ecarts), 1)} s` : "aucune plaquette";
     return `zoom ${i + 1} : ${virgule(f.debutSec)} → ${virgule(f.finSec)} s, ×${String(f.facteur).replace(".", ",")} ; ${proche}`;
   });
-  lignes.push(`${fenetres.length} zoom(s) en ${virgule(dureeSec, 0)} s, soit ${virgule((fenetres.length / dureeSec) * 60, 1)} par minute (maximum 4)`);
+  const pic = maxParMinuteV4(fenetres);
+  lignes.push(`${fenetres.length} zoom(s) en ${virgule(dureeSec, 0)} s ; au plus ${pic} dans une même minute (maximum 4)${pic > 4 ? " — ATTENTION : dépassement, la règle des 4 par minute n'est pas respectée" : ""}`);
   return lignes;
 }
 
