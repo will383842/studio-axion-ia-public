@@ -164,7 +164,8 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       // Seule attente de la lecture : juste avant la création (au plus 500 ms, en pratique déjà terminée).
       const coupe = await coupeP;
       const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe, youtube });
-      // 3. Création, clé d'idempotence neutre.
+      // 3. Création, clé d'idempotence neutre. Sous essai borné : brouillon seul, compte de l'essai seul, refus AVANT l'appel.
+      await (await import("@/services/essai-zernio")).verifierCorpsSousEssai(corps);
       let resultat;
       try {
         resultat = await client.creerPost(corps, enteteIdempotenceStudio(hex));
