@@ -3,6 +3,7 @@
  * Facecam animée) : mots calés sur la voix (secondes) → phrases (segments) → `adapterPlan`. Le résultat est un MÉMO
  * (clé = entrée) que l'appelant garde dans son état : une reprise ne rappelle pas l'IA tant que le texte, le minutage et
  * le format sont les mêmes.
+ * C9-37-a : `objetsPermis` facultatif, personne ne le passe encore (absent ou vide = identique).
  */
 import { fnv1a64, jsonCanonique } from "../plan-scenes/empreinte";
 import type { AppelClaude } from "../plan-scenes/generateur";
@@ -60,13 +61,13 @@ export const enMillisecondes = (mots: MotEnSecondes[]): MotMinute[] =>
     .filter((m) => m.texte.trim() && Number.isFinite(m.debutSec) && Number.isFinite(m.finSec))
     .map((m) => ({ texte: m.texte.trim(), debutMs: Math.round(m.debutSec * 1000), finMs: Math.max(Math.round(m.finSec * 1000), Math.round(m.debutSec * 1000) + 40) }));
 
-export async function planPourVideo(o: { generateur: IdGenerateurPlan; mots: MotEnSecondes[]; dureeSec: number; facecam: boolean; format: FormatPlan; appeler?: AppelClaude; memo?: MemoPlanVideo }): Promise<MemoPlanVideo> {
+export async function planPourVideo(o: { generateur: IdGenerateurPlan; mots: MotEnSecondes[]; dureeSec: number; facecam: boolean; format: FormatPlan; appeler?: AppelClaude; memo?: MemoPlanVideo; objetsPermis?: readonly string[] }): Promise<MemoPlanVideo> {
   const mots = enMillisecondes(o.mots);
   const dureeMs = Math.round(o.dureeSec * 1000);
-  const entree = fnv1a64(jsonCanonique({ g: o.generateur, mots, dureeMs, facecam: o.facecam, format: o.format, ia: !!o.appeler }));
+  const entree = fnv1a64(jsonCanonique({ g: o.generateur, mots, dureeMs, facecam: o.facecam, format: o.format, ia: !!o.appeler, ...(o.objetsPermis?.length ? { objets: [...o.objetsPermis] } : {}) }));
   if (o.memo && o.memo.entree === entree) return o.memo;
   if (!mots.length) return { entree, plan: null, remarques: [] };
   const segments = segmenterEnPhrases(mots);
-  const r = await adapterPlan({ generateur: o.generateur, script: mots.map((m) => m.texte).join(" "), segments, format: o.format, facecam: o.facecam, dureeMs }, { appeler: o.appeler });
+  const r = await adapterPlan({ generateur: o.generateur, script: mots.map((m) => m.texte).join(" "), segments, format: o.format, facecam: o.facecam, dureeMs, ...(o.objetsPermis?.length ? { objetsPermis: o.objetsPermis } : {}) }, { appeler: o.appeler });
   return { entree, plan: r.plan, remarques: r.remarques };
 }
