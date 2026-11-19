@@ -32,10 +32,10 @@ describe("chemin réel : la trace des contrôles de la sortie", () => {
     const montage = d.outils.montage!;
     const rendu = montage.rendu();
     const sansFige = { ...rendu, etat: async (id: string) => {
-      const e = await rendu.etat(id);
-      if (!e.mesures) return e;
-      const { imagesFigeesHorsFin: _ignore, ...autres } = e.mesures as Record<string, unknown>;
-      return { ...e, mesures: autres } as typeof e;
+      const e = (await rendu.etat(id)) as { mesures?: Record<string, unknown> };
+      if (!e.mesures) return e as Awaited<ReturnType<typeof rendu.etat>>;
+      const { imagesFigeesHorsFin: _ignore, ...autres } = e.mesures;
+      return { ...e, mesures: autres } as Awaited<ReturnType<typeof rendu.etat>>;
     } };
     const evenements: EvenementFabrication[] = [];
     await fabriquerTableau({ ...d.outils, montage: { ...montage, rendu: () => sansFige }, tracer: async (e) => void evenements.push(e) });
