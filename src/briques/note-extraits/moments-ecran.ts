@@ -52,6 +52,12 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-croquis": "geste",
   "objet-feutre-entourage": "texte",
   "objet-feutre-soulignement": "texte",
+  // N-05-v19b : carton = texte (voisin : carton définition) ; icône qui tourne et particules = geste (voisins : coche, flèche) ; panneau de réglages = interface ; anneau = chiffre.
+  "objet-carton-magazine": "texte",
+  "objet-tourne": "geste",
+  "objet-particules": "geste",
+  "objet-panneau-reglages": "interface",
+  "objet-anneau-donnees": "chiffre",
 };
 
 const DUREE_MAX_SEC = 6;

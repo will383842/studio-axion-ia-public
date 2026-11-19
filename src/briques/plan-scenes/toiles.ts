@@ -31,4 +31,10 @@ export const TOILES = {
   "objet-croquis": { largeur: 1000, hauteur: 1000 },
   "objet-feutre-entourage": { largeur: 1000, hauteur: 1000 },
   "objet-feutre-soulignement": { largeur: 1000, hauteur: 1000 },
+  // N-05-v19b
+  "objet-carton-magazine": { largeur: 1000, hauteur: 400 },
+  "objet-tourne": { largeur: 1000, hauteur: 1000 },
+  "objet-particules": { largeur: 1000, hauteur: 1000 },
+  "objet-panneau-reglages": { largeur: 1000, hauteur: 1000 },
+  "objet-anneau-donnees": { largeur: 1000, hauteur: 1000 },
 } as const;
