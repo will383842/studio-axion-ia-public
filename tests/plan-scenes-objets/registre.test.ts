@@ -55,6 +55,8 @@ describe("registre des petits objets (C9-27b)", () => {
       "objet-soulignement-droit", "objet-croix", "objet-mot-barre", "objet-compteur-rouleau", "objet-carton-definition", "objet-fleche-main-levee",
       "objet-croquis", "objet-feutre-entourage", "objet-feutre-soulignement",
       "objet-carton-magazine", "objet-tourne", "objet-particules", "objet-panneau-reglages", "objet-anneau-donnees",
+      // C9-34-TRAITS-v19c
+      "objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee",
     ];
     for (const id of idsObjets()) expect(pieces.has(id), id).toBe(inscritsAuPlan.includes(id));
   });
