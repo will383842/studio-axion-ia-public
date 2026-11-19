@@ -11,6 +11,7 @@ import "server-only";
 import type { CommandeFabrication, LigneCout, Montant, Notification, Plan, Ratio, Sortie, SuiteFabrication, Travail, VersionVideo, Video } from "@/domaine/types";
 import { TRAVAUX_SUR_VIDEO_FINIE } from "@/domaine/cas-traites";
 import { familleDe } from "@/domaine/journal-echecs";
+import { entreEnAttenteRendue, garderRepriseRendue, panneRendueQuiRepart, suiteDePanneRendue } from "@/domaine/pannes-rendues";
 import { apresPanne, calculerFile, CONCURRENCE_PAR_DEFAUT, delaiSansAvancementMs, depenseDesEtapes, empreinteAvancement, finEstimee, formaterHeure, minutesRestantes, peutAvancer } from "@/domaine/suivi";
 import { bailTenu } from "@/donnees/memoire";
 import { trouverFormat } from "@/formats";
@@ -615,8 +616,25 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
     // GV2-38 : le résultat du moteur est gardé dans la MÊME écriture que « terminé » (jamais « terminé » sans la note).
     travail.finAAppliquer = { resultat: sortie.resultat, rejouee: false, faits: [] };
   }
+  // S-01 : « non relié » RENDU par un moteur (rien n'est payé avant) : le travail attend et repart seul, 24 h au plus depuis la 1re panne.
+  let entreEnAttente = false;
+  let attenteS01: Travail | null = null;
+  if (travail.statut === "echec" && t.statut !== "echec" && !enAttenteDeValidation(travail) && panneRendueQuiRepart(travail)) {
+    const suite = suiteDePanneRendue(actuel.reprise, Date.now(), travail.erreur?.messagePourWill ?? "");
+    if (!suite.abandon) {
+      travail = { ...(await lu.moteur.reessayer(travail, Date.now())), reprise: suite.reprise, estDemo: t.estDemo, urgent: actuel.urgent };
+      entreEnAttente = entreEnAttenteRendue(actuel.reprise);
+      attenteS01 = travail;
+    } // abandon (24 h) : branche d'échec de master ci-dessous, phrase du moteur, `reprise` déjà à undefined (ligne « let travail »)
+  }
   travail = gardeSansAvancement(travail, actuel, lu.moteur.id);
+  if (attenteS01) travail = { ...attenteS01, garde: undefined }; // S-01 : en attente, ni « plus d'avancement » à 60 min ni reprise perdue
+  else travail = garderRepriseRendue(actuel, travail); // S-01 : sans vrai progrès, la reprise (borne 24 h, 1 seule notification) est gardée
   await d.travaux.enregistrer(travail);
+  if (entreEnAttente) {
+    await journaliser("fabrication", "Fabrication ralentie chez un outil : reprise automatique", { type: "video", id: travail.cibleId });
+    await notifier({ type: "info", titre: "Une vidéo attend un outil", message: `Votre vidéo « ${travail.titre} » attend un outil : elle reprendra seule.`, lien: `/videos/${travail.cibleId}`, estDemo: t.estDemo });
+  }
   // Un format ajouté ne touche ni le statut de la vidéo ni sa version : elle reste prête (et publiée).
   const reexport = t.type === "reexport";
   if (travail.statut === "echec" && t.statut !== "echec") {

@@ -13,6 +13,7 @@ import "server-only";
 import type { CommandeFabrication } from "@/domaine/types";
 import { ID_MOTEUR_CAS_CONCRET } from "@/moteurs/montage-cas-concret";
 import { lireParametre } from "./_commun";
+import { preparerRetoucheGratuiteFA } from "./facecam-animee-retouche";
 
 export const REGLAGES_CAS_CONCRET = {
   catalogueEtendu: "casConcret.catalogueEtendu",
@@ -55,4 +56,5 @@ export const retouchesAllumeesConnues = (): boolean => (globalThis as AvecRetouc
 /** À appeler avant d'interroger le moteur d'une commande : relit le réglage, seulement pour le cas concret. */
 export async function preparerReglagesMoteur(commande: Pick<CommandeFabrication, "moteurId">): Promise<void> {
   if (commande.moteurId === ID_MOTEUR_CAS_CONCRET) await actualiserReglageRetouches();
+  await preparerRetoucheGratuiteFA(commande);
 }

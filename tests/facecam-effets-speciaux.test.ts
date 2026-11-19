@@ -108,7 +108,7 @@ describe("Schéma des opérations : les effets spéciaux s'ajoutent au vocabulai
     expect(TYPES_OPERATION_FACECAM.slice(0, 16)).toEqual(["ajouterCarte", "zoom", "ecranPartage", "miseEnPage", "couleurs", "son", "masquerPersonne", "texteDerriere", "vitesse", "arretImage", "titre", "generique", "couper", "retablir", "retirer", "remettre"]);
     // Lot K : l'effet réaliste par IA (payant) s'ajoute après les 3 effets, toujours en fin de liste.
     // Test en prod du 11/10 : le titre de couverture (sans montage) s'ajoute ensuite, toujours en fin de liste.
-    expect(TYPES_OPERATION_FACECAM.slice(16)).toEqual(["objetMain", "vitreBrisee", "transitionEcran", "effetRealisteIA", "changerTitreCouverture"]);
+    expect(TYPES_OPERATION_FACECAM.slice(16)).toEqual(["objetMain", "vitreBrisee", "transitionEcran", "effetRealisteIA", "changerTitreCouverture", "modifierCarte"]);
     expect(schemaOperationFacecam.safeParse({ type: "objetMain", debutMot: 4, finMot: 9, objet: "logo-axion", description: "logo 3D dans ma main" }).success).toBe(true);
     expect(schemaOperationFacecam.safeParse({ type: "vitreBrisee", auMot: 12, dureeSec: null, revele: "plan-suivant", texteCarte: null, bruitage: true }).success).toBe(true);
     expect(schemaOperationFacecam.safeParse({ type: "transitionEcran", auMot: 3, style: "ecran-plie", dureeSec: 1 }).success).toBe(true);

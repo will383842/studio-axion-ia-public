@@ -74,6 +74,8 @@ export interface CaseDejaVu {
   coche: boolean;
   /** Date de la case, AAAA-MM-JJ. */
   le?: string;
+  /** Absent : cochée par Will. `"usine"` : posée par les outils pour une commande de l'usine (jamais lue des entrées). */
+  par?: "usine";
 }
 
 /** Une remarque de la relecture des images clés. */
@@ -93,6 +95,8 @@ export interface RelectureImagesCles {
 export interface EntreeControleTableau {
   /** Fiche brute (JSON lu) : validée ici. */
   fiche: unknown;
+  /** Fiche du texte de l'utilisateur, celle à laquelle chaque fichier est comparé ; absente = `fiche`. */
+  ficheReference?: FicheTableau;
   /** Contexte des règles de la fiche (script, sources, preuves, matières, date du jour…). */
   contexte: ContexteTableau;
   /** Résumés visuels des dernières vidéos du compte, les plus récentes d'abord. */
@@ -168,6 +172,7 @@ function controlerDejaVu(c: CaseDejaVu | undefined, aujourdhui: string): LigneCo
   if (!c?.coche) return ligne("deja-vu", libelle, true, "echoue", "La case « Ce conseil n'est pas en première page d'une recherche » n'est pas cochée : vérifiez d'abord, puis cochez-la.");
   if (!c.le || !DATE_JOUR.test(c.le)) return ligne("deja-vu", libelle, true, "echoue", "La case est cochée sans date : la date de la vérification est obligatoire.");
   if (c.le > aujourdhui) return ligne("deja-vu", libelle, true, "echoue", `La case est datée du ${c.le}, après aujourd'hui (${aujourdhui}) : corrigez la date.`);
+  if (c.par === "usine") return ligne("deja-vu", libelle, true, "reussi", `Commande de l'usine : la case n'est demandée qu'à la création à la main (réglage tableau.deja_vu_usine.actif, du ${c.le}).`);
   return ligne("deja-vu", libelle, true, "reussi", `Case cochée le ${c.le}.`);
 }
 
@@ -632,7 +637,7 @@ export async function controlerVideoTableau(entree: EntreeControleTableau, outil
   lignes.push(...reunirSorties(faites));
   for (const raison of entree.sortiesImpossibles ?? []) lignes.push(ligne("fiche", "Fiche de chaque sortie", true, "echoue", raison));
 
-  lignes.push(...lignesPhraseNonChoisie(fiche, entree.sorties ?? []), ...ligneDessinInacheve(entree.proprietes));
+  lignes.push(...lignesPhraseNonChoisie(entree.ficheReference ?? fiche, entree.sorties ?? []), ...ligneDessinInacheve(entree.proprietes));
 
   const premiere = faites.find((f) => f.mise);
   if (premiere?.mise) lignes.push(...(await relire(premiere.ficheSortie, premiere.mise, outils)));

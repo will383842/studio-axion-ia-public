@@ -18,7 +18,7 @@ import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
 import { descriptionSortie, sortiesDesReseaux, type IdSortie } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { mettreEnPage } from "../../../src/moteurs/montage-tableau/mise-en-page";
 import { ficheDeVariante, planVoixSorties, trouverAppel } from "../../../src/moteurs/montage-tableau/variantes-fin";
-import { appelsValides, estFinAuMot, finDuTableau, finEtAppelDuTableau, reseauDeLaSortie } from "../../../src/services/tableau-fin";
+import { appelsValides, avisFinTikTok, estFinAuMot, finDuTableau, finEtAppelDuTableau, reseauDeLaSortie } from "../../../src/services/tableau-fin";
 import { doubles } from "../fabriquer/doubles";
 import { ficheTemoin3 } from "../reference-3/fiches";
 import { contexteFormation, ficheFormation } from "../style-v2/temoin-formation";
@@ -29,7 +29,6 @@ const finsReelles = (table: readonly FinTable[] = TABLE_FINS) => (appelId: strin
 const ficheAvecAppel = (): FicheTableau => ({ ...ficheFormation(), appelId: "fin-if-mot-envoi" });
 /** Demande de TikTok et Shorts de la fiche « formation » (méthode en étapes, 14/10) : « enregistrez ». */
 const DEMANDE = "Enregistrez cette vidéo pour la retrouver le jour venu.";
-const FIN_TIKTOK = { id: "fin-ty-enregistrement", ecran: "Enregistrez pour la retrouver", dit: DEMANDE, type: "enregistrement", objectif: "ENREGISTRER" };
 
 describe("réseaux cochés → sorties", () => {
   it("« verticaux » couvre les deux groupes : deux verticaux ; un seul groupe coché : un seul vertical", () => {
@@ -55,8 +54,9 @@ describe("réseaux cochés → sorties", () => {
 describe("fin au mot refusée pour TikTok et Shorts", () => {
   it("table réelle : TikTok et Shorts n'ont aucune fin validée → sans appel, avec l'alerte ; Instagram garde la fin au mot", () => {
     for (const r of ["tiktok", "youtube-shorts"] as const) {
-      expect(finDuTableau(r, "fin-if-mot-envoi", TABLE_FINS, { mot: "cinq" })).toEqual({ absente: FIN_SANS_APPEL_LIENS });
-      expect(finDuTableau(r, "fin-ty-mot-envoi", TABLE_FINS, { mot: "cinq" })).toEqual({ absente: FIN_SANS_APPEL_LIENS });
+      // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la fin au mot CHOISIE est retirée et signalée (jamais remplacée).
+      expect(finDuTableau(r, "fin-if-mot-envoi", TABLE_FINS, { mot: "cinq" })).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
+      expect(finDuTableau(r, "fin-ty-mot-envoi", TABLE_FINS, { mot: "cinq" })).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
       expect(appelsValides(r)).toEqual([]);
     }
     expect(finDuTableau("instagram", "fin-if-mot-envoi", TABLE_FINS, { mot: "cinq" })).toEqual({ id: "fin-if-mot-envoi", ecran: "Écrivez CINQ en commentaire" });
@@ -67,8 +67,9 @@ describe("fin au mot refusée pour TikTok et Shorts", () => {
   it("garde-fou EN CODE : même si la table rend la fin au mot permise sur TikTok, elle est refusée avec un message clair", () => {
     const trafiquee = TABLE_FINS.map((f) => (f.id === "fin-ty-mot-envoi" ? { ...f, reseaux: undefined } : f));
     const r = finDuTableau("tiktok", "fin-ty-mot-envoi", trafiquee, { mot: "cinq" });
-    expect(r).toHaveProperty("absente");
-    expect((r as { absente: string }).absente).toMatch(/jamais utilisée sur TikTok ni sur YouTube Shorts/);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : refus dit par l'avis du 12/10, mot pour mot.
+    expect(r).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
+    expect((r as { absente: string }).absente).toMatch(/n'est pas dite : rien n'y est envoyé \(règle du 12\/10\)/);
     expect(appelsValides("tiktok", trafiquee)).toEqual([]);
     expect(estFinAuMot(TABLE_FINS.find((f) => f.id === "fin-ty-mot-envoi")!)).toBe(true);
     // Le moteur refuse aussi, quoi que rendent les services.
@@ -79,7 +80,9 @@ describe("fin au mot refusée pour TikTok et Shorts", () => {
 
   it("la fin sans promesse d'envoi, une fois validée, est choisie pour TikTok et Shorts (et dite)", () => {
     const validee = TABLE_FINS.map((f) => (f.id === "fin-ty-lien-profil" ? { ...f, validee: true } : f));
-    expect(finEtAppelDuTableau("tiktok", "fin-if-mot-envoi", validee, { mot: "cinq" })).toEqual({ id: "fin-ty-lien-profil", ecran: "Le lien est dans mon profil", dit: "Le lien est dans mon profil.", type: "lien" });
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : choisie, elle est dite ; une fin au mot choisie n'est jamais remplacée par elle.
+    expect(finEtAppelDuTableau("tiktok", "fin-ty-lien-profil", validee, { mot: "cinq" })).toEqual({ id: "fin-ty-lien-profil", ecran: "Le lien est dans mon profil", dit: "Le lien est dans mon profil.", type: "lien" });
+    expect(finEtAppelDuTableau("tiktok", "fin-if-mot-envoi", validee, { mot: "cinq" })).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
     expect(finEtAppelDuTableau("youtube-shorts", null, validee)).toMatchObject({ id: "fin-ty-lien-profil" });
     // Jamais pour Instagram (autre groupe), ni pour YouTube (réseaux de la ligne).
     expect(finDuTableau("youtube", "fin-ty-lien-profil", validee)).toHaveProperty("absente");
@@ -233,22 +236,25 @@ describe("fabrication à deux verticaux (doubles, aucun appel payant)", async ()
   });
 
   it("le corps n'est lu qu'UNE fois ; la phrase d'appel à part ; la demande du TikTok à part", () => {
-    expect(lectures).toHaveLength(3);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : aucune demande de la banque lue ; le TikTok réutilise le corps seul.
+    expect(lectures).toHaveLength(2);
     expect(lectures.filter((t) => t.includes("Vous avez essayé"))).toHaveLength(1);
     expect(lectures[1]).toBe(APPEL);
-    expect(lectures[2]).toBe(DEMANDE);
-    // Deux recettes : chacune raccorde sa fin au corps (deux entrées).
+    expect(lectures).not.toContain(DEMANDE);
+    // Deux recettes : celle du vertical raccorde sa fin au corps (deux entrées) ; celle du TikTok, le corps seul.
     expect(recettes).toHaveLength(2);
     expect(recettes[0].entrees.audio2).toBeDefined();
-    expect(recettes[1].entrees.audio2).toBeDefined();
+    expect(recettes[1].entrees.audio2).toBeUndefined();
     const morceaux = (recettes[0].parametres as { morceaux: { source: number; silence?: boolean }[] }).morceaux;
     expect(morceaux.some((m) => m.source === 1)).toBe(true);
   });
 
   it("vidéo TikTok : l'appel au mot n'est ni dit ni écrit ; UNE demande, écrite en grand au-dessus du site ; aucune alerte", () => {
     const tiktok = r.sorties[1];
-    expect(tiktok.fin).toEqual(FIN_TIKTOK);
-    expect(tiktok.alertes ?? []).toEqual([]);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la fin choisie est retirée, SIGNALÉE au rapport, rien de la banque.
+    expect(tiktok.fin).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
+    expect(tiktok.alertes).toEqual([{ code: "fin", gravite: "attention", message: avisFinTikTok("Écrivez CINQ en commentaire") }]);
+    expect(r.alertes?.some((a) => a.message === avisFinTikTok("Écrivez CINQ en commentaire")) ?? false).toBe(true);
     expect(r.alertes?.some((a) => a.message === FIN_SANS_APPEL_LIENS) ?? false).toBe(false);
     const compo = d.compositionsSoumises()[1];
     expect(JSON.stringify(compo.parametres)).not.toMatch(/commentaire|envoie/i);
@@ -257,9 +263,11 @@ describe("fabrication à deux verticaux (doubles, aucun appel payant)", async ()
     const ecranTikTok = derniere[1].v2!.ecrans.at(-1)!;
     expect(ecranTikTok.gabarit).toBe("appel-site");
     expect(ecranTikTok.textes.some((t) => /CINQ|commentaire/i.test(t.texte))).toBe(false);
-    expect(ecranTikTok.textes.filter((t) => !t.horsContenu).map((t) => t.texte).join(" ")).toMatch(/^ENREGISTREZ POUR LA RETROUVER axion-ia\.com$/i);
-    expect(derniere[1].v2!.mots?.some((m) => /commentaire|envoie/i.test(m.mot))).toBe(false);
-    expect(derniere[1].v2!.mots?.map((m) => m.mot).join(" ")).toMatch(/Enregistrez cette vidéo pour la retrouver le jour venu\.$/);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : aucune demande écrite ni dite. Style « blocs/2 » (écran d'appel, hors de cette fiche) : il reste l'adresse
+    // seule, état CONNU à retirer par FIX-TABLEAU-FIN-RESEAUX-b (même règle, styles à écran d'appel).
+    expect(ecranTikTok.textes.filter((t) => !t.horsContenu).map((t) => t.texte)).toEqual(["axion-ia.com"]);
+    expect(derniere[1].v2!.mots?.some((m) => /commentaire|envoie|enregistrez/i.test(m.mot))).toBe(false);
+    expect(derniere[1].v2!.mots?.map((m) => m.mot).join(" ")).toMatch(/Le détail des cinq jours tient sur une page\.$/);
     // L'Instagram garde la fin au mot (dite et écrite).
     expect(derniere[0].v2!.ecrans.at(-1)!.textes.some((t) => t.texte === "CINQ")).toBe(true);
     expect(derniere[0].v2!.mots?.some((m) => /commentaire/i.test(m.mot))).toBe(true);
@@ -284,7 +292,8 @@ describe("fabrication à deux verticaux (doubles, aucun appel payant)", async ()
 
   it("traçabilité : un événement « voix » par lecture, avec son coût exact", () => {
     const morceaux = traces.filter((t) => t.type === "voix" && t.cle.startsWith("voix-morceau:"));
-    expect(morceaux.map((t) => t.donnees.morceau)).toEqual(["corps", "fin", "fin"]);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : plus de lecture de la demande de TikTok.
+    expect(morceaux.map((t) => t.donnees.morceau)).toEqual(["corps", "fin"]);
     for (const t of morceaux) expect(typeof t.donnees.coutCentimes).toBe("number");
     expect(r.coutVoixCentimes).toBe(morceaux.reduce((s, t) => s + (t.donnees.coutCentimes as number), 0));
   });
@@ -312,8 +321,9 @@ describe("fins identiques sur toutes les sorties : rien ne change", async () => 
   it("vertical de TikTok seul : le corps et sa demande, sans l'appel au mot", async () => {
     const d = doubles(ficheAvecAppel());
     const r = await fabriquerTableau({ ...d.outils, contexte: contexteFormation(), sorties: ["vertical-liens"], choisirFin: finsReelles() });
-    expect(d.lectures()).toBe(2);
-    expect(r.sorties[0].fin).toEqual(FIN_TIKTOK);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : le corps seul, sans demande de la banque.
+    expect(d.lectures()).toBe(1);
+    expect(r.sorties[0].fin).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
     expect(JSON.stringify(d.compositionsSoumises()[0].parametres)).not.toMatch(/commentaire|envoie/i);
   });
 });
@@ -341,7 +351,8 @@ describe("repli : l'appel n'est pas à la fin de la dernière scène", async () 
     expect(r.estimation.surcoutCentimes).toBeGreaterThan(0);
     expect(avancement.findIndex((l) => /surcoût/.test(l))).toBeGreaterThanOrEqual(0);
     expect(reservations.reduce((a, b) => a + b, 0)).toBe(r.estimation.centimes);
-    expect(r.sorties[1].fin).toEqual(FIN_TIKTOK);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi
+    expect(r.sorties[1].fin).toEqual({ absente: avisFinTikTok("Écrivez CINQ en commentaire") });
     const recettes = d.soumises.filter((x) => x.operation === "nettoyage-audio");
     expect(recettes.every((x) => !x.entrees.audio2)).toBe(true);
   });

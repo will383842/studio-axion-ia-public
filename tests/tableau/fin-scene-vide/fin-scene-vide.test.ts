@@ -199,13 +199,12 @@ describe("la fiche réelle de l'incident : la dernière scène ne dit que l'appe
     ).toEqual([SITE_FIN]);
   });
 
-  it("la fin validée de TikTok et Shorts remplace l'appel : s10 la dit, sous l'écran du site", () => {
+  // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : une fin validée de TikTok ne remplace jamais la fin choisie ; s10 est retirée, rien à sa place.
+  it("la fin validée de TikTok et Shorts ne remplace pas la fin choisie : s10 retirée, comme sans fin validée", () => {
     const f = ficheLiens(reelle, avecFinValidee("CONSIGNE"));
-    expect(f.scenes).toHaveLength(reelle.scenes.length);
-    expect(f.scenes.at(-1)!.texteDit).toBe("Le lien est dans mon profil.");
-    expect(f.scenes.at(-1)!.elements).toEqual([
-      expect.objectContaining({ type: "ligne", texte: SITE_FIN, ancre: 0 }),
-    ]);
+    expect(f).toEqual(ficheLiens(reelle, sansFinValidee("CONSIGNE")));
+    expect(f.scenes.map((s) => s.id)).toEqual(reelle.scenes.slice(0, -1).map((s) => s.id));
+    expect(f.scenes.map((s) => s.texteDit).join(" ")).not.toMatch(/Le lien est dans mon profil/);
     attendreFinPropre(f, "CONSIGNE");
   });
 
@@ -226,13 +225,13 @@ describe("la fiche réelle de l'incident : la dernière scène ne dit que l'appe
       choisirFin: sansFinValidee("CONSIGNE"),
       dejaVu: coche,
     });
-    // 14/10 : s10 dit la demande de TikTok et Shorts (« Enregistrez… ») ; s09 partage sa page, elle est redessinée.
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : s10 (l'appel seul) est retirée, aucune demande de la banque ; s09 porte la fin, elle est redessinée.
     expect(fab.sorties[1].scenes).toEqual({
-      rendues: ["s09", "s10"],
+      rendues: ["s09"],
       reprises: ["s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08"],
     });
-    // Le corps lu une fois, l'appel et la demande de TikTok à part : trois lectures.
-    expect(d.lectures()).toBe(3);
+    // Le corps lu une fois, l'appel à part : deux lectures.
+    expect(d.lectures()).toBe(2);
   });
 });
 
@@ -448,7 +447,8 @@ describe("cas voisins : aucune scène à 0 mot avec des ancres, aucun texte écr
         ).toBe(true);
         expect(
           dit.endsWith(
-            fin === "sans fin validée" ? c.reste : (c.avecPhrase ?? PHRASE),
+            // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la fin validée de TikTok ne remplace pas la fin choisie.
+            c.reste,
           ),
         ).toBe(true);
         await relireEtFabriquer(c.fiche, choisir);
@@ -519,8 +519,9 @@ describe("reprise de la vidéo arrêtée : « Reprendre la fabrication » refait
       choisirFin,
       dejaVu: coche,
     });
-    expect(premier.lectures()).toBe(3);
-    // L'état du journal au moment de l'arrêt : voix (corps, appel, demande de TikTok) et premier vertical faits, rien du second.
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : corps et appel, plus de demande de TikTok.
+    expect(premier.lectures()).toBe(2);
+    // L'état du journal au moment de l'arrêt : voix (corps, appel) et premier vertical faits, rien du second.
     const journal = premier.journal.valeur!;
     delete journal.sorties?.["vertical-liens"];
     // … et aucun fichier du second (le premier vertical a dessiné ses 10 scènes avant).
@@ -528,7 +529,8 @@ describe("reprise de la vidéo arrêtée : « Reprendre la fabrication » refait
       .scenesSoumises()
       .slice(reelle.scenes.length)
       .map((d) => d.sortie.cle);
-    expect(duSecond).toHaveLength(2);
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : s09 seule (s10 retirée).
+    expect(duSecond).toHaveLength(1);
     for (const cle of [
       ...duSecond,
       ...premier

@@ -1,4 +1,5 @@
 import "server-only";
+import { lireCleFiche } from "@/components/calendrier/FicheEntree";
 import { entreeDepuisPublication, type EntreeApercu, type PublicationApercu } from "@/components/calendrier/apercu-reseau";
 import { LIMITE_PAGES } from "@/services/pdf-pages";
 import { DUREE_LECTURE_SEC } from "@/services/medias-deposes";
@@ -46,8 +47,14 @@ async function avecDuree(base: EntreeApercu, videoId: string): Promise<EntreeApe
  */
 export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<EntreeApercu[]> {
   const memo = new Map<string, Promise<MediaVisuel>>();
+  // Pastille « Essai » : la seule entrée du créneau couvert par l'essai borné (lecture seule, ne lève jamais).
+  // Import différé et protégé : lecture seule, jamais bloquant pour l'affichage.
+  const essaiLu = await import("@/services/essai-zernio").then((m) => m.lireEssai()).then((e) => (e ? { id: e.creneauId, expire: Date.now() >= Date.parse(e.expireLe) } : undefined), () => undefined);
+  const essaiId = essaiLu?.id;
   const entree = async (p: PublicationApercu): Promise<EntreeApercu> => {
-    const base = entreeDepuisPublication(p);
+    const sansPastille = entreeDepuisPublication(p);
+    const cleFiche = essaiId ? lireCleFiche(sansPastille.cle) : null;
+    const base: EntreeApercu = cleFiche?.origine === "creneau" && cleFiche.id === essaiId ? { ...sansPastille, essai: true, ...(essaiLu?.expire ? { essaiExpire: true } : {}) } : sansPastille;
     if (p.videoId) return avecDuree(base, p.videoId);
     if (!p.visuelId) return base;
     try {

@@ -1,6 +1,6 @@
 /** C4-U4.6a : bloc de consigne `axion:` et lecture du réglage (purs, non branchés). */
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { consigneRealisateur } from "@/moteurs/montage-facecam-animee/realisateur/consignes";
 import { SEUILS } from "@/moteurs/montage-facecam-animee/realisateur/regles";
@@ -67,18 +67,18 @@ describe("éteint = identique, rien n'est branché", () => {
     expect(consigneRealisateur()).not.toContain("axion:");
   });
 
-  it("aucun autre fichier de src/ ne cite le fichier neuf", () => {
+  it("seul le réalisateur cite le fichier neuf", () => {
     const racine = join(process.cwd(), "src");
     const cites: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
         const p = join(d, n);
         if (statSync(p).isDirectory()) parcourir(p);
-        else if (/\.(ts|tsx)$/.test(n) && !p.endsWith("consigne-extraits-maison.ts") && readFileSync(p, "utf8").includes("consigne-extraits-maison")) cites.push(p);
+        else if (/\.(ts|tsx)$/.test(n) && !p.endsWith("consigne-extraits-maison.ts") && readFileSync(p, "utf8").includes("consigne-extraits-maison")) cites.push(relative(process.cwd(), p).split(sep).join("/"));
       }
     };
     parcourir(racine);
-    expect(cites).toEqual([]);
+    expect(cites).toEqual(["src/moteurs/montage-facecam-animee/realisateur/index.ts"]);
   });
 
   it("garde statique du fichier neuf", () => {

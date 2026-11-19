@@ -43,6 +43,7 @@ import { chargerClientLambda, configLambda, rendreSurLambda } from "../remotion-
 import { PAN_VOIX_STEREO, preparerSon } from "../son/chaine.js";
 import { mesurerFichier } from "../son/mesure.js";
 import { mesurerBordsNoirs, mesuresBords } from "../controle-bords.js";
+import { argumentsFiges, mesuresFiges } from "../controle-figes.js";
 
 /** Composition d'essai du lot M1b (aucun mode). */
 async function compositionEssai(demande: DemandeRendu, contexte: ContexteOperation) {
@@ -287,7 +288,7 @@ async function remplacerSonMaster(master: string, son: string, dossier: string, 
  * 14/10 (fin propre) : niveau du son sur la dernière 0,1 s (`sonDerniere100msDb`) et écart moyen entre les deux
  * dernières images (`mouvementDerniereImage`), relus par `controleFinPropre` ; une mesure en panne est omise.
  */
-export async function mesurerExport(video: string, pauses: [number, number][], signal?: AbortSignal, options: { bords?: boolean; instantsBords?: readonly number[] } = {}): Promise<Record<string, number>> {
+export async function mesurerExport(video: string, pauses: [number, number][], signal?: AbortSignal, options: { bords?: boolean; instantsBords?: readonly number[]; figes?: { seuilSec: number; finSec: number } } = {}): Promise<Record<string, number>> {
   const probe = lireExport(await executer(FFPROBE, ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", video], signal));
   const f = await open(video, "r");
   const entete = Buffer.alloc(4 * 1024 * 1024);
@@ -299,9 +300,12 @@ export async function mesurerExport(video: string, pauses: [number, number][], s
   // ne bloque pas l'export (`bordNoirErreur`, le studio la dit « non mesurée »).
   const fin = await mesurerFinVideo(video, signal);
   const bords = options.bords ? await mesurerBordsNoirs({ ffmpeg: FFMPEG, fichier: video, largeur: probe.largeur, hauteur: probe.hauteur, dureeSec: probe.dureeSec, signal, ...(options.instantsBords?.length && probe.dureeSec > 0 ? { parts: options.instantsBords.map((s) => Math.min(1, Math.max(0, s / probe.dureeSec))) } : {}) }).then(mesuresBords, () => ({ bordNoirErreur: 1 })) : {};
+  // FIX-RENDU-IMAGE-FIGEE (demandé par `export.mesurerFiges`) : une mesure en panne est omise, le contrôle reste « non fait ».
+  const figes = options.figes && probe.dureeSec > 0 ? await executerAvecErreurs(FFMPEG, argumentsFiges(video, options.figes.seuilSec), signal).then((r) => mesuresFiges(r.erreurs, probe.dureeSec, options.figes!.finSec), () => ({})) : {};
   return {
     ...probe,
     ...bords,
+    ...figes,
     faststart: moovAvantMdat(entete.subarray(0, bytesRead)) ? 1 : 0,
     imageNoireTete: imageNoireEnTete(erreurs) ? 1 : 0,
     lufs: son.lufs,
@@ -362,7 +366,7 @@ export async function noterEtRelancer(video: string, master: string, dossierText
       const suivi = { vmafRelance: 1, vmafAvantRelance: note.vmaf, ...(relance.mode === "crf" ? { crfRelance: relance.crf ?? 17 } : { debitRelanceKbps: relance.debitKbps }) };
       if (note2.vmaf >= note.vmaf) {
         await rename(autre, video);
-        sortie = { ...(await mesurerExport(video, pauses, signal, { bords: !!exportP.mesurerBords, instantsBords: exportP.instantsBords })), ...note2, vmafSeuil: seuil, ...suivi };
+        sortie = { ...(await mesurerExport(video, pauses, signal, { bords: !!exportP.mesurerBords, instantsBords: exportP.instantsBords, figes: exportP.mesurerFiges })), ...note2, vmafSeuil: seuil, ...suivi };
       } else sortie = { ...sortie, ...suivi, vmafRelanceGardee: 0 };
     }
     return { video, mesures: { ...sortie, tempsVmafSec: +((Date.now() - debut) / 1000).toFixed(1) } };
@@ -523,14 +527,14 @@ export const composition: Operation = async (demande, contexte) => {
       // 6-7. Export, mesures ; le son est refait plus bas si la crête vraie dépasse (au plus deux fois).
       t = Date.now();
       let video = await exporter(master, dossierTexte, params.export, dossier, contexte.signal);
-      let mesures = await mesurerExport(video, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords });
+      let mesures = await mesurerExport(video, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords, figes: params.export.mesurerFiges });
       let correctionDb = 0;
       for (let essai = 1; essai <= 2 && mesures.creteVraieDbtp > params.son.creteVraieMaxDbtp; essai++) {
         correctionDb += params.son.creteVraieMaxDbtp - mesures.creteVraieDbtp - 0.3;
         son = await preparerSon({ ...reglagesSon, correctionDb });
         await remplacerSonMaster(master, son.chemin, dossier, contexte.signal, params.image.fonduFinSec ? filtresFonduFin(params.dureeSec, params.image.fonduFinSec).audio : undefined);
         video = await exporter(master, dossierTexte, params.export, dossier, contexte.signal);
-        mesures = await mesurerExport(video, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords });
+        mesures = await mesurerExport(video, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords, figes: params.export.mesurerFiges });
         mesuresSon.corrections = essai;
       }
       chrono("tempsExportSec", t);
@@ -586,7 +590,7 @@ export const composition: Operation = async (demande, contexte) => {
     t = Date.now();
     const exporte = await exporter(master, dossierTexte, params.export, dossier, contexte.signal);
     chrono("tempsExportSec", t);
-    const { video, mesures } = await noterEtRelancer(exporte, master, dossierTexte, params.export, dossier, pauses, await mesurerExport(exporte, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords }), contexte.signal);
+    const { video, mesures } = await noterEtRelancer(exporte, master, dossierTexte, params.export, dossier, pauses, await mesurerExport(exporte, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords, figes: params.export.mesurerFiges }), contexte.signal);
     const vign = await vignette(video, dossier, Math.min(params.dureeSec - 0.1, 1), contexte.signal);
     await deposer(demande.sortie.urlDepot, video, "video/mp4", contexte.signal);
     await deposer(params.depots.vignette.urlDepot, vign, "image/jpeg", contexte.signal);

@@ -10,6 +10,7 @@ import {
   type ServicesZernio,
 } from "@/app/(studio)/reglages/actions-zernio";
 import { ConnexionsZernio } from "@/components/reglages/Connexions";
+import { EssaiBrouillon } from "@/components/reglages/EssaiBrouillon";
 
 /** Les vraies actions serveur (chacune commence par exigerSession) branchées sur l'écran « Connexions Zernio ». */
 const SERVICES: ServicesZernio = {
@@ -22,5 +23,10 @@ const SERVICES: ServicesZernio = {
 };
 
 export function ConnexionsZernioReglages() {
-  return <ConnexionsZernio services={SERVICES} />;
+  return (
+    <>
+      <ConnexionsZernio services={SERVICES} />
+      <EssaiBrouillon />
+    </>
+  );
 }
