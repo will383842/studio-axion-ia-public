@@ -16,7 +16,7 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { demandeExpliciteScript } from "./comprendre";
 import type { EntreeRenduPartiel, PortsRetoucheChat, SortieRenduPartiel } from "./service";
 
-export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee", "tutoriel-outil"] as const;
+export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue"] as const;
 export type IdGenerateurRetouche = (typeof GENERATEURS_RETOUCHE)[number];
 
 export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
@@ -24,6 +24,7 @@ export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
   "image-video": "retoucheChat.imageVideo",
   "facecam-animee": "retoucheChat.facecamAnimee",
   "tutoriel-outil": "retoucheChat.tutorielOutil",
+  "video-longue": "retoucheChat.videoLongue",
 };
 
 /** Générateurs dont la voix est une prise filmée : elle ne se réécrit jamais (`modifier-script` toujours écarté). */
@@ -31,7 +32,7 @@ export const GENERATEURS_VOIX_PRISE_FILMEE = ["facecam-animee", "demo-facecam"] 
 export const voixEstPriseFilmee = (g: string): boolean => (GENERATEURS_VOIX_PRISE_FILMEE as readonly string[]).includes(g);
 
 /** Générateurs dont le texte lu est le script validé par Williams : `modifier-script` toujours écarté, texte à l'écran seulement s'il l'a écrit. */
-export const GENERATEURS_SCRIPT_VALIDE = ["tutoriel-outil"] as const;
+export const GENERATEURS_SCRIPT_VALIDE = ["tutoriel-outil", "video-longue"] as const;
 export const scriptEstValide = (g: string): boolean => (GENERATEURS_SCRIPT_VALIDE as readonly string[]).includes(g);
 
 /** Clé du réglage de la démo facecam : déclarée ici, éteinte, lue nulle part tant que N-26 n'inscrit pas la démo. */
@@ -93,6 +94,12 @@ export const ADAPTATEURS_RETOUCHE: Record<IdGenerateurRetouche, AdaptateurRetouc
     nom: "Tutoriel",
     operations: ["ajuster-zoom", "decaler-scene", "changer-transition", "ajouter-dynamisme", "changer-habillage", "ajouter-piece", "retirer-piece", "remplacer-piece", "changer-brique", "changer-mot", "ajouter-chiffre"],
     consigne: `Vidéo « Tutoriel » (navigation filmée dans un outil de démonstration, voix du double de Williams). Retouchable : zooms, curseur et surbrillance, pièces posées par-dessus, transitions, dynamisme. Le film de la navigation ne se refait pas ici. ${REGLE_SCRIPT_VALIDE}`,
+  },
+  "video-longue": {
+    id: "video-longue",
+    nom: "Vidéo longue",
+    operations: COMMUNES,
+    consigne: `Vidéo « Vidéo longue » (16:9, découpée en chapitres, chaque chapitre est un groupe de scènes). Une retouche vise UN seul chapitre, celui que l'utilisateur a choisi : les scènes des autres chapitres ne se touchent pas. Retouchable : texte à l'écran, pièces, zooms, transitions, dynamisme. ${REGLE_SCRIPT_VALIDE}`,
   },
 };
 

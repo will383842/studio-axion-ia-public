@@ -477,6 +477,8 @@ export interface ParametresExport {
   conversionRvbSure?: boolean;
   /** 11/10 (ajout pur) : mesures `bordNoir*` du fichier exporté (colonnes et rangées noires au bord). Absent : non mesuré. */
   mesurerBords?: boolean;
+  /** FIX-RENDU-IMAGE-FIGEE (ajout pur) : mesure `imagesFigeesHorsFin` du fichier exporté (`freezedetect`, passages d'au moins `seuilSec` ; `finSec` = fin propre, non comptée). Absent : non mesuré. */
+  mesurerFiges?: { seuilSec: number; finSec: number };
   /**
    * 12/10, tableau animé style « blocs/2 » (ajout pur) : instants (s) des images où les bords sont mesurés. Un fond
    * encre est plus sombre que le noir de la vidéo : la mesure se fait sur des écrans clairs. Absent : 10, 50 et 90 %.

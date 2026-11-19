@@ -560,7 +560,7 @@ export function sousTitresDeLaSortiePrincipale(sorties: readonly SortieFaite[]):
   return (sorties.find((s) => s.ratio === "9:16") ?? sorties[0])?.sousTitres;
 }
 
-function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, etat: EtatTableau): ResultatFabrication {
+export function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, etat: EtatTableau): ResultatFabrication {
   const { alertes, note } = qualiteDe(r.controles, r.fin, r.recetteVoix, r.alertes);
   // La voix reprise d'une fabrication arrêtée est déjà dans le journal : pas recopiée dans le projet.
   const { voixPayee: _reprise, ...entrees } = lireEntreesTableau(commande.entrees);
@@ -576,6 +576,7 @@ function resultatDe(commande: CommandeFabrication, r: CompteRenduFabrication, et
   if (iPortrait >= 0 && iLinkedin > iPortrait) ordonnees.splice(iPortrait, 0, ...ordonnees.splice(iLinkedin, 1));
   const faites = ordonnees.map((s) => s.format);
   const st = sousTitresDeLaSortiePrincipale(ordonnees);
+  if (!st?.length) alertes.push({ code: "synchronisation", gravite: "info", message: "Les sous-titres affichés sont l'estimation du lancement : la fabrication n'en a pas rendu." });
   const sorties = ordonnees.length
     ? ordonnees.map((s) => {
         const q = qualiteDe(s.controles, s.fin, r.recetteVoix, s.alertes);

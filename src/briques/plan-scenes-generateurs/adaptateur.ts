@@ -110,11 +110,11 @@ export async function adapterPlan(e: EntreeAdaptateur, deps: DependancesAdaptate
   let base: PlanValide = stock.plan;
   let source: ResultatAdaptateur["source"] = "stock";
   if (deps.appeler && mots.length) {
-    const r = await genererPlan({ script: e.script || mots.map((m) => m.texte).join(" "), mots, format: e.format, facecam: e.facecam, faits: faitsDuScript(mots), piecesRecentes: e.piecesRecentes }, deps.appeler);
+    const r = await genererPlan({ script: e.script || mots.map((m) => m.texte).join(" "), mots, format: e.format, facecam: e.facecam, faits: faitsDuScript(mots), piecesRecentes: e.piecesRecentes, ...(e.objetsPermis ? { objetsPermis: e.objetsPermis } : {}) }, deps.appeler); // BR-OBJETS-c
     remarques.push(...r.remarques);
     if (r.source === "llm") {
       // Validé de nouveau avec la durée de Williams (jamais raccourcie) ; un niveau 3 éventuel est replié par le validateur.
-      const v = validerPlan(r.plan, contexte);
+      const v = validerPlan(r.plan, { ...contexte, ...(e.objetsPermis ? { objetsPermis: e.objetsPermis } : {}) }); // BR-OBJETS-c
       remarques.push(...v.remarques);
       base = v.plan;
       source = "llm";
