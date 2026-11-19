@@ -88,7 +88,9 @@ describe("éteint = identique", () => {
       .map((f) => relative(RACINE, f).split(sep).join("/"))
       .filter((f) => !f.endsWith("camera-couverture/courbes-camera.ts"))
       .filter((f) => readFileSync(join(RACINE, f), "utf8").includes("courbes-camera"));
-    expect(importeurs).toEqual([]);
+    // Décision du pilote (T-EXT-44) : `motion-film.ts` est le seul importateur permis ; tout autre reste refusé.
+    expect(importeurs.filter((f) => f !== "src/briques/plan-scenes/tutoriel/motion-film.ts")).toEqual([]);
+    expect(importeurs).toEqual(["src/briques/plan-scenes/tutoriel/motion-film.ts"]);
     const code = readFileSync(join(RACINE, "src/briques/motion/camera-couverture/courbes-camera.ts"), "utf8");
     expect(code).not.toMatch(/cubic-bezier\(|Easing\.bezier\(|\b(damping|stiffness|mass)\s*:\s*[0-9.]/);
     expect(code).not.toMatch(/from\s+["']@\//);

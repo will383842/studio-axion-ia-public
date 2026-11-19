@@ -129,6 +129,11 @@ export function libelleEvenement(e: Pick<EvenementTrace, "type" | "donnees" | "c
       const n = nombre(d.alertes) ?? 0;
       parts.push(d.moment === "avant-voix" ? "Contrôles avant la voix" : d.moment === "avant-montage" ? "Bruitages vérifiés avant le montage" : "Contrôles de la vidéo");
       parts.push(n ? `${n} alerte${n > 1 ? "s" : ""}` : "aucune alerte");
+      if (Array.isArray(d.nonFaits)) {
+        const noms = d.nonFaits.filter((x): x is string => typeof x === "string");
+        const k = noms.length;
+        if (k) parts.push(`${k} contrôle${k > 1 ? "s" : ""} non fait${k > 1 ? "s" : ""} (${noms.join(", ")})`);
+      }
       break;
     }
     case "publication": {

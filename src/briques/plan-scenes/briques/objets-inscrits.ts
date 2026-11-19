@@ -15,6 +15,11 @@ import { OBJET_COMPTEUR_ROULEAU, EXEMPLES_ROULEAU } from "../../motion/petits-ob
 import { OBJET_CARTON_DEFINITION, EXEMPLES_CARTON_DEFINITION } from "../../motion/petits-objets/carton-definition";
 import { OBJET_FLECHE_MAIN_LEVEE, EXEMPLES_FLECHES } from "../../motion/petits-objets/fleches";
 import { OBJET_CROQUIS, OBJET_FEUTRE_ENTOURAGE, OBJET_FEUTRE_SOULIGNEMENT, EXEMPLES_OBJETS_2027 } from "../../motion/petits-objets/objets-2027";
+import { OBJET_CARTON_MAGAZINE, EXEMPLES_CARTON_MAGAZINE } from "../../motion/petits-objets/carton-magazine";
+import { OBJET_TOURNE, EXEMPLES_OBJET_TOURNE } from "../../motion/petits-objets/objet-tourne";
+import { OBJET_PARTICULES, EXEMPLES_PARTICULES } from "../../motion/petits-objets/particules";
+import { OBJET_PANNEAU_REGLAGES, EXEMPLES_PANNEAU_REGLAGES } from "../../motion/petits-objets/panneau-reglages";
+import { OBJET_ANNEAU_DONNEES, EXEMPLES_ANNEAU } from "../../motion/petits-objets/anneau-donnees";
 import { envelopperObjets } from "./objets";
 
 export const OBJETS_PLAN_SCENES = [
@@ -23,6 +28,8 @@ export const OBJETS_PLAN_SCENES = [
   OBJET_SOULIGNEMENT_DROIT, OBJET_CROIX, OBJET_MOT_BARRE, OBJET_COMPTEUR_ROULEAU, OBJET_CARTON_DEFINITION, OBJET_FLECHE_MAIN_LEVEE,
   // BR-OBJETS-2027-b : croquis et traits de feutre
   OBJET_CROQUIS, OBJET_FEUTRE_ENTOURAGE, OBJET_FEUTRE_SOULIGNEMENT,
+  // N-05-v19b : carton magazine, icône qui tourne, particules, panneau de réglages, anneau de données (porte fermée)
+  OBJET_CARTON_MAGAZINE, OBJET_TOURNE, OBJET_PARTICULES, OBJET_PANNEAU_REGLAGES, OBJET_ANNEAU_DONNEES,
 ];
 
 /** Graine fixe et pure : somme des codes de caractères de l'identifiant. */
@@ -34,7 +41,7 @@ export function graineObjet(id: string): number {
 
 export const PIECES_OBJETS = envelopperObjets(OBJETS_PLAN_SCENES, graineObjet);
 
-const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
+const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
   id,
   nom,
   description,
@@ -59,6 +66,12 @@ export const BRIQUES_OBJETS = {
   "objet-croquis": objet("objet-croquis", "Croquis", "Un rectangle esquissé à main levée autour de ce qui est dit.", OBJET_CROQUIS, EXEMPLES_OBJETS_2027.croquis[0]),
   "objet-feutre-entourage": objet("objet-feutre-entourage", "Entourage au feutre", "Un trait de feutre qui entoure le mot important au moment où il est dit.", OBJET_FEUTRE_ENTOURAGE, EXEMPLES_OBJETS_2027.feutreEntourage[0]),
   "objet-feutre-soulignement": objet("objet-feutre-soulignement", "Soulignement au feutre", "Un trait de feutre qui souligne le mot important au moment où il est dit.", OBJET_FEUTRE_SOULIGNEMENT, EXEMPLES_OBJETS_2027.feutreSoulignement[0]),
+  // N-05-v19b
+  "objet-carton-magazine": objet("objet-carton-magazine", "Carton magazine", "Un carton façon magazine qui met en avant le mot-clé dit à voix haute.", OBJET_CARTON_MAGAZINE, EXEMPLES_CARTON_MAGAZINE[0]),
+  "objet-tourne": objet("objet-tourne", "Icône qui tourne", "Une icône qui tourne sur elle-même quand on en parle.", OBJET_TOURNE, EXEMPLES_OBJET_TOURNE[0]),
+  "objet-particules": objet("objet-particules", "Particules", "De petites icônes qui tombent ou jaillissent pour marquer un moment fort.", OBJET_PARTICULES, EXEMPLES_PARTICULES[0]),
+  "objet-panneau-reglages": objet("objet-panneau-reglages", "Panneau de réglages", "Un petit panneau de réglages dont les curseurs et les interrupteurs bougent.", OBJET_PANNEAU_REGLAGES, EXEMPLES_PANNEAU_REGLAGES[0]),
+  "objet-anneau-donnees": objet("objet-anneau-donnees", "Anneau de données", "Un anneau qui se remplit jusqu'au pourcentage dit à voix haute.", OBJET_ANNEAU_DONNEES, EXEMPLES_ANNEAU[0]),
 } as const;
 
 export const RENDUS_OBJETS = {
@@ -75,4 +88,10 @@ export const RENDUS_OBJETS = {
   "objet-croquis": PIECES_OBJETS["objet-croquis"].Rendu as RenduBrique,
   "objet-feutre-entourage": PIECES_OBJETS["objet-feutre-entourage"].Rendu as RenduBrique,
   "objet-feutre-soulignement": PIECES_OBJETS["objet-feutre-soulignement"].Rendu as RenduBrique,
+  // N-05-v19b
+  "objet-carton-magazine": PIECES_OBJETS["objet-carton-magazine"].Rendu as RenduBrique,
+  "objet-tourne": PIECES_OBJETS["objet-tourne"].Rendu as RenduBrique,
+  "objet-particules": PIECES_OBJETS["objet-particules"].Rendu as RenduBrique,
+  "objet-panneau-reglages": PIECES_OBJETS["objet-panneau-reglages"].Rendu as RenduBrique,
+  "objet-anneau-donnees": PIECES_OBJETS["objet-anneau-donnees"].Rendu as RenduBrique,
 } as const;

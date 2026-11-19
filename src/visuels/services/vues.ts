@@ -97,6 +97,7 @@ export async function ficheCarrousel(id: string, deps: DependancesVues): Promise
     entree: v.entree.type,
     renduEnCours: !v.corbeilleLe && renduRecent(v, Date.parse(deps.maintenant())),
     ...(v.noteTexte ? { noteTexte: v.noteTexte } : {}),
+    ...(v.reseaux?.length ? { reseaux: v.reseaux } : {}),
     refus: (v.refus ?? []).map((r) => ({ ...r, libelleMotif: LIBELLES_MOTIF[r.motif] })),
     actionsPermises: actionsPermises(v, Date.parse(deps.maintenant())),
     generateurAllume: await deps.allume(),

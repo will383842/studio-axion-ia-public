@@ -77,6 +77,14 @@ export function EssaiBrouillon() {
           ? `Essai actif sur ${RESEAUX[essai.reseau] ?? essai.reseau}${essai.jour ? ` du ${jjmm(essai.jour)}` : ""}, jusqu'à ${heureParis(essai.expireLe)} (heure de Paris).`
           : "Aucun essai."}
       </p>
+      {essai?.aCompleter && (
+        <p role="status" className="mt-1 text-sm text-texte">{essai.aCompleter}</p>
+      )}
+      {essai?.dernierRefus && (
+        <p role="status" className="mt-1 text-sm text-texte">
+          {`Dernier envoi refusé${essai.dernierRefus.le ? ` le ${jjmm(essai.dernierRefus.le.slice(0, 10))} à ${heureParis(essai.dernierRefus.le)}` : ""} : ${essai.dernierRefus.raison}`}
+        </p>
+      )}
       {essai ? (
         <div className="mt-2">
           <Bouton variante="secondaire" chargement={enCours} onClick={() => geste(retirerEssaiZernioAction, "Essai retiré")}>
@@ -90,7 +98,7 @@ export function EssaiBrouillon() {
             <select className="mt-1 block min-h-11 rounded-[10px] border border-trait-fort bg-surface-1 px-2" value={creneauId} onChange={(e) => setCreneauId(e.target.value)}>
               <option value="">Choisir un créneau</option>
               {(etat?.eligibles ?? []).map((c) => (
-                <option key={c.id} value={c.id}>{`${jjmm(c.jour)} · ${RESEAUX[c.reseau] ?? c.reseau} · ${c.titre}`}</option>
+                <option key={c.id} value={c.id}>{`${jjmm(c.jour)} · ${RESEAUX[c.reseau] ?? c.reseau} · ${c.titre}${c.aCompleter ? " · légende à écrire" : ""}`}</option>
               ))}
             </select>
           </label>
