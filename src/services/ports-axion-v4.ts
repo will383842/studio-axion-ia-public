@@ -8,7 +8,6 @@ import { cleUsageExtrait } from "@/briques/bibliotheque-video/types";
 import { preparerExtraitV4 } from "@/moteurs/montage-facecam-animee/extraits-maison/preparer";
 import type { OutilsPreparation } from "@/moteurs/montage-facecam-animee/images/preparation";
 import type { PortsArchive } from "./archive-extraits";
-import { extraitMaisonPourRecherche } from "./extraits-maison-v4";
 import { sourceSignee } from "./telephone-extrait-v4";
 
 export interface ParamsPortsAxionV4 {
@@ -20,9 +19,15 @@ export interface ParamsPortsAxionV4 {
   mode?: "direct" | "telecharger";
   recents?: readonly string[];
   archive?: PortsArchive;
-  /** Remplace le choix de l'extrait (tests). */
-  extraitPour?: typeof extraitMaisonPourRecherche;
+  /** Choix de l'extrait dans l'archive : OBLIGATOIRE, ce fichier n'importe pas le service de choix (gardes voisines) ; BR-EXTRAITS-MAISON-c le branche. */
+  extraitPour: ChoixExtraitPour;
 }
+
+/** Forme du service de choix d'extrait (recopiée, pas importée). */
+export type ChoixExtraitPour = (
+  entree: { recherche: string; dureeFenetreSec: number; videoId: string; dejaPris: readonly string[]; recents: readonly string[] },
+  ports?: PortsArchive,
+) => Promise<{ extrait: { cle: string; elementId: string; plageId: string; finSec: number }; debutSec: number; longueurSec: number } | null>;
 
 /** Mêmes formes que `ExtraitAxionV4` / `PortsAxionV4` (approvisionner.ts), recopiées : ce fichier n'importe pas l'approvisionnement (garde de C4-U4.4a). */
 interface ExtraitAxionV4 { cle: string; debutSec: number; longueurSec: number }
@@ -34,7 +39,7 @@ interface PortsAxionV4 {
 interface Garde { elementId: string; plageId: string; finSec: number }
 
 export function portsAxionV4(p: ParamsPortsAxionV4): PortsAxionV4 {
-  const chercher = p.extraitPour ?? extraitMaisonPourRecherche;
+  const chercher = p.extraitPour;
   const dejaPris: string[] = [];
   const gardes = new Map<string, Garde>();
   return {

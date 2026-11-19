@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { extraitMaisonPourRecherche } from "@/services/extraits-maison-v4";
 import type { PlageExtrait } from "@/domaine/archive-extraits";
 import type { ElementBibliotheque, Licence } from "@/domaine/types";
 
@@ -38,7 +39,7 @@ const faux = () => {
   };
 };
 const base = (outils: unknown, plus: Record<string, unknown> = {}) =>
-  ({ videoId: "nouvelle", signerLecture: async (c: string) => `https://signe.test/${c}`, outils, archive: { depots, maintenant: () => NOW }, ...plus }) as never;
+  ({ videoId: "nouvelle", signerLecture: async (c: string) => `https://signe.test/${c}`, outils, archive: { depots, maintenant: () => NOW }, extraitPour: extraitMaisonPourRecherche, ...plus }) as never;
 const fen = (i: number, recherche: string) => ({ debut: i * 5, fin: i * 5 + 4, recherche, media: `m${i}.mp4`, video: false }) as never;
 const plan = (...r: string[]) => ({ fenetres: r.map((x, i) => fen(i, x)) }) as never;
 
