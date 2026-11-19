@@ -21,6 +21,7 @@ import { schemaJson } from "@/generateur/roles/types";
 import { CHARTE_FACECAM_ANIMEE, MENTION_PLAFOND_FACECAM_ANIMEE } from "../index";
 import { blocHistoriqueV4, consigneRealisateur } from "./consignes";
 import { blocTelephoneVideo } from "./consigne-telephone-video";
+import { blocExtraitsMaison } from "./consigne-extraits-maison";
 import { nettoyer, type MotTranscrit } from "./mots";
 import { planMinimalV4 } from "./plan-minimal-v4";
 import type { MiseEnScene } from "./regles-fixes";
@@ -110,6 +111,8 @@ export interface EntreeRealisateur {
   calageAuMot?: boolean;
   /** BR-TELEPHONE-a : réglage `facecamAnimee.telephoneVideo` allumé : le MESSAGE (jamais la consigne système) ajoute le bloc du téléphone. Absent : message inchangé. */
   telephoneVideo?: boolean;
+  /** BR-EXTRAITS-MAISON-a : réglage `facecamAnimee.extraitsMaison` allumé : le MESSAGE ajoute le bloc `axion:`. Absent : message inchangé. */
+  extraitsMaison?: boolean;
 }
 
 export interface RequeteRealisateur {
@@ -271,7 +274,7 @@ export async function realiser(entree: EntreeRealisateur, dependances: Dependanc
   // L'historique des plaquettes v4 passe aussi dans le MESSAGE (seul `message` arrive à Claude en production : la consigne du rôle est fixe et mise en cache).
   const histoV4 = blocHistoriqueV4(entree.historique ?? [], repli?.interdites);
   // BR-TELEPHONE-a : bloc du téléphone ajouté au MESSAGE seulement si allumé ; éteint, `corps` est identique au caractère près.
-  const corps = [messageRealisateur(entree), histoV4, blocTelephoneVideo(entree.telephoneVideo === true)].filter(Boolean).join("\n\n");
+  const corps = [messageRealisateur(entree), histoV4, blocTelephoneVideo(entree.telephoneVideo === true), blocExtraitsMaison(entree.extraitsMaison === true)].filter(Boolean).join("\n\n");
   const base = repli
     ? `${corps}
 Plaquettes INTERDITES dans ce plan (aucune vidéo fidèle n'a été trouvée) : ${repli.interdites.join(", ")}. N'en utilise aucune ; montre littéralement ce qui est dit avec des plaquettes sans vidéo.`

@@ -503,5 +503,7 @@ export function resumeOperation(op: OperationFacecam): string {
       return "Élément retiré";
     case "remettre":
       return "Carte remise";
+    case "modifierCarte":
+      return `Carte changée en « ${estModeleEtendu(op.modele) ? CATALOGUE_MOTION_ETENDU[op.modele].nom : NOMS_MODELE[op.modele]} »`;
   }
 }

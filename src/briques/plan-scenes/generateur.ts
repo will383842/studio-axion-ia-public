@@ -117,7 +117,7 @@ export async function genererPlan(e: EntreeGenerateurPlan, appeler: AppelClaude)
     }
     const lu = lireJson(reponse.texte);
     if (lu.ok) {
-      const r = validerPlan(lu.valeur, contexte);
+      const r = validerPlan(lu.valeur, e.objetsPermis ? { ...contexte, objetsPermis: e.objetsPermis } : contexte); // BR-OBJETS-c
       return { plan: r.plan, remarques: r.remarques, source: "llm" };
     }
     precedents.push({ reponse: reponse.texte, motif: reponse.stopReason === "max_tokens" ? "réponse coupée par la limite de sortie" : lu.motif });

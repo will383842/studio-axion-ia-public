@@ -16,7 +16,7 @@ import { reglesDuReseau, verifierEspacement, type PostPlanifie } from "@/domaine
 import { RESEAUX } from "@/reseaux";
 import { ajouterJoursParis, resoudreHeureParis } from "@/lib/horloge-paris";
 import { exigerSession } from "@/services/auth";
-import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
+import { depots, ecrireParametre, ErreurStudio, maintenant, sousVerrou } from "@/services/_commun";
 import { chargerFiche, ecrireStockageFiche, lireStockageFiche } from "@/services/calendrier-fiche";
 import { creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 import { reseauConnu } from "@/components/calendrier/CarteEntreeCalendrier";
@@ -142,7 +142,8 @@ export async function dupliquerEntree(saisie: SaisieDuplication): Promise<Result
       const cleCopie = { cle: `creneau:${id}|${saisie.reseau}`, origine: "creneau" as const, id, reseau: saisie.reseau };
       const retour = (): ResultatDuplication => ({ ok: true, donnees: { creneauId: id, cle: cleCopie.cle, message: PHRASES_DUPLICATION.creee, ...(avertissement ? { avertissement } : {}) } });
       if (existant) {
-        const lien = await lireParametre<string | null>(cleLienCopie(id), null);
+        // Lecture directe du dépôt (et non lireParametre) : ce lien n'est pas un réglage, il n'a pas sa place dans l'inventaire des interrupteurs.
+        const lien = ((await depots().parametres.obtenir(cleLienCopie(id)))?.valeur as string | undefined) ?? null;
         const memeDemande = (lien === null || lien === saisie.cle) && existant.jourVise === saisie.jour && Object.keys(existant.heuresParReseau).join() === saisie.reseau && existant.heuresParReseau[saisie.reseau] === instant;
         if (!memeDemande) return refus(PHRASES_DUPLICATION.autreDemande);
         // Rejeu après une écriture interrompue : on termine ce qui manque (drapeau, lien et fiche), sans rien recréer.
