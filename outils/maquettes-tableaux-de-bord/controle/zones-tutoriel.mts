@@ -1,7 +1,7 @@
 /**
  * T-EXT-54d : écrit `zones.json`, la liste des zones à mesurer dans la vidéo finie d'un tutoriel (cloud ou CI seulement, jamais le PC).
  *
- *   pnpm exec tsx outils/maquettes-tableaux-de-bord/controle/zones-tutoriel.mts --navigation navigation.json --cibles cibles.json --ratio 4:5 [--motion motion.json] [--minimum-px N] --sortie <dossier hors dépôt>
+ *   pnpm exec tsx outils/maquettes-tableaux-de-bord/controle/zones-tutoriel.mts --navigation navigation.json --cibles cibles.json --ratio 4:5 [--motion motion.json] [--minimum-px N pour forcer] --sortie <dossier hors dépôt>
  *
  * Codes : 0 ok · 3 environnement interdit · 4 entrée refusée.
  * Aucun FFmpeg, aucun réseau, aucun navigateur : calcul de géométrie seulement. `motion.json` absent : poses recalculées par `motion-film.ts`

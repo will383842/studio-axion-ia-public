@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { noterZones, SEUIL_FIGE_MS, type MesureZone } from "../../../src/briques/controle-image/mesures-video";
 import { SEUIL_IMAGE_FIXE_MS, type NavigationFilmee } from "../../../src/briques/plan-scenes/tutoriel/navigation-filmee";
 import { planMotionFilm, type PlanMotionFilm } from "../../../src/briques/plan-scenes/tutoriel/motion-film";
+import { tailleTexteMinPx } from "../../../src/moteurs/montage-tutoriel-outil/diffusion-tutoriel";
 import { controlerNettete, formatDuRatio, instantsDeMesure, quartSansCurseur, rapportNetteteTutoriel, zonesTutoriel } from "../../../src/moteurs/montage-tutoriel-outil/nettete";
 
 const F45 = { largeur: 1080, hauteur: 1350 };
@@ -63,8 +64,31 @@ describe("instantsDeMesure", () => {
     n.cibles[2] = { etapeId: "e3", instantMs: 6600, finMs: 8400 };
     expect(instantsDeMesure(n, plan(1, null, n)).map((x) => x.etapeId)).toEqual(["e1", "e4", "e5"]);
   });
+  it("caméra qui arrive après clic + 300 ms : l'instant est celle de son arrivée", () => {
+    const n = nav();
+    const p = plan(1, null, n);
+    p.camera = [
+      { tMs: 0, cx: 540, cy: 675, zoom: 1, profil: "travelling" },
+      { tMs: 3100, cx: 540, cy: 675, zoom: 1, profil: "travelling" },
+      { tMs: 4300, cx: 600, cy: 700, zoom: 1.5, profil: "accostage" },
+    ];
+    const e1 = instantsDeMesure(n, p).find((x) => x.etapeId === "e1")!;
+    expect(e1.tMs).toBe(4300);
+    // Les autres cibles (caméra posée) gardent clic + 300.
+    expect(instantsDeMesure(n, p).find((x) => x.etapeId === "e3")!.tMs).toBe(6600 + 300);
+  });
+  it("caméra qui arrive après la fin moins 200 ms : l'étape n'est pas mesurée", () => {
+    const n = nav();
+    const p = plan(1, null, n);
+    p.camera = [
+      { tMs: 0, cx: 540, cy: 675, zoom: 1, profil: "travelling" },
+      { tMs: 3100, cx: 540, cy: 675, zoom: 1, profil: "travelling" },
+      { tMs: 4700, cx: 600, cy: 700, zoom: 1.5, profil: "accostage" },
+    ];
+    expect(instantsDeMesure(n, p).map((x) => x.etapeId)).not.toContain("e1");
+  });
   it("ne lève jamais sur une entrée illisible", () => {
-    expect(instantsDeMesure({ cibles: undefined } as never, { clics: [] })).toEqual([]);
+    expect(instantsDeMesure({ cibles: undefined } as never, { camera: [] })).toEqual([]);
   });
 });
 
@@ -109,7 +133,8 @@ describe("zonesTutoriel", () => {
     expect(e1.policeSourcePx).toBe(32);
     expect(e1.minimumPx).toBe(20);
     expect(z.find((x) => x.id === "e2#q1")!.policeSourcePx).toBeUndefined();
-    expect(zonesTutoriel(nav(), plan(1, null), F45, CAPTURE, [{ etapeId: "e1", policeMinPx: 16 }])[0]!.minimumPx).toBeUndefined();
+    // Sans option : le minimum vient de T-EXT-43 pour le ratio du format (4:5).
+    expect(zonesTutoriel(nav(), plan(1, null), F45, CAPTURE, [{ etapeId: "e1", policeMinPx: 16 }])[0]!.minimumPx).toBe(tailleTexteMinPx("4:5"));
   });
   it("la zone qui sort de l'image est coupée aux bords ; hors de l'image : pas de zone", () => {
     const n = nav();

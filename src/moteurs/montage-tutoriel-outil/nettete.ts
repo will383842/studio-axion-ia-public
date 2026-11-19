@@ -2,12 +2,13 @@
  * GÉOMÉTRIE DU FILM DU TUTORIEL pour la mesure de netteté (T-EXT-54d). PUR, sans IA, ne lève jamais, éteint : rien ne l'appelle encore.
  * Dit SEULEMENT où et quand mesurer (instants, zones, quarts sans le curseur) et traduit les mesures en verdicts `TUT-*`.
  * La partie générique (formule de netteté, FFmpeg, seuil, règle d'agrandissement, règle de taille) est COMMUNE : `controle-image/mesures-video.ts` (54a), importée.
- * Le minimum de taille du texte vient de T-EXT-43 (pas encore fusionnée) : il est passé en paramètre (`options.minimumPx`), jamais écrit ici.
+ * Le minimum de taille du texte vient de T-EXT-43 (`tailleTexteMinPx`, importé) ; `options.minimumPx` peut seulement forcer une autre valeur.
  */
 import { agrandissementOk, lisibleApresZoom, SEUIL_SSIM_ZONE, type MesureZone, type Rect, type ZoneMesure } from "../../briques/controle-image/mesures-video";
 import { placementFilm, type FormatSortie, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 import { curseurA, poseA, type PlanMotionFilm, type PoseCamera } from "../../briques/plan-scenes/tutoriel/motion-film";
 import type { ResultatControleTutoriel } from "./equipe/controleur";
+import { tailleTexteMinPx } from "./diffusion-tutoriel";
 
 /** Cadre du projecteur : la zone mesurée est rognée de ce pourcentage de sa taille, de chaque côté. */
 export const MARGE_CADRE_PCT = 3;
@@ -37,16 +38,31 @@ export interface QuartZone {
 }
 
 /**
- * Pour chaque cible avec zone : l'instant où la caméra est posée et le clic est passé de 300 ms, avant la fin de la cible moins 200 ms.
+ * Premier instant ≥ `tMs` où la caméra ne bouge plus : si `tMs` tombe entre deux images clés de poses différentes (mouvement en cours),
+ * on attend l'image clé d'arrivée. Plan sans caméra : `tMs` inchangé.
+ */
+function cameraPoseeA(plan: Pick<PlanMotionFilm, "camera">, tMs: number): number {
+  const k = Array.isArray(plan.camera) ? plan.camera : [];
+  let t = tMs;
+  for (let i = 0; i + 1 < k.length; i++) {
+    const a = k[i]!;
+    const b = k[i + 1]!;
+    const bouge = Math.abs(a.cx - b.cx) > 1e-9 || Math.abs(a.cy - b.cy) > 1e-9 || Math.abs(a.zoom - b.zoom) > 1e-9;
+    if (bouge && a.tMs < t && t < b.tMs) t = b.tMs;
+  }
+  return t;
+}
+
+/**
+ * Pour chaque cible avec zone : le plus tardif de la fin de l'arrivée de la caméra et de « clic + 300 ms », avant la fin de la cible moins 200 ms.
  * Aucun instant possible → l'étape est absente du résultat (« non mesurée », jamais devinée).
  */
-export function instantsDeMesure(nav: Pick<NavigationFilmee, "cibles">, plan: Pick<PlanMotionFilm, "clics">): InstantMesure[] {
+export function instantsDeMesure(nav: Pick<NavigationFilmee, "cibles">, plan: Pick<PlanMotionFilm, "camera">): InstantMesure[] {
   try {
     const sorties: InstantMesure[] = [];
     for (const c of nav.cibles) {
       if (!c.zonePct) continue;
-      const clic = plan.clics.find((x) => x.tMs === c.instantMs);
-      const tMs = (clic ? clic.tMs : c.instantMs) + APRES_CLIC_MS;
+      const tMs = cameraPoseeA(plan, c.instantMs + APRES_CLIC_MS);
       if (!Number.isFinite(tMs) || tMs >= c.finMs - AVANT_FIN_MS) continue;
       sorties.push({ etapeId: c.etapeId, tMs });
     }
@@ -77,8 +93,17 @@ export function quartSansCurseur(rectVideo: Rect, curseur: { x: number; y: numbe
 }
 
 export interface OptionsZones {
-  /** Taille minimale du texte après zoom (px de sortie), fournie par T-EXT-43 (`tailleTexteMinPx`). Absente : la lisibilité n'est pas contrôlée. */
+  /** Force une autre taille minimale du texte après zoom (px de sortie). Absente : `tailleTexteMinPx(ratio du format)` de T-EXT-43. */
   minimumPx?: number;
+}
+
+/** Ratio d'un format de sortie connu, sinon `null`. */
+export function ratioDuFormat(f: FormatSortie): string | null {
+  for (const r of ["4:5", "9:16", "1:1", "16:9"]) {
+    const g = formatDuRatio(r);
+    if (g && g.largeur === f.largeur && g.hauteur === f.hauteur) return r;
+  }
+  return null;
 }
 
 const fini = (...n: number[]): boolean => n.every((v) => Number.isFinite(v));
@@ -101,6 +126,8 @@ export function zonesTutoriel(
     const place = placementFilm(nav, format);
     const echelleFilm = capture.largeurPx / nav.largeur;
     const zones: ZoneMesure[] = [];
+    const ratio = ratioDuFormat(format);
+    const minimumPx = options.minimumPx !== undefined ? options.minimumPx : ratio ? tailleTexteMinPx(ratio) : undefined;
     for (const inst of instantsDeMesure(nav, plan)) {
       const cible = nav.cibles.find((c) => c.etapeId === inst.etapeId);
       const z = cible?.zonePct;
@@ -151,7 +178,7 @@ export function zonesTutoriel(
           rectVideo: { x: Math.round(x0), y: Math.round(y0), largeur: Math.max(1, Math.round(x1 - x0)), hauteur: Math.max(1, Math.round(y1 - y0)) },
           echelleSource,
           ...(police !== undefined && Number.isFinite(police) ? { policeSourcePx: police * echelleFilm } : {}),
-          ...(options.minimumPx !== undefined && Number.isFinite(options.minimumPx) ? { minimumPx: options.minimumPx } : {}),
+          ...(minimumPx !== undefined && Number.isFinite(minimumPx) && minimumPx > 0 ? { minimumPx } : {}),
         });
       }
     }
