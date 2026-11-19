@@ -48,7 +48,7 @@ describe("poids-variable : graisse du mot dit", () => {
   });
   // FIX-GARDE-POIDS-VARIABLE-v19c 19/11 (voulue, seconde lecture du pilote) : liste fermée exacte des importeurs.
   const IMPORTEURS_PREVUS = ["src/briques/sous-titres/scene.ts", "src/briques/sous-titres/paliers-graisse.ts"];
-  const estImporteur = (texte: string): boolean => /(?:^|\n)\s*import\b[^;\n]*\bfrom\s*["'][^"']*\/poids-variable["']|\bimport\s*\(\s*["'][^"']*\/poids-variable["']\s*\)/.test(texte);
+  const estImporteur = (texte: string): boolean => /["'][^"'\n]*\/poids-variable(?:\.[cm]?[jt]sx?)?["']/.test(texte);
   const listerSources = (dossier: string, racine: string): string[] => {
     const sortie: string[] = [];
     for (const e of readdirSync(join(racine, dossier), { withFileTypes: true })) {
@@ -68,6 +68,11 @@ describe("poids-variable : graisse du mot dit", () => {
   it("contrôle négatif : un faux fichier qui importe poids-variable est reconnu, un nom de capacité non", () => {
     expect(estImporteur('import { graisseAuTemps } from "../sous-titres/poids-variable";')).toBe(true);
     expect(estImporteur('const m = await import("./poids-variable");')).toBe(true);
+    expect(estImporteur('import {\n  graisseAuTemps,\n  largeurReservee,\n} from "./poids-variable";')).toBe(true);
+    expect(estImporteur('export { graisseAuTemps } from "./poids-variable";')).toBe(true);
+    expect(estImporteur('export * from "../sous-titres/poids-variable";')).toBe(true);
+    expect(estImporteur('import { graisseAuTemps } from "./poids-variable.js";')).toBe(true);
+    expect(estImporteur('const m = require("./poids-variable");')).toBe(true);
     expect(estImporteur('  textePoidsVariable: "texte.poids-variable",')).toBe(false);
   });
 });
