@@ -89,6 +89,13 @@ describe("interrupteurs", () => {
     expect(v[0]?.suivi).toBe(lienSuivi("a"));
   });
 
+  it("la clé de l'entrée par une phrase vient de la maquette (import, pas de recopie)", async () => {
+    const { PARAM_ENTREE_PHRASE } = await import("@/moteurs/montage-tutoriel-outil/maquette-creee");
+    expect(c.CLE_ENTREE_PHRASE).toBe(PARAM_ENTREE_PHRASE);
+    expect(PARAM_ENTREE_PHRASE).toBe("tutoriel.entreePhrase");
+    expect(lire("src/services/tutoriel-console.ts")).not.toContain(`"tutoriel.entreePhrase"`);
+  });
+
   it("phrase d'état tirée du statut du travail (port etat de T-EXT-34)", async () => {
     expect(c.phraseDuTravail("en_cours")).toBe("En cours de fabrication.");
     expect(c.phraseDuTravail("termine")).toBe("Prête.");

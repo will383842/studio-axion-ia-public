@@ -7,7 +7,7 @@
  *  - Le plafond Claude par vidéo est affiché seulement (« réglé » / « par défaut »), jamais modifiable ici.
  *  - Aucun appel payant : lecture des dépôts, écriture d'un réglage.
  *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15) et `lienSuivi` (T-EXT-34) sont importés. Clés dont la fiche créatrice n'est pas encore
- *    sur master (26a, 33, 35, 41) : recopiées UNE fois ici, comparées au fichier source dès qu'il existe. PR à garder
+ *    sur master (26a, 33, 41) : recopiées UNE fois ici, comparées au fichier source dès qu'il existe. PR à garder
  *    en brouillon d'ici là.
  */
 import "server-only";
@@ -20,6 +20,7 @@ import {
 } from "@/briques/mentions-legales/etiquetage-ia";
 import type { DepenseEnregistree, Id, StatutTravail, StatutVideo, Video } from "@/domaine/types";
 import { texteDevis, type DevisTutoriel } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
+import { PARAM_ENTREE_PHRASE } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PARAM_SCENES_TUTORIEL } from "./scenes-tutoriel";
 import { PARAM_CLAUDE_TUTORIEL, PARAM_PLAFOND_TUTORIEL } from "./tutoriel-claude";
 import { lienSuivi } from "./tutoriel-suivi";
@@ -33,7 +34,7 @@ export const CLE_TEXTE_MENTION_TUTORIEL = cleTexteMentionIA("tutoriel-outil");
 // Clés recopiées (fiche créatrice pas encore fusionnée) : une seule fois, ici.
 export const CLE_FORMULAIRE = "tutoriel.formulaire";
 export const CLE_ENTREE_ZIP = "tutoriel.entreeZip";
-export const CLE_ENTREE_PHRASE = "tutoriel.entreePhrase";
+export const CLE_ENTREE_PHRASE = PARAM_ENTREE_PHRASE; // importée : la maquette est fusionnée
 export const CLE_DEVIS_AVANT_DEPENSE = "tutoriel.devisAvantDepense";
 export const CLE_FINITIONS = "tutoriel.finitions";
 export const CLE_FIN_COMMUNE = "tutoriel.finCommune";
