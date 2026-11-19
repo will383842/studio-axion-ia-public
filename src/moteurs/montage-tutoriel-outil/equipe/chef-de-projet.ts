@@ -342,21 +342,61 @@ export function lireDecisionChef(brut: unknown, d: DemandeTutoriel, regles: Deci
 /* Cahier                                                              */
 /* ------------------------------------------------------------------ */
 
-export function etablirCahier(d: DemandeTutoriel, decision: DecisionChef): ResultatCahier {
+/** Option V2 (T-EXT-V2-01) : absente ou différente de `true` exact, rien ne change. Aucun code ne l'écrit à la place de Williams. */
+export interface OptionsCahier {
+  phraseOuverte?: boolean;
+}
+
+/** Limites de la phrase (celles du formulaire de T-EXT-33). */
+export const PHRASE_MIN = 10;
+export const PHRASE_MAX = 300;
+
+const MESSAGE_PAUSE_V2 =
+  "Cette demande part d'une phrase seule : la création de la maquette arrive dans une version suivante. Votre demande est gardée, rien n'a échoué.";
+const MESSAGE_ASSISTANT_OU_MELANGE =
+  "Cette demande part d'une phrase seule : un assistant ou un mélange ne se crée pas encore depuis une phrase. Votre demande est gardée, rien n'a échoué.";
+const MESSAGE_PHRASE_TROP_LONGUE = "Votre phrase dépasse 300 caractères : raccourcissez-la.";
+const MESSAGE_DEMANDE_VIDE = "Aucune demande : ni phrase ni dossier. Donnez une phrase ou un dossier pour commencer.";
+
+export function etablirCahier(d: DemandeTutoriel, decision: DecisionChef, options: OptionsCahier = {}): ResultatCahier {
   const dos = d.dossier;
   const phraseVide = (d.phrase ?? "").trim() === "";
   if (!dos && phraseVide) {
-    return { ok: false, attente: { code: "TO_DEMANDE_VIDE", message: "Aucune demande : ni phrase ni dossier. Donnez une phrase ou un dossier pour commencer." } };
+    return { ok: false, attente: { code: "TO_DEMANDE_VIDE", message: MESSAGE_DEMANDE_VIDE } };
+  }
+  const ouverte = options.phraseOuverte === true;
+  // V2 : cas 2 et 3 depuis une phrase seule (jamais avec un dossier : l'option ne change rien aux dossiers).
+  if (ouverte && !dos && decision.entree === "C") {
+    const longueur = (d.phrase ?? "").trim().length;
+    if (longueur < PHRASE_MIN) return { ok: false, attente: { code: "TO_DEMANDE_VIDE", message: MESSAGE_DEMANDE_VIDE } };
+    if (longueur > PHRASE_MAX) return { ok: false, attente: { code: "TO_CAS_V2", message: MESSAGE_PHRASE_TROP_LONGUE } };
+    if (decision.cas === 2 || decision.cas === 3) {
+      // La phrase reste une donnée : elle n'entre dans aucun texte du cahier. Les manques sont des identifiants, pas des phrases.
+      const flux = decision.cas === 3;
+      const raisons = [...decision.raisons];
+      const ratios = lireRatios(d.ratios, raisons);
+      return {
+        ok: true,
+        cahier: {
+          version: VERSION_CAHIER,
+          entree: "C",
+          cas: decision.cas,
+          gabarits: flux ? ["G-Flux"] : decision.gabarits,
+          roles: flux ? ["maquettiste", "ecrans-neutres", ...ROLES_CHAINE] : ["maquettiste", ...ROLES_CHAINE],
+          manques: [flux ? "flux-automatisation" : "maquette"],
+          scriptsFournis: [],
+          fin: d.fin ?? FIN_PAR_DEFAUT,
+          ratios,
+          dureeCibleSec: DUREE_CIBLE_SEC,
+          raisons,
+        },
+      };
+    }
+    return { ok: false, attente: { code: "TO_CAS_V2", message: MESSAGE_ASSISTANT_OU_MELANGE } };
   }
   // V2 (§ 2 quater) : toute demande rangée en entrée C ou en cas 2 (même avec un dossier qui ne suffit pas) attend la création de la maquette.
   if (!dos || decision.entree === "C" || decision.cas === 2) {
-    return {
-      ok: false,
-      attente: {
-        code: "TO_CAS_V2",
-        message: "Cette demande part d'une phrase seule : la création de la maquette arrive dans une version suivante. Votre demande est gardée, rien n'a échoué.",
-      },
-    };
+    return { ok: false, attente: { code: "TO_CAS_V2", message: MESSAGE_PAUSE_V2 } };
   }
 
   const roles: RoleEquipe[] = [...ROLES_CHAINE];

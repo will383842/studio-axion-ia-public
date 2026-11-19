@@ -39,6 +39,7 @@ import { notifier } from "@/components/ui/Toast";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { CARACTERES_DITS_MAX_TABLEAU, DUREE_MAX_TABLEAU_SEC, caracteresDits, caracteresEnTrop, dureeDiteSec } from "@/domaine/duree-tableau";
 import { BORNES_FICHE } from "@/briques/fiche-scenes/types";
+import { TABLE_FINS } from "@/briques/fins";
 import { debutsDePhrase, mots as motsDuTexte } from "@/domaine/controles-script/texte";
 import type { LigneScript, PastilleControle, ResultatLancement, ScriptRelu } from "@/domaine/relecture-script";
 import { contexteDuGenerateur, correctionsDeLaRelecture, origineApresSaisie, texteClaudeDuBrouillon, decouperANouveau, lignesDeDepart, lignesDeLaFiche, RAISON_CASE_DEJA_VU, repereFiche, repereTexte, scriptAvecLignes, texteDesLignes } from "@/domaine/relecture-tableau";
@@ -48,6 +49,7 @@ import { depuisLignesTableau } from "@/domaine/qualite-script/adaptateurs/tablea
 import { RECETTE_TABLEAU } from "@/domaine/qualite-script/recettes/tableau";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { CorrectionScene, DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
+import { texteAvecFin } from "@/moteurs/montage-tableau/fin-choisie";
 import { importantsDeLaScene } from "./importants";
 import { CoutVoixTableau } from "./CoutVoix";
 import { DUREE_DECOUPAGE_TEXTE } from "./durees";
@@ -116,6 +118,23 @@ export function cheminDeDepart(b: EcranCreationTableau["brouillon"]): CheminTabl
 /** Ce que le contrôle du sujet lit : si cela change après un refus, le panneau « Sujet déjà traité » n'a plus lieu d'être. */
 const cleSaisie = (s: Saisie): string => JSON.stringify([s.texte, s.gesteMinute, s.douleur, s.finId, s.mot ?? "", s.reseaux]);
 
+/**
+ * La fin choisie n'est pas dans le texte : le geste pour l'y mettre (sur clic seulement). La phrase ajoutée est la phrase
+ * DITE de la fin (`TABLE_FINS`, `{MOT}` remplacé par le mot en capitales) ; mot vide : pas de phrase. `null` : rien à proposer
+ * (aucune fin, texte vide, ou fin déjà dans le texte). PUR.
+ */
+export function finAAjouterDe(finId: string | undefined, texte: string, mot: string | undefined): { phrase: string | null } | null {
+  const choisie = TABLE_FINS.find((f) => f.id === finId);
+  const dite = choisie?.dit;
+  if (!choisie || !dite || !texte.trim()) return null;
+  const m = (mot ?? "").trim().toUpperCase();
+  if (dite.includes("{MOT}") && !m) return { phrase: null };
+  const phrase = dite.replace("{MOT}", m).trim();
+  // Déjà là : la phrase dite, ou sa partie écrite à l'écran (ce que contrôle `finChoisieAbsente`) : rien à ajouter.
+  const ecrite = choisie.ecran.replace("{MOT}", m).trim();
+  return texteAvecFin(texte, phrase) === texte || texteAvecFin(texte, ecrite) === texte ? null : { phrase };
+}
+
 export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -172,6 +191,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   // Fins « À valider » masquées par défaut (sauf celle déjà choisie) ; libellé affiché, jamais une réservation directe.
   const finsAffichees = ecran.fins.filter((f) => f.validee || voirNonValidees || f.id === saisie.finId);
   const nonValideesMasquees = ecran.fins.some((f) => !f.validee && f.id !== saisie.finId) && !voirNonValidees;
+  /** La fin choisie n'est pas dans le texte : le geste pour l'y mettre (sur clic seulement ; mot vide : pas de phrase). */
+  const finAAjouter = finAAjouterDe(saisie.finId, saisie.texte, saisie.mot);
   const changer = (p: Partial<Saisie>) => setSaisie((s) => ({ ...s, ...p }));
 
   // « Relire le script » du texte dit : par passage s'il vient tel quel du générateur, sinon phrase par phrase.
@@ -446,6 +467,15 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
           valeur={saisie.finId}
           onChange={(v) => changer({ finId: v })}
         />
+        {finAAjouter && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-texte-doux">{"Cette fin n'est pas dans votre texte : elle ne sera ni dite ni écrite."}</p>
+            <Bouton type="button" variante="secondaire" disabled={!finAAjouter.phrase} onClick={() => finAAjouter.phrase && changer({ texte: texteAvecFin(saisie.texte, finAAjouter.phrase) })}>
+              Ajouter cette fin à mon texte
+            </Bouton>
+            {!finAAjouter.phrase && <p className="text-sm text-texte-doux">{"Écrivez d'abord le mot à commenter."}</p>}
+          </div>
+        )}
         {nonValideesMasquees && (
           <button type="button" className="text-sm text-texte-doux underline underline-offset-2" onClick={() => setVoirNonValidees(true)}>
             Voir les fins non validées

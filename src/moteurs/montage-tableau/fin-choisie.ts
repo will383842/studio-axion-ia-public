@@ -20,3 +20,13 @@ export function finChoisieAbsente(fiche: FicheTableau, sortie: IdSortie, fin: Fi
   if (normaliser(texteDitDe(fiche)).includes(normaliser(fin.ecran))) return null;
   return `La fin choisie « ${fin.ecran} » n'est pas dans votre texte : elle ne serait ni dite ni écrite. Ajoutez-la à la fin du texte, ou choisissez « Aucune ».`;
 }
+
+/**
+ * Le texte avec la fin choisie ajoutée à la fin (le geste « Ajouter cette fin à mon texte », sur clic seulement) :
+ * le texte sans espaces de fin, une espace, la phrase. Si la phrase y est déjà (comparaison normalisée), le texte est
+ * rendu inchangé : appelée deux fois, le résultat est le même. PUR.
+ */
+export function texteAvecFin(texte: string, dit: string): string {
+  if (normaliser(texte).includes(normaliser(dit))) return texte;
+  return `${texte.trimEnd()} ${dit}`;
+}

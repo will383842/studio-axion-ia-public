@@ -9,6 +9,7 @@ import { pireCasRole } from "@/generateur/roles/types";
 import { MAX_JETONS_REALISATEUR_V4, entreeRoleRealisateurV4, roleRealisateurV4 } from "./role-v4";
 import { ESSAIS_MAX_REALISATEUR, messageAvecErreurs, messageRealisateur, type EntreeRealisateur } from "./index";
 import { ESSAIS_REPLI_SANS_VIDEO_V4 } from "../repli-sans-video-v4";
+import { blocTelephoneVideo } from "./consigne-telephone-video";
 
 /** Débit de parole PESSIMISTE (mots par seconde) : la recette vise 2,8 ; une prise rapide en dit davantage. */
 export const MOTS_PAR_SECONDE_PIRE_CAS = 3.5;
@@ -42,21 +43,27 @@ export function motsPourEstimation(dureeSec: number, motsTexte = 0): number {
 }
 
 /** Transcription fictive, de la taille du pire cas (un mot par ligne comme dans la vraie requête). PUR. */
-function entreePourEstimation(dureeSec: number, nbMots: number): EntreeRealisateur {
+function entreePourEstimation(dureeSec: number, nbMots: number, calageAuMot = false): EntreeRealisateur {
   const duree = Math.max(dureeSec, nbMots / MOTS_PAR_SECONDE_PIRE_CAS);
   const pas = duree / Math.max(1, nbMots);
   const mot = "m".repeat(CARACTERES_PAR_MOT);
   const mots = Array.from({ length: nbMots }, (_, i) => ({ w: mot, a: i * pas, f: (i + 1) * pas }));
-  return { mots, dureeSec: duree, titre: "x".repeat(80), prise: { src: "prise", finSec: duree }, fin: { marque: "", adresse: "", motCle: "", tuiles: [] } };
+  return { mots, dureeSec: duree, titre: "x".repeat(80), prise: { src: "prise", finSec: duree }, fin: { marque: "", adresse: "", motCle: "", tuiles: [] }, ...(calageAuMot ? { calageAuMot: true } : {}) };
 }
 
-type DemandeEstimation = { dureeSec: number; motsTexte?: number; plafondUsd: number };
+/** `calageAuMot` et `telephoneVideo` : facultatifs ; absents, le chiffre est identique à celui d'avant (BR-PRIX-FA-a). */
+type DemandeEstimation = { dureeSec: number; motsTexte?: number; plafondUsd: number; calageAuMot?: true; telephoneVideo?: true };
+
+/** Message de premier essai tel que chiffré : même assemblage que `realisateur/index.ts` (sans l'historique, hors estimation). PUR. */
+export function messageChiffreV4(d: DemandeEstimation): string {
+  const entree = entreePourEstimation(d.dureeSec, motsPourEstimation(d.dureeSec, d.motsTexte), d.calageAuMot === true);
+  return [messageRealisateur(entree), blocTelephoneVideo(d.telephoneVideo === true)].filter(Boolean).join("\n\n");
+}
 
 /** Coût au pire d'un essai « premier » (la transcription seule) et d'un essai « suivant » (plan refusé et erreurs renvoyés). PUR. */
 function coutsEssaisV4(d: DemandeEstimation): { premier: number; suivant: number } {
-  const entree = entreePourEstimation(d.dureeSec, motsPourEstimation(d.dureeSec, d.motsTexte));
   const role = roleRealisateurV4();
-  const base = messageRealisateur(entree);
+  const base = messageChiffreV4(d);
   const erreurs = Array.from({ length: ERREURS_REJOUEES }, () => "e".repeat(CARACTERES_PAR_ERREUR));
   const cout = (message: string) => pireCasRole(role, entreeRoleRealisateurV4({ systeme: "", message, schema: {} }));
   return { premier: cout(base), suivant: cout(messageAvecErreurs(base, erreurs, "p".repeat(CARACTERES_PLAN_RENVOYE))) };

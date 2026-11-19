@@ -71,6 +71,7 @@ const EXEMPLES: Record<TypeOperationFacecam, OperationFacecam> = {
   transitionEcran: { type: "transitionEcran", auMot: 56, style: "ecran-plie", dureeSec: null },
   effetRealisteIA: { type: "effetRealisteIA", debutMot: 30, finMot: 36, description: "Un vrai logo qui flotte au-dessus de ma main", reference: "logo-axion", plan: "large" } as unknown as OperationFacecam,
   changerTitreCouverture: { type: "changerTitreCouverture", texte: "Le diagnostic fuite" },
+  modifierCarte: { type: "modifierCarte", passageId: "pas-a-modifier", modele: "check-list" },
 };
 
 /* ------------------------------------------------------------------ */
@@ -210,6 +211,14 @@ const PREUVES: Partial<Record<TypeOperationFacecam, () => Promise<void>>> = {
     const id = pose.etat.facecam.passages[0].id;
     const r = appliquer([{ type: "retirer", passageId: id }], pose.etat);
     expect(cartesDesPassages(r.etat.facecam.passages as PassageMonteur[])).toEqual([]);
+  },
+  async modifierCarte() {
+    const pose = appliquer([EXEMPLES.ajouterCarte]);
+    const id = pose.etat.facecam.passages[0].id;
+    const r = appliquer([{ type: "modifierCarte", passageId: id, modele: "check-list" }], pose.etat);
+    expect(r.refusees).toEqual([]);
+    expect(cartesDesPassages(r.etat.facecam.passages as PassageMonteur[])).toHaveLength(1);
+    expect((r.etat.facecam.passages[0] as PassageMonteur).operation).toMatchObject({ type: "ajouterCarte", modele: "check-list" });
   },
   async remettre() {
     const etat = etatVide();

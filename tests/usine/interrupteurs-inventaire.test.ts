@@ -273,6 +273,7 @@ const RETOUCHE: Record<string, Etat> = {
   "retoucheChat.imageVideo": "eteint",
   "retoucheChat.facecamAnimee": "eteint",
   "retoucheChat.tutorielOutil": "eteint",
+  "retoucheChat.videoLongue": "eteint",
 };
 
 const lire = (f: string) => readFileSync(f, "utf8");
@@ -498,7 +499,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "services/oppositions-transmission.ts:`${PARAM_CONVERSATIONS}.alias`": { exclu: "memoire" },
   "services/plafond-fournisseur.ts:cle": { exclu: "dedoublonnage" }, // :74 marque ; :99 et :113 compteur (mémoire)
   "services/publication-editoriale-interrupteurs.ts:cle": { couvre: "publication.premier_commentaire_coupe" }, // INTERRUPTEURS_PUBLICATION
-  "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 4 de CLES_REGLAGE_RETOUCHE
+  "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 5 de CLES_REGLAGE_RETOUCHE
   "services/serie-ecriture.ts:cleSerie(cle)": { exclu: "memoire" },
   "services/site-videos.ts:cleSiteGenerateur(formatId)": { couvre: "siteGenerateurs.*" },
   "services/site-videos.ts:cleSiteAuto(f.id)": { couvre: "siteAuto.*" },
@@ -652,7 +653,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(Object.keys(PLAN_SCENES).sort()).toEqual(Object.values(CLES_REGLAGE_PLAN_SCENES).sort());
   });
 
-  it("retouche du chat : quatre clés, toutes éteintes (AM-24 / C-7)", () => {
+  it("retouche du chat : cinq clés, toutes éteintes (AM-24 / C-7)", () => {
     expect(Object.values(CLES_REGLAGE_RETOUCHE).sort()).toEqual(Object.keys(RETOUCHE).sort());
     expect(Object.values(RETOUCHE).every((e) => e === "eteint")).toBe(true);
     const texte = lire("src/services/retouche-chat/generateurs.ts");
