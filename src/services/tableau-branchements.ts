@@ -21,6 +21,7 @@ import type { ResumeVisuel } from "@/briques/variete";
 import { resumeVisuelDepuisFiche } from "@/briques/variete/resume";
 import type { FicheScenes } from "@/briques/fiche-scenes";
 import { depots } from "./_commun";
+import { dejaVuUsine } from "./tableau-deja-vu-usine";
 
 /** Date du jour (AAAA-MM-JJ). */
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -119,6 +120,8 @@ brancherServicesTableau({
       },
       // Mots de la douleur validés avec la fiche à la création : la relecture de la fabrication cherche les mêmes.
       historique: await historiqueVarieteTableau(c.videoId, await creationVersionEnCours(travailId)),
+      // FIX-TABLEAU-CASE-PREMIERE-PAGE : commande de l'usine + réglage allumé seulement (éteint par défaut) ; date de la version.
+      ...(await dejaVuUsine(c, await creationVersionEnCours(travailId)).then((d) => (d ? { dejaVu: d } : {}))),
       contexte: { aujourdhui: aujourdhui(), sourcesChiffres: [], preuves, matieres, ...(entrees.motsDouleur?.length ? { motsDouleur: entrees.motsDouleur } : {}), ...(entrees.origine === "will" ? { texteDeWill: true } : {}) },
       budget: {
         tarifCentimesParCaractere: TARIF_VOIX_CENTIMES_PAR_CARACTERE,
