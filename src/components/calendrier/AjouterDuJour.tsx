@@ -5,8 +5,8 @@ import { Bouton } from "@/components/ui/Bouton";
 import type { IdReseau } from "@/domaine/types";
 import { AjouterEntreeProposant } from "./AjouterEntreeProposant";
 import { nomReseau } from "./CarteEntreeCalendrier";
+import { COMPTE_PAR_DEFAUT } from "@/domaine/plan-editorial/compte-par-defaut";
 
-const COMPTE_PAR_DEFAUT = "compte-studio";
 
 /**
  * Ajout d'un créneau dans la vue Jour : bouton « + Ajouter ce jour-là », choix du réseau parmi les réseaux allumés, puis le formulaire.
