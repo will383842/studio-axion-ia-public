@@ -4,7 +4,8 @@
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { empreinteDescription, lireApercu } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { lireDescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
@@ -18,10 +19,12 @@ import {
   ecrireMaquette,
   nomsPermis,
   planEcriture,
+  policesJoignables,
   rapportMaquette,
   type DependancesEcriture,
 // @ts-expect-error TS5097 : l'extension .mts est voulue (outil lancé par tsx, comme capturer.mts) ; les types restent résolus.
 } from "../../../outils/maquettes-tableaux-de-bord/constructeur/ecrire-maquette.mts";
+import { adresseAutorisee, RACINES_PAR_DEFAUT } from "../../../outils/maquettes-tableaux-de-bord/capture/garde";
 import { NOMS_FICHIERS } from "../../../outils/maquettes-tableaux-de-bord/constructeur/construire";
 import type { NomsNeutres } from "../../../outils/maquettes-tableaux-de-bord/charte/controle";
 
@@ -182,6 +185,34 @@ describe("ecrireMaquette (dossier temporaire, capteur en double)", () => {
     const tout = NOMS_FICHIERS.map((n) => readFileSync(join(dir, "s/maquette", n), "utf8")).join("\n");
     expect(html).toContain("vivant");
     expect(tout).not.toMatch(/https?:\/\/|fetch\(|XMLHttpRequest/);
+  });
+
+  it("styles.css écrit hors du dépôt : chaque police pointe un fichier qui existe, sous une racine acceptée par le capteur", () => {
+    const dir = temp();
+    const { dep } = sans();
+    expect(ecrireMaquette(["--description", ecrireDescription(dir), "--sortie", join(dir, "s")], dep)).toBe(CODE_OK);
+    const dossierMaquette = join(dir, "s/maquette");
+    const css = readFileSync(join(dossierMaquette, "styles.css"), "utf8");
+    const urls = [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/g)].map((m) => m[1]!);
+    const polices = urls.filter((u) => /\.woff2?$/i.test(u));
+    expect(polices.length).toBeGreaterThan(0);
+    // Racines du capteur + le dossier de la maquette, comme le fait capturer.mts.
+    const racines = [...RACINES_PAR_DEFAUT.map((r) => resolve(RACINE, r)), dossierMaquette];
+    for (const u of polices) {
+      expect(u.startsWith("file://"), u).toBe(true);
+      expect(existsSync(fileURLToPath(u)), u).toBe(true);
+      expect(adresseAutorisee(u, racines), u).toBe(true);
+    }
+    expect(css).toContain("manrope-latin.woff2");
+    expect(css).not.toContain("../../../src/app/polices");
+  });
+
+  it("policesJoignables : seules les polices relatives de la charte sont réécrites", () => {
+    const css = '@font-face{src:url("../../../src/app/polices/manrope-latin.woff2") format("woff2")}.a{background:url(data:image/png;base64,AA)}';
+    const sortie = policesJoignables(css, "/depot");
+    expect(sortie).toContain('url("file:///depot/src/app/polices/manrope-latin.woff2")');
+    expect(sortie).toContain("url(data:image/png;base64,AA)");
+    expect(policesJoignables(".b{color:red}", "/depot")).toBe(".b{color:red}");
   });
 
   it("sans « --apercu » : le capteur n'est jamais lancé", () => {

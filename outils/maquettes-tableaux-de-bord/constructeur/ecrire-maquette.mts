@@ -179,6 +179,18 @@ export function nomsPermis(neutres: NomsNeutres, ecransOutils: unknown): string[
   return [...noms];
 }
 
+/**
+ * Rend les polices de la charte joignables quand la maquette est écrite HORS du dépôt : la charte les charge par un chemin
+ * relatif à `outils/maquettes-tableaux-de-bord/<dossier>/` (`../../../src/app/polices/…`), qui n'existe pas ailleurs.
+ * Chaque `url(…)` de ce chemin devient l'URL `file://` absolue de la police du dépôt (déjà dans `RACINES_PAR_DEFAUT`).
+ * Le reste du CSS est inchangé ; seul le fichier écrit est réécrit (les empreintes restent celles du contenu de la charte).
+ */
+export function policesJoignables(css: string, racineDepot: string): string {
+  return css.replace(/url\((["']?)(?:\.\.\/)+src\/app\/polices\/([A-Za-z0-9._-]+)\1\)/g, (_m, q: string, nom: string) => {
+    return `url(${q}${pathToFileURL(join(resolve(racineDepot), "src/app/polices", nom)).href}${q})`;
+  });
+}
+
 /** Écrit la maquette créée dans `<sortie>/maquette/` (4 fichiers) et, avec « --apercu », prend l'aperçu. Renvoie le code de sortie. */
 export function ecrireMaquette(argv: readonly string[], dep: DependancesEcriture): number {
   const dire = dep.journal ?? ((t: string) => console.error(t));
@@ -242,7 +254,7 @@ export function ecrireMaquette(argv: readonly string[], dep: DependancesEcriture
   if (!controle.ok) return refuser(CODE_REFUSE, controle.defauts.map((x) => `${x.chemin}:${x.ligne} · ${x.regle}`));
   const dossierMaquette = join(sortie, "maquette");
   mkdirSync(dossierMaquette, { recursive: true });
-  for (const nom of NOMS_FICHIERS) writeFileSync(join(dossierMaquette, nom), fichiers[nom]);
+  for (const nom of NOMS_FICHIERS) writeFileSync(join(dossierMaquette, nom), nom === "styles.css" ? policesJoignables(fichiers[nom], dep.racineDepot) : fichiers[nom]);
 
   // 4. Aperçu : le capteur existant, sans calage (images de contrôle, ni voix ni film).
   let pngs: string[] | undefined;
