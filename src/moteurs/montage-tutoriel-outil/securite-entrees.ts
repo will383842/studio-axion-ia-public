@@ -221,16 +221,28 @@ function ligneDe(texte: string, decalage: number): number {
 
 /**
  * Balises HTML en UN SEUL passage (pas d'expression régulière : temps linéaire, jamais de retour en arrière).
- * Nom jusqu'à un blanc, « / » ou « > » ; attributs : les valeurs entre guillemets sont sautées d'un bloc ; fin au « > ».
- * Une balise qui n'a pas de fin n'en est pas une. Si la lecture atteint la fin du texte sans avoir vu un guillemet, aucune
- * balise suivante ne peut aboutir : on s'arrête. Un budget borne le reste (cas pathologique : refus, jamais un blocage).
+ * Lecture à la manière du navigateur : nom jusqu'à un blanc, « / » ou « > » ; puis attributs. Un guillemet n'ouvre une valeur
+ * QUE juste après « = » (blancs permis) ; partout ailleurs (nom d'attribut, valeur sans guillemets, nom de balise), c'est un
+ * caractère ordinaire. Les valeurs entre guillemets sont sautées d'un bloc ; fin au « > ». Une balise sans fin n'en est pas une.
+ * Un budget borne le total : un dépassement donne `null` (refus « maquette illisible »), jamais un blocage.
  */
+const NOM = 0; // nom de balise
+const AVANT_ATTR = 1;
+const ATTR = 2; // dans un nom d'attribut
+const APRES_ATTR = 3; // blancs après un nom d'attribut
+const AVANT_VALEUR = 4; // après « = »
+const SANS_GUILLEMETS = 5; // dans une valeur sans guillemets
+
+function estBlanc(c: string): boolean {
+  return c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
+}
+
 function balisesDe(texte: string): { index: number; texte: string }[] | null {
   const balises: { index: number; texte: string }[] = [];
   const n = texte.length;
-  const budget = 40 * n + 1_000_000;
+  const budget = 16 * n + 1_000_000;
   let depense = 0;
-  // Dernière position de chaque guillemet : au-delà, aucune recherche de fermant n'est utile (pas de parcours répété jusqu'à la fin).
+  // Dernière position de chaque guillemet : au-delà, aucun fermant n'existe (pas de parcours répété jusqu'à la fin).
   const dernier: Record<string, number> = { '"': texte.lastIndexOf('"'), "'": texte.lastIndexOf("'") };
   let debut = texte.indexOf("<");
   while (debut !== -1 && debut < n - 1) {
@@ -240,9 +252,8 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
       continue;
     }
     let i = debut + 2;
-    let guillemet = false;
-    let saute = false; // une valeur entre guillemets a été sautée dans cette balise
-    let bloque = false; // arrêt sur un guillemet sans fermant
+    let etat = NOM;
+    let valeurOuverte = false; // un guillemet d'ouverture de valeur a été rencontré dans cette balise
     let fin = -1;
     while (i < n) {
       const ch = texte[i]!;
@@ -250,17 +261,33 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
         fin = i;
         break;
       }
-      if (ch === '"' || ch === "'") {
-        guillemet = true;
-        if (i >= dernier[ch]!) {
-          bloque = true;
-          break;
+      const blanc = estBlanc(ch);
+      if (etat === NOM) {
+        if (blanc || ch === "/") etat = AVANT_ATTR;
+      } else if (etat === AVANT_ATTR) {
+        if (!blanc && ch !== "/") etat = ATTR;
+      } else if (etat === ATTR) {
+        if (blanc) etat = APRES_ATTR;
+        else if (ch === "/") etat = AVANT_ATTR;
+        else if (ch === "=") etat = AVANT_VALEUR;
+      } else if (etat === APRES_ATTR) {
+        if (ch === "=") etat = AVANT_VALEUR;
+        else if (ch === "/") etat = AVANT_ATTR;
+        else if (!blanc) etat = ATTR;
+      } else if (etat === AVANT_VALEUR) {
+        if (ch === '"' || ch === "'") {
+          valeurOuverte = true;
+          if (i >= dernier[ch]!) {
+            i = n; // guillemet sans fermant : la balise ne se termine pas
+            break;
+          }
+          i = texte.indexOf(ch, i + 1) + 1;
+          etat = AVANT_ATTR;
+          continue;
         }
-        const f = texte.indexOf(ch, i + 1);
-        if (f === -1) break;
-        saute = true;
-        i = f + 1;
-        continue;
+        if (!blanc) etat = SANS_GUILLEMETS;
+      } else if (blanc) {
+        etat = AVANT_ATTR; // SANS_GUILLEMETS
       }
       i++;
     }
@@ -269,36 +296,35 @@ function balisesDe(texte: string): { index: number; texte: string }[] | null {
     if (fin !== -1) {
       balises.push({ index: debut, texte: texte.slice(debut, fin + 1) });
       debut = texte.indexOf("<", fin + 1);
+    } else if (!valeurOuverte && i >= n) {
+      break; // aucun « > » après `debut`, et aucune valeur sautée : aucune balise suivante ne peut aboutir
     } else {
-      if (!guillemet && i >= n) break;
-      // Arrêt sur un guillemet sans fermant, sans valeur sautée avant : tout « < » entre le début et ce guillemet lit les mêmes
-      // caractères sans « > » et butte sur le même guillemet. On les saute d'un bloc (sinon : temps quadratique).
-      debut = texte.indexOf("<", bloque && !saute ? i : debut + 1);
+      debut = texte.indexOf("<", debut + 1);
     }
   }
   return balises;
 }
 
 /**
- * Attributs d'UNE balise (texte de `<` à `>`), lus à la main en un seul passage (aucune expression régulière : temps linéaire).
- * Nom jusqu'à un blanc, « = », « / » ou « > » ; puis « = » et la valeur, entre guillemets ou non. Seuls les attributs avec valeur sont rendus.
+ * Attributs d'UNE balise (texte de `<` à `>`), lus à la main en un seul passage (aucune expression régulière : temps linéaire),
+ * avec les mêmes règles que `balisesDe`. Seuls les attributs avec valeur sont rendus.
  */
 function attributsDe(balise: string): { nom: string; valeur: string; index: number }[] {
   const sortie: { nom: string; valeur: string; index: number }[] = [];
   const n = balise.length;
-  const blanc = (c: string) => c === " " || c === "\t" || c === "\n" || c === "\r" || c === "\f";
   let i = 1;
-  while (i < n && !blanc(balise[i]!) && balise[i] !== "/" && balise[i] !== ">") i++;
+  while (i < n && !estBlanc(balise[i]!) && balise[i] !== "/" && balise[i] !== ">") i++;
   while (i < n) {
-    while (i < n && (blanc(balise[i]!) || balise[i] === "/" || balise[i] === "=")) i++;
+    while (i < n && (estBlanc(balise[i]!) || balise[i] === "/")) i++;
     if (i >= n || balise[i] === ">") break;
     const debutNom = i;
-    while (i < n && !blanc(balise[i]!) && balise[i] !== "=" && balise[i] !== "/" && balise[i] !== ">") i++;
+    i++; // le premier caractère fait toujours partie du nom (même « = » ou un guillemet)
+    while (i < n && !estBlanc(balise[i]!) && balise[i] !== "=" && balise[i] !== "/" && balise[i] !== ">") i++;
     const nom = balise.slice(debutNom, i);
-    while (i < n && blanc(balise[i]!)) i++;
+    while (i < n && estBlanc(balise[i]!)) i++;
     if (balise[i] !== "=") continue;
     i++;
-    while (i < n && blanc(balise[i]!)) i++;
+    while (i < n && estBlanc(balise[i]!)) i++;
     let valeur = "";
     const q = balise[i];
     if (q === '"' || q === "'") {
@@ -308,7 +334,7 @@ function attributsDe(balise: string): { nom: string; valeur: string; index: numb
       i = fin + 1;
     } else {
       const d = i;
-      while (i < n && !blanc(balise[i]!) && balise[i] !== ">") i++;
+      while (i < n && !estBlanc(balise[i]!) && balise[i] !== ">") i++;
       valeur = balise.slice(d, i);
     }
     sortie.push({ nom, valeur, index: debutNom });
@@ -357,8 +383,6 @@ const MOTIFS_JS: readonly { re: RegExp; motif: string }[] = [
   { re: /\bset(?:Timeout|Interval)\s*\(\s*["'`]/g, motif: "code évalué (« setTimeout / setInterval » avec une chaîne)" },
   { re: /\bnew\s+Function\b/g, motif: "code évalué « new Function »" },
   { re: /\bserviceWorker\b/g, motif: "« serviceWorker »" },
-  { re: /\bimport\s*(?:\/\*[\s\S]*?\*\/\s*|\/\/[^\n]*\n\s*)*\(/g, motif: "import dynamique « import( »" },
-  { re: /\bimport\s*[^;'"`]*?\bfrom\s*["'`]\s*(?:https?:|wss?:|\/\/)/g, motif: "import depuis une adresse externe" },
   { re: /["'`]\s*(?:https?:|wss?:)\/\/[^"'`]*/gi, motif: "adresse externe dans une chaîne" },
   { re: /["'`]\s*\/\/[a-z0-9][^"'`]*/gi, motif: "adresse externe (protocole implicite) dans une chaîne" },
 ];
@@ -392,8 +416,115 @@ export function decoderEchappementsCss(texte: string): string {
   });
 }
 
+/** Minuscules ASCII seulement : la longueur ne change jamais (les index restent ceux du texte d'origine). */
+function minusculesAscii(texte: string): string {
+  return texte.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 32));
+}
+
+/**
+ * Les `url(…)` d'un texte CSS : `url(` + blancs + (valeur entre guillemets | valeur sans blanc ni « ) ») + blancs + « ) ».
+ * Lecture à la main, temps linéaire : une recherche qui échoue jusqu'à la fin du texte n'est jamais refaite.
+ */
+function urlsDe(texte: string): { index: number; valeur: string }[] {
+  const bas = minusculesAscii(texte);
+  const n = texte.length;
+  const sortie: { index: number; valeur: string }[] = [];
+  const sansFermant: Record<string, boolean> = {};
+  let finSansGuillemets = -1; // un « url( » sans guillemets qui s'arrête ici (blanc ou « ) ») a échoué : les suivants avant cette position aussi
+  const blancs = (j: number) => {
+    while (j < n && /\s/.test(texte[j]!)) j++;
+    return j;
+  };
+  for (let p = bas.indexOf("url("); p !== -1; p = bas.indexOf("url(", p + 1)) {
+    const i = blancs(p + 4);
+    const q = texte[i];
+    if ((q === '"' || q === "'") && !sansFermant[q]) {
+      const f = texte.indexOf(q, i + 1);
+      if (f === -1) sansFermant[q] = true;
+      else {
+        const j = blancs(f + 1);
+        if (texte[j] === ")") {
+          sortie.push({ index: p, valeur: texte.slice(i + 1, f) });
+          p = j; // la recherche reprend après la parenthèse
+          continue;
+        }
+      }
+    }
+    if (i <= finSansGuillemets) continue;
+    let j = i;
+    while (j < n && texte[j] !== ")" && !/\s/.test(texte[j]!)) j++;
+    const k = blancs(j);
+    if (texte[k] === ")") {
+      sortie.push({ index: p, valeur: texte.slice(i, j) });
+      p = k;
+    } else finSansGuillemets = j;
+  }
+  return sortie;
+}
+
+/** Première position ≥ `depuis` de `motif`, avec mémoire : une recherche déjà faite n'est jamais refaite (temps linéaire). */
+function rechercheMemo(texte: string, motif: RegExp): (depuis: number) => number {
+  let derniere = -2;
+  let origine = 0;
+  return (depuis) => {
+    if (derniere === -1 && origine <= depuis) return -1;
+    if (derniere >= depuis && origine <= depuis) return derniere;
+    motif.lastIndex = depuis;
+    const m = motif.exec(texte);
+    origine = depuis;
+    derniere = m ? m.index : -1;
+    return derniere;
+  };
+}
+
+/**
+ * `import(` dynamique (commentaires permis entre `import` et la parenthèse) et `import … from "https://…"` : lus à la main,
+ * temps linéaire (les anciennes expressions à `[\s\S]*?` relisaient le texte jusqu'à la fin depuis chaque `import`).
+ */
+function verifierImports(chemin: string, texte: string, base: number, source: string, refus: RefusMaquette[]): void {
+  const prochainFinCom = rechercheMemo(texte, /\*\//g);
+  const prochainRetour = rechercheMemo(texte, /\n/g);
+  const prochainTerme = rechercheMemo(texte, /[;'"`]/g);
+  const verdictFrom = new Map<number, number>(); // par terminateur : position de « from » si suivi d'un guillemet + adresse externe, sinon -1
+  const blancs = (j: number) => {
+    while (j < texte.length && /\s/.test(texte[j]!)) j++;
+    return j;
+  };
+  for (let p = texte.indexOf("import"); p !== -1; p = texte.indexOf("import", p + 1)) {
+    if (p > 0 && /\w/.test(texte[p - 1]!)) continue;
+    const e = p + 6;
+    let j = blancs(e);
+    for (;;) {
+      if (texte.startsWith("/*", j)) {
+        const k = prochainFinCom(j + 2);
+        if (k === -1) break;
+        j = blancs(k + 2);
+      } else if (texte.startsWith("//", j)) {
+        const k = prochainRetour(j + 2);
+        if (k === -1) break;
+        j = blancs(k + 1);
+      } else break;
+    }
+    if (texte[j] === "(") refus.push({ chemin, ligne: ligneDe(source, base + p), motif: "import dynamique « import( »" });
+    const q = prochainTerme(e);
+    if (q === -1 || texte[q] === ";") continue;
+    let debutFrom = verdictFrom.get(q);
+    if (debutFrom === undefined) {
+      let r = q;
+      while (r > 0 && /\s/.test(texte[r - 1]!)) r--;
+      debutFrom = r - 4;
+      const ok = debutFrom >= 0 && texte.startsWith("from", debutFrom) && (debutFrom === 0 || !/\w/.test(texte[debutFrom - 1]!));
+      const suite = blancs(q + 1);
+      debutFrom = ok && /^(?:https?:|wss?:|\/\/)/.test(texte.slice(suite, suite + 8)) ? debutFrom : -1;
+      verdictFrom.set(q, debutFrom);
+    }
+    if (debutFrom >= e) refus.push({ chemin, ligne: ligneDe(source, base + p), motif: "import depuis une adresse externe" });
+  }
+}
+
 function verifierJs(chemin: string, brut: string, base: number, source: string, refus: RefusMaquette[]): void {
   const texte = decoderEchappementsJs(brut);
+  verifierImports(chemin, texte, base, source, refus);
   for (const { re, motif } of MOTIFS_JS) {
     re.lastIndex = 0;
     for (let m = re.exec(texte); m; m = re.exec(texte)) {
@@ -406,8 +537,12 @@ function verifierJs(chemin: string, brut: string, base: number, source: string, 
 
 function verifierCss(chemin: string, brut: string, base: number, source: string, refus: RefusMaquette[]): void {
   // Barres obliques inverses dans url() / @import : refusées sur le texte brut (adresse masquée).
-  for (const m of brut.matchAll(/url\(([^)]*)\)/gi)) {
-    if ((m[1] ?? "").includes("\\")) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "url( ) : barre oblique inverse (adresse masquée)" });
+  const basBrut = minusculesAscii(brut);
+  for (let p = basBrut.indexOf("url("); p !== -1; ) {
+    const f = brut.indexOf(")", p + 4);
+    if (f === -1) break; // aucun « ) » plus loin : plus aucun url( ne peut aboutir
+    if (brut.slice(p + 4, f).includes("\\")) refus.push({ chemin, ligne: ligneDe(source, base + p), motif: "url( ) : barre oblique inverse (adresse masquée)" });
+    p = basBrut.indexOf("url(", f + 1);
   }
   for (const m of brut.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]*)"|'([^']*)'|([^)\s;]+))/gi)) {
     if ((m[1] ?? m[2] ?? m[3] ?? "").includes("\\")) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: "@import : barre oblique inverse (adresse masquée)" });
@@ -420,9 +555,9 @@ function verifierCss(chemin: string, brut: string, base: number, source: string,
       if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `image-set( ) : ${motif}` });
     }
   }
-  for (const m of texte.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)/gi)) {
-    const motif = referenceInterdite(m[1] ?? m[2] ?? m[3] ?? "");
-    if (motif) refus.push({ chemin, ligne: ligneDe(source, base + (m.index ?? 0)), motif: `url( ) : ${motif}` });
+  for (const u of urlsDe(texte)) {
+    const motif = referenceInterdite(u.valeur);
+    if (motif) refus.push({ chemin, ligne: ligneDe(source, base + u.index), motif: `url( ) : ${motif}` });
   }
   for (const m of texte.matchAll(/@import\s+(?:url\(\s*)?(?:"([^"]*)"|'([^']*)'|([^)\s;]+))/gi)) {
     const motif = referenceInterdite(m[1] ?? m[2] ?? m[3] ?? "");
@@ -440,34 +575,68 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
       else if (ext === "css") verifierCss(chemin, texte, 0, texte, refus);
       else if (ext === "html" || ext === "htm") {
         verifierCss(chemin, texte, 0, texte, refus); // <style> et attributs style
-        for (const m of texte.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-          verifierJs(chemin, m[1] ?? "", (m.index ?? 0) + m[0].indexOf(m[1] ?? ""), texte, refus);
+        // Balises lues une fois, en un passage (aucune expression régulière à retour en arrière : temps linéaire).
+        const balises = balisesDe(texte);
+        if (!balises) refus.push({ chemin, ligne: 1, motif: "balises trop imbriquées ou sans fin : maquette illisible" });
+        const bas = minusculesAscii(texte);
+        const plages: { debut: number; fin: number }[] = []; // plages <script>…</script> (contenu à vérifier comme du JS)
+        let finScript = 0;
+        let plusDeFermant = false;
+        for (const t of balises ?? []) {
+          if (t.index < finScript || !/^<script(?![a-z0-9_])/i.test(t.texte)) continue;
+          const debutContenu = t.index + t.texte.length;
+          let fermant = -1;
+          for (let de = debutContenu; !plusDeFermant; ) {
+            const k = bas.indexOf("</script", de);
+            if (k === -1) {
+              plusDeFermant = true;
+              break;
+            }
+            let j = k + 8;
+            while (j < texte.length && estBlanc(texte[j]!)) j++;
+            if (texte[j] === ">") {
+              fermant = k;
+              finScript = j + 1;
+              break;
+            }
+            de = k + 1;
+          }
+          if (fermant === -1) finScript = fermant = texte.length; // script sans fermant : le navigateur exécute tout le reste
+          plages.push({ debut: debutContenu, fin: fermant });
+          verifierJs(chemin, texte.slice(debutContenu, fermant), debutContenu, texte, refus);
         }
         for (const m of texte.matchAll(/<\s*(iframe|object|embed|base|frame|frameset|applet)\b/gi)) {
           refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: `balise interdite <${m[1]!.toLowerCase()}>` });
         }
         // Attributs on*= : cherchés dans tout le HTML hors <script> (séparés par espace, « / », ou collés à une valeur entre guillemets).
-        const horsScripts = texte.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, (x) => " ".repeat(x.length));
+        let horsScripts = "";
+        let depuis = 0;
+        for (const pl of plages) {
+          horsScripts += texte.slice(depuis, pl.debut) + " ".repeat(pl.fin - pl.debut);
+          depuis = pl.fin;
+        }
+        horsScripts += texte.slice(depuis);
         for (const a of horsScripts.matchAll(/[\s/"']on[a-z]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/gi)) {
           const code = decoderEntites(a[1] ?? a[2] ?? a[3] ?? "");
           verifierJs(chemin, code, a.index ?? 0, texte, refus);
         }
-        for (const m of texte.matchAll(/<script\b([^>]*)>/gi)) {
-          const src = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))/i.exec(m[1] ?? "");
-          if (!src) continue;
-          const valeur = decoderEntites(src[1] ?? src[2] ?? src[3] ?? "").trim().split(/[?#]/)[0] ?? "";
-          if (!valeur.toLowerCase().endsWith(".js")) refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "script src : le fichier doit finir par « .js »" });
-        }
-        for (const m of texte.matchAll(/<meta\b[^>]*>/gi)) {
-          if (!/http-equiv\s*=\s*["']?\s*refresh/i.test(decoderEntites(m[0]))) continue;
-          refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "redirection automatique « refresh »" });
-        }
-        for (const m of texte.matchAll(/<form\b[^>]*\baction\s*=/gi)) {
-          refus.push({ chemin, ligne: ligneDe(texte, m.index ?? 0), motif: "formulaire avec « action »" });
+        for (const t of balises ?? []) {
+          const nomBalise = /^<([a-z][^\s/>]*)/i.exec(t.texte.slice(0, 64))?.[1]?.toLowerCase() ?? "";
+          if (nomBalise !== "script" && nomBalise !== "meta" && nomBalise !== "form") continue;
+          for (const a of attributsDe(t.texte)) {
+            const nom = a.nom.toLowerCase();
+            const ligne = ligneDe(texte, t.index);
+            if (nomBalise === "script" && nom === "src") {
+              const valeur = decoderEntites(a.valeur).trim().split(/[?#]/)[0] ?? "";
+              if (!valeur.toLowerCase().endsWith(".js")) refus.push({ chemin, ligne, motif: "script src : le fichier doit finir par « .js »" });
+            } else if (nomBalise === "meta" && nom === "http-equiv" && /^\s*refresh/i.test(decoderEntites(a.valeur))) {
+              refus.push({ chemin, ligne, motif: "redirection automatique « refresh »" });
+            } else if (nomBalise === "form" && nom === "action") {
+              refus.push({ chemin, ligne, motif: "formulaire avec « action »" });
+            }
+          }
         }
         // Toutes les balises, toutes les valeurs d'attribut : entités décodées (le navigateur le fait avant tout le reste).
-        const balises = balisesDe(texte);
-        if (!balises) refus.push({ chemin, ligne: 1, motif: "balises trop imbriquées ou sans fin : maquette illisible" });
         for (const t of balises ?? []) {
           for (const a of attributsDe(t.texte)) {
             const nom = a.nom.toLowerCase();
