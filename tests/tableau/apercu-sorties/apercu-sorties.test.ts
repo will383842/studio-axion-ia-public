@@ -35,6 +35,8 @@ describe("(a) fin CHOISIE : la phrase ajoutée et le mot sont montrés", () => {
     const a = ap.find((x) => x.sortie === ("vertical-liens" as IdSortie))!;
     expect(a.phrasesAjoutees).toEqual([]);
     const derniere = a.pages[a.pages.length - 1];
+    const ecran = derniere.lignes.map((l) => l.texte).join(" ").toLowerCase();
+    expect(ecran).not.toContain("réservez un appel de diagnostic");
     expect(derniere.lignes.some((l) => l.ajout && l.texte !== "axion-ia.com")).toBe(false);
     // `avisFin` est posé par `relireFicheTableau` (couvert par fin-choisie-par-reseau.test.ts) ; ici, la fin retenue qui le porte.
     const sorties = sortiesDesReseaux(["instagram", "tiktok", "youtube-shorts"]);

@@ -20,7 +20,7 @@ const temoin = JSON.parse(readFileSync(new URL("../temoins/blocage-fin-tiktok-20
 const sorties = sortiesDesReseaux(["verticaux"]);
 // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la phrase de la banque de TikTok et
 // Shorts vient du réglage explicite `finLiens` (l'objectif que ce test attend), plus d'un choix « fin-if-mot-envoi ».
-const choisirFinPour = (f: FicheTableau) => choisirFinTableau({}, { sorties, mot: "REPONSES", finLiens: finDesLiens(f)?.objectif });
+const choisirFinPour = (f: FicheTableau) => choisirFinTableau({}, { sorties, mot: "REPONSES", finLiens: ((x) => (x && "objectif" in x ? x.objectif : undefined))(finDesLiens(f)) });
 const mots = (t: string) => t.split(/\s+/).filter((m) => /[\p{L}\p{N}]/u.test(m)).length;
 
 /** Le témoin « réponses types » : méthode en quatre étapes, avec le mot REPONSES. */

@@ -55,7 +55,7 @@ export interface SortieTemoin {
 export function sortiesTemoin(t: TemoinGabarit = temoinGabarit()): SortieTemoin[] {
   const sorties = sortiesDesReseaux(["verticaux"]);
   // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la phrase de la banque de TikTok et Shorts vient du réglage explicite `finLiens`, plus d'un choix « fin-if-mot-envoi ».
-  const choisirFin = choisirFinTableau({}, { sorties, mot: "REPONSES", finLiens: finDesLiens(t.fiche)?.objectif });
+  const choisirFin = choisirFinTableau({}, { sorties, mot: "REPONSES", finLiens: ((x) => (x && "objectif" in x ? x.objectif : undefined))(finDesLiens(t.fiche)) });
   return sortiesRelues(t.fiche, sorties, (id) => finDeLaSortie(id, choisirFin(t.fiche.appelId ?? null, id), t.fiche)).map((p) => {
     const voix = p.id === "vertical" ? t.voix : t.voixTikTok;
     const r = calerFicheTableau(p.fiche, voix.mots, { contexte: contexteTemoin(p.fiche), dureeSec: voix.dureeSec });

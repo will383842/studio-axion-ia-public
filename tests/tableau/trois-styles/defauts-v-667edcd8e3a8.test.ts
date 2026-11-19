@@ -33,7 +33,7 @@ const DEMANDE = /\b(r[ée]servez|enregistrez|[ée]crivez|commentez|abonnez|parta
 describe("(a) fin de TikTok et Shorts : une seule demande", () => {
   const sorties = sortiesDesReseaux(["verticaux"]);
   // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : la phrase de la banque de TikTok et Shorts vient du réglage explicite `finLiens`, plus d'un choix « fin-if-mot-envoi ».
-  const choisirFin = choisirFinTableau({}, { sorties, finLiens: finDesLiens(temoin)?.objectif });
+  const choisirFin = choisirFinTableau({}, { sorties, finLiens: ((x) => (x && "objectif" in x ? x.objectif : undefined))(finDesLiens(temoin)) });
   // 17/11 (Williams) : « Aucune » n'ajoute plus de fin ; ce test choisit une fin.
   const fins = (id: (typeof sorties)[number]) => finDeLaSortie(id, choisirFin(temoin.appelId ?? "fin-if-mot-envoi", id), temoin);
   const [reels, liens] = sortiesRelues(temoin, sorties, fins);
