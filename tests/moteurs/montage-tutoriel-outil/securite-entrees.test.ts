@@ -435,6 +435,27 @@ describe("masquage", () => {
   it("sans donnée : texte identique, aucun remplacement", () => {
     expect(masquerDonneesPersonnelles("rien ici")).toEqual({ texte: "rien ici", remplacements: [] });
   });
+  it("JSON très imbriqué : lecture sans récursion, linéaire (< 1 s), ne lève pas", () => {
+    for (const t of ["[".repeat(200_000), '{"nom":'.repeat(20_000), "[".repeat(20_000) + '{"nom":"Martin"}' + "]".repeat(20_000)]) {
+      const debut = Date.now();
+      expect(() => detecterDonneesPersonnelles(t, { chemin: "demo-data.json" })).not.toThrow();
+      expect(Date.now() - debut).toBeLessThan(1000);
+    }
+  });
+  it("JSON profond : la colonne de personne est toujours trouvée et masquée", () => {
+    const t = '{"nom":' + "[".repeat(20_000) + '"Martin"' + "]".repeat(20_000) + "}";
+    const m = masquerDonneesPersonnelles(t, { chemin: "d.json" });
+    expect(m.texte).not.toContain("Martin");
+    expect(m.remplacements).toEqual([{ type: "colonne-personne", nombre: 1 }]);
+  });
+  it("une détection qui échoue rend « detection-echouee », jamais « aucune donnée »", () => {
+    const piege = new Proxy(new Set<string>(), { get: () => { throw new Error("boum"); } }) as unknown as ReadonlySet<string>;
+    const d = detecterDonneesPersonnelles('{"nom":"Martin"}', { chemin: "d.json", nomsNeutres: piege });
+    expect(d.map((x) => x.type)).toEqual(["detection-echouee"]);
+    const m = masquerDonneesPersonnelles('{"nom":"Martin"}', { chemin: "d.json", nomsNeutres: piege });
+    expect(m.texte).toBe("");
+    expect(m.remplacements).toEqual([{ type: "detection-echouee", nombre: 1 }]);
+  });
 });
 
 describe("script de Williams : jamais masqué, refusé", () => {

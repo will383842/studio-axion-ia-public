@@ -232,6 +232,26 @@ describe("masquage des données, jamais du script", () => {
     expect(r.rapport.masques).toEqual([]);
     expect(journal.join(" ")).not.toContain("06 12");
   });
+  it("JSON imbriqué 20 000 niveaux avec un courriel : refus ou masqué, jamais le courriel d'origine", async () => {
+    ALLUME();
+    const profond = "[".repeat(20_000) + '{"courriel":"jean@vrai-client.fr","nom":"Martin"}' + "]".repeat(20_000);
+    const r = await entree([{ nom: "index.html", donnees: u8("<p>x</p>") }, { nom: "demo-data.json", donnees: u8(profond) }]);
+    if (r.ok) {
+      expect(texte(r.fichiers.get("demo-data.json"))).not.toContain("jean@vrai-client.fr");
+      expect(texte(r.fichiers.get("demo-data.json"))).not.toContain("Martin");
+    } else expect(JSON.stringify(r.rapport)).not.toContain("vrai-client");
+  });
+  it("une détection qui échoue : le fichier est refusé, jamais gardé tel quel", async () => {
+    ALLUME();
+    const piege = new Proxy(new Set<string>(), { get: () => { throw new Error("boum"); } }) as unknown as ReadonlySet<string>;
+    const r = await extraireZipSur(
+      construire([{ nom: "index.html", donnees: u8("<p>x</p>") }, { nom: "demo-data.json", donnees: u8('{"nom":"Martin"}') }]),
+      { attestationImages: true, nomsNeutres: piege },
+      ports(),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.rapport.refus.join(" ")).toContain("la recherche de données de personnes a échoué");
+  });
   it("la maquette externe est refusée après masquage (fetch)", async () => {
     ALLUME();
     const r = await entree([{ nom: "index.html", donnees: u8("<p>x</p>") }, { nom: "app.js", donnees: u8('fetch("https://exemple.invalid")') }]);

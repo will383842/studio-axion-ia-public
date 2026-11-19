@@ -672,7 +672,8 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
 
 // ───────────────────────── Données de personnes ─────────────────────────
 
-export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne";
+/** "detection-echouee" : la détection elle-même a échoué ; on ne sait pas, donc on refuse (jamais « aucune donnée »). */
+export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne" | "detection-echouee";
 export interface Detection {
   type: TypeDonnee;
   ligne: number;
@@ -691,7 +692,7 @@ export interface OptionsDonnees {
 
 const DOMAINES_EXEMPLE = new Set(["exemple.fr", "exemple.com", "example.com", "example.org"]);
 const COLONNES_PERSONNE = new Set(["nom", "prenom", "prénom", "email", "courriel", "telephone", "téléphone", "adresse", "date_naissance", "iban"]);
-const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne">, string> = {
+const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | "detection-echouee">, string> = {
   courriel: "contact@exemple.fr",
   telephone: "01 00 00 00 00",
   iban: "FR00 0000 0000 0000 0000 0000 000",
@@ -771,47 +772,70 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
   if (ext === "json") {
     const ESPACE = /\s/;
-    /** Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `i` ; retourne la fin. */
-    const collecter = (i: number): number => {
-      while (i < texte.length && ESPACE.test(texte[i]!)) i++;
-      const c = texte[i];
-      if (c === '"') {
-        let j = i + 1;
-        while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
-        if (!valeurNeutre(texte.slice(i + 1, j), neutres)) trouves.push({ debut: i + 1, fin: j });
-        return j + 1;
-      }
-      if (c === "[" || c === "{") {
-        const fermant = c === "[" ? "]" : "}";
-        let j = i + 1;
-        while (j < texte.length) {
-          while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
-          if (texte[j] === fermant || j >= texte.length) return j + 1;
-          if (c === "{") {
-            // clé : on la saute, puis la valeur
-            if (texte[j] !== '"') return j + 1;
+    /**
+     * Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `debut` ; retourne la fin.
+     * SANS récursion (pile explicite) : une imbrication de 200 000 niveaux ne fait jamais déborder la pile.
+     */
+    const collecter = (debut: number): number => {
+      const pile: string[] = [];
+      let j = debut;
+      let attendValeur = true;
+      for (;;) {
+        if (attendValeur) {
+          while (j < texte.length && ESPACE.test(texte[j]!)) j++;
+          const c = texte[j];
+          if (c === '"') {
+            let k = j + 1;
+            while (k < texte.length && texte[k] !== '"') k += texte[k] === "\\" ? 2 : 1;
+            if (!valeurNeutre(texte.slice(j + 1, k), neutres)) trouves.push({ debut: j + 1, fin: k });
+            j = k + 1;
+          } else if (c === "[" || c === "{") {
+            pile.push(c === "[" ? "]" : "}");
+            j++;
+            attendValeur = false;
+            continue;
+          } else {
+            const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(j, j + 40));
+            if (nombre) {
+              // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
+              trouves.push({ debut: j, fin: j + nombre[0].length, nu: true });
+              j += nombre[0].length;
+            } else {
+              j += 1; // true, false, null…
+            }
+          }
+          if (pile.length === 0) return j;
+          attendValeur = false;
+          continue;
+        }
+        const fermant = pile[pile.length - 1]!;
+        while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
+        let fini = texte[j] === fermant || j >= texte.length;
+        if (!fini && fermant === "}") {
+          // clé : on la saute, puis la valeur
+          if (texte[j] !== '"') fini = true;
+          else {
             j++;
             while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
             j++;
             while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
           }
-          const suite = collecter(j);
-          if (suite <= j) return j + 1;
-          j = suite;
         }
-        return j;
+        if (fini) {
+          j++;
+          pile.pop();
+          if (pile.length === 0) return j;
+          continue;
+        }
+        attendValeur = true;
       }
-      const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(i, i + 40));
-      if (nombre) {
-        // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
-        trouves.push({ debut: i, fin: i + nombre[0].length, nu: true });
-        return i + nombre[0].length;
-      }
-      return i + 1; // true, false, null…
     };
+    // Un seul passage : une clé déjà couverte par une valeur collectée plus haut n'est pas reprise (linéaire).
+    let traite = 0;
     for (const m of texte.matchAll(/"((?:[^"\\]|\\.)*)"\s*:\s*/g)) {
-      if (!COLONNES_PERSONNE.has(m[1]!.toLowerCase())) continue;
-      collecter((m.index ?? 0) + m[0].length);
+      const debutValeur = (m.index ?? 0) + m[0].length;
+      if (debutValeur <= traite || !COLONNES_PERSONNE.has(m[1]!.toLowerCase())) continue;
+      traite = collecter(debutValeur);
     }
     return trouves;
   }
@@ -862,7 +886,8 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
       for (const c of detecterColonnes(texte, ext, options.nomsNeutres)) bruts.push({ type: "colonne-personne", ...c });
     }
   } catch {
-    return [];
+    // Échec de la détection : jamais « aucune donnée » (le fichier partirait non masqué) ; une détection spéciale force le refus.
+    return [{ type: "detection-echouee", ligne: 1, debut: 0, fin: texte.length }];
   }
   // Priorité à l'ordre de découverte ci-dessus : une plage déjà prise n'est pas reprise.
   const pris: { debut: number; fin: number }[] = [];
@@ -878,8 +903,10 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
 /** Remplace chaque donnée détectée par un texte d'exemple fixe (rendu déterministe). */
 export function masquerDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): { texte: string; remplacements: { type: TypeDonnee; nombre: number }[] } {
   const trouvees = detecterDonneesPersonnelles(texte, options);
+  // Détection impossible : on ne rend jamais le texte d'origine comme s'il était propre.
+  if (trouvees.some((d) => d.type === "detection-echouee")) return { texte: "", remplacements: [{ type: "detection-echouee", nombre: 1 }] };
   let numero = 0;
-  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type] }));
+  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | "detection-echouee">] }));
   let sortie = "";
   let curseur = 0;
   for (const { d, par } of remplaces) {
