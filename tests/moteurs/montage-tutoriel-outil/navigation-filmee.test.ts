@@ -8,8 +8,10 @@ import {
   placementFilm,
   planCacheLeFilm,
   plagesFixesSortie,
+  projecteurA,
   surbrillanceA,
   versEcran,
+  voletA,
   type NavigationFilmee,
 } from "../../../src/briques/plan-scenes/tutoriel/navigation-filmee";
 
@@ -81,14 +83,15 @@ describe("placementFilm", () => {
 });
 
 describe("cameraA", () => {
-  it("vaut 1 avant la 1re cible et revient à 1 après la fin", () => {
+  // T-EXT-44 : la caméra arrive 250 ms AVANT le mot (au lieu de partir 150 ms après le clic) et ne zoome jamais dans les 400 premières ms.
+  it("vaut 1 pendant les 400 premières ms et revient à 1 après la fin", () => {
     expect(cameraA(base(), 0, F45).echelle).toBe(1);
-    expect(cameraA(base(), 3000, F45).echelle).toBe(1);
-    expect(cameraA(base(), 16000 + 600, F45).echelle).toBe(1);
+    expect(cameraA(base(), 400, F45).echelle).toBe(1);
+    expect(cameraA(base(), 16000 + 3000, F45).echelle).toBe(1);
   });
   it("ne dépasse jamais 1,6 et zoome sur une petite zone", () => {
     for (let t = 0; t <= 18000; t += 40) expect(cameraA(base(), t, F45).echelle).toBeLessThanOrEqual(ZOOM_NAVIGATION_MAX + 1e-9);
-    expect(cameraA(base(), 7000, F45).echelle).toBeCloseTo(ZOOM_NAVIGATION_MAX);
+    expect(cameraA(base(), 4000, F45).echelle).toBeCloseTo(ZOOM_NAVIGATION_MAX);
   });
   it("monte sans saut d'une image à l'autre (écart < 0,05 à 25 i/s) pour une zone moyenne", () => {
     const nav = base({ cibles: [{ etapeId: "e1", zonePct: { x: 20, y: 20, largeur: 60, hauteur: 20 }, instantMs: 4000, finMs: 8000 }] });
@@ -103,8 +106,11 @@ describe("cameraA", () => {
     for (let t = 0; t < 20000; t += 40) max = Math.max(max, Math.abs(cameraA(base(), t + 40, F45).echelle - cameraA(base(), t, F45).echelle));
     expect(max).toBeLessThanOrEqual((1.5 * 0.6) / 12.5 + 1e-6);
   });
-  it("passe d'une zone à l'autre sans dézoomer", () => {
-    for (let t = 6200; t <= 9600; t += 40) expect(cameraA(base(), t, F45).echelle).toBeGreaterThan(1.3);
+  // T-EXT-44 : respiration (retour à 1) entre deux zones éloignées de plus de 0,6 écran quand leurs mots sont à plus de 1,2 s ;
+  // deux zones proches se suivent sans dézoomer.
+  it("respire (retour à 1) entre deux zones éloignées, sans dézoomer entre deux zones proches", () => {
+    expect(cameraA(base(), 6500, F45).echelle).toBeLessThan(1.01);
+    for (let t = 9000; t <= 14000; t += 40) expect(cameraA(base(), t, F45).echelle).toBeGreaterThan(1.3);
   });
   it("la vue zoomée reste dans la page aux 4 coins (4:5, 1:1, 9:16 sur la largeur)", () => {
     const coins = [
@@ -147,21 +153,23 @@ describe("cameraA", () => {
 
 describe("curseurA", () => {
   it("null avant le départ et après la dernière fin", () => {
-    expect(curseurA(base(), 3000, F45)).toBeNull();
+    expect(curseurA(base(), 2000, F45)).toBeNull();
     expect(curseurA(base(), 16001, F45)).toBeNull();
     expect(curseurA(base(), 3400, F45)).not.toBeNull();
   });
-  it("sur le centre de la zone au clic, à 1 px près (première cible, caméra à 1)", () => {
+  // T-EXT-44 : la pointe se pose à côté du centre (2 % vers le bas à droite : elle ne cache jamais le mot dit), après la caméra.
+  it("sur la pointe de la zone au clic (centre + 2 %), à 1 px près, caméra comprise (première cible)", () => {
     const nav = base();
     const k = curseurA(nav, 4000, F45)!;
-    expect(Math.abs(k.xPx - 0.25 * 1080)).toBeLessThan(1);
-    expect(Math.abs(k.yPx - 0.16 * 1350)).toBeLessThan(1);
+    const attendu = versEcran(cameraA(nav, 4000, F45), F45, { x: 0.27 * 1080, y: 0.18 * 1350 });
+    expect(Math.abs(k.xPx - attendu.x)).toBeLessThan(1);
+    expect(Math.abs(k.yPx - attendu.y)).toBeLessThan(1);
   });
   it("reste sur sa cible après transformation par la caméra", () => {
     const nav = base();
     const t = 9000;
     const cam = cameraA(nav, t, F45);
-    const centre = versEcran(cam, F45, { x: 0.75 * 1080, y: 0.56 * 1350 });
+    const centre = versEcran(cam, F45, { x: 0.77 * 1080, y: 0.58 * 1350 });
     const k = curseurA(nav, t, F45)!;
     expect(Math.abs(k.xPx - centre.x)).toBeLessThan(1);
     expect(Math.abs(k.yPx - centre.y)).toBeLessThan(1);
@@ -171,8 +179,9 @@ describe("curseurA", () => {
       base(),
       base({ cibles: [
         { etapeId: "e1", zonePct: { x: 2, y: 2, largeur: 20, hauteur: 10 }, instantMs: 4000, finMs: 4900 },
-        { etapeId: "e2", zonePct: { x: 78, y: 85, largeur: 20, hauteur: 10 }, instantMs: 5000, finMs: 7000 },
-        { etapeId: "e3", zonePct: { x: 2, y: 40, largeur: 20, hauteur: 10 }, instantMs: 8000, finMs: 9000 },
+        // T-EXT-44 : instants espacés (7,5 s et 12 s au lieu de 5 s et 8 s) : d'un coin à l'autre, la caméra ne va jamais plus vite que 1,2 écran/s.
+        { etapeId: "e2", zonePct: { x: 78, y: 85, largeur: 20, hauteur: 10 }, instantMs: 7500, finMs: 9500 },
+        { etapeId: "e3", zonePct: { x: 2, y: 40, largeur: 20, hauteur: 10 }, instantMs: 12000, finMs: 13000 },
       ] }),
     ];
     for (const nav of lots) {
@@ -197,18 +206,31 @@ describe("curseurA", () => {
   it("le clic de la 2e cible a lieu sur elle : caméra et curseur arrivent ensemble", () => {
     const nav = base();
     const t = 9000;
-    const centre = versEcran(cameraA(nav, t, F45), F45, { x: 0.75 * 1080, y: 0.56 * 1350 });
+    const centre = versEcran(cameraA(nav, t, F45), F45, { x: 0.77 * 1080, y: 0.58 * 1350 });
     const k = curseurA(nav, t, F45)!;
     expect(Math.abs(k.xPx - centre.x)).toBeLessThan(1);
     expect(k.xPx).toBeLessThanOrEqual(1080);
   });
-  it("le clic vaut 0 avant, > 0 pendant 300 ms, 0 après", () => {
+  // T-EXT-44 : pression de 160 ms (échelle 1 → 0,9 → 1) et anneau qui s'efface en 400 ms (avant : impulsion de 300 ms).
+  it("la pression vaut 0 avant, > 0 pendant 160 ms, 0 après ; l'anneau dure 400 ms", () => {
     const nav = base();
     expect(curseurA(nav, 3900, F45)!.clic).toBe(0);
-    expect(curseurA(nav, 4150, F45)!.clic).toBeGreaterThan(0.9);
-    expect(curseurA(nav, 4100, F45)!.clic).toBeGreaterThan(0);
-    expect(curseurA(nav, 4300, F45)!.clic).toBeLessThan(1e-9);
-    expect(curseurA(nav, 4400, F45)!.clic).toBe(0);
+    expect(curseurA(nav, 4080, F45)!.clic).toBeGreaterThan(0.99);
+    expect(curseurA(nav, 4040, F45)!.clic).toBeGreaterThan(0);
+    expect(curseurA(nav, 4160, F45)!.clic).toBeLessThan(1e-9);
+    expect(curseurA(nav, 4200, F45)!.clic).toBe(0);
+    expect(curseurA(nav, 3900, F45)!.anneau).toBe(0);
+    expect(curseurA(nav, 4200, F45)!.anneau).toBeCloseTo(0.5);
+    expect(curseurA(nav, 4400, F45)!.anneau).toBe(0);
+  });
+  it("arrive 150 ms avant le clic et reste au repos jusqu'au clic, sans tremblement", () => {
+    const nav = base();
+    const a = curseurA(nav, 3850, F45)!;
+    for (let t = 3860; t <= 4000; t += 20) {
+      const k = curseurA(nav, t, F45)!;
+      expect(Math.abs(k.xPx - a.xPx)).toBeLessThan(1e-6);
+      expect(Math.abs(k.yPx - a.yPx)).toBeLessThan(1e-6);
+    }
   });
   it("une cible sans zone : le curseur reste où il est", () => {
     const nav = base({ cibles: [{ etapeId: "e1", zonePct: { x: 10, y: 10, largeur: 30, hauteur: 12 }, instantMs: 4000, finMs: 6000 }, { etapeId: "e2", instantMs: 9000, finMs: 11000 }] });
@@ -220,26 +242,47 @@ describe("curseurA", () => {
 });
 
 describe("surbrillanceA", () => {
-  it("n'existe que pendant la cible et apparaît en 200 ms", () => {
+  // T-EXT-44 : le projecteur entre 250 ms avant le mot (en même temps que la caméra) et sort en 200 ms (avant : dès le clic, 200 ms).
+  it("n'existe que pendant la cible : entrée en 250 ms avant le mot, sortie en 200 ms", () => {
     const nav = base();
-    expect(surbrillanceA(nav, 3999, F45)).toBeNull();
-    expect(surbrillanceA(nav, 4100, F45)!.opacite).toBeCloseTo(0.5);
-    expect(surbrillanceA(nav, 4300, F45)!.opacite).toBe(1);
+    expect(surbrillanceA(nav, 3700, F45)).toBeNull();
+    expect(surbrillanceA(nav, 3800, F45)!.opacite).toBeGreaterThan(0);
+    expect(surbrillanceA(nav, 3800, F45)!.opacite).toBeLessThan(1);
+    expect(surbrillanceA(nav, 4000, F45)!.opacite).toBe(1);
+    expect(surbrillanceA(nav, 5900, F45)!.opacite).toBeLessThan(1);
     expect(surbrillanceA(nav, 6001, F45)).toBeNull();
+  });
+  it("le projecteur et la surbrillance sont la même fonction ; nul hors de ses instants", () => {
+    expect(surbrillanceA).toBe(projecteurA);
+    const nav = base();
+    for (const t of [0, 1000, 3000, 6500, 8000, 12000, 17000]) expect(projecteurA(nav, t, F45), String(t)).toBeNull();
+  });
+  it("cran aucun ou sobre : ni projecteur ni volet ; cran équilibré, dynamique ou absent : projecteur", () => {
+    for (const cran of ["aucun", "sobre"] as const) expect(projecteurA(base({ cran }), 4000, F45)).toBeNull();
+    for (const cran of ["equilibre", "dynamique", undefined] as const) expect(projecteurA(base({ cran }), 4000, F45)).not.toBeNull();
   });
 });
 
 describe("plagesFixesSortie", () => {
-  it("source figée 2 s sans zoom ni curseur : une plage", () => {
-    const r = plagesFixesSortie(base({ figees: [{ debutMs: 500, finMs: 2500 }] }));
-    expect(r).toEqual([{ debutMs: 500, finMs: 2500 }]);
+  // T-EXT-44 : la caméra part dès 1,9 s (elle arrive 250 ms avant le mot, sans aller plus vite que la vitesse permise).
+  it("source figée sans zoom ni curseur : une plage, jusqu'au départ de la caméra", () => {
+    const nav = base({ figees: [{ debutMs: 100, finMs: 2500 }] });
+    const r = plagesFixesSortie(nav)!;
+    expect(r).toHaveLength(1);
+    expect(r[0]!.debutMs).toBe(100);
+    // La plage s'arrête exactement quand la caméra commence à bouger (vers 2 s : un mouvement de 1,7 s qui arrive à 3,75 s).
+    expect(r[0]!.finMs).toBeGreaterThan(1900);
+    expect(r[0]!.finMs).toBeLessThan(2500);
+    expect(cameraA(nav, r[0]!.finMs - 20, F45).echelle).toBe(1);
+    expect(cameraA(nav, r[0]!.finMs + 200, F45).echelle).toBeGreaterThan(1);
   });
   it("source figée 2 s pendant un déplacement et un zoom : aucune plage", () => {
     expect(plagesFixesSortie(base({ figees: [{ debutMs: 3000, finMs: 5000 }] }))).toEqual([]);
     expect(plagesFixesSortie(base({ figees: [{ debutMs: 3500, finMs: 5500 }] }))).toEqual([]);
   });
   it("un zoom TENU (caméra et curseur immobiles) sur une source figée 2 s compte comme image fixe", () => {
-    expect(plagesFixesSortie(base({ figees: [{ debutMs: 5200, finMs: 7200 }] }))).toEqual([{ debutMs: 5200, finMs: 7200 }]);
+    const nav = base({ cibles: [{ etapeId: "e1", zonePct: { x: 10, y: 10, largeur: 30, hauteur: 12 }, instantMs: 4000, finMs: 6500 }] });
+    expect(plagesFixesSortie({ ...nav, figees: [{ debutMs: 4400, finMs: 6500 }] })).toEqual([{ debutMs: 4400, finMs: 6500 }]);
   });
   it("`figees` absent : null (non mesuré)", () => {
     expect(plagesFixesSortie(base())).toBeNull();
@@ -251,6 +294,52 @@ describe("planCacheLeFilm", () => {
   it("liste les scènes plein écran qui recouvrent une cible", () => {
     const plan = { scenes: [scene("a", "plein", 0, 3000), scene("b", "plein", 4500, 5500), scene("c", "bas", 4500, 5500), scene("d", "plein", 6000, 8000)] } as never;
     expect(planCacheLeFilm(plan, base())).toEqual(["b"]);
+  });
+});
+
+describe("voletA (avant → maintenant)", () => {
+  const avecVolet = () => base({ basculeMs: 6000 });
+  it("absent sans `basculeMs` ; présent 500 ms avec ; traverse l'écran de gauche à droite", () => {
+    expect(voletA(base(), 6100, F45)).toBeNull();
+    expect(voletA(avecVolet(), 5999, F45)).toBeNull();
+    const debut = voletA(avecVolet(), 6000, F45)!;
+    expect(debut.avantXPx).toBeCloseTo(0);
+    const milieu = voletA(avecVolet(), 6250, F45)!;
+    expect(milieu.avantXPx).toBeGreaterThan(debut.avantXPx);
+    expect(voletA(avecVolet(), 6500, F45)!.arriereXPx).toBeCloseTo(F45.largeur);
+    expect(voletA(avecVolet(), 6501, F45)).toBeNull();
+  });
+  it("sans texte : seulement des positions en pixels", () => {
+    const v = voletA(avecVolet(), 6250, F45)!;
+    expect(Object.keys(v).sort()).toEqual(["arriereXPx", "avantXPx", "filetPx"]);
+    for (const valeur of Object.values(v)) expect(typeof valeur).toBe("number");
+  });
+  it("aucun volet aux crans aucun et sobre", () => {
+    for (const cran of ["aucun", "sobre"] as const) expect(voletA(base({ cran, basculeMs: 6000 }), 6250, F45)).toBeNull();
+  });
+});
+
+describe("NavigationFilmee.tsx (lecture du texte)", () => {
+  const source = readFileSync("studio-rendu/compositions/plan-scenes/NavigationFilmee.tsx", "utf8");
+  it("aucun `#` de couleur en dur, aucune couleur interdite : la charte seulement", () => {
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(source).not.toMatch(/\b(blue|yellow|green)\b/i);
+    expect(source).not.toMatch(/rgba?\(/);
+    expect(source).toContain("CHARTE_AXION.terracotta");
+    expect(source).toContain("CHARTE_AXION.ivoire");
+    expect(source).toContain("CHARTE_AXION.noir");
+    expect(source).not.toMatch(/\bforme-bleue\b|CHARTE_AXION\.(bleu|jaune|vert)/);
+  });
+  it("aucune logique de temps ni de courbe : tout vient des fonctions de navigation-filmee.ts", () => {
+    expect(source).toContain("projecteurA");
+    expect(source).toContain("voletA");
+    expect(source).not.toMatch(/Math\.(sin|cos|pow)/);
+    expect(source).not.toMatch(/\bspring\(|interpolate\(/);
+    for (const l of source.split("\n").filter((x) => /^\s*import\b/.test(x))) expect(l, l).toMatch(/from "(remotion|\.\.?\/)/);
+  });
+  it("aucun texte à l'écran (pas de balise de texte, pas de mot visible)", () => {
+    expect(source).not.toMatch(/<(p|h1|h2|h3|span)>[^<]*[A-Za-zÀ-ÿ]/);
+    expect(source).not.toMatch(/>\s*[A-Za-zÀ-ÿ]{2,}[^<{]*</);
   });
 });
 

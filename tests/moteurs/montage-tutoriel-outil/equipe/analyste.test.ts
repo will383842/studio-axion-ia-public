@@ -232,9 +232,13 @@ describe("analyste : rôle", () => {
     expect(v.match(/<\/donnees>/gi)).toHaveLength(1);
     expect(v.match(/<\/cas>/gi)).toHaveLength(1);
   });
-  it("aucun appelant : seul le fichier lui-même cite equipe/analyste", () => {
+  it("aucun appelant hors liste : seuls le fichier lui-même et maquette-creee (V2-02) citent equipe/analyste", () => {
     const r = spawnSync("git", ["grep", "-n", "equipe/analyste", "--", "src", "studio-rendu"], { encoding: "utf8" });
     const lignes = (r.stdout ?? "").trim().split("\n").filter(Boolean);
-    expect(lignes.every((l) => l.startsWith("src/moteurs/montage-tutoriel-outil/equipe/analyste.ts"))).toBe(true);
+    const permis = [
+      "src/moteurs/montage-tutoriel-outil/equipe/analyste.ts",
+      "src/moteurs/montage-tutoriel-outil/maquette-creee.ts",
+    ];
+    expect(lignes.every((l) => permis.some((p) => l.startsWith(p)))).toBe(true);
   });
 });

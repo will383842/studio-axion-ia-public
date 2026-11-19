@@ -11,6 +11,7 @@
  */
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { creneauEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { analyserCible } from "@/fournisseurs/publication/zernio-corps";
 import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { depots, lireParametre, maintenant as maintenantIso } from "./_commun";
@@ -37,11 +38,11 @@ const maintenantMs = (): number => Date.parse(maintenantIso());
 
 /** Le créneau peut-il être désigné pour l'essai ? (pur) Rend la raison du refus, ou `null` s'il est éligible. */
 export function raisonNonEligible(
-  c: { statut?: string; valideeLe?: string; refuseLe?: string; retireLe?: string; videoId?: string; visuelId?: string; heuresParReseau?: Record<string, string | undefined> } | null | undefined,
+  c: { statut?: string; valideeLe?: string; refuseLe?: string; retireLe?: string; aRenvoyer?: boolean; videoId?: string; visuelId?: string; heuresParReseau?: Record<string, string | undefined> } | null | undefined,
   maintenant: number,
 ): string | null {
   if (!c) return "Ce créneau est introuvable.";
-  if (c.statut !== "valide" || !chaine(c.valideeLe) || c.refuseLe || c.retireLe) return "Ce créneau n'est pas validé : seul un créneau validé peut servir à l'essai.";
+  if (!creneauEnvoyable(c)) return "Ce créneau n'est ni validé ni programmé (ou il est refusé, retiré ou à renvoyer) : seul un créneau validé ou programmé peut servir à l'essai.";
   if (c.videoId || !c.visuelId) return "Seul un créneau portant un visuel (carrousel) peut servir à l'essai : les vidéos sont exclues.";
   const reseaux = Object.keys(c.heuresParReseau ?? {});
   if (reseaux.length !== 1 || !RESEAUX_VISUELS.includes(reseaux[0])) return "L'essai exige un créneau sur UN seul réseau (LinkedIn, Instagram ou Facebook).";

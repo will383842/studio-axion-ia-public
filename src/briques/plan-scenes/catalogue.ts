@@ -10,6 +10,7 @@
 import { z } from "zod";
 import { TOILES } from "./toiles";
 import { BRIQUES_OBJETS } from "./briques/objets-inscrits";
+import { estGardee } from "./pieces-gardees";
 
 const texteCourt = (max: number) => z.string().trim().min(1).max(max);
 const point = z.strictObject({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) });
@@ -461,7 +462,7 @@ function normaliser(s: string): string {
  * légende. Jamais `undefined` : il y a toujours une pièce de repli.
  */
 export function pieceLaPlusProche(nom: unknown, texte?: string, objetsPermis: readonly string[] = []): IdPiece {
-  const permise = (def: DefinitionBrique) => def.famille !== "objet" || objetsPermis.includes(def.id);
+  const permise = (def: DefinitionBrique) => !estGardee(def) || objetsPermis.includes(def.id);
   if (estPiece(nom) && permise(CATALOGUE_BRIQUES[nom] as DefinitionBrique)) return nom;
   if (typeof nom === "string" && nom.trim()) {
     const n = normaliser(nom);

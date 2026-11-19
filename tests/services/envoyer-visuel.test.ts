@@ -466,3 +466,41 @@ describe("L5-02 · envoyerVisuel : VRAI constructeur de corps (zernio-corps.ts),
     expect(() => mediasDemandes(demande)).toThrow();
   });
 });
+
+describe("compte par défaut : le marqueur est traduit au moment de l'envoi", () => {
+  beforeEach(ouvrirTout);
+
+  async function creneauMarqueur(reseau: "linkedin" | "instagram"): Promise<string> {
+    const id = `cr-marqueur-${reseau}`;
+    await depots().creneauxEditoriaux.enregistrer({
+      id, jourVise: DEMAIN.slice(0, 10), heuresParReseau: { [reseau]: DEMAIN }, compteCible: "compte-studio", visuelId: "vis_1",
+      textes: { [reseau]: { texte: "Légende d'exemple", premierCommentaire: "" } },
+      statut: "valide", decalages: 0, valideeLe: VALIDEE, valideePar: "le fondateur",
+    } as never);
+    return id;
+  }
+
+  it("LinkedIn page + profil : canalId, cible et clé d'envoi portent l'id de la page, jamais le marqueur", async () => {
+    await creerVisuel();
+    const svc = faux();
+    const base = svc.listerCanaux!;
+    svc.listerCanaux = async () => [...(await base()), { id: "compte-3:li:profil", organisationId: "zernio", nom: "Profil", service: "linkedin", genre: "profile", deconnecte: false } as never];
+    const id = await creneauMarqueur("linkedin");
+    const r = await pub.envoyerVisuel(svc, id, "linkedin", { lireUrl });
+    expect(r.publication.canalId).toBe("compte-1:li:42");
+    expect(appels).toHaveLength(1);
+    expect(appels[0].cible).toBe("compte-1:li:42");
+    expect(appels[0].canalId).toBe("compte-1:li:42");
+    expect(appels[0].cleEnvoi).not.toContain("compte-studio");
+    expect(r.publication.cleEnvoi).toBe(appels[0].cleEnvoi);
+    expect(JSON.stringify(await visuelles())).not.toContain("compte-studio");
+  });
+
+  it("porte fermée : ENVOI_CALENDRIER_FERME, aucun appel", async () => {
+    await creerVisuel();
+    await ecrireParametre(PARAM_ENVOI_CALENDRIER, false);
+    const id = await creneauMarqueur("linkedin");
+    await expect(pub.envoyerVisuel(faux(), id, "linkedin", { lireUrl })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(appels).toHaveLength(0);
+  });
+});

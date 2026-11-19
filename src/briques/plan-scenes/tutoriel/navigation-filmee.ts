@@ -7,30 +7,21 @@
  */
 import type { PlanValide } from "../schema";
 import { cadreDansEcran, type RectanglePx } from "./cadre-zone";
+import { ECHELLE_MAX, OPACITE_ASSOMBRI, clicA, cranPermetProjecteur, curseurA as curseurDuPlan, planMotionFilm, poseA, projecteurA as projecteurDuPlan, voletA as voletDuPlan, type CranFilm } from "./motion-film";
 
 export const VERSION_NAVIGATION = "navigation-filmee.v1" as const;
 
 /** Provenance : `ETAPES_MAX` de G5-01 (`src/moteurs/montage-tutoriel-outil/etapes-tutoriel.ts`), recopié (pas d'import du moteur). */
 export const CIBLES_MAX = 9;
 
-// Valeurs de départ, revues avec will-dc par T-EXT-44.
-/** Borne du zoom (≤ `FACTEUR_ZOOM_MAX` = 2,5 de `montage-demo-facecam/mise-en-page.ts`). */
-export const ZOOM_NAVIGATION_MAX = 1.6;
-/** La zone occupe au plus 80 % du cadre zoomé. */
-export const MARGE_ZONE = 0.8;
-export const ENTREE_ZOOM_MS = 500;
-export const DEPLACEMENT_CURSEUR_MS = 500;
-/** Le curseur part 600 ms avant le clic. */
-export const AVANCE_CURSEUR_MS = 600;
-export const IMPULSION_CLIC_MS = 300;
+// Valeurs revues avec will-dc par T-EXT-44 : le calcul du mouvement est dans `motion-film.ts` (pur, sans IA).
+/** Borne du zoom : celle des courbes de caméra communes (≤ `FACTEUR_ZOOM_MAX` = 2,5 de `montage-demo-facecam/mise-en-page.ts`). */
+export const ZOOM_NAVIGATION_MAX = ECHELLE_MAX;
 /** Règle de Williams (AUDIT-COMPLET-18-11 § 2 bis) : jamais plus de 1,5 s d'image fixe. */
 export const SEUIL_IMAGE_FIXE_MS = 1500;
+/** Opacité du noir qui assombrit le reste de l'écran pendant qu'une zone est éclairée. */
+export const OPACITE_PROJECTEUR = OPACITE_ASSOMBRI;
 
-/** Le zoom d'une cible commence 150 ms après son clic ; le curseur arrive 100 ms avant. */
-const RETARD_ZOOM_MS = 150;
-const ARRIVEE_AVANT_CLIC_MS = 100;
-const DEPART_CURSEUR = { x: 85, y: 85 } as const;
-const APPARITION_CADRE_MS = 200;
 const PAS_MESURE_MS = 20;
 
 export interface ZonePct {
@@ -61,6 +52,12 @@ export interface NavigationFilmee {
   cibles: CibleFilmee[];
   /** Écran source immobile (horloge de la voix). Absent = non mesuré. */
   figees?: { debutMs: number; finMs: number }[];
+  /** T-EXT-44 : cran du dosage de motion (absent : « équilibré »). */
+  cran?: CranFilm;
+  /** T-EXT-44 : haut de la bande des sous-titres, en % de la hauteur de l'image (absent : 72). */
+  hautSousTitresPct?: number;
+  /** T-EXT-44 : début de la scène « maintenant » ; un volet sans texte traverse l'écran (absent : aucun volet). */
+  basculeMs?: number;
 }
 
 export interface FormatSortie {
@@ -143,7 +140,7 @@ export function placementFilm(nav: Pick<NavigationFilmee, "largeur" | "hauteur">
   return { x: (format.largeur - largeur) / 2, y: (format.hauteur - hauteur) / 2, largeur, hauteur, echelle };
 }
 
-/** Courbe douce (écrite ici) : 0 → 1, pente nulle aux deux bouts. */
+/** Courbe douce : 0 → 1, pente nulle aux deux bouts. */
 export function easeInOut(p: number): number {
   const t = Math.min(1, Math.max(0, p));
   return t * t * (3 - 2 * t);
@@ -155,68 +152,15 @@ export interface Camera {
   origineYPct: number;
 }
 
-interface EtatCamera {
-  s: number;
-  cx: number;
-  cy: number;
-}
-
-function etatDeZone(nav: NavigationFilmee, zone: ZonePct, format: FormatSortie): EtatCamera {
-  const p = placementFilm(nav, format);
-  const lz = (zone.largeur / 100) * p.largeur;
-  const hz = (zone.hauteur / 100) * p.hauteur;
-  const s = Math.max(1, Math.min(ZOOM_NAVIGATION_MAX, (MARGE_ZONE * Math.min(format.largeur / lz, format.hauteur / hz))));
-  return { s, cx: p.x + ((zone.x + zone.largeur / 2) / 100) * p.largeur, cy: p.y + ((zone.y + zone.hauteur / 2) / 100) * p.hauteur };
-}
-
-interface SegmentCamera {
-  debut: number;
-  vers: EtatCamera;
-}
-
-function segmentsCamera(nav: NavigationFilmee, format: FormatSortie): { repos: EtatCamera; segments: SegmentCamera[] } {
-  const repos: EtatCamera = { s: 1, cx: format.largeur / 2, cy: format.hauteur / 2 };
-  const segments: SegmentCamera[] = [];
-  for (const c of nav.cibles) {
-    if (!c.zonePct) continue;
-    // 1re montée depuis le repos : 150 ms après le clic. Passage d'une zone à l'autre : la caméra part avec le curseur
-    // et arrive avec lui avant le clic (écart à la fiche, correction du verdict Opus : sinon le clic sort de l'image).
-    const precedent = segments[segments.length - 1];
-    const debut = precedent
-      ? Math.max(precedent.debut, c.instantMs - ARRIVEE_AVANT_CLIC_MS - DEPLACEMENT_CURSEUR_MS)
-      : c.instantMs + RETARD_ZOOM_MS;
-    segments.push({ debut, vers: etatDeZone(nav, c.zonePct, format) });
-  }
-  if (segments.length) segments.push({ debut: Math.max(...nav.cibles.map((c) => c.finMs)), vers: repos });
-  return { repos, segments };
-}
-
-function etatA(t: number, repos: EtatCamera, segments: SegmentCamera[], n: number): EtatCamera {
-  if (n === 0) return repos;
-  const seg = segments[n - 1];
-  if (t < seg.debut) return etatA(t, repos, segments, n - 1);
-  const de = etatA(seg.debut, repos, segments, n - 1);
-  const k = easeInOut((t - seg.debut) / ENTREE_ZOOM_MS);
-  return { s: de.s + (seg.vers.s - de.s) * k, cx: de.cx + (seg.vers.cx - de.cx) * k, cy: de.cy + (seg.vers.cy - de.cy) * k };
-}
-
-/** Début de la vue zoomée sur un axe : dans la page si elle y tient, sinon centrée sur la page (bandes ivoire). */
-function debutVue(centre: number, vue: number, debutPage: number, taillePage: number): number {
-  if (vue >= taillePage) return debutPage + (taillePage - vue) / 2;
-  return Math.min(debutPage + taillePage - vue, Math.max(debutPage, centre - vue / 2));
-}
-
 /** Caméra à l'instant `tMs` : échelle et origine (en % de l'image de sortie) pour `transform: scale()`. */
 export function cameraA(nav: NavigationFilmee, tMs: number, format: FormatSortie): Camera {
-  const { repos, segments } = segmentsCamera(nav, format);
-  const e = etatA(tMs, repos, segments, segments.length);
-  if (e.s - 1 < 1e-6) return { echelle: 1, origineXPct: 50, origineYPct: 50 };
-  const p = placementFilm(nav, format);
-  const vx = debutVue(e.cx, format.largeur / e.s, p.x, p.largeur);
-  const vy = debutVue(e.cy, format.hauteur / e.s, p.y, p.hauteur);
+  const pose = poseA(planMotionFilm(nav, format), tMs);
+  if (pose.zoom - 1 < 1e-6) return { echelle: 1, origineXPct: 50, origineYPct: 50 };
   // Le point de la vue en haut à gauche (vx, vy) doit arriver en (0, 0) : O (1 − 1/s) = v.
-  const k = e.s / (e.s - 1);
-  return { echelle: e.s, origineXPct: ((vx * k) / format.largeur) * 100, origineYPct: ((vy * k) / format.hauteur) * 100 };
+  const vx = pose.cx - format.largeur / pose.zoom / 2;
+  const vy = pose.cy - format.hauteur / pose.zoom / 2;
+  const k = pose.zoom / (pose.zoom - 1);
+  return { echelle: pose.zoom, origineXPct: ((vx * k) / format.largeur) * 100, origineYPct: ((vy * k) / format.hauteur) * 100 };
 }
 
 /** Un point de l'image de sortie (avant caméra) → son point à l'écran, après caméra. */
@@ -226,65 +170,63 @@ export function versEcran(cam: Camera, format: FormatSortie, p: { x: number; y: 
   return { x: ox + cam.echelle * (p.x - ox), y: oy + cam.echelle * (p.y - oy) };
 }
 
-function centreDeZone(nav: NavigationFilmee, z: ZonePct, format: FormatSortie): { x: number; y: number } {
-  const p = placementFilm(nav, format);
-  return { x: p.x + ((z.x + z.largeur / 2) / 100) * p.largeur, y: p.y + ((z.y + z.hauteur / 2) / 100) * p.hauteur };
-}
-
 export interface Curseur {
   xPx: number;
   yPx: number;
-  /** 0 à 1 : impulsion du clic. */
+  /** 0 à 1 : pression du clic (160 ms). */
   clic: number;
+  /** 0 = pas d'anneau ; sinon avancement (0 à 1, 400 ms) de l'anneau qui s'efface. */
+  anneau: number;
 }
 
-/** Position du curseur dans l'image de sortie AVANT caméra. */
-function curseurMonde(nav: NavigationFilmee, tMs: number, format: FormatSortie): { x: number; y: number } {
-  const p = placementFilm(nav, format);
-  let pos = { x: p.x + (DEPART_CURSEUR.x / 100) * p.largeur, y: p.y + (DEPART_CURSEUR.y / 100) * p.hauteur };
-  for (const c of nav.cibles) {
-    if (!c.zonePct) continue;
-    const arrivee = c.instantMs - ARRIVEE_AVANT_CLIC_MS;
-    const depart = arrivee - DEPLACEMENT_CURSEUR_MS;
-    const vers = centreDeZone(nav, c.zonePct, format);
-    if (tMs < depart) break;
-    const k = easeInOut((tMs - depart) / DEPLACEMENT_CURSEUR_MS);
-    pos = { x: pos.x + (vers.x - pos.x) * k, y: pos.y + (vers.y - pos.y) * k };
-    if (tMs < arrivee) break;
-  }
-  return pos;
-}
-
-/** Curseur à l'instant `tMs`, après la caméra ; `null` avant son départ et après la dernière cible. */
+/** Curseur à l'instant `tMs`, après la caméra ; `null` avant son départ, après la dernière cible et pendant un volet. */
 export function curseurA(nav: NavigationFilmee, tMs: number, format: FormatSortie): Curseur | null {
-  const premier = nav.cibles[0];
-  if (!premier || tMs < premier.instantMs - AVANCE_CURSEUR_MS) return null;
-  if (tMs > Math.max(...nav.cibles.map((c) => c.finMs))) return null;
-  const e = versEcran(cameraA(nav, tMs, format), format, curseurMonde(nav, tMs, format));
-  let clic = 0;
-  for (const c of nav.cibles) {
-    const p = (tMs - c.instantMs) / IMPULSION_CLIC_MS;
-    if (p > 0 && p < 1) clic = Math.max(clic, Math.sin(Math.PI * p));
-  }
-  return { xPx: e.x, yPx: e.y, clic };
+  const plan = planMotionFilm(nav, format);
+  const p = curseurDuPlan(plan, tMs);
+  if (!p) return null;
+  const place = placementFilm(nav, format);
+  const e = versEcran(cameraA(nav, tMs, format), format, { x: place.x + (p.x / 100) * place.largeur, y: place.y + (p.y / 100) * place.hauteur });
+  const c = clicA(plan, tMs);
+  return { xPx: e.x, yPx: e.y, clic: c.pression, anneau: c.anneau };
 }
 
 export interface Surbrillance extends RectanglePx {
   epaisseur: number;
-  /** 0 à 1 : apparition en 200 ms. */
+  /** 0 à 1 : entrée en 250 ms, sortie en 200 ms. */
   opacite: number;
 }
 
-/** Cadre autour de la zone active (du clic à la fin de la cible), après la caméra ; sinon `null`. */
-export function surbrillanceA(nav: NavigationFilmee, tMs: number, format: FormatSortie): Surbrillance | null {
-  const c = nav.cibles.find((x) => x.zonePct && tMs >= x.instantMs && tMs <= x.finMs);
-  if (!c?.zonePct) return null;
-  const cadre = cadreDansEcran(c.zonePct, placementFilm(nav, format));
+/** Zone éclairée (le reste de l'écran s'assombrit : `OPACITE_PROJECTEUR` × `opacite`) avec son cadre, après la caméra ; sinon `null`. */
+export function projecteurA(nav: NavigationFilmee, tMs: number, format: FormatSortie): Surbrillance | null {
+  if (!cranPermetProjecteur(nav.cran)) return null;
+  const pr = projecteurDuPlan(planMotionFilm(nav, format), tMs);
+  if (!pr) return null;
+  const cadre = cadreDansEcran(pr.zone, placementFilm(nav, format));
   if (!cadre) return null;
   const cam = cameraA(nav, tMs, format);
   const a = versEcran(cam, format, { x: cadre.x, y: cadre.y });
   const b = versEcran(cam, format, { x: cadre.x + cadre.largeur, y: cadre.y + cadre.hauteur });
-  return { x: a.x, y: a.y, largeur: b.x - a.x, hauteur: b.y - a.y, epaisseur: cadre.epaisseur, opacite: Math.min(1, (tMs - c.instantMs) / APPARITION_CADRE_MS) };
+  return { x: a.x, y: a.y, largeur: b.x - a.x, hauteur: b.y - a.y, epaisseur: cadre.epaisseur, opacite: pr.opacite };
+}
+
+/** Cadre de la zone active : le projecteur (même fonction, même signature qu'en T-EXT-38). */
+export const surbrillanceA = projecteurA;
+
+export interface Volet {
+  /** Bord arrière et bord d'attaque du volet (px, de gauche à droite) : il couvre [arriereXPx, avantXPx]. Aucun texte. */
+  arriereXPx: number;
+  avantXPx: number;
+  /** Largeur du filet qui borde le bord d'attaque. */
+  filetPx: number;
+}
+
+/** Volet « avant → maintenant » : un panneau ivoire, bordé d'un filet terracotta, traverse l'écran en 500 ms ; sinon `null`. */
+export function voletA(nav: NavigationFilmee, tMs: number, format: FormatSortie): Volet | null {
+  if (!cranPermetProjecteur(nav.cran)) return null;
+  const v = voletDuPlan(planMotionFilm(nav, format), tMs);
+  if (!v) return null;
+  const arriere = -format.largeur + 2 * format.largeur * v.progres;
+  return { arriereXPx: arriere, avantXPx: arriere + format.largeur, filetPx: Math.max(4, Math.round(format.largeur / 180)) };
 }
 
 const FORMAT_REFERENCE: FormatSortie = { largeur: 1080, hauteur: 1350 };
@@ -311,7 +253,7 @@ export function plagesFixesSortie(nav: NavigationFilmee, format: FormatSortie = 
     const camImmobile = Math.abs(c0.echelle - c1.echelle) < 1e-6 && Math.abs(c0.origineXPct - c1.origineXPct) < 1e-6 && Math.abs(c0.origineYPct - c1.origineYPct) < 1e-6;
     const k0 = curseurA(nav, t, format);
     const k1 = curseurA(nav, suivant, format);
-    const curImmobile = (!k0 && !k1) || (!!k0 && !!k1 && Math.abs(k0.xPx - k1.xPx) < 1e-3 && Math.abs(k0.yPx - k1.yPx) < 1e-3 && k0.clic === 0 && k1.clic === 0);
+    const curImmobile = (!k0 && !k1) || (!!k0 && !!k1 && Math.abs(k0.xPx - k1.xPx) < 1e-3 && Math.abs(k0.yPx - k1.yPx) < 1e-3 && k0.clic === 0 && k1.clic === 0 && k0.anneau === 0 && k1.anneau === 0);
     if (figee && camImmobile && curImmobile) debut ??= t;
     else clore(t);
   }

@@ -6,6 +6,7 @@
  */
 import { progres } from "../motion/courbes";
 import { largeurLigne, largeurMot, tailleQuiTient, type NomPolice } from "./mesure";
+import { graisseAuTemps, largeurReservee } from "./poids-variable";
 import { cssLigne, facteurTaille, GABARITS, rgba, type CouleursSousTitres, type DefinitionGabarit } from "./style";
 import { PAVE, type BoitePave } from "./pave";
 import type { MarqueMot } from "./marques-mot";
@@ -103,6 +104,8 @@ export interface DonneesCalque {
   /** BR-PAVE-MARQUES : marque posée sous la plaque animée (id du segment → marque). Sans `paveAnime` : sans effet. */
   marques?: Record<string, MarqueMot>;
   /** BR-MINIMAL-IV-b : boîte arrondie derrière le groupe affiché (rayon et marge en em de la taille du texte). Absent : rien ne change. */
+  /** BR-POIDS-VARIABLE-IV-a : seul `true` fait passer le mot dit de la graisse 500 à 800 ; absent : inchangé. */
+  poidsVariable?: true;
   boite?: { rayonEm: number; margeEm: number; couleurs: { fond: string; texte: string } };
 }
 
@@ -148,6 +151,8 @@ export interface MotDessine {
   plaque?: true;
   /** C2-U8 : nom d'outil en étiquette ; « debut » et « fin » dessinent un nom en deux mots comme une seule pastille. Absent : inchangé. */
   etiquette?: "seul" | "debut" | "fin";
+  /** BR-POIDS-VARIABLE-IV-a : graisse (500 à 800) du mot à cet instant ; absente : inchangé (aucune clé). */
+  graisse?: number;
 }
 
 export interface ElementDessine {
@@ -392,6 +397,12 @@ export function boiteAuTemps(d: DonneesCalque, t: number): LigneBoite[] | null {
   return [{ x: zone.x + (zone.l - total) / 2, y: el.yPx - hauteur / 2 + el.decalageYPx, largeur: total, hauteur }];
 }
 
+/** BR-POIDS-VARIABLE-IV-a : chaque mot porte sa graisse du moment (seulement `poidsVariable` posé) ; sinon les mots tels quels. */
+function avecGraisse(d: DonneesCalque, s: SegmentSousTitres, t: number, mots: MotDessine[]): MotDessine[] {
+  if (d.poidsVariable !== true) return mots;
+  return mots.map((m, k) => (s.mots[k] ? { ...m, graisse: graisseAuTemps(t, s.mots[k].debutSec, s.mots[k].finSec) } : m));
+}
+
 /** Dessin d'un groupe donné à l'instant t (aperçu d'un groupe touché, captures). */
 export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): ElementDessine {
   if (d.pastille) return elementPastille(d, d.pastille, s, t);
@@ -413,7 +424,7 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
   const disponible = (colonne ? Math.min(libre, colonne.largeurPx) : libre) - marges - g.contourPx * echelleImage - margePlaque - margeEtiquette;
   const taillePx = tailleQuiTient(
     s.mots.map((m) => m.mot),
-    g.police,
+    d.poidsVariable === true ? "Manrope ExtraBold" : g.police, // poids variable : la ligne tient à la graisse 800, la plus large
     voulue,
     disponible,
     options,
@@ -439,7 +450,7 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
     opacite,
     decalageYPx: decalageYPx * echelleImage,
     espacePx: g.espaceMotsEm * taillePx,
-    mots: surlignage ? mots.map((m) => (m.souligne >= SURLIGNAGE.texteDes && !m.etiquette ? { ...m, couleur: surlignage.texte } : m)) : mots,
+    mots: avecGraisse(d, s, t, surlignage ? mots.map((m) => (m.souligne >= SURLIGNAGE.texteDes && !m.etiquette ? { ...m, couleur: surlignage.texte } : m)) : mots),
     fond: g.bandeau ? { couleur: d.couleurs.texte, margeXPx: g.bandeau.margeXEm * taillePx, margeYPx: g.bandeau.margeYEm * taillePx } : undefined,
     couleurSoulignement: d.couleurs.accent,
     ...(colonne ? { colonne } : {}),
@@ -505,10 +516,16 @@ function elementPastille(d: DonneesCalque, p: StylePastille, s: SegmentSousTitre
   };
 }
 
+/** Largeur d'un mot : celle de sa police ; avec une graisse (poids variable), la largeur réservée à 800, la plus large. */
+function largeurDuMot(m: MotDessine, el: ElementDessine, options: { majuscules: boolean; chiffresTabulaires: boolean }): number {
+  if (m.graisse === undefined) return largeurMot(m.texte, el.police, el.taillePx, options);
+  return options.majuscules ? largeurReservee(m.texte.toLocaleUpperCase("fr-FR"), el.taillePx) : largeurReservee(m.texte, el.taillePx);
+}
+
 /** Largeur rendue d'un élément dessiné, en px (contrôle de débordement). */
 export function largeurElement(el: ElementDessine): number {
   const options = { majuscules: el.gabarit.casse === "majuscules", chiffresTabulaires: true };
-  const texte = el.mots.reduce((s, m) => s + largeurMot(m.texte, el.police, el.taillePx, options), 0) + el.espacePx * Math.max(0, el.mots.length - 1);
+  const texte = el.mots.reduce((s, m) => s + largeurDuMot(m, el, options), 0) + el.espacePx * Math.max(0, el.mots.length - 1);
   return texte + (el.fond ? 2 * el.fond.margeXPx : 0) + (el.pastille ? 2 * el.pastille.margeXPx : 0) + (el.margeMarqueurPx ?? 0) + el.mots.reduce((n, m) => n + (m.plaque ? 2 * PAVE.margeXEm * el.taillePx : 0) + (m.etiquette === "seul" ? 2 * ETIQUETTE.margeXEm * el.taillePx : m.etiquette === "debut" || m.etiquette === "fin" ? ETIQUETTE.margeXEm * el.taillePx : 0), 0);
 }
 
@@ -574,6 +591,12 @@ export function cssElement(el: ElementDessine, d: Pick<DonneesCalque, "couleurs"
     mot: (i) => {
       const m = el.mots[i];
       const css: Css = { color: m.couleur, opacity: m.opacite, position: "relative", display: "inline-block" };
+      // BR-POIDS-VARIABLE-IV-a : graisse du moment, dans une boîte de la largeur réservée à 800 (la ligne ne bouge pas).
+      if (m.graisse !== undefined) {
+        css.fontWeight = m.graisse;
+        css.width = largeurDuMot(m, el, { majuscules: el.gabarit.casse === "majuscules", chiffresTabulaires: true });
+        css.textAlign = "center";
+      }
       if ((m.echelle !== undefined && m.echelle !== 1) || m.monteePx) {
         css.transform = `translateY(${(m.monteePx ?? 0).toFixed(2)}px) scale(${(m.echelle ?? 1).toFixed(4)})`;
         css.transformOrigin = "50% 70%";

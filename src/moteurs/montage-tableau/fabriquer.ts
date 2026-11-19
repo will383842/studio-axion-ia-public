@@ -92,7 +92,7 @@ import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, IntensiteSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurProfilSon, ValeurStyleSousTitres } from "@/domaine/types";
 import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, INTENSITE_SOUS_TITRES_TABLEAU, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
 import { calerFicheTableau, type ElementCale } from "./calage";
-import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau } from "./controles";
+import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau, type RelectureImagesCles } from "./controles";
 import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTableau, type SceneTableau } from "./fiche";
 import { ErreurMiseEnPage, mettreEnPage, reseauxVerticaux, type MiseEnPageTableau } from "./mise-en-page";
 import { controlerSortie, type ControleSortie } from "./controles-sortie";
@@ -311,6 +311,8 @@ export type OutilsVoixFabrication = Pick<OutilsVoixMaitre, "voix" | "stockage" |
 
 export interface OutilsFabrication {
   videoId: string;
+  /** BR-TABLEAU-RACCORDS-b : `true` pose un fondu entre deux scènes dessinées voisines (≥ 0,6 s). Absent : coupe franche, rien ne change. */
+  raccords?: true;
   /** Environnement des clés (`dev`, `prod`) : `studio/<env>/scenes/<videoId>/<empreinte>.mp4`. */
   env: string;
   /** Fiche brute (JSON lu). */
@@ -375,7 +377,7 @@ export interface OutilsFabrication {
   /** Personnage qui prête sa voix (inscrit dans la distribution de la commande). */
   personnageId?: string;
   /** Relecture indicative des 6 images clés (absente : « non faite »). */
-  relireImagesCles?: OutilsControleTableau["relireImagesCles"];
+  relireImagesCles?: (fiche: FicheTableau, miseEnPage: MiseEnPageTableau, video: { cle: string; dureeSec: number; attendre?: () => Promise<void> }) => Promise<RelectureImagesCles> | RelectureImagesCles;
   /** Attente entre deux tours d'une étape suivie (tests : rien). */
   attendre?: () => Promise<void>;
   /** Horloge des durées d'étape (ms). */
@@ -691,7 +693,7 @@ export function segmentsSousTitresTableau(o: { c: CommandeFabrication; st: SousT
  * Commande de fabrication MINIMALE du tableau (lue par `parametresComposition`, sans base) : page de la charte en
  * décor, sous-titres « Encre » centrés dans la bande réservée, aucune LUT, aucune musique, aucun bruitage.
  */
-export function commandeTableau(o: { videoId: string; fiche: FicheTableau; texteScript: string; dureeSec: number; centreSousTitresPct: number; scenes: readonly ScenePosee[]; personnageId?: string; prononciations?: readonly { mot: string; prononciation: string }[]; ratio?: Ratio; mediasSons?: Record<string, MediaCommande>; styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null; bandeSousTitres?: BandeSousTitres; intensite?: IntensiteSousTitres }): CommandeFabrication {
+export function commandeTableau(o: { videoId: string; fiche: FicheTableau; texteScript: string; dureeSec: number; centreSousTitresPct: number; scenes: readonly ScenePosee[]; personnageId?: string; prononciations?: readonly { mot: string; prononciation: string }[]; ratio?: Ratio; mediasSons?: Record<string, MediaCommande>; styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null; bandeSousTitres?: BandeSousTitres; intensite?: IntensiteSousTitres; raccords?: true }): CommandeFabrication {
   const medias: Record<string, MediaCommande> = { ...Object.fromEntries(o.scenes.map((s) => [`scene:${s.id}`, { cle: s.cle, mime: "video/mp4", dureeSec: +(s.finSec - s.debutSec).toFixed(3) }])), ...(o.mediasSons ?? {}) };
   // Style « blocs/2 » : les scènes dessinent elles-mêmes les sous-titres (pastille) ; export à la cadence du style.
   const blocs2 = estStyleBlocs2(o.fiche);
@@ -717,7 +719,7 @@ export function commandeTableau(o: { videoId: string; fiche: FicheTableau; texte
     styles: { sousTitres: st.style, decor: st.decor ? { id: "fond-tableau", nom: "Fond du tableau", valeur: decor } : { id: "page-charte", nom: "Page de la charte", valeur: decor }, profilSon: { id: "ps-tableau", nom: "Tableau (ton de pièce à −66 dB)", valeur: PROFIL_SON_TABLEAU }, lut: null, musique: null },
     ...(blocs2 ? { profilRendu: { version: 1, export: { fps: FPS_BLOCS_2, debitMbpsMin: 12, debitMbpsMax: 16, audio: { codec: "aac" as const, kbps: 256, hz: 48000 }, couleur: "bt709" as const } } } : {}),
     briques: { "sous-titres": !sansSousTitres, etalonnage: false, illustrations: true, son: true, habillage: false, "texte-ecran": false, "mention-ia": false },
-    entrees: {},
+    entrees: o.raccords ? { raccordsTableau: true } : {},
     reglages: {},
     plans: [],
     prononciations: [...(o.prononciations ?? [])],
@@ -1304,7 +1306,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // les anciens styles « Encre » gardent leurs groupes d'avant.
     const dynamiques = stTableau.personnalise || estStyleReference3(ficheS);
     const intensiteST: IntensiteSousTitres = o.intensiteSousTitres ?? INTENSITE_SOUS_TITRES_TABLEAU;
-    const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : [])];
+    const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : []), ...(o.raccords ? [{ raccords: 1 }] : [])];
     // Mots mis en valeur (GV-ST-09) : un journal d'avant, dont la composition est déjà gardée, garde sa clé (reprise sans refaire) ;
     // une fabrication neuve reçoit le marqueur, donc une autre clé que celle d'avant.
     const cleAvant = empreinte(...(entreesCompo));
@@ -1315,7 +1317,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       cleCompo,
       async () => {
         const texteScript = ficheS.scenes.map((s) => s.texteDit).join(" ");
-        const c = commandeTableau({ videoId: o.videoId, fiche: ficheS, texteScript, dureeSec, centreSousTitresPct: centreBandePct(mise), scenes: scenes.temps, personnageId: o.personnageId, prononciations, ratio: format.ratio, ...(sons ? { mediasSons: sons.medias } : {}), ...(o.styleSousTitres ? { styleSousTitres: o.styleSousTitres } : {}), bandeSousTitres: bandeDe(mise, format.ratio, imageVerticale, imageVerticale ? reseauxVerticaux() : reseauxDuRatio(format.ratio)), intensite: intensiteST });
+        const c = commandeTableau({ videoId: o.videoId, fiche: ficheS, texteScript, dureeSec, centreSousTitresPct: centreBandePct(mise), scenes: scenes.temps, personnageId: o.personnageId, prononciations, ratio: format.ratio, ...(sons ? { mediasSons: sons.medias } : {}), ...(o.styleSousTitres ? { styleSousTitres: o.styleSousTitres } : {}), bandeSousTitres: bandeDe(mise, format.ratio, imageVerticale, imageVerticale ? reseauxVerticaux() : reseauxDuRatio(format.ratio)), intensite: intensiteST, ...(o.raccords ? { raccords: true as const } : {}) });
         // Sous-titres dynamiques : les accents entrent sans glisser (jamais hors de la bande).
         // Design central (17/10) : centre de la ligne, échelle, accents sans glissement, bande de fond sur les fonds clairs.
         const { positionSousTitresPct, ...echelleST } = supplementsSousTitresTableau({ st: stTableau, mise, ratio: format.ratio, verticale: imageVerticale, dynamiques });
@@ -1385,7 +1387,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         // La mise en page de CETTE sortie (format, écran d'appel, bulles), celle qui a été rendue.
         sorties: [{ id, libelle: format.libelle, fiche: calageS.fiche, options: { preuves, ...(imageVerticale ? {} : { format: image }), ...(appel ? { appel } : {}) } }],
       },
-      o.relireImagesCles ? { relireImagesCles: o.relireImagesCles } : {},
+      // CLAUDE-REGARD-c-a : dépendance facultative, absente par défaut (alors « non faite », rien n'est appelé) ; reçoit la vidéo finie.
+      o.relireImagesCles ? { relireImagesCles: (f, m) => o.relireImagesCles!(f, m, { cle: composition.sortieCle, dureeSec: Number.isFinite(composition.mesures.dureeSec) && composition.mesures.dureeSec! > 0 ? composition.mesures.dureeSec! : dureeSec, ...(o.attendre ? { attendre: o.attendre } : {}) }) } : {},
     );
     // Les contrôles du fichier fini déclassés en alertes : dits sur la sortie livrée et au rapport, sans jeter la vidéo.
     for (const l of controles.indicatifs.filter((x) => x.declasse)) {
@@ -1426,7 +1429,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     await tracer({
       type: "controle",
       cle: `controle:sortie:${id}:${cleCompo}`,
-      donnees: { moment: "apres-montage", formatSortie: id, verdict: controles.verdict, resume: controles.resume, alertes: controles.indicatifs.length + controles.nonFaits.length + controles.bloquants.length, fichier: controleFichier },
+      donnees: { moment: "apres-montage", formatSortie: id, verdict: controles.verdict, resume: controles.resume, alertes: controles.indicatifs.length + controles.bloquants.length, nonFaits: controles.nonFaits.map((l) => l.libelle), fichier: controleFichier },
     });
     return {
       ...(alertesSortie.length ? { alertes: alertesSortie } : {}),

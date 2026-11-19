@@ -19,6 +19,8 @@
 import "server-only";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { cleEnvoi } from "@/domaine/envoi-planifie";
+import { creneauEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import type { Publication, ReseauDeclinaison } from "@/domaine/types";
@@ -28,13 +30,14 @@ import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import type { FournisseurPublication } from "@/fournisseurs/types";
 import { cleJour } from "@/lib/dates";
 import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant as maintenantIso, sousVerrou } from "./_commun";
-import { envoyerDepuisCreneau, tourEnvoisCalendrier, type CreneauCalendrier, type LigneCreneau, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
+import { RAISON_A_COMPLETER, lireDernierRefus, envoyerDepuisCreneau, tourEnvoisCalendrier, type CreneauCalendrier, type LigneCreneau, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
 import { envoyerVisuelDuCreneau } from "./envoi-visuel-creneau";
 import { dansEssai, essaiCouvre, essaiEnCours, lireEssai } from "./essai-zernio";
-import { annulerEnvoi } from "./envois-planifies";
+import { annulerEnvoi, resoudreCleEnvoi } from "./envois-planifies";
 import { creerNotification } from "./notifications";
 import type { EtatsPromotion, NotificationPromotion } from "./promotion-envois";
 import { clientZernio, editorialeActive, envoiCalendrierAutorise, envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
+import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 
 /** Au plus un tour toutes les 5 minutes (débit du diffuseur). */
 export const INTERVALLE_TOUR_ENVOIS_MS = 5 * 60_000;
@@ -92,6 +95,25 @@ const etatsParametres: EtatsPromotion = {
   },
 };
 
+/**
+ * État d'envoi d'un créneau sur un réseau, pour l'affichage (lecture seule, ne lève jamais) :
+ * `aCompleter` quand le texte du réseau est vide, `dernierRefus` quand un refus a été gardé pour la version courante.
+ */
+export async function etatEnvoiDuCreneau(c: CreneauEditorial, reseau: ReseauDeclinaison): Promise<{ aCompleter?: string; dernierRefus?: { raison: string; le: string } }> {
+  try {
+    const media = c.videoId ?? c.visuelId;
+    const sortie: { aCompleter?: string; dernierRefus?: { raison: string; le: string } } = {};
+    if (!c.textes?.[reseau]?.texte?.trim()) sortie.aCompleter = RAISON_A_COMPLETER;
+    if (media) {
+      const refus = await lireDernierRefus(etatsParametres, await resoudreCleEnvoi(depots().envoisPlanifies, { videoId: media, reseau, versionCreneau: c.decalages, creneauId: c.id }));
+      if (refus) sortie.dernierRefus = refus;
+    }
+    return sortie;
+  } catch {
+    return {};
+  }
+}
+
 /** Cloche seulement : aucun nom d'outil, vouvoiement. */
 const notifierCloche = async (n: { titre: string; message?: string; lien?: string }): Promise<unknown> =>
   creerNotification({ type: "echec", titre: n.titre, message: n.message, lien: n.lien }, { cloche: true });
@@ -111,7 +133,7 @@ const valideeLisible = (c: CreneauEditorial): boolean => typeof c.valideeLe === 
 
 /** Un créneau est-il à envoyer en V1 (validé, daté, ni refusé, ni retiré, ni à renvoyer) ? */
 const valideEnvoyable = (c: CreneauEditorial & { aRenvoyer?: boolean }): boolean =>
-  c.statut === "valide" && valideeLisible(c) && !c.refuseLe && !c.retireLe && !c.aRenvoyer;
+  creneauEnvoyable(c);
 
 /** Une seule notification par motif (état durable) : jamais de répétition à chaque tour. */
 async function notifierUneFois(etats: EtatsPromotion, notifier: (n: NotificationPromotion) => Promise<void>, cleEtat: string, n: NotificationPromotion): Promise<void> {
@@ -124,7 +146,7 @@ async function notifierUneFois(etats: EtatsPromotion, notifier: (n: Notification
 async function occupantsDuCompte(c: CreneauEditorial, media: string, reseau: ReseauDeclinaison, version: number): Promise<Publication[]> {
   const siennes = (await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === version)).map((e) => e.cleDiffuseur).filter((k): k is string => typeof k === "string");
   const occupantes = await depots().publications.lister(
-    (p) => (p.videoId === media || p.visuelId === media) && p.reseau === reseau && (!p.canalId || p.canalId === c.compteCible) && occupeBuffer(p),
+    (p) => (p.videoId === media || p.visuelId === media) && p.reseau === reseau && (estCompteParDefaut(c.compteCible) || !p.canalId || p.canalId === c.compteCible) && occupeBuffer(p),
   );
   return occupantes.filter((p) => !(typeof p.cleEnvoi === "string" && siennes.includes(p.cleEnvoi)));
 }
@@ -319,7 +341,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
  * diffuseur, rien n'est supprimé. Sous `sousVerrou` : seul cet écrit s'y fait, jamais un envoi.
  */
 const estPerime = (e: EnvoiPlanifie, c: (CreneauEditorial & { aRenvoyer?: boolean }) | undefined): boolean =>
-  !c || c.statut !== "valide" || !!c.retireLe || !!c.refuseLe || e.versionCreneau < c.decalages;
+  !c || !creneauEnvoyable(c) || e.versionCreneau < c.decalages;
 
 async function annulerVersionsPerimees(maintenant: number, etats: EtatsPromotion): Promise<number> {
   return sousVerrou(async () => {
