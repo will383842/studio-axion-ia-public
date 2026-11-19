@@ -1426,7 +1426,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     await tracer({
       type: "controle",
       cle: `controle:sortie:${id}:${cleCompo}`,
-      donnees: { moment: "apres-montage", formatSortie: id, verdict: controles.verdict, resume: controles.resume, alertes: controles.indicatifs.length + controles.nonFaits.length + controles.bloquants.length, fichier: controleFichier },
+      donnees: { moment: "apres-montage", formatSortie: id, verdict: controles.verdict, resume: controles.resume, alertes: controles.indicatifs.length + controles.bloquants.length, nonFaits: controles.nonFaits.map((l) => l.libelle), fichier: controleFichier },
     });
     return {
       ...(alertesSortie.length ? { alertes: alertesSortie } : {}),
