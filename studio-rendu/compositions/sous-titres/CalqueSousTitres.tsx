@@ -13,7 +13,7 @@ import { geometriePave } from "../../../src/briques/sous-titres/pave";
 import { cheminBoiteArrondie } from "../../../src/briques/sous-titres/boite-arrondie";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "../commune/polices";
 import { LigneEscalier } from "./LigneEscalier";
-import { chargerPolices, FAMILLES } from "./polices";
+import { chargerPolices, chargerPoliceVariable, FAMILLE_VARIABLE, FAMILLES } from "./polices";
 
 export type ProprietesCalque = {
   donnees: DonneesCalque;
@@ -34,6 +34,8 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
   if (donnees.bandeauNom) chargerPolices(["Manrope ExtraBold", "Manrope SemiBold"]);
   // C2-U9 : étiquette d'outil autonome (ajout pur) ; champ absent : rien de plus.
   if (donnees.etiquettesOutils?.length) chargerPolices(["Manrope ExtraBold"]);
+  // BR-POIDS-VARIABLE-IV-a : la police variable n'est chargée que si `poidsVariable` est posé.
+  if (donnees.poidsVariable === true) chargerPoliceVariable();
   const image = useCurrentFrame();
   const { fps } = useVideoConfig();
   const t = instantSec ?? image / fps + decalageSec;
@@ -104,7 +106,7 @@ export function CalqueSousTitres({ donnees, decalageSec = 0, instantSec }: Propr
       <div style={css.conteneur}>
         <div style={css.ligne}>
           {el.mots.map((m, i) => (
-            <span key={i} style={pave && i === pave.indice ? { ...css.mot(i), background: "transparent", ...(!gp || contour ? { color: donnees.couleurs.texte } : {}) } : css.mot(i)}>
+            <span key={i} style={{ ...(pave && i === pave.indice ? { ...css.mot(i), background: "transparent", ...(!gp || contour ? { color: donnees.couleurs.texte } : {}) } : css.mot(i)), ...(m.graisse !== undefined ? { fontFamily: `"${FAMILLE_VARIABLE}"` } : {}) }}>
               {m.texte}
               {m.souligne > 0 && <span style={css.trait(i)} />}
             </span>
