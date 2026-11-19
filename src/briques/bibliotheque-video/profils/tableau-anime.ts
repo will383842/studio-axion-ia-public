@@ -9,6 +9,10 @@ export const PROFIL_TABLEAU_ANIME: ProfilVideo = figerProfil({
     // permis: false : tableau couvert par le filet (A2-11) ; pavé et étiquette autonome exclus du style « blocs/2 »
     [ID.texteSurlignageMarqueur]: { permis: false, maxParVideo: 1, decision: "S1, Q3" },
     [ID.texteStyleVarie]: { permis: false, maxParVideo: 1, decision: "S2, Q3 (A2-11)" },
+    // objets N-04 : déclarés fermés
+    [ID.objetChiffre]: { permis: false, maxParVideo: 1, decision: "N-04 (allumage = Williams)" },
+    [ID.objetEtape]: { permis: false, maxParVideo: 1, decision: "N-04 (allumage = Williams)" },
+    [ID.objetMarque]: { permis: false, maxParVideo: 1, decision: "N-04 (allumage = Williams)" },
   },
   plafonds: {},
   memoire: { fenetreVideos: 10, portee: "format" },
