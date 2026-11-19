@@ -278,3 +278,34 @@ describe("L5-21 · garde-fous conservés", () => {
     expect(appels).toHaveLength(0);
   });
 });
+
+describe("Visuel « programme » en un clic : envoyerVisuel l'accepte", () => {
+  beforeEach(ouvrirTout);
+  const manuel = { id: "pub_manuel", visuelId: "vis_1", reseau: "linkedin", statut: "programmee", via: "manuel", date: DEMAIN, texte: "t", creeLe: VALIDEE, modifieLe: VALIDEE };
+
+  it("7a. créneau et visuel « programme » + Publication manuel/programmee du même réseau : passe, sans DEJA_DANS_OUTIL", async () => {
+    await creerVisuel({ statut: "programme" });
+    const id = await creerCreneau(["linkedin"], { statut: "programme" });
+    await depots().publications.enregistrer(manuel as never);
+    const r = await envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK });
+    expect(r.deja).toBe(false);
+    expect(appels).toHaveLength(1);
+  });
+
+  it("7b. une Publication via zernio active du même visuel et réseau : DEJA_DANS_OUTIL (inchangé)", async () => {
+    await creerVisuel({ statut: "programme" });
+    const id = await creerCreneau(["linkedin"], { statut: "programme" });
+    await depots().publications.enregistrer({ ...manuel, id: "pub_z", via: "zernio", statut: "brouillon", etatEnvoi: "envoye", cleEnvoi: "autre-cle", idExterne: "ext-9" } as never);
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "DEJA_DANS_OUTIL" });
+    expect(appels).toHaveLength(0);
+  });
+
+  it("7c. visuel « a_valider » ou en corbeille : VISUEL_NON_VALIDE (inchangé)", async () => {
+    await creerVisuel({ statut: "a_valider" });
+    const id = await creerCreneau(["linkedin"], { statut: "programme" });
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "VISUEL_NON_VALIDE" });
+    await depots().visuels.modifier("vis_1", { statut: "programme", corbeilleLe: VALIDEE } as never);
+    await expect(envoyerVisuelDuCreneau(faux(), id, "linkedin", { ...OK })).rejects.toMatchObject({ code: "VISUEL_NON_VALIDE" });
+    expect(appels).toHaveLength(0);
+  });
+});

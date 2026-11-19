@@ -19,6 +19,7 @@
 import "server-only";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { creneauEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import type { Publication, ReseauDeclinaison } from "@/domaine/types";
@@ -111,7 +112,7 @@ const valideeLisible = (c: CreneauEditorial): boolean => typeof c.valideeLe === 
 
 /** Un créneau est-il à envoyer en V1 (validé, daté, ni refusé, ni retiré, ni à renvoyer) ? */
 const valideEnvoyable = (c: CreneauEditorial & { aRenvoyer?: boolean }): boolean =>
-  c.statut === "valide" && valideeLisible(c) && !c.refuseLe && !c.retireLe && !c.aRenvoyer;
+  creneauEnvoyable(c);
 
 /** Une seule notification par motif (état durable) : jamais de répétition à chaque tour. */
 async function notifierUneFois(etats: EtatsPromotion, notifier: (n: NotificationPromotion) => Promise<void>, cleEtat: string, n: NotificationPromotion): Promise<void> {
@@ -319,7 +320,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
  * diffuseur, rien n'est supprimé. Sous `sousVerrou` : seul cet écrit s'y fait, jamais un envoi.
  */
 const estPerime = (e: EnvoiPlanifie, c: (CreneauEditorial & { aRenvoyer?: boolean }) | undefined): boolean =>
-  !c || c.statut !== "valide" || !!c.retireLe || !!c.refuseLe || e.versionCreneau < c.decalages;
+  !c || !creneauEnvoyable(c) || e.versionCreneau < c.decalages;
 
 async function annulerVersionsPerimees(maintenant: number, etats: EtatsPromotion): Promise<number> {
   return sousVerrou(async () => {
