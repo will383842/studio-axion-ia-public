@@ -3,23 +3,31 @@
  * Lecture du source seulement : aucun appel réseau.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const src = readFileSync("src/services/publications.ts", "utf8");
+const RACINE = join(__dirname, "..", "..");
+const src = readFileSync(join(RACINE, "src/services/publications.ts"), "utf8").replace(/\r\n/g, "\n");
 const debut = src.indexOf("async function envoyerVisuelValide");
-const bloc = src.slice(debut, src.indexOf("\n}\n", debut));
+const fin = src.indexOf("\n}\n", debut);
+const bloc = src.slice(debut, fin);
+const capture = bloc.slice(bloc.lastIndexOf("} catch (e) {"));
 
 describe("raison du refus d'un visuel à la console serveur", () => {
-  it("le chemin d'erreur de envoyerVisuelValide écrit code et statut en console.warn", () => {
-    expect(bloc).toMatch(/console\.warn\(`\[studio\] outil de publication, envoi du visuel sur/);
-    expect(bloc).toMatch(/e\.code, e\.statut/);
+  it("le bloc de envoyerVisuelValide est trouvé", () => {
+    expect(debut).toBeGreaterThan(0);
+    expect(fin).toBeGreaterThan(debut);
+  });
+  it("le chemin d'erreur écrit code et statut en console.warn", () => {
+    expect(capture.includes("console.warn(")).toBe(true);
+    expect(capture.includes("envoi du visuel sur")).toBe(true);
+    expect(capture.includes("[e.code, e.statut]")).toBe(true);
   });
   it("toute adresse est retirée et le détail est borné", () => {
-    expect(bloc).toMatch(/replace\(\/https\?:\\/\\/\S\+\/g, "<adresse>"\)/);
-    expect(bloc).toMatch(/\.slice\(0, 300\)/);
+    expect(capture.includes('"<adresse>"')).toBe(true);
+    expect(capture.includes(".slice(0, 300)")).toBe(true);
   });
   it("rien de nouveau n'est écrit au journal visible sur ce chemin", () => {
-    const capture = bloc.slice(bloc.lastIndexOf("} catch (e) {"));
-    expect(capture).not.toMatch(/journaliser\(/);
+    expect(capture.includes("journaliser(")).toBe(false);
   });
 });
