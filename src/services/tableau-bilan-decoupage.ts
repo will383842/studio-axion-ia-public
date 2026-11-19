@@ -8,10 +8,16 @@ import { chiffreRefusDecoupage, idBilan, TYPE_EVENEMENT_BILAN_DECOUPAGE, type Ch
 import type { BilanDecoupage } from "@/moteurs/montage-tableau/bilan-refus";
 import { depots, horodatage, maintenant } from "./_commun";
 
-/** Consigne le bilan d'un découpage. Identifiant stable par (vidéo, tâche) : rejouer n'écrit pas deux fois. */
+/** Issues d'arrêt sans jugement des règles : jamais consignées (« Réessayer » reprend la même tâche, le vrai bilan viendra). */
+const ISSUES_SANS_JUGEMENT: readonly string[] = ["budget", "appel", "simulation"];
+
+/** Consigne le bilan d'un découpage. Identifiant stable par (vidéo, tâche, version) : rejouer n'écrit pas deux fois. */
 export async function consignerBilanDecoupage(bilan: BilanDecoupage, { tacheId, estDemo }: { tacheId: string; estDemo: boolean }): Promise<void> {
   try {
-    const id = idBilan(bilan.videoId, tacheId);
+    if (ISSUES_SANS_JUGEMENT.includes(bilan.issue)) return;
+    // Vidéo supprimée (pendant l'appel ou avant) : rien n'est écrit ni recréé (règle D2).
+    if (!(await depots().videos.obtenir(bilan.videoId))) return;
+    const id = idBilan(bilan.videoId, tacheId, bilan.versionId);
     if (await depots().evenements.obtenir(id)) return;
     const ev: EvenementBilanDecoupage = {
       id,

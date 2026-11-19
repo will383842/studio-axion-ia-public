@@ -14,9 +14,9 @@ export interface EvenementBilanDecoupage extends Evenement {
   bilan: BilanDecoupage;
 }
 
-/** Identifiant stable : rejouer la même tâche n'écrit pas deux fois. */
-export function idBilan(videoId: string, tacheId: string): string {
-  return `ev-tbbilan-${videoId}-${tacheId}`;
+/** Identifiant stable par (vidéo, tâche, version du découpage) : rejouer n'écrit pas deux fois, un découpage neuf après « Réessayer » a le sien. */
+export function idBilan(videoId: string, tacheId: string, versionId: string): string {
+  return `ev-tbbilan-${videoId}-${tacheId}-${versionId}`;
 }
 
 export interface LigneRegleRefus {

@@ -89,7 +89,7 @@ describe("a) accepté du premier coup", () => {
     const evs = await bilans();
     expect(evs).toHaveLength(1);
     expect(evs[0].bilan.issue).toBe("accepte-1er-essai");
-    expect(evs[0].id).toBe(idBilan(r.videoId, r.tacheId));
+    expect(evs[0].id).toBe(idBilan(r.videoId, r.tacheId, evs[0].bilan.versionId));
     expect(evs[0]).toMatchObject({ entite: "video", entiteId: r.videoId });
   });
 });
@@ -141,6 +141,33 @@ describe("d) rejouer la même tâche", () => {
     await consignerBilanDecoupage(ev.bilan, { tacheId: r.tacheId, estDemo: false });
     await consignerBilanDecoupage(ev.bilan, { tacheId: r.tacheId, estDemo: false });
     expect(await bilans()).toHaveLength(1);
+  });
+});
+
+describe("d bis) vidéo supprimée, issues sans jugement, version neuve", () => {
+  it("vidéo supprimée : rien n'est écrit", async () => {
+    const { consignerBilanDecoupage } = await import("@/services/tableau-bilan-decoupage");
+    const r = await decouper(double().appeler);
+    const [ev] = await bilans();
+    await depots().evenements.supprimer(ev.id);
+    await depots().videos.supprimer(r.videoId);
+    await consignerBilanDecoupage(ev.bilan, { tacheId: r.tacheId, estDemo: false });
+    expect(await bilans()).toHaveLength(0);
+  });
+  it("issues budget / appel / simulation : jamais consignées", async () => {
+    const { consignerBilanDecoupage } = await import("@/services/tableau-bilan-decoupage");
+    const r = await decouper(double().appeler);
+    const [ev] = await bilans();
+    await depots().evenements.supprimer(ev.id);
+    for (const issue of ["budget", "appel", "simulation"] as const) await consignerBilanDecoupage({ ...ev.bilan, issue }, { tacheId: r.tacheId, estDemo: false });
+    expect(await bilans()).toHaveLength(0);
+  });
+  it("même tâche, version neuve : un 2e bilan est consigné", async () => {
+    const { consignerBilanDecoupage } = await import("@/services/tableau-bilan-decoupage");
+    const r = await decouper(double().appeler);
+    const [ev] = await bilans();
+    await consignerBilanDecoupage({ ...ev.bilan, versionId: `${ev.bilan.versionId}-neuve` }, { tacheId: r.tacheId, estDemo: false });
+    expect(await bilans()).toHaveLength(2);
   });
 });
 
