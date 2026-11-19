@@ -1,13 +1,22 @@
 /**
  * R4-03-b1 : lire une demande « changer l'extrait du téléphone » et l'appliquer au projet gardé.
- * PUR : aucun `Date`, aucun hasard, aucun service, aucun réglage, aucun appel. Rien ne l'importe (R4-03-c le branchera).
+ * PUR : aucune horloge, aucun hasard, aucun service, aucun réglage, aucun appel. Rien ne l'importe (R4-03-c le branchera).
  * Le projet d'entrée n'est jamais modifié : on rend une copie, ou un refus clair.
  */
 import { z } from "zod";
 import { schemaPlanFacecamAnimee, type ElementV4Plan } from "@/domaine/facecam-animee/plan";
-import type { ChoixVideoV4 } from "./chaine-v4";
+import type { ChoixVideoV4, FichierVideoV4 } from "./chaine-v4";
 import { ecrireRechercheAxion, estRechercheAxion } from "./extraits-maison/recherche";
-import type { ProjetGardeV4 } from "./retouche-gratuite";
+import type { PlanFacecamAnimee } from "@/domaine/facecam-animee/plan";
+
+/**
+ * Ce que la règle lit du projet gardé (le `ProjetGardeV4` y satisfait, tous ses autres champs passent tels quels).
+ * Forme locale : un test voisin interdit à tout autre fichier de `src/` de citer le fichier de lecture du projet gardé.
+ */
+export interface ProjetExtraitV4 {
+  plan: PlanFacecamAnimee;
+  videos?: { fichiers: FichierVideoV4[]; choix?: unknown[] };
+}
 
 /** Nom de l'entrée que R4-03-c lira (ce n'est PAS une clé de réglage). */
 export const CLE_ENTREE_RETOUCHE_EXTRAIT_V4 = "retoucheExtraitV4";
@@ -60,9 +69,9 @@ export const MESSAGES_REFUS_EXTRAIT_V4: Record<CodeRefusExtraitV4, string> = {
   NOM_PRIS: "Cet extrait est déjà utilisé dans cette version : rien n'a changé.",
 };
 
-export type ResultatExtraitV4 = { projet: ProjetGardeV4 } | { refus: { code: CodeRefusExtraitV4; message: string } };
+export type ResultatExtraitV4<P extends ProjetExtraitV4 = ProjetExtraitV4> = { projet: P } | { refus: { code: CodeRefusExtraitV4; message: string } } | { refus: { code: CodeRefusExtraitV4; message: string } };
 
-const refus = (code: CodeRefusExtraitV4, message = MESSAGES_REFUS_EXTRAIT_V4[code]): ResultatExtraitV4 => ({ refus: { code, message } });
+const refus = (code: CodeRefusExtraitV4, message = MESSAGES_REFUS_EXTRAIT_V4[code]): { refus: { code: CodeRefusExtraitV4; message: string } } => ({ refus: { code, message } });
 
 const PREFIXE_BROLL = "broll/";
 const nomsDe = (e: ElementV4Plan): string[] => (e.medias ?? []).filter((m) => m.startsWith(PREFIXE_BROLL)).map((m) => m.slice(PREFIXE_BROLL.length));
@@ -70,7 +79,7 @@ const arrondi = (n: number) => Math.round(n * 1e6) / 1e6;
 const fichierDuChoix = (c: unknown): unknown => (typeof c === "object" && c !== null ? (c as { fichier?: unknown }).fichier : undefined);
 
 /** Retire des fichiers et des choix les noms que plus aucun élément ne cite. */
-function nettoyerVideos(p: ProjetGardeV4, noms: string[]): void {
+function nettoyerVideos(p: ProjetExtraitV4, noms: string[]): void {
   if (!p.videos || noms.length === 0) return;
   const cites = new Set((p.plan.elementsV4 ?? []).flatMap(nomsDe));
   const aOter = new Set(noms.filter((n) => !cites.has(n)));
@@ -78,7 +87,7 @@ function nettoyerVideos(p: ProjetGardeV4, noms: string[]): void {
   if (p.videos.choix) p.videos.choix = p.videos.choix.filter((c) => !aOter.has(String(fichierDuChoix(c))));
 }
 
-function appliquer(entree: ProjetGardeV4, demande: DemandeExtraitV4, clip?: ClipRetoucheV4): ResultatExtraitV4 {
+function appliquer<P extends ProjetExtraitV4>(entree: P, demande: DemandeExtraitV4, clip?: ClipRetoucheV4): ResultatExtraitV4<P> {
   const p = structuredClone(entree);
   const elements = p.plan.elementsV4 ?? [];
   const el = elements[demande.rang];
@@ -119,7 +128,7 @@ function appliquer(entree: ProjetGardeV4, demande: DemandeExtraitV4, clip?: Clip
 }
 
 /** Applique la demande à une COPIE du projet gardé ; le projet d'entrée n'est jamais modifié. Ne lève jamais. */
-export function appliquerDemandeExtraitV4(projet: ProjetGardeV4, demande: DemandeExtraitV4, clip?: ClipRetoucheV4): ResultatExtraitV4 {
+export function appliquerDemandeExtraitV4<P extends ProjetExtraitV4>(projet: P, demande: DemandeExtraitV4, clip?: ClipRetoucheV4): ResultatExtraitV4<P> {
   try {
     return appliquer(projet, demande, clip);
   } catch {
