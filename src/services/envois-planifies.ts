@@ -40,9 +40,12 @@ export async function resoudreCleEnvoi(
 ): Promise<string> {
   const ancienne = cleEnvoi(d.videoId, d.reseau, d.versionCreneau);
   if (!d.creneauId) return ancienne;
+  // Stabilité : une entrée déjà posée sous la clé propre au créneau reste la sienne, même si l'entrée ancienne disparaît.
+  const propre = cleEnvoiCreneau(d.videoId, d.reseau, d.versionCreneau, d.creneauId);
+  if (await depot.obtenir(propre)) return propre;
   const existant = await depot.obtenir(ancienne);
   if (!existant || existant.creneauId === undefined || existant.creneauId === d.creneauId) return ancienne;
-  return cleEnvoiCreneau(d.videoId, d.reseau, d.versionCreneau, d.creneauId);
+  return propre;
 }
 
 /** Idempotent : la même clé rend l'entrée existante, sans rien changer. */

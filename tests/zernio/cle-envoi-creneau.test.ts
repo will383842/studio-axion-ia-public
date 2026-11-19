@@ -46,6 +46,14 @@ describe("creerEnvoi : clé par créneau", () => {
     expect((await d.obtenir(ANCIENNE))?.statut).toBe("envoye");
   });
 
+  it("stabilité : l'entrée de cre_B garde sa clé propre même si l'entrée ancienne de cre_A disparaît", async () => {
+    const d = depots().envoisPlanifies;
+    await d.enregistrer(entree());
+    const e = await creerEnvoi(d, demande("cre_B"), T);
+    const sansAncienne = { obtenir: async (id: string) => (id === ANCIENNE ? null : d.obtenir(id)) };
+    expect(await resoudreCleEnvoi(sansAncienne, demande("cre_B"))).toBe(e.cle);
+  });
+
   it("(c) même créneau rejoué : même entrée", async () => {
     const d = depots().envoisPlanifies;
     const a = await creerEnvoi(d, demande("cre_B"), T);

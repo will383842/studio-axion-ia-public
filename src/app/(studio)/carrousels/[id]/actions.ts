@@ -178,6 +178,7 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
       journal: d.journalDecalages,
       publications: d.publications,
       visuels: d.visuels,
+      envoisPlanifies: d.envoisPlanifies,
     };
     const report = await sousVerrou(async () =>
       reporterLegendeSurCreneau({ passerelle, modifierTexte: modifierTexteSansRetrait }, id, reseau, texte, maintenant()),
