@@ -14,6 +14,7 @@ import type { ZonePct } from "../artefacts-retouche";
 import type { EtapeCalee } from "../calage-scenario";
 import type { CarteZones } from "./analyste";
 import { DUREE_CIBLE_SEC, type CahierVideo } from "./chef-de-projet";
+import { controlesDiffusion, type EntreeDiffusion } from "../diffusion-tutoriel";
 import { controlerMarque, type TexteControle } from "./controle-marque";
 import type { ParcoursTutoriel } from "./realisateur";
 import { MOTS_ENTREPRISE, verifierVersion, type PhraseChoisie, type PropositionScripts, type ScriptChoisi, type VersionScript } from "./scenariste";
@@ -128,6 +129,8 @@ export interface EntreeAvantValidation {
   ajusterDemande?: true;
   /** La mention « exemple » est visible dans les écrans de démonstration (défaut : oui quand des données sont données). */
   mentionExemple?: boolean;
+  /** T-EXT-43 : formats, langue, contraste, taille du texte, longueur du script (absent = comme avant). */
+  diffusion?: EntreeDiffusion;
 }
 
 function phrasesDu(e: EntreeAvantValidation): readonly Pick<PhraseChoisie, "texte" | "momentId">[] {
@@ -227,6 +230,7 @@ export function controlerAvantValidation(e: EntreeAvantValidation): VerdictContr
     controle("TUT-CADRE", "Zones dans le cadre", true, cadre, "Toutes les zones sont dans l'image et lisibles."),
     controle("TUT-MOMENTS", "Moments forts et dernière phrase", true, moments, "Trois moments au plus, dernière phrase sur l'entreprise."),
     ...marque,
+    ...(e.diffusion ? controlesDiffusion(e.diffusion) : []),
   ]);
 }
 

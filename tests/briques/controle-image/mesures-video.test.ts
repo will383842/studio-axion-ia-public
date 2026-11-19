@@ -46,6 +46,22 @@ describe("mesures communes de la vidéo finie", () => {
     expect(argumentsSsim({ source: "a.mp4", video: "f.mp4", zone: { ...ZONE, rectVideo: { x: 0, y: 0, largeur: 0, hauteur: 5 } } })).toBeNull();
   });
 
+  it("protocoles emboîtés et pipe/data refusés ; chemins locaux acceptés", () => {
+    const refus = [
+      "cache:https://exemple.invalid/a.mp4",
+      "concat:https://exemple.invalid/a.mp4",
+      "subfile,,start,0,end,0,,:https://exemple.invalid/a.mp4",
+      "pipe:0",
+      "data:video/mp4;base64,AAAA",
+    ];
+    for (const r of refus) {
+      expect(argumentsDetections(r), r).toBeNull();
+      expect(argumentsSsim({ source: r, video: "f.mp4", zone: ZONE }), r).toBeNull();
+      expect(argumentsSsim({ source: "a.mp4", video: r, zone: ZONE }), r).toBeNull();
+    }
+    for (const ok of ["/tmp/a/final.mp4", "sorties/final.mp4", "./final.mp4"]) expect(argumentsDetections(ok), ok).not.toBeNull();
+  });
+
   it("lireSsim lit la sortie de FFmpeg", () => {
     const sortie = "[Parsed_ssim_5 @ 0x5581] SSIM Y:0.973100 (15.7) U:0.9 V:0.9 All:0.9734 (15.78)\n";
     expect(lireSsim(sortie)).toBeCloseTo(0.9734, 4);
@@ -67,6 +83,15 @@ describe("mesures communes de la vidéo finie", () => {
   });
   it("lireDetections : gel de 1,4 s → 0", () => {
     expect(lireDetections(gel(5, 6.4) + FIN, { finUtileMs: 20000 }).imagesFigeesHorsFin).toBe(0);
+  });
+  it("lireDetections : gel jusqu'à la fin du fichier (sans freeze_end) est compté", () => {
+    const duree = "  Duration: 00:00:06.00, start: 0.000000, bitrate: 100 kb/s\n";
+    const sansFin = "[freezedetect @ 0x1] lavfi.freezedetect.freeze_start: 3\n";
+    expect(lireDetections(duree + sansFin + FIN, { finUtileMs: 6000 }).imagesFigeesHorsFin).toBe(1);
+  });
+  it("lireDetections : gel qui se prolonge dans la carte de fin : seule la partie avant la fin utile compte", () => {
+    expect(lireDetections(gel(5, 12) + FIN, { finUtileMs: 10000 }).imagesFigeesHorsFin).toBe(1); // 5 s avant la fin utile
+    expect(lireDetections(gel(9, 12) + FIN, { finUtileMs: 10000 }).imagesFigeesHorsFin).toBe(0); // 1 s avant la fin utile
   });
   it("lireDetections : gel pendant la fin → 0 (terminé après, ou sans fin)", () => {
     expect(lireDetections(gel(18, 21) + FIN, { finUtileMs: 17000 }).imagesFigeesHorsFin).toBe(0);
