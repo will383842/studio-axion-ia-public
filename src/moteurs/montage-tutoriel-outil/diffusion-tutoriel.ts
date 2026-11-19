@@ -5,9 +5,8 @@
 import { contrasteWcag, PAIRES_TEXTE, SUR_CLAIR, SUR_SOMBRE } from "@/briques/charte/axion-2026";
 import { SEUILS_CONTROLES } from "@/briques/plan-scenes/controles";
 import type { HabillagePlan } from "@/briques/plan-scenes/schema";
-// Le test « aucun appelant du chef de projet » (T-EXT-18) interdit ce chemin dans src : la constante passe par le contrôleur, qui la réexporte.
-// Usage seulement à l'appel des fonctions (jamais à l'import) : le cycle avec le contrôleur est sans effet.
-import { DUREE_CIBLE_SEC, type ResultatControleTutoriel } from "./equipe/controleur";
+import type { ResultatControleTutoriel } from "./equipe/controleur";
+import { DUREE_CIBLE_SEC } from "./equipe/chef-de-projet";
 import { formatDuRatio } from "./proprietes";
 import { MOTS_PAR_SECONDE } from "./script";
 

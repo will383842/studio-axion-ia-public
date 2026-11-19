@@ -14,9 +14,6 @@ import type { ZonePct } from "../artefacts-retouche";
 import type { EtapeCalee } from "../calage-scenario";
 import type { CarteZones } from "./analyste";
 import { DUREE_CIBLE_SEC, type CahierVideo } from "./chef-de-projet";
-
-/** Réexport pour `diffusion-tutoriel.ts` (même constante, aucune copie). */
-export { DUREE_CIBLE_SEC };
 import { controlesDiffusion, type EntreeDiffusion } from "../diffusion-tutoriel";
 import { controlerMarque, type TexteControle } from "./controle-marque";
 import type { ParcoursTutoriel } from "./realisateur";
