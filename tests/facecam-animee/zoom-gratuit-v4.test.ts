@@ -80,7 +80,7 @@ describe("garde d'isolement", () => {
     expect(src).not.toMatch(/from\s+["'][^"']*(studio-rendu|@\/services\/)/);
     expect(src).not.toContain("lireParametre");
   });
-  it("rien ne l'importe", () => {
+  it("l'UNIQUE importeur dans src/ et studio-rendu/ est chaine-v4.ts (C8-Z09-v19b)", () => {
     const vus: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -92,6 +92,6 @@ describe("garde d'isolement", () => {
     };
     parcourir("src");
     parcourir("studio-rendu");
-    expect(vus).toEqual([]);
+    expect(vus.map((v) => v.replace(/\\/g, "/"))).toEqual(["src/moteurs/montage-facecam-animee/chaine-v4.ts"]);
   });
 });
