@@ -112,6 +112,7 @@ export async function programmerAction(donnees: FormData): Promise<void> {
       journal: d.journalDecalages,
       publications: d.publications,
       visuels: d.visuels,
+      envoisPlanifies: d.envoisPlanifies,
     };
     try {
       // Seules les légendes relues et enregistrées par la personne partent sur le créneau ; le texte automatique reste de côté.
@@ -177,6 +178,7 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
       journal: d.journalDecalages,
       publications: d.publications,
       visuels: d.visuels,
+      envoisPlanifies: d.envoisPlanifies,
     };
     const report = await sousVerrou(async () =>
       reporterLegendeSurCreneau({ passerelle, modifierTexte: modifierTexteSansRetrait }, id, reseau, texte, maintenant()),
