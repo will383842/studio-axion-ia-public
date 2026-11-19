@@ -224,6 +224,8 @@ interface DemandeEstimation {
   sansFins?: boolean;
   /** Socle de Will donné à l'écriture (compté dans son prix pire cas) ; absent : aucun. */
   socle?: EntreeRole["contexte"];
+  /** FIX-CC-FIN-CHOIX : « La phrase de fin » choisie ; absente : aucune fin. */
+  finDemandee?: "rendez-vous";
 }
 
 /** V4-3 : le script validé du catalogue pour ce cas (l'estimation n'a pas les outils des services). */
@@ -260,7 +262,7 @@ function lignesEstimees(d: DemandeEstimation): LigneCout[] {
   const offre = d.cas?.offre;
   const mot = d.mot ?? d.cas?.mot ?? "";
   const motDit = d.motDit ?? d.cas?.motDit;
-  const plan = offre ? regrouperFins(planDesFins({ reseaux: [...d.reseaux], offre, ...(d.cas?.nature ? { nature: d.cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: d.avecMot, ...(d.motSur ? { motSur: d.motSur } : {}), table: TABLE_FINS_DIAGNOSTIC })) : null;
+  const plan = offre ? regrouperFins(planDesFins({ reseaux: [...d.reseaux], offre, ...(d.cas?.nature ? { nature: d.cas.nature } : {}), mot, ...(motDit ? { motDit } : {}), avecMot: d.avecMot, ...(d.motSur ? { motSur: d.motSur } : {}), table: TABLE_FINS_DIAGNOSTIC, ...(d.finDemandee ? { finDemandee: d.finDemandee } : {}) })) : null;
   // V4-3 : un cas à script validé ne paie aucune écriture ; sa voix est estimée sur le texte du script.
   const script = d.ecriture && !d.nouveauScript ? scriptDuCas(d.cas) : undefined;
   if (d.ecriture && d.cas && !script) l.push(ligne("Écriture", "claude", "appel", APPELS_ECRITURE_MAX, "estime", centimes(coutEcritureCentimes(d.cas, plan?.fins ?? [], d.tauxUsdEur, d.socle))));
@@ -314,8 +316,8 @@ const casDe = (commande: Pick<CommandeFabrication, "entrees">, outils?: Pick<Out
  * Estimation d'un cas avant toute commande (écran du format) : même calcul que `estimer`. `voix` : le fournisseur de la
  * voix désignée (absent : tarif de la simulation) ; `null` : sans voix.
  */
-export function estimerDepuisCas(cas: CasConcret, reseaux: readonly ReseauCas[], avecMot: boolean, options: { voix?: { fournisseur?: string } | null; tauxUsdEur?: number; motSur?: readonly ReseauCas[]; lecturesVoixMax?: number; socle?: EntreeRole["contexte"]; nouveauScript?: boolean } = {}): Estimation {
-  const lignes = lignesEstimees({ cas, reseaux, avecMot, ...(options.nouveauScript ? { nouveauScript: true } : {}),...(options.motSur ? { motSur: options.motSur } : {}), ecriture: true, voix: options.voix === undefined ? {} : options.voix, tauxUsdEur: options.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT, ...(options.lecturesVoixMax ? { lecturesVoixMax: options.lecturesVoixMax } : {}), ...(options.socle ? { socle: options.socle } : {}) });
+export function estimerDepuisCas(cas: CasConcret, reseaux: readonly ReseauCas[], avecMot: boolean, options: { voix?: { fournisseur?: string } | null; tauxUsdEur?: number; motSur?: readonly ReseauCas[]; lecturesVoixMax?: number; socle?: EntreeRole["contexte"]; nouveauScript?: boolean; finDemandee?: "rendez-vous" } = {}): Estimation {
+  const lignes = lignesEstimees({ cas, reseaux, avecMot, ...(options.finDemandee ? { finDemandee: options.finDemandee } : {}), ...(options.nouveauScript ? { nouveauScript: true } : {}),...(options.motSur ? { motSur: options.motSur } : {}), ecriture: true, voix: options.voix === undefined ? {} : options.voix, tauxUsdEur: options.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT, ...(options.lecturesVoixMax ? { lecturesVoixMax: options.lecturesVoixMax } : {}), ...(options.socle ? { socle: options.socle } : {}) });
   return estimation(lignes, dureeDe({ reseaux: [...reseaux] }));
 }
 
@@ -329,6 +331,7 @@ function demandeDe(commande: CommandeFabrication): DemandeEstimation {
     motSur: e.motSur,
     ...(e.mot ? { mot: e.mot } : {}),
     ...(e.motDit ? { motDit: e.motDit } : {}),
+    ...(e.finDemandee ? { finDemandee: e.finDemandee } : {}),
     ecriture: !e.ficheCle,
     ...(e.nouveauScript !== undefined ? { nouveauScript: true } : {}),
     voix: commande.distribution.length ? { ...(commande.distribution[0].fournisseurVoix ? { fournisseur: commande.distribution[0].fournisseurVoix } : {}) } : null,
@@ -435,6 +438,7 @@ function preparerRetouche(commande: CommandeFabrication, operations: readonly un
     mot,
     ...(motDit ? { motDit } : {}),
     avecMot: r.avecMot ?? entrees.avecMot,
+    ...(entrees.finDemandee ? { finDemandee: entrees.finDemandee } : {}),
     table: outils?.contexte.tableDesFins ?? TABLE_FINS_DIAGNOSTIC,
     motsInterdits: [...(outils?.contexte.interdits ?? [])],
     ...(pr.length ? { lire: (t: string) => substituerPrononciations(t, pr) } : {}),
@@ -610,7 +614,7 @@ function voixDeRetouche(commande: CommandeFabrication, outils: OutilsCasConcret,
   // Les réseaux tels que la chaîne les lit (`tourDeChaine` pose ceux des entrées dans son contexte).
   const reseaux = [...new Set(entrees.reseaux)];
   const motDit = entrees.motDit ?? cas.motDit;
-  const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: outils.contexte.tableDesFins }));
+  const plan = regrouperFins(planDesFins({ reseaux, offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: entrees.mot ?? cas.mot, ...(motDit ? { motDit } : {}), avecMot: entrees.avecMot, motSur: entrees.motSur, table: outils.contexte.tableDesFins, ...(entrees.finDemandee ? { finDemandee: entrees.finDemandee } : {}) }));
   const texteCorps = lire(texteDuCorpsPourVoix(r.fiche));
   // 17/11 : comme `fabriquer.ts` (étape 4), une fin vide (sans écran) n'a pas de voix : même empreinte, sinon la retouche relirait tout.
   const textesFins = plan.fins.filter((f) => f.ecrans.length).map((f) => ({ id: f.id, texte: lire(texteDeFin(f)) }));
@@ -890,7 +894,7 @@ function refusDeCommande(commande: CommandeFabrication): { code: string; message
 /** Prix d'UN appel d'écriture (au pire), en centimes d'euro : ce que coûte au plus un nouvel essai après « Réessayer » (X12). */
 export function coutNouvelEssaiEcritureCentimes(cas: CasConcret, commande: CommandeFabrication): number {
   const e = lireEntreesCasConcret(commande.entrees);
-  const plan = regrouperFins(planDesFins({ reseaux: [...e.reseaux], offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: e.mot ?? cas.mot, ...((e.motDit ?? cas.motDit) ? { motDit: e.motDit ?? cas.motDit } : {}), avecMot: e.avecMot, motSur: e.motSur, table: TABLE_FINS_DIAGNOSTIC }));
+  const plan = regrouperFins(planDesFins({ reseaux: [...e.reseaux], offre: cas.offre, ...(cas.nature ? { nature: cas.nature } : {}), mot: e.mot ?? cas.mot, ...((e.motDit ?? cas.motDit) ? { motDit: e.motDit ?? cas.motDit } : {}), avecMot: e.avecMot, motSur: e.motSur, table: TABLE_FINS_DIAGNOSTIC, ...(e.finDemandee ? { finDemandee: e.finDemandee } : {}) }));
   return Math.max(1, Math.ceil(coutEcritureCentimes(cas, plan.fins, commande.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT) / APPELS_ECRITURE_MAX));
 }
 

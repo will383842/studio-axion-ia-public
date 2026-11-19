@@ -479,6 +479,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   const exportP: ParametresExport = { fps, debitKbps: Math.round(((min + max) / 2) * 1000), debitMaxKbps: max * 1000, audioKbps: ex?.audio.kbps ?? 256, audioHz: ex?.audio.hz ?? 48000, mode: "crf", crf: 17 };
   if (e.source10bits) exportP.source10bits = true;
   if (recette.finPropre) exportP.finPropre = { ...recette.finPropre, dureeSec: e.dureeSec };
+  if (recette.exportFiges) exportP.mesurerFiges = { seuilSec: recette.exportFiges.seuilSec, finSec: recette.finPropre ? recette.finPropre.tenueSec + recette.finPropre.fonduSec : 0 };
   if (recette.exportBordsSurs) Object.assign(exportP, { conversionRvbSure: true, mesurerBords: true, ...(e.instantsBords?.length ? { instantsBords: [...e.instantsBords] } : {}) });
 
   // 10/10 : garde-fou des couleurs — la prise étalonnée est une entrée de plus (lue à distance par studio-rendu).

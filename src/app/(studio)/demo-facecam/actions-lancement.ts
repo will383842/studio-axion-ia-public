@@ -8,11 +8,12 @@
 import { revalidatePath } from "next/cache";
 import { exigerSession } from "@/services/auth";
 import { depots, essayer, type Resultat } from "@/services/_commun";
-import { lancerAvecAccord, type IssueLancement } from "@/services/creation-format";
+import { lancerAvecAccord } from "@/services/creation-format";
 import { apercuFabrication } from "@/services/fabrication";
+import { libellePrixDemo, type IssueLancementDemo } from "@/domaine/demo-facecam/prix";
 import { demoFacecamOuverte } from "./actions";
 
-export async function lancerDemoFacecam(videoId: string, accordCentimes: unknown): Promise<Resultat<IssueLancement>> {
+export async function lancerDemoFacecam(videoId: string, accordCentimes: unknown): Promise<Resultat<IssueLancementDemo>> {
   if (!(await demoFacecamOuverte())) return { ok: false, message: "La démo facecam n'est pas encore ouverte.", code: "DEMO_FERMEE" };
   await exigerSession();
   const video = typeof videoId === "string" ? await depots().videos.obtenir(videoId) : null;
@@ -21,6 +22,6 @@ export async function lancerDemoFacecam(videoId: string, accordCentimes: unknown
     const montant = (await apercuFabrication(videoId)).estimation.total.centimes;
     const issue = await lancerAvecAccord(videoId, accordCentimes, montant);
     if (issue.statut === "lancee") revalidatePath("/videos");
-    return issue;
+    return issue.statut === "accord-requis" ? { ...issue, prix: libellePrixDemo(issue.centimes) } : issue;
   });
 }

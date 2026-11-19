@@ -11,7 +11,7 @@ import { TABLE_FINS } from "../../../src/briques/fins";
 import { lireEntreesTableau } from "../../../src/moteurs/montage-tableau/etapes";
 import { fabriquerTableau, versionDuCode, type EvenementFabrication } from "../../../src/moteurs/montage-tableau/fabriquer";
 import { sortiesDesReseaux } from "../../../src/moteurs/montage-tableau/formats-sortie";
-import { finDuTableau, reseauDeLaSortie } from "../../../src/services/tableau-fin";
+import { avisFinLinkedIn, finDuTableau, reseauDeLaSortie } from "../../../src/services/tableau-fin";
 import { copie, ficheDemonstration } from "../regles/exemples";
 import { doubles } from "../fabriquer/doubles";
 import { banc } from "../moteur/doubles";
@@ -70,7 +70,8 @@ describe("réseaux → formats de sortie", () => {
 describe("fin de chaque sortie, avec le mot à commenter", () => {
   it("une fin choisie dans un groupe est rendue dans le groupe de la sortie, mot rempli", () => {
     // LinkedIn (14/10) : aucun appel à commenter dit dans la vidéo.
-    expect(finDuTableau("linkedin", "fin-if-mot-envoi", TABLE_FINS, { mot: "guide" })).toEqual({ absente: expect.stringMatching(/^Aucun appel à commenter n'est dit dans une vidéo LinkedIn/) });
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : retirée et signalée par l'avis du 12/10.
+    expect(finDuTableau("linkedin", "fin-if-mot-envoi", TABLE_FINS, { mot: "guide" })).toEqual({ absente: avisFinLinkedIn("Écrivez GUIDE en commentaire") });
     expect(finDuTableau("youtube", "fin-if-mot-envoi", TABLE_FINS, { mot: "guide" })).toEqual({ id: "fin-ty-mot-envoi", ecran: "Écrivez GUIDE en commentaire" });
     // L'appel de diagnostic n'est pas validé : aucune fin, dit clairement.
     expect(finDuTableau("linkedin", "fin-if-diagnostic", TABLE_FINS)).toHaveProperty("absente");
