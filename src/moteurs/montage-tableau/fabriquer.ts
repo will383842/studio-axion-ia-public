@@ -251,6 +251,9 @@ export interface JournalSortie {
   composition?: { empreinte: string; etat: EtatComposition };
 }
 
+/** FIX-RENDU-DUREE : écart toléré (s) entre la fin du dernier sous-titre et la durée mesurée du fichier. */
+export const ECART_SOUS_TITRES_FIN_SEC = 0.5;
+
 /** Une ligne du relevé des sorties (journal) : format, dimensions, chemin, durée, taille. */
 export interface ResumeSortie {
   format: IdSortie;
@@ -1397,6 +1400,16 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       noterAlerte({ etape: "controles", ...(nomEtape ? { sortie: nomEtape } : {}), code: "fin-non-propre", message: ALERTE_FIN_NON_PROPRE });
       dire(`Alerte : ${ALERTE_FIN_NON_PROPRE}`);
     }
+    // FIX-RENDU-DUREE : durée MESURÉE du fichier ; des sous-titres qui la dépassent sont dits, sans jeter la vidéo.
+    const mesureeSec = (composition.mesures as Record<string, number | undefined>).dureeSec;
+    const dureeMesuree = typeof mesureeSec === "number" && Number.isFinite(mesureeSec) && mesureeSec > 0 ? mesureeSec : undefined;
+    const finSousTitres = composition.sousTitres?.at(-1)?.finSec;
+    if (dureeMesuree !== undefined && finSousTitres !== undefined && finSousTitres > dureeMesuree + ECART_SOUS_TITRES_FIN_SEC) {
+      const message = `Les sous-titres continuent après la fin de la vidéo (jusqu'à ${Math.round(finSousTitres)} s pour une vidéo de ${Math.round(dureeMesuree)} s) : la fin de la voix est peut-être coupée.`;
+      alertesSortie.push({ code: "synchronisation", gravite: "attention", message });
+      noterAlerte({ etape: "controles", ...(nomEtape ? { sortie: nomEtape } : {}), code: "controle-fichier", message });
+      dire(`Alerte : ${message}`);
+    }
     etapes.push({ etape: "controles", statut: "faite", dureeMs: horloge() - t9, ...(nomEtape ? { sortie: nomEtape } : {}) });
 
     const tailleOctets = (composition.mesures as Record<string, number | undefined>).taille;
@@ -1425,7 +1438,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       ...(finRetenue ? { fin: finRetenue } : {}),
       scenes: { rendues: scenesReprises ? [] : scenes.rendues, reprises: scenesReprises ? Object.keys(scenes.cles) : scenes.reprises },
       cles: { scenes: scenes.cles, video: composition.sortieCle, ...(composition.masterCle ? { master: composition.masterCle } : {}), vignette: composition.vignetteCle },
-      dureeSec,
+      dureeSec: dureeMesuree ?? dureeSec,
       ...(typeof tailleOctets === "number" && tailleOctets > 0 ? { tailleOctets } : {}),
       controles,
       controleFichier,
