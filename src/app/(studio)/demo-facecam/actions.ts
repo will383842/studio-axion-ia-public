@@ -32,6 +32,9 @@ export async function creerDemoFacecam(formulaire: {
   return essayer(async () => {
     const entrees = await fabriquerEntreesDemoFacecam(formulaire.demoFacecam);
     const v = await nouveauBrouillonFormat({ formatId: "demo-facecam", titre: formulaire.titre, sujet: formulaire.titre, distribution: formulaire.distribution ?? [], entrees });
+    // BR-DEMO-SCRIPT : le lancement commun exige un script rattaché ; bloc « corps » vide, le moteur ne le lit pas.
+    const { enregistrerScriptDuBrouillon } = await import("@/services/videos");
+    await enregistrerScriptDuBrouillon(v.id, [{ id: `${v.id}-b1`, blocRecette: "corps", segments: [{ id: `${v.id}-s1`, texte: "" }] }]);
     return { videoId: v.id };
   });
 }
