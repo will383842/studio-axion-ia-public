@@ -311,6 +311,8 @@ export type OutilsVoixFabrication = Pick<OutilsVoixMaitre, "voix" | "stockage" |
 
 export interface OutilsFabrication {
   videoId: string;
+  /** BR-TABLEAU-RACCORDS-b : `true` pose un fondu entre deux scènes dessinées voisines (≥ 0,6 s). Absent : coupe franche, rien ne change. */
+  raccords?: true;
   /** Environnement des clés (`dev`, `prod`) : `studio/<env>/scenes/<videoId>/<empreinte>.mp4`. */
   env: string;
   /** Fiche brute (JSON lu). */
@@ -691,7 +693,7 @@ export function segmentsSousTitresTableau(o: { c: CommandeFabrication; st: SousT
  * Commande de fabrication MINIMALE du tableau (lue par `parametresComposition`, sans base) : page de la charte en
  * décor, sous-titres « Encre » centrés dans la bande réservée, aucune LUT, aucune musique, aucun bruitage.
  */
-export function commandeTableau(o: { videoId: string; fiche: FicheTableau; texteScript: string; dureeSec: number; centreSousTitresPct: number; scenes: readonly ScenePosee[]; personnageId?: string; prononciations?: readonly { mot: string; prononciation: string }[]; ratio?: Ratio; mediasSons?: Record<string, MediaCommande>; styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null; bandeSousTitres?: BandeSousTitres; intensite?: IntensiteSousTitres }): CommandeFabrication {
+export function commandeTableau(o: { videoId: string; fiche: FicheTableau; texteScript: string; dureeSec: number; centreSousTitresPct: number; scenes: readonly ScenePosee[]; personnageId?: string; prononciations?: readonly { mot: string; prononciation: string }[]; ratio?: Ratio; mediasSons?: Record<string, MediaCommande>; styleSousTitres?: StyleResolu<ValeurStyleSousTitres> | null; bandeSousTitres?: BandeSousTitres; intensite?: IntensiteSousTitres; raccords?: true }): CommandeFabrication {
   const medias: Record<string, MediaCommande> = { ...Object.fromEntries(o.scenes.map((s) => [`scene:${s.id}`, { cle: s.cle, mime: "video/mp4", dureeSec: +(s.finSec - s.debutSec).toFixed(3) }])), ...(o.mediasSons ?? {}) };
   // Style « blocs/2 » : les scènes dessinent elles-mêmes les sous-titres (pastille) ; export à la cadence du style.
   const blocs2 = estStyleBlocs2(o.fiche);
@@ -717,7 +719,7 @@ export function commandeTableau(o: { videoId: string; fiche: FicheTableau; texte
     styles: { sousTitres: st.style, decor: st.decor ? { id: "fond-tableau", nom: "Fond du tableau", valeur: decor } : { id: "page-charte", nom: "Page de la charte", valeur: decor }, profilSon: { id: "ps-tableau", nom: "Tableau (ton de pièce à −66 dB)", valeur: PROFIL_SON_TABLEAU }, lut: null, musique: null },
     ...(blocs2 ? { profilRendu: { version: 1, export: { fps: FPS_BLOCS_2, debitMbpsMin: 12, debitMbpsMax: 16, audio: { codec: "aac" as const, kbps: 256, hz: 48000 }, couleur: "bt709" as const } } } : {}),
     briques: { "sous-titres": !sansSousTitres, etalonnage: false, illustrations: true, son: true, habillage: false, "texte-ecran": false, "mention-ia": false },
-    entrees: {},
+    entrees: o.raccords ? { raccordsTableau: true } : {},
     reglages: {},
     plans: [],
     prononciations: [...(o.prononciations ?? [])],
@@ -1304,7 +1306,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // les anciens styles « Encre » gardent leurs groupes d'avant.
     const dynamiques = stTableau.personnalise || estStyleReference3(ficheS);
     const intensiteST: IntensiteSousTitres = o.intensiteSousTitres ?? INTENSITE_SOUS_TITRES_TABLEAU;
-    const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : [])];
+    const entreesCompo = ["composition", scenes.temps, audioS.fichierCle, audioS.mots, dureeSec, centreBandePct(mise), ficheS.scenes.map((s) => s.texteDit), PROFIL_SON_TABLEAU, ...enPlus, ...(sons ? [{ style: calage.fiche.habillage, bruitages: sons.places, instantsBords }] : []), ...(stTableau.personnalise ? [{ sousTitres: stTableau.style, gabarit: stTableau.gabarit }] : []), ...(dynamiques ? [{ sousTitresDynamiques: 1, intensite: intensiteST }] : []), ...(o.raccords ? [{ raccords: 1 }] : [])];
     // Mots mis en valeur (GV-ST-09) : un journal d'avant, dont la composition est déjà gardée, garde sa clé (reprise sans refaire) ;
     // une fabrication neuve reçoit le marqueur, donc une autre clé que celle d'avant.
     const cleAvant = empreinte(...(entreesCompo));
@@ -1315,7 +1317,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       cleCompo,
       async () => {
         const texteScript = ficheS.scenes.map((s) => s.texteDit).join(" ");
-        const c = commandeTableau({ videoId: o.videoId, fiche: ficheS, texteScript, dureeSec, centreSousTitresPct: centreBandePct(mise), scenes: scenes.temps, personnageId: o.personnageId, prononciations, ratio: format.ratio, ...(sons ? { mediasSons: sons.medias } : {}), ...(o.styleSousTitres ? { styleSousTitres: o.styleSousTitres } : {}), bandeSousTitres: bandeDe(mise, format.ratio, imageVerticale, imageVerticale ? reseauxVerticaux() : reseauxDuRatio(format.ratio)), intensite: intensiteST });
+        const c = commandeTableau({ videoId: o.videoId, fiche: ficheS, texteScript, dureeSec, centreSousTitresPct: centreBandePct(mise), scenes: scenes.temps, personnageId: o.personnageId, prononciations, ratio: format.ratio, ...(sons ? { mediasSons: sons.medias } : {}), ...(o.styleSousTitres ? { styleSousTitres: o.styleSousTitres } : {}), bandeSousTitres: bandeDe(mise, format.ratio, imageVerticale, imageVerticale ? reseauxVerticaux() : reseauxDuRatio(format.ratio)), intensite: intensiteST, ...(o.raccords ? { raccords: true as const } : {}) });
         // Sous-titres dynamiques : les accents entrent sans glisser (jamais hors de la bande).
         // Design central (17/10) : centre de la ligne, échelle, accents sans glissement, bande de fond sur les fonds clairs.
         const { positionSousTitresPct, ...echelleST } = supplementsSousTitresTableau({ st: stTableau, mise, ratio: format.ratio, verticale: imageVerticale, dynamiques });
