@@ -47,11 +47,16 @@ import { outilsAvecRendu, ServeurDouble } from "./doubles-rendu";
  * 26/10/2026 : `planDesFinsIV` pose les fins « accroche + appel + lien ». La répétition générale des fins de secours de
  * Facebook rejoue l'ancien plan (fin « diagnostic », question), toujours GARDÉ dans l'état des vidéos faites avant.
  */
+/**
+ * 17/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Ces répétitions ont pour sujet le
+ * montage des fins dites (partie commune, phrases propres, trous silencieux) : le plan tiré est rejoué ici en retirant le
+ * drapeau, les assertions sont inchangées. Le cas « fin vide » a ses preuves dans `fins/fin-non-choisie.test.ts`.
+ */
 const reglageFins = vi.hoisted(() => ({ avant: false }));
 vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
   const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
   const { planDesFinsAvant } = await import("./plan-des-fins-avant");
-  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV(d)) };
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV({ ...d, finVide: undefined })) };
 });
 const reglageVoix = vi.hoisted(() => ({ lectureUnique: true }));
 vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {

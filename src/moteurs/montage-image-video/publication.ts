@@ -98,6 +98,9 @@ function lienDeSecours(plan: PlanDesFinsIV, reseau: ReseauIV, lien: string | und
   };
 }
 
+/** Texte à valider par le pilote (conception § 5). */
+const CONSIGNE_SANS_FIN_IV = "Aucun lien à poser : la vidéo ne dit aucune phrase de fin.";
+
 export function textesDePublicationIV(
   contenu: ContenuPublicationIV,
   plan: PlanDesFinsIV,
@@ -119,7 +122,7 @@ export function textesDePublicationIV(
     ],
   } as unknown as Parameters<typeof textesDePublication>[0];
   const planCas = {
-    fins: plan.fins.filter((f) => !f.muet).map((f) => ({ id: f.id, reseaux: f.reseaux, appels: f.appels, ecrans: [] })),
+    fins: plan.fins.filter((f) => !f.muet && !f.vide).map((f) => ({ id: f.id, reseaux: f.reseaux, appels: f.appels, ecrans: [] })),
     reduites: [],
     sansFin: [],
   } as unknown as PlanDesFins;
@@ -134,6 +137,19 @@ export function textesDePublicationIV(
       ...(reseau === "youtube-shorts" ? { titre: titreShorts(contenu.accroche) } : {}),
       ...lienDeSecours(plan, reseau, liens[reseau], t.ouPoserLeLien, t.consigneLien),
     });
+  }
+
+  // 1 bis. Fin vide voulue par le plan (D4, 17/11) : le texte du haut seul, sans lien ni phrase de fin.
+  for (const f of plan.fins.filter((x) => x.vide)) {
+    for (const reseau of f.reseaux) {
+      textes.push({
+        reseau,
+        texte: [phrase(contenu.accroche), phrase(contenu.resultat), ...(question ? [question] : [])].join("\n\n"),
+        ouPoserLeLien: "aucun",
+        consigneLien: CONSIGNE_SANS_FIN_IV,
+        ...(reseau === "youtube-shorts" ? { titre: titreShorts(contenu.accroche) } : {}),
+      });
+    }
   }
 
   // 2. LinkedIn d'une vidéo faite avant le 26/10 (plan muet) : rien n'est dit dans la vidéo, tout est dans le texte du post.

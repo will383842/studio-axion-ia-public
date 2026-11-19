@@ -130,6 +130,18 @@ export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFa
   };
 }
 
+/** BR-PRIX-FA-b : les deux options payantes, lues UNE seule fois pour la fabrication ET pour le prix. Éteint par défaut ; seul `true` exact allume ; lecture en échec = éteint. */
+export async function optionsPayantesFA(): Promise<{ calageAuMot: boolean; telephoneVideo: boolean }> {
+  let calageAuMot = false;
+  try {
+    calageAuMot = (await lireParametre<unknown>(PARAM_CALAGE_AU_MOT_FA, false)) === true;
+  } catch {
+    calageAuMot = false;
+  }
+  const telephoneVideo = await telephoneVideoActif(lireParametre);
+  return { calageAuMot, telephoneVideo };
+}
+
 export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<OutilsChaineV4> {
   const client = await import("@/fournisseurs/rendu/client");
   const production = dep.production ?? process.env.NODE_ENV === "production";
@@ -158,13 +170,8 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   // Lot R2 : éteint par défaut ; allumé, pièces du stock (le fournisseur du niveau 2 se branche par `executerRole`, comme le lot C).
   const planScenes = dep.planScenes !== undefined ? dep.planScenes : (await planScenesActif("facecam-animee", lireParametre)) ? {} : null;
 
-  // GV-MD-03b : éteint par défaut ; une lecture en échec vaut éteint (rendu des vidéos existantes inchangé).
-  let calageAuMot = false;
-  try {
-    calageAuMot = (await lireParametre<unknown>(PARAM_CALAGE_AU_MOT_FA, false)) === true;
-  } catch {
-    calageAuMot = false;
-  }
+  // GV-MD-03b / BR-TELEPHONE-a : lus par `optionsPayantesFA`, le MÊME lecteur que l'estimation affichée (BR-PRIX-FA-b).
+  const { calageAuMot, telephoneVideo } = await optionsPayantesFA();
 
   // GV2-34 : éteint par défaut ; une lecture en échec vaut éteint (coupes et filtre des vidéos existantes inchangés).
   let finDouce = false;
@@ -173,9 +180,6 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   } catch {
     finDouce = false;
   }
-
-  // BR-TELEPHONE-a : éteint par défaut ; seul `true` exact allume (lecture en échec = éteint).
-  const telephoneVideo = await telephoneVideoActif(lireParametre);
 
   return {
     ...(planScenes ? { planScenes } : {}),
@@ -639,10 +643,11 @@ export async function plafondClaudeFaUsd(): Promise<number> {
 }
 
 /** Assemble l'estimation d'un lot de prises. PUR : le pire cas est celui de la prise la plus chère, jamais en dessous du réel. */
-export function estimationDuLot(prises: PriseAEstimerFA[], plafondUsd: number, tauxUsdEur: number): EstimationFA {
-  const e: EstimationOpusV4[] = prises.map((p) => estimerOpusV4({ dureeSec: p.dureeSec, motsTexte: p.motsTexte, plafondUsd }));
+export function estimationDuLot(prises: PriseAEstimerFA[], plafondUsd: number, tauxUsdEur: number, options: { calageAuMot?: boolean; telephoneVideo?: boolean } = {}): EstimationFA {
+  const opts = { ...(options.calageAuMot === true ? { calageAuMot: true as const } : {}), ...(options.telephoneVideo === true ? { telephoneVideo: true as const } : {}) };
+  const e: EstimationOpusV4[] = prises.map((p) => estimerOpusV4({ dureeSec: p.dureeSec, motsTexte: p.motsTexte, plafondUsd, ...opts }));
   const eur = (usd: number) => Math.ceil(usd * tauxUsdEur * 100 - 1e-9);
-  const plusChere = e.reduce((m, x) => (x.engageMaxUsd > m.engageMaxUsd ? x : m), e[0] ?? estimerOpusV4({ dureeSec: 0, plafondUsd }));
+  const plusChere = e.reduce((m, x) => (x.engageMaxUsd > m.engageMaxUsd ? x : m), e[0] ?? estimerOpusV4({ dureeSec: 0, plafondUsd, ...opts }));
   return {
     unEssaiCentimesEur: eur(Math.min(plusChere.unEssaiUsd, plafondUsd)),
     pireCasCentimesEur: eur(plusChere.engageMaxUsd),
@@ -662,7 +667,7 @@ export async function estimerFacecamAnimee(prises: PriseAEstimerFA[]): Promise<E
   await exigerSession();
   const liste = (Array.isArray(prises) ? prises : []).slice(0, PRISES_MAX_LOT_FA).map((p) => ({ dureeSec: Number(p?.dureeSec) || 0, motsTexte: Number(p?.motsTexte) || 0 }));
   const { taux } = await import("./generation-claude");
-  return estimationDuLot(liste, await plafondClaudeFaUsd(), await taux());
+  return estimationDuLot(liste, await plafondClaudeFaUsd(), await taux(), await optionsPayantesFA());
 }
 
 /** Ce qui a VRAIMENT été payé pour une vidéo (dépenses enregistrées, hors montants simulés), en centimes d'euro. */

@@ -19,13 +19,18 @@ function ports(init: Record<string, unknown>, session = true) {
 }
 
 describe("dosage-motion : service des défauts", () => {
-  for (const v of [undefined, false, "true"]) {
+// ALLUME-VAGUE-A-CODE 18/11/2026 : défaut du code allumé (autorisation de Williams 17/11 22:25) ; l'éteint se teste désormais avec false écrit en base.
+  for (const v of [false, "true"]) {
     it(`éteint (${String(v)}) : refus et 0 écriture`, async () => {
-      const t = ports(v === undefined ? {} : { [CLE_ACTIF]: v });
+      const t = ports({ [CLE_ACTIF]: v });
       expect(await definirDefautDosage("avocat", "sobre", t.p)).toEqual({ ok: false, message: "Pas encore actif." });
       expect(t.ecritures).toHaveLength(0);
     });
   }
+  it("absent (rien en base) : allumé, l'écriture d'un défaut est acceptée", async () => {
+    const t = ports({});
+    expect(await definirDefautDosage("avocat", "sobre", t.p)).toEqual({ ok: true });
+  });
   it("cran non permis refusé", async () => {
     const t = ports({ [CLE_ACTIF]: true });
     expect(await definirDefautDosage("tableau", "aucun", t.p)).toEqual({ ok: false, message: "Ce choix n'existe pas pour ce générateur." });

@@ -36,6 +36,9 @@ on:
       - "src/services/travaux.ts"
       - "src/services/miniatures*.ts"
       - "src/domaine/vignettes*.ts"
+      - "src/services/tutoriel-*"
+      - "tests/tutoriel-outil/**"
+      - "outils/maquettes-tableaux-de-bord/**"
       - "studio-aligneur/**"
       - ".github/workflows/gv-tests-moteurs.yml"
   workflow_dispatch:
@@ -93,6 +96,9 @@ jobs:
           zone '^src/moteurs/montage-image-video/' tests/image-video
           zone '^src/moteurs/montage-avocat/' tests/a2-*.test.ts tests/montage-avocat.*.test.ts tests/moteur-avocat-*.test.ts
           zone '^src/moteurs/montage-tutoriel-outil/' tests/tutoriel-outil
+          zone '^src/services/tutoriel-' tests/tutoriel-outil
+          zone '^tests/tutoriel-outil/' tests/tutoriel-outil
+          zone '^outils/maquettes-tableaux-de-bord/' tests/outils/maquettes-tableaux-de-bord
           zone '^src/moteurs/montage-demo-facecam/' src/moteurs/montage-demo-facecam
           zone '^src/moteurs/montage-vitrines/' src/moteurs/montage-vitrines
           # Cas concret : tests-cibles lance déjà une dizaine de fichiers (variete, ecriture, suivi, script-valide, sujets-traites) et

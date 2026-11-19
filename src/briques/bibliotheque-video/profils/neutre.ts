@@ -46,4 +46,5 @@ export const FORMATS_PROFIL_NEUTRE: readonly string[] = Object.freeze([
   "motion",
   "ugc",
   "selfie",
+  "video-longue",
 ]);

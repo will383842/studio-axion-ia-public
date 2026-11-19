@@ -60,7 +60,7 @@ export const ficheErreurCorrigeeParties: FicheTableau = {
       texteDit: "Testé trois fois : les réponses deviennent précises et utilisables.",
       elements: [
         { id: "e10", type: "ligne", texte: "Le test", niveau: "titre", role: "regle", bloc: "titre", ancre: 0 },
-        { id: "e11", type: "preuve", preuveId: "matiere-demo-questions", lignes: ["Avant : conseils généraux", "Après : plan précis"], ancre: 0 },
+        { id: "e11", type: "preuve", preuveId: "matiere-demo-questions", lignes: ["Avant : trois réponses", "Après : réponses précises"], ancre: 0 },
         { id: "e12", type: "ligne", texte: "Les réponses deviennent précises et utilisables.", niveau: "texte", role: "resultat", bloc: "phrase-cle", ancre: 3 },
       ],
     },

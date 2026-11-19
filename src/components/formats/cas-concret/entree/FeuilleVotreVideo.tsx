@@ -19,6 +19,7 @@ import { Bouton } from "@/components/ui/Bouton";
 import { BoutonRetirerCas } from "./BoutonRetirerCas";
 import { Champ } from "@/components/ui/Champ";
 import { FeuilleBas } from "@/components/ui/FeuilleBas";
+import { DIT_FIN_RENDEZ_VOUS } from "@/moteurs/montage-cas-concret/fin-choisie";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { Pastille } from "@/components/ui/Pastille";
 import { BoutonFabriquer } from "@/components/formats/commun/BoutonFabriquer";
@@ -46,6 +47,8 @@ export interface ChoixVideo {
   reseaux: string[];
   mot: string;
   avecMot: boolean;
+  /** FIX-CC-FIN-CHOIX (D1) : « La phrase de fin » cochée ; absent = aucune fin. */
+  finDemandee?: "rendez-vous";
   /** LOT F : écrire un script neuf au lieu de rejouer le script validé (cas à script validé seulement). */
   nouveauScript?: boolean;
   /** Lot L3 : le choix de Will devant un cas déjà traité (renvoyé tel quel au serveur). */
@@ -115,6 +118,8 @@ export function FeuilleVotreVideo({
   const [mot, setMot] = useState(cas.mot);
   // Éteint par défaut (X4) : le mot n'est dit que là où le cadeau est réellement envoyé.
   const [avecMot, setAvecMot] = useState(false);
+  // Éteint par défaut (D1) : « Aucune » ; coché, la phrase de fin est dite.
+  const [finRdv, setFinRdv] = useState(false);
   const [nouveauScriptVoulu, setNouveauScript] = useState(false);
   /** Lot L3 : cas déjà traité (annoncé par l'estimation) et choix de Will ; « Nouvel angle » allume « Nouveau script ». */
   const [dejaTraite, setDejaTraite] = useState<DejaTraiteCas | undefined>();
@@ -147,7 +152,7 @@ export function FeuilleVotreVideo({
       return;
     }
     let courant = true;
-    void estimer({ reseaux, mot, avecMot, ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }).then((e) => {
+    void estimer({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }).then((e) => {
       if (!courant || !e) return;
       prixRecu.current = true;
       setMontant(e.centimes);
@@ -160,7 +165,7 @@ export function FeuilleVotreVideo({
     return () => {
       courant = false;
     };
-  }, [reseaux, avecMot, mot, nouveauScript, choixSujet, estimer]);
+  }, [reseaux, avecMot, finRdv, mot, nouveauScript, choixSujet, estimer]);
 
   // Lot L3 : à l'ouverture, une seule estimation pour savoir si le cas est déjà traité (avant tout prix confirmé).
   useEffect(() => {
@@ -188,7 +193,7 @@ export function FeuilleVotreVideo({
 
   async function fabriquer(accord: number) {
     setRefus(null);
-    const r = await onFabriquer({ reseaux, mot, avecMot, ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, accord);
+    const r = await onFabriquer({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, accord);
     if (r && "phrase" in r) {
       setRefus(r.phrase);
       // Le serveur a répondu « déjà traité » (jeton périmé, ou cas traité depuis un autre onglet) : les trois choix reviennent.
@@ -216,7 +221,7 @@ export function FeuilleVotreVideo({
           voix={voix}
           onFabriquer={fabriquer}
           sujetEnAttente={!peutFabriquer(dejaTraite, choixSujet)}
-          {...(cas.script && !cas.scriptFourni && onRelire && !nouveauScript ? { onRelire: () => onRelire({ reseaux, mot, avecMot, ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, montant ?? 0) } : {})}
+          {...(cas.script && !cas.scriptFourni && onRelire && !nouveauScript ? { onRelire: () => onRelire({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, montant ?? 0) } : {})}
         />
       }
     >
@@ -234,7 +239,7 @@ export function FeuilleVotreVideo({
           Ce sujet existe déjà dans un autre type de vidéo : {avertissement.precedents.slice(0, 3).map((p) => p.titre).join(" · ")}.
         </p>
       )}
-      <ContenuVotreVideo cas={cas} essai={essai} reseaux={reseaux} onReseaux={setReseaux} mot={mot} onMot={setMot} avecMot={avecMot} onAvecMot={setAvecMot} nouveauScript={nouveauScript} onNouveauScript={changerNouveauScript} mots={mots} onValider={onValider} onFait={onFait} occupe={occupe} {...(onRetire ? { onRetire } : {})} />
+      <ContenuVotreVideo cas={cas} essai={essai} reseaux={reseaux} onReseaux={setReseaux} mot={mot} onMot={setMot} avecMot={avecMot} onAvecMot={setAvecMot} finRdv={finRdv} onFinRdv={setFinRdv} nouveauScript={nouveauScript} onNouveauScript={changerNouveauScript} mots={mots} onValider={onValider} onFait={onFait} occupe={occupe} {...(onRetire ? { onRetire } : {})} />
     </FeuilleBas>
   );
 }
@@ -308,6 +313,8 @@ export function ContenuVotreVideo({
   onMot,
   avecMot,
   onAvecMot,
+  finRdv = false,
+  onFinRdv,
   nouveauScript = false,
   onNouveauScript,
   mots,
@@ -324,6 +331,9 @@ export function ContenuVotreVideo({
   onMot: (v: string) => void;
   avecMot: boolean;
   onAvecMot: (v: boolean) => void;
+  /** FIX-CC-FIN-CHOIX (D1) : visible seulement si l'écran fournit le geste ; éteint = « Aucune ». */
+  finRdv?: boolean;
+  onFinRdv?: (v: boolean) => void;
   /** LOT F : visible seulement pour un cas qui a un script validé (et si l'écran fournit le geste). */
   nouveauScript?: boolean;
   onNouveauScript?: (v: boolean) => void;
@@ -469,6 +479,12 @@ export function ContenuVotreVideo({
             </p>
           ))}
       </section>
+      {onFinRdv && (
+        <section aria-label="La phrase de fin" className="space-y-2">
+          <Interrupteur libelle="La phrase de fin" detail={`La vidéo finit par : « ${DIT_FIN_RENDEZ_VOUS} » Décoché : la vidéo ne dit rien de plus à la fin.`} coche={finRdv} onChange={onFinRdv} />
+          {finRdv && avecMot && disponible && <p className="px-1 text-[15px] text-texte-doux">Sur {listeReseaux(surReseaux.map((r) => r.libelle))}, la vidéo invite plutôt à écrire le mot : cette phrase n&rsquo;y est pas dite.</p>}
+        </section>
+      )}
       {!cas.valide && !essai && !cas.porteB && (
         <Bouton variante="secondaire" onClick={onValider}>
           Je valide ce cas

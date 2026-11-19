@@ -61,12 +61,16 @@ vi.mock("@/moteurs/montage-image-video/voix", async (importOriginal) => {
  * 26/10/2026 : `planDesFinsIV` pose les fins « accroche + appel + lien » (LinkedIn non muet). Les chaînes de secours de
  * Facebook, d'Instagram et de Shorts ont été construites sur l'ancien plan (fin « diagnostic », LinkedIn muet), qui reste
  * GARDÉ dans l'état des vidéos faites ou arrêtées avant : le bloc « reprise après erreur » le rejoue (`planDesFinsAvant`).
+ *
+ * 18/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Les tests de ce fichier ont pour sujet
+ * le plan des fins dites (regroupement, secours, reprise) : le plan tiré est rejoué en retirant le drapeau, assertions
+ * inchangées. Le cas « fin vide » a ses preuves dans `fins/fin-non-choisie.test.ts`.
  */
 const reglageFins = vi.hoisted(() => ({ avant: false }));
 vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
   const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
   const { planDesFinsAvant } = await import("./plan-des-fins-avant");
-  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV(d)) };
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => (reglageFins.avant ? planDesFinsAvant(d) : vrai.planDesFinsIV({ ...d, finVide: undefined })) };
 });
 
 vi.setConfig({ testTimeout: 120_000 });

@@ -294,7 +294,11 @@ describe("FIX-CC-FIN-NON-CHOISIE · e) l'écran « Relire et valider le script �
     expect(FIN_AUCUNE).toBe("Fin : aucune (votre choix). Rien n'est dit ni écrit après la question.");
     const lignes = lignesDesEcrans(apercu, [{ reseaux: "facebook-instagram-tiktok-linkedin", dit: FIN_AUCUNE, ecrits: [] }]);
     const derniere = lignes[lignes.length - 1];
-    expect(lignes).toHaveLength(apercu.length + 1);
+    // 18/11 (FIX-CC-ECRAN-SCRIPT-COMPLET, amendement n°1) : les textes posés par le Studio sont sur des lignes verrouillées `p-eNN` à part ; on compte les lignes hors poses, même attente exacte qu'avant, puis les poses.
+    expect(lignes.filter((l) => !l.id.startsWith("p-"))).toHaveLength(apercu.length + 1);
+    const poses = lignes.filter((l) => l.id.startsWith("p-"));
+    expect(poses).toHaveLength(apercu.filter((e) => (e.poses ?? []).length > 0).length);
+    expect(poses.every((l) => l.verrouille === true)).toBe(true);
     expect(derniere).toMatchObject({ id: "f-facebook-instagram-tiktok-linkedin", dit: FIN_AUCUNE, groupe: "Fin", verrouille: true });
     expect(derniere.ecrits).toEqual([]);
     expect(rangDeLigne(derniere.id)).toBeNull();
@@ -313,8 +317,13 @@ describe("FIX-CC-FIN-NON-CHOISIE · e) l'écran « Relire et valider le script �
   });
 
   it("sans fins passées : les lignes d'avant, inchangées", () => {
-    expect(lignesDesEcrans(apercu)).toHaveLength(apercu.length);
-    expect(lignesDesEcrans(apercu).every((l) => l.groupe !== "Fin")).toBe(true);
+    const lignes = lignesDesEcrans(apercu);
+    // 18/11 (FIX-CC-ECRAN-SCRIPT-COMPLET, amendement n°1) : les textes posés par le Studio sont sur des lignes verrouillées `p-eNN` à part ; on compte les lignes hors poses, même attente exacte qu'avant, puis les poses.
+    expect(lignes.filter((l) => !l.id.startsWith("p-"))).toHaveLength(apercu.length);
+    const poses = lignes.filter((l) => l.id.startsWith("p-"));
+    expect(poses).toHaveLength(apercu.filter((e) => (e.poses ?? []).length > 0).length);
+    expect(poses.every((l) => l.verrouille === true)).toBe(true);
+    expect(lignes.every((l) => l.groupe !== "Fin")).toBe(true);
   });
 
   it("« Vos fichiers » écrit FIN_AUCUNE pour une fin vide", () => {

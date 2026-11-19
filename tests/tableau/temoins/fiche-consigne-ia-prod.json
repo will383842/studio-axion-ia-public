@@ -497,8 +497,8 @@
      "type": "preuve",
      "ancre": 24,
      "lignes": [
-      "Avant : relance à réécrire",
-      "Après : envoyée telle quelle"
+      "Avant : un mail de cinq lignes",
+      "Après : elle envoie"
      ],
      "preuveId": "mat-import-demo-02"
     },

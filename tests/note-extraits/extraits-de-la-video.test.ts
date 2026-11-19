@@ -103,13 +103,14 @@ describe("garde statique", () => {
       expect(imports).not.toContain(interdit);
     }
   });
-  it("aucun fichier de src/app ne l'importe encore", () => {
+  it("seule la page de la vidéo l'importe", () => {
     const parcourir = (d: string): string[] =>
       readdirSync(d).flatMap((n) => {
         const c = join(d, n);
         return statSync(c).isDirectory() ? parcourir(c) : /\.(ts|tsx)$/.test(n) ? [c] : [];
       });
     const trouves = parcourir(join(racine, "src", "app")).filter((c) => readFileSync(c, "utf8").includes("extraits-de-la-video"));
-    expect(trouves).toEqual([]);
+    const rel = (c: string) => c.slice(racine.length + 1).split("\\").join("/");
+    expect(trouves.map(rel)).toEqual(["src/app/(studio)/videos/[id]/page.tsx"]);
   });
 });

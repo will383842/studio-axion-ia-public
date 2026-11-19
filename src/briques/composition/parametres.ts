@@ -14,9 +14,11 @@ import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types"
 import { baseRetenue, controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
 import { lireEntreeBandeau, poserBandeauNom } from "@/briques/sous-titres/bandeau-nom";
 import { etiquettesAutonomes } from "@/briques/sous-titres/noms-outils";
-import { etiquettesOutilPermises, sortieAnimeePermise } from "./porte-texte";
+import { escalierPermis, etiquettesOutilPermises, pavePermis, sortieAnimeePermise } from "./porte-texte";
 import { SORTIE_PAR_DEFAUT } from "../sous-titres/sortie";
-import { positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
+import { largeurLibrePct, positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
+import { tirerMarqueMot } from "../sous-titres/marques-mot";
+import { motsAPlaque } from "../sous-titres/pave";
 import type { BandeFondSousTitres, DonneesCalque } from "@/briques/sous-titres/scene";
 import { sousTitresSurDecor } from "@/domaine/decors";
 import type { AlerteQualite, AngleVisage, CommandeFabrication, IdReseau, MotHorodate, SegmentSousTitres } from "@/domaine/types";
@@ -359,8 +361,15 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   const bandeauNom = entreeBandeau && avecSousTitres ? poserBandeauNom({ ...entreeBandeau, dureeVideoSec: e.dureeSec, encadreFinSec: instantsEncadre?.a, largeur, hauteur, zone: zoneDe(ratio, reseaux), basPct: positionsVerticales(ratio, reseaux).basPct }) ?? undefined : undefined;
   // BR-ETIQUETTES-OUTIL : étiquettes « HUBSPOT »… (texte seul), seulement si le réglage a permis la capacité ; sinon rien, vidéo identique.
   const etiquettesOutils = avecSousTitres && etiquettesOutilPermises(c.entrees) ? etiquettesAutonomes(segmentsImage, e.dureeSec, { actif: true, ...(bandeauNom ? { bandeau: { debutSec: bandeauNom.debutSec, finSec: bandeauNom.finSec } } : {}), ...(instantsEncadre ? { ouvertureFinSec: instantsEncadre.a } : {}) }) : [];
+  // BR-FACECAM-TEXTE : escalier (zone = la bande des sous-titres, 24 % de l'image au plus, jamais plus haut que le centre de la ligne - 12 %) et plaque animée + marque, seulement si le profil figé les permet ; sinon rien, vidéo identique.
+  const centreLignePct = styleRatio?.positionPct ?? 48;
+  const largeurZonePct = largeurLibrePct(ratio, reseaux);
+  const escalier = escalierPermis(c.entrees) ? { escalier: { zone: { xPx: ((100 - largeurZonePct) / 200) * largeur, yPx: (Math.min(76, Math.max(0, centreLignePct - 12)) / 100) * hauteur, largeurPx: (largeurZonePct / 100) * largeur, hauteurPx: 0.24 * hauteur }, taillePx: style?.taillePx ?? recette.tailleSousTitresPx } } : {};
+  const aPlaque = pavePermis(c.entrees) ? segmentsImage.flatMap((s) => { const k = motsAPlaque(s, "forts")[0]; return k === undefined ? [] : [[s.id, k] as const]; }) : [];
+  const marque = aPlaque.length ? tirerMarqueMot(`${c.videoId}`) : null;
+  const pave = aPlaque.length ? { paveAnime: true as const, plaques: Object.fromEntries(aPlaque), ...(marque ? { marques: Object.fromEntries(aPlaque.map(([id]) => [id, marque])) } : {}) } : {};
   const calque = (ouverture?: DonneesCalque["ouverture"]): DonneesCalque | undefined =>
-    avecSousTitres ? { ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ...(sortieAnimeePermise(c.entrees) ? { sortie: SORTIE_PAR_DEFAUT } : {}), ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}), ...(bandeauNom ? { bandeauNom } : {}), ...(etiquettesOutils.length ? { etiquettesOutils } : {}) } : undefined;
+    avecSousTitres ? { ...pave, ...donneesCalque({ segments: segmentsImage, base, ratio, reseaux, style: styleRatio, plansPoitrine, ...(encre ? { couleurs: { texte: encre.texte, accent: encre.accent ?? encre.texte, contour: encre.page } } : {}) }), facteurOmbre: regle.facteurOmbre, ...(encre ? { encre: true } : {}), ...(sortieAnimeePermise(c.entrees) ? { sortie: SORTIE_PAR_DEFAUT } : {}), ...escalier, ouverture, ...(jonctions ? { passagesJonction: jonctions } : {}), ...(e.passagesClairs?.length ? { passagesClairs: e.passagesClairs } : {}), ...(e.echelleSousTitres !== undefined ? { echelleTexte: e.echelleSousTitres } : {}), ...(e.glissementSousTitres === false ? { glissement: false as const } : {}), ...(e.bandeFondSousTitres ? { bandeFond: e.bandeFondSousTitres } : {}), ...(bandeauNom ? { bandeauNom } : {}), ...(etiquettesOutils.length ? { etiquettesOutils } : {}) } : undefined;
   let sousTitres = calque();
 
   // Encadré d'ouverture SOUS les sous-titres réellement dessinés (≥ 80 px), au-dessus de la zone protégée du bas
@@ -470,6 +479,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   const exportP: ParametresExport = { fps, debitKbps: Math.round(((min + max) / 2) * 1000), debitMaxKbps: max * 1000, audioKbps: ex?.audio.kbps ?? 256, audioHz: ex?.audio.hz ?? 48000, mode: "crf", crf: 17 };
   if (e.source10bits) exportP.source10bits = true;
   if (recette.finPropre) exportP.finPropre = { ...recette.finPropre, dureeSec: e.dureeSec };
+  if (recette.exportFiges) exportP.mesurerFiges = { seuilSec: recette.exportFiges.seuilSec, finSec: recette.finPropre ? recette.finPropre.tenueSec + recette.finPropre.fonduSec : 0 };
   if (recette.exportBordsSurs) Object.assign(exportP, { conversionRvbSure: true, mesurerBords: true, ...(e.instantsBords?.length ? { instantsBords: [...e.instantsBords] } : {}) });
 
   // 10/10 : garde-fou des couleurs — la prise étalonnée est une entrée de plus (lue à distance par studio-rendu).

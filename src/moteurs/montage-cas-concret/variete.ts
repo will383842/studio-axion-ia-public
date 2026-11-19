@@ -471,7 +471,7 @@ export const NIVEAUX_DE_RELACHE = [
 export const ESSAIS_PAR_NIVEAU = 64;
 
 /** Raisons pour lesquelles un tirage ne tient pas les contraintes du niveau donné (vide : il les tient). */
-export function contraintesNonTenues(t: Tirage, contexte: { videoId: string; canaux: readonly string[]; historique: readonly EntreeHistorique[]; structureImposee?: Structure; structuresExclues?: readonly Structure[] }, niveau = 0): string[] {
+export function contraintesNonTenues(t: Tirage, contexte: { videoId: string; canaux: readonly string[]; historique: readonly EntreeHistorique[]; structureImposee?: Structure; structuresExclues?: readonly Structure[]; refusCommun?: (t: Tirage) => string | null }, niveau = 0): string[] {
   const regles = NIVEAUX_DE_RELACHE[niveau]!;
   // Le tirage gardé de CETTE vidéo avec ce même sel n'est pas « une autre vidéo » : il ne compte pas (même vidéo, même
   // tirage). Un tirage de la même vidéo avec un autre sel compte pour la combinaison (« autre tirage » ≠ l'ancien).
@@ -495,6 +495,15 @@ export function contraintesNonTenues(t: Tirage, contexte: { videoId: string; can
   }
   const precedente = autresVideos.at(-1);
   if (precedente && differences(precedente.tirage, t) < regles.differencesMin) raisons.push(`moins de ${regles.differencesMin} dimensions sur 7 changent`);
+  // X2-11 · variété commune : relâchée au DERNIER niveau (jamais de blocage) ; une exception du refus ne donne aucune raison.
+  if (contexte.refusCommun && niveau < NIVEAUX_DE_RELACHE.length - 1) {
+    try {
+      const raison = contexte.refusCommun(t);
+      if (raison) raisons.push("variété commune : " + raison);
+    } catch {
+      /* aucune raison */
+    }
+  }
   return raisons;
 }
 
@@ -516,6 +525,8 @@ export interface DemandeTirage {
   structuresExclues?: readonly Structure[];
   /** C8-Z04 · plafond de caméra du réglage `casConcret.cameraPlus` : posé sur le tirage APRÈS le hasard (aucun tirage de plus). Absent : le tirage de toujours. */
   cameraPlus?: number;
+  /** X2-11 · refus commun du réseau (voisines des autres générateurs) : (tirage) => raison | null. Absent : le tirage de toujours. */
+  refusCommun?: (t: Tirage) => string | null;
 }
 
 /**
@@ -527,7 +538,7 @@ export function tirer(d: DemandeTirage): Tirage {
   const sel = Math.max(0, Math.floor(d.sel ?? 0));
   const graine = graineDe(d.videoId);
   const r = hasardSeme(sel ? hacher32(`${graine}#${sel}`) : graine);
-  const contexte = { videoId: d.videoId, canaux: d.canaux, historique: d.historique, ...(d.structureImposee ? { structureImposee: d.structureImposee } : {}), ...(d.structuresExclues?.length ? { structuresExclues: d.structuresExclues } : {}) };
+  const contexte = { videoId: d.videoId, canaux: d.canaux, historique: d.historique, ...(d.structureImposee ? { structureImposee: d.structureImposee } : {}), ...(d.structuresExclues?.length ? { structuresExclues: d.structuresExclues } : {}), ...(d.refusCommun ? { refusCommun: d.refusCommun } : {}) };
   const imposer = (t: Tirage): Tirage => (d.structureImposee ? { ...t, structure: d.structureImposee } : t);
   const plus = (t: Tirage): Tirage => (d.cameraPlus !== undefined ? { ...t, cameraPlus: d.cameraPlus } : t);
   for (let niveau = 0; niveau < NIVEAUX_DE_RELACHE.length; niveau++) {

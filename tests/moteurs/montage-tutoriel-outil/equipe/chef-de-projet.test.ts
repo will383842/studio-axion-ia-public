@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   DUREE_CIBLE_SEC,
   MOTS_TABLEAU,
+  PHRASE_MAX,
+  PHRASE_MIN,
   classerParRegles,
   etablirCahier,
   lireDecisionChef,
@@ -205,5 +207,86 @@ describe("rôle Opus", () => {
     }
     const appelants = sortie.split("\n").filter((l) => l && !l.startsWith("src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet.ts:"));
     expect(appelants).toEqual([]);
+  });
+});
+
+describe("V2-01 : option phraseOuverte (cas 2 et 3 depuis une phrase)", () => {
+  // Message d'aujourd'hui, recopié tel quel de la version d'avant (le test d'avant le comparait à ce texte).
+  const MESSAGE_D_AUJOURD_HUI =
+    "Cette demande part d'une phrase seule : la création de la maquette arrive dans une version suivante. Votre demande est gardée, rien n'a échoué.";
+  const atelier: DemandeTutoriel = { phrase: "un tableau de bord pour un atelier de menuiserie" };
+  const tri: DemandeTutoriel = { phrase: "je veux un tri d'e-mails" };
+  const ouvrir = (d: DemandeTutoriel) => etablirCahier(d, classerParRegles(d), { phraseOuverte: true });
+
+  it("sans option, avec {} ou avec false : la pause d'aujourd'hui, mot pour mot", () => {
+    const dec = classerParRegles(atelier);
+    const attendu = { ok: false, attente: { code: "TO_CAS_V2", message: MESSAGE_D_AUJOURD_HUI } };
+    expect(etablirCahier(atelier, dec)).toEqual(attendu);
+    expect(etablirCahier(atelier, dec, {})).toEqual(attendu);
+    expect(etablirCahier(atelier, dec, { phraseOuverte: false })).toEqual(attendu);
+  });
+  it("seul le booléen exact true allume", () => {
+    const dec = classerParRegles(atelier);
+    for (const faux of ["true", 1, "oui", null, undefined]) {
+      const r = etablirCahier(atelier, dec, { phraseOuverte: faux as unknown as boolean });
+      expect(r).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2", message: MESSAGE_D_AUJOURD_HUI } });
+    }
+  });
+  it("true : tableau de bord pour un atelier → cas 2, entrée C, maquettiste en tête, manque « maquette »", () => {
+    const r = ouvrir(atelier);
+    if (!r.ok) throw new Error(r.attente.code);
+    expect(r.cahier).toMatchObject({ entree: "C", cas: 2, manques: ["maquette"], scriptsFournis: [] });
+    expect(r.cahier.roles[0]).toBe("maquettiste");
+    expect(r.cahier.roles).toEqual(["maquettiste", "analyste", "stratege", "scenariste", "realisateur", "controleur"]);
+    expect(r.cahier.dureeCibleSec).toEqual(DUREE_CIBLE_SEC);
+  });
+  it("true : tri d'e-mails → cas 3, G-Flux, maquettiste puis écrans neutres, manque « flux-automatisation »", () => {
+    const r = ouvrir(tri);
+    if (!r.ok) throw new Error(r.attente.code);
+    expect(r.cahier).toMatchObject({ entree: "C", cas: 3, gabarits: ["G-Flux"], manques: ["flux-automatisation"] });
+    expect(r.cahier.roles.slice(0, 2)).toEqual(["maquettiste", "ecrans-neutres"]);
+  });
+  it("true : assistant → pause « assistant ou mélange » ; mélange tableau + automatisation aussi", () => {
+    const a = ouvrir({ phrase: "un assistant qui répond aux questions" });
+    expect(a).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+    if (a.ok) throw new Error("attendu : pause");
+    expect(a.attente.message).toContain("assistant ou un mélange");
+    const m = ouvrir({ phrase: "un tableau de bord avec un tri des e-mails" });
+    expect(m).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+  });
+  it("true : phrase trop longue → raccourcissez-la ; trop courte → TO_DEMANDE_VIDE", () => {
+    expect(PHRASE_MIN).toBe(10);
+    expect(PHRASE_MAX).toBe(300);
+    const longue = ouvrir({ phrase: "tableau ".repeat(40).slice(0, PHRASE_MAX + 1) });
+    expect(longue).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
+    if (longue.ok) throw new Error("attendu : pause");
+    expect(longue.attente.message).toContain("raccourcissez-la");
+    expect(ouvrir({ phrase: "atelier" })).toMatchObject({ ok: false, attente: { code: "TO_DEMANDE_VIDE" } });
+    expect(ouvrir({ phrase: "  atelier  " })).toMatchObject({ ok: false, attente: { code: "TO_DEMANDE_VIDE" } });
+    // limites exactes : 10 et 300 caractères passent
+    expect(ouvrir({ phrase: "tableau 10" }).ok).toBe(true);
+    expect(ouvrir({ phrase: "tableau ".repeat(40).slice(0, PHRASE_MAX) }).ok).toBe(true);
+  });
+  it("true avec un dossier : cahier d'aujourd'hui, l'option ne change rien", () => {
+    const d = dossier({ tableauDeBord: true, donnees: true, scripts: ["a", "b"] });
+    const dec = classerParRegles(d);
+    expect(etablirCahier(d, dec, { phraseOuverte: true })).toEqual(etablirCahier(d, dec));
+    const sans = dossier({});
+    expect(etablirCahier(sans, classerParRegles(sans), { phraseOuverte: true })).toEqual(etablirCahier(sans, classerParRegles(sans)));
+  });
+  it("la phrase reste une donnée : absente de tout le cahier", () => {
+    for (const d of [atelier, tri]) {
+      const r = ouvrir(d);
+      if (!r.ok) throw new Error(r.attente.code);
+      const json = JSON.stringify(r.cahier).toLowerCase();
+      expect(json).not.toContain("menuiserie");
+      expect(json).not.toContain("e-mails");
+      expect(json).not.toContain("atelier");
+    }
+  });
+  it("un avis de Claude ne transforme toujours pas une phrase en dossier (entrée C gardée)", () => {
+    const dec = lireDecisionChef({ cas: 2, gabarits: ["G-Journee"], raison: "tableau" }, atelier, classerParRegles(atelier));
+    expect(dec.entree).toBe("C");
+    expect(etablirCahier(atelier, dec)).toMatchObject({ ok: false, attente: { code: "TO_CAS_V2" } });
   });
 });

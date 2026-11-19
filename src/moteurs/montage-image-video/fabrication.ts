@@ -465,6 +465,8 @@ export interface OutilsFabricationIV {
   assemblage: OutilsAssemblageIV;
   /** Rendu du fichier final d'une version (opération existante du serveur) ; pas fini : lève une attente. */
   rendre: (d: DemandeRenduIV) => Promise<{ cle: string; empreinte?: string; dureeSec: number; mesures?: MesuresExport }>;
+  /** S-04b : relit les mesures d'un rendu DÉJÀ fait, sans le refaire (absent : rien n'est remesuré). */
+  remesurer?: (d: { id: string; cle: string; dureeSec: number }) => Promise<MesuresExport | undefined>;
   /** Porte unique : tout sauf la réservation et les identifiants d'appel, posés par la machine. */
   controles: Omit<OutilsPorteIV, "budget" | "idAppel">;
   /** Budget réel du studio (pré-vol ou réservation), appelé APRÈS le contrôle du plafond par la caisse. */
@@ -812,7 +814,7 @@ export function validerScriptIV(etat: EtatFabricationIV, d: DecisionScriptIV): E
     const refus = refusQuestion(question);
     if (refus) throw new ErreurDecisionIV(refus, [refus]);
   }
-  const plan = planDesFinsIV({ reseaux: etat.demande.reseaux, offre: carte.offre, appelCommentaire: etat.demande.appelCommentaire, ...(etat.demande.numeroVersion !== undefined ? { numeroVersion: etat.demande.numeroVersion } : {}), ...(question ? { questionCommentaire: question } : {}) });
+  const plan = planDesFinsIV({ reseaux: etat.demande.reseaux, offre: carte.offre, appelCommentaire: etat.demande.appelCommentaire, finVide: true, ...(etat.demande.numeroVersion !== undefined ? { numeroVersion: etat.demande.numeroVersion } : {}), ...(question ? { questionCommentaire: question } : {}) });
   const variete = etat.variete && d.variete ? changerVarieteIV(etat.variete.recette, d.variete, carte) : etat.variete?.recette;
   const e = structuredClone(etat);
   delete e.propositionScript;
@@ -1028,7 +1030,7 @@ function propositionScript(e: EtatFabricationIV, fiche: FicheImage, aTrancher: M
   const question = e.demande.appelCommentaire === "question-puis-fin" ? fiche.questionCommentaire.texteDit : undefined;
   let prix: PrixIV = { engageCentimes: engageCentimes(e), habituelCentimes: 0, auPlusCentimes: 0, plafondCentimes: e.caisse.plafondCentimes };
   try {
-    const plan = planDesFinsIV({ reseaux: e.demande.reseaux, offre: e.carte!.carte.offre, appelCommentaire: e.demande.appelCommentaire, ...(e.demande.numeroVersion !== undefined ? { numeroVersion: e.demande.numeroVersion } : {}), ...(question && !refusQuestion(question) ? { questionCommentaire: question } : {}) });
+    const plan = planDesFinsIV({ reseaux: e.demande.reseaux, offre: e.carte!.carte.offre, appelCommentaire: e.demande.appelCommentaire, finVide: true, ...(e.demande.numeroVersion !== undefined ? { numeroVersion: e.demande.numeroVersion } : {}), ...(question && !refusQuestion(question) ? { questionCommentaire: question } : {}) });
     if (tarif !== undefined) prix = prixSuiteIV(e, fiche, plan, tarif);
   } catch {
     // Prix inconnu tant que la question n'est pas corrigée : Will la corrige avant de valider.
@@ -1819,6 +1821,16 @@ function remarquesDeFinDeVoixIV(e: EtatFabricationIV): string[] {
 }
 
 async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse): Promise<EtatFabricationIV> {
+  // S-04b : un « non fait » dû à une mesure ABSENTE est remesuré à la reprise (jamais `rendre`, rien de payé ; les autres « non fait » ne sont pas touchés).
+  if (o.remesurer && e.rendus && (e.controles?.verdict?.phrases ?? []).some((p) => p.includes("non mesuré"))) {
+    // Seuls les rendus dont une mesure manque sont relus ; une réponse partielle ne remplit que les champs absents, jamais une mesure gardée.
+    for (const r of Object.values(e.rendus)) {
+      if (r.mesures && ["lufs", "creteVraieDbtp", "noirMaxSec", "figeMaxSec", "largeur", "hauteur", "fps"].every((k) => r.mesures![k] !== undefined) && !Object.values(r.mesures).includes(undefined)) continue;
+      const nouvelles = await o.remesurer({ id: r.demande, cle: r.cle, dureeSec: r.dureeSec }).catch(() => undefined);
+      const gardees = Object.fromEntries(Object.entries(r.mesures ?? {}).filter(([, v]) => v !== undefined));
+      if (nouvelles || r.mesures) r.mesures = { ...(nouvelles ?? {}), ...gardees };
+    }
+  }
   const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
   const verdict = await porteUniqueIV(
     entree,
@@ -1836,6 +1848,7 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
   e.controles = { transcriptions: verdict.transcriptions, relectures: verdict.relectures, verdict: resume };
   e.journal.push(verdict.phrase);
   // Une vérification qui n'a pas pu se faire (panne d'outil, mesure absente) n'est pas une faute de la vidéo : reprise seule, puis « Refaire » à la main, jamais définitif.
+  if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : « Reprendre » la refait.", { phrases: verdict.phrases, reessayable: true });
   if (!verdict.ok && verdict.nature === "non-fait") return refuser(e, "controles", "IV_PANNE", "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.", { phrases: verdict.phrases, reessayable: true });
   // Livraison partielle : une faute propre à certaines versions ne refuse plus toute la vidéo ; les réseaux dont les versions sont bonnes sont livrés.
   const partielle = !verdict.ok && verdict.partielle;
