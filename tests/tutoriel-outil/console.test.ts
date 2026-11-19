@@ -286,13 +286,19 @@ describe("aucun allumage par le code", () => {
   const cles = c.REGLAGES_TUTORIEL.map((r) => r.cle);
   // Noms des constantes qui portent ces clés (CLE_*, PARAM_*), détectés dans les exports du service et de tutoriel-claude.
   const constantes = Object.entries(c).filter(([, v]) => typeof v === "string" && cles.includes(v)).map(([n]) => n);
-  const nomsConstantes = new RegExp(`\\b(?:${[...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA"])].join("|")})\\b`);
+  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA"])];
+  // Un nom compte seulement s'il vient d'ailleurs : une constante locale homonyme (ex. un `CLE_FORMULAIRE` d'une autre action) n'est pas la clé.
+  const nomsConstantes = {
+    test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
+  };
   const ECRITURE = /ecrireParametre\s*\(|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
   it("la détection voit les constantes CLE_* / PARAM_* et parametres.enregistrer", () => {
     expect(constantes).toEqual(expect.arrayContaining(["CLE_FORMULAIRE", "CLE_FINITIONS", "CLE_MENTION_TUTORIEL"]));
     expect(ECRITURE.test(`await d.parametres.enregistrer({ id: CLE_FINITIONS })`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(PARAM_CLAUDE_TUTORIEL, true)`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(CLE_FORMULAIRE, true)`)).toBe(true);
+    // Homonyme local (autre sens) : pas une écriture de la clé du tutoriel.
+    expect(nomsConstantes.test(`const CLE_FORMULAIRE = /^[a-z]+$/; ecrireParametre(x, true)`)).toBe(false);
   });
   it("aucun fichier de src n'écrit ces clés, sauf le service de la console", () => {
     const coupables = fichiers(join(process.cwd(), "src"))
@@ -315,5 +321,14 @@ describe("aucun allumage par le code", () => {
     const actions = lire("src/app/(studio)/reglages/tutoriel-outil/actions.ts");
     expect(actions).not.toMatch(/basculerReglage\([^)]*\btrue\b/);
     expect(actions).toContain("exigerSession");
+  });
+});
+
+describe("T-EXT-36 · liens du panneau vers des pages qui existent", () => {
+  it("« Scènes gardées » mène à la route de T-EXT-35 (page présente), et la page de suivi existe aussi", () => {
+    const panneau = lire("src/components/tutoriel-outil/PanneauConsole.tsx");
+    expect(panneau).toContain('href="/tutoriel-outil/scenes"');
+    expect(statSync(join(process.cwd(), "src/app/(studio)/tutoriel-outil/scenes/page.tsx")).isFile()).toBe(true);
+    expect(statSync(join(process.cwd(), "src/app/(studio)/tutoriel-outil/suivi/[videoId]/page.tsx")).isFile()).toBe(true);
   });
 });
