@@ -27,8 +27,10 @@ import type { ReseauCas } from "@/formats/cas-concret";
 import type { CasConcret } from "@/formats/cas-concret/cas";
 import { regrouperFins } from "./etapes";
 import { cadreDeFicheEcrans, cleMot, idEcranAttendu, motsLus, texteDuCorps, texteDuCorpsPourVoix, type CadreEcrans, type Ecran, type EcranCorps, type FicheEcrans, type PlanDesFins } from "./fiche";
+import { appliquerAnimationEcran, ENTREES_S07, INTENSITES_S07, VITESSES_S07, PHRASE_SANS_MISE } from "./animation-ecran";
 import { motValide, planDesFins } from "./fins";
 import { ETAPES, MOTS_INTERDITS_FORMAT, nombresDe, tempsEcrans, validerFicheEcrans, type TempsEcran } from "./regles";
+import { SORTIES, type Mise } from "./variete";
 
 /* ------------------------------------------------------------------ */
 /* Liste fermée                                                          */
@@ -48,17 +50,27 @@ export const schemaOperationRetoucheCasConcret = z.discriminatedUnion("type", [
   /** Le mot à commenter (forme écrite « IA », forme lue « I.A. ») ; remet le mot s'il était retiré. */
   z.strictObject({ type: z.literal("changer-mot"), mot: z.string(), motDit: texteObligatoire(40).optional() }),
   z.strictObject({ type: z.literal("sans-le-mot") }),
+  /** S-08 · Change l'animation d'UN écran (sa déclinaison `mise.ecrans[id]`) ; la voix n'est jamais relue. `vitesse` : refusée en clair. */
+  z.strictObject({ type: z.literal("changer-animation"), ecranId, entree: z.enum(ENTREES_S07).optional(), intensite: z.enum(INTENSITES_S07).optional(), sortie: z.enum(SORTIES).optional(), vitesse: z.enum(VITESSES_S07).optional() }),
 ]);
 
 export type OperationRetoucheCasConcret = z.infer<typeof schemaOperationRetoucheCasConcret>;
-export type TypeOperationRetoucheCasConcret = OperationRetoucheCasConcret["type"];
+/**
+ * Les six types d'origine : `retouche-portee/catalogues.ts` (pièce will-12, 0 ligne ici) en tient la liste complète
+ * (`Record<…>`). `changer-animation` (S-08) est un type de plus, nommé à part : `TypeOperationCasConcret`.
+ */
+export type TypeOperationRetoucheCasConcret = Exclude<OperationRetoucheCasConcret["type"], "changer-animation">;
+export type TypeOperationCasConcret = OperationRetoucheCasConcret["type"];
 
 /** Ce qu'une opération touche : le corps (sa voix est relue) ou les fins seulement. */
 export interface DescriptionOperationCasConcret {
   /** Texte du bouton, en français simple. */
   libelle: string;
-  touche: "corps" | "fins";
+  touche: "corps" | "fins" | "ecrans";
 }
+
+/** S-08 · hors du catalogue des six : change un seul écran (`touche: "ecrans"`), la voix ne bouge pas. */
+export const DESCRIPTION_CHANGER_ANIMATION: DescriptionOperationCasConcret = { libelle: "Changer l'animation d'un écran", touche: "ecrans" };
 
 export const CATALOGUE_RETOUCHES_CAS_CONCRET: Readonly<Record<TypeOperationRetoucheCasConcret, DescriptionOperationCasConcret>> = {
   "changer-phrase": { libelle: "Changer une phrase", touche: "corps" },
@@ -73,7 +85,7 @@ export const TYPES_OPERATION_RETOUCHE_CAS_CONCRET = Object.keys(CATALOGUE_RETOUC
 
 /** Vrai si `type` est une opération de la liste. */
 export function estOperationRetoucheCasConcret(type: unknown): type is TypeOperationRetoucheCasConcret {
-  return typeof type === "string" && Object.prototype.hasOwnProperty.call(CATALOGUE_RETOUCHES_CAS_CONCRET, type);
+  return typeof type === "string" && (type === "changer-animation" || Object.prototype.hasOwnProperty.call(CATALOGUE_RETOUCHES_CAS_CONCRET, type));
 }
 
 /** Lit une opération brute (bouton, service, discussion) ; `null` : hors liste ou forme fausse. */
@@ -174,6 +186,23 @@ function renumeroter(ecrans: EcranCorps[]): EcranCorps[] {
   return ecrans.map((e, i) => (e.type === "etape" ? { ...e, id: idEcranAttendu(i), numero: ++n, total } : { ...e, id: idEcranAttendu(i) }));
 }
 
+/**
+ * S-08 · Pose les écrans renumérotés ET fait suivre la mise : l'entrée de `mise.ecrans` de chaque écran gardé passe de son
+ * ancien identifiant au nouveau (la règle « identifiant = position » reste) ; celle d'un écran retiré disparaît. Sans mise : rien.
+ */
+function poserEcransRenumerotes(etat: Etat, ecrans: EcranCorps[]): void {
+  const apres = renumeroter(ecrans);
+  etat.fiche.ecrans = apres as FicheEcrans["ecrans"];
+  const mise = etat.fiche.mise;
+  if (!mise) return;
+  const suivie: Mise["ecrans"] = {};
+  ecrans.forEach((e, i) => {
+    const t = mise.ecrans[e.id];
+    if (t) suivie[apres[i].id] = t;
+  });
+  etat.fiche.mise = { ...mise, ecrans: suivie };
+}
+
 /** Un morceau de texte entier (ni coupé au milieu d'un mot) trouvé une seule fois : son rang de caractère. */
 function placeDe(texte: string, morceau: string): number | null {
   const m = morceau.trim();
@@ -254,7 +283,7 @@ function retirerEtape(etat: Etat, op: Extract<OperationRetoucheCasConcret, { typ
   const [debut, fin] = blocEtape(etat.fiche.ecrans, etat.fiche.ecrans.indexOf(ecran));
   const fonds = etat.fiche.ecrans.map((e) => e.fond);
   const restants = etat.fiche.ecrans.filter((_, k) => k < debut || k >= fin).map((e, k) => ({ ...e, fond: fonds[k] }) as EcranCorps);
-  etat.fiche.ecrans = renumeroter(restants) as FicheEcrans["ecrans"];
+  poserEcransRenumerotes(etat, restants);
 }
 
 function deplacerEtape(etat: Etat, op: Extract<OperationRetoucheCasConcret, { type: "deplacer-etape" }>): void {
@@ -270,7 +299,7 @@ function deplacerEtape(etat: Etat, op: Extract<OperationRetoucheCasConcret, { ty
   const [a, b] = blocEtape(tous, Math.min(i, j!));
   const [c, d] = blocEtape(tous, Math.max(i, j!));
   const ecrans = [...tous.slice(0, a), ...tous.slice(c, d), ...tous.slice(b, c), ...tous.slice(a, b), ...tous.slice(d)].map((e, k) => ({ ...e, fond: tous[k].fond }) as EcranCorps);
-  etat.fiche.ecrans = renumeroter(ecrans) as FicheEcrans["ecrans"];
+  poserEcransRenumerotes(etat, ecrans);
 }
 
 function changerMot(etat: Etat, op: Extract<OperationRetoucheCasConcret, { type: "changer-mot" }>, contexte: ContexteRetoucheCasConcret): void {
@@ -280,6 +309,18 @@ function changerMot(etat: Etat, op: Extract<OperationRetoucheCasConcret, { type:
   if (interdits.includes(cleMot(mot)) || (op.motDit && interdits.includes(cleMot(op.motDit)))) refuser(`Le mot « ${mot} » fait partie des mots interdits.`);
   // Sans forme lue, le mot est dit comme il est écrit (jamais la forme lue de l'ancien mot).
   etat.reglages = { mot, motDit: op.motDit?.trim() || mot, avecMot: true };
+}
+
+/** S-08 · Seule la déclinaison d'animation de l'écran change ; ni le texte, ni la voix, ni les autres écrans. */
+function changerAnimation(etat: Etat, op: Extract<OperationRetoucheCasConcret, { type: "changer-animation" }>): void {
+  const mise = etat.fiche.mise;
+  if (!mise) return refuser(PHRASE_SANS_MISE);
+  const { ecran } = trouverEcran(etat.fiche, op.ecranId);
+  const actuel = mise.ecrans[ecran.id];
+  if (!actuel) return refuser(PHRASE_SANS_MISE);
+  const r = appliquerAnimationEcran(actuel, { entree: op.entree, intensite: op.intensite, sortie: op.sortie, vitesse: op.vitesse }, mise);
+  if (!r.ok) return refuser(r.raison);
+  etat.fiche.mise = { ...mise, ecrans: { ...mise.ecrans, [ecran.id]: r.tirage } };
 }
 
 /** Applique UNE opération sur l'état (copie). Lève `RefusRetouche` avec une phrase pour Will. */
@@ -298,6 +339,8 @@ function appliquer(etat: Etat, op: OperationRetoucheCasConcret, contexte: Contex
     case "sans-le-mot":
       etat.reglages = { ...etat.reglages, avecMot: false };
       return;
+    case "changer-animation":
+      return changerAnimation(etat, op);
   }
 }
 
@@ -338,7 +381,9 @@ function empreintesEcrans(fiche: FicheEcrans, plan: PlanDesFins, debit: number |
     void _dit;
     void _avance;
     const apparitions = evenements.map((ev) => ({ cible: ev.cible, ms: Math.round((t.motsMs[ev.surMot] ?? t.debutMs) - ev.avanceMs) }));
-    return jsonCanonique({ cadre, montre, apparitions, debutMs: Math.round(t.debutMs), finMs: Math.round(t.finMs) });
+    // S-08 : l'animation de l'écran (sa mise) fait partie de ce qu'il montre ; sans mise, la clé est celle d'avant.
+    const tirage = fiche.mise?.ecrans[t.ecran.id];
+    return jsonCanonique({ cadre, montre, ...(tirage ? { tirage } : {}), apparitions, debutMs: Math.round(t.debutMs), finMs: Math.round(t.finMs) });
   };
   const res = new Map<string, string>();
   for (const t of tempsEcrans(fiche.ecrans, debit)) res.set(t.ecran.id, cle(t));
