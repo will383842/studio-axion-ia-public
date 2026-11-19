@@ -12,14 +12,14 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({ notFound: () => { throw new Error("NOT_FOUND"); }, redirect: () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/services/auth", () => ({ exigerSession: async () => ({ id: "s1" }) }));
-vi.mock("@/visuels/services/production", () => ({ dependancesCarrousels: () => ({}), phraseDuCode: () => undefined, codeErreur: () => "", lireIdFormulaire: () => "" }));
+vi.mock("@/visuels/services/production", () => ({ dependancesCarrousels: () => ({ lireParametre: async (_i: string, d: unknown) => d }), phraseDuCode: () => undefined, codeErreur: () => "", lireIdFormulaire: () => "" }));
 vi.mock("@/visuels/services/vues", async (orig) => {
   const m = await orig<typeof import("@/visuels/services/vues")>();
   return { ...m, ficheCarrousel: async (...a: Parameters<typeof m.ficheCarrousel>) => (etat.fiche ? etat.fiche : m.ficheCarrousel(...a)) };
 });
 vi.mock("@/app/(studio)/carrousels/[id]/actions", () => {
   const f = async () => undefined;
-  return { corbeilleAction: f, preparerReseauxAction: f, programmerAction: f, refaireAction: f, refuserAction: f, relancerRenduAction: f, restaurerAction: f, retirerDuCalendrierAction: f, validerAction: f };
+  return { corbeilleAction: f, enregistrerLegendeAction: f, preparerReseauxAction: f, programmerAction: f, refaireAction: f, refuserAction: f, relancerRenduAction: f, restaurerAction: f, retirerDuCalendrierAction: f, validerAction: f };
 });
 
 const LE = "2026-11-10T08:00:00.000Z";
