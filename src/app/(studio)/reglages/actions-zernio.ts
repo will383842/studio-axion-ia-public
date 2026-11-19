@@ -16,8 +16,11 @@ import { canauxEnregistres } from "@/services/buffer";
 import { fournisseurParId } from "@/fournisseurs";
 import { enregistrerCanauxZernio } from "@/services/comptes-envoi-zernio";
 import { definirRoutage, lireRoutage } from "@/services/routage-publication";
-import { ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, type Resultat } from "@/services/_commun";
+import { depots, ecrireParametre, ErreurStudio, essayer, journaliser, lireParametre, maintenant, sousVerrou, type Resultat } from "@/services/_commun";
+import { DUREE_MAX_ESSAI_MS, lireEssai, PARAM_ESSAI_BROUILLON, raisonNonEligible } from "@/services/essai-zernio";
 import { exigerSession } from "@/services/auth";
+import { aUnPostPossible } from "@/services/retirer-programmation";
+import { PREFIXE_ETATS_ENVOI_CALENDRIER } from "@/services/branchement-envoi-calendrier";
 import { outilPour } from "@/domaine/outil-publication";
 
 const PARAM_MODES = "zernio.mode_envoi";
@@ -224,6 +227,123 @@ export async function eteindreEditorialeAction(): Promise<Resultat> {
   return essayer(async () => {
     await ecrireParametre(PARAM_EDITORIALE_ACTIVE, false);
     await journaliser("reglages", PHRASE_EDITORIALE.eteinte);
+    rafraichir();
+    return undefined;
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Essai borné d'UN brouillon (un créneau, un compte, 24 h au plus)    */
+/* ------------------------------------------------------------------ */
+
+const H_MS = 60 * 60 * 1000;
+const NOMS_RESEAU_ESSAI: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook" };
+
+export interface EssaiVue {
+  creneauId: string;
+  reseau: string;
+  jour: string | null;
+  expireLe: string;
+  /** Vrai quand l'heure d'expiration est passée : seul le retrait reste possible (fenêtre de nettoyage). */
+  expire: boolean;
+}
+export interface EligibleEssai {
+  id: string;
+  reseau: string;
+  jour: string;
+  titre: string;
+}
+export interface EtatEssaiZernio {
+  essai: EssaiVue | null;
+  eligibles: EligibleEssai[];
+}
+
+/** Lecture en base seulement : jamais d'appel au diffuseur. */
+export async function lireEssaiZernioAction(): Promise<Resultat<EtatEssaiZernio>> {
+  await exigerSession();
+  return essayer(async () => {
+    const maintenantMs = Date.parse(maintenant());
+    const [lu, plan] = await Promise.all([lireEssai(maintenantMs), depots().creneauxEditoriaux.lister()]);
+    const eligibles: EligibleEssai[] = plan
+      .filter((c) => raisonNonEligible(c, maintenantMs) === null)
+      .map((c) => {
+        const reseau = Object.keys(c.heuresParReseau)[0] ?? "";
+        return { id: c.id, reseau, jour: c.jourVise, titre: c.textes?.[reseau as IdReseau]?.texte?.slice(0, 80) ?? c.id };
+      })
+      .sort((a, b) => a.jour.localeCompare(b.jour) || a.id.localeCompare(b.id));
+    const creneau = lu ? plan.find((c) => c.id === lu.creneauId) : undefined;
+    return { essai: lu ? { creneauId: lu.creneauId, reseau: lu.reseau, jour: creneau?.jourVise ?? null, expireLe: lu.expireLe, expire: maintenantMs >= Date.parse(lu.expireLe) } : null, eligibles };
+  });
+}
+
+const PHRASE_RETIRER_BROUILLON_ESSAI = "Retirez d'abord le brouillon d'essai chez le diffuseur depuis le calendrier.";
+
+/** Le créneau de l'essai en cours a-t-il encore un envoi avec un post possible chez le diffuseur ? (lecture en base seulement) */
+async function essaiAEncoreUnPost(): Promise<boolean> {
+  const actuel = await lireParametre<{ creneauId?: unknown } | null>(PARAM_ESSAI_BROUILLON, null);
+  const id = actuel && typeof actuel === "object" && typeof actuel.creneauId === "string" ? actuel.creneauId : "";
+  if (!id) return false;
+  const etats = {
+    async lire(cle: string) {
+      const v = await lireParametre<unknown>(PREFIXE_ETATS_ENVOI_CALENDRIER + cle, undefined);
+      return typeof v === "string" ? v : undefined;
+    },
+    async noter() {},
+  };
+  for (const e of await depots().envoisPlanifies.lister((x) => x.creneauId === id && x.statut !== "annule")) {
+    if (await aUnPostPossible(e, etats)) return true;
+  }
+  return false;
+}
+
+/** Pose l'essai : compte et réseau sont LUS du créneau, jamais saisis. Un seul essai actif à la fois. */
+export async function poserEssaiZernioAction(demande: { creneauId: string; dureeHeures: number }): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    const creneauId = typeof demande?.creneauId === "string" ? demande.creneauId : "";
+    const heures = demande?.dureeHeures;
+    if (!Number.isInteger(heures) || heures < 1 || heures * H_MS > DUREE_MAX_ESSAI_MS) {
+      throw new ErreurStudio("ESSAI_DUREE", "La durée de l'essai va de 1 à 24 heures, en heures entières.");
+    }
+    await sousVerrou(async () => {
+      const maintenantMs = Date.parse(maintenant());
+      if (await essaiAEncoreUnPost()) throw new ErreurStudio("ESSAI_BROUILLON_RESTE", PHRASE_RETIRER_BROUILLON_ESSAI);
+      if ((await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) === false) {
+        throw new ErreurStudio("ESSAI_ARRET", "« Tout arrêter » est actif : reprenez les envois avant de poser un essai.");
+      }
+      const actuel = await lireParametre<{ expireLe?: unknown } | null>(PARAM_ESSAI_BROUILLON, null);
+      const expire = actuel && typeof actuel === "object" ? Date.parse(String(actuel.expireLe)) : NaN;
+      if (Number.isFinite(expire) && maintenantMs < expire) {
+        throw new ErreurStudio("ESSAI_DEJA", "Un essai est déjà actif : retirez-le avant d'en poser un autre.");
+      }
+      const c = creneauId ? await depots().creneauxEditoriaux.obtenir(creneauId) : null;
+      const raison = raisonNonEligible(c, maintenantMs);
+      if (raison || !c) throw new ErreurStudio("ESSAI_NON_ELIGIBLE", raison ?? "Ce créneau est introuvable.");
+      const reseau = Object.keys(c.heuresParReseau)[0];
+      const poseLe = new Date(maintenantMs).toISOString();
+      const valeur = { version: 1, creneauId: c.id, compte: c.compteCible, reseau, poseLe, expireLe: new Date(maintenantMs + heures * H_MS).toISOString() };
+      await ecrireParametre(PARAM_ESSAI_BROUILLON, valeur);
+      // Relu comme le lira le tour : un essai qui ne se relit pas n'est pas gardé (fermé).
+      if (!(await lireEssai(maintenantMs))) {
+        await ecrireParametre(PARAM_ESSAI_BROUILLON, null);
+        throw new ErreurStudio("ESSAI_ILLISIBLE", "L'essai n'a pas pu être posé (compte ou clé du diffuseur manquant) : rien n'est ouvert.");
+      }
+      await journaliser("reglages", `Essai d'un brouillon posé : un créneau ${NOMS_RESEAU_ESSAI[reseau] ?? reseau}, ${heures} h au plus`);
+    });
+    rafraichir();
+    return undefined;
+  });
+}
+
+/** Retire l'essai (écrit `null`) : le tour suivant est « porte fermée ». */
+export async function retirerEssaiZernioAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await sousVerrou(async () => {
+      if (await essaiAEncoreUnPost()) throw new ErreurStudio("ESSAI_BROUILLON_RESTE", PHRASE_RETIRER_BROUILLON_ESSAI);
+      await ecrireParametre(PARAM_ESSAI_BROUILLON, null);
+      await journaliser("reglages", "Essai d'un brouillon retiré");
+    });
     rafraichir();
     return undefined;
   });

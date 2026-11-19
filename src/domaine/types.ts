@@ -335,6 +335,8 @@ export interface ValeurStyleSousTitres {
    * le groupe dans une pastille pleine, le mot dit en orange clair. Absent : inchangé.
    */
   pastille?: "axion" | "axion-ardoise";
+  /** BR-MINIMAL-IV-b : seul `true` pose chaque petit groupe dans une boîte arrondie maison (X1-02a) ; absent : inchangé. */
+  boiteArrondie?: true;
   texteEcran?: import("./texte-ecran").ReglagesTexteEcran;
 }
 

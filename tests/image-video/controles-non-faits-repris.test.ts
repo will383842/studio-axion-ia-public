@@ -23,7 +23,7 @@ async function jusquAuBout(e0: EtatFabricationIV, o: OutilsFabricationIV): Promi
   return e;
 }
 
-const FRANCAIS = "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : elle reprend seule.";
+const FRANCAIS = "Une vérification n'a pas pu se faire. Rien de payé n'est perdu : « Reprendre » la refait.";
 
 describe("GV-EC-05 · contrôles non faits : reprise seule", () => {
   it("écoute impossible, tout le reste bon : IV_PANNE réessayable, une relance, puis succès sans second rendu", async () => {

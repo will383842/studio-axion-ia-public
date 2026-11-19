@@ -13,7 +13,7 @@ import { mettreEnPage } from "../../../src/moteurs/montage-tableau/mise-en-page"
 import { FIN_AUCUNE_CHOISIE, finDeLaSortie, relireFicheTableau, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
 import { planVoixSorties } from "../../../src/moteurs/montage-tableau/variantes-fin";
 import { estimerFabrication } from "../../../src/moteurs/montage-tableau/fabriquer";
-import { choisirFinTableau } from "../../../src/services/tableau-fin";
+import { avisFinTikTok, choisirFinTableau } from "../../../src/services/tableau-fin";
 import { contexteDe } from "../reference-2/fiches";
 
 const lire = () => JSON.parse(readFileSync(new URL("../temoins/fiche-temoin-v-667edcd8e3a8-reference-3.json", import.meta.url), "utf8")) as FicheTableau;
@@ -94,12 +94,12 @@ describe("(c) rien n'est ajouté ni dit ni écrit (sortiesRelues)", () => {
 
 describe("(d) non-régression : un choix explicite garde son comportement", () => {
   const sorties = sortiesDesReseaux(["instagram", "tiktok", "youtube-shorts"]);
-  it("appelId « fin-if-mot-envoi » + mot : vertical-liens reçoit une fin de la banque", () => {
+  it("appelId « fin-if-mot-envoi » + mot : vertical-liens ne reçoit rien de la banque (fin retirée, signalée)", () => {
     const f = { ...temoin, appelId: "fin-if-mot-envoi" } as FicheTableau;
     const choisir = choisirFinTableau({}, { sorties, mot: "DEVIS" });
     const fin = finDeLaSortie("vertical-liens" as IdSortie, choisir(f.appelId ?? null, "vertical-liens" as IdSortie), f);
-    expect("id" in fin! && fin.id).toMatch(/^fin-ty-/);
-    expect("objectif" in fin! && fin.objectif).toBeTruthy();
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi
+    expect(fin).toEqual({ absente: avisFinTikTok("Écrivez DEVIS en commentaire") });
   });
   it("réglage forcé finLiens « QUESTION » avec appelId null : objectif QUESTION (choix explicite)", () => {
     const choisir = choisirFinTableau({}, { sorties, finLiens: "QUESTION" });

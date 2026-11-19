@@ -151,7 +151,7 @@ describe("éteint = identique", () => {
     const r = moteur.refusRetouche!({ entrees: { facecamAnimee: { priseCle: "prises/brute.mp4" } } } as never);
     expect(r?.code).toBe("RETOUCHE_NON_PRISE_EN_CHARGE");
   });
-  it("aucun fichier de src/ hors le fichier neuf ne cite retouche-gratuite", () => {
+  it("seul src/moteurs/montage-facecam-animee/index.ts cite retouche-gratuite (G12-09b-a, import dynamique), aucun autre fichier de src/", () => {
     const racine = join(process.cwd(), "src");
     const citeurs: string[] = [];
     const parcourir = (d: string) => {
@@ -163,6 +163,7 @@ describe("éteint = identique", () => {
       }
     };
     parcourir(racine);
-    expect(citeurs).toEqual([]);
+    // G12-09b-a 18/11 (amendement n°1, seconde lecture du pilote) : liste exacte, un seul importeur.
+    expect(citeurs).toEqual([join(racine, "moteurs/montage-facecam-animee/index.ts")]);
   });
 });
