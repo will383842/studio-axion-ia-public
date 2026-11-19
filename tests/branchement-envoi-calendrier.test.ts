@@ -701,3 +701,44 @@ describe("L5-02c · ligne de la boucle", () => {
     expect(faux.appels).toHaveLength(0);
   });
 });
+
+describe("Créneau programmé en un clic (statut « programme ») : le chemin réel l'envoie", () => {
+  it("4. portes ouvertes, créneau « programme » à J+2 : une ligne, un brouillon créé par envoyerVisuelDuCreneau", async () => {
+    await ouvrirTout();
+    await creerVisuel({ statut: "programme" });
+    await creerCreneau("c-un-clic", "linkedin", { statut: "programme" });
+    await tour();
+    expect(espion.visuel).toHaveBeenCalledTimes(1);
+    expect(appelsFournisseur).toHaveLength(1);
+    expect(await depots().envoisPlanifies.compter()).toBe(1);
+  });
+
+  it("5. un envoi « valide » d'un créneau « programme » n'est pas annulé ; il l'est si le créneau est retiré, refusé ou plus récent", async () => {
+    await ouvrirTout();
+    await creerVisuel({ statut: "programme" });
+    await creerCreneau("c1", "linkedin", { statut: "programme" });
+    await tour();
+    const [e] = await depots().envoisPlanifies.lister();
+    expect(e.statut).toBe("valide");
+    await tourSuivant();
+    expect((await depots().envoisPlanifies.obtenir(e.id))?.statut).toBe("valide");
+    for (const p of [{ retireLe: VALIDEE }, { refuseLe: VALIDEE }, { decalages: 1 }]) {
+      await depots().envoisPlanifies.modifier(e.id, { statut: "valide" });
+      await depots().creneauxEditoriaux.modifier("c1", p as never);
+      await tourSuivant();
+      expect((await depots().envoisPlanifies.obtenir(e.id))?.statut).toBe("annule");
+      await depots().creneauxEditoriaux.modifier("c1", { retireLe: undefined, refuseLe: undefined, decalages: 0 } as never);
+    }
+  });
+
+  it("6. non-régression : « programme » avec une vidéo est exclu ; validation de l'usine ignorée sans bruit", async () => {
+    await ouvrirTout();
+    await creerVisuel({ statut: "programme" });
+    await creerCreneau("c-vid", "linkedin", { statut: "programme", videoId: "vid_1", visuelId: undefined });
+    await creerCreneau("c-usine", "linkedin", { statut: "programme", valideePar: "usine:compte-1" });
+    await tour();
+    expect(appelsFournisseur).toHaveLength(0);
+    expect(await depots().envoisPlanifies.compter()).toBe(0);
+    expect(notifications).toHaveLength(0);
+  });
+});

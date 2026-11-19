@@ -43,6 +43,9 @@ const { envoyerVisuelDuCreneau } = await import("@/services/envoi-visuel-creneau
 const { retirerProgrammationServeur, annulerRetraitServeur } = await import("@/services/retirer-programmation");
 const { depsDeplacementServeur, deplacerProgrammation } = await import("@/services/deplacer-programmation");
 const actions = await import("@/app/(studio)/reglages/actions-zernio");
+const { raisonNonEligible } = essai;
+const { programmerEnUnClic } = await import("@/components/visuels/BoutonProgrammerVisuel");
+const { cleJour } = await import("@/lib/dates");
 
 const MIN = 60_000;
 const H = 60 * MIN;
@@ -541,5 +544,85 @@ describe("Réserves de l'audit · marque d'essai, retrait d'abord, cible complè
     await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps()))).rejects.toThrow();
     await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps({ pageId: "42" })))).rejects.toThrow();
     await expect(dansEssai("cA", () => verifierCorpsSousEssai(corps({ organizationUrn: "urn:li:organization:42" })))).resolves.toBeUndefined();
+  });
+});
+
+/** Créneau « programmé en un clic » : construit par le VRAI code de la fiche carrousel (`programmerEnUnClic`), dépôts en mémoire. */
+describe("Essai · créneau programmé en un clic (statut « programme »)", () => {
+  const passerelle = () => {
+    const d = depots();
+    return { creneaux: d.creneauxEditoriaux, journal: d.journalDecalages, publications: d.publications, visuels: d.visuels } as never;
+  };
+  /** Le clic crée le créneau sans compte ni texte (ils viennent d'ailleurs) : on les ajoute, le statut reste celui du clic. */
+  async function programmerLeVisuel(id: string, reseaux: string[] = ["linkedin"]): Promise<string> {
+    await depots().visuels.modifier(id, { reseaux } as never);
+    const jour = cleJour(iso(T0 + 3 * JOUR));
+    const { creneauId } = await programmerEnUnClic(passerelle(), id, jour, iso(T0));
+    await depots().creneauxEditoriaux.modifier(creneauId, { compteCible: COMPTES.a, textes: { linkedin: { texte: "Texte un clic", premierCommentaire: "" } } } as never);
+    return creneauId;
+  }
+
+  it("1. éligible : le créneau du clic est « programme » et passe la désignation ; il figure dans les éligibles", async () => {
+    const id = await programmerLeVisuel("vis_1");
+    const c = await depots().creneauxEditoriaux.obtenir(id);
+    expect(c?.statut).toBe("programme");
+    expect(raisonNonEligible(c as never, T0)).toBeNull();
+    const r = await actions.lireEssaiZernioAction();
+    expect(r.ok && r.donnees.eligibles.map((e: { id: string }) => e.id)).toContain(id);
+  });
+
+  it("1b. contre-cas toujours refusés : sans validation datée, retiré, à renvoyer, deux réseaux, vidéo", async () => {
+    const id = await programmerLeVisuel("vis_1");
+    const c = (await depots().creneauxEditoriaux.obtenir(id)) as Record<string, unknown> & { heuresParReseau: Record<string, string> };
+    const h = c.heuresParReseau.linkedin;
+    for (const p of [{ valideeLe: undefined }, { retireLe: iso(T0) }, { aRenvoyer: true }, { heuresParReseau: { linkedin: h, instagram: h } }, { videoId: "vid_1" }]) {
+      expect(raisonNonEligible({ ...c, ...p } as never, T0)).not.toBeNull();
+    }
+  });
+
+  it("2. de bout en bout : pose, tour (portes générales fermées) = UN brouillon, zéro promotion, envoi non annulé ; second tour = deja-cree", async () => {
+    const id = await programmerLeVisuel("vis_1");
+    expect((await actions.poserEssaiZernioAction({ creneauId: id, dureeHeures: 2 })).ok).toBe(true);
+    const r = await tour();
+    expect(r).toMatchObject({ essai: { creneauId: id, etat: "brouillon-cree" } });
+    expect(appelsFournisseur).toHaveLength(1);
+    expect(appelsFournisseur[0]).toMatchObject({ mode: "brouillon", cible: COMPTES.a });
+    const envois = await depots().envoisPlanifies.lister((e) => e.creneauId === id);
+    expect(envois).toHaveLength(1);
+    expect(envois[0].statut).not.toBe("annule");
+    aller(T0 + 6 * MIN);
+    expect(await tour()).toMatchObject({ essai: { creneauId: id, etat: "deja-cree" } });
+    expect(appelsFournisseur).toHaveLength(1);
+    expect(methodesClient).not.toContain("promouvoir");
+    expect(espionPromotion.appels).toBe(0);
+    expect(faux.appels.some((a) => a.methode === "PUT")).toBe(false);
+  });
+
+  it("3a. « Tout arrêter » : porte fermée, zéro appel", async () => {
+    const id = await programmerLeVisuel("vis_1");
+    await actions.poserEssaiZernioAction({ creneauId: id, dureeHeures: 2 });
+    await ecrireParametre(PARAM_ARRET_ZERNIO, false);
+    expect(await tour()).toEqual({ saute: "porte-fermee" });
+    expect(appelsFournisseur).toHaveLength(0);
+  });
+
+  it("3b. après expireLe : zéro appel", async () => {
+    const id = await programmerLeVisuel("vis_1");
+    await actions.poserEssaiZernioAction({ creneauId: id, dureeHeures: 2 });
+    aller(T0 + 3 * H);
+    await tour();
+    expect(appelsFournisseur).toHaveLength(0);
+  });
+
+  it("3c. retrait du brouillon sous essai : créneau archivé avec retireLe, visuel de nouveau « valide »", async () => {
+    const id = await programmerLeVisuel("vis_1");
+    await actions.poserEssaiZernioAction({ creneauId: id, dureeHeures: 2 });
+    await tour();
+    aller(T0 + 2 * MIN);
+    expect(await retirerProgrammationServeur(id)).toMatchObject({ ok: true });
+    const c = await depots().creneauxEditoriaux.obtenir(id);
+    expect(c?.statut).toBe("archive");
+    expect(c?.retireLe).toBeTruthy();
+    expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("valide");
   });
 });
