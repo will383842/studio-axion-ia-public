@@ -1416,6 +1416,11 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
     return { publication: ecrite, deja: false };
   } catch (e) {
     const { incertain, message } = lireErreurEnvoi("zernio", e);
+    // Console serveur seulement (jamais le journal ni l'écran) : code, statut et détail du fournisseur, adresses retirées.
+    if (e instanceof ErreurZernio) {
+      const brut = (e.detailTechnique ?? "").replace(/https?:\/\/\S+/g, "<adresse>").slice(0, 300);
+      console.warn(`[studio] outil de publication, envoi du visuel sur ${reseau} : ${[e.code, e.statut].filter((x) => x !== undefined).join(" ")}${brut ? ` · ${brut}` : ""}`);
+    }
     await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
     throw new ErreurStudio(incertain ? "ENVOI_A_VERIFIER" : "ENVOI_REFUSE", incertain ? `${nom} : la réponse de l'outil de publication s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` : message);
   }
