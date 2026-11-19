@@ -19,6 +19,7 @@ import type { OutilsDecoupage } from "../../../src/moteurs/montage-tableau/decou
 import { CRITERES_GRILLE, type AngleScript, type EcritureScript } from "@/domaine/scripts-tableau";
 import { DEMANDE_MODELE, ecritureModele } from "../../tableau-scripts/modele-valide";
 import { repereFiche, repereTexte } from "@/domaine/relecture-tableau";
+import { avisFinLinkedIn, avisFinTikTok } from "@/services/tableau-fin";
 import { auStyleDemande, AUJOURDHUI_EXEMPLES, contexteExemple, copie, ficheErreurCorrigee, texteScriptDe } from "../regles/exemples";
 
 vi.mock("next/headers", () => mockHeaders);
@@ -293,11 +294,13 @@ describe("fabrication : réseaux → sorties, mot et trace transmis jusqu'à la 
     const dit = "Écrivez GUIDE en commentaire. Je vous l'envoie.";
     expect(outils!.choisirFin!("fin-if-mot-envoi", "vertical")).toEqual({ id: "fin-if-mot-envoi", ecran: "Écrivez GUIDE en commentaire", dit, type: "commentaire", mot: "GUIDE" });
     // LinkedIn (14/10) : aucun appel à commenter n'est dit dans la vidéo ; le carré se termine sans appel.
-    expect(outils!.choisirFin!("fin-if-mot-envoi", "carre")).toEqual({ absente: expect.stringMatching(/^Aucun appel à commenter n'est dit dans une vidéo LinkedIn/) });
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : retirée et signalée par l'avis du 12/10.
+    expect(outils!.choisirFin!("fin-if-mot-envoi", "carre")).toEqual({ absente: avisFinLinkedIn("Écrivez GUIDE en commentaire") });
     // T5 : le portrait de LinkedIn, sa sortie depuis la décision 1 du 18/10, pareil.
-    expect(outils!.choisirFin!("fin-if-mot-envoi", "portrait-linkedin")).toEqual({ absente: expect.stringMatching(/^Aucun appel à commenter n'est dit dans une vidéo LinkedIn/) });
+    expect(outils!.choisirFin!("fin-if-mot-envoi", "portrait-linkedin")).toEqual({ absente: avisFinLinkedIn("Écrivez GUIDE en commentaire") });
     // TikTok et Shorts (12/10) : jamais la fin au mot ; aucune fin validée pour eux : sans appel, avec l'alerte.
-    expect(outils!.choisirFin!("fin-if-mot-envoi", "vertical-liens")).toEqual({ absente: expect.stringMatching(/^Fin sans appel pour TikTok et Shorts : phrase à valider/) });
+    // 18/11 (Williams, règle du 17/11, FIX-TABLEAU-FIN-RESEAUX) : la fin choisie fait loi : retirée et signalée, jamais une phrase de la banque.
+    expect(outils!.choisirFin!("fin-if-mot-envoi", "vertical-liens")).toEqual({ absente: avisFinTikTok("Écrivez GUIDE en commentaire") });
     expect(outils!.versionCode).toBe("c0ffee1");
     await outils!.tracer!({ videoId: d.videoId, type: "code", cle: "code:essai", date: "2026-10-11T09:00:00.000Z", ordre: 1, donnees: { commit: "c0ffee1" } });
     // Code de version (14/10) : posé par `codeVariante` à la construction des outils de la fabrication, un par réseau servi.
