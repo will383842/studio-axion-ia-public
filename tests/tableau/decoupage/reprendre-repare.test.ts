@@ -19,10 +19,25 @@ import { auStyleDemande, AUJOURDHUI_EXEMPLES, contexteExemple, copie, ficheErreu
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => ({ ...mockNavigation, useRouter: () => ({ push: () => undefined, replace: () => undefined, refresh: () => undefined }), usePathname: () => "/tableau/nouvelle" }));
+// Mise en page SIMULÉE pour le seul cas « c bis » (comme allegement-dernier-recours.test.ts) : en mode « surcharge », une scène qui porte
+// le détail « zz0 » ne tient pas ; la vraie mise en page sert pour tout le reste. Elle prouve la logique du refus, pas la mesure des pixels.
+const surcharge = vi.hoisted(() => ({ actif: false }));
+vi.mock("@/moteurs/montage-tableau/mise-en-page", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/moteurs/montage-tableau/mise-en-page")>();
+  return {
+    ...original,
+    mettreEnPage: ((fiche: { scenes: { id: string; page: number; elements: { id: string }[] }[] }, options?: unknown) => {
+      const sc = surcharge.actif ? fiche.scenes.find((x) => x.elements.some((e) => e.id === "zz0")) : undefined;
+      if (sc) throw new original.ErreurMiseEnPage(`Page ${sc.page} · scène ${sc.id} · la page ne tient pas (simulé)`, sc.page);
+      return (original.mettreEnPage as (f: unknown, o?: unknown) => unknown)(fiche, options);
+    }) as typeof original.mettreEnPage,
+  };
+});
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
+const { modifierTache } = await import("@/services/tableau-taches");
 const { decouperScriptTableau, lireBrouillonTableau, travaillerTachesTableau, reprendreTacheTableau, corrigerFicheTableau } = await import("@/services/tableau-creation");
 
 const MDP = "tableau-reprendre-d";
@@ -52,6 +67,7 @@ beforeAll(async () => {
   process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(e).toString("base64");
 });
 beforeEach(async () => {
+  surcharge.actif = false;
   reinitialiserDepots();
   reinitialiserRequete();
   await auth.seConnecter(MDP, false);
@@ -80,7 +96,7 @@ async function decoupageRefuse(abimer: (f: FicheTableau) => void) {
 }
 
 /** Pose un défaut de FORME réparable (liste sur une page « douleur ») dans la fiche gardée : état d'avant les réparations. */
-async function poserDefautDeForme(videoId: string) {
+async function poserDefautDeForme(videoId: string, ecrit?: string) {
   const video = (await depots().videos.obtenir(videoId))!;
   const cle = Object.keys(video.entrees as object).find((k) => lireBrouillonTableau({ entrees: { [k]: (video.entrees as Record<string, unknown>)[k] } } as never))!;
   const b = lireBrouillonTableau(video)!;
@@ -88,6 +104,8 @@ async function poserDefautDeForme(videoId: string) {
   gardee.scenes[0].texteDit = gardee.scenes[0].texteDit.replace(MOT_CHANGE, ""); // le défaut de ce cas est de FORME : le texte est celui du script
   const douleur = gardee.scenes.filter((s) => (s.gabarit as { role?: string } | undefined)?.role === "douleur");
   for (const l of douleur.slice(1).flatMap((s) => s.elements.filter((e) => e.type === "ligne"))) (l as { bloc?: string }).bloc = "liste";
+  // `ecrit` : un texte ÉCRIT que la voix ne dit pas (chiffre, mot interdit) sur une ligne : ce défaut n'est jamais réparable sans IA.
+  if (ecrit) (gardee.scenes[1].elements.find((e) => e.type === "ligne") as { texte: string }).texte = ecrit;
   b.versions[b.versions.length - 1] = { ...b.versions.at(-1)!, fiche: gardee };
   await depots().videos.modifier(videoId, { entrees: { ...(video.entrees as object), [cle]: b } } as never);
   return gardee;
@@ -144,9 +162,58 @@ describe("FIX-DECOUPAGE-REPRENDRE-d", () => {
     expect((await ouvrir(videoId)).tache!.statut).toBe("refusee");
   });
 
-  it("f) une écriture en erreur : « Reprendre » inchangé (même tâche, prix demandé)", async () => {
+  it("e) contre-épreuve : un chiffre écrit que la voix ne dit pas n'est JAMAIS « réparé » (même avec un défaut de forme réparable) : prix demandé, aucun appel, fiche inchangée", async () => {
     const { videoId } = await decoupageRefuse((f) => (f.scenes[0].texteDit += MOT_CHANGE));
+    await poserDefautDeForme(videoId, "Vous perdez 47 mails par jour.");
+    const avant = await ouvrir(videoId);
+    expect(await reprendreTacheTableau(videoId)).toMatchObject({ statut: "accord-requis" });
+    const b = await ouvrir(videoId);
+    expect(b.tache).toEqual(avant.tache);
+    expect(b.versions).toHaveLength(avant.versions.length);
+    expect(b.versions.at(-1)!.origine).toBe("decoupage-a-corriger");
+  });
+
+  it("e) contre-épreuve : un mot interdit de la marque n'est JAMAIS « réparé » : prix demandé, aucune version « decoupage »", async () => {
+    const T0 = "2026-10-01T10:00:00.000Z";
+    await depots().contexteAxion.enregistrer({ id: "contexte-axion-v1", version: 1, positionIds: [], piliers: [], interdits: [], jargonAutorise: [], jargonInterdit: [], promessesInterdites: ["certifiée"], carnetVoix: [], termesVagues: [], rolesDestinataires: [], creeLe: T0, modifieLe: T0 } as never);
+    const { videoId } = await decoupageRefuse((f) => (f.scenes[0].texteDit += MOT_CHANGE));
+    await poserDefautDeForme(videoId, "Formation certifiée");
+    const avant = await ouvrir(videoId);
+    expect(await reprendreTacheTableau(videoId)).toMatchObject({ statut: "accord-requis" });
+    const b = await ouvrir(videoId);
+    expect(b.tache).toEqual(avant.tache);
+    expect(b.versions.some((v) => v.origine === "decoupage")).toBe(false);
+  });
+
+  it("c bis) à la main : une fiche qui ne tient qu'en RETIRANT du contenu est refusée, rien n'est enregistré ni retiré en silence", async () => {
+    const { videoId } = await decoupageRefuse((f) => (f.scenes[0].texteDit += MOT_CHANGE));
+    const gardee = await poserDefautDeForme(videoId);
+    // Une page à UNE seule scène (aucune page de plus possible) chargée de lignes « detail » : seul l'allègement (retrait) la ferait tenir.
+    const video = (await depots().videos.obtenir(videoId))!;
+    const cle = Object.keys(video.entrees as object).find((k) => lireBrouillonTableau({ entrees: { [k]: (video.entrees as Record<string, unknown>)[k] } } as never))!;
+    const b = lireBrouillonTableau(video)!;
+    const surchargee = copie(gardee) as FicheTableau;
+    const sc = surchargee.scenes.slice(1).find((s) => s.elements.some((e) => e.type === "ligne") && surchargee.scenes.filter((x) => x.page === s.page).length === 1)!;
+    const modele = sc.elements.find((e) => e.type === "ligne")!;
+    sc.elements.push({ ...structuredClone(modele), id: "zz0", bloc: "detail" } as never);
+    b.versions[b.versions.length - 1] = { ...b.versions.at(-1)!, fiche: surchargee };
+    await depots().videos.modifier(videoId, { entrees: { ...(video.entrees as object), [cle]: b } } as never);
+    const avant = await ouvrir(videoId);
+    surcharge.actif = true;
+    const c = await corrigerFicheTableau(videoId, [], { aujourdhui: AUJOURDHUI_EXEMPLES });
+    surcharge.actif = false;
+    expect(c).toMatchObject({ statut: "refusee", phrase: expect.stringContaining("retirant du contenu") });
+    const apres = await ouvrir(videoId);
+    expect(apres.versions).toHaveLength(avant.versions.length);
+    expect(apres.versions.at(-1)!.fiche).toEqual(avant.versions.at(-1)!.fiche);
+  });
+
+  it("f) une VRAIE tâche d'écriture en erreur : « Reprendre » inchangé (prix demandé, tâche toEqual)", async () => {
+    const { videoId } = await decoupageRefuse((f) => (f.scenes[0].texteDit += MOT_CHANGE));
+    const id = (await ouvrir(videoId)).tache!.id;
+    await modifierTache(videoId, id, (t) => t && { ...t, type: "ecriture", statut: "erreur", etape: "accroches", message: "Panne.", motifs: undefined, journal: [] });
     const avant = (await ouvrir(videoId)).tache;
+    expect(avant).toMatchObject({ type: "ecriture", statut: "erreur" });
     expect(await reprendreTacheTableau(videoId)).toMatchObject({ statut: "accord-requis" });
     expect((await ouvrir(videoId)).tache).toEqual(avant);
   });

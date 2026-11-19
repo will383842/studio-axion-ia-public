@@ -1093,6 +1093,8 @@ async function ficheCorrigee(
   // Texte corrigé : les parties nommées ne tiennent que si elles le redonnent encore mot pour mot.
   if (donnees.parties && !partiesAccordees(donnees.parties, texte)) delete donnees.parties;
   const gardee = brouillon.versions.at(-1)?.origine === "decoupage-a-corriger" ? reparerFicheGardee(corrigee, entreeDecoupage(donnees, corrigee.videoId, corrigee.versionId, await contexteRegles(aujourdhui ?? aujourdhuiIso()), await preuvesProposees(aujourdhui ?? aujourdhuiIso()))) : undefined; // mêmes réparations sans IA que le découpage
+  // À la main : réparation de forme SEULE. Si la fiche ne tient qu'en retirant du contenu (allègement du découpage), refus : rien n'est retiré en silence.
+  if (gardee?.ok && gardee.retraits.length) return { ok: false, phrase: `Cette fiche ne tient qu'en retirant du contenu (${gardee.retraits.map((x) => `${x.sceneId}/${x.elementId}`).join(", ")}) : rien n'a été enregistré. Allégez-la vous-même.`, problemes: [] };
   const r = validerFicheTableau(gardee?.ok ? gardee.fiche : corrigee, { ...avecMotsDouleur(await contexteRegles(aujourdhui ?? aujourdhuiIso()), donnees), texteScript: texte });
   if (!r.ok) return { ok: false, phrase: "Ces corrections ne passent pas les règles : rien n'a été enregistré.", problemes: r.problemes };
   return { ok: true, fiche: r.fiche, donnees };
@@ -1831,7 +1833,7 @@ export async function reprendreTacheTableau(videoId: Id, accordBrut?: AccordPrix
   const v = brouillon.versions.at(-1);
   const rep = decoupageRefuse && v?.origine === "decoupage-a-corriger" ? reparerFicheGardee(v.fiche, entreeDecoupage(brouillon.donnees, videoId, v.fiche.versionId, await contexteRegles(aujourdhuiIso()), await preuvesProposees(aujourdhuiIso()))) : undefined;
   if (rep?.ok) {
-    console.warn(`[tableau] reprise ${videoId} : réparé sans IA : ${rep.reparations.map((r) => r.quoi).join(" ; ") || "remise en forme"}`);
+    console.warn(`[tableau] reprise ${videoId} : réparé sans IA : ${rep.reparations.map((r) => r.quoi).join(" ; ") || "remise en forme"}${rep.retraits.length ? ` ; retraits ${rep.retraits.map((x) => `${x.sceneId}/${x.elementId} (${x.type}, page ${x.page})`).join(", ")}` : ""}`);
     await ajouterVersion(videoId, { ...rep.fiche, appelId: brouillon.donnees.finId }, "decoupage", brouillon.donnees);
     await modifierTache(videoId, t.id, (x) => x && { ...x, statut: "terminee", enVol: undefined, message: "Scènes prêtes (réparées sans IA).", motifs: undefined });
     return { statut: "en-cours", videoId, tacheId: t.id };
