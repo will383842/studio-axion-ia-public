@@ -48,6 +48,10 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-compteur-rouleau": "chiffre",
   "objet-carton-definition": "texte",
   "objet-fleche-main-levee": "geste",
+  // BR-OBJETS-2027-b : croquis et traits de feutre.
+  "objet-croquis": "geste",
+  "objet-feutre-entourage": "texte",
+  "objet-feutre-soulignement": "texte",
 };
 
 const DUREE_MAX_SEC = 6;
