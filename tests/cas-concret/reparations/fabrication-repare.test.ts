@@ -34,7 +34,7 @@ function avecFiche(d: ReturnType<typeof doubles>, fiche: unknown) {
 
 async function sansMarque(): Promise<Record<string, unknown>> {
   const f = await ficheEcrite();
-  (f.ecrans as { marque: string }[])[1].marque = "autre-site.com";
+  (f.ecrans as { marque: string }[])[1].marque = "www.Axion-IA.com";
   return f;
 }
 
@@ -125,5 +125,17 @@ describe("f) CC8 : le script modifié est jugé comme à la fabrication", () => 
   it("un chiffre tiré d'un fait reste refusé", async () => {
     const scripts = await import("@/services/cas-concret-scripts");
     await expect(scripts.modifierScriptValideCasConcret(CAS, [{ rang: 2, ecrits: ["5 minutes", null, null, null] }])).rejects.toThrow(/vient d'un fait du cas/);
+  });
+});
+
+describe("e bis) R09 : une AUTRE adresse écrite reste un refus", () => {
+  it("la marque « autre-site.fr » n'est pas remise : échec « fiche », avant toute voix", async () => {
+    const f = await ficheEcrite();
+    (f.ecrans as { marque: string }[])[1].marque = "autre-site.fr";
+    const d = avecFiche(doubles(), f);
+    const err = await refus(d);
+    expect(err?.etape).toBe("fiche");
+    expect(err?.message).toMatch(/marque/i);
+    expect(d.reservationsVoix).toHaveLength(0);
   });
 });

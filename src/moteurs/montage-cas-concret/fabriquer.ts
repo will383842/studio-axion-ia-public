@@ -83,7 +83,7 @@ import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
 import { textesDePublication, type TextePublication } from "./publication";
-import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
+import { MARQUE, validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette, type PlanRaccordVoix } from "./recette-voix";
 import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";
@@ -689,7 +689,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     if (!forme.ok) throw refus(forme.problemes.map((p) => p.message));
     if (forme.fiche.casId !== cas.id) throw refus([`La fiche est écrite pour un autre cas (« ${forme.fiche.casId} »).`]);
     // S-04a : la marque perdue est remise (R09 seulement) et dite en « À vérifier » ; tout autre refus reste un refus.
-    const marquee = remettreMarque(forme.fiche);
+    // Seule une variante de NOTRE marque (casse, « www. », « https:// », « axion ») est remise : une autre adresse (« autre-site.fr ») reste un refus R09.
+    const rm = remettreMarque(forme.fiche);
+    const absente = forme.fiche.ecrans.map((e) => e.marque.trim() !== MARQUE && /^(https?:\/\/)?(www\.)?axion([- ]ia)?(\.com)?\/?$/i.test(e.marque.trim()));
+    const marquee = { fiche: { ...rm.fiche, ecrans: rm.fiche.ecrans.map((e, i) => (absente[i] ? e : forme.fiche.ecrans[i])) as typeof rm.fiche.ecrans }, faits: forme.fiche.ecrans.filter((_, i) => absente[i]).map((e) => `Écran ${e.id} : marque remise.`) };
     // 08/11/2026 : le script de Will (validé, fourni ou modifié) fait foi : durée, accroche, tutoiement, mots à éviter… sont des
     // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
     const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
