@@ -21,6 +21,7 @@ import { chargerFiche, ecrireStockageFiche, lireStockageFiche } from "@/services
 import { creerCreneau, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
 import { reseauConnu } from "@/components/calendrier/CarteEntreeCalendrier";
 import { compteCibleValide } from "../compte-cible";
+import { COMPTE_PAR_DEFAUT } from "@/domaine/plan-editorial/compte-par-defaut";
 
 export interface SaisieDuplication {
   /** Clé de la carte d'origine : « creneau:<id>|<réseau> » ou « publication:<id>|<réseau> ». */
@@ -55,7 +56,6 @@ export type ResultatDuplication =
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 const HEURE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const CLE_FORMULAIRE = /^[A-Za-z0-9_-]{1,64}$/;
-const COMPTE_PAR_DEFAUT = "compte-studio";
 
 function jourExiste(j: string): boolean {
   const [a, m, d] = j.split("-").map(Number);

@@ -337,6 +337,8 @@ export interface ValeurStyleSousTitres {
   pastille?: "axion" | "axion-ardoise";
   /** BR-MINIMAL-IV-b : seul `true` pose chaque petit groupe dans une boîte arrondie maison (X1-02a) ; absent : inchangé. */
   boiteArrondie?: true;
+  /** BR-POIDS-VARIABLE-IV-a : seul `true` fait s'épaissir le mot dit (graisse 500 → 800, X1-01) ; absent : inchangé. */
+  poidsVariable?: true;
   texteEcran?: import("./texte-ecran").ReglagesTexteEcran;
 }
 

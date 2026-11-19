@@ -230,6 +230,7 @@ export function donneesCalque(entree: {
     ...(regleePave ? { plaques: Object.fromEntries(segmentsPropres.flatMap((s) => { const k = motAPlaque(s, regleePave); return k === undefined ? [] : [[s.id, k] as const]; })) } : {}),
     ...(etiquettes ? { motsOutils: etiquettes } : {}),
     // BR-MINIMAL-IV-b : boîte arrondie maison derrière le groupe, seulement quand le style le demande (`true` exact).
+    ...(entree.style?.poidsVariable === true ? { poidsVariable: true as const } : {}),
     ...(entree.style?.boiteArrondie === true ? { boite: { rayonEm: 0.3, margeEm: 0.25, couleurs: couleursMinimalDynamique() } } : {}),
   };
 }
