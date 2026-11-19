@@ -8,7 +8,7 @@
  */
 import type { CSSProperties } from "react";
 import { CalquePlanScenes } from "../plan-scenes/CalquePlanScenes";
-import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Freeze, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import { boiteAccessoire, entreeEcranPartage, geometrieEcranPartage, margeFlou, planAuTemps, SOURCE_DOUBLE, transformation, type ProprietesImageComposition, type SourceDouble } from "../../../src/briques/composition/scene";
 import { etatRaccordA } from "../../src/composition/raccords-instants";
 import { ContenuAccessoire } from "./Accessoire";
@@ -129,23 +129,30 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
         if (!(pl.type === "illustration" && pl.illustration)) return null;
         const de = Math.round(pl.debutSec * fps);
         const duree = Math.max(1, Math.round((pl.finSec - pl.debutSec) * fps));
-        // Raccord (champ facultatif, jamais sur un plan avec la personne) : le plan déborde de la demi-fenêtre, le plan entrant est posé au-dessus.
-        const marge = raccordsUtiles.length ? Math.ceil(fps / 2) : 0;
+        // Raccord (champ facultatif, jamais sur un plan avec la personne) : seul le plan ENTRANT d'un raccord utile démarre plus tôt, le plan sortant dure plus tard ; les autres plans gardent `from={de}` exact.
+        const marge = Math.ceil(fps / 2);
+        const entrant = raccordsUtiles.some((r) => r.indexAvant + 1 === i);
+        const sortant = raccordsUtiles.some((r) => r.indexAvant === i);
         const dans = raccord && (i === raccord.indexAvant || i === raccord.indexAvant + 1);
         const style = dans ? { opacity: i === raccord.indexAvant ? raccord.opaciteAvant : raccord.opaciteApres, transform: `translateX(${(i === raccord.indexAvant ? raccord.decalageAvantPx : raccord.decalageApresPx).toFixed(2)}px)` } : {};
+        const debut = entrant ? Math.max(0, de - marge) : de;
+        const avance = de - debut;
+        const lecteur = <OffthreadVideo src={pl.illustration.url} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+        // Vidéo entrante : l'image 0 de la vidéo reste à `de` (comme FFmpeg) ; avant, elle est figée sur son image 0.
+        const video = avance > 0 ? (
+          <>
+            <Sequence from={0} durationInFrames={avance} layout="none"><Freeze frame={0}>{lecteur}</Freeze></Sequence>
+            <Sequence from={avance} layout="none">{lecteur}</Sequence>
+          </>
+        ) : lecteur;
         const corps = (
           <AbsoluteFill style={{ backgroundColor: "#000", ...style }}>
-            {pl.illustration.video ? (
-              <OffthreadVideo src={pl.illustration.url} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            ) : (
-              <Img src={pl.illustration.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            )}
+            {pl.illustration.video ? video : <Img src={pl.illustration.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
           </AbsoluteFill>
         );
-        if (!marge) return <Sequence key={i} from={de} durationInFrames={duree} layout="none">{corps}</Sequence>;
-        const debut = Math.max(0, de - marge);
+        if (!entrant && !sortant) return <Sequence key={i} from={de} durationInFrames={duree} layout="none">{corps}</Sequence>;
         return (
-          <Sequence key={i} from={debut} durationInFrames={duree + marge + (de - debut)} layout="none">
+          <Sequence key={i} from={debut} durationInFrames={avance + duree + (sortant ? marge : 0)} layout="none">
             {(image >= de && image < de + duree) || dans ? corps : null}
           </Sequence>
         );

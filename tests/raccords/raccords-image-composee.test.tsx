@@ -10,17 +10,32 @@ import type { ProprietesImageComposition } from "../../src/briques/composition/s
 
 const AVEC_RENDU = existsSync("studio-rendu/node_modules/remotion/dist/esm/index.mjs");
 const etat = { image: 0 };
+// @ts-expect-error le react de studio-rendu n'a pas de types ici
+const reactRendu = (AVEC_RENDU ? await import("../../studio-rendu/node_modules/react/index.js") : {}) as typeof import("react");
+const CtxTemps = AVEC_RENDU ? reactRendu.createContext<{ decalage: number; fige?: number }>({ decalage: 0 }) : (null as never);
 vi.mock("../../studio-rendu/node_modules/remotion/dist/esm/index.mjs", async (origine) => {
   const vrai = await origine<Record<string, unknown>>();
   return {
     ...vrai,
-    // Une `Sequence` rend ses enfants seulement dans sa fenêtre (comme Remotion) ; `useCurrentFrame` est piloté par le test.
+    // Une `Sequence` rend ses enfants seulement dans sa fenêtre ET décale le temps local de ses enfants (comme Remotion) ; `Freeze` fige le temps local ; `useCurrentFrame` est piloté par le test.
     Sequence: (p: { children?: unknown; from?: number; durationInFrames?: number }) => {
+      const parent = reactRendu.useContext(CtxTemps);
       const de = p.from ?? 0;
-      return etat.image >= de && etat.image < de + (p.durationInFrames ?? Infinity) ? (p.children ?? null) : null;
+      const local = etat.image - parent.decalage;
+      if (!(local >= de && local < de + (p.durationInFrames ?? Infinity))) return null;
+      return reactRendu.createElement(CtxTemps.Provider, { value: { ...parent, decalage: parent.decalage + de } }, p.children as never);
+    },
+    Freeze: (p: { children?: unknown; frame: number }) => {
+      const parent = reactRendu.useContext(CtxTemps);
+      return reactRendu.createElement(CtxTemps.Provider, { value: { ...parent, fige: p.frame } }, p.children as never);
     },
     Audio: () => null,
-    OffthreadVideo: () => null,
+    // La vidéo montre son temps local : image courante moins le début de ses `Sequence` (ou l'image figée).
+    OffthreadVideo: (p: { src: string }) => {
+      const c = reactRendu.useContext(CtxTemps);
+      if (!p.src.startsWith("entree:clip")) return null; // le double n'est pas lu : les empreintes « avant » restent celles de master
+      return reactRendu.createElement("video", { "data-src": p.src, "data-t": c.fige ?? etat.image - c.decalage });
+    },
     Img: (p: { src: string }) => ({ type: "img", key: null, ref: null, props: { src: p.src }, $$typeof: Symbol.for("react.transitional.element"), _owner: null, _store: {} }),
     useCurrentFrame: () => etat.image,
     useVideoConfig: () => ({ fps: 25, width: 1080, height: 1920, durationInFrames: 150, id: "essai", defaultProps: {}, props: {}, defaultCodec: null }),
@@ -38,6 +53,7 @@ const RACCORDS = AVEC_RENDU ? await import(/* @vite-ignore */ ["..", "..", "stud
 
 const CADRAGE = { valeur: "large", zoom: 1, zoomFin: 1, pointX: 0.5, pointY: 0.38 };
 const illu = (debutSec: number, finSec: number, n: number) => ({ debutSec, finSec, type: "illustration", angle: "principal", cadrage: CADRAGE, illustration: { url: `entree:illu-${n}`, video: false } });
+const clip = (debutSec: number, finSec: number, n: number) => ({ ...illu(debutSec, finSec, n), illustration: { url: `entree:clip-${n}`, video: true } });
 const double = (debutSec: number, finSec: number) => ({ debutSec, finSec, type: "double", angle: "principal", cadrage: CADRAGE });
 const proprietes = (plans: unknown[], raccords?: unknown) =>
   ({
@@ -62,6 +78,8 @@ const presentes = (h: string) =>
     opacite: Number(/opacity:([\d.]+)/.exec(m[1]!)?.[1] ?? 1),
     decalage: Number(/translateX\((-?[\d.]+)px\)/.exec(m[1]!)?.[1] ?? 0),
   }));
+/** Les vidéos présentes : source et temps local lu par la vidéo. */
+const videos = (h: string) => [...h.matchAll(/<video data-src="entree:clip-(\d)" data-t="(-?\d+)"/g)].map((m) => ({ n: Number(m[1]), t: Number(m[2]) }));
 const nbIllu = (h: string) => presentes(h).length;
 
 // Empreintes du balisage de master (avant la modification), aux images IMAGES.
@@ -70,7 +88,7 @@ const EMPREINTES_AVANT: Record<number, string> = { 0: "c1a9a45bb5fc57fa", 45: "c
 describe.skipIf(!AVEC_RENDU)("ImageComposee : raccords entre illustrations (C6-H24c-c)", () => {
   it("(a) sans `raccords`, ou liste vide : balisage identique à celui d'avant", () => {
     for (const image of IMAGES) {
-      const sans = rendre(proprietes(TROIS), image);
+      const sans = rendre(proprietes(TROIS), image); if (image===0) console.log("MARK", sans.slice(-700));
       expect(rendre(proprietes(TROIS, []), image)).toBe(sans);
       expect(empreinte(sans), `image ${image}`).toBe(EMPREINTES_AVANT[image]);
     }
@@ -118,5 +136,25 @@ describe.skipIf(!AVEC_RENDU)("ImageComposee : raccords entre illustrations (C6-H
   it("(e) même entrée, même balisage", () => {
     const p = proprietes(TROIS, [{ indexAvant: 0, type: "fondu" }]);
     expect(rendre(p, 50)).toBe(rendre(p, 50));
+  });
+
+  it("(f) vidéos : sans raccord, chaque vidéo démarre à son image 0 ; avec raccord, seule la vidéo ENTRANTE avance, et son image 0 reste à `de`", () => {
+    const CLIPS = [clip(0, 2, 0), clip(2, 4, 1), clip(4, 6, 2)];
+    // Sans raccord : temps local = image - début du plan.
+    expect(videos(rendre(proprietes(CLIPS), 60))).toEqual([{ n: 1, t: 10 }]);
+    const r = [{ indexAvant: 0, type: "fondu" }];
+    const p = proprietes(CLIPS, r);
+    // Plan 2 (hors raccord) : exactement le même temps local qu'en coupe franche.
+    for (const image of [100, 120, 149]) expect(videos(rendre(p, image))).toEqual(videos(rendre(proprietes(CLIPS), image)));
+    // Plan 0 (sortant) : temps local inchangé (démarre à `de`).
+    expect(videos(rendre(p, 49)).find((v) => v.n === 0)!.t).toBe(49);
+    // Plan 1 (entrant) : figé sur l'image 0 avant `de`, puis image 0 exactement à `de` (50), puis 1, 2…
+    expect(videos(rendre(p, 40)).find((v) => v.n === 1)).toBeUndefined();
+    const avant = [44, 45, 46, 47, 48, 49].map((i) => videos(rendre(p, i)).find((v) => v.n === 1)).filter(Boolean);
+    expect(avant.length).toBeGreaterThan(0); // la fenêtre du raccord commence avant `de`
+    for (const v of avant) expect(v!.t).toBe(0); // figée sur l'image 0, jamais « en avance » dans sa vidéo
+    expect(videos(rendre(p, 50)).find((v) => v.n === 1)!.t).toBe(0);
+    expect(videos(rendre(p, 51)).find((v) => v.n === 1)!.t).toBe(1);
+    expect(videos(rendre(p, 60)).find((v) => v.n === 1)!.t).toBe(10);
   });
 });
