@@ -54,10 +54,13 @@ export interface DetectionsVideo {
   imagesNoiresHorsFin?: number;
 }
 
-const RESEAU = /^(https?|ftp|rtmp[a-z]*):/i;
+/** Tout préfixe de protocole FFmpeg (`cache:`, `concat:`, `subfile,…:`, `pipe:`, `data:`, `https:`…) au début du chemin. */
+const PREFIXE_PROTOCOLE = /^[a-z][a-z0-9+.,_-]+:/i;
 
 function fichierLocal(chemin: unknown): chemin is string {
-  return typeof chemin === "string" && chemin.length > 0 && !RESEAU.test(chemin.trim()) && !/^[a-z][a-z0-9+.-]*:\/\//i.test(chemin.trim());
+  if (typeof chemin !== "string") return false;
+  const c = chemin.trim();
+  return c.length > 0 && !c.includes("://") && !PREFIXE_PROTOCOLE.test(c);
 }
 
 function rectValide(r: Rect | undefined): r is Rect {
@@ -118,7 +121,8 @@ const nb = (s: string): number => Number(s);
 
 /**
  * Lit les plages figées et noires. `finUtileMs` : début de la carte de fin, ou durée s'il n'y en a pas.
- * Une plage qui ne se termine pas avant la fin du fichier est dans la fin : elle ne compte pas.
+ * Une plage compte quand sa partie AVANT `finUtileMs` dure au moins `SEUIL_FIGE_MS`. Sans `freeze_end` (gel jusqu'au bout du
+ * fichier), la fin est la durée du fichier (`Duration:`), ou `finUtileMs` si elle manque.
  * Sortie illisible (aucune trace de FFmpeg) → `{}` : le contrôle reste « non fait ».
  */
 export function lireDetections(stderr: string, e: { finUtileMs: number }): DetectionsVideo {
@@ -130,20 +134,26 @@ export function lireDetections(stderr: string, e: { finUtileMs: number }): Detec
   let noirsHorsFin = 0;
   let noirTete = 0;
 
+  const compterFige = (debut: number, fin: number) => {
+    if ((Math.min(fin, finSec) - debut) * 1000 >= SEUIL_FIGE_MS) figes += 1;
+  };
+  const md = /\bDuration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(stderr);
+  const dureeFichierSec = md ? Number(md[1]) * 3600 + Number(md[2]) * 60 + Number(md[3]) : finSec;
+
   let debutFige: number | null = null;
-  let dureeFige: number | null = null;
   for (const ligne of stderr.split(/\r?\n|\r/)) {
     const fs = /freeze_start:\s*(-?[0-9.]+)/.exec(ligne);
-    if (fs) { debutFige = nb(fs[1]); dureeFige = null; continue; }
-    const fd = /freeze_duration:\s*([0-9.]+)/.exec(ligne);
-    if (fd) { dureeFige = nb(fd[1]); continue; }
+    if (fs) {
+      // Un gel précédent sans fin court jusqu'au bout du fichier : on le ferme avant d'en ouvrir un autre.
+      if (debutFige !== null) compterFige(debutFige, dureeFichierSec);
+      debutFige = nb(fs[1]);
+      continue;
+    }
+    if (/freeze_duration:/.test(ligne)) continue;
     const fe = /freeze_end:\s*([0-9.]+)/.exec(ligne);
     if (fe && debutFige !== null) {
-      const fin = nb(fe[1]);
-      const duree = dureeFige ?? fin - debutFige;
-      if (duree * 1000 >= SEUIL_FIGE_MS && fin <= finSec) figes += 1;
+      compterFige(debutFige, nb(fe[1]));
       debutFige = null;
-      dureeFige = null;
       continue;
     }
     const nr = /black_start:\s*([0-9.]+)\s+black_end:\s*([0-9.]+)/.exec(ligne);
@@ -154,6 +164,7 @@ export function lireDetections(stderr: string, e: { finUtileMs: number }): Detec
       else if (fin <= finSec) noirsHorsFin += 1;
     }
   }
+  if (debutFige !== null) compterFige(debutFige, Number.isFinite(dureeFichierSec) ? dureeFichierSec : finSec);
   return { imagesFigeesHorsFin: figes, imageNoireTete: noirTete, imagesNoiresHorsFin: noirsHorsFin };
 }
 
