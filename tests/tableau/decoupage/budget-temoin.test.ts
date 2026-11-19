@@ -110,6 +110,18 @@ describe("budget de sortie du découpage (fiche témoin « Formation », style b
     expect(p1 * (1 + MARGE_CREDITS)).toBeLessThanOrEqual(plafond);
     expect(p1 + p2 * (1 + MARGE_CREDITS)).toBeLessThanOrEqual(plafond);
   });
+
+  it("le plafond propre (prix confirmé, marge comprise) couvre toujours les QUATRE appels (FIX-DECOUPAGE-RELANCES-b)", () => {
+    const e = entree();
+    const base = variableDecoupage(e);
+    const p1 = coutEstimeUsd(roleDecoupageTableau, { contexte: {}, variable: base });
+    const p2 = coutEstimeUsd(roleDecoupageTableau, { contexte: {}, variable: variableRelance(base, indentee, ["x".repeat(4000)]) });
+    const plafond = Math.max(PLAFOND_DECOUPAGE_TABLEAU_USD, coutPireDecoupageUsd(e) * (1 + MARGE_CREDITS));
+    // Les trois premiers appels payés au pire, plus la réservation du quatrième avec sa marge : p1 + p2 + p2 + p2 × marge.
+    expect(p1 + p2 + p2 + p2 * (1 + MARGE_CREDITS)).toBeLessThanOrEqual(plafond);
+    // Le prix annoncé est exactement premier + 3 relances au pire.
+    expect(coutPireDecoupageUsd(e)).toBeGreaterThanOrEqual(p1 + 3 * p2 - 1e-9);
+  });
 });
 
 describe("une fiche lisible refusée est rendue « à corriger »", () => {

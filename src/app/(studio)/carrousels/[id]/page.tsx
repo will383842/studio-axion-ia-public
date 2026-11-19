@@ -42,6 +42,8 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
     throw e;
   }
   const erreur = phraseDuCode(sp.erreur);
+  // Cases cochées : les réseaux déjà préparés ; sans choix enregistré, le comportement habituel.
+  const coche = (r: "linkedin" | "instagram" | "facebook"): boolean => (fiche.reseaux ? fiche.reseaux.includes(r) : r !== "facebook");
   return (
     <ConteneurPage largeur="lecture">
       <EnTetePage retour={{ href: "/carrousels", libelle: "Carrousels" }} titre={fiche.titre} sousTitre={`${fiche.libelleStatut} · ${libellePages(fiche)}`} actions={fiche.verdict && fiche.statut !== "echec_rendu" ? <Voyant niveau={fiche.verdict} avecPorte /> : undefined} />
@@ -72,9 +74,9 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
         <form action={preparerReseauxAction} aria-label="Préparer pour les réseaux" className="mb-6 flex flex-col gap-2 rounded-champ border border-trait bg-surface-1 px-3.5 py-3">
           <input type="hidden" name="id" value={fiche.id} />
           <h2 className="text-sm font-semibold text-texte-doux">Préparer pour les réseaux</h2>
-          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked className="accent-accent" /> <PastilleReseau reseau="linkedin" /> (un document PDF)</label>
-          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked className="accent-accent" /> <PastilleReseau reseau="instagram" /> (images JPEG)</label>
-          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" className="accent-accent" /> <PastilleReseau reseau="facebook" /> (images JPEG)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="linkedin" defaultChecked={coche("linkedin")} className="accent-accent" /> <PastilleReseau reseau="linkedin" /> (un document PDF)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="instagram" defaultChecked={coche("instagram")} className="accent-accent" /> <PastilleReseau reseau="instagram" /> (images JPEG)</label>
+          <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" defaultChecked={coche("facebook")} className="accent-accent" /> <PastilleReseau reseau="facebook" /> (images JPEG)</label>
           <Bouton type="submit" variante="secondaire" className="self-start">Préparer pour les réseaux</Bouton>
         </form>
       )}

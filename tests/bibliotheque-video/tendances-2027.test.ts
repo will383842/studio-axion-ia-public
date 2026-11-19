@@ -37,7 +37,7 @@ const INSTANTANE_MASTER: string[] = [
   "texte.escalier|eteint|2 (U20a, U20b)|",
   "ecran.clip-v4|prod||",
   "ecran.mosaique-extraits|prevu|4 (U4.1 à U4.6)|",
-  "ecran.telephone-extrait|prevu|4 (U4.7 à U4.9c)|",
+  "ecran.telephone-extrait|eteint|4 (U4.7 à U4.9c)|", // C4-U4.13a 19/11 : livré, éteint
   "calque.texte-derriere-double|absent||",
   "calque.texte-derriere-prise|absent||",
   "plan-scenes.cas-concret|prod||",

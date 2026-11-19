@@ -24,7 +24,7 @@ Le catalogue compte 90 capacités. L'état dit où elle en est : prod (déjà ut
 | `texte.escalier` | eteint | 2 (U20a, U20b) | AM-09 | permis: false |
 | `ecran.clip-v4` | prod | — |  | v4 seule |
 | `ecran.mosaique-extraits` | prevu | 4 (U4.1 à U4.6) | Q4, Q5 |  |
-| `ecran.telephone-extrait` | prevu | 4 (U4.7 à U4.9c) | Q1, P-6 |  |
+| `ecran.telephone-extrait` | eteint | 4 (U4.7 à U4.9c) | Q1, P-6 |  |
 | `calque.texte-derriere-double` | absent | — | V4 plus tard, P7 | PAYANT, 2e rendu HeyGen par vidéo, 5.10 à 5.17 suspendues |
 | `calque.texte-derriere-prise` | absent | — | Q6 | étude 5.20, 5.21 |
 | `plan-scenes.cas-concret` | prod | — |  |  |
