@@ -4,10 +4,12 @@ import { GABARITS, gabaritParId } from "@/moteurs/montage-tutoriel-outil/equipe/
 describe("gabarits de parcours (T-EXT-22)", () => {
   const tous = Object.values(GABARITS);
 
-  it("les trois gabarits existent, G-Flux pas encore", () => {
-    expect(Object.keys(GABARITS).sort()).toEqual(["G-Decision", "G-Journee", "G-Reponse"]);
+  it("les quatre gabarits existent, G-Flux compris (cas 3 et 5, gelé)", () => {
+    expect(Object.keys(GABARITS).sort()).toEqual(["G-Decision", "G-Flux", "G-Journee", "G-Reponse"]);
     expect(gabaritParId("G-Journee")?.id).toBe("G-Journee");
-    expect(gabaritParId("G-Flux")).toBeNull();
+    expect(gabaritParId("G-Flux")?.id).toBe("G-Flux");
+    expect(gabaritParId("G-Flux")?.cas).toEqual([3, 5]);
+    expect(Object.isFrozen(gabaritParId("G-Flux"))).toBe(true);
   });
 
   it("règles fermées : 3 moments, 1,5 s d'image fixe au plus, zone zoomée d'au moins 25 %", () => {
