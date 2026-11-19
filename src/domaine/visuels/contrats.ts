@@ -1,3 +1,4 @@
+import type { Reseau } from "../../briques/visuels/reseaux";
 import type { Intention } from "../../briques/visuels/trames";
 import type { ModeTexte, MotifRefus } from "./visuel";
 import type { StatutVisuel } from "./statuts";
@@ -83,6 +84,8 @@ export interface VueCarrouselFiche extends VueCarrouselCarte {
   /** Texte écrit ou rendu demandé il y a moins de RENDU_PERIME_MS : la page s'actualise, pas de relance. */
   renduEnCours: boolean;
   noteTexte?: string;
+  /** Réseaux préparés (absent : aucun choix enregistré). */
+  reseaux?: Reseau[];
   refus: { motif: MotifRefus; libelleMotif: string; page?: number; commentaire?: string; le: string }[];
   actionsPermises: ActionCarrousel[];
   generateurAllume: boolean;

@@ -27,6 +27,7 @@ import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer, refusDoublonEntreOutils, serviceHistorique, type ComptesPourReseau } from "@/domaine/buffer";
 import { cleEnvoiPublication, estChezUnOutil, OUTILS_ENVOI, outilDe, type OutilPublication } from "@/domaine/outil-publication";
 import { libelleComptes, libelleReseaux } from "@/domaine/comptes-envoi";
+import { creneauEnvoyable, visuelEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { ErreurBuffer, PHRASES_BUFFER, premierCommentaireTransmissible, verifierPremierCommentaire } from "@/fournisseurs/publication/buffer";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
@@ -64,6 +65,7 @@ import { liensSousTitresParReseau } from "./sous-titres-par-reseau";
 import { sousVerrouKit } from "./verrou-kit";
 import { construirePasseportDEssai, pagePourYoutube, passeportDeLaVideo } from "./site-videos";
 import { descriptionAvecPage, RESEAUX_LIEN_SITE } from "@/domaine/site-videos/youtube";
+import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 
 /*
  * Lot R2 : les textes du kit s'écrivent sous le verrou local du kit (`verrou-kit.ts`, un seul processus studio) : la
@@ -1280,7 +1282,7 @@ export async function envoyerVisuel(service: FournisseurPublication, creneauId: 
   // La porte passe AVANT toute lecture : éteint = rien n'est lu, rien n'est écrit. Générale, ou essai borné de CE créneau.
   if (!(await porteCalendrierPour(creneauId))) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
-  if (!c || c.statut !== "valide" || c.refuseLe || c.retireLe) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
+  if (!c || !creneauEnvoyable(c)) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas validé : rien n'est envoyé.");
   const validee = typeof c.valideeLe === "string" && c.valideeLe ? Date.parse(c.valideeLe) : NaN;
   if (!Number.isFinite(validee) || validee > Date.parse(maintenant())) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Le créneau n'a pas de validation datée : rien n'est envoyé.");
   if (!c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas celui d'un visuel : rien n'est envoyé.");
@@ -1329,7 +1331,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   await refuserSiStockageSimule();
   const d = depots();
   const v = await d.visuels.obtenir(visuelId);
-  if (!v || v.statut !== "valide" || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
+  if (!v || !visuelEnvoyable(v) || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
   if (v.estDemo) throw new ErreurStudio("VISUEL_EXEMPLE", "C'est un visuel d'exemple : il ne part pas sur vos réseaux.");
   if (v.modeTexte === "simulation") throw new ErreurStudio("VISUEL_ESSAI", "C'est un visuel d'essai (texte simulé) : il ne part pas sur vos réseaux.");
   const rendu = v.rendu;
@@ -1358,14 +1360,17 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   }
 
   // Le compte doit être dans la liste des comptes reliés (ni inconnu, ni déconnecté, ni interdit).
-  const cibles = await ciblesZernioPour(service, reseau, [options.cible]);
+  const cibles = await ciblesZernioPour(service, reseau, estCompteParDefaut(options.cible) ? undefined : [options.cible]);
   if (!cibles.ok) throw new ErreurStudio(cibles.code, cibles.message);
-  const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, options.cible);
+  if (cibles.canaux.length !== 1) throw new ErreurStudio("CIBLE_AMBIGUE", "Plusieurs comptes sont ciblés : choisissez-en un seul. Rien n'est parti.");
+  // La cible RÉSOLUE remplace le marqueur partout en aval (clé d'envoi, anti-doublon, canal, cible).
+  const cible = cibles.canaux[0].id;
+  const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, cible);
   const nom = obtenirReseau(reseau).nom;
   // Une seule réservation, sous le verrou, AVANT l'appel.
   const decision = await sousVerrou(async (): Promise<{ existante: Publication } | { nouvelle: Publication }> => {
     // Par visuel, réseau et compte, quelle que soit la date : une autre date ne contourne jamais l'anti-doublon.
-    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && (!x.canalId || x.canalId === options.cible) && outilDe(x) === "zernio" && occupeBuffer(x));
+    const deja = await d.publications.lister((x) => x.visuelId === visuelId && x.reseau === reseau && (!x.canalId || x.canalId === cible) && outilDe(x) === "zernio" && occupeBuffer(x));
     const meme = deja.find((x) => x.etatEnvoi === "envoye" && x.cleEnvoi === cleEnvoi);
     if (meme) return { existante: meme };
     if (deja.some((x) => x.etatEnvoi === "a-verifier")) throw new ErreurStudio("ENVOI_A_VERIFIER", `L'envoi précédent vers ${nom} est à vérifier : le studio ne renverra rien sans en être sûr. Regardez dans l'outil de publication.`);
@@ -1380,7 +1385,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
       date: dateIso,
       texte: options.legende,
       etatEnvoi: "en-cours",
-      canalId: options.cible,
+      canalId: cible,
       modeBuffer: "brouillon",
       cleEnvoi,
       envoiCommenceLe: maintenant(),
@@ -1399,8 +1404,8 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
       date: dateIso,
       fichierCle: urls[0],
       mode: "brouillon",
-      canalId: options.cible,
-      cible: options.cible,
+      canalId: cible,
+      cible,
       cleEnvoi,
       ...(options.premierCommentaire?.trim() ? { premierCommentaire: options.premierCommentaire } : {}),
       ...(reseau === "linkedin" ? { document: { url: urls[0], titre: titreDocument } } : { images: demande.demande.medias.map((m, i) => ({ url: urls[i], texteAlternatif: m.alt })) }),

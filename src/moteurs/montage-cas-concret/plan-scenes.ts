@@ -44,16 +44,16 @@ export const FORMAT_PLAN_CAS_CONCRET = { largeur: 1080, hauteur: 1920, fps: 25 a
 
 export const cleTranche = (groupe: string, ecran: string) => `${groupe}/${ecran}`;
 
-export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appeler?: AppelClaude; memo?: MemoPlanScenes; format?: typeof FORMAT_PLAN_CAS_CONCRET; habillage?: { actif: boolean; graine: string } }): Promise<ResultatPlanCasConcret> {
+export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appeler?: AppelClaude; memo?: MemoPlanScenes; format?: typeof FORMAT_PLAN_CAS_CONCRET; habillage?: { actif: boolean; graine: string }; objetsPermis?: readonly string[] }): Promise<ResultatPlanCasConcret> {
   const format = o.format ?? FORMAT_PLAN_CAS_CONCRET;
   const tranches: Record<string, PlanValide> = {};
   const memo: MemoPlanScenes = {};
   const remarques: Remarque[] = [];
   for (const g of o.groupes) {
     const segments = g.ecrans.map((e) => ({ texte: e.texteDit, debutMs: e.debutMs, finMs: e.finMs }));
-    const entree = fnv1a64(jsonCanonique({ format, segments, ia: !!o.appeler }));
+    const entree = fnv1a64(jsonCanonique({ format, segments, ia: !!o.appeler, ...(o.objetsPermis?.length ? { objets: o.objetsPermis } : {}) }));
     const garde = o.memo?.[g.id];
-    const r = garde && garde.entree === entree ? garde : await adapterPlan({ generateur: "cas-concret", script: segments.map((s) => s.texte).join(" "), segments, format, facecam: false }, { appeler: o.appeler }).then((x) => ({ entree, plan: x.plan, remarques: x.remarques }));
+    const r = garde && garde.entree === entree ? garde : await adapterPlan({ generateur: "cas-concret", script: segments.map((s) => s.texte).join(" "), segments, format, facecam: false, ...(o.objetsPermis?.length ? { objetsPermis: o.objetsPermis } : {}) }, { appeler: o.appeler }).then((x) => ({ entree, plan: x.plan, remarques: x.remarques }));
     memo[g.id] = r;
     remarques.push(...r.remarques);
     if (!r.plan) continue;
