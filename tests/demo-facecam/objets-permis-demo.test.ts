@@ -224,7 +224,9 @@ for (const avecLlm of [true, false]) {
         expect(texte(avec.consigne)).toContain("- objet-gros-chiffre (");
         // 18/11/2026 BR-OBJETS-c (amendement n°1 du pilote) : le compteur à rouleau (capacité objet.chiffre) est aussi inscrit : la consigne liste DEUX pièces ; rien retiré de l'attente.
         expect(texte(avec.consigne)).toContain("- objet-compteur-rouleau (");
-        const sansBloc = texte(avec.consigne).replace(/- objet-gros-chiffre \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-compteur-rouleau \(.*\n  paramètres .*\n  schéma .*\n/, "");
+        // 19/11/2026 N-05-v19b : l'anneau de données (objet.chiffre) est aussi inscrit : la consigne le liste ; attente élargie, rien retiré.
+        expect(texte(avec.consigne)).toContain("- objet-anneau-donnees (");
+        const sansBloc = texte(avec.consigne).replace(/- objet-gros-chiffre \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-compteur-rouleau \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-anneau-donnees \(.*\n  paramètres .*\n  schéma .*\n/, "");
         expect(sansBloc).toBe(texte(sans.consigne));
         expect(avec.consigne?.message).toBe(sans.consigne?.message);
       } else {

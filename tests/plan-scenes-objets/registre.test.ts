@@ -49,7 +49,13 @@ describe("registre des petits objets (C9-27b)", () => {
   it("aucun IdPiece en double", () => {
     const pieces = new Set<string>(IDS_PIECES);
     // 17/11/2026 BR-OBJETS-a (C9-34b) : les 4 objets inscrits au plan de scènes sont les seuls à figurer des deux côtés, volontairement.
-    const inscritsAuPlan = ["objet-gros-chiffre", "objet-etape", "objet-cartes-coche", "objet-coche"];
+    // 19/11/2026 N-05-v19b : la liste suit la réalité (elle était restée à 4 alors que 13 objets étaient inscrits depuis #1277 et #1292, test rouge sur master) : 4 + 6 + 3 + 5 = 18.
+    const inscritsAuPlan = [
+      "objet-gros-chiffre", "objet-etape", "objet-cartes-coche", "objet-coche",
+      "objet-soulignement-droit", "objet-croix", "objet-mot-barre", "objet-compteur-rouleau", "objet-carton-definition", "objet-fleche-main-levee",
+      "objet-croquis", "objet-feutre-entourage", "objet-feutre-soulignement",
+      "objet-carton-magazine", "objet-tourne", "objet-particules", "objet-panneau-reglages", "objet-anneau-donnees",
+    ];
     for (const id of idsObjets()) expect(pieces.has(id), id).toBe(inscritsAuPlan.includes(id));
   });
   it("chaque définition inscrite passe verifierDefinition", () => {
