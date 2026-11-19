@@ -141,6 +141,53 @@ function lireEtapeFlux(v: unknown, i: number, erreurs: string[]): EtapeFlux | un
   return { id: v.id as string, vue: v.vue as VueEcran, etat: v.etat as string, acteur: v.acteur as ActeurFlux, libelleSchema: v.libelleSchema as string, surMot: v.surMot as string };
 }
 
+const estListe = (v: unknown): v is unknown[] => Array.isArray(v);
+const estListeDe = (v: unknown, champs: readonly string[]): boolean =>
+  estListe(v) && v.every((x) => estObjet(x) && champs.every((c) => texte(x[c])));
+const estListeDeListes = (v: unknown): boolean => estListe(v) && v.every((x) => estObjet(x) && estListe(x.cellules));
+
+/**
+ * Champs que `app.js` du bureau exemple (T-EXT-49) lit pour une vue et un état : une vue utilisée sans eux
+ * ferait planter la capture. Renvoie les chemins manquants ou mal formés (vide si tout y est).
+ */
+export function champsContenusManquants(vue: VueEcran, etat: string, c: unknown): string[] {
+  if (!estObjet(c)) return ["entrée absente"];
+  const m: string[] = [];
+  const exige = (chemin: string, ok: boolean) => {
+    if (!ok) m.push(chemin);
+  };
+  if (vue === "boite") {
+    exige("messages", estListeDe(c.messages, ["id", "de", "objet"]));
+    exige("nouveau", texte(c.nouveau));
+    const msgs = estListe(c.messages) ? (c.messages as Record<string, unknown>[]) : [];
+    const nouveau = msgs.find((x) => estObjet(x) && x.id === c.nouveau);
+    if (texte(c.nouveau) && estListe(c.messages)) exige("messages (le message « nouveau » est introuvable)", nouveau !== undefined);
+    if (etat === "ouvert" || etat === "brouillon") exige("messages[nouveau] : adresse et corps", !!nouveau && texte(nouveau.adresse) && texte(nouveau.corps));
+    if (etat !== "avant" && etat !== "ouvert" && etat !== "brouillon") exige("dossiers", estListeDe(c.dossiers, ["id", "nom"]));
+    if (etat === "etiquete") exige("messages[nouveau].dossier", !!nouveau && texte(nouveau.dossier));
+    if (etat === "brouillon") exige("brouillon.texte", estObjet(c.brouillon) && texte(c.brouillon.texte));
+  } else if (vue === "agenda") {
+    exige("jours", estListeDe(c.jours, ["id", "nom"]));
+    exige("evenements", estListeDe(c.evenements, ["jour", "heure", "titre"]));
+    if (etat !== "semaine") exige("creneau", estObjet(c.creneau) && ["jour", "heure", "titre"].every((k) => texte((c.creneau as Record<string, unknown>)[k])));
+  } else if (vue === "tableur") {
+    exige("colonnes", estListe(c.colonnes));
+    exige("lignes", estListeDeListes(c.lignes));
+    if (etat !== "lignes") exige("nouvelleLigne.cellules", estObjet(c.nouvelleLigne) && estListe(c.nouvelleLigne.cellules));
+    if (etat === "colonne-a-jour") exige("statut", estObjet(c.statut) && typeof c.statut.ligne === "number" && typeof c.statut.colonne === "number" && texte(c.statut.apres));
+  } else if (vue === "crm") {
+    exige("etapes", estListeDe(c.etapes, ["nom"]));
+    exige("fiche", estObjet(c.fiche) && texte(c.fiche.titre) && estListeDe(c.fiche.champs, ["libelle", "valeur"]));
+    const rang = (typeof c.etapeDepart === "number" ? c.etapeDepart : -1) + (etat === "etape-suivante" ? 1 : 0);
+    exige("etapeDepart (doit désigner une étape existante)", estListe(c.etapes) && Number.isInteger(rang) && rang >= 0 && rang < c.etapes.length);
+  } else {
+    exige("fil", estListeDe(c.fil, ["de", "texte"]));
+    if (etat === "notification") exige("notification", estObjet(c.notification) && texte(c.notification.de) && texte(c.notification.texte));
+    if (etat === "tache-creee") exige("tache", estObjet(c.tache) && texte(c.tache.titre) && texte(c.tache.responsable));
+  }
+  return m;
+}
+
 /** Lecture stricte du flux d'automatisation : ne lève jamais. */
 export function lireFluxAutomatisation(brut: unknown): LectureFlux {
   const erreurs: string[] = [];
@@ -179,6 +226,25 @@ export function lireFluxAutomatisation(brut: unknown): LectureFlux {
     }
 
     if (!estObjet(brut.contenus) || !jsonPur(brut.contenus)) erreurs.push("« contenus » doit être un objet de données simples (format de `DONNEES_ECRANS.contenus`).");
+    else {
+      // Chaque écran filmé doit pouvoir être dessiné : la vue utilisée a son entrée `contenus[vue]` complète pour l'état voulu.
+      const utilises: { lieu: string; vue: VueEcran; etat: string }[] = [
+        ...(avant ? [{ lieu: "Avant", ...avant }] : []),
+        ...(declencheur ? [{ lieu: "Déclencheur", ...declencheur }] : []),
+        ...etapes.map((e) => ({ lieu: `Étape « ${e.id} »`, vue: e.vue, etat: e.etat })),
+        ...(resultat ? [{ lieu: "Résultat", ...resultat }] : []),
+      ];
+      const vusSansEntree = new Set<string>();
+      for (const u of utilises) {
+        if (!estObjet(brut.contenus[u.vue])) {
+          if (!vusSansEntree.has(u.vue)) erreurs.push(`« contenus » : la vue « ${u.vue} » est utilisée (${u.lieu}) mais son entrée « contenus.${u.vue} » est absente.`);
+          vusSansEntree.add(u.vue);
+          continue;
+        }
+        const manque = champsContenusManquants(u.vue, u.etat, brut.contenus[u.vue]);
+        if (manque.length > 0) erreurs.push(`« contenus.${u.vue} » incomplet pour l'état « ${u.etat} » (${u.lieu}) : ${manque.join(", ")}.`);
+      }
+    }
 
     if (etapes.length > 0 && etapes.length === (brut.etapes as unknown[]).length) {
       const aUnHumain = etapes.some((e) => e.acteur === "humain");

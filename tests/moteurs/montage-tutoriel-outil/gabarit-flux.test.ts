@@ -23,6 +23,15 @@ import {
 import { ETAPES_MAX } from "@/moteurs/montage-tutoriel-outil/etapes-tutoriel";
 import { lireScenarioMaquette } from "@/moteurs/montage-tutoriel-outil/scenario-maquette";
 
+/** Contenus complets du bureau exemple (T-EXT-49), lus dans `demo-data.js` par `node:vm` comme le font les autres tests. */
+function contenusComplets(): Record<string, any> { // eslint-disable-line @typescript-eslint/no-explicit-any -- données lues dans un contexte vm
+  const source = readFileSync(join(process.cwd(), "outils/maquettes-tableaux-de-bord/ecrans-outils/demo-data.js"), "utf8");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- contexte de node:vm
+  const ctx: Record<string, any> = {};
+  vm.runInNewContext(source, { window: ctx });
+  return JSON.parse(JSON.stringify(ctx.DONNEES_ECRANS.contenus));
+}
+
 /** Flux d'exemple « demande de devis » : 7 écrans filmés (avant, déclencheur, 4 étapes, résultat), une étape humaine. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- le flux brut est volontairement abîmé champ par champ
 function brut(): Record<string, any> {
@@ -38,7 +47,7 @@ function brut(): Record<string, any> {
     ],
     moments: ["brouillon", "validation"],
     resultat: { vue: "crm", etat: "fiche-remplie", surMot: "fiche" },
-    contenus: { boite: { exemple: true, nouveau: "m5", messages: [{ id: "m5", de: "Client exemple", objet: "Demande de devis", exemple: true }] } },
+    contenus: contenusComplets(),
   };
 }
 
@@ -142,6 +151,32 @@ describe("lireFluxAutomatisation (T-EXT-50)", () => {
     const d = brut();
     d.etapes[0].libelleSchema = "x".repeat(LIBELLE_SCHEMA_MAX);
     expect(lire(d).ok).toBe(true);
+  });
+
+  it("refuse un flux dont les contenus ne permettent pas de jouer les écrans (la capture planterait)", () => {
+    const vide = brut();
+    vide.contenus = {};
+    expect(erreurs(vide)).toMatch(/vue « boite » est utilisée/);
+    const sansCrm = brut();
+    delete sansCrm.contenus.crm;
+    expect(erreurs(sansCrm)).toMatch(/vue « crm » est utilisée \(Résultat\)/);
+    const sansMessagerie = brut();
+    delete sansMessagerie.contenus.messagerie;
+    expect(erreurs(sansMessagerie)).toMatch(/vue « messagerie »/);
+    const ancienExemple = brut();
+    ancienExemple.contenus = { boite: { exemple: true } };
+    expect(lire(ancienExemple).ok).toBe(false);
+    const sansChamps = brut();
+    delete sansChamps.contenus.crm.fiche.champs;
+    expect(erreurs(sansChamps)).toMatch(/contenus\.crm.*fiche-remplie.*fiche/);
+    const sansBrouillon = brut();
+    delete sansBrouillon.contenus.boite.brouillon;
+    expect(erreurs(sansBrouillon)).toMatch(/contenus\.boite.*brouillon\.texte/);
+  });
+
+  it("accepte les contenus complets du bureau exemple", () => {
+    const r = lire(brut());
+    expect(r.ok, r.ok ? "" : r.erreurs.join(" | ")).toBe(true);
   });
 
   it("refuse un montant d'argent dans un texte, où qu'il soit", () => {

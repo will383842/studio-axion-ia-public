@@ -1,10 +1,22 @@
 /**
  * T-EXT-50 · Schéma animé du flux : nœuds, couleurs, mots, caméra. Purs, 0 €.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 import { VERSION_FLUX, lireFluxAutomatisation, type FluxAutomatisation } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { ENTREE_BLOC_SEC, TRACE_FLECHE_SEC, planSchemaFlux, schemaDepuisFlux, type MotVoixFlux } from "@/moteurs/montage-tutoriel-outil/schema-flux";
 import { mesurerTrajectoire } from "@/briques/schema-motion/camera";
+
+/** Contenus complets du bureau exemple (T-EXT-49), lus dans `demo-data.js` : le lecteur refuse désormais des contenus partiels. */
+function contenusComplets(): Record<string, unknown> {
+  const source = readFileSync(join(process.cwd(), "outils/maquettes-tableaux-de-bord/ecrans-outils/demo-data.js"), "utf8");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- contexte de node:vm
+  const ctx: Record<string, any> = {};
+  vm.runInNewContext(source, { window: ctx });
+  return JSON.parse(JSON.stringify(ctx.DONNEES_ECRANS.contenus));
+}
 
 function flux(): FluxAutomatisation {
   const r = lireFluxAutomatisation({
@@ -19,7 +31,7 @@ function flux(): FluxAutomatisation {
     ],
     moments: ["brouillon"],
     resultat: { vue: "crm", etat: "fiche-remplie", surMot: "fiche" },
-    contenus: { boite: { exemple: true } },
+    contenus: contenusComplets(),
   });
   if (!r.ok) throw new Error(r.erreurs.join(" | "));
   return r.flux;
