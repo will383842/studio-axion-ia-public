@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { analyserFicheDemoFacecam } from "@/domaine/outils-motion/fiches";
+import { EnvoiDemoFacecam } from "./EnvoiDemoFacecam";
 import { PauseVitrine, RemarquesFiche } from "./RemarquesFiche";
 
 function ChoixVideo({ libelle, onNom }: { libelle: string; onNom: (nom: string) => void }) {
@@ -16,7 +17,7 @@ function ChoixVideo({ libelle, onNom }: { libelle: string; onNom: (nom: string) 
 }
 
 /** Écran d'entrée « Démo facecam » : une vidéo facecam et un enregistrement d'écran, ou une seule vidéo. Rien n'est envoyé : le rendu n'est pas branché. */
-export function FormulaireDemoFacecam() {
+function VitrineDemoFacecam() {
   const [titre, setTitre] = useState("");
   const [facecam, setFacecam] = useState("");
   const [ecran, setEcran] = useState("");
@@ -40,4 +41,9 @@ export function FormulaireDemoFacecam() {
       {valide && <PauseVitrine phrase="La démo facecam n'est pas encore branchée : vos vidéos sont gardées, rien n'a échoué." />}
     </form>
   );
+}
+
+/** `envoi` allumé (réglage `demoFacecam.envoi`, lu par la page) : envoi réel ; sinon la vitrine, inchangée. */
+export function FormulaireDemoFacecam({ envoi }: { envoi?: boolean } = {}) {
+  return envoi === true ? <EnvoiDemoFacecam /> : <VitrineDemoFacecam />;
 }
