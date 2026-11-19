@@ -8,6 +8,17 @@ import { attendWillIV, avancerJusquAArretIV, etatInitialIV, lignesDesVersionsIV,
 import { avancerVoixIV, avecPointFinal, etatInitialVoixIV, segmentsVoixIV, type EtatVoixIV, type OutilsVoixIV } from "@/moteurs/montage-image-video/voix";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
+/**
+ * 18/11/2026 (D4) : la fabrication ne tire plus de fin sans choix (`finVide: true`). Les deux tests d'origine ont pour
+ * sujet le point final posé AVANT une fin dite (« voix-iv/3 », « voix-iv/2 ») : le plan tiré est rejoué en retirant le
+ * drapeau (`finTiree`), assertions inchangées. Le cas sans fin a son propre test plus bas (« voix-iv/1 »).
+ */
+const reglage = vi.hoisted(() => ({ finTiree: true }));
+vi.mock("@/moteurs/montage-image-video/fins", async (importOriginal) => {
+  const vrai = await importOriginal<typeof import("@/moteurs/montage-image-video/fins")>();
+  return { ...vrai, planDesFinsIV: (d: Parameters<typeof vrai.planDesFinsIV>[0]) => vrai.planDesFinsIV(reglage.finTiree ? { ...d, finVide: undefined } : d) };
+});
+
 /** Script dont le dernier écran finit sans ponctuation (« … Zéro demande perdue »), fin ajoutée à part. */
 const fiche = { ecrans: [{ texteDit: "Vos clients écrivent, on répond." }, { texteDit: "Zéro demande perdue" }] } as unknown as FicheImage;
 const fin = (id: string, reseaux: string[]) => ({ id, reseaux, muet: false, question: { dit: "Par où commencer ?", ecran: "Par où commencer ?" }, appels: [{ dit: "Faites votre diagnostic gratuit." }, { dit: "Le lien est dans mon profil." }] });
@@ -113,6 +124,31 @@ describe("fabrication : point final seulement pour un état neuf", () => {
     for (const l of lignesDesVersionsIV(etat)) {
       const cloture = l.ligne.bruitages.find((b) => b.planId === "cloture");
       if (cloture) expect(cloture.debutSec).toBeCloseTo(l.ligne.dureeSec - 1.5, 2);
+    }
+  });
+});
+
+describe("fabrication : vidéo sans fin (D4, fin non choisie)", () => {
+  it("état de voix « voix-iv/1 », point final gardé (segments.pointFinal), une seule lecture ; reprise d'une voix payée : 0 lecture, 0 réservation de voix", async () => {
+    reglage.finTiree = false;
+    try {
+      const { m, o, valide } = await scriptSansPoint();
+      expect(valide.plan!.fins.every((f) => f.vide === true)).toBe(true);
+      const etat = await jusquAuBout(valide, o);
+      expect(etat.voix!.version).toBe("voix-iv/1");
+      expect(etat.voix!.segments.fins).toEqual([]);
+      expect(etat.voix!.segments.pointFinal).toBe(true);
+      expect(m.lus).toHaveLength(1);
+      expect(m.lus[0]).toMatch(/\.$/);
+      // Reprise : la voix déjà payée suit sa version, rien n'est relu ni réservé de nouveau.
+      const lusAvant = m.lus.length;
+      const repris = await jusquAuBout({ ...structuredClone(valide), voix: structuredClone(etat.voix!) }, o);
+      expect(m.lus).toHaveLength(lusAvant);
+      expect(repris.caisse.reservations.filter((r) => r.etape === "voix")).toHaveLength(0);
+      expect(repris.voix!.version).toBe("voix-iv/1");
+      expect(repris.voix!.segments).toEqual(etat.voix!.segments);
+    } finally {
+      reglage.finTiree = true;
     }
   });
 });

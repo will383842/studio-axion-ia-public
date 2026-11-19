@@ -241,21 +241,31 @@ describe("règle 9 · preuve validée à l'écran", () => {
     expect(refuse(base(), nom(9), { matieres: [] })[0].message).toContain("est inconnue");
   });
 
-  it("ne refuse pas l'absence de scène « preuve » pour un texte de Williams ; une fiche de Claude sans preuve reste refusée", () => {
+  it("ne refuse pas l'absence de scène « preuve » pour un texte de Williams ; une fiche de Claude sans preuve reste acceptée quand le texte dit ne cite aucune preuve", () => {
     const f = base();
     scene(f, "s05").role = "etape";
     expect(reglePreuveValidee(f, contexteExemple(f, { texteDeWill: true }))).toEqual([]);
     const g = base();
     scene(g, "s05").role = "etape";
     scene(g, "s05").elements = scene(g, "s05").elements.filter((e) => e.type !== "preuve");
-    expect(reglePreuveValidee(g, contexteExemple(g, { preuves: [], matieres: [] })).length).toBe(1);
+    // FIX-TABLEAU-PREUVE-CHOISIE 18/11, règle phrase choisie : une fiche SANS scène preuve est ACCEPTÉE quand le texte dit ne cite aucune preuve.
+    expect(reglePreuveValidee(g, contexteExemple(g, { preuves: [], matieres: [] }))).toEqual([]);
   });
 
-  it("refuse une fiche sans scène « preuve »", () => {
+  // FIX-TABLEAU-PREUVE-CHOISIE 18/11 : même fiche, attente inversée (aucune preuve n'est imposée, règle du 17/11).
+  it("n'impose plus de scène « preuve » (règle du 17/11)", () => {
     const f = base();
     scene(f, "s05").role = "etape";
-    const [p] = refuse(f, nom(9));
-    expect(p.message).toContain("aucune scène « preuve »");
+    accepte(f);
+  });
+
+  it("refuse une fiche dont le texte dit cite une preuve sans scène « preuve »", () => {
+    const f = base();
+    scene(f, "s05").role = "etape";
+    const e = element(f, "e08", "preuve");
+    e.lignes = ["Avant : testé trois fois", "Après : réponses précises et utilisables"];
+    const [p] = reglePreuveValidee(f, contexteExemple(f));
+    expect(p.detail).toContain("cite cette preuve");
   });
 });
 

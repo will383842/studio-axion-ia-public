@@ -5,7 +5,7 @@ import { ecrireParametre, essayer, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { REGLAGE_SOURCE_USINE } from "@/services/branchement-idees-usine";
 import { controlerChiffresCles, REGLAGE_GARDIEN_CHIFFRES, type ResultatControle } from "@/services/gardien-chiffres";
-import { chercherFaitsSite, REGLAGE_LECTURE_SITE, type ResultatLectureSite } from "@/services/kb-site";
+import { chercherFaitsSite, lireMethodeSite, REGLAGE_LECTURE_SITE, REGLAGE_METHODE_SITE, type ResultatLectureSite, type ResultatMethodeSite } from "@/services/kb-site";
 import { proposerPreuveDepuisSite } from "@/services/preuves";
 
 export async function definirSourceUsineAction(valeur: unknown): Promise<Resultat> {
@@ -36,6 +36,27 @@ export async function definirLectureSiteAction(valeur: unknown): Promise<Resulta
 
 export async function basculerLectureSiteFormulaire(donnees: FormData): Promise<void> {
   await definirLectureSiteAction(donnees.get("valeur") === "oui");
+}
+
+/** Interrupteur « Lire la Méthode du site » (éteint par défaut). */
+export async function definirMethodeSiteAction(valeur: unknown): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    if (typeof valeur !== "boolean") throw new Error("valeur inconnue");
+    await ecrireParametre(REGLAGE_METHODE_SITE, valeur);
+    revalidatePath("/reglages/base-connaissances");
+    return undefined;
+  });
+}
+
+export async function basculerMethodeSiteFormulaire(donnees: FormData): Promise<void> {
+  await definirMethodeSiteAction(donnees.get("valeur") === "oui");
+}
+
+/** Lecture de la Méthode : un seul appel POST, jamais d'exception. Un passage n'est jamais proposé comme preuve. */
+export async function lireMethodeSiteAction(sujet: unknown): Promise<Resultat<ResultatMethodeSite>> {
+  await exigerSession();
+  return essayer(() => lireMethodeSite(typeof sujet === "string" ? sujet : ""));
 }
 
 /** Recherche dans la base du site : un seul appel GET, jamais d'exception. */

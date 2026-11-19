@@ -111,12 +111,12 @@ export function accordValide(d: DevisTutoriel, accord: AccordDevis | null | unde
 
 const NOM_POSTE: Record<PosteDevis, string> = { claude: "Claude", voix: "voix", rendu: "rendus" };
 
-/** Le plafond par vidéo, en quantités : atteint dès qu'on dépasse (égal = encore dans le devis). */
-export function resteDuDevis(d: DevisTutoriel, consomme: Consommation): { ok: true } | { ok: false; poste: PosteDevis; message: string } {
+/** Le plafond par vidéo, en quantités : atteint dès que le déjà consommé PLUS ce que l'étape peut encore dépenser (`aVenir`) dépasse (égal = encore dans le devis). */
+export function resteDuDevis(d: DevisTutoriel, consomme: Consommation, aVenir: Partial<Consommation> = {}): { ok: true } | { ok: false; poste: PosteDevis; message: string } {
   const verifs: [PosteDevis, number, number][] = [
-    ["claude", consomme.appelsClaude, quantiteDe(d, "appel")],
-    ["voix", consomme.caracteresVoix, quantiteDe(d, "caractere")],
-    ["rendu", consomme.rendus, quantiteDe(d, "rendu")],
+    ["claude", consomme.appelsClaude + entierPositif(aVenir.appelsClaude), quantiteDe(d, "appel")],
+    ["voix", consomme.caracteresVoix + entierPositif(aVenir.caracteresVoix), quantiteDe(d, "caractere")],
+    ["rendu", consomme.rendus + entierPositif(aVenir.rendus), quantiteDe(d, "rendu")],
   ];
   const depasse = verifs.find(([, vu, permis]) => vu > permis);
   return depasse ? { ok: false, poste: depasse[0], message: `Le devis de cette vidéo est atteint (${NOM_POSTE[depasse[0]]}) : rien de plus n'est lancé sans votre accord.` } : { ok: true };

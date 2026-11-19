@@ -178,6 +178,39 @@ describe("T-EXT-42 : allumé", () => {
     expect(j.voix).toHaveLength(1);
   });
 
+  it("une prononciation qui allonge le texte lu, accord bon : la vidéo va au bout, 1 voix (le devis compte le texte réellement lu)", async () => {
+    const j = journalVide();
+    const c0 = commandeTutoriel({ prononciations: [{ mot: "tableau", prononciation: "ta-bleau-ta-bleau-ta-bleau" }] as CommandeFabrication["prononciations"] });
+    const lu = SCRIPT.replace(/tableau/gi, "ta-bleau-ta-bleau-ta-bleau");
+    expect(lu.length).toBeGreaterThan(SCRIPT.length);
+    const devis = etablirDevis({ roles: ROLES, caracteresScript: lu.length, texteScript: SCRIPT, motsScript: lu.split(/\s+/).filter(Boolean).length, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const t = await mener(moteur, () => c, t0);
+    expect(pause(t)).toBeNull();
+    expect(t.statut).toBe("termine");
+    expect(j.voix).toHaveLength(1);
+  });
+
+  it("plafond vérifié AVANT chaque appel : script ×1 + plan ×2 = 3 appels au plus, jamais un 4e (TO_DEVIS_ATTEINT avant)", async () => {
+    const j = journalVide();
+    const c0 = commandeTutoriel({ script: { blocs: [], texteComplet: "" }, entrees: { tutorielOutil: { idee: "Créer un tableau de bord" } } });
+    const roles = [{ id: "script", essaisMax: 1 }, ...ROLES];
+    // Première écriture trop courte : l'appel est compté, le script n'est pas écrit.
+    const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, { scriptEcrit: "Trop court." }) });
+    let t = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    // Chaque relance (après l'échec de l'écriture) repasse par la garde ; on relance jusqu'à la pause du devis.
+    for (let i = 0; i < 6 && pause(t)?.code !== "TO_DEVIS_ATTEINT"; i++) {
+      t = await mener(moteur, () => c, { ...t, statut: "en_file", erreur: undefined, parametres: { ...t.parametres, pause: undefined }, etapes: t.etapes.map((e) => (e.statut === "echec" ? { ...e, statut: "en_attente" as const, erreur: undefined } : e)) });
+      expect(j.claude.length).toBeLessThanOrEqual(3);
+    }
+    expect(j.claude.length).toBeLessThanOrEqual(3);
+    expect(pause(t)?.code).toBe("TO_DEVIS_ATTEINT");
+  });
+
   it("la garde n'appelle jamais rien d'elle-même (espions)", async () => {
     const j = journalVide();
     const c = commandeTutoriel();
