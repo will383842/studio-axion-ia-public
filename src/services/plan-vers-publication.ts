@@ -70,11 +70,17 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
     if (!existante) {
       publications.push(await d.publications.enregistrer({
         id, visuelId: v.id, reseau, statut: "programmee", via: "manuel",
-        date, texte: v.titre, creeLe: maintenant, modifieLe: maintenant,
+        date, texte: c.textes?.[reseau]?.texte?.trim() || v.titre, creeLe: maintenant, modifieLe: maintenant,
       }));
-    } else if (existante.date !== date) {
-      publications.push(await d.publications.modifier(existante.id, { date, modifieLe: maintenant } as Partial<Publication>));
-    } else publications.push(existante);
+    } else {
+      // La légende du créneau (relue par la personne) prend la place du titre ; sans légende, le texte reste tel quel.
+      const legende = c.textes?.[reseau]?.texte?.trim();
+      const modif: Partial<Publication> = {};
+      if (existante.date !== date) modif.date = date;
+      if (legende && existante.texte !== legende) modif.texte = legende;
+      if (Object.keys(modif).length > 0) publications.push(await d.publications.modifier(existante.id, { ...modif, modifieLe: maintenant } as Partial<Publication>));
+      else publications.push(existante);
+    }
   }
 
   if (v.statut === "valide") {

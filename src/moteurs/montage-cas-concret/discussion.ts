@@ -20,6 +20,7 @@ import { texteCompare } from "@/domaine/controles-script/texte";
 import { MODELE_ECRITURE } from "@/fournisseurs/claude/tarifs";
 import { coutEstimeUsd, lireReponse } from "./ecriture";
 import type { FaitCas } from "@/formats/cas-concret/cas";
+import { decrireAnimationEcran } from "./animation-ecran";
 import type { EcranCorps, FicheEcrans } from "./fiche";
 import type { OutilsEcriture, ReponseAppelEcriture } from "./outils";
 import { CATALOGUE_RETOUCHES_CAS_CONCRET, lireOperationRetoucheCasConcret, type ApercuRetoucheCasConcret, type OperationRetoucheCasConcret, type ReglagesFins } from "./retouches";
@@ -85,6 +86,7 @@ LES OPÉRATIONS (JSON, rien d'autre) :
 - { "type": "deplacer-etape", "ecranId": "<écran de type etape>", "vers": "avant" | "apres" }
 - { "type": "changer-mot", "mot": "<2 à 24 lettres ou chiffres>" }
 - { "type": "sans-le-mot" }
+- { "type": "changer-animation", "ecranId": "e03", "entree"?: "fondu" | "glisse" | "zoom" | "ecrit", "intensite"?: "douce" | "normale" | "forte", "sortie"?: "aucune-v4" | "poussee" | "flou" } (au moins un des trois ; seule l'animation de CET écran change, la voix ne change pas ; la ligne « animation » de chaque écran dit ce qu'il a)
 
 RÈGLES :
 - Les écrans du corps sont listés dans <ecrans> (« e01 · type · texte dit »). « L'écran 3 » est e03 ; « l'étape 2 » est le deuxième écran de type etape. « La fin » ou « la dernière phrase » : le dernier écran du corps, ou le mot à commenter si la demande parle du mot.
@@ -97,11 +99,15 @@ FORME : { "operations": [ … ], "horsListe"? }
 EXEMPLE COMPLET. Demande : « ${EXEMPLE_DISCUSSION.demande} » ; écrans : ${EXEMPLE_DISCUSSION.ecrans.map((e) => `« ${e} »`).join(", ")}. Réponse :
 ${JSON.stringify(EXEMPLE_DISCUSSION.reponse)}`;
 
-const ligneEcran = (e: EcranCorps) => `${e.id} · ${e.type} · ${e.texteDit.replace(/\s+/g, " ").trim()}`;
+/** S-08 : quand la vidéo a une mise, la ligne de chaque écran dit aussi son animation (sans elle : la ligne d'avant). */
+const ligneEcran = (e: EcranCorps, mise?: FicheEcrans["mise"]) => {
+  const tirage = mise?.ecrans[e.id];
+  return `${e.id} · ${e.type} · ${e.texteDit.replace(/\s+/g, " ").trim()}${tirage ? ` · animation : ${decrireAnimationEcran(tirage)}` : ""}`;
+};
 
 /** Partie variable : la demande, les écrans du corps, le mot à commenter. */
-export function variableDiscussion(demande: string, fiche: Pick<FicheEcrans, "ecrans">, reglages: ReglagesFins): string {
-  return [`<demande>${demande.trim()}</demande>`, `<ecrans>\n${fiche.ecrans.map(ligneEcran).join("\n")}\n</ecrans>`, `<mot>${reglages.avecMot ? reglages.mot : `${reglages.mot} (pas dit)`}</mot>`].join("\n");
+export function variableDiscussion(demande: string, fiche: Pick<FicheEcrans, "ecrans" | "mise">, reglages: ReglagesFins): string {
+  return [`<demande>${demande.trim()}</demande>`, `<ecrans>\n${fiche.ecrans.map((e) => ligneEcran(e, fiche.mise)).join("\n")}\n</ecrans>`, `<mot>${reglages.avecMot ? reglages.mot : `${reglages.mot} (pas dit)`}</mot>`].join("\n");
 }
 
 /* ------------------------------------------------------------------ */
@@ -155,7 +161,7 @@ function simulerDiscussion(entree: EntreeRole): { operations: OperationRetoucheC
   if (!demande) return "";
   const ecrans = (balise(entree.variable, "ecrans") ?? "")
     .split("\n")
-    .map((l) => /^(e\d{2}) · ([a-z-]+) · (.*)$/.exec(l.trim()))
+    .map((l) => /^(e\d{2}) · ([a-z-]+) · (.*?)(?: · animation : .*)?$/.exec(l.trim()))
     .filter((m): m is RegExpExecArray => !!m)
     .map((m) => ({ id: m[1], type: m[2], texteDit: m[3] }));
   return operationsSimulees(demande, ecrans);
@@ -178,7 +184,7 @@ export const roleDiscussionCasConcret = {
 
 export interface EntreeDiscussion {
   demande: string;
-  fiche: Pick<FicheEcrans, "ecrans">;
+  fiche: Pick<FicheEcrans, "ecrans" | "mise">;
   /** Faits du cas : la barre d'un « changer-chiffre » s'en déduit (P2C). Absents : la barre reste à Claude. */
   faits?: readonly Pick<FaitCas, "id" | "valeurs">[];
   reglages: ReglagesFins;
@@ -274,6 +280,8 @@ export function phraseOperation(op: OperationRetoucheCasConcret, fiche: Pick<Fic
       return `Je fais dire le mot ${op.mot.trim().toUpperCase()}`;
     case "sans-le-mot":
       return "Je retire le mot à commenter";
+    case "changer-animation":
+      return `Je change l'animation de l'écran ${numero(op.ecranId)}`;
   }
 }
 
