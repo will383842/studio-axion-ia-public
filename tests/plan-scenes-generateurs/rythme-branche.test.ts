@@ -59,7 +59,8 @@ describe("C10-15-b2 · rythme au plan (éteint par défaut)", () => {
     const allume = await adapterPlan(e, faux(UNE_SCENE));
     const eteint = await adapterPlan({ ...e, rythme: false }, faux(UNE_SCENE));
     expect(allume.plan).toEqual(eteint.plan);
-    expect(allume.remarques.length).toBeGreaterThanOrEqual(eteint.remarques.length);
+    expect(rythmes(allume)).toEqual([{ code: "RYTHME", message: "À vérifier : plage sans changement de 2 s à 8,4 s" }]);
+    expect(rythmes(eteint)).toEqual([]);
     expect(allume.remarques.slice(0, eteint.remarques.length)).toEqual(eteint.remarques);
   });
 
