@@ -34,7 +34,7 @@ export function AvantDeLancer({
       <Carte className="space-y-3">
         <h3 className="text-base font-semibold text-texte">{sansVoix ? "Cette vidéo n'utilise aucun crédit de voix" : "Cette vidéo utilise vos crédits"}</h3>
         <ul className="space-y-1.5 text-sm text-texte">
-          {sansVoix ? <li>Sans voix : sous-titres et texte à l&apos;écran, environ {formaterDuree(dureeSec)}, coût 0 €</li> : <li>Voix de votre double : environ {formaterDuree(dureeSec)}</li>}
+          {sansVoix ? <li>Sans voix : sous-titres et texte à l&apos;écran, environ {formaterDuree(dureeSec)}, aucun coût</li> : <li>Voix de votre double : environ {formaterDuree(dureeSec)}</li>}
           <li>{chapitres} chapitre{chapitres > 1 ? "s" : ""}</li>
           <li>Format large</li>
           {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus</li>}

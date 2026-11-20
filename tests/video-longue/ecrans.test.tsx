@@ -270,9 +270,9 @@ describe("VL-SV : choix « Sans voix » visible, avec voix par défaut", () => {
     expect(t).toContain("Avec la voix de mon double");
     expect(t).toContain("Voix : votre double.");
   });
-  it("l'écran « avant de lancer » sans voix : 0 €, aucune voix ni musique", () => {
+  it("l'écran « avant de lancer » sans voix : aucun coût, aucune voix ni musique", () => {
     const t = texteVisible(rendre(createElement(AvantDeLancer, { dureeSec: 400, chapitres: 2, courts: 0, sansVoix: true, peutLancer: true, onLancer: noop, onRetour: noop })));
-    expect(t).toContain("coût 0 €");
+    expect(t).toContain("aucun coût");
     expect(t).toContain("Aucune voix, aucune musique");
     expect(t).not.toContain("Voix de votre double");
   });
