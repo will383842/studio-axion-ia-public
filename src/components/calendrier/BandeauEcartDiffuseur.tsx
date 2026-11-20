@@ -23,7 +23,7 @@ export function etatBandeauEcart(ecart: MesureBandeau | null | undefined, mainte
 
 const HEURE_PARIS = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
-export function BandeauEcartDiffuseur({ ecart, maintenant }: { ecart: (EcartCalendrier & { introuvables?: number; retirables?: string[]; jamaisMesuree?: boolean }) | null | undefined; maintenant: number }) {
+export function BandeauEcartDiffuseur({ ecart, maintenant }: { ecart: (EcartCalendrier & { introuvables?: number; retirables?: string[]; jamaisMesuree?: boolean; retraitRefuse?: string }) | null | undefined; maintenant: number }) {
   const etat = etatBandeauEcart(ecart, maintenant);
   if (etat === "aucun" || !ecart) return null;
   const n = ecart.absents;
@@ -39,7 +39,8 @@ export function BandeauEcartDiffuseur({ ecart, maintenant }: { ecart: (EcartCale
       ? "L'écart avec le diffuseur n'a encore jamais été mesuré."
       : `L'écart avec le diffuseur n'a pas pu être vérifié${Number.isFinite(Date.parse(ecart.luLe)) ? ` (dernière lecture à ${HEURE_PARIS.format(new Date(ecart.luLe))}, heure de Paris)` : ""}.${n > 0 ? ` Au moins ${n} publication${n > 1 ? "s" : ""} manque${n > 1 ? "nt" : ""}.` : ""}`;
   const phraseIntrouvables = introuvables > 0 ? `${introuvables} publication${introuvables > 1 ? "s" : ""} du calendrier introuvable${introuvables > 1 ? "s" : ""} chez le diffuseur${retirables.length > 0 ? `, dont ${retirables.length} retirable${retirables.length > 1 ? "s" : ""}` : ""}.` : null;
-  const phrase = [phraseEcart, phraseIntrouvables].filter(Boolean).join(" ");
+  // Retrait refusé (autre espace probable, retrait de masse) : dit clairement, jamais de bouton.
+  const phrase = [phraseEcart, phraseIntrouvables, etat === "introuvables" ? ecart.retraitRefuse : null].filter(Boolean).join(" ");
   return (
     <div role="status" data-bandeau-ecart={etat} className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-trait-fort bg-surface-2 px-4 py-3 text-sm text-texte">
       <p className="min-w-0 flex-1 font-bold">{phrase}</p>

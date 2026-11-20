@@ -130,7 +130,7 @@ describe("RAP-3 réserves · 1a retour à la normale, 1c double constat", () => 
     p = await unique("p-scheduled-0");
     expect(p.constatsIntrouvable).toBe(2);
     expect(estRapatrieeRetirable(p, T0 + 2 * H)).toBe(false); // moins de 24 h
-    expect(estRapatrieeRetirable(p, T0 + 40 * 60_000 + 24 * H)).toBe(true);
+    expect(estRapatrieeRetirable(p, T0 + 40 * 60_000 + 24 * H)).toBe(false); // le dernier constat (+50 min) n'est qu'à 10 min du premier
     await synchroniserEtatsZernio({ force: true, instant: T0 + 60 * 60_000 });
     expect((await unique("p-scheduled-0")).constatsIntrouvable).toBeGreaterThanOrEqual(2);
   });
@@ -148,7 +148,7 @@ describe("RAP-3 réserves · 1a retour à la normale, 1c double constat", () => 
     const p = await unique("p-scheduled-0");
     expect(p.constatsIntrouvable).toBe(2);
     expect(estRapatrieeRetirable(p, T0 + 2 * H)).toBe(false);
-    expect(estRapatrieeRetirable(p, T0 + 1 * H + 24 * H)).toBe(true);
+    expect(estRapatrieeRetirable(p, T0 + 1 * H + 24 * H)).toBe(false); // dernier constat à +2 h, premier à +1 h : moins de 24 h entre les deux
   });
   it("une publication née au Studio « à vérifier » : aucun champ de constat ajouté", async () => {
     await depots().publications.enregistrer({ id: "pub_s", reseau: "instagram", statut: "programmee", via: "zernio", idExterne: "ext-s", etatEnvoi: "a-verifier", date: iso(T0 + H), texte: "t", creeLe: iso(T0 - 5 * H), modifieLe: iso(T0 - 5 * H) } as never);
