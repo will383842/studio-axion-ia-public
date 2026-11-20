@@ -9,9 +9,10 @@
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
+import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import { transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { reconcilier } from "./reconciliation-calendrier";
-import { peutTransiter } from "@/domaine/envoi-planifie";
+import { peutTransiter, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { transiterEnvoi } from "./envois-planifies";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
@@ -246,6 +247,21 @@ async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Pr
 export const PREFIXE_MARQUES_CALENDRIER = "envoi-calendrier:";
 
 /**
+ * Le créneau (statut final) ne passe « publie » que si, à sa version courante, CHAQUE réseau prévu (`heuresParReseau`) a un envoi vivant
+ * (non annulé) et que tous ces envois sont « envoye » : un réseau sans envoi (texte manquant, trop tôt, exclu…) garde le créneau « programme ».
+ * Un envoi d'une version périmée (décalé depuis) ne fait jamais publier la version courante.
+ */
+async function creneauToutParti(e: EnvoiPlanifie, creneau: CreneauEditorial | null | undefined): Promise<boolean> {
+  if (!creneau || !e.creneauId) return false;
+  const version = creneau.decalages ?? e.versionCreneau;
+  if (e.versionCreneau !== version) return false;
+  const freres = await depots().envoisPlanifies.lister((x) => x.creneauId === e.creneauId && x.versionCreneau === version && x.statut !== "annule");
+  if (!freres.length || !freres.every((x) => x.statut === "envoye")) return false;
+  const prevus = Object.keys(creneau.heuresParReseau ?? {}).filter((r) => (creneau.heuresParReseau as Record<string, string | undefined>)[r]);
+  return prevus.every((r) => freres.some((x) => x.reseau === r));
+}
+
+/**
  * RETOUR-PUBLISHED · Zernio a CONFIRMÉ « published » pour cette Publication zernio : le Studio suit. On retrouve l'envoi planifié par sa clé
  * (`cleDiffuseur ?? cle` == `cleEnvoi`), puis : le VRAI créneau passe « publie » (via `reconcilier`), `pub_<clé>` passe « publiee »,
  * l'envoi passe « envoye » et les marques `promotion:<clé>` / `a-verifier:<clé>` (si elles existent) passent « parti ».
@@ -261,12 +277,11 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
       // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon, confirmé…) reste tel quel.
       let envoi = await d.envoisPlanifies.obtenir(e.id);
       if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) envoi = await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
+      // Tout autre état (annulé, valide, confirmé…) : rien n'est écrit, ni créneau, ni pub_<clé>, ni marques (même règle que la reprise).
+      if (envoi?.statut !== "envoye") return;
       const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
       const pub = await d.publications.obtenir(`pub_${e.cle}`);
-      // Le créneau (statut final) ne passe « publie » que lorsque TOUS les envois vivants de sa version courante sont partis (jamais sur un seul réseau).
-      const freres = e.creneauId ? await d.envoisPlanifies.lister((x) => x.creneauId === e.creneauId && x.versionCreneau === (creneau?.decalages ?? e.versionCreneau) && x.statut !== "annule") : [];
-      // Un envoi d'une version périmée du créneau (décalé depuis) ne fait jamais publier la version courante.
-      const tousPartis = freres.length > 0 && e.versionCreneau === (creneau?.decalages ?? e.versionCreneau) && freres.every((x) => x.statut === "envoye");
+      const tousPartis = await creneauToutParti(e, creneau);
       const r = reconcilier({ diffuseur: "publie" }, {
         // Sans créneau réel, ou tant que des réseaux restent à partir : créneau fictif déjà « publie » (rien à changer de ce côté).
         creneau: creneau && tousPartis ? { id: creneau.id, statut: creneau.statut } : { id: "-", statut: "publie" },
@@ -274,8 +289,6 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
       });
       if (creneau && r.creneau) await d.creneauxEditoriaux.modifier(creneau.id, { statut: r.creneau.statut });
       if (pub && r.publication) await d.publications.modifier(pub.id, { statut: r.publication.statut, modifieLe: maintenant() });
-      // Les marques ne sont levées que si l'envoi est bien « envoye » : sinon elles gardent leur rôle de garde (reprise à la main).
-      if (envoi?.statut !== "envoye") return;
       // Seules les marques qui disent « programmé » ou « à vérifier » sont levées ; « en-cours » (tentative en vol) et « libre » restent.
       // Lecture directe du dépôt (et non `lireParametre`) : ces marques ne sont pas des interrupteurs.
       for (const [nom, leve] of [["promotion", ["programme", "a-verifier"]], ["a-verifier", ["a-verifier"]]] as const) {
@@ -305,7 +318,9 @@ async function reprendreRetoursPublies(): Promise<void> {
     const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
     const marque = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}promotion:${e.cle}`);
     const verifier = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}a-verifier:${e.cle}`);
-    if ((pub && pub.statut === "programmee") || creneau?.statut === "programme" || marque?.valeur === "programme" || marque?.valeur === "a-verifier" || verifier?.valeur === "a-verifier") restes.push(e);
+    // Le créneau « programme » n'est un reste que s'il peut vraiment passer « publie » (sinon il reste « programme » en permanence et saturerait la reprise).
+    const creneauARattraper = creneau?.statut === "programme" && (await creneauToutParti(e, creneau));
+    if ((pub && pub.statut === "programmee") || creneauARattraper || marque?.valeur === "programme" || marque?.valeur === "a-verifier" || verifier?.valeur === "a-verifier") restes.push(e);
   }
   if (!restes.length) return;
   const cles = new Set(restes.map((e) => e.cleDiffuseur ?? e.cle));

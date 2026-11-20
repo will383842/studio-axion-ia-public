@@ -138,6 +138,8 @@ describe("RETOUR-PUBLISHED · marques levées seulement si l'envoi est « envoye
     expect(e.envoi).toBe(statutEnvoi);
     expect(e.promotion).toBe("a-verifier");
     expect(e.verifier).toBe("a-verifier");
+    expect(e.pub).toBe("programmee");
+    expect(e.creneau).toBe("programme");
   });
 
   it("envoi sans cleDiffuseur : la jointure se fait sur la clé de l'envoi", async () => {
@@ -230,6 +232,40 @@ describe("RETOUR-PUBLISHED · créneau à plusieurs réseaux (suite)", () => {
 describe("RETOUR-PUBLISHED · reprise après « envoye » (coupure entre deux écritures)", () => {
   it("envoi déjà envoye mais créneau, pub_<clé> et marque pas à jour : le passage suivant termine le suivi", async () => {
     await programmationManuelle("programme", { envoi: "envoye", pubZernio: "publiee" });
+    await passer("scheduled");
+    expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+  });
+});
+
+describe("RETOUR-PUBLISHED · réseau prévu sans envoi, reprise non saturée", () => {
+  const envoiDe = (reseau: string, statut: string, n = reseau) => ({
+    id: `envoi:vis_1:${n}:v0`, cle: `envoi:vis_1:${n}:v0`, videoId: "vis_1", nature: "visuel", creneauId: "cre_1", cleDiffuseur: n.padEnd(64, "d"), reseau, versionCreneau: 0,
+    jour: "2026-11-12", heure: "09:00", statut, valideeLe: iso(T0), valideePar: "fondateur", creeLe: iso(T0), modifieLe: iso(T0),
+  });
+  it("créneau à deux réseaux dont l'un n'a aucun envoi : le créneau reste « programme »", async () => {
+    await programmationManuelle("programme");
+    await depots().creneauxEditoriaux.modifier("cre_1", { heuresParReseau: { instagram: DATE, linkedin: DATE } } as never);
+    await passer("published");
+    expect(await etat()).toEqual({ creneau: "programme", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+  });
+  it("le réseau sans envoi reçoit ensuite son envoi, lui aussi parti : le créneau passe « publie »", async () => {
+    await programmationManuelle("programme");
+    await depots().creneauxEditoriaux.modifier("cre_1", { heuresParReseau: { instagram: DATE, linkedin: DATE } } as never);
+    await depots().envoisPlanifies.enregistrer(envoiDe("linkedin", "envoye") as never);
+    await passer("published");
+    expect((await etat()).creneau).toBe("publie");
+  });
+  it("21 envois « envoye » bloqués par un frère en échec + 1 coupure récente : la coupure est rattrapée", async () => {
+    const d = depots();
+    for (let i = 0; i < 21; i++) {
+      const id = `cre_b${i}`, cle = `envoi:vis_1:instagram:b${i}`;
+      await d.creneauxEditoriaux.enregistrer({ id, jourVise: "2026-11-12", heuresParReseau: { instagram: DATE, facebook: DATE }, compteCible: `${COMPTE}:ig:1`, visuelId: "vis_1", textes: {}, statut: "programme", decalages: 0, valideeLe: iso(T0), valideePar: "le fondateur" } as never);
+      await d.envoisPlanifies.enregistrer({ ...envoiDe("instagram", "envoye", `b${i}`), id: cle, cle, creneauId: id } as never);
+      await d.envoisPlanifies.enregistrer({ ...envoiDe("facebook", "echec", `f${i}`), id: `envoi:vis_1:facebook:b${i}`, cle: `envoi:vis_1:facebook:b${i}`, creneauId: id } as never);
+      await d.publications.enregistrer({ id: `pz_b${i}`, visuelId: "vis_1", reseau: "instagram", statut: "publiee", via: "zernio", date: DATE, texte: "t", idExterne: `exemple-b${i}`, canalId: `${COMPTE}:ig:1`, cleEnvoi: `b${i}`.padEnd(64, "d"), etatLuLe: iso(T0 - 86_400_000), creeLe: iso(T0), modifieLe: iso(T0) } as never);
+    }
+    await programmationManuelle("programme", { envoi: "envoye", pubZernio: "publiee" });
+    await d.publications.modifier("pz_1", { etatLuLe: iso(T0) } as never);
     await passer("scheduled");
     expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
   });
