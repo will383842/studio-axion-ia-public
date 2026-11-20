@@ -23,7 +23,7 @@ import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
-import { lireEntreesTutoriel } from "./entrees";
+import { estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
@@ -77,7 +77,7 @@ const DEFINITIONS: Record<CleEtapeTutoriel, Omit<DefinitionEtapeMoteur, "dependD
 function etapesDe(commande: CommandeFabrication, ratios: Ratio[] = ratiosTutoriel(commande.ratios), seulementRendu = false): DefinitionEtapeMoteur[] {
   const cles = ETAPES_TUTORIEL.filter((c) => {
     if (seulementRendu) return c === "montage";
-    if (c === "voix") return commande.distribution.length > 0;
+    if (c === "voix") return commande.distribution.length > 0 && !estSansVoix(commande.entrees);
     if (c === "exports") return ratios.length > 1;
     return true;
   });
@@ -98,7 +98,8 @@ function estimation(lignes: LigneCout[], dureeFabricationSec: number): Estimatio
 
 function lignesEstimees(commande: CommandeFabrication): LigneCout[] {
   const l: LigneCout[] = [];
-  if (commande.distribution.length) l.push(ligne("Voix", "heygen", "caractere", (commande.script.texteComplet ?? "").length, "estime"));
+  // T-EXT-SV : mode sans voix = aucune ligne « voix », donc rien à bloquer côté crédits.
+  if (commande.distribution.length && !estSansVoix(commande.entrees)) l.push(ligne("Voix", "heygen", "caractere", (commande.script.texteComplet ?? "").length, "estime"));
   l.push(ligne("Plan de scènes", "claude", "appel", 1, "estime"));
   l.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "estime"));
   return l;
@@ -270,7 +271,7 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
   if (!depense) return null;
   return (async () => {
     const texte = etat.script?.texte ?? commande.script.texteComplet ?? "";
-    const lit = !!outils.voix && commande.distribution.length > 0 && !!etat.script;
+    const lit = !!outils.voix && commande.distribution.length > 0 && !estSansVoix(commande.entrees) && !!etat.script;
     const parent = etat.parent?.audio;
     // Le devis reste le même du premier au dernier pas : seule la voix d'une version d'avant, reprise telle quelle, est « déjà payée ».
     const payee = (!!parent?.fichierCle && !!etat.script && parent.empreinte === empreinteAudioMaitre({ ...commande, script: { ...commande.script, texteComplet: etat.script.texte } }));

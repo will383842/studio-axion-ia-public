@@ -39,7 +39,7 @@ import { instantsTutoriel, textesPermisDuRegistre, verdictRegardTutoriel } from 
 import type { VerdictControleur } from "./equipe/controleur";
 import type { RegistreTextes } from "./equipe/registre-textes";
 import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
-import { lireEntreesTutoriel } from "./entrees";
+import { estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { ecrireScript, MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
@@ -259,10 +259,12 @@ export function outilsVoixMaitre(o: OutilsVoixTutoriel, commande: CommandeFabric
 async function pasVoix(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
   if (etat.audio) return { statut: "faite", etat };
   const texte = etat.script!.texte;
-  if (!outils.voix || !commande.distribution.length) {
+  // T-EXT-SV : mode « sans voix » choisi = silence total, rythme = vitesse de lecture du texte, 0 appel de voix, 0 €, aucune réserve.
+  const sansVoix = estSansVoix(commande.entrees);
+  if (sansVoix || !outils.voix || !commande.distribution.length) {
     const mots = horodaterTexte(texte, MOTS_PAR_SECONDE);
     const audio: AudioTutoriel = { dureeSec: mots.at(-1)?.finSec ?? 1, mots, empreinte: "sans-voix", reutilise: false, coutCentimes: 0, caracteres: 0, fournisseur: "aucune" };
-    const reserves = commande.distribution.length ? [...etat.reserves, "À vérifier · Voix : aucune voix n'est reliée, la vidéo sort muette."] : etat.reserves;
+    const reserves = !sansVoix && commande.distribution.length ? [...etat.reserves, "À vérifier · Voix : aucune voix n'est reliée, la vidéo sort muette."] : etat.reserves;
     return { statut: "faite", etat: { ...etat, audio, reserves } };
   }
   // Seule la voix HeyGen épinglée parle : refus clair avant tout appel (aucune dépense).
