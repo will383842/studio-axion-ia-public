@@ -167,6 +167,21 @@ describe("éteint par défaut (R-9)", () => {
     const r = await extraireZipSur(construire(SAINE), { attestationImages: true });
     expect(r.ok).toBe(true);
   });
+  it("de bout en bout (allumé) : nom + courriel, adresse sur plusieurs lignes, tabulations → aucune trace en clair", async () => {
+    ALLUME();
+    const r = await entree([
+      { nom: "demo-data.csv", donnees: u8("nom,ville\nJean Dupont jean@orange.fr,Paris\n") },
+      { nom: "adresses.csv", donnees: u8('id,adresse,nom\n1,"12 rue des Lilas\n75011 Paris",Martin\n') },
+      { nom: "tab.csv", donnees: u8("nom\temail\nJean Dupont\tjean@orange.fr\n") },
+      { nom: "d.json", donnees: u8('{"adresse":"Jean Dupont, jean.dupont@orange.fr, 12 rue des Lilas"}') },
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const nom of ["demo-data.csv", "adresses.csv", "tab.csv", "d.json"]) {
+      const sortie = new TextDecoder().decode(r.fichiers.get(nom));
+      expect(sortie).not.toMatch(/Jean|Dupont|Lilas|75011|Martin|orange/);
+    }
+  });
   it("même une archive piégée n'est pas lue quand c'est éteint", async () => {
     const r = await entree([{ nom: "../x.js", donnees: u8("x") }]);
     expect(r.rapport.refus).toEqual([MESSAGE_ZIP_FERME]);

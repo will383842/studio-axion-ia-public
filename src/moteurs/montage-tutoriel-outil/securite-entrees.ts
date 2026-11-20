@@ -737,24 +737,44 @@ function toutZero(chaine: string): boolean {
   return /^0+$/.test(chaine.replace(/\D/g, ""));
 }
 
-/** Découpe une ligne CSV simple (guillemets, séparateur « , » ou « ; ») en valeurs avec leur position intérieure. */
-function decouperLigneCsv(ligne: string, separateur: string): { valeur: string; debut: number; fin: number }[] {
-  const sortie: { valeur: string; debut: number; fin: number }[] = [];
+/**
+ * Lit tout le CSV en un seul passage (temps linéaire) : guillemets suivis à travers les retours à la ligne,
+ * séparateur « , », « ; » ou tabulation. Chaque valeur garde sa position dans le texte entier.
+ * Un guillemet jamais refermé absorbe le reste du texte : la suite est donc masquée, jamais gardée en clair.
+ */
+function lireCsv(texte: string, separateur: string): { valeur: string; debut: number; fin: number }[][] {
+  const lignes: { valeur: string; debut: number; fin: number }[][] = [];
+  let ligne: { valeur: string; debut: number; fin: number }[] = [];
+  const n = texte.length;
   let i = 0;
-  while (i <= ligne.length) {
-    if (ligne[i] === '"') {
+  for (;;) {
+    let delimiteur: string | undefined;
+    if (texte[i] === '"') {
       let j = i + 1;
-      while (j < ligne.length && !(ligne[j] === '"' && ligne[j + 1] !== '"')) j += ligne[j] === '"' ? 2 : 1;
-      sortie.push({ valeur: ligne.slice(i + 1, j), debut: i + 1, fin: j });
-      i = j + 2;
-    } else {
-      let j = ligne.indexOf(separateur, i);
-      if (j === -1) j = ligne.length;
-      sortie.push({ valeur: ligne.slice(i, j), debut: i, fin: j });
+      while (j < n && !(texte[j] === '"' && texte[j + 1] !== '"')) j += texte[j] === '"' ? 2 : 1;
+      ligne.push({ valeur: texte.slice(i + 1, Math.min(j, n)), debut: i + 1, fin: Math.min(j, n) });
       i = j + 1;
+      while (i < n && texte[i] !== separateur && texte[i] !== "\n") i++;
+      delimiteur = texte[i];
+    } else {
+      let j = i;
+      while (j < n && texte[j] !== separateur && texte[j] !== "\n") j++;
+      delimiteur = texte[j];
+      const fin = (delimiteur === "\n" || j >= n) && j > i && texte[j - 1] === "\r" ? j - 1 : j;
+      ligne.push({ valeur: texte.slice(i, fin), debut: i, fin });
+      i = j;
     }
+    if (delimiteur === separateur) {
+      i += 1;
+      continue;
+    }
+    lignes.push(ligne);
+    ligne = [];
+    if (i >= n) break;
+    i += 1;
+    if (i >= n) break;
   }
-  return sortie;
+  return lignes;
 }
 
 function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined): boolean {
@@ -839,21 +859,27 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
     }
     return trouves;
   }
-  const lignes = texte.split("\n");
-  const entete = lignes[0]?.replace(/\r$/, "") ?? "";
-  const sep = entete.split(";").length > entete.split(",").length ? ";" : ",";
-  const cases = decouperLigneCsv(entete, sep);
-  const colonnes = new Set(cases.flatMap((c, i) => (COLONNES_PERSONNE.has(c.valeur.trim().toLowerCase()) ? [i] : [])));
+  const finEntete = texte.indexOf("\n");
+  const entete = (finEntete === -1 ? texte : texte.slice(0, finEntete)).replace(/\r$/, "");
+  // Séparateur le plus fréquent de l'en-tête (égalité : « , » puis « ; » puis tabulation).
+  let sep = ",";
+  let meilleur = entete.split(",").length;
+  for (const candidat of [";", "\t"]) {
+    const nombre = entete.split(candidat).length;
+    if (nombre > meilleur) {
+      sep = candidat;
+      meilleur = nombre;
+    }
+  }
+  const lignes = lireCsv(texte, sep);
+  const colonnes = new Set((lignes[0] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(c.valeur.trim().toLowerCase()) ? [i] : [])));
   if (colonnes.size === 0) return trouves;
-  let decalage = (lignes[0]?.length ?? 0) + 1;
   for (let l = 1; l < lignes.length; l++) {
-    const brute = lignes[l]!.replace(/\r$/, "");
-    const valeurs = decouperLigneCsv(brute, sep);
+    const valeurs = lignes[l]!;
     for (const c of colonnes) {
       const v = valeurs[c];
-      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push({ debut: decalage + v.debut, fin: decalage + v.fin });
+      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push({ debut: v.debut, fin: v.fin });
     }
-    decalage += lignes[l]!.length + 1;
   }
   return trouves;
 }
@@ -891,8 +917,21 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
   }
   // Priorité à l'ordre de découverte ci-dessus : une plage déjà prise n'est pas reprise.
   // Table d'occupation (une case par caractère) : temps linéaire, même priorité qu'avant (ordre de découverte).
+  // Une colonne de personne passe en premier et absorbe les détections qu'elle contient (courriel, téléphone…) :
+  // la valeur entière est masquée, jamais seulement un morceau (« Jean Dupont jean@orange.fr »).
+  // Seule exception : un courriel (ou un autre type) qui forme TOUTE la valeur reste de son type.
+  const exacts = new Set<string>();
+  for (const b of bruts) if (b.type !== "colonne-personne") exacts.add(`${b.debut}:${b.fin}`);
+  const colonnes = bruts.filter((b) => {
+    if (b.type !== "colonne-personne") return false;
+    const dedans = texte.slice(b.debut, b.fin);
+    const debut = b.debut + (dedans.length - dedans.trimStart().length);
+    const fin = b.fin - (dedans.length - dedans.trimEnd().length);
+    return !exacts.has(`${debut}:${fin}`);
+  });
+  const ordonnes = [...colonnes, ...bruts.filter((b) => b.type !== "colonne-personne")];
   const occupe = new Uint8Array(texte.length + 1);
-  const gardes = bruts.filter((b) => {
+  const gardes = ordonnes.filter((b) => {
     const fin = Math.min(b.fin, texte.length);
     let libre = true;
     for (let i = b.debut; i < fin; i++) {

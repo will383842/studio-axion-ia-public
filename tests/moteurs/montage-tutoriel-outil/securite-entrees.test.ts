@@ -407,6 +407,66 @@ describe("détection des données de personnes", () => {
   });
 });
 
+describe("colonnes de personnes : valeur entière masquée (verdict Opus 05e6ac98)", () => {
+  const m = (t: string, chemin: string): string => masquerDonneesPersonnelles(t, { chemin }).texte;
+  const nb = (d: { type: string }[], type: string) => d.filter((x) => x.type === type).length;
+  const chrono = <T,>(f: () => T): { r: T; ms: number } => {
+    const t0 = performance.now();
+    const r = f();
+    return { r, ms: performance.now() - t0 };
+  };
+  it("1a. CSV : nom + courriel dans la même valeur → rien de « Jean Dupont » ne reste", () => {
+    const sortie = m("nom,ville\nJean Dupont jean@orange.fr,Paris\n", "demo-data.csv");
+    expect(sortie).not.toContain("Jean");
+    expect(sortie).not.toContain("Dupont");
+    expect(sortie).not.toContain("orange");
+    expect(sortie).toBe("nom,ville\nPersonne exemple 1,Paris\n");
+  });
+  it("1b. JSON : adresse avec nom, courriel et rue → tout est masqué", () => {
+    const sortie = m('{"adresse":"Jean Dupont, jean.dupont@orange.fr, 12 rue des Lilas"}', "d.json");
+    expect(sortie).not.toContain("Jean Dupont");
+    expect(sortie).not.toContain("12 rue des Lilas");
+    expect(sortie).not.toContain("orange");
+    expect(JSON.parse(sortie)).toEqual({ adresse: "Personne exemple 1" });
+  });
+  it("1c. JSON : nom avec téléphone → tout est masqué", () => {
+    const sortie = m('{"nom":"Jean Dupont 06 12 34 56 78"}', "d.json");
+    expect(sortie).not.toContain("Jean Dupont");
+    expect(sortie).not.toContain("06 12");
+    expect(JSON.parse(sortie)).toEqual({ nom: "Personne exemple 1" });
+  });
+  it("1d. une valeur qui est TOUT un courriel reste un courriel (inchangé)", () => {
+    expect(m("email\nmartin@societe.fr\n", "a.csv")).toBe("email\ncontact@exemple.fr\n");
+  });
+  it("2. CSV : valeur entre guillemets sur plusieurs lignes → aucune ligne ne fuit, colonnes non décalées", () => {
+    const sortie = m('id,adresse,nom\n1,"12 rue des Lilas\n75011 Paris",Martin\n2,"1 rue A",Durand\n', "a.csv");
+    expect(sortie).not.toContain("75011 Paris");
+    expect(sortie).not.toContain("Lilas");
+    expect(sortie).not.toContain("Martin");
+    expect(sortie).not.toContain("Durand");
+    expect(sortie).toBe('id,adresse,nom\n1,"Personne exemple 1",Personne exemple 2\n2,"Personne exemple 3",Personne exemple 4\n');
+  });
+  it("2b. CSV : guillemet jamais refermé → tout le reste est masqué", () => {
+    const sortie = m('id,nom\n1,"Martin\n2,Durand\n', "a.csv");
+    expect(sortie).not.toContain("Martin");
+    expect(sortie).not.toContain("Durand");
+  });
+  it("3. CSV séparé par des tabulations : le nom est masqué", () => {
+    const sortie = m("nom\temail\nJean Dupont\tjean@orange.fr\n", "a.csv");
+    expect(sortie).not.toContain("Jean Dupont");
+    expect(sortie).toBe("nom\temail\nPersonne exemple 1\tcontact@exemple.fr\n");
+  });
+  it("3b. CSV à fins de ligne \\r\\n : inchangé", () => {
+    expect(m("nom;ville\r\nMartin;Lyon\r\n", "a.csv")).toBe("nom;ville\r\nPersonne exemple 1;Lyon\r\n");
+  });
+  it("3c. CSV de 200 000 lignes multilignes : temps linéaire", () => {
+    const t = "nom,adresse\n" + 'Martin,"1 rue\n75000 Paris"\n'.repeat(100000);
+    const { r, ms } = chrono(() => detecterDonneesPersonnelles(t, { chemin: "d.csv" }));
+    expect(nb(r, "colonne-personne")).toBe(200000);
+    expect(ms).toBeLessThan(1000);
+  });
+});
+
 describe("masquage", () => {
   it("remplace chaque type par son texte d'exemple, de façon déterministe", () => {
     const t = `Mail jean@exemple.invalid tel 06 12 34 56 78 iban ${IBAN_OK} carte 4111 1111 1111 1111 nir ${nirAvecCle("1850575012345")}`;
