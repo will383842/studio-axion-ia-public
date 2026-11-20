@@ -1,0 +1,16 @@
+:root { --ivoire: #FAF9F5; --noir: #141413; --terracotta: #B23F16; --trait: #E8E6DC; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Manrope", sans-serif; background: var(--ivoire); color: var(--noir); }
+header { display: flex; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--trait); }
+header button { font: inherit; padding: 8px 16px; border: 1px solid var(--noir); background: transparent; color: var(--noir); cursor: pointer; }
+header button.actif { background: var(--terracotta); border-color: var(--terracotta); color: var(--ivoire); }
+.ecran { display: none; padding: 24px; }
+.ecran.visible { display: block; }
+.exemple { font-size: 12px; color: var(--terracotta); }
+.avant, .maintenant { margin-top: 16px; border: 1px solid var(--trait); padding: 16px; }
+.avant { opacity: .6; }
+.etat-maintenant .avant { display: none; }
+.etat-avant .maintenant { display: none; }
+table { border-collapse: collapse; width: 100%; }
+td, th { border-bottom: 1px solid var(--trait); padding: 8px; text-align: left; }
+.carte { background: #FFFFFF; border-left: 4px solid var(--terracotta); padding: 12px; margin: 8px 0; }
