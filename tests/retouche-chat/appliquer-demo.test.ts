@@ -87,7 +87,7 @@ describe("N-26-c1 · appliquerRetoucheDemo (lancement injecté, aucune version �
   it("f) voix touchée : plan-pret, lancer 0 appel", async () => {
     const lancer = lancerOk();
     const ops = [{ type: "modifier-script", ancien: "38", nouveau: "40" }];
-    const p = ports({ filtrerOperations: (o: never) => ({ operations: o, remarques: [] }) });
+    const p = ports({ filtrerOperations: (o) => ({ operations: o, remarques: [] }) });
     const r = await appliquerRetoucheDemo("vid", { demande: "modifie le script", operations: ops }, p, lancer);
     expect(r.statut).not.toBe("lancee");
     expect(lancer).not.toHaveBeenCalled();
