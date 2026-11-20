@@ -89,6 +89,31 @@ describe("grouperUnites", () => {
     for (const x of g) if (x.length > 1) expect(mesurer(x.flatMap((u) => u.mots.map((m) => m.mot)))).toBeLessThanOrEqual(120);
   });
 
+  /** Texte de chaque groupe, pour des attentes exactes. */
+  const textes = (g: ReturnType<typeof grouperUnites>) => g.map((x) => x.map((u) => u.mots.map((m) => m.mot).join(" ")).join(" "));
+
+  it("10 mots très courts collés : limite dure de 4 mots par groupe, groupes exacts (4, 4, 2)", () => {
+    const g = grouperUnites(mots(["a1", "b2", "c3", "d4", "e5", "f6", "g7", "h8", "i9", "j10"], 0, 0.05));
+    expect(g.map((x) => x.length)).toEqual([4, 4, 2]);
+    expect(textes(g)).toEqual(["a1 b2 c3 d4", "e5 f6 g7 h8", "i9 j10"]);
+  });
+
+  it("blanc de 0,35 s entre mots courts : la coupe tombe sur le blanc (groupes exacts)", () => {
+    const g = grouperUnites([...mots(["chat", "noir", "dort"], 0, 0.1), ...mots(["bien", "ici", "là"], 0.65, 0.1)]);
+    expect(textes(g)).toEqual(["chat noir dort", "bien ici là"]);
+    const h = grouperUnites([...mots(["bonjour"], 0, 0.1), ...mots(["à", "tous", "les", "amis"], 0.45, 0.1)]);
+    expect(textes(h)).toEqual(["bonjour", "à tous les amis"]);
+  });
+
+  it("pénalité du mot outil : la meilleure coupe ne finit pas sur « le » / « la »", () => {
+    const a = grouperUnites(mots(["je", "vois", "le", "chat", "noir", "dort"]));
+    expect(textes(a)).toEqual(["je vois", "le chat", "noir dort"]);
+    const b = grouperUnites(mots(["il", "mange", "la", "pomme", "de", "terre"]));
+    expect(textes(b)).toEqual(["il mange", "la pomme", "de terre"]);
+    const c = grouperUnites(mots(["voir", "le", "chat", "noir", "et", "le", "chien"]));
+    expect(textes(c)).toEqual(["voir le chat", "noir et le chien"]);
+  });
+
   it("l'entrée n'est pas modifiée", () => {
     const entree = mots(["un", "deux", "trois", "quatre", "cinq"]);
     const copie = JSON.parse(JSON.stringify(entree));
