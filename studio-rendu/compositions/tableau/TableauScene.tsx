@@ -9,11 +9,12 @@
  * elle se pose comme un plan, sans `premultiply`. Durée = `finMs − debutMs`, 25 i/s, 1080 × 1920.
  * Déterministe : tout se calcule depuis le numéro d'image (aucun hasard, aucune horloge).
  */
-import { useMemo } from "react";
+import { useMemo, type ReactElement } from "react";
 import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { COULEURS_VIDEO } from "../../../src/briques/habillage/charte-video";
 import { Stylo } from "../commune/stylo/Stylo";
 import { chargerPoliceMontserrat, chargerPoliceTitre } from "../commune/polices";
+import { ObjetsTableau } from "./ObjetsTableau";
 import { PageEcrite } from "./PageEcrite";
 import { adoucir } from "../../../src/briques/stylo/courbes";
 import { planifierScene, planPagePleine, poseStylo } from "./plan";
@@ -32,8 +33,10 @@ export function TableauScene(p: ProprietesTableauScene) {
   // Style « reference/3 » (gabarit par parties) : étiquette de partie, barre de progression, visuels, appel plein cadre.
   // Trois styles du tableau (16/10/2026, maquettes validées PR #280) : tableau blanc, ardoise, paperboard.
   if (p.styleReference?.style === "reference/3") return p.styleReference.tableau ? <PageTableau p={p} /> : <PageReference3 p={p} />;
-  if (p.styleReference) return <PageReference p={p} />;
-  return <PageScene {...p} />;
+  // N-04d-b-v20g : calque des petits objets (page écrite et reference/1 seulement, 25 i/s comme la scène). Sans `objets`, le même arbre qu'avant.
+  const avecObjets = (contenu: ReactElement) => (p.objets?.length ? <AbsoluteFill>{contenu}<ObjetsTableau objets={p.objets} fps={25} /></AbsoluteFill> : contenu);
+  if (p.styleReference) return avecObjets(<PageReference p={p} />);
+  return avecObjets(<PageScene {...p} />);
 }
 
 function PageScene(p: ProprietesTableauScene) {
