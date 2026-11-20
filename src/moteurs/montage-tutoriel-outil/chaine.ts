@@ -162,6 +162,16 @@ export interface SortieFormatTutoriel {
   fichierCle: string;
   dureeSec: number;
   taille: number;
+  /** Résultat de la mesure du son de la version d'avant (finitions allumées seulement), remis tel quel sur le rendu repris. */
+  mesure?: MesureSon | "echec";
+  /** Résultat de la vignette de la version d'avant (finitions allumées seulement), remis tel quel sur le rendu repris. */
+  vignette?: { cle: string } | "echec";
+}
+
+/** T-EXT-52b : la sortie gardée d'un format = son fichier + les résultats de ses finitions (seulement ceux qui existent). */
+export function sortieGardee(r: RenduTutoriel): SortieFormatTutoriel | undefined {
+  if (!r.sortie) return undefined;
+  return { ...r.sortie, ...(r.mesure?.resultat !== undefined ? { mesure: r.mesure.resultat } : {}), ...(r.vignette?.resultat !== undefined ? { vignette: r.vignette.resultat } : {}) };
 }
 
 export interface EtatTutoriel {
@@ -644,12 +654,29 @@ function reprendreFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFab
   if (film && !e.film) e = { ...e, film };
   const avantFilm = e.parent?.film;
   const voixInchangee = !e.parent?.audio?.empreinte || e.parent.audio.empreinte === e.audio?.empreinte;
-  const reserve = "Le film de navigation est celui de la version d'avant.";
+  // Le film change : l'empreinte des effets change aussi, donc les formats sont refaits avec le NOUVEAU film (le film d'avant n'est pas gardé).
+  const reserve = "Le film de navigation a changé : les formats sont refaits avec le nouveau film.";
   if (avantFilm && film && !filmReutilisable(avantFilm, film) && voixInchangee && !e.reserves.includes(reserve)) e = { ...e, reserves: [...e.reserves, reserve] };
   const sortieAvant = e.parent?.rendus?.[ratio];
   if (e.rendus.some((r) => r.ratio === ratio) || !sortieAvant || !e.parent?.empreintesFormats) return e;
   if (formatsARefaire(e.parent.empreintesFormats, { [ratio]: empreinte }, [ratio]).gardes.length === 0) return e;
-  return { ...e, rendus: [...e.rendus, { ratio, demande: demandeReprise(e, ratio, sortieAvant, travailId), essai: 0, sortie: { ...sortieAvant }, reprise: true }] };
+  // Les résultats de mesure et de vignette de la version d'avant sont remis tels quels : jamais une alerte « non mesuré » fausse.
+  const { mesure, vignette, ...fichier } = sortieAvant;
+  return {
+    ...e,
+    rendus: [
+      ...e.rendus,
+      {
+        ratio,
+        demande: demandeReprise(e, ratio, fichier, travailId),
+        essai: 0,
+        sortie: fichier,
+        reprise: true,
+        ...(mesure !== undefined ? { mesure: { essai: 0, resultat: mesure } } : {}),
+        ...(vignette !== undefined ? { vignette: { essai: 0, resultat: vignette } } : {}),
+      },
+    ],
+  };
 }
 
 async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string, avecMixage = false): Promise<PasTutoriel> {
@@ -684,7 +711,8 @@ function textesPermisDuRegard(etat: EtatTutoriel): string[] {
 async function pasRegarder(pas: PasTutoriel, outils: OutilsTutoriel): Promise<PasTutoriel> {
   const etat = pas.etat;
   const maitre = etat.rendus.find((r) => r.ratio === etat.ratios[0]);
-  if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie) return pas;
+  // T-EXT-52b : un maître repris n'a ni film, ni sous-titres, ni fin dans sa demande : aucun regard payé (rien n'a changé dans ce format).
+  if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie || maitre.reprise) return pas;
   const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
   const instants = instantsTutoriel(etat.plan.plan, { finMs: DUREE_CARTE_FIN_MS, ...(registre?.entrees ? { registre } : {}) });
   let lecture: LectureRegard | null = null;
