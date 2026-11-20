@@ -742,9 +742,9 @@ function toutZero(chaine: string): boolean {
  * séparateur « , », « ; » ou tabulation. Chaque valeur garde sa position dans le texte entier.
  * Un guillemet jamais refermé absorbe le reste du texte : la suite est donc masquée, jamais gardée en clair.
  */
-function lireCsv(texte: string, separateur: string): { valeur: string; debut: number; fin: number }[][] {
-  const lignes: { valeur: string; debut: number; fin: number }[][] = [];
-  let ligne: { valeur: string; debut: number; fin: number }[] = [];
+function lireCsv(texte: string, separateur: string): { valeur: string; debut: number; fin: number; nu?: boolean }[][] {
+  const lignes: { valeur: string; debut: number; fin: number; nu?: boolean }[][] = [];
+  let ligne: { valeur: string; debut: number; fin: number; nu?: boolean }[] = [];
   const n = texte.length;
   let i = 0;
   for (;;) {
@@ -752,10 +752,19 @@ function lireCsv(texte: string, separateur: string): { valeur: string; debut: nu
     if (texte[i] === '"') {
       let j = i + 1;
       while (j < n && !(texte[j] === '"' && texte[j + 1] !== '"')) j += texte[j] === '"' ? 2 : 1;
-      ligne.push({ valeur: texte.slice(i + 1, Math.min(j, n)), debut: i + 1, fin: Math.min(j, n) });
+      const ouvrant = i;
+      const fermant = Math.min(j, n);
       i = j + 1;
       while (i < n && texte[i] !== separateur && texte[i] !== "\n") i++;
       delimiteur = texte[i];
+      const finReste = (delimiteur === "\n" || i >= n) && i > j + 1 && texte[i - 1] === "\r" ? i - 1 : i;
+      if (finReste > j + 1) {
+        // Texte entre le guillemet fermant et le séparateur (« "Jean" Dupont ») : la plage va jusqu'au séparateur,
+        // guillemets compris (remplacement entre guillemets), pour que ce reste ne reste jamais en clair.
+        ligne.push({ valeur: texte.slice(ouvrant + 1, finReste), debut: ouvrant, fin: finReste, nu: true });
+      } else {
+        ligne.push({ valeur: texte.slice(ouvrant + 1, fermant), debut: ouvrant + 1, fin: fermant });
+      }
     } else {
       let j = i;
       while (j < n && texte[j] !== separateur && texte[j] !== "\n") j++;
@@ -878,7 +887,7 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
     const valeurs = lignes[l]!;
     for (const c of colonnes) {
       const v = valeurs[c];
-      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push({ debut: v.debut, fin: v.fin });
+      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push(v.nu ? { debut: v.debut, fin: v.fin, nu: true } : { debut: v.debut, fin: v.fin });
     }
   }
   return trouves;

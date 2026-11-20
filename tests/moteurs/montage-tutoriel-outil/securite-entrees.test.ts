@@ -446,6 +446,16 @@ describe("colonnes de personnes : valeur entière masquée (verdict Opus 05e6ac9
     expect(sortie).not.toContain("Durand");
     expect(sortie).toBe('id,adresse,nom\n1,"Personne exemple 1",Personne exemple 2\n2,"Personne exemple 3",Personne exemple 4\n');
   });
+  it("2a. CSV : texte entre le guillemet fermant et le séparateur → masqué, colonne suivante intacte", () => {
+    const sortie = m('id,nom,ville\n1,"Jean" Dupont,Paris\n', "a.csv");
+    expect(sortie).not.toContain("Dupont");
+    expect(sortie).not.toContain("Jean");
+    expect(sortie).toBe('id,nom,ville\n1,"Personne exemple 1",Paris\n');
+    const crlf = m('id,nom,ville\r\n1,"Jean" Dupont,Paris\r\n', "a.csv");
+    expect(crlf).not.toContain("Dupont");
+    expect(crlf).toBe('id,nom,ville\r\n1,"Personne exemple 1",Paris\r\n');
+    expect(m('id,nom\n1,"Jean" Dupont', "a.csv")).toBe('id,nom\n1,"Personne exemple 1"');
+  });
   it("2b. CSV : guillemet jamais refermé → tout le reste est masqué", () => {
     const sortie = m('id,nom\n1,"Martin\n2,Durand\n', "a.csv");
     expect(sortie).not.toContain("Martin");
