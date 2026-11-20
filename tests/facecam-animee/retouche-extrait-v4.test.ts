@@ -184,7 +184,7 @@ describe("R4-03-b1 · gardes statiques", () => {
     parcourir(join(racine, "src"));
     for (const f of fichiers) {
       if (f === chemin) continue;
-      expect(readFileSync(f, "utf8"), f).not.toMatch(/retouche-extrait-v4["']/);
+      expect(readFileSync(f, "utf8"), f).not.toMatch(/(?<!sources-)retouche-extrait-v4["']/);
     }
   });
 });
