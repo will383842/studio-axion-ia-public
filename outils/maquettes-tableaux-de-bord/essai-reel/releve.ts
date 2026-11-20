@@ -5,9 +5,11 @@
  * Ce module n'écrit rien et ne dépense rien : il ne fait que dire « conforme » ou « à revoir », en français simple.
  */
 
-/** Durée visée du tutoriel hors carte de fin, en secondes (décision 3 de Williams : 40 à 55 s). */
-export const DUREE_MIN_SEC = 40;
-export const DUREE_MAX_SEC = 55;
+import { DUREE_CIBLE_SEC } from "../../../src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
+
+/** Durée visée du tutoriel hors carte de fin, en secondes (décision 3 de Williams : 40 à 55 s). Une seule source : `DUREE_CIBLE_SEC`. */
+export const DUREE_MIN_SEC: number = DUREE_CIBLE_SEC[0];
+export const DUREE_MAX_SEC: number = DUREE_CIBLE_SEC[1];
 /** Les trois formats de la décision 3 (4:5 principal, 9:16, 1:1). */
 export const RATIOS_ATTENDUS = ["4:5", "9:16", "1:1"] as const;
 
@@ -62,8 +64,13 @@ export function releverEssai(e: EssaiReleve): ReleveEssai {
     }
   }
 
-  const claude = e.depensesReelles.filter((d) => d.fournisseur.toLowerCase().includes("claude")).reduce((s, d) => s + (nombreValide(d.centimes) ? d.centimes : 0), 0);
-  if (claude > e.plafondClaudeCentimes) ecarts.push("La dépense de l'assistant d'écriture dépasse le plafond fixé pour cette vidéo.");
+  // Le Studio inscrit les dépenses de Claude sous « anthropic » (et parfois « claude ») : même règle que `idFournisseur` (src/domaine/credits.ts).
+  const estClaude = (f: unknown): boolean => typeof f === "string" && ["anthropic", "claude"].includes(f.trim().toLowerCase());
+  const lignesClaude = e.depensesReelles.filter((d) => estClaude(d.fournisseur));
+  if (lignesClaude.some((d) => !nombreValide(d.centimes))) ecarts.push("Un chiffre de dépense de l'assistant d'écriture est illisible : impossible de comparer au plafond.");
+  const claude = lignesClaude.reduce((s, d) => s + (nombreValide(d.centimes) ? d.centimes : 0), 0);
+  if (!nombreValide(e.plafondClaudeCentimes) || e.plafondClaudeCentimes < 0) ecarts.push("Le plafond de dépense de l'assistant d'écriture est illisible : impossible de comparer.");
+  else if (claude > e.plafondClaudeCentimes) ecarts.push("La dépense de l'assistant d'écriture dépasse le plafond fixé pour cette vidéo.");
 
   for (const r of RATIOS_ATTENDUS) if (!e.ratios.includes(r)) ecarts.push(`Il manque le format ${r}.`);
 

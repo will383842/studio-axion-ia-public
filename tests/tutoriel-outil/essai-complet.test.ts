@@ -19,6 +19,7 @@ import { ENTREE_DEVIS_TUTORIEL, etablirDevis, lireAccordDevis } from "@/moteurs/
 import { decouperEnMorceaux } from "@/moteurs/montage-tutoriel-outil/decoupage-scenes";
 import { DUREE_CIBLE_SEC } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
 import { etablirVerdict } from "@/moteurs/montage-tutoriel-outil/equipe/controleur";
+import { etablirRegistre, figerRegistre, verifierRendu } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
 import { noterTutoriel } from "@/moteurs/montage-tutoriel-outil/grille-qualite";
 import type { MetaRangement } from "@/moteurs/montage-tutoriel-outil/index-scenes";
 import { vueRoles } from "@/moteurs/montage-tutoriel-outil/vue-roles";
@@ -159,6 +160,16 @@ async function mener(outils: OutilsTutoriel, c: () => CommandeFabrication, trava
 const pause = (t: Travail) => (t.parametres?.pause as { code: string; message: string } | undefined) ?? null;
 const compos = (j: Journal) => j.rendus.filter((d) => d.operation === "composition");
 const unMot = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/** Textes visibles d'un plan (titres, onglets, légendes) : les seuls champs de texte des pièces du double de plan. */
+const CLES_TEXTES_PLAN = new Set(["titre", "onglets", "texte", "sousTexte"]);
+function textesDuPlan(v: unknown, cle = "", sortie: string[] = []): string[] {
+  if (typeof v === "string") {
+    if (CLES_TEXTES_PLAN.has(cle) && v.trim() !== "") sortie.push(v);
+  } else if (Array.isArray(v)) for (const x of v) textesDuPlan(x, cle, sortie);
+  else if (typeof v === "object" && v !== null) for (const [k, x] of Object.entries(v)) textesDuPlan(x, k, sortie);
+  return sortie;
+}
 
 function commandePilote(d: ReturnType<typeof dossierPilote>, accord?: string): CommandeFabrication {
   const c = commandeTutoriel({
@@ -307,7 +318,28 @@ describe("T-EXT-37a · essai complet du pilote 05 Stocks, à 0 €", () => {
     expect((await pioche.piocherCommun({ ...besoin }, { scenes: scenes.lireScenesGardees }))?.cle).toMatch(/^scene:/);
 
     // Grille (27) : mesures du rendu simulé ; contrôles d'image et du contrôleur en double (en attendant T-EXT-35/38).
-    const verdictDouble = etablirVerdict(["TUT-CHIFFRES", "TUT-REGISTRE", "TUT-MOMENTS", "MARQUE-MOTS", "MARQUE-COULEURS", "MARQUE-POLICE"].map((id) => ({ id, libelle: id, etat: "reussi" as const, bloquant: true, details: ["ok"] })));
+    // Registre des textes (40, sur master) : établi et figé à partir du script du dossier et des textes du plan validé, puis vérifié
+    // mot pour mot sur la voix réellement lue et les textes d'écran réellement passés au rendu double (4:5).
+    const registre = etablirRegistre({
+      script: { phrases: [d.script] },
+      fin: "aucune",
+      parcours: {},
+      textesMaquette: plan.scenes.map((sc) => ({ etapeId: sc.id, textes: textesDuPlan(sc), creee: false })).filter((m) => m.textes.length > 0),
+    });
+    const fige = figerRegistre(registre, T_ISO);
+    if (!fige.ok) throw new Error(fige.erreur);
+    const ecranRendu = p45.plan.scenes.flatMap((sc) => textesDuPlan(sc)).map((texte) => ({ texte, ou: "maquette" as const }));
+    expect(ecranRendu.length).toBeGreaterThan(0);
+    const controleRegistre = verifierRendu(fige.registre, { voix: textesVoix[0] ?? "", sousTitres: [], ecran: ecranRendu });
+    expect(controleRegistre).toMatchObject({ id: "TUT-REGISTRE", ok: true });
+    // Le contrôle mord : une phrase ajoutée à la voix, ou un texte d'écran inconnu, le fait échouer.
+    expect(verifierRendu(fige.registre, { voix: `${textesVoix[0] ?? ""} Essayez dès aujourd'hui.`, sousTitres: [], ecran: ecranRendu }).ok).toBe(false);
+    expect(verifierRendu(fige.registre, { voix: textesVoix[0] ?? "", sousTitres: [], ecran: [...ecranRendu, { texte: "Texte jamais choisi", ou: "maquette" }] }).ok).toBe(false);
+    // Les autres contrôles restent doubles, « en attendant » : écran immobile (TUT-IMAGE-FIXE dépend du film de T-EXT-38) et regardeur.
+    const verdictDouble = etablirVerdict([
+      ...["TUT-CHIFFRES", "TUT-MOMENTS", "MARQUE-MOTS", "MARQUE-COULEURS", "MARQUE-POLICE"].map((id) => ({ id, libelle: id, etat: "reussi" as const, bloquant: true, details: ["ok"] })),
+      { id: controleRegistre.id, libelle: controleRegistre.id, etat: controleRegistre.ok ? ("reussi" as const) : ("echoue" as const), bloquant: true, details: [controleRegistre.message] },
+    ]);
     const grille = noterTutoriel({ controleImage: imageOk(), controleur: verdictDouble, regardeur: { defauts: [], relues: 6, nonRelues: 0, partiesFautives: [] }, dureeSec: dureeHorsFin, imageFixeMaxSec: 0, niveauSonoreLufs: lufs });
     expect(grille.criteres.filter((k) => k.etat !== "reussi")).toEqual([]);
     expect(grille.proposable).toBe(true);
