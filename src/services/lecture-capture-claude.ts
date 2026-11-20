@@ -13,7 +13,6 @@
 import "server-only";
 import { lireLectureCapture, requeteLectureCapture, type ChiffreARelire, type ImageCapture } from "@/briques/donnees-video/lecture-capture";
 import type { TableauDeBord } from "@/briques/donnees-video/types";
-import { eurVersUsd } from "@/domaine/credits";
 import type { CommandeFabrication, Id } from "@/domaine/types";
 import type { ImageClaude } from "@/fournisseurs/claude/client";
 import { pireCasUsd } from "@/fournisseurs/claude/tarifs";
@@ -109,11 +108,15 @@ export async function lireCaptureTableau(videoId: Id, image: ImageCapture, origi
     const demande = Math.ceil(pireCasLectureCaptureUsd(role, entree, image) * 100 * MARGE);
     const t = await (deps.taux ?? (async () => (await import("./generation-claude")).taux()))();
     const engage = deps.engage ?? (await import("./depense-claude-video")).engagePlafondPropreCentimes;
-    const enCentimes = (eur: number) => Math.floor(eurVersUsd(eur * 100, t));
+    // Limite en centimes de $ ; négative (refus) si le taux est inutilisable (NaN, 0, négatif, infini).
+    const enCentimes = (eur: number) => (Number.isFinite(t) && t > 0 ? Math.floor(Math.round(eur * 100) / t) : -1);
+    const valide = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
     const mien = plafondDe("tblec", PARAM_PLAFOND_LECTURE_CAPTURE);
     const engageMien = await engage(videoId, mien);
-    if (engageMien + demande > enCentimes(PLAFONDS_CLAUDE_VIDEO_EUR.tblec)) return repli(`La limite de lecture des captures pour cette vidéo est atteinte : rien n'a été payé. ${SAISIE}`);
     const autres = (await engage(videoId, plafondDe("dmpln", PARAM_PLAFOND_PLAN))) + (await engage(videoId, plafondDe("tbnar", PARAM_PLAFOND_NARRATION)));
+    // Un montant invalide ne doit jamais laisser passer l'appel payant.
+    if (!valide(demande) || !valide(engageMien) || !valide(autres)) return repli(`La limite de Claude pour cette vidéo ne peut pas être vérifiée : rien n'a été payé. ${SAISIE}`);
+    if (engageMien + demande > enCentimes(PLAFONDS_CLAUDE_VIDEO_EUR.tblec)) return repli(`La limite de lecture des captures pour cette vidéo est atteinte : rien n'a été payé. ${SAISIE}`);
     if (autres + engageMien + demande > enCentimes(PLAFOND_TOTAL_CLAUDE_VIDEO_EUR)) return repli(`La limite de Claude pour cette vidéo est atteinte : rien n'a été payé. ${SAISIE}`);
 
     const executer = deps.executer ?? (await import("./depense-claude-video")).executerRolePourVideo;

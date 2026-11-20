@@ -183,6 +183,31 @@ describe("plafond dur", () => {
     await lireCaptureTableau("v1", image(882, 1568), "studio", pas.deps);
     expect(pas.appels).toHaveLength(0);
   });
+  it("montant engagé invalide (NaN, négatif, infini) : 0 appel et repli gratuit", async () => {
+    const cas: Array<Record<string, number>> = [
+      { tblec: Number.NaN },
+      { dmpln: Number.NaN },
+      { tbnar: Number.NaN },
+      { dmpln: -1000 },
+      { tblec: -1000 },
+      { tbnar: -1000 },
+      { dmpln: Number.NEGATIVE_INFINITY },
+    ];
+    for (const engages of cas) {
+      const f = fabrique(undefined, engages, 1);
+      const r = await lireCaptureTableau("v1", image(882, 1568), "studio", f.deps);
+      expect(r, JSON.stringify(engages)).toMatchObject({ ok: false, repli: "saisie-manuelle" });
+      expect(f.appels, JSON.stringify(engages)).toHaveLength(0);
+    }
+  });
+  it("taux invalide (0, NaN, négatif, infini) : 0 appel et repli gratuit", async () => {
+    for (const taux of [0, Number.NaN, -1.1, Number.POSITIVE_INFINITY]) {
+      const f = fabrique(undefined, {}, taux);
+      const r = await lireCaptureTableau("v1", image(882, 1568), "studio", f.deps);
+      expect(r, String(taux)).toMatchObject({ ok: false, repli: "saisie-manuelle" });
+      expect(f.appels, String(taux)).toHaveLength(0);
+    }
+  });
   it("réglage de plafond monté à 5 $ : l'exécuteur le verrait, le plafond dur refuse quand même", async () => {
     const f = fabrique(undefined, { tblec: 24 }, 1);
     const deps = { ...f.deps, lire: (async (id: string) => (id === "tableau.plafondLectureCaptureUsd" ? 5 : true)) as never } as DepsLectureCapture;
