@@ -64,7 +64,7 @@ describe("menagerCartesAuto : carte ajoutée juste avant une carte automatique",
     const r = menagerCartesAuto(avant, apres, ctx(approx));
     const c = carte(r.etat, "m1")!;
     expect([c.debutSec, c.finSec]).toEqual([0.55, 2.55]);
-    expect(c.ancre).toEqual({ debutPriseSec: 0.55, finPriseSec: 2.55 });
+    expect((c as PassageMonteur).ancre).toEqual({ debutPriseSec: 0.55, finPriseSec: 2.55 });
     expect(r.instants).toEqual([]); // 0:01 → 0:01 (arrondi à la seconde) : rien à recaler
     expect(r.phrases).toEqual([{ carte: "Budget", remplace: false, texte: "Carte « Budget » placée à 0:01, juste avant la carte « 3 questions »." }]);
   });
