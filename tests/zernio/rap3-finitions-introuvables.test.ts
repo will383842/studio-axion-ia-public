@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
+import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -20,14 +21,16 @@ const base = { reseau: "instagram", statut: "programmee", via: "zernio", etatEnv
 const RECENT = new Date(Date.now() - 10 * 60_000).toISOString();
 const retirable = { etatEnvoi: "a-verifier", introuvableDepuis: ANCIEN, dernierConstatIntrouvable: RECENT, constatsIntrouvable: 2 };
 const pub = (id: string, o: object = {}) => depots().publications.enregistrer({ ...base, id, idExterne: id, ...o } as never);
-let appels: string[];
+let appels: string[]; // appels INTERDITS (écritures) ; la relecture seule `lirePost` est permise et répond « introuvable »
+let lectures: string[];
 
 beforeEach(async () => {
   reinitialiserDepots();
   exiger.mockClear();
   appels = [];
+  lectures = [];
   const faux = creerFauxClientZernio() as unknown as Record<string, unknown>;
-  injecterClientZernio(new Proxy(faux, { get: (c, p) => (typeof c[p as string] === "function" ? () => { appels.push(String(p)); throw new Error("appel interdit"); } : c[p as string]) }) as never);
+  injecterClientZernio(new Proxy(faux, { get: (c, p) => (p === "lirePost" ? async (id: string) => { lectures.push(id); throw new ErreurZernio("introuvable", "404", { statut: 404 }); } : typeof c[p as string] === "function" ? () => { appels.push(String(p)); throw new Error("appel interdit"); } : c[p as string]) }) as never);
   await depots().parametres.enregistrer({ id: "zernio.ecart_calendrier", valeur: { luLe: NOW_ISO, verifie: true, chezDiffuseur: 5, absents: 0, exemples: [], suivies: 7, connusFiables: 1 }, creeLe: NOW_ISO, modifieLe: NOW_ISO } as never);
   await pub("zr_a", retirable);
   await pub("zr_b", { ...retirable, statut: "brouillon" });
@@ -52,6 +55,7 @@ describe("RAP-3 finitions · introuvables", () => {
     expect(r.ok).toBe(true);
     expect(exiger).toHaveBeenCalled();
     expect(appels).toEqual([]);
+    expect(lectures.sort()).toEqual(["zr_a", "zr_b"]); // relues seules (lecture seule) au clic
     const toutes = await depots().publications.lister(() => true);
     expect(toutes).toHaveLength(avant);
     const retirees = toutes.filter((p) => p.retireeLe).map((p) => p.id).sort();

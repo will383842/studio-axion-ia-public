@@ -74,7 +74,7 @@ export function RetirerRapatriee({ publicationId, brouillon = false, introuvable
           </div>
         </div>
       )}
-      {etape === "fait" && <p role="status" className="text-sm font-bold text-texte">C&apos;est fait : ce post n&apos;est plus au calendrier. {introuvable ? "Rien n'est changé chez le diffuseur." : brouillon ? "Il reste en brouillon chez le diffuseur." : "Il reste programmé chez le diffuseur."}</p>}
+      {etape === "fait" && <p role="status" className="text-sm font-bold text-texte">C&apos;est fait : ce post n&apos;est plus au calendrier. {introuvable ? "Le diffuseur ne retrouve plus ce post ; rien n'est changé chez lui." : brouillon ? "Il reste en brouillon chez le diffuseur." : "Il reste programmé chez le diffuseur."}</p>}
       {refus && <p role="alert" className="mt-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{refus}</p>}
     </div>
   );
