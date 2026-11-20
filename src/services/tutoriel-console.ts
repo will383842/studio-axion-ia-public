@@ -6,9 +6,9 @@
  *    (aucun `true` écrit en dur). Aucune clé n'est ajoutée à `reglages.ts`.
  *  - Le plafond Claude par vidéo est affiché seulement (« réglé » / « par défaut »), jamais modifiable ici.
  *  - Aucun appel payant : lecture des dépôts, écriture d'un réglage.
- *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15) et `lienSuivi` (T-EXT-34) sont importés. Clés dont la fiche créatrice n'est pas encore
- *    sur master (26a, 33, 41) : recopiées UNE fois ici, comparées au fichier source dès qu'il existe. PR à garder
- *    en brouillon d'ici là.
+ *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15), `lienSuivi` (T-EXT-34) et les clés des fiches 41 et 33 (`PARAM_FORMULAIRE`,
+ *    `PARAM_ENTREE_ZIP`) sont importés. Seule la clé de fin commune (26a) reste recopiée ici, en attendant #1406. PR à
+ *    garder en brouillon d'ici là.
  */
 import "server-only";
 import {

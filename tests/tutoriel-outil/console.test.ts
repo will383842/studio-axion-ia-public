@@ -304,7 +304,7 @@ describe("aucun allumage par le code", () => {
   const cles = c.REGLAGES_TUTORIEL.map((r) => r.cle);
   // Noms des constantes qui portent ces clés (CLE_*, PARAM_*), détectés dans les exports du service et de tutoriel-claude.
   const constantes = Object.entries(c).filter(([, v]) => typeof v === "string" && cles.includes(v)).map(([n]) => n);
-  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA"])];
+  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA"])];
   // Un nom compte seulement s'il vient d'ailleurs : une constante locale homonyme (ex. un `CLE_FORMULAIRE` d'une autre action) n'est pas la clé.
   const nomsConstantes = {
     test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
@@ -315,6 +315,7 @@ describe("aucun allumage par le code", () => {
     expect(ECRITURE.test(`await d.parametres.enregistrer({ id: CLE_FINITIONS })`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(PARAM_CLAUDE_TUTORIEL, true)`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(CLE_FORMULAIRE, true)`)).toBe(true);
+    expect(nomsConstantes.test(`ecrireParametre(PARAM_ENTREE_ZIP, true)`)).toBe(true);
     // Homonyme local (autre sens) : pas une écriture de la clé du tutoriel.
     expect(nomsConstantes.test(`const CLE_FORMULAIRE = /^[a-z]+$/; ecrireParametre(x, true)`)).toBe(false);
   });
