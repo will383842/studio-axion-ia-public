@@ -459,13 +459,15 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
   }
   if (courant.sortie) return etat;
   const serie = courant.serie ? { serie: courant.serie } : {};
-  if (courant.aSoumettre) {
-    // T-EXT-45b : « Réessayer » a remis ce rendu tombé à zéro : une demande neuve (identifiant neuf), jamais l'ancienne.
+  // T-EXT-45b : « Réessayer » a pu remettre à zéro un rendu qui tourne encore (ou est déjà fini) chez `studio-rendu` : on suit TOUJOURS
+  // l'ancienne demande avant d'en soumettre une neuve. Une demande neuve (identifiant neuf) n'est soumise que si l'ancienne est en échec.
+  const e = courant.demande ? await suivreRendu(service, courant.demande) : undefined;
+  if (courant.aSoumettre && (!e || e.statut === "echec")) {
     const demande = await demandeRendu(etat, ratio, courant.essai, commande, outils, travailId, courant.serie);
     await service.soumettre(demande);
     return remplacer({ ratio, demande, essai: courant.essai, ...serie });
   }
-  const e = await suivreRendu(service, courant.demande!);
+  if (!e) return etat;
   if (e.statut === "echec") {
     const essai = courant.essai + 1;
     if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) throw new ErreurRendu(e.erreur);
@@ -473,10 +475,13 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     await service.soumettre(demande);
     return remplacer({ ratio, demande, essai, ...serie });
   }
-  if (e.statut !== "termine") return etat;
+  // L'ancienne demande est en file, en cours ou finie : on la garde (plus de « à soumettre »), rien n'est payé deux fois.
+  const { aSoumettre: _a, ...suivi } = courant;
+  void _a;
+  if (e.statut !== "termine") return courant.aSoumettre ? remplacer(suivi) : etat;
   const dureeAttendue = (etat.plan!.plan.dureeMs + DUREE_CARTE_FIN_MS) / 1000;
   const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : dureeAttendue;
-  return remplacer({ ...courant, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
+  return remplacer({ ...suivi, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
 }
 
 type SuiteFinition<R> = { f: FinitionTutoriel<R>; fini: boolean };

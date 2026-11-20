@@ -9,6 +9,7 @@ import "server-only";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { piecesPermisesDesEntrees } from "@/briques/plan-scenes-objets/pieces-permises";
 import { ErreurClaude } from "@/fournisseurs/claude/client";
 import { nouvelId } from "@/lib/ids";
 import { depots, horodatage } from "../_commun";
@@ -38,7 +39,9 @@ export function portsStudio(options: Partial<Pick<PortsRetoucheChat, "appeler" |
       const video = await d.videos.obtenir(videoId);
       const version = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
       const plan = version ? planDuProjet(version.projetMontage) : null;
-      return version && plan ? { versionId: version.id, plan } : null;
+      // 20/11/2026 C9-38-b-b1 : les petits objets permis de SA commande (vide : champ omis, résultat identique).
+      const objetsPermis = version ? piecesPermisesDesEntrees(version.commande?.entrees) : [];
+      return version && plan ? { versionId: version.id, plan, ...(objetsPermis.length ? { objetsPermis } : {}) } : null;
     },
     enregistrerVersion: async (e) => {
       const d = depots();
