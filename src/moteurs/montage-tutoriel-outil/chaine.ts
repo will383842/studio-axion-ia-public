@@ -191,6 +191,8 @@ export interface EtatTutoriel {
   empreintesFormats?: Partial<Record<Ratio, string>>;
   /** T-EXT-52b : film de CETTE version (réglage allumé et film dans les entrées). */
   film?: FilmTutoriel;
+  /** T-EXT-53c : réglages du film de CETTE version (retouche par chat) ; absents : film réglé comme avant. */
+  reglagesFilm?: unknown;
   echecSimuleFait?: boolean;
   /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
   appelsClaude?: { script: number; plan: number; regard?: number };
@@ -423,8 +425,8 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
   void _cle;
   // T-EXT-44 : la caméra garde la zone visée au-dessus de la bande des sous-titres (lue dans les sous-titres déjà calculés).
   const haut = sousTitres ? hautBandeSousTitresPct(sousTitres.positions.basPct) : undefined;
-  const navigationFinale = navigation ? { ...sansFilm, ...(haut !== undefined ? { hautSousTitresPct: haut } : {}) } : undefined;
-  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS, ...(navigationFinale ? { navigation: navigationFinale } : {}) };
+  const navigationFinale = navigation ? { ...sansFilm, ...(haut !== undefined ? { hautSousTitresPct: haut } : {}), ...(etat.reglagesFilm !== undefined ? { reglagesFilm: etat.reglagesFilm } : {}) } : undefined;
+  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS, ...(navigationFinale ? { navigation: navigationFinale } : {}), ...(etat.reglagesFilm !== undefined ? { reglagesFilm: etat.reglagesFilm } : {}) };
 }
 
 const nomRatio = (r: Ratio) => r.replace(":", "x");
@@ -610,7 +612,9 @@ function filmDesEntrees(commande: CommandeFabrication): FilmTutoriel | undefined
 /** T-EXT-52b : empreinte d'un format = plan du ratio + voix + effets du film + (carte de fin, sous-titres). Une seule fonction d'empreinte d'export (R4). */
 function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel): string {
   const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
-  const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs }, film: filmDesEntrees(commande) } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
+  // T-EXT-53c : les réglages du film choisis par le chat entrent dans l'empreinte (sans eux : empreinte d'avant, à l'octet près).
+  const reglagesChat = etat.reglagesFilm !== undefined ? { reglages: etat.reglagesFilm } : {};
+  const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs, ...reglagesChat }, film: filmDesEntrees(commande) } : etat.reglagesFilm !== undefined ? { reglagesFilm: reglagesChat } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
   const fin = fnv1a64(jsonCanonique({ fin: CARTE_FIN_AXION, finMs: DUREE_CARTE_FIN_MS, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null }));
   return empreinteFormat(planPourRatio(etat.plan!.plan, ratio), ratio, { voix: etat.audio?.empreinte ?? "", effetsFilm, fin });
 }

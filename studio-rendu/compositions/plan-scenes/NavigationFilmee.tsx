@@ -13,7 +13,8 @@ export function NavigationFilmee({ film, navigation }: { film: string; navigatio
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const format = { largeur: width, hauteur: height };
-  const nav = { ...navigation, videoCle: film } as NavigationFilmee;
+  // T-EXT-53c : `navigation.reglagesFilm` (crans du chat de retouche) voyage avec la navigation jusqu'à `motion-film` // en attendant T-EXT-53a.
+  const nav = { ...navigation, videoCle: film } as NavigationFilmee & { reglagesFilm?: unknown };
   const t = (frame * 1000) / fps;
   const place = placementFilm(nav, format);
   const cam = cameraA(nav, t, format);
