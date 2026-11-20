@@ -115,6 +115,27 @@ describe("VL-10 : disposition du flux ramifié", () => {
     expect(schemaFluxRamifie.safeParse({ noeuds, liens }).success).toBe(true);
     expect(fluxTientDansLeCadre(disposerFluxLarge(noeuds, liens))).toBe(true);
   });
+  it("VERDICT OPUS : chaîne de 7 colonnes et éventail de 7 étapes, valides pour le schéma, ne se chevauchent jamais (refusés)", () => {
+    const mk = (ids: string[]) => ids.map((id, i) => ({ id, texte: id, humain: false, surMot: i }));
+    const lien = (de: string, vers: string) => ({ de, vers, pointille: false });
+    // Chaîne n0→…→n6 plus n0→n7 : 7 colonnes, pas = (1600 − 120 − 300) / 6 < 300 sur 5 colonnes et plus.
+    const idsChaine = ["n0", "n1", "n2", "n3", "n4", "n5", "n6", "n7"];
+    const chaine = { noeuds: mk(idsChaine), liens: [lien("n0", "n1"), lien("n1", "n2"), lien("n2", "n3"), lien("n3", "n4"), lien("n4", "n5"), lien("n5", "n6"), lien("n0", "n7")] };
+    expect(fluxTientDansLeCadre(disposerFluxLarge(chaine.noeuds, chaine.liens))).toBe(false);
+    expect(schemaFluxRamifie.safeParse(chaine).success).toBe(false);
+    // Éventail n0 → 7 étapes : casier 780 / 7 ≈ 111 < hauteur de boîte 128.
+    const idsEv = ["n0", "n1", "n2", "n3", "n4", "n5", "n6", "n7"];
+    const eventail = { noeuds: mk(idsEv), liens: idsEv.slice(1).map((id) => lien("n0", id)) };
+    expect(fluxTientDansLeCadre(disposerFluxLarge(eventail.noeuds, eventail.liens))).toBe(false);
+    expect(schemaFluxRamifie.safeParse(eventail).success).toBe(false);
+    // Posé en plan permis : la pièce est retirée, jamais remplacée par l'exemple.
+    const retire = validerPlan(planAvec("flux-ramifie", chaine), { objetsPermis: ["flux-ramifie"] });
+    expect(retire.plan.scenes[0]!.piece).not.toBe("flux-ramifie");
+    // Tout plan accepté tient dans le cadre.
+    const quatre = { noeuds: mk(["n0", "n1", "n2", "n3", "n4"]), liens: [lien("n0", "n1"), lien("n0", "n2"), lien("n1", "n3"), lien("n3", "n4")] };
+    expect(schemaFluxRamifie.safeParse(quatre).success).toBe(true);
+    expect(fluxTientDansLeCadre(disposerFluxLarge(quatre.noeuds, quatre.liens))).toBe(true);
+  });
   it("une boucle est détectée, jamais de blocage", () => {
     expect(profondeurs([{ id: "a" }, { id: "b" }], [{ de: "a", vers: "b" }, { de: "b", vers: "a" }])).toBeNull();
     expect(disposerFluxLarge([{ id: "a" }, { id: "b" }], [{ de: "a", vers: "b" }, { de: "b", vers: "a" }])).toHaveLength(2);

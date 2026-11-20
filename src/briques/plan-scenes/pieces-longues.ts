@@ -58,7 +58,11 @@ export const schemaFluxRamifie = z
   })
   .superRefine((p, ctx) => {
     const ids = p.noeuds.map((n) => n.id);
-    const faute = (message: string) => ctx.addIssue({ code: "custom", message });
+    let nbFautes = 0;
+    const faute = (message: string) => {
+      nbFautes += 1;
+      ctx.addIssue({ code: "custom", message });
+    };
     if (new Set(ids).size !== ids.length) faute("Deux étapes portent le même identifiant.");
     const connus = new Set(ids);
     const sortants = new Map<string, number>();
@@ -69,6 +73,8 @@ export const schemaFluxRamifie = z
     }
     if (![...sortants.values()].some((n) => n >= 2)) faute("Aucune étape ne se sépare en deux : ce n'est pas un flux ramifié.");
     if (p.liens.length > 0 && !profondeurs(p.noeuds, p.liens)) faute("Les liens forment une boucle.");
+    // Un plan valide doit se dessiner sans recouvrement : au-delà (trop de colonnes, trop d'étapes dans une colonne), il est refusé.
+    if (nbFautes === 0 && !fluxTientDansLeCadre(disposerFluxLarge(p.noeuds, p.liens))) faute("Le schéma ne tient pas dans le cadre : trop de colonnes ou trop d'étapes dans une même colonne.");
   });
 
 export const schemaCadreCapture = z.strictObject({
