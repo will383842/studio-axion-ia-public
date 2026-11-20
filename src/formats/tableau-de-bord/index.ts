@@ -3,14 +3,14 @@ import type { DefinitionFormat } from "../types";
 import { briquesAuChoix, CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES } from "../communs";
 
 /**
- * FORMAT « TABLEAU DE BORD » (tableau-de-bord, code TB) — fiche G4-09b, générateur DÉDIÉ, VITRINE, MASQUÉ.
+ * FORMAT « TABLEAU DE BORD » (tableau-de-bord, code TDB) — fiche G4-09b, générateur DÉDIÉ, VITRINE, MASQUÉ.
  *
  * Une courte vidéo faite UNIQUEMENT à partir des chiffres fournis (schéma `tableau-de-bord.v1`) : aucun chiffre ne vient d'ailleurs.
  * Statut `masque`, sans `ouvertDansLaNavigation`, sans `adresseCreation` : aucune page de saisie, aucun bouton visible.
  * Le moteur `montage-donnees` est en pause sans dépense tant que rien n'est relié ; voix et rendu réels = G4-09c.
  */
 export const ID_FORMAT_TABLEAU_DE_BORD = "tableau-de-bord";
-export const CODE_FORMAT_TABLEAU_DE_BORD = "TB";
+export const CODE_FORMAT_TABLEAU_DE_BORD = "TDB";
 
 export const formatTableauDeBord: DefinitionFormat = {
   id: ID_FORMAT_TABLEAU_DE_BORD,
