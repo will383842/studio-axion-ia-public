@@ -249,6 +249,13 @@ const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; dec
     declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
   },
   {
+    // Texte de légende enregistré d'un carrousel (page de détail) : une valeur, pas un interrupteur ; `simulation === true` est un champ de la donnée.
+    gabarit: "visuels.legende.*.*",
+    etat: "valeur",
+    appel: "src/app/(studio)/carrousels/[id]/page.tsx",
+    motif: /lireParametre<\{ texte\?: unknown; simulation\?: unknown \} \| null>\(`visuels\.legende\.\$\{id\}\.\$\{r\}`, null\)/,
+  },
+  {
     // Défaut `undefined` → `interpreterReglageBibliotheque` rend `{ actif: false }` (seul `true` ou `{ capacites }` allume).
     gabarit: "bibliothequeVideo.*",
     etat: "eteint",
@@ -384,6 +391,8 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "zernio.comptes": "memoire",
   "zernio.mode_envoi": "memoire",
   "zernio.tests": "memoire",
+  "zernio.essai_brouillon": "memoire", // brouillon de l'essai Zernio (creneauId), pas un interrupteur
+  "calendrier.proposerSemaine.compteur": "memoire", // compteur { jour, n } des propositions de semaine
   "buffer.mode": "valeur",
   "bibliothequeVideo.archive.cochees": "valeur", // liste d'identifiants de vidéos cochées
   "bibliothequeVideo.archive.sources": "valeur", // choix « pretes » | « cochees » | « publiees », défaut null → politique du code
@@ -415,6 +424,9 @@ const EXCLUS_CLES: Record<string, Motif> = {
 const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/(studio)/carrousels/[id]/actions.ts:cle": { exclu: "memoire" },
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
+  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" },
+  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" },
+  "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
   "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
   "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
   "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },
