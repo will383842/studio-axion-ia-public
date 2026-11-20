@@ -10,16 +10,21 @@ import { OBJET_GROS_CHIFFRE, EXEMPLES_GROS_CHIFFRE } from "../../motion/petits-o
 import { OBJET_ETAPE, EXEMPLES_ETAPES } from "../../motion/petits-objets/etapes";
 import { OBJET_CARTES_COCHE, EXEMPLES_CARTES } from "../../motion/petits-objets/cartes";
 import { OBJET_COCHE, OBJET_CROIX, OBJET_MOT_BARRE, EXEMPLES_MARQUES } from "../../motion/petits-objets/marques";
-import { OBJET_SOULIGNEMENT_DROIT, EXEMPLES_SOULIGNEMENTS } from "../../motion/petits-objets/soulignements";
+import { OBJET_SOULIGNEMENT_DROIT, OBJET_SOULIGNEMENT_VAGUE, OBJET_SOULIGNEMENT_DOUBLE, OBJET_SURLIGNEUR, EXEMPLES_SOULIGNEMENTS } from "../../motion/petits-objets/soulignements";
 import { OBJET_COMPTEUR_ROULEAU, EXEMPLES_ROULEAU } from "../../motion/petits-objets/compteur-rouleau";
 import { OBJET_CARTON_DEFINITION, EXEMPLES_CARTON_DEFINITION } from "../../motion/petits-objets/carton-definition";
-import { OBJET_FLECHE_MAIN_LEVEE, EXEMPLES_FLECHES } from "../../motion/petits-objets/fleches";
+import { OBJET_FLECHE_MAIN_LEVEE, OBJET_FLECHE_DROITE, OBJET_FLECHE_COURBE, OBJET_FLECHE_POINTILLEE, EXEMPLES_FLECHES } from "../../motion/petits-objets/fleches";
 import { OBJET_CROQUIS, OBJET_FEUTRE_ENTOURAGE, OBJET_FEUTRE_SOULIGNEMENT, EXEMPLES_OBJETS_2027 } from "../../motion/petits-objets/objets-2027";
 import { OBJET_CARTON_MAGAZINE, EXEMPLES_CARTON_MAGAZINE } from "../../motion/petits-objets/carton-magazine";
 import { OBJET_TOURNE, EXEMPLES_OBJET_TOURNE } from "../../motion/petits-objets/objet-tourne";
 import { OBJET_PARTICULES, EXEMPLES_PARTICULES } from "../../motion/petits-objets/particules";
 import { OBJET_PANNEAU_REGLAGES, EXEMPLES_PANNEAU_REGLAGES } from "../../motion/petits-objets/panneau-reglages";
 import { OBJET_ANNEAU_DONNEES, EXEMPLES_ANNEAU } from "../../motion/petits-objets/anneau-donnees";
+import { DEF_CADRE_RECTANGLE, DEF_CADRE_COINS, DEF_CADRE_PASSAGE, EXEMPLES_CADRES } from "../../motion/petits-objets/cadres";
+import { DEF_CERCLE, DEF_OVALE, DEF_DOUBLE_BOUCLE, EXEMPLES_ENTOURAGES } from "../../motion/petits-objets/entourages";
+import { DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON, EXEMPLES_ETIQUETTES } from "../../motion/petits-objets/etiquettes";
+import { OBJET_BULLE_PAROLE, OBJET_BULLE_PENSEE, OBJET_BULLE_NOTIFICATION, EXEMPLES_BULLES } from "../../motion/petits-objets/bulles";
+import { DEF_POST_IT, EXEMPLES_POST_IT } from "../../motion/petits-objets/post-it";
 import { envelopperObjets } from "./objets";
 
 export const OBJETS_PLAN_SCENES = [
@@ -30,6 +35,12 @@ export const OBJETS_PLAN_SCENES = [
   OBJET_CROQUIS, OBJET_FEUTRE_ENTOURAGE, OBJET_FEUTRE_SOULIGNEMENT,
   // N-05-v19b : carton magazine, icône qui tourne, particules, panneau de réglages, anneau de données (porte fermée)
   OBJET_CARTON_MAGAZINE, OBJET_TOURNE, OBJET_PARTICULES, OBJET_PANNEAU_REGLAGES, OBJET_ANNEAU_DONNEES,
+  // C9-34-TRAITS-v19c : 2 soulignements, surligneur, 3 flèches (porte fermée)
+  OBJET_SOULIGNEMENT_VAGUE, OBJET_SOULIGNEMENT_DOUBLE, OBJET_SURLIGNEUR, OBJET_FLECHE_DROITE, OBJET_FLECHE_COURBE, OBJET_FLECHE_POINTILLEE,
+  // C9-34-CADRES-v20b : 3 cadres, cercle, ovale, double boucle (porte fermée)
+  DEF_CADRE_RECTANGLE, DEF_CADRE_COINS, DEF_CADRE_PASSAGE, DEF_CERCLE, DEF_OVALE, DEF_DOUBLE_BOUCLE,
+  // C9-34-ETIQUETTES-v20f (20/11/2026) : pastille, étiquette, badge, tampon, 3 bulles, post-it (porte fermée)
+  DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON, OBJET_BULLE_PAROLE, OBJET_BULLE_PENSEE, OBJET_BULLE_NOTIFICATION, DEF_POST_IT,
 ];
 
 /** Graine fixe et pure : somme des codes de caractères de l'identifiant. */
@@ -41,7 +52,7 @@ export function graineObjet(id: string): number {
 
 export const PIECES_OBJETS = envelopperObjets(OBJETS_PLAN_SCENES, graineObjet);
 
-const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
+const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
   id,
   nom,
   description,
@@ -72,6 +83,29 @@ export const BRIQUES_OBJETS = {
   "objet-particules": objet("objet-particules", "Particules", "De petites icônes qui tombent ou jaillissent pour marquer un moment fort.", OBJET_PARTICULES, EXEMPLES_PARTICULES[0]),
   "objet-panneau-reglages": objet("objet-panneau-reglages", "Panneau de réglages", "Un petit panneau de réglages dont les curseurs et les interrupteurs bougent.", OBJET_PANNEAU_REGLAGES, EXEMPLES_PANNEAU_REGLAGES[0]),
   "objet-anneau-donnees": objet("objet-anneau-donnees", "Anneau de données", "Un anneau qui se remplit jusqu'au pourcentage dit à voix haute.", OBJET_ANNEAU_DONNEES, EXEMPLES_ANNEAU[0]),
+  // C9-34-TRAITS-v19c
+  "objet-soulignement-vague": objet("objet-soulignement-vague", "Soulignement ondulé", "Un trait ondulé tracé sous le mot au moment où il est dit.", OBJET_SOULIGNEMENT_VAGUE, EXEMPLES_SOULIGNEMENTS[0]),
+  "objet-soulignement-double": objet("objet-soulignement-double", "Double soulignement", "Deux traits tracés sous le mot important au moment où il est dit.", OBJET_SOULIGNEMENT_DOUBLE, EXEMPLES_SOULIGNEMENTS[0]),
+  "objet-surligneur": objet("objet-surligneur", "Surligneur", "Un trait de surligneur passé sur le mot au moment où il est dit.", OBJET_SURLIGNEUR, EXEMPLES_SOULIGNEMENTS[0]),
+  "objet-fleche-droite": objet("objet-fleche-droite", "Flèche droite", "Une flèche droite qui désigne ce dont on parle.", OBJET_FLECHE_DROITE, EXEMPLES_FLECHES[0]),
+  "objet-fleche-courbe": objet("objet-fleche-courbe", "Flèche courbe", "Une flèche courbe qui désigne ce dont on parle.", OBJET_FLECHE_COURBE, EXEMPLES_FLECHES[1]),
+  "objet-fleche-pointillee": objet("objet-fleche-pointillee", "Flèche en pointillés", "Une flèche en pointillés qui désigne ce dont on parle.", OBJET_FLECHE_POINTILLEE, EXEMPLES_FLECHES[2]),
+  // C9-34-CADRES-v20b
+  "objet-cadre-rectangle": objet("objet-cadre-rectangle", "Cadre", "Un cadre tracé autour de ce dont on parle au moment où on le dit.", DEF_CADRE_RECTANGLE, EXEMPLES_CADRES.rectangle[0]),
+  "objet-cadre-coins": objet("objet-cadre-coins", "Cadre en coins", "Quatre coins tracés autour de ce dont on parle au moment où on le dit.", DEF_CADRE_COINS, EXEMPLES_CADRES.coins[0]),
+  "objet-cadre-passage": objet("objet-cadre-passage", "Cadre qui passe", "Un cadre tracé autour d'un premier élément, puis qui glisse vers le suivant.", DEF_CADRE_PASSAGE, EXEMPLES_CADRES.passage[0]),
+  "objet-cercle": objet("objet-cercle", "Cercle", "Un cercle tracé autour du mot important au moment où il est dit.", DEF_CERCLE, EXEMPLES_ENTOURAGES.cercle[0]),
+  "objet-ovale": objet("objet-ovale", "Ovale", "Un ovale tracé autour du mot important au moment où il est dit.", DEF_OVALE, EXEMPLES_ENTOURAGES.ovale[0]),
+  "objet-double-boucle": objet("objet-double-boucle", "Double boucle", "Une double boucle tracée autour du mot important au moment où il est dit.", DEF_DOUBLE_BOUCLE, EXEMPLES_ENTOURAGES.doubleBoucle[0]),
+  // C9-34-ETIQUETTES-v20f
+  "objet-pastille-icone": objet("objet-pastille-icone", "Pastille", "Une pastille avec une petite icône et un mot court, posée au moment où il est dit.", DEF_PASTILLE_ICONE, EXEMPLES_ETIQUETTES.pastille[0]),
+  "objet-etiquette-icone": objet("objet-etiquette-icone", "Étiquette", "Une étiquette avec un mot court, posée au moment où il est dit.", DEF_ETIQUETTE_ICONE, EXEMPLES_ETIQUETTES.etiquette[0]),
+  "objet-badge": objet("objet-badge", "Badge", "Un badge avec un mot court, posé quand on annonce que c'est validé ou nouveau.", DEF_BADGE, EXEMPLES_ETIQUETTES.badge[0]),
+  "objet-tampon": objet("objet-tampon", "Tampon", "Un tampon frappé sur l'écran au moment où le mot est dit.", DEF_TAMPON, EXEMPLES_ETIQUETTES.tampon[0]),
+  "objet-bulle-parole": objet("objet-bulle-parole", "Bulle de parole", "Une bulle de parole qui reprend quelques mots dits à voix haute.", OBJET_BULLE_PAROLE, EXEMPLES_BULLES[0]),
+  "objet-bulle-pensee": objet("objet-bulle-pensee", "Bulle de pensée", "Une bulle de pensée qui reprend quelques mots pensés à voix haute.", OBJET_BULLE_PENSEE, EXEMPLES_BULLES[1]),
+  "objet-bulle-notification": objet("objet-bulle-notification", "Bulle de notification", "Une bulle de notification qui reprend le message dont on parle.", OBJET_BULLE_NOTIFICATION, EXEMPLES_BULLES[2]),
+  "objet-post-it": objet("objet-post-it", "Post-it", "Un post-it dont les mots apparaissent au fil de ce qui est dit.", DEF_POST_IT, EXEMPLES_POST_IT[0]),
 } as const;
 
 export const RENDUS_OBJETS = {
@@ -94,4 +128,27 @@ export const RENDUS_OBJETS = {
   "objet-particules": PIECES_OBJETS["objet-particules"].Rendu as RenduBrique,
   "objet-panneau-reglages": PIECES_OBJETS["objet-panneau-reglages"].Rendu as RenduBrique,
   "objet-anneau-donnees": PIECES_OBJETS["objet-anneau-donnees"].Rendu as RenduBrique,
+  // C9-34-TRAITS-v19c
+  "objet-soulignement-vague": PIECES_OBJETS["objet-soulignement-vague"].Rendu as RenduBrique,
+  "objet-soulignement-double": PIECES_OBJETS["objet-soulignement-double"].Rendu as RenduBrique,
+  "objet-surligneur": PIECES_OBJETS["objet-surligneur"].Rendu as RenduBrique,
+  "objet-fleche-droite": PIECES_OBJETS["objet-fleche-droite"].Rendu as RenduBrique,
+  "objet-fleche-courbe": PIECES_OBJETS["objet-fleche-courbe"].Rendu as RenduBrique,
+  "objet-fleche-pointillee": PIECES_OBJETS["objet-fleche-pointillee"].Rendu as RenduBrique,
+  // C9-34-CADRES-v20b
+  "objet-cadre-rectangle": PIECES_OBJETS["objet-cadre-rectangle"].Rendu as RenduBrique,
+  "objet-cadre-coins": PIECES_OBJETS["objet-cadre-coins"].Rendu as RenduBrique,
+  "objet-cadre-passage": PIECES_OBJETS["objet-cadre-passage"].Rendu as RenduBrique,
+  "objet-cercle": PIECES_OBJETS["objet-cercle"].Rendu as RenduBrique,
+  "objet-ovale": PIECES_OBJETS["objet-ovale"].Rendu as RenduBrique,
+  "objet-double-boucle": PIECES_OBJETS["objet-double-boucle"].Rendu as RenduBrique,
+  // C9-34-ETIQUETTES-v20f
+  "objet-pastille-icone": PIECES_OBJETS["objet-pastille-icone"].Rendu as RenduBrique,
+  "objet-etiquette-icone": PIECES_OBJETS["objet-etiquette-icone"].Rendu as RenduBrique,
+  "objet-badge": PIECES_OBJETS["objet-badge"].Rendu as RenduBrique,
+  "objet-tampon": PIECES_OBJETS["objet-tampon"].Rendu as RenduBrique,
+  "objet-bulle-parole": PIECES_OBJETS["objet-bulle-parole"].Rendu as RenduBrique,
+  "objet-bulle-pensee": PIECES_OBJETS["objet-bulle-pensee"].Rendu as RenduBrique,
+  "objet-bulle-notification": PIECES_OBJETS["objet-bulle-notification"].Rendu as RenduBrique,
+  "objet-post-it": PIECES_OBJETS["objet-post-it"].Rendu as RenduBrique,
 } as const;

@@ -23,7 +23,7 @@ import type { Id, Video } from "@/domaine/types";
 import type { ReponseClaude } from "@/fournisseurs/claude/client";
 import { masquerSecrets } from "@/fournisseurs/claude/secret";
 import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
-import type { OutilsDecoupage, ReponseAppelDecoupage } from "@/moteurs/montage-tableau/decoupage";
+import type { DepartDecoupage, OutilsDecoupage, ReponseAppelDecoupage } from "@/moteurs/montage-tableau/decoupage";
 import { nouvelId } from "@/lib/ids";
 import type { ClientScripts } from "./tableau-scripts";
 import type { MethodeTableau } from "./tableau-scripts/consignes";
@@ -77,6 +77,8 @@ export interface TacheTableau {
   demande?: DemandeScriptTableau;
   angle?: AngleScript;
   pireUsd?: number;
+  /** Découpage repris après un refus : la fiche gardée réparée et ses refus restants (le premier appel est une relance). */
+  depart?: DepartDecoupage;
   traceId?: string;
   /** Écriture : la méthode dont le prix a été confirmé (réglage `tableau.methode`) ; absente : tâche d'avant le lot A5, donc « complete » (les nouvelles tâches l'écrivent toujours). */
   methode?: MethodeTableau;

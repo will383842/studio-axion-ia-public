@@ -36,19 +36,19 @@ function entrees(capacites: Partial<Record<string, RegleProfilCapacite>> = {}, v
 }
 
 describe("C5-5.08a · dessinFacecamReglage", () => {
-  it("lit exactement (clé, false)", async () => {
+  it("lit exactement (clé, true) : allumé par défaut", async () => {
     const appels: unknown[][] = [];
     await dessinFacecamReglage(async (...a) => (appels.push(a), true));
-    expect(appels).toEqual([["planScenes.facecamDessin", false]]);
+    expect(appels).toEqual([["planScenes.facecamDessin", true]]);
     expect(CLE_REGLAGE_DESSIN_FACECAM).toBe("planScenes.facecamDessin");
   });
-  it("seul true allume", async () => {
-    expect(await dessinFacecamReglage(async () => true)).toBe(true);
-    for (const v of [false, "true", 1, null, undefined, {}]) expect(await dessinFacecamReglage(async () => v)).toBe(false);
+  it("seul false exact éteint (éteint explicitement = comme avant)", async () => {
+    expect(await dessinFacecamReglage(async () => false)).toBe(false);
+    for (const v of [true, "true", "false", 1, 0, null, undefined, {}]) expect(await dessinFacecamReglage(async () => v)).toBe(true);
   });
-  it("rejet ou exception → false", async () => {
-    expect(await dessinFacecamReglage(async () => { throw new Error("x"); })).toBe(false);
-    expect(await dessinFacecamReglage(() => { throw new Error("x"); })).toBe(false);
+  it("rejet ou exception → défaut allumé", async () => {
+    expect(await dessinFacecamReglage(async () => { throw new Error("x"); })).toBe(true);
+    expect(await dessinFacecamReglage(() => { throw new Error("x"); })).toBe(true);
   });
 });
 

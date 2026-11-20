@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { exigerVoixMaitre } from "@/briques/voix-maitre/voix-epinglee";
 import type { CommandeFabrication } from "@/domaine/types";
 import type { LectureMorceau } from "@/briques/voix-longue";
 import { decouperScript } from "@/briques/voix-longue";
@@ -22,7 +24,7 @@ function commande(opts: { chapitres?: { id: string; titre: string; texte: string
   const tous = decouperScript(chapitres);
   const car = tous.reduce((s, m) => s + m.texte.length, 0);
   const accord = opts.accord === undefined ? { donne: true, videoId: VIDEO, caracteres: car, morceaux: tous.length } : opts.accord;
-  return { videoId: VIDEO, ratios: ["16:9"], distribution: [], entrees: { videoLongue: { chapitres, ...(accord === null ? {} : { accord }) } } } as unknown as CommandeFabrication;
+  return { videoId: VIDEO, ratios: ["16:9"], distribution: [{ personnageId: "p1" }], entrees: { videoLongue: { chapitres, ...(accord === null ? {} : { accord }) } } } as unknown as CommandeFabrication;
 }
 
 interface Faux {
@@ -331,5 +333,63 @@ describe("VL-07 — le chargement relit vraiment le réglage à chaque import", 
       await vi.waitFor(() => expect(m.reglageVuAllume()).toBe(true));
     }
     expect(n.lu).toBe(2);
+  });
+});
+
+describe("VL-SV — mode sans voix : 0 appel HeyGen, 0 €", () => {
+  const sansVoix = (): CommandeFabrication => {
+    const c = commande({ accord: null });
+    (c.entrees as { videoLongue: Record<string, unknown> }).videoLongue.sansVoix = true;
+    return c;
+  };
+  it("aucune lecture de voix : refus « sans-voix », aucun port payant touché", async () => {
+    const f = faux();
+    const c = sansVoix();
+    const d = creerDependancesVideoLongue(c, f.ports);
+    await expect(d.voix.lire(morceau(c))).rejects.toMatchObject({ motif: "sans-voix" });
+    expect(f.appelsVoix.length + f.reservations.length + f.appelsAligneur).toBe(0);
+    expect(f.base.size).toBe(0);
+  });
+  it("le montage n'exige aucun accord de voix et ne réserve aucun crédit", async () => {
+    const f = faux();
+    const d = creerDependancesVideoLongue(sansVoix(), f.ports);
+    await d.monter("16:9", ctxMontage);
+    expect(f.appelsMontage).toBe(1);
+    expect(f.reservations).toEqual([]);
+    expect(f.appelsVoix).toEqual([]);
+  });
+  it("réglage éteint : rien ne part, même sans voix", async () => {
+    const f = faux({ actif: false });
+    const d = creerDependancesVideoLongue(sansVoix(), f.ports);
+    await expect(d.monter("16:9", ctxMontage)).rejects.toMatchObject({ motif: "eteint" });
+    expect(f.appelsMontage).toBe(0);
+  });
+  it("avec voix, inchangé : sans accord, refus", async () => {
+    const f = faux();
+    const c = commande({ accord: null });
+    const d = creerDependancesVideoLongue(c, f.ports);
+    await expect(d.voix.lire(morceau(c))).rejects.toMatchObject({ motif: "sans-accord" });
+  });
+});
+
+describe("VL-SV — L1-05 : voix non HeyGen toujours refusée (mode avec voix)", () => {
+  it("exigerVoixMaitre lève pour toute voix qui n'est pas la voix HeyGen maître", () => {
+    expect(() => exigerVoixMaitre("elevenlabs", "une-voix")).toThrow();
+    expect(() => exigerVoixMaitre("simulation", "une-voix")).toThrow();
+  });
+  it("garde de source : la lecture réelle passe par branchementsReels et aucun autre fournisseur de voix n'est importé", () => {
+    const src = readFileSync("src/services/video-longue-branchements.ts", "utf8");
+    expect(src).toMatch(/lireMorceau: async[\s\S]*?branchements\(\)/);
+    expect(src).toContain("branchementsReels(");
+    expect(src).not.toMatch(/from\s+"[^"]*(elevenlabs|openai|google|polly|azure)[^"]*"/i);
+    expect(src).not.toMatch(/resoudreFournisseur\(\s*"voix"/);
+  });
+  it("avec voix, distribution vide = refus clair, 0 port touché", async () => {
+    const f = faux();
+    const c = commande();
+    (c as { distribution: unknown[] }).distribution = [];
+    const d = creerDependancesVideoLongue(c, f.ports);
+    await expect(d.voix.lire(morceau(c))).rejects.toMatchObject({ motif: "sans-personnage", message: expect.stringContaining("Choisissez qui parle") });
+    expect(total(f)).toBe(0);
   });
 });
