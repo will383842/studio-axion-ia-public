@@ -54,7 +54,7 @@ function diffuseur(issue: Issue) {
   return { client, appels };
 }
 
-async function programmationManuelle(marque: string = "programme") {
+async function programmationManuelle(marque: string = "programme", opts: { envoi?: string; sansCleDiffuseur?: boolean; pubZernio?: string } = {}) {
   const d = depots();
   await d.visuels.enregistrer({ id: "vis_1", famille: "carrousel", titre: "Cinq erreurs", entree: { type: "sujet", sujet: "exemple" }, statut: "programme", modeTexte: "api", versionSpec: 1, coutCentimes: 0, creeLe: iso(T0), modifieLe: iso(T0), spec: { alt: "Cinq erreurs courantes à éviter" } } as never);
   await d.creneauxEditoriaux.enregistrer({
@@ -62,13 +62,13 @@ async function programmationManuelle(marque: string = "programme") {
     textes: { instagram: { texte: "Texte instagram", premierCommentaire: "" } }, statut: "programme", decalages: 0, valideeLe: iso(T0), valideePar: "le fondateur",
   } as never);
   await d.envoisPlanifies.enregistrer({
-    id: CLE_ENVOI, cle: CLE_ENVOI, videoId: "vis_1", nature: "visuel", creneauId: "cre_1", cleDiffuseur: CLE_DIFFUSEUR, reseau: "instagram", versionCreneau: 0,
-    jour: "2026-11-12", heure: "09:00", statut: "programme", valideeLe: iso(T0), valideePar: "fondateur", creeLe: iso(T0), modifieLe: iso(T0),
+    id: CLE_ENVOI, cle: CLE_ENVOI, videoId: "vis_1", nature: "visuel", creneauId: "cre_1", ...(opts.sansCleDiffuseur ? {} : { cleDiffuseur: CLE_DIFFUSEUR }), reseau: "instagram", versionCreneau: 0,
+    jour: "2026-11-12", heure: "09:00", statut: opts.envoi ?? "programme", valideeLe: iso(T0), valideePar: "fondateur", creeLe: iso(T0), modifieLe: iso(T0),
   } as never);
   // La ligne du Studio créée par la programmation manuelle : « manuel », sans idExterne (jamais relue par la synchro).
   await d.publications.enregistrer({ id: `pub_${CLE_ENVOI}`, visuelId: "vis_1", reseau: "instagram", statut: "programmee", via: "manuel", date: DATE, texte: "Texte instagram", creeLe: iso(T0), modifieLe: iso(T0) } as never);
   // La ligne zernio créée à l'envoi : c'est elle que la synchro relit.
-  await d.publications.enregistrer({ id: "pz_1", visuelId: "vis_1", reseau: "instagram", statut: "programmee", via: "zernio", date: DATE, texte: "Texte instagram", idExterne: "exemple-post-1", canalId: `${COMPTE}:ig:1`, cleEnvoi: CLE_DIFFUSEUR, etatEnvoi: "envoye", envoiCommenceLe: iso(T0 - 3600_000), creeLe: iso(T0), modifieLe: iso(T0) } as never);
+  await d.publications.enregistrer({ id: "pz_1", visuelId: "vis_1", reseau: "instagram", statut: (opts.pubZernio ?? "programmee"), via: "zernio", date: DATE, texte: "Texte instagram", ...(opts.pubZernio ? { urlPubliee: "https://exemple.invalid/p/1" } : {}), idExterne: "exemple-post-1", canalId: `${COMPTE}:ig:1`, cleEnvoi: opts.sansCleDiffuseur ? CLE_ENVOI : CLE_DIFFUSEUR, etatEnvoi: "envoye", envoiCommenceLe: iso(T0 - 3600_000), creeLe: iso(T0), modifieLe: iso(T0) } as never);
   await ecrireParametre(`${PREFIXE}promotion:${CLE_ENVOI}`, marque);
   if (marque === "a-verifier") await ecrireParametre(`${PREFIXE}a-verifier:${CLE_ENVOI}`, "a-verifier");
 }
@@ -127,5 +127,55 @@ describe("RETOUR-PUBLISHED · échec ou ambigu : rien n'est levé (CAL-23)", () 
     await programmationManuelle("a-verifier");
     await passer(issue);
     expect(await etat()).toEqual({ creneau: "programme", envoi: "programme", pub: "programmee", promotion: "a-verifier", verifier: "a-verifier" });
+  });
+});
+
+describe("RETOUR-PUBLISHED · marques levées seulement si l'envoi est « envoye »", () => {
+  it.each(["valide", "annule", "confirme"] as const)("envoi « %s » : marques et envoi restent tels quels, le créneau publie", async (statutEnvoi) => {
+    await programmationManuelle("a-verifier", { envoi: statutEnvoi });
+    await passer("published");
+    const e = await etat();
+    expect(e.envoi).toBe(statutEnvoi);
+    expect(e.promotion).toBe("a-verifier");
+    expect(e.verifier).toBe("a-verifier");
+  });
+
+  it("envoi sans cleDiffuseur : la jointure se fait sur la clé de l'envoi", async () => {
+    await programmationManuelle("programme", { sansCleDiffuseur: true });
+    await passer("published");
+    expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+  });
+
+  it("sans créneau ni pub_<clé> : l'envoi passe envoye, rien ne plante", async () => {
+    await programmationManuelle("programme");
+    await depots().creneauxEditoriaux.supprimer("cre_1");
+    await depots().publications.supprimer(`pub_${CLE_ENVOI}`);
+    await passer("published");
+    expect((await etat()).envoi).toBe("envoye");
+    expect((await etat()).promotion).toBe("parti");
+  });
+
+  it("la garde du créneau voit « parti » après le passage", async () => {
+    const { niveauDiffuseurDuCreneau } = await import("@/services/garde-creneau-diffuseur");
+    await programmationManuelle("programme");
+    expect((await niveauDiffuseurDuCreneau("cre_1")).niveau).toBe("programme");
+    await passer("published");
+    expect((await niveauDiffuseurDuCreneau("cre_1")).niveau).toBe("parti");
+  });
+
+  it("le préfixe des marques est celui du calendrier", async () => {
+    const { PREFIXE_ETATS_ENVOI_CALENDRIER } = await import("@/services/branchement-envoi-calendrier");
+    expect(PREFIXE).toBe(PREFIXE_ETATS_ENVOI_CALENDRIER);
+  }, 60_000);
+});
+
+describe("RETOUR-PUBLISHED · reprise après un passage interrompu", () => {
+  it("Publication zernio déjà publiee, envoi resté programme : le passage suivant termine le suivi, puis ne change plus rien", async () => {
+    await programmationManuelle("programme", { pubZernio: "publiee" });
+    await passer("scheduled");
+    expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+    const avant = [await depots().envoisPlanifies.obtenir(CLE_ENVOI), await depots().creneauxEditoriaux.obtenir("cre_1"), await depots().publications.obtenir(`pub_${CLE_ENVOI}`)];
+    await passer("scheduled", 2);
+    expect([await depots().envoisPlanifies.obtenir(CLE_ENVOI), await depots().creneauxEditoriaux.obtenir("cre_1"), await depots().publications.obtenir(`pub_${CLE_ENVOI}`)]).toEqual(avant);
   });
 });

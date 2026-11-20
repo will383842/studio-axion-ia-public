@@ -243,7 +243,7 @@ async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Pr
 }
 
 /** Préfixe des marques d'envoi du calendrier (recopié de `branchement-envoi-calendrier.ts`, qui importe ce module). */
-const PREFIXE_MARQUES_CALENDRIER = "envoi-calendrier:";
+export const PREFIXE_MARQUES_CALENDRIER = "envoi-calendrier:";
 
 /**
  * RETOUR-PUBLISHED · Zernio a CONFIRMÉ « published » pour cette Publication zernio : le Studio suit. On retrouve l'envoi planifié par sa clé
@@ -267,9 +267,11 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
       });
       if (creneau && r.creneau) await d.creneauxEditoriaux.modifier(creneau.id, { statut: r.creneau.statut });
       if (pub && r.publication) await d.publications.modifier(pub.id, { statut: r.publication.statut, modifieLe: maintenant() });
-      // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon…) reste tel quel.
-      const envoi = await d.envoisPlanifies.obtenir(e.id);
-      if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
+      // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon, confirmé…) reste tel quel.
+      let envoi = await d.envoisPlanifies.obtenir(e.id);
+      if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) envoi = await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
+      // Les marques ne sont levées que si l'envoi est bien « envoye » : sinon elles gardent leur rôle de garde (reprise à la main).
+      if (envoi?.statut !== "envoye") return;
       // Seules les marques qui disent « programmé » ou « à vérifier » sont levées ; « en-cours » (tentative en vol) et « libre » restent.
       // Lecture directe du dépôt (et non `lireParametre`) : ces marques ne sont pas des interrupteurs.
       for (const [nom, leve] of [["promotion", ["programme", "a-verifier"]], ["a-verifier", ["a-verifier"]]] as const) {
@@ -278,6 +280,25 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
         if (m && (leve as readonly unknown[]).includes(m.valeur)) await d.parametres.enregistrer({ ...m, valeur: "parti", modifieLe: maintenant() });
       }
     });
+  }
+}
+
+/**
+ * RETOUR-PUBLISHED · reprise : une Publication zernio déjà « publiee » dont l'envoi planifié est resté « programme » (écriture interrompue
+ * au passage précédent) est suivie à nouveau. Lecture des dépôts seule, 20 au plus par passage ; idempotent.
+ */
+async function reprendreRetoursPublies(): Promise<void> {
+  const d = depots();
+  const restes = await d.envoisPlanifies.lister((e) => e.statut === "programme");
+  if (!restes.length) return;
+  const cles = new Set(restes.map((e) => e.cleDiffuseur ?? e.cle));
+  const pubs = await d.publications.lister((p) => p.via === "zernio" && p.statut === "publiee" && !!p.cleEnvoi && cles.has(p.cleEnvoi));
+  for (const p of pubs.slice(0, RATTRAPAGE_PAR_PASSAGE)) {
+    try {
+      await suivrePublicationConfirmee(p);
+    } catch {
+      await journaliser("publication", "Le calendrier n'a pas pu suivre une publication confirmée par Zernio : à vérifier.").catch(() => undefined);
+    }
   }
 }
 
@@ -523,7 +544,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       try {
         await suivrePublicationConfirmee(p);
       } catch {
-        /* le créneau sera repris à la main : la synchro continue */
+        /* repris au prochain passage par `reprendreRetoursPublies` : la synchro continue */
       }
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
@@ -536,6 +557,11 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       if (p.visuelId) visuelsTouches.add(p.visuelId);
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
+  }
+  try {
+    await reprendreRetoursPublies();
+  } catch {
+    /* lecture impossible : on réessaiera au prochain passage */
   }
   // Interrupteur éteint (défaut) : aucune écriture sur `visuels.statut`, ni après le passage ni au rattrapage (comportement de master).
   let suitLesVisuels = false;
