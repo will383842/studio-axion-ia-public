@@ -153,6 +153,31 @@ describe("écrans filmés avant / declencheur / resultat contrôlés (verdict Op
   });
 });
 
+describe("chiffres : contournements refusés (verdict Opus dc27226a)", () => {
+  const avec = (texte: string) => {
+    const b = brut();
+    b.etapes[0].libelleSchema = texte;
+    return defauts(b);
+  };
+  it("chiffres pleine chasse refusés", () => expect(avec("４２ messages classés")).toMatch(/nombre non choisi/));
+  it("chiffres arabes-indiens refusés", () => expect(avec("٤٢ messages classés")).toMatch(/nombre non choisi/));
+  it("une valeur number jamais vue dans contenus est refusée", () => {
+    const b = brut();
+    b.contenus.boite.messages[0].total = 1200;
+    expect(defauts(b)).toMatch(/nombre non choisi \(« 1200 »\)/);
+  });
+  it("une heure hors bornes est refusée (42 h, 9 h 75), une heure valide admise", () => {
+    expect(avec("Relevé à 42 h")).toMatch(/nombre non choisi/);
+    expect(avec("Relevé à 9 h 75")).toMatch(/nombre non choisi/);
+    expect(avec("Relevé à 23 h 59")).toBe("");
+  });
+  it("une date hors bornes est refusée (99/99, 12.50), une date valide admise", () => {
+    expect(avec("Relevé du 99/99")).toMatch(/nombre non choisi/);
+    expect(avec("Relevé du 12.50")).toMatch(/nombre non choisi/);
+    expect(avec("Relevé du 31/12")).toBe("");
+  });
+});
+
 describe("textesDuFlux (V2-06)", () => {
   it("dans l'ordre des étapes, libellé du schéma d'abord, sans doublon", () => {
     const t = textesDuFlux(flux());
@@ -225,6 +250,16 @@ describe("empreinteFlux et scenarioApercuFlux (V2-06)", () => {
     const b = brut();
     b.etapes[0].libelleSchema = "Classement des messages";
     expect(empreinteFlux(flux(b))).not.toBe(empreinteFlux(a));
+  });
+
+  it("empreinteFlux ne lève jamais : objet cyclique et getter qui lève", () => {
+    const cyclique: Libre = { ...brut() };
+    cyclique.self = cyclique;
+    const piege: Libre = { ...brut() };
+    Object.defineProperty(piege, "boum", { enumerable: true, get: () => { throw new Error("boum"); } });
+    expect(() => empreinteFlux(cyclique as unknown as FluxAutomatisation)).not.toThrow();
+    expect(() => empreinteFlux(piege as unknown as FluxAutomatisation)).not.toThrow();
+    expect(empreinteFlux(cyclique as unknown as FluxAutomatisation)).toBe(empreinteFlux(piege as unknown as FluxAutomatisation));
   });
 
   it("le scénario d'aperçu : déclencheur, 5 étapes, résultat ; dernière étape « appel » ; relu par le lecteur", () => {

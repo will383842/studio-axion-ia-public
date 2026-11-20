@@ -4,11 +4,10 @@
 // Les textes d'un flux créé sont des PROPOSITIONS : Williams les voit mot pour mot et les garde avant toute fabrication.
 // Réutilisé par import, jamais recopié : lecteur du flux (T-EXT-50), contrôle des textes créés et constantes (V2-02),
 // empreinte courte, schéma de la carte des zones, lecteur du scénario.
-import { empreinteCourte } from "../../domaine/sujets-traites";
 import { ENTREPRISE_EXEMPLE, VERSION_DESCRIPTION_MAQUETTE, type DescriptionMaquette } from "./description-maquette";
 import { schemaCarteZones, VERSION_CARTE_ZONES, ZONES_MAX, ZONES_MIN, type CarteZones, type ZoneCarte } from "./equipe/analyste";
 import { lireFluxAutomatisation, MAQUETTE_FLUX, VUES_ECRANS, type FluxAutomatisation } from "./gabarit-flux";
-import { controlerTextesCrees } from "./maquette-creee";
+import { controlerTextesCrees, empreinteDescription as empreintePropre } from "./maquette-creee";
 import { lireScenarioMaquette, VERSION_SCENARIO_MAQUETTE, type EtapeScenario, type ScenarioMaquette } from "./scenario-maquette";
 
 /** Domaine des adresses d'exemple : tout courriel visible doit y finir. */
@@ -24,8 +23,10 @@ const TEXTE_MAX = 60;
 const CLES_TECHNIQUES = new Set(["id", "jour", "nouveau", "dossier", "exemple", "etapeDepart"]);
 const COURRIEL = /[^\s@<>"'(),;:]+@[^\s@<>"'(),;]+/g;
 /** Heures (`9 h 30`, `9 h`, `09:00`) et dates courtes (`12/11`, `12.11.2026`) : seuls nombres admis. */
-const HEURE = /\b\d{1,2}\s?h(?:\s?\d{2})?\b|\b\d{1,2}:\d{2}\b/gi;
-const DATE_COURTE = /\b\d{1,2}[/.]\d{1,2}(?:[/.]\d{2,4})?\b/g;
+const HEURE = /\b(\d{1,2})\s?h(?:\s?(\d{2}))?\b|\b(\d{1,2}):(\d{2})\b/gi;
+const DATE_COURTE = /\b(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2,4}))?\b/g;
+/** Un seul chiffre Unicode (arabes-indiens, pleine chasse, etc.) suffit à déclencher le refus. */
+const NOMBRE = /\p{Nd}+(?:[.,]\p{Nd}+)?/u;
 
 interface Texte {
   /** Où le texte se trouve (pour le message d'erreur). */
@@ -74,7 +75,25 @@ function tousLesTextes(flux: FluxAutomatisation): Texte[] {
 }
 
 const sansCourriel = (t: string) => t.replace(COURRIEL, " ").replace(/\s+/g, " ").trim();
-const sansHeureNiDate = (t: string) => t.replace(HEURE, " ").replace(DATE_COURTE, " ");
+/** Retire seulement une heure (0 à 23 h, minutes 0 à 59) ou une date (jour 1 à 31, mois 1 à 12) valides ; hors bornes, le nombre reste et sera refusé. */
+const sansHeureNiDate = (t: string) =>
+  t
+    .normalize("NFKC")
+    .replace(HEURE, (m, h1?: string, m1?: string, h2?: string, m2?: string) => {
+      const h = Number(h1 ?? h2);
+      const mn = m1 ?? m2;
+      return h <= 23 && (mn === undefined || Number(mn) <= 59) ? " " : m;
+    })
+    .replace(DATE_COURTE, (m, j: string, mo: string) => (Number(j) >= 1 && Number(j) <= 31 && Number(mo) >= 1 && Number(mo) <= 12 ? " " : m));
+
+/** Valeurs `number` des clés non techniques (une cellule `1200` jamais vue) : écrites comme un texte pour le contrôle des chiffres. */
+function collecterNombres(v: unknown, cle: string, sortie: string[], profondeur = 0): void {
+  if (profondeur > 12) return;
+  if (typeof v === "number") {
+    if (!CLES_TECHNIQUES.has(cle)) sortie.push(String(v));
+  } else if (Array.isArray(v)) for (const x of v) collecterNombres(x, cle, sortie, profondeur + 1);
+  else if (typeof v === "object" && v !== null) for (const [k, x] of Object.entries(v)) collecterNombres(x, k, sortie, profondeur + 1);
+}
 
 /** Découpe un texte long à la ponctuation, puis par groupes de mots, pour que chaque morceau tienne dans la borne des textes créés. */
 function morceaux(t: string): string[] {
@@ -147,10 +166,12 @@ export function controlerFluxCree(f: FluxAutomatisation, nomsPermis: readonly st
     }
 
     // Chiffres : aucun nombre dit ou écrit qui n'ait pas été choisi (sauf heure et date courte).
-    for (const t of tousLesTextes(flux)) {
-      const nu = sansHeureNiDate(sansCourriel(t.valeur));
-      const nombre = nu.match(/\d+(?:[.,]\d+)?/)?.[0];
-      if (nombre) ajoute(`« ${t.valeur} » : nombre non choisi (« ${nombre} ») ; un flux ne montre aucun chiffre, sauf une heure ou une date.`);
+    const aVerifier = tousLesTextes(flux).map((t) => t.valeur);
+    collecterNombres(flux.contenus, "", aVerifier);
+    for (const valeur of aVerifier) {
+      const nu = sansHeureNiDate(sansCourriel(valeur));
+      const nombre = nu.match(NOMBRE)?.[0];
+      if (nombre) ajoute(`« ${valeur} » : nombre non choisi (« ${nombre} ») ; un flux ne montre aucun chiffre, sauf une heure ou une date.`);
     }
 
     // Étiquettes, tutoiement, phrases, noms propres, marque : règles de V2-02.
@@ -232,23 +253,16 @@ export function carteDepuisFlux(f: FluxAutomatisation): { ok: true; carte: Carte
 /* 4. Empreinte                                                        */
 /* ------------------------------------------------------------------ */
 
-function jsonTrie(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(jsonTrie).join(",")}]`;
-  if (typeof v === "object" && v !== null) {
-    const o = v as Record<string, unknown>;
-    return `{${Object.keys(o)
-      .sort()
-      .filter((k) => o[k] !== undefined)
-      .map((k) => `${JSON.stringify(k)}:${jsonTrie(o[k])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(v) ?? "null";
-}
-
-/** Ce que Williams a validé = ce qui sera filmé : même flux (clés dans un autre ordre comprises) = même empreinte. */
+/** Même calcul que l'empreinte de V2-02 (`empreinteDescription`, par import) ; ne lève jamais : valeur de repli fixe. */
 export function empreinteFlux(f: FluxAutomatisation): string {
-  return empreinteCourte(jsonTrie(f));
+  try {
+    return empreintePropre(f as unknown as DescriptionMaquette);
+  } catch {
+    return EMPREINTE_REPLI;
+  }
 }
+/** Repli quand le flux ne peut pas être lu (objet cyclique, accès qui échoue). */
+const EMPREINTE_REPLI = "flux-illisible";
 
 /* ------------------------------------------------------------------ */
 /* 5. Scénario d'aperçu                                                */
