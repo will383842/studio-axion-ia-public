@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => mockNavigation);
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { construireCommande } = await import("@/services/fabrication");
+const { ecrireParametre } = await import("@/services/_commun");
 const { moteurSimulation } = await import("@/moteurs/simulation");
 const { moteurMontageAvocat } = await import("@/moteurs/montage-avocat");
 const { testerMoteurSansBibliotheque } = await import("@/moteurs/contrat");
@@ -29,11 +30,13 @@ testerMoteurSansBibliotheque(b.moteur, async () => b.commande());
 // Avocat : même fabrique que tests/montage-avocat.contrat.test.ts:83.
 testerMoteurSansBibliotheque(moteurMontageAvocat, async () => {
   reinitialiserDepots();
+  await ecrireParametre("bibliothequeVideo.avocat", false); // v20g : avocat allumé par défaut, `false` écrit en base
   return construireCommande("v-03");
 });
 
 // Simulation : même fabrique que tests/services.test.ts:35.
 testerMoteurSansBibliotheque(moteurSimulation, async () => {
   reinitialiserDepots();
+  await ecrireParametre("bibliothequeVideo.avocat", false); // v20g : la vidéo v-03 est au format avocat
   return construireCommande("v-03");
 });

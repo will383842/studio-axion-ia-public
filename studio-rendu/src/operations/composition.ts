@@ -40,7 +40,7 @@ import { deposer, erreurSelectionComposition, executer, executerAvecErreurs, exi
 import { lireCubeFichier } from "../lut.js";
 import { coeursDisponibles, paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
 import { chargerClientLambda, configLambda, rendreSurLambda } from "../remotion-lambda.js";
-import { PAN_VOIX_STEREO, preparerSon } from "../son/chaine.js";
+import { PAN_VOIX_STEREO, preparerSilence, preparerSon } from "../son/chaine.js";
 import { mesurerFichier } from "../son/mesure.js";
 import { mesurerBordsNoirs, mesuresBords } from "../controle-bords.js";
 import { argumentsFiges, mesuresFiges } from "../controle-figes.js";
@@ -436,7 +436,7 @@ export const composition: Operation = async (demande, contexte) => {
       // 2. Son.
       let t = Date.now();
       const voix = locaux[params.son.entreeVoix];
-      if (!voix) await executer(FFMPEG, ["-hide_banner", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", params.dureeSec.toFixed(3), join(dossier, "silence.wav")], contexte.signal);
+      // Sans voix : silence total (ni mesure, ni gain, ni ton de pièce, ni bruitage), `preparerSon` n'est pas appelée.
       const reglagesSon = {
         voix: join(dossier, voix ?? "silence.wav"),
         tonPiece: params.son.entreeTonPiece && locaux[params.son.entreeTonPiece] ? join(dossier, locaux[params.son.entreeTonPiece]) : undefined,
@@ -453,7 +453,7 @@ export const composition: Operation = async (demande, contexte) => {
         // Lot « bruitages » (02/10) : absent ou vide, la chaîne est celle d'avant (démonstration M4 identique).
         ...(params.son.bruitages?.length ? { bruitages: bruitagesLocaux(params.son, locaux, dossier) } : {}),
       };
-      let son = await preparerSon(reglagesSon);
+      let son = voix ? await preparerSon(reglagesSon) : await preparerSilence({ dossier, dureeSec: params.dureeSec, signal: contexte.signal });
       Object.assign(mesuresSon, { lraBrut: son.lraBrut, compression: son.compression ? 1 : 0, gainDb: son.gainDb, tonDeSynthese: son.tonDeSynthese ? 1 : 0 }, mesuresBruitages(son));
       chrono("tempsSonSec", t);
       contexte.progression(8);
@@ -529,7 +529,7 @@ export const composition: Operation = async (demande, contexte) => {
       let video = await exporter(master, dossierTexte, params.export, dossier, contexte.signal);
       let mesures = await mesurerExport(video, pauses, contexte.signal, { bords: !!params.export.mesurerBords, instantsBords: params.export.instantsBords, figes: params.export.mesurerFiges });
       let correctionDb = 0;
-      for (let essai = 1; essai <= 2 && mesures.creteVraieDbtp > params.son.creteVraieMaxDbtp; essai++) {
+      for (let essai = 1; essai <= 2 && voix && mesures.creteVraieDbtp > params.son.creteVraieMaxDbtp; essai++) {
         correctionDb += params.son.creteVraieMaxDbtp - mesures.creteVraieDbtp - 0.3;
         son = await preparerSon({ ...reglagesSon, correctionDb });
         await remplacerSonMaster(master, son.chemin, dossier, contexte.signal, params.image.fonduFinSec ? filtresFonduFin(params.dureeSec, params.image.fonduFinSec).audio : undefined);

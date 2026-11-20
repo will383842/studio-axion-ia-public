@@ -416,7 +416,7 @@ describe("plafond de l'écriture", () => {
     expect(appels).toHaveLength(3);
     expect((await brouillon(r.videoId)).tache).toMatchObject({ statut: "terminee" });
     expect(await depots().tracesScriptsTableau.obtenir(r.traceId)).toMatchObject({ issue: "livre" });
-    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(video\)/.test(e.message))).toBe(true);
+    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(vidéo\)/.test(e.message))).toBe(true); // FIX-GARDE-ECRAN-b-v20j
   });
 });
 

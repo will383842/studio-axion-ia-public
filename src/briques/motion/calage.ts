@@ -25,7 +25,7 @@ export function motsCles(texte: string): string[] {
   return texte
     .split(/[\s'’\-]+/)
     .map(normaliser)
-    .filter((m) => m.length > 1 && !VIDES.has(m));
+    .filter((m) => (m.length > 1 || /^\d$/.test(m)) && !VIDES.has(m));
 }
 
 /**
@@ -108,13 +108,13 @@ export function calerCarte(carte: CarteModele, mots: MotCalage[], debutCarteSec:
     case "avant-apres": {
       const d = carte.donnees;
       const v = d.aSecApres ?? instantDit(`${d.apres.valeur} ${d.apres.libelle ?? ""}`, mots, debutCarteSec, 0.6) ?? Math.min(1.8, dureeSec * 0.35);
-      return { modele: "avant-apres", donnees: { ...d, aSecApres: Math.min(fin, Math.max(1.1, v)) } };
+      return { modele: "avant-apres", donnees: { ...d, aSecApres: +Math.min(fin, Math.max(1.1, v)).toFixed(3) } };
     }
     case "deux-colonnes": {
       const d = carte.donnees;
       const droite = d.aSecDroite ?? instantDit(d.droite.titre, mots, debutCarteSec, 0.6) ?? Math.min(1.5, dureeSec * 0.3);
       const commun = d.aSecCommun ?? instantDit(d.commun.titre ?? d.commun.points[0] ?? "", mots, debutCarteSec, droite + 0.5) ?? Math.min(fin, droite + 1.2);
-      return { modele: "deux-colonnes", donnees: { ...d, aSecDroite: Math.min(fin, droite), aSecCommun: Math.min(fin, Math.max(droite + 0.6, commun)) } };
+      return { modele: "deux-colonnes", donnees: { ...d, aSecDroite: +Math.min(fin, droite).toFixed(3), aSecCommun: +Math.min(fin, Math.max(droite + 0.6, commun)).toFixed(3) } };
     }
     default:
       return carte;

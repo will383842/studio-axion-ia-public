@@ -17,6 +17,7 @@ import { planDeRepli, validerPlan, type Remarque } from "./validateur";
 import { POSITIONS, TRANSITIONS, ZONE_VISAGE } from "./zones";
 import { faitsDuScript } from "../faits-script/extraire";
 import type { Fait } from "../faits-script/types";
+import { ACCROCHE_SCRIPT_ACTIVE, accrocheDuScript } from "../composition/accroche-script";
 import { z } from "zod";
 
 /** Modèle du générateur de plan (réglable ici). */
@@ -37,6 +38,8 @@ export interface EntreeGenerateurPlan {
   piecesRecentes?: string[];
   /** Ids des pièces de la famille objet permises (porte C9-33) ; absent ou vide : aucune. */
   objetsPermis?: readonly string[];
+  /** C10-15-b1 : seul `true` allume ; absent = ACCROCHE_SCRIPT_ACTIVE (false). */
+  accroche?: boolean;
 }
 
 export interface ResultatGenerateurPlan {
@@ -77,6 +80,7 @@ function ligneDeFait(f: Fait): string {
 
 export function construireRequetePlan(e: EntreeGenerateurPlan, precedents: { reponse: string; motif: string }[] = []): RequeteClaude {
   const faits = e.faits ?? faitsDuScript(e.mots);
+  const accroche = (e.accroche ?? ACCROCHE_SCRIPT_ACTIVE) === true ? accrocheDuScript(e.mots, faits) : null;
   const demande = [
     `Format : ${e.format.largeur} × ${e.format.hauteur}, 25 i/s. Face caméra : ${e.facecam ? "oui" : "non"}.`,
     "Script :",
@@ -84,6 +88,7 @@ export function construireRequetePlan(e: EntreeGenerateurPlan, precedents: { rep
     "Minutage des mots (indice, texte, début ms, fin ms) :",
     e.mots.map((m, i) => `${i}\t${m.texte}\t${m.debutMs}\t${m.finMs}`).join("\n"),
     ...(faits.length ? ["Faits du script (type, mots, valeurs) :", ...faits.map(ligneDeFait)] : []),
+    ...(accroche && accroche.type !== "rien" ? [`Accroche du script (dite avant 2 s, mots ${accroche.fait.mots.premier}-${accroche.fait.mots.dernier}) : ${accroche.type}\t${accroche.texte}`] : []),
     ...(e.piecesRecentes?.length ? [`Pièces récentes à éviter : ${e.piecesRecentes.join(", ")}`] : []),
   ].join("\n");
   const messages: RequeteClaude["messages"] = [{ role: "user", contenu: demande }];

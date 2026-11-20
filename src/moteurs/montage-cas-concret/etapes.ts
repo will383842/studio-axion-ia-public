@@ -76,6 +76,11 @@ export interface EntreesCasConcret {
   habillageTransitions?: true;
   /** FIX-CC-FIN-CHOIX-b1 · « La phrase de fin » choisie (D1) ; absent : aucune fin. */
   finDemandee?: "rendez-vous";
+  /**
+   * CC-SV · MODE SANS VOIX : même vidéo (images, captures, animations, sous-titres, texte à l'écran), silence total, aucune
+   * musique, aucun appel à la voix (0 HeyGen, 0 € de voix). Absent : avec voix (défaut).
+   */
+  sansVoix?: true;
 }
 
 const texteNonVide = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
@@ -107,6 +112,7 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(lireCameraPlus(b.cameraPlus) !== undefined ? { cameraPlus: lireCameraPlus(b.cameraPlus) } : {}),
     ...(b.habillageTransitions === true ? { habillageTransitions: true as const } : {}),
     ...(lireFinDemandee(b.finDemandee) ? { finDemandee: "rendez-vous" as const } : {}),
+    ...(b.sansVoix === true ? { sansVoix: true as const } : {}),
   };
 }
 
