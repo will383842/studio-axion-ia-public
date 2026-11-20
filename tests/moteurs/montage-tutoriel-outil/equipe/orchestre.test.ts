@@ -9,7 +9,8 @@ import { roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquett
 import { roleScenariste } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { roleStrategeValeur } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
 import { appliquerSortie, prochainPas, ROLES_TUTORIEL, type DossierLu, type EntreesEquipe, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
-import { empreinteDescription, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import type { DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
+import { empreinteDescription } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import type { IdRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
 import { dossierComplet, entreesCompletes, fauxScenariste } from "../../../tutoriel-outil/equipe-doubles";
 
