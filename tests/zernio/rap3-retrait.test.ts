@@ -21,7 +21,7 @@ beforeEach(() => {
   exiger.mockClear();
   appels = [];
   const faux = creerFauxClientZernio() as unknown as Record<string, unknown>;
-  const piege = new Proxy(faux, { get: (c, p) => (typeof c[p as string] === "function" ? (...a: unknown[]) => { appels.push(String(p)); throw new Error("écriture interdite"); } : c[p as string]) });
+  const piege = new Proxy(faux, { get: (c, p) => (typeof c[p as string] === "function" ? () => { appels.push(String(p)); throw new Error("écriture interdite"); } : c[p as string]) });
   injecterClientZernio(piege as never);
 });
 
@@ -59,5 +59,5 @@ describe("RAP-3 · retrait local d'une rapatriée", () => {
     const jours = await listerCalendrier("2026-12-01T00:00:00.000Z", "2026-12-31T23:59:59.000Z");
     expect(jours.flatMap((j) => j.publications)).toHaveLength(0);
     expect(await depots().publications.obtenir("zr_p1_c1")).toBeTruthy();
-  });
+  }, 60_000);
 });

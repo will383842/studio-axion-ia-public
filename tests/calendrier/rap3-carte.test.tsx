@@ -2,7 +2,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { LIBELLES_ENVOI, entreeDepuisPublication, etatAffiche, type PublicationApercu } from "@/components/calendrier/apercu-reseau";
-import { CarteEntreeCalendrier, peutGlisserCarte } from "@/components/calendrier/CarteEntreeCalendrier";
+import { CarteEntreeCalendrier } from "@/components/calendrier/CarteEntreeCalendrier";
+import { peutGlisser } from "@/components/calendrier/GrilleSemaine";
 
 const base: PublicationApercu & { rapatrieeLe?: string; retireeLe?: string; mediaDiffuseur?: { type: string; nombre: number; miniature?: string } } = {
   id: "zr_p1_c1", reseau: "instagram", statut: "programmee", via: "zernio", date: "2026-11-25T08:30:00.000Z", texte: "Un texte fictif pour la carte du calendrier",
@@ -23,7 +24,7 @@ describe("RAP-3 · état affiché", () => {
     expect(etatAffiche({ ...base, statut: "publiee" })).not.toBe("programme_diffuseur");
   });
   it("une publication du Studio n'est pas touchée", () => {
-    expect(etatAffiche({ id: "p", reseau: "instagram", statut: "programmee", via: "zernio", date: base.date, texte: "" })).not.toBe("programme_diffuseur");
+    expect(etatAffiche({ statut: "programmee", via: "zernio" })).not.toBe("programme_diffuseur");
   });
 });
 
@@ -48,7 +49,7 @@ describe("RAP-3 · entrée", () => {
 
 describe("RAP-3 · carte", () => {
   it("avec miniature : image du Studio, alt en français, dimensions réservées, début du texte, mention du diffuseur", () => {
-    const h = html(<CarteEntreeCalendrier entree={{ ...entreeDepuisPublication(base), titre: "Un texte fictif" } as never} avecTitre />);
+    const h = html(<CarteEntreeCalendrier entree={{ ...entreeDepuisPublication(base), titre: "Un texte fictif" } as never} libellesEtat={LIBELLES_ENVOI} avecTitre />);
     expect(h).toContain('src="/api/calendrier/miniature/zr_p1_c1"');
     expect(h).toMatch(/alt="[^"]*Instagram[^"]*"/);
     expect(h).toMatch(/width="\d+"/);
@@ -58,11 +59,11 @@ describe("RAP-3 · carte", () => {
     expect(h).not.toContain("medias.exemple.test");
   });
   it("sans miniature : carte texte, aucune image", () => {
-    const h = html(<CarteEntreeCalendrier entree={entreeDepuisPublication({ ...base, mediaDiffuseur: { type: "aucun", nombre: 0 } }) as never} />);
+    const h = html(<CarteEntreeCalendrier entree={entreeDepuisPublication({ ...base, mediaDiffuseur: { type: "aucun", nombre: 0 } }) as never} libellesEtat={LIBELLES_ENVOI} />);
     expect(h).not.toContain("<img");
     expect(h).toContain("Programmée chez le diffuseur");
   });
   it("une carte rapatriée ne se glisse pas", () => {
-    expect(peutGlisserCarte(entreeDepuisPublication(base) as never, "2026-11-20")).toBe(false);
+    expect(peutGlisser(entreeDepuisPublication(base) as never, "2026-11-20")).toBe(false);
   });
 });

@@ -66,11 +66,16 @@ function origineDe(post: PostZernio): "import-buffer" | "studio" | "externe" {
   return o === "import-buffer" || o === "studio" ? o : "externe";
 }
 
+const adresseHttps = (v: unknown): string | undefined => (typeof v === "string" && /^https:\/\//i.test(v) && v.length <= 2000 ? v : undefined);
+
 function mediaDe(post: PostZernio): NonNullable<Publication["mediaDiffuseur"]> {
   const items = Array.isArray(post.mediaItems) ? post.mediaItems : [];
   if (items.length === 0) return { type: "aucun", nombre: 0 };
   const type = items.some((m) => m?.type === "video") ? "video" : items[0]?.type === "document" ? "document" : "image";
-  return { type, nombre: items.length };
+  // RAP-3 : image du premier média, ou vignette de la vidéo ; un document n'a pas de miniature. Le seul usage : la carte du calendrier, via le serveur.
+  const premier = items[0];
+  const miniature = type === "image" ? adresseHttps(premier?.url) : type === "video" ? adresseHttps(premier?.thumbnail) ?? adresseHttps(premier?.thumbnailUrl) : undefined;
+  return { type, nombre: items.length, ...(miniature ? { miniature } : {}) };
 }
 
 /** Raison pour laquelle ce post ne peut pas être mis au calendrier, ou `null`. */

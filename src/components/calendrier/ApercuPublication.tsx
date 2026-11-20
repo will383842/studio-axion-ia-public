@@ -17,13 +17,15 @@ import { RESEAUX_CALENDRIER } from "./BarreFiltres";
 import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
-import { LIBELLES_ENVOI, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ENVOI, PHRASE_DEPLACER_CHEZ_DIFFUSEUR, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
 import { AlerteDureeReseau } from "@/components/publication/AlerteDureeReseau";
 import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { PretAPartir } from "./PretAPartir";
 import { RetirerDuCalendrier } from "./RetirerDuCalendrier";
 import { RetirerProgrammation } from "./RetirerProgrammation";
+import { RetirerRapatriee } from "./RetirerRapatriee";
+import { VignetteDiffuseur } from "./VignetteDiffuseur";
 import type { CodeControle } from "@/services/pret-a-partir";
 import { BlocMotsCommentaires, type MotsPublication } from "./BlocMotsCommentaires";
 import { accepteReponseAutomatique, nomReponseALaMain } from "@/domaine/calendrier/reponses-auto";
@@ -89,6 +91,10 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const retirableChezDiffuseur = lireCleFiche(entree.cle)?.origine === "creneau" && entree.etat === "programme" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
   const retirable = lireCleFiche(entree.cle)?.origine === "publication" && entree.etat === "programme" && entree.type === "carrousel" && jourLisible(entree.jour) && entree.jour >= aujourdhui;
 
+  // RAP-3 : post repris du diffuseur. Seul geste : le retirer du calendrier (local, il reste programmé chez le diffuseur).
+  const chez = entree.chezDiffuseur === true;
+  const retirableRapatriee = chez && lireCleFiche(entree.cle)?.origine === "publication" && !["publie", "retire_diffuseur", "essai"].includes(entree.etat);
+
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
     // Une touche déjà traitée plus bas (flèches du carrousel, Échap de la vue agrandie) ne change pas de publication.
     if (e.defaultPrevented) return;
@@ -104,7 +110,9 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
 
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
-      {entree.type === "carrousel" || (a.media.genre === "video" && a.media.url) || (entree.type === "infographie" && a.media.url) ? (
+      {chez ? (
+        entree.vignette ? <VignetteDiffuseur key={entree.cle} src={entree.vignette} alt={`Image du post ${nom} programmé chez le diffuseur`} taille={320} grande /> : <span>Pas d&apos;image sur ce post</span>
+      ) : entree.type === "carrousel" || (a.media.genre === "video" && a.media.url) || (entree.type === "infographie" && a.media.url) ? (
         <ApercuMedia key={entree.cle} type={a.media.genre === "video" ? "video" : entree.type === "infographie" ? "infographie" : "carrousel"} url={a.media.url} poster={a.media.poster} pages={entree.media?.pages} />
       ) : a.media.genre === "image" && a.media.url ? (
         // eslint-disable-next-line @next/next/no-img-element -- adresse libre d'un visuel du Studio, montrée entière
@@ -179,10 +187,12 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         </p>
       )}
 
-      <div className="mt-3 text-sm">
-        <p className="font-bold text-texte">Premier commentaire</p>
-        <p className="text-texte-doux">{a.premierCommentaire ?? a.phrasePremierCommentaire}</p>
-      </div>
+      {!chez && (
+        <div className="mt-3 text-sm">
+          <p className="font-bold text-texte">Premier commentaire</p>
+          <p className="text-texte-doux">{a.premierCommentaire ?? a.phrasePremierCommentaire}</p>
+        </div>
+      )}
 
       {accepteReponseAutomatique(entree.reseau) ? (
         <BlocMotsCommentaires reseau={entree.reseau} mots={mots} />
@@ -199,10 +209,15 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         )
       )}
 
-      <div className="mt-3">
-        <PretAPartir {...pretAPartirDe(entree)} onCopier={copierDansLePressePapiers} />
-      </div>
+      {!chez && (
+        <div className="mt-3">
+          <PretAPartir {...pretAPartirDe(entree)} onCopier={copierDansLePressePapiers} />
+        </div>
+      )}
 
+      {chez ? (
+        <p className="mt-3 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{PHRASE_DEPLACER_CHEZ_DIFFUSEUR}</p>
+      ) : (
       <div className="mt-3">
         <label htmlFor="apercu-date" className="text-sm font-bold text-texte">
           Déplacer au
@@ -223,6 +238,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
           <p role={tonMessage === "alerte" ? "alert" : "status"} className="mt-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{message}</p>
         )}
       </div>
+      )}
 
       {entree.lienSource && (
         <Link href={entree.lienSource} className="mt-4 inline-flex min-h-[38px] items-center rounded-[10px] border border-trait-fort px-3 text-sm font-bold text-texte hover:bg-surface-3">
@@ -230,6 +246,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         </Link>
       )}
       {retirable && <RetirerDuCalendrier key={entree.cle} cle={entree.cle} />}
+      {retirableRapatriee && <RetirerRapatriee key={entree.cle} publicationId={lireCleFiche(entree.cle)!.id} />}
       {retirableChezDiffuseur && <RetirerProgrammation key={entree.cle} cle={entree.cle} />}
     </aside>
     </TiroirAccessible>
