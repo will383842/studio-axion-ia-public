@@ -5,7 +5,7 @@ import { deciderRapatriement } from "@/domaine/rapatriement-zernio";
 const session = vi.fn(async () => ({}) as object | null);
 vi.mock("@/services/auth", () => ({ sessionApi: session, exigerSession: session }));
 const { depots, reinitialiserDepots } = await import("@/donnees/memoire");
-const { adresseMiniatureSure, lireMiniatureDiffuseur } = await import("@/services/miniature-diffuseur");
+const { adresseMiniatureSure, lireMiniatureDiffuseur, viderCacheMiniatures } = await import("@/services/miniature-diffuseur");
 
 const vide = { idsExternes: new Set<string>(), clesEnvoi: new Set<string>(), clesCreneaux: new Set<string>() };
 const post = (items: unknown[]) => ({ _id: "p1", status: "scheduled", scheduledFor: "2026-11-25T08:30:00Z", platforms: [{ platform: "instagram", accountId: "c1" }], content: "x", mediaItems: items }) as never;
@@ -28,7 +28,7 @@ describe("RAP-3 · adresse sûre", () => {
 
 describe("RAP-3 · lecture de la miniature", () => {
   const rap = { id: "zr_p1_c1", reseau: "instagram", statut: "programmee", via: "zernio", date: "2026-11-25T08:30:00.000Z", texte: "", creeLe: "x", modifieLe: "x", rapatrieeLe: "2026-11-20T10:00:00.000Z", mediaDiffuseur: { type: "image", nombre: 1, miniature: "https://medias.exemple.test/a.jpg" } };
-  beforeEach(() => reinitialiserDepots());
+  beforeEach(() => { reinitialiserDepots(); viderCacheMiniatures(); });
   const publique = async () => ["93.184.216.34"];
   const rep = (type: string, octets = 10, statut = 200) => vi.fn(async () => new Response(new Uint8Array(octets), { status: statut, headers: { "content-type": type, "content-length": String(octets) } }));
   it("rend les octets et le type d'une image ; la requête ne suit aucune redirection ni ne porte d'identifiant", async () => {

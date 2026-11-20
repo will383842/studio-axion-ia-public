@@ -232,6 +232,7 @@ function entreeRapatriee(p: PublicationApercu): EntreeApercu {
     vignette,
     chezDiffuseur: true,
     canalNom: p.canalNom || undefined,
+    brouillonRepris: p.statut === "brouillon" ? true : undefined,
   };
 }
 

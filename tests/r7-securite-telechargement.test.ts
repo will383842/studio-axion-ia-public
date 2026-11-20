@@ -58,7 +58,12 @@ describe("n° 1 — adresses acceptées (PUR)", () => {
   });
   it("IP non publiques : privées, boucle locale, lien local, CGNAT, multidiffusion, IPv6 locales et transposées", () => {
     for (const ip of ["10.1.2.3", "127.0.0.1", "169.254.169.254", "172.16.0.1", "172.31.255.255", "192.168.1.1", "100.64.0.1", "0.0.0.0", "224.0.0.1", "::1", "::", "fc00::1", "fd12:3456::1", "fe80::1", "::ffff:127.0.0.1", "::ffff:7f00:1", "pas-une-ip"]) expect(ipNonPublique(ip), ip).toBe(true);
+    // RAP-3 finitions : NAT64, 6to4 et IPv4 « compatibles » (::a.b.c.d en hexadécimal) ne sont pas publiques.
+    for (const ip of ["64:ff9b::7f00:1", "64:ff9b::808:808", "2002:7f00:1::1", "2002:c0a8:101::1", "::7f00:1", "::a00:1", "::808:808"]) expect(ipNonPublique(ip), ip).toBe(true);
     for (const ip of ["203.0.113.10", "8.8.8.8", "172.32.0.1", "2606:4700::1111", "::ffff:8.8.8.8"]) expect(ipNonPublique(ip), ip).toBe(false);
+    // Réserve RAP-3 : testé sur les groupes (forme longue, hexadécimale, traduite RFC 2765, zéros de tête).
+    for (const ip of ["0:0:0:0:0:ffff:7f00:1", "0000:0000:0000:0000:0000:ffff:7f00:0001", "::ffff:0:7f00:1", "::ffff:0:127.0.0.1", "0:0:0:0:ffff:0:a00:1", "2001:0db8::1", "2001:db8:0:0::1", "2001:0DB8:abcd::", "::ffff:a00:1", "[::ffff:7f00:1]"]) expect(ipNonPublique(ip), ip).toBe(true);
+    for (const ip of ["0:0:0:0:0:ffff:808:808", "::ffff:0:808:808", "2001:db80::1", "2001:4860:4860::8888", "2a00:1450:4007:80f::200e", "2600:9000:2000::1", "2001:41d0::1", "64:ff9a::1"]) expect(ipNonPublique(ip), ip).toBe(false);
   });
   it("refusées : http, autre port, identifiants, IP en clair, hôte hors liste, DNS vers l'interne", async () => {
     for (const a of ["http://files2.heygen.ai/v.mp4", "https://files2.heygen.ai:8443/v.mp4", "https://moi:secret@files2.heygen.ai/v.mp4", "https://169.254.169.254/latest", "https://[::1]/v.mp4", "https://0x7f.0.0.1/v.mp4", "https://interne.exemple/v.mp4", "pas une adresse"]) {
