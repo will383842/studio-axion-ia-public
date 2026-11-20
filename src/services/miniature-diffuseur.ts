@@ -99,18 +99,70 @@ export const fetchMiniatureSur: typeof fetch = (entree, init) =>
     req.end();
   });
 
+/** Cache mémoire BORNÉ (aucune dépendance) : 100 entrées, 30 Mo, 1 h ; éviction de la plus ancienne. Clé = publication + adresse. */
+const CACHE_MAX_ENTREES = 100;
+const CACHE_MAX_OCTETS = 30_000_000;
+const CACHE_DUREE_MS = 3_600_000;
+const CACHE_REFUS_MS = 5 * 60_000; // un refus de sécurité n'est gardé que quelques minutes
+interface EntreeCache {
+  valeur: MiniatureLue | null;
+  expire: number;
+  taille: number;
+}
+const cache = new Map<string, EntreeCache>();
+let octetsCache = 0;
+
+export function viderCacheMiniatures(): void {
+  cache.clear();
+  octetsCache = 0;
+}
+export const tailleCacheMiniatures = () => ({ entrees: cache.size, octets: octetsCache });
+
+function oterDuCache(cle: string): void {
+  const e = cache.get(cle);
+  if (e) {
+    octetsCache -= e.taille;
+    cache.delete(cle);
+  }
+}
+function garder(cle: string, valeur: MiniatureLue | null, expire: number): void {
+  const taille = valeur?.octets.byteLength ?? 0;
+  if (taille > CACHE_MAX_OCTETS) return;
+  oterDuCache(cle);
+  cache.set(cle, { valeur, expire, taille });
+  octetsCache += taille;
+  while (cache.size > CACHE_MAX_ENTREES || octetsCache > CACHE_MAX_OCTETS) {
+    const plusAncienne = cache.keys().next().value;
+    if (plusAncienne === undefined) break;
+    oterDuCache(plusAncienne);
+  }
+}
+
 /** L'image de la publication rapatriée, ou `null` (jamais d'erreur levée : l'écran montre alors une carte texte). */
-export async function lireMiniatureDiffuseur(publicationId: string, deps: { fetch?: typeof fetch; resoudre?: Resoudre } = {}): Promise<MiniatureLue | null> {
+export async function lireMiniatureDiffuseur(publicationId: string, deps: { fetch?: typeof fetch; resoudre?: Resoudre; maintenant?: () => number } = {}): Promise<MiniatureLue | null> {
   try {
     const p = await depots().publications.obtenir(publicationId);
     const adresse = p && estRapatriee(p) && !p.retireeLe ? p.mediaDiffuseur?.miniature : undefined;
-    if (!adresse || !adresseMiniatureSure(adresse)) return null;
-    if (!(await hotePublic(adresse, deps.resoudre ?? resoudreDns))) return null;
+    if (!adresse) return null;
+    const instant = (deps.maintenant ?? Date.now)();
+    const cle = `${publicationId}|${adresse}`;
+    const deja = cache.get(cle);
+    if (deja && deja.expire > instant) return deja.valeur;
+    if (deja) oterDuCache(cle);
+    const refus = () => {
+      garder(cle, null, instant + CACHE_REFUS_MS);
+      return null;
+    };
+    if (!adresseMiniatureSure(adresse)) return refus();
+    if (!(await hotePublic(adresse, deps.resoudre ?? resoudreDns))) return refus();
     const r = await (deps.fetch ?? fetchMiniatureSur)(adresse, { method: "GET", redirect: "manual", credentials: "omit", headers: { Accept: "image/*" }, signal: AbortSignal.timeout(DELAI_MS) });
     const type = (r.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
     if (r.status !== 200 || !TYPES_IMAGE.has(type)) return null;
     const octets = await lireBorne(r);
-    return octets && octets.byteLength > 0 ? { octets, type } : null;
+    if (!octets || octets.byteLength === 0) return null;
+    const lue = { octets, type };
+    garder(cle, lue, instant + CACHE_DUREE_MS);
+    return lue;
   } catch {
     return null;
   }
