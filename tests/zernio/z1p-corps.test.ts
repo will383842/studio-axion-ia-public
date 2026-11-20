@@ -103,7 +103,7 @@ describe("z1p · corps pur", () => {
     refuse({ texte: `Un texte ${MOT_INTERDIT}` });
     refuse({ premierCommentaire: J("Nom ", "Quali", "opi") });
     expect(spec(corps({ reseau: "linkedin", cible: "a:li:7", premierCommentaire: "Voir le lien" })).firstComment).toBe("Voir le lien");
-    expect(corps({ premierCommentaire: "Voir le lien" }).platforms[0].platformSpecificData).not.toHaveProperty("firstComment"); // Instagram à prouver
+    expect(spec(corps({ premierCommentaire: "Voir le lien" })).firstComment).toBe("Voir le lien"); // Instagram prouvé le 20/11/2026
     refuse({ reseau: "youtube" });
   });
 });

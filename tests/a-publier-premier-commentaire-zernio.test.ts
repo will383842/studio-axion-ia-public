@@ -1,6 +1,6 @@
 /**
- * Premier commentaire selon l'outil (Zernio) : Instagram, TikTok et YouTube « à la main » (bouton Copier, aucun firstComment) ;
- * Facebook et LinkedIn transmis mais « à confirmer », avec repli manuel. Aucun appel réel.
+ * Premier commentaire selon l'outil (Zernio) : TikTok et YouTube « à la main » (bouton Copier, aucun firstComment) ;
+ * Instagram, Facebook et LinkedIn transmis mais « à confirmer », avec repli manuel. Aucun appel réel.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -9,11 +9,11 @@ import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publicatio
 import { LIBELLES_ENVOI } from "@/domaine/libelles";
 
 describe("état du premier commentaire selon l'outil", () => {
-  it("Zernio : Instagram, TikTok, YouTube à la main", () => {
-    for (const r of ["instagram", "tiktok", "youtube"]) expect(etatPremierCommentaire("zernio", r)).toBe("a-la-main");
+  it("Zernio : TikTok, YouTube à la main", () => {
+    for (const r of ["tiktok", "youtube"]) expect(etatPremierCommentaire("zernio", r)).toBe("a-la-main");
   });
-  it("Zernio : Facebook et LinkedIn à confirmer", () => {
-    for (const r of ["facebook", "linkedin"]) expect(etatPremierCommentaire("zernio", r)).toBe("a-confirmer");
+  it("Zernio : Instagram, Facebook et LinkedIn à confirmer", () => {
+    for (const r of ["instagram", "facebook", "linkedin"]) expect(etatPremierCommentaire("zernio", r)).toBe("a-confirmer");
   });
   it("Buffer : comportement inchangé (Instagram, Facebook, LinkedIn automatiques)", () => {
     for (const r of ["instagram", "facebook", "linkedin"]) expect(etatPremierCommentaire("buffer", r)).toBe("auto");
@@ -24,8 +24,8 @@ describe("état du premier commentaire selon l'outil", () => {
       expect(etatPremierCommentaire("zernio", r) !== "a-la-main").toBe(premierCommentaireTransmissibleZernio(r));
     }
     const src = readFileSync("src/fournisseurs/publication/zernio-corps.ts", "utf8");
-    expect(src.match(/firstComment/g)?.length).toBe(2);
-    expect(src).not.toMatch(/case "instagram":[^]*?firstComment[^]*?case "facebook"/);
+    expect(src.match(/specifique\.firstComment =/g)?.length).toBe(3);
+    expect(src).toMatch(/case "instagram":[^]*?firstComment[^]*?case "facebook"/);
   });
   it("le texte « à la main » existe dans les libellés et les clés existantes sont intactes", () => {
     expect(LIBELLES_ENVOI.premierCommentaireALaMain).toMatch(/à la main/);
@@ -36,7 +36,7 @@ describe("état du premier commentaire selon l'outil", () => {
 
 describe("bloc d'affichage", () => {
   it("à la main : le texte est montré (pour le bouton Copier), titre « à poser à la main »", () => {
-    const b = blocPremierCommentaire("instagram", "Le lien : exemple.fr", "a-la-main");
+    const b = blocPremierCommentaire("youtube", "Le lien : exemple.fr", "a-la-main");
     expect(b).toMatchObject({ alaMain: true, texte: "Le lien : exemple.fr", copier: true });
     expect(b?.titre).toBe(LIBELLES_ENVOI.premierCommentaireALaMain);
   });
