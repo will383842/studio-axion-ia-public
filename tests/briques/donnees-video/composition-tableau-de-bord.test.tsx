@@ -121,8 +121,10 @@ describe("G4-10a · périmètre", () => {
       expect(lire(f), f).not.toMatch(/from\s+["']@\//);
     }
   });
-  it("Racine.tsx ne cite pas TableauDeBordVideo et les fichiers neufs n'importent pas src/ (hors types déjà copiés)", () => {
-    expect(lire("studio-rendu/compositions/Racine.tsx")).not.toContain("TableauDeBordVideo");
+  it("Racine.tsx cite TableauDeBordVideo exactement une fois (1 import, 1 Composition id=\"MontageDonnees\") et les fichiers neufs n'importent pas src/ (hors types déjà copiés)", () => {
+    const racine = lire("studio-rendu/compositions/Racine.tsx");
+    expect(racine.match(/^import .*donnees\/TableauDeBordVideo"/gm)).toHaveLength(1);
+    expect(racine.match(/<Composition id="MontageDonnees" component=\{TableauDeBordVideo\}/g)).toHaveLength(1);
     const imports = [...TEXTE_COMPOSANT.matchAll(/^import (type )?.*from "(\.\.\/\.\.\/\.\.\/src\/[^"]+)"/gm)];
     expect(imports.every((m) => m[1] === "type " && /briques\/(plan-scenes|sous-titres)\//.test(m[2]))).toBe(true);
   });
