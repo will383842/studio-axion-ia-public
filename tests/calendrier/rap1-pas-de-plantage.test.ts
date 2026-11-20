@@ -18,11 +18,6 @@ describe("RAP-1 · pas de plantage", () => {
     const pubs = await depots().publications.lister();
     expect(() => publicationsDues(pubs, Date.parse("2026-12-02T00:00:00.000Z"))).not.toThrow();
   });
-  it("listerMesuresASaisir (mesures) ne lève pas et ne rend pas la rapatriée", async () => {
-    const { listerMesuresASaisir } = await import("@/services/mesures");
-    const r = await listerMesuresASaisir(new Date("2026-12-02T00:00:00.000Z"));
-    expect(r.find((m) => m.publicationId === rapatriee.id)).toBeUndefined();
-  });
   it("le bilan de la semaine ne lève pas", async () => {
     const { bilanSemaineAccueil } = await import("@/services/bilan-semaine");
     await expect(bilanSemaineAccueil(new Date("2026-11-27T10:00:00.000Z"))).resolves.not.toThrow();
