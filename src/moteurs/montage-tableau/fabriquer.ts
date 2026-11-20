@@ -92,7 +92,7 @@ import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, IntensiteSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurProfilSon, ValeurStyleSousTitres } from "@/domaine/types";
 import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, INTENSITE_SOUS_TITRES_TABLEAU, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
 import { calerFicheTableau, type ElementCale } from "./calage";
-import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau } from "./controles";
+import { controlerVideoTableau, type CaseDejaVu, type OutilsControleTableau, type RapportControleTableau, type RelectureImagesCles } from "./controles";
 import { FORMAT_TABLEAU, avecStyleTableau, validerFicheTableau, type FicheTableau, type SceneTableau } from "./fiche";
 import { ErreurMiseEnPage, mettreEnPage, reseauxVerticaux, type MiseEnPageTableau } from "./mise-en-page";
 import { controlerSortie, type ControleSortie } from "./controles-sortie";
@@ -102,6 +102,7 @@ import type { AudioBrut } from "@/briques/voix-maitre/types";
 import { listerReseaux } from "@/reseaux";
 import type { IdReseau, MotHorodate, Ratio } from "@/domaine/types";
 import type { ContexteTableau } from "./regles";
+import { objetsDesScenes } from "./objets-tableau";
 import type { LeveeVariete, ResumeVisuel } from "@/briques/variete";
 import type { NouvelEvenementTrace } from "@/domaine/tracabilite-tableau";
 import { RECETTE_VOIX_TABLEAU, reglagesRecette } from "./recette-voix";
@@ -313,6 +314,7 @@ export interface OutilsFabrication {
   videoId: string;
   /** BR-TABLEAU-RACCORDS-b : `true` pose un fondu entre deux scènes dessinées voisines (≥ 0,6 s). Absent : coupe franche, rien ne change. */
   raccords?: true;
+  objetsPermis?: readonly string[]; // N-04e : pièces d'objets permises (aucun profil ne le permet encore) ; absent ou vide : scènes identiques
   /** Environnement des clés (`dev`, `prod`) : `studio/<env>/scenes/<videoId>/<empreinte>.mp4`. */
   env: string;
   /** Fiche brute (JSON lu). */
@@ -377,7 +379,7 @@ export interface OutilsFabrication {
   /** Personnage qui prête sa voix (inscrit dans la distribution de la commande). */
   personnageId?: string;
   /** Relecture indicative des 6 images clés (absente : « non faite »). */
-  relireImagesCles?: OutilsControleTableau["relireImagesCles"];
+  relireImagesCles?: (fiche: FicheTableau, miseEnPage: MiseEnPageTableau, video: { cle: string; dureeSec: number; attendre?: () => Promise<void> }) => Promise<RelectureImagesCles> | RelectureImagesCles;
   /** Attente entre deux tours d'une étape suivie (tests : rien). */
   attendre?: () => Promise<void>;
   /** Horloge des durées d'étape (ms). */
@@ -1216,6 +1218,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // « reference/3 » : les mots de la voix et les heures fines qu'on en lit (fin dite de chaque bloc, mots importants).
     const enPlusV2 = blocs2 ? { mots: audioS.mots, fps: FPS_BLOCS_2 } : estStyleReference3(calageS.fiche) ? { mots: audioS.mots, temps3: tempsReference3(calageS.fiche, audioS.mots, prononciations) } : estStyleReference2(calageS.fiche) ? { mots: audioS.mots } : {};
     const proprietes = [...o.preparation.proprietesScenes({ miseEnPage: mise, scenes: calageS.fiche.scenes, heures: calageS.elements as ElementCale[], stylo: calageS.fiche.stylo, preuves, ...enPlusV2 }), ...(fin ? [fin] : [])];
+    const objets = o.objetsPermis?.length ? objetsDesScenes({ proprietes: proprietes as unknown as readonly ProprietesTableauScene[], permis: o.objetsPermis, mots: audioS.mots.map((m) => ({ texte: m.mot, debutMs: Math.round(m.debutSec * 1000), finMs: Math.round(Math.max(m.finSec, m.debutSec) * 1000) })) }) : {};
+    if (Object.keys(objets).length) proprietes.splice(0, proprietes.length, ...proprietes.map((p) => (objets[p.scene.id]?.length ? { ...p, objets: objets[p.scene.id] } : p))); // N-04e
     // Voix propre au vertical de TikTok et Shorts : ses scènes communes sont celles du vertical (mêmes images) ; seule
     // la dernière diffère, et son fil de progression repart d'où il en était.
     const reference = autreVoix && imageVerticale ? proprietesFaites.get("vertical") : undefined;
@@ -1387,7 +1391,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         // La mise en page de CETTE sortie (format, écran d'appel, bulles), celle qui a été rendue.
         sorties: [{ id, libelle: format.libelle, fiche: calageS.fiche, options: { preuves, ...(imageVerticale ? {} : { format: image }), ...(appel ? { appel } : {}) } }],
       },
-      o.relireImagesCles ? { relireImagesCles: o.relireImagesCles } : {},
+      // CLAUDE-REGARD-c-a : dépendance facultative, absente par défaut (alors « non faite », rien n'est appelé) ; reçoit la vidéo finie.
+      o.relireImagesCles ? { relireImagesCles: (f, m) => o.relireImagesCles!(f, m, { cle: composition.sortieCle, dureeSec: Number.isFinite(composition.mesures.dureeSec) && composition.mesures.dureeSec! > 0 ? composition.mesures.dureeSec! : dureeSec, ...(o.attendre ? { attendre: o.attendre } : {}) }) } : {},
     );
     // Les contrôles du fichier fini déclassés en alertes : dits sur la sortie livrée et au rapport, sans jeter la vidéo.
     for (const l of controles.indicatifs.filter((x) => x.declasse)) {

@@ -10,7 +10,8 @@ export type StatutEnvoi = "brouillon" | "valide" | "programme" | "confirme" | "a
 export const TRANSITIONS_ENVOI: Record<StatutEnvoi, readonly StatutEnvoi[]> = {
   brouillon: ["valide", "annule"],
   valide: ["programme", "annule"],
-  programme: ["confirme", "valide", "annule"],
+  // « envoye » : constaté par le diffuseur (Zernio « published ») pour un envoi programmé à la main, jamais par un geste du Studio.
+  programme: ["confirme", "valide", "annule", "envoye"],
   confirme: ["a-envoyer", "programme", "annule"],
   "a-envoyer": ["envoye", "echec"],
   echec: ["programme", "annule"],
@@ -48,6 +49,11 @@ export const CLE_DIFFUSEUR = /^[0-9a-f]{64}$/;
 
 export function cleEnvoi(videoId: Id, reseau: ReseauDeclinaison, versionCreneau: number): string {
   return `envoi:${videoId}:${reseau}:v${versionCreneau}`;
+}
+
+/** Clé propre à UN créneau : utilisée quand la clé ancienne appartient déjà à un autre créneau. */
+export function cleEnvoiCreneau(videoId: Id, reseau: ReseauDeclinaison, versionCreneau: number, creneauId: string): string {
+  return `${cleEnvoi(videoId, reseau, versionCreneau)}:${creneauId}`;
 }
 
 export function peutTransiter(de: StatutEnvoi, vers: StatutEnvoi): boolean {

@@ -8,7 +8,7 @@
  * automatique retirée ne revient pas aux retouches suivantes.
  */
 import { useState } from "react";
-import { changerTexteCarteAction, deplacerCarteAction, remettreCarteAutoAction, retirerCarteAutoAction, retirerPassageAction } from "@/app/(studio)/videos/actions-facecam";
+import { changerAnimationCarteAction, changerTexteCarteAction, deplacerCarteAction, remettreCarteAutoAction, retirerCarteAutoAction, retirerPassageAction } from "@/app/(studio)/videos/actions-facecam";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
 import { Dialogue } from "@/components/ui/Dialogue";
@@ -16,6 +16,8 @@ import { Icone, type NomIcone } from "@/components/ui/Icone";
 import { Pastille } from "@/components/ui/Pastille";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { cn } from "@/lib/cn";
+import { modelesPossibles } from "@/moteurs/montage-facecam/monteur/modeles-possibles";
+import { MODELES_CARTE, type ModeleCarte } from "@/moteurs/montage-facecam/monteur/operations";
 import { horloge } from "@/moteurs/montage-facecam/monteur/temps";
 import type { VueCarteVideo } from "@/services/monteur-facecam";
 
@@ -52,6 +54,11 @@ function nomDe(c: VueCarteVideo): string {
   const base = NOMS_PASSAGE[c.type] ?? NOMS_PASSAGE.autre;
   const modele = c.modele ? NOMS_MODELE[c.modele] : undefined;
   return modele ? `${base.nom} · ${modele}` : base.nom;
+}
+
+/** Un choix dans la liste « Changer l'animation » : nouvelle version où seule cette carte change de modèle. */
+export function choisirAnimation(geste: Geste, videoId: string, id: string, modele: string) {
+  if (modele) geste(() => changerAnimationCarteAction(videoId, id, modele as ModeleCarte), `Animation changée : ${NOMS_MODELE[modele] ?? modele}`);
 }
 
 export function CartesVideoFacecam({ videoId, cartes, possible, envoi, geste }: { videoId: string; cartes: VueCarteVideo[]; possible: boolean; envoi: boolean; geste: Geste }) {
@@ -110,7 +117,23 @@ export function CartesVideoFacecam({ videoId, cartes, possible, envoi, geste }: 
                     Remettre
                   </Bouton>
                 ) : (
-                  <span className="flex shrink-0 gap-1">
+                  <span className="flex shrink-0 items-center gap-1">
+                    {c.origine === "monteur" && c.type === "carte" && (MODELES_CARTE as readonly string[]).includes(c.modele ?? "") && modelesPossibles(c.textes, c.modele).length > 0 && (
+                      <select
+                        aria-label="Changer l'animation"
+                        value=""
+                        disabled={envoi}
+                        onChange={(e) => choisirAnimation(geste, videoId, c.id, e.target.value)}
+                        className="h-9 max-w-[11rem] rounded-lg border border-trait bg-surface px-2 font-sans text-sm text-texte-doux"
+                      >
+                        <option value="">Changer l&rsquo;animation</option>
+                        {modelesPossibles(c.textes, c.modele).map((m) => (
+                          <option key={m} value={m}>
+                            {NOMS_MODELE[m] ?? m}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     {(c.deplacable || c.texteModifiable) && (
                       <Bouton variante="fantome" disabled={envoi} onClick={() => ouvrir(c)}>
                         Modifier

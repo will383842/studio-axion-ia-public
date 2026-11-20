@@ -86,7 +86,6 @@ const LITTERALES: Record<string, Etat> = {
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
   { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
-  { cle: "tableau.deja_vu_usine.actif", etat: "eteint", appel: "src/services/tableau-deja-vu-usine.ts", motif: /valeur !== true\) return undefined/ },
   { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
@@ -130,7 +129,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
   { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },
   { cle: "tableau.styleTire", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ },
-  { cle: "planScenes.facecamDessin", etat: "eteint", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, false\)\) === true/ },
+  { cle: "planScenes.facecamDessin", etat: "allume", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, true\)\) !== false/ },
   {
     cle: "adaptations_reseaux.actif",
     etat: "eteint",
@@ -251,7 +250,7 @@ const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; dec
     declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
   },
   {
-    // Texte de légende enregistré par réseau (valeur, défaut `null` : rien d'enregistré) ; la fabrique est cleLegende(id, réseau).
+    // Texte de légende enregistré d'un carrousel (page de détail) : une valeur, pas un interrupteur ; `simulation === true` est un champ de la donnée.
     gabarit: "visuels.legende.*.*",
     etat: "valeur",
     appel: "src/app/(studio)/carrousels/[id]/page.tsx",
@@ -300,8 +299,6 @@ type Motif = "dedoublonnage" | "memoire" | "valeur" | "relais";
 /** Clés (ou gabarits `*`) résolues dans le texte mais HORS table. */
 const EXCLUS_CLES: Record<string, Motif> = {
   "budget.engage.*": "dedoublonnage",
-  "calendrier.proposerSemaine.compteur": "memoire", // compteur d'appels du jour (proposer-semaine.ts), pas un interrupteur
-  "zernio.essai_brouillon": "memoire", // état de l'essai en cours (créneau, expiration), lu fermé ; l'arrêt reste zernio.envoi_autorise
   "credits.alertes.*": "dedoublonnage",
   "credits.cleRefusee.*": "dedoublonnage",
   "credits.epuise.*": "dedoublonnage",
@@ -395,6 +392,8 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "zernio.comptes": "memoire",
   "zernio.mode_envoi": "memoire",
   "zernio.tests": "memoire",
+  "zernio.essai_brouillon": "memoire", // brouillon de l'essai Zernio (creneauId), pas un interrupteur
+  "calendrier.proposerSemaine.compteur": "memoire", // compteur { jour, n } des propositions de semaine
   "buffer.mode": "valeur",
   "bibliothequeVideo.archive.cochees": "valeur", // liste d'identifiants de vidéos cochées
   "bibliothequeVideo.archive.sources": "valeur", // choix « pretes » | « cochees » | « publiees », défaut null → politique du code
@@ -426,9 +425,9 @@ const EXCLUS_CLES: Record<string, Motif> = {
 const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/(studio)/carrousels/[id]/actions.ts:cle": { exclu: "memoire" },
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
-  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" }, // même légende, lue pour programmer en un clic
-  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" }, // états d'envoi du calendrier lus pour le contrôle d'essai
-  "services/tableau-deja-vu-usine.ts:id": { couvre: "tableau.deja_vu_usine.actif" },
+  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" },
+  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" },
+  "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
   "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
   "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
   "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },

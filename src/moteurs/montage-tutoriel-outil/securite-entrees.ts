@@ -672,7 +672,8 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
 
 // ───────────────────────── Données de personnes ─────────────────────────
 
-export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne";
+/** "detection-echouee" : la détection elle-même a échoué ; on ne sait pas, donc on refuse (jamais « aucune donnée »). */
+export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne" | "detection-echouee";
 export interface Detection {
   type: TypeDonnee;
   ligne: number;
@@ -691,7 +692,7 @@ export interface OptionsDonnees {
 
 const DOMAINES_EXEMPLE = new Set(["exemple.fr", "exemple.com", "example.com", "example.org"]);
 const COLONNES_PERSONNE = new Set(["nom", "prenom", "prénom", "email", "courriel", "telephone", "téléphone", "adresse", "date_naissance", "iban"]);
-const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne">, string> = {
+const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | "detection-echouee">, string> = {
   courriel: "contact@exemple.fr",
   telephone: "01 00 00 00 00",
   iban: "FR00 0000 0000 0000 0000 0000 000",
@@ -736,24 +737,57 @@ function toutZero(chaine: string): boolean {
   return /^0+$/.test(chaine.replace(/\D/g, ""));
 }
 
-/** Découpe une ligne CSV simple (guillemets, séparateur « , » ou « ; ») en valeurs avec leur position intérieure. */
-function decouperLigneCsv(ligne: string, separateur: string): { valeur: string; debut: number; fin: number }[] {
-  const sortie: { valeur: string; debut: number; fin: number }[] = [];
+/**
+ * Lit tout le CSV en un seul passage (temps linéaire) : guillemets suivis à travers les retours à la ligne,
+ * séparateur « , », « ; » ou tabulation. Chaque valeur garde sa position dans le texte entier.
+ * Un guillemet jamais refermé absorbe le reste du texte : la suite est donc masquée, jamais gardée en clair.
+ */
+function lireCsv(texte: string, separateur: string): { valeur: string; debut: number; fin: number; nu?: boolean }[][] {
+  const lignes: { valeur: string; debut: number; fin: number; nu?: boolean }[][] = [];
+  let ligne: { valeur: string; debut: number; fin: number; nu?: boolean }[] = [];
+  const n = texte.length;
   let i = 0;
-  while (i <= ligne.length) {
-    if (ligne[i] === '"') {
+  for (;;) {
+    let delimiteur: string | undefined;
+    // Blancs avant un guillemet ouvrant (`1, "Dupont, Jean"`) : la valeur est lue comme entre guillemets.
+    let k0 = i;
+    while (k0 < n && (/\p{Zs}/u.test(texte[k0]!) || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
+    if (texte[k0] === '"') {
+      i = k0;
       let j = i + 1;
-      while (j < ligne.length && !(ligne[j] === '"' && ligne[j + 1] !== '"')) j += ligne[j] === '"' ? 2 : 1;
-      sortie.push({ valeur: ligne.slice(i + 1, j), debut: i + 1, fin: j });
-      i = j + 2;
-    } else {
-      let j = ligne.indexOf(separateur, i);
-      if (j === -1) j = ligne.length;
-      sortie.push({ valeur: ligne.slice(i, j), debut: i, fin: j });
+      while (j < n && !(texte[j] === '"' && texte[j + 1] !== '"')) j += texte[j] === '"' ? 2 : 1;
+      const ouvrant = i;
+      const fermant = Math.min(j, n);
       i = j + 1;
+      while (i < n && texte[i] !== separateur && texte[i] !== "\n") i++;
+      delimiteur = texte[i];
+      const finReste = (delimiteur === "\n" || i >= n) && i > j + 1 && texte[i - 1] === "\r" ? i - 1 : i;
+      if (finReste > j + 1 && texte.slice(j + 1, finReste).trim() !== "") {
+        // Texte entre le guillemet fermant et le séparateur (« "Jean" Dupont ») : la plage va jusqu'au séparateur,
+        // guillemets compris (remplacement entre guillemets), pour que ce reste ne reste jamais en clair.
+        ligne.push({ valeur: texte.slice(ouvrant + 1, finReste), debut: ouvrant, fin: finReste, nu: true });
+      } else {
+        ligne.push({ valeur: texte.slice(ouvrant + 1, fermant), debut: ouvrant + 1, fin: fermant });
+      }
+    } else {
+      let j = i;
+      while (j < n && texte[j] !== separateur && texte[j] !== "\n") j++;
+      delimiteur = texte[j];
+      const fin = (delimiteur === "\n" || j >= n) && j > i && texte[j - 1] === "\r" ? j - 1 : j;
+      ligne.push({ valeur: texte.slice(i, fin), debut: i, fin });
+      i = j;
     }
+    if (delimiteur === separateur) {
+      i += 1;
+      continue;
+    }
+    lignes.push(ligne);
+    ligne = [];
+    if (i >= n) break;
+    i += 1;
+    if (i >= n) break;
   }
-  return sortie;
+  return lignes;
 }
 
 function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined): boolean {
@@ -767,69 +801,133 @@ function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined):
   return mots.length > 0 && mots.every((m) => lower.has(minuscule(m)));
 }
 
-function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
+/** Retire les caractères de format invisibles (U+200B, U+200D, U+2060, U+FEFF, U+00AD…) : « no​m » doit rester « nom ». */
+function sansInvisibles(s: string): string {
+  return s.replace(/\p{Cf}/gu, "");
+}
+
+/** Nom de colonne normalisé : invisibles retirés, trim, une paire de guillemets englobante retirée, trim, NFKC, minuscules. */
+function nomColonne(valeur: string): string {
+  let v = sansInvisibles(valeur).trim();
+  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = sansInvisibles(v.slice(1, -1)).trim();
+  return v.normalize("NFKC").toLowerCase();
+}
+
+/** Nombre de lignes du début d'un CSV où l'on cherche l'en-tête (ligne `sep=;`, titre d'export…). */
+const LIGNES_ENTETE_MAX = 10;
+
+function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
+  // « CSV (Macintosh) » : fin de ligne `\r` seule ; fins de ligne Unicode U+2028, U+2029 et U+0085 (NEL). Chacune est remplacée
+  // par `\n` (un caractère pour un caractère, positions inchangées) pour la lecture ; `\r\n` reste une seule fin de ligne.
+  const texte = ext === "json" ? texteBrut : texteBrut.replace(/\r(?!\n)|[\u2028\u2029\u0085]/g, "\n");
   if (ext === "json") {
     const ESPACE = /\s/;
-    /** Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `i` ; retourne la fin. */
-    const collecter = (i: number): number => {
-      while (i < texte.length && ESPACE.test(texte[i]!)) i++;
-      const c = texte[i];
-      if (c === '"') {
-        let j = i + 1;
-        while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
-        if (!valeurNeutre(texte.slice(i + 1, j), neutres)) trouves.push({ debut: i + 1, fin: j });
-        return j + 1;
-      }
-      if (c === "[" || c === "{") {
-        const fermant = c === "[" ? "]" : "}";
-        let j = i + 1;
-        while (j < texte.length) {
-          while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
-          if (texte[j] === fermant || j >= texte.length) return j + 1;
-          if (c === "{") {
-            // clé : on la saute, puis la valeur
-            if (texte[j] !== '"') return j + 1;
+    /**
+     * Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `debut` ; retourne la fin.
+     * SANS récursion (pile explicite) : une imbrication de 200 000 niveaux ne fait jamais déborder la pile.
+     */
+    const collecter = (debut: number): number => {
+      const pile: string[] = [];
+      let j = debut;
+      let attendValeur = true;
+      for (;;) {
+        if (attendValeur) {
+          while (j < texte.length && ESPACE.test(texte[j]!)) j++;
+          const c = texte[j];
+          if (c === '"') {
+            let k = j + 1;
+            while (k < texte.length && texte[k] !== '"') k += texte[k] === "\\" ? 2 : 1;
+            if (!valeurNeutre(texte.slice(j + 1, k), neutres)) trouves.push({ debut: j + 1, fin: k });
+            j = k + 1;
+          } else if (c === "[" || c === "{") {
+            pile.push(c === "[" ? "]" : "}");
+            j++;
+            attendValeur = false;
+            continue;
+          } else {
+            const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(j, j + 40));
+            if (nombre) {
+              // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
+              trouves.push({ debut: j, fin: j + nombre[0].length, nu: true });
+              j += nombre[0].length;
+            } else {
+              j += 1; // true, false, null…
+            }
+          }
+          if (pile.length === 0) return j;
+          attendValeur = false;
+          continue;
+        }
+        const fermant = pile[pile.length - 1]!;
+        while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
+        let fini = texte[j] === fermant || j >= texte.length;
+        if (!fini && fermant === "}") {
+          // clé : on la saute, puis la valeur
+          if (texte[j] !== '"') fini = true;
+          else {
             j++;
             while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
             j++;
             while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
           }
-          const suite = collecter(j);
-          if (suite <= j) return j + 1;
-          j = suite;
         }
-        return j;
+        if (fini) {
+          j++;
+          pile.pop();
+          if (pile.length === 0) return j;
+          continue;
+        }
+        attendValeur = true;
       }
-      const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(i, i + 40));
-      if (nombre) {
-        // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
-        trouves.push({ debut: i, fin: i + nombre[0].length, nu: true });
-        return i + nombre[0].length;
-      }
-      return i + 1; // true, false, null…
     };
+    // Un seul passage : une clé déjà couverte par une valeur collectée plus haut n'est pas reprise (linéaire).
+    let traite = 0;
     for (const m of texte.matchAll(/"((?:[^"\\]|\\.)*)"\s*:\s*/g)) {
-      if (!COLONNES_PERSONNE.has(m[1]!.toLowerCase())) continue;
-      collecter((m.index ?? 0) + m[0].length);
+      const debutValeur = (m.index ?? 0) + m[0].length;
+      if (debutValeur <= traite || !COLONNES_PERSONNE.has(nomColonne(m[1]!))) continue;
+      traite = collecter(debutValeur);
     }
     return trouves;
   }
-  const lignes = texte.split("\n");
-  const entete = lignes[0]?.replace(/\r$/, "") ?? "";
-  const sep = entete.split(";").length > entete.split(",").length ? ";" : ",";
-  const cases = decouperLigneCsv(entete, sep);
-  const colonnes = new Set(cases.flatMap((c, i) => (COLONNES_PERSONNE.has(c.valeur.trim().toLowerCase()) ? [i] : [])));
+  const finPremiere = texte.indexOf("\n");
+  const premiere = (finPremiere === -1 ? texte : texte.slice(0, finPremiere)).replace(/\r$/, "");
+  // Ligne `sep=X` d'Excel : X est le séparateur ; sinon séparateur le plus fréquent de la 1re ligne
+  // (égalité : « , » puis « ; » puis tabulation), puis les deux autres en repli.
+  const declare = /^\p{Cf}*sep=(.)\s*$/iu.exec(premiere)?.[1];
+  let sep = ",";
+  let meilleur = premiere.split(",").length;
+  for (const candidat of [";", "\t"]) {
+    const nombre = premiere.split(candidat).length;
+    if (nombre > meilleur) {
+      sep = candidat;
+      meilleur = nombre;
+    }
+  }
+  const candidats = declare ? [declare] : [sep, ...[",", ";", "\t"].filter((x) => x !== sep)];
+  // L'en-tête n'est pas forcément la 1re ligne : on prend, parmi les premières lignes, la 1re qui porte un nom de colonne de personne.
+  let lignes: ReturnType<typeof lireCsv> = [];
+  let colonnes = new Set<number>();
+  let indiceEntete = 0;
+  for (const candidat of candidats) {
+    lignes = lireCsv(texte, candidat);
+    for (let l = 0; l < Math.min(lignes.length, LIGNES_ENTETE_MAX); l++) {
+      const trouvees = (lignes[l] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : []));
+      if (trouvees.length > 0) {
+        colonnes = new Set(trouvees);
+        indiceEntete = l;
+        break;
+      }
+    }
+    if (colonnes.size > 0) break;
+  }
   if (colonnes.size === 0) return trouves;
-  let decalage = (lignes[0]?.length ?? 0) + 1;
-  for (let l = 1; l < lignes.length; l++) {
-    const brute = lignes[l]!.replace(/\r$/, "");
-    const valeurs = decouperLigneCsv(brute, sep);
+  for (let l = indiceEntete + 1; l < lignes.length; l++) {
+    const valeurs = lignes[l]!;
     for (const c of colonnes) {
       const v = valeurs[c];
-      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push({ debut: decalage + v.debut, fin: decalage + v.fin });
+      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push(v.nu ? { debut: v.debut, fin: v.fin, nu: true } : { debut: v.debut, fin: v.fin });
     }
-    decalage += lignes[l]!.length + 1;
   }
   return trouves;
 }
@@ -862,13 +960,37 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
       for (const c of detecterColonnes(texte, ext, options.nomsNeutres)) bruts.push({ type: "colonne-personne", ...c });
     }
   } catch {
-    return [];
+    // Échec de la détection : jamais « aucune donnée » (le fichier partirait non masqué) ; une détection spéciale force le refus.
+    return [{ type: "detection-echouee", ligne: 1, debut: 0, fin: texte.length }];
   }
   // Priorité à l'ordre de découverte ci-dessus : une plage déjà prise n'est pas reprise.
-  const pris: { debut: number; fin: number }[] = [];
-  const gardes = bruts.filter((b) => {
-    if (pris.some((p) => b.debut < p.fin && b.fin > p.debut)) return false;
-    pris.push(b);
+  // Table d'occupation (une case par caractère) : temps linéaire, même priorité qu'avant (ordre de découverte).
+  // Une colonne de personne passe en premier et absorbe les détections qu'elle contient (courriel, téléphone…) :
+  // la valeur entière est masquée, jamais seulement un morceau (« Jean Dupont jean@orange.fr »).
+  // Seule exception : un courriel (ou un autre type) qui forme TOUTE la valeur reste de son type.
+  const exacts = new Set<string>();
+  for (const b of bruts) if (b.type !== "colonne-personne") exacts.add(`${b.debut}:${b.fin}`);
+  const colonnes = bruts.filter((b) => {
+    if (b.type !== "colonne-personne") return false;
+    const dedans = texte.slice(b.debut, b.fin);
+    const debut = b.debut + (dedans.length - dedans.trimStart().length);
+    const fin = b.fin - (dedans.length - dedans.trimEnd().length);
+    return !exacts.has(`${debut}:${fin}`);
+  });
+  const ordonnes = [...colonnes, ...bruts.filter((b) => b.type !== "colonne-personne")];
+  const occupe = new Uint8Array(texte.length + 1);
+  const gardes = ordonnes.filter((b) => {
+    const fin = Math.min(b.fin, texte.length);
+    let libre = true;
+    for (let i = b.debut; i < fin; i++) {
+      if (occupe[i]) {
+        libre = false;
+        break;
+      }
+    }
+    if (!libre) return false;
+    // Une plage vide (debut >= fin) n'occupe rien : elle est gardée comme avant (aucune plage prise ne la chevauche).
+    occupe.fill(1, b.debut, fin);
     return true;
   });
   gardes.sort((a, b) => a.debut - b.debut);
@@ -878,8 +1000,10 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
 /** Remplace chaque donnée détectée par un texte d'exemple fixe (rendu déterministe). */
 export function masquerDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): { texte: string; remplacements: { type: TypeDonnee; nombre: number }[] } {
   const trouvees = detecterDonneesPersonnelles(texte, options);
+  // Détection impossible : on ne rend jamais le texte d'origine comme s'il était propre.
+  if (trouvees.some((d) => d.type === "detection-echouee")) return { texte: "", remplacements: [{ type: "detection-echouee", nombre: 1 }] };
   let numero = 0;
-  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type] }));
+  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | "detection-echouee">] }));
   let sortie = "";
   let curseur = 0;
   for (const { d, par } of remplaces) {

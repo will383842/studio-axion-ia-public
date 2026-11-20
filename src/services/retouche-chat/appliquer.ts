@@ -100,7 +100,8 @@ function titreZoom(s: SceneBrute): string {
   return t.slice(0, 40);
 }
 
-export function appliquerOperations(plan: PlanValide, operations: readonly OperationRetouche[]): ResultatAppliquer {
+export function appliquerOperations(plan: PlanValide, operations: readonly OperationRetouche[], options: { objetsPermis?: readonly string[] } = {}): ResultatAppliquer {
+  const permis = options.objetsPermis ?? [];
   const brut = structuredClone(plan) as unknown as { habillage: Record<string, unknown>; mots: MotMinute[]; scenes: SceneBrute[] } & Record<string, unknown>;
   for (const s of brut.scenes) delete s.empreinte;
   const remarques: RemarqueRetouche[] = [];
@@ -255,19 +256,21 @@ export function appliquerOperations(plan: PlanValide, operations: readonly Opera
           ignorer(`Scène « ${op.sceneId} » introuvable : rien n'a changé.`, op.sceneId);
           break;
         }
-        if (appliquerSurScene(s, op, (m) => ignorer(m, s.id), brut.mots)) ok([s.id]);
+        if (appliquerSurScene(s, op, (m) => ignorer(m, s.id), brut.mots, permis)) ok([s.id]);
       }
     }
   }
 
   for (const s of brut.scenes) if (touchees.has(s.id)) s.version = (s.version ?? 1) + 1;
-  const v = validerPlan(brut, { mots: brut.mots, format: plan.format, facecam: plan.facecam, dureeMs: plan.dureeMs });
+  const v = validerPlan(brut, { mots: brut.mots, format: plan.format, facecam: plan.facecam, dureeMs: plan.dureeMs, ...(options.objetsPermis?.length ? { objetsPermis: options.objetsPermis } : {}) });
   return { plan: v.plan, operations: appliquees, remarques: [...remarques, ...v.remarques] };
 }
 
 type OperationScene = Exclude<OperationRetouche, { type: "modifier-script" | "changer-habillage" | "changer-transition" | "ajouter-dynamisme" | "couper-mots" | "changer-sous-titre" | "retirer-scene" | "changer-son" | "deplacer" }>;
 
-function appliquerSurScene(s: SceneBrute, op: OperationScene, ignorer: (m: string) => void, mots: readonly MotMinute[]): boolean {
+function appliquerSurScene(s: SceneBrute, op: OperationScene, ignorer: (m: string) => void, mots: readonly MotMinute[], permis: readonly string[]): boolean {
+  const SANS_PARAMETRES = "Un petit objet demande ses paramètres écrits : rien n'a changé.";
+  const objetSansParametres = (piece: IdPiece, parametres: unknown) => parametres === undefined && permis.includes(piece);
   switch (op.type) {
     case "changer-mot": {
       const fait = op.champ ? remplacerAuChemin(s, op.champ, op.ancien, op.nouveau) : (typeof s.texte === "string" && remplacerAuChemin(s, "texte", op.ancien, op.nouveau)) || remplacerDans(s.parametres, op.ancien, op.nouveau) || remplacerDans(s.calques, op.ancien, op.nouveau);
@@ -281,6 +284,7 @@ function appliquerSurScene(s: SceneBrute, op: OperationScene, ignorer: (m: strin
       return true;
     }
     case "changer-brique":
+      if (objetSansParametres(op.piece, op.parametres)) return (ignorer(SANS_PARAMETRES), false);
       s.piece = op.piece;
       s.parametres = op.parametres ?? exemple(op.piece);
       s.niveau = 1;
@@ -301,6 +305,7 @@ function appliquerSurScene(s: SceneBrute, op: OperationScene, ignorer: (m: strin
       return true;
     }
     case "ajouter-piece": {
+      if (objetSansParametres(op.piece, op.parametres)) return (ignorer(SANS_PARAMETRES), false);
       const calques = enCalques(s);
       if (calques.length >= MAX_CALQUES) return (ignorer("Scène déjà pleine (6 calques)."), false);
       calques.push({ piece: op.piece, parametres: op.parametres ?? exemple(op.piece), debutMs: op.debutMs ?? 0, zone: op.zone ?? "plein" });
@@ -313,6 +318,7 @@ function appliquerSurScene(s: SceneBrute, op: OperationScene, ignorer: (m: strin
       return true;
     }
     case "remplacer-piece": {
+      if (objetSansParametres(op.nouvelle, op.parametres)) return (ignorer(SANS_PARAMETRES), false);
       let fait = false;
       if (s.piece === op.ancienne) {
         s.piece = op.nouvelle;

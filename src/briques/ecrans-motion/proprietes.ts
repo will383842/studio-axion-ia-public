@@ -200,7 +200,11 @@ export function poserTexte(b: BoiteTexteEcran, texte: string): TextePose {
 /** Boîtes de l'écran dans sa zone, selon son type et son contenu. */
 export function boitesEcran(p: ProprietesEcran): BoitesEcran {
   const options = p.type === "promesse" && couperCadeau(p).suite ? { ...optionsDe(p), suiteCadeau: true } : optionsDe(p);
-  return boites(p.type, p.zone, charteDuoPour(p.hauteur), options, { ...(p.dessin ? { dessin: p.dessin } : {}), ...(p.basFil !== undefined ? { basFil: p.basFil } : {}) });
+  const poser = (o: typeof options) => boites(p.type, p.zone, charteDuoPour(p.hauteur), o, { ...(p.dessin ? { dessin: p.dessin } : {}), ...(p.basFil !== undefined ? { basFil: p.basFil } : {}) });
+  const b = poser(options);
+  // Étape ou objet : le titre qui ne tient pas sur une ligne, même au plancher, passe sur 2 lignes (mêmes mots).
+  const titre = p.type === "etape" || p.type === "objet" ? b.textes.find((x) => x.nom === "titre") : undefined;
+  return titre && !poserTexte(titre, textesEcran(p).titre).tient ? poser({ ...options, titreSurDeux: true }) : b;
 }
 
 /**

@@ -26,12 +26,13 @@ export const formatTutorielOutil: DefinitionFormat = {
   famille: "motion",
   codeClassement: CODE_FORMAT_TUTORIEL_OUTIL,
   declinaison: "aucune",
-  durees: { mode: "depuis-script", zoneSec: [30, 75], zoneOrangeSec: [75, 120], ciblesGenerationSec: [45, 60, 75], cibleParDefautSec: 60 },
+  durees: { mode: "depuis-script", zoneSec: [40, 55], zoneOrangeSec: [55, 75], ciblesGenerationSec: [40, 50, 55], cibleParDefautSec: 50 },
   // Lot I : rendu maître en 4:5, puis les autres formats des réseaux.
   ratios: ["4:5", "9:16", "1:1"],
   ratioMaitre: "4:5",
   miseEnPage: "plein-ecran",
   miseEnPageParRatio: { "4:5": "plein-ecran", "9:16": "plein-ecran", "1:1": "plein-ecran" },
+  // T-EXT-SV : avec voix, 1 personnage. 0 n'est admis QUE dans le mode « sans voix » : `bornesPersonnages` (mode-sans-voix.ts), lu au lancement.
   personnages: { min: 1, max: 1, roles: ["voix"], sources: ["double"] },
   entrees: [],
   etapes: ["express", "fabrication"],

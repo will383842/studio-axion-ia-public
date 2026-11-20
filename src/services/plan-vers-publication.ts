@@ -7,6 +7,8 @@
 import "server-only";
 import type { Depot, LotEcritures } from "@/domaine/depots";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
+import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { resoudreCleEnvoi } from "@/services/envois-planifies";
 import type { Evenement, Publication } from "@/domaine/types";
 import { cleJour } from "@/lib/dates";
 import type { ReseauDeclinaison } from "@/domaine/types";
@@ -19,6 +21,8 @@ export interface DepotsPasserelle extends DepotsPlan {
   visuels: Depot<Visuel>;
   /** Journal d'activité : trace d'un retrait du calendrier (facultatif pour les doublures de `programmerVisuel`). */
   evenements?: Depot<Evenement>;
+  /** Envois planifiés : sert à résoudre la clé propre au créneau (facultatif ; absent = clé ancienne). */
+  envoisPlanifies?: Depot<EnvoiPlanifie>;
 }
 
 /**
@@ -48,7 +52,11 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   // Une Publication existe déjà pour ce visuel et ce réseau si elle porte l'id courant ou celui d'une version
   // antérieure (le créneau a été décalé depuis) : on la réutilise, on ne recrée jamais.
   const plan: { reseau: ReseauDeclinaison; id: string; existante: Publication | null }[] = [];
-  for (const { reseau, cle } of lignes) {
+  for (const { reseau, cle: cleAncienne } of lignes) {
+    // Même clé que l'envoi du créneau (une entrée de l'ancienne clé peut appartenir à un autre créneau).
+    const cle = d.envoisPlanifies
+      ? await resoudreCleEnvoi(d.envoisPlanifies, { videoId: v.id, reseau, versionCreneau: c.decalages, creneauId: c.id })
+      : cleAncienne;
     const id = `pub_${cle}`;
     const existante = (await d.publications.obtenir(id))
       ?? (await d.publications.trouver((p) => p.visuelId === v.id && p.reseau === reseau && p.statut === "programmee"));

@@ -7,6 +7,7 @@ import type { DefinitionObjet, IdPetitObjet } from "../motion/petits-objets/cont
 import { OBJET_ANNEAU_DONNEES } from "../motion/petits-objets/anneau-donnees";
 import { DEF_APPEL_ACTION } from "../motion/petits-objets/appel-action";
 import { DEF_APPEL_MOT } from "../motion/petits-objets/appel-mot";
+import { DEF_APPEL_RDV } from "../motion/petits-objets/appel-rdv";
 import { OBJET_BULLE_NOTIFICATION, OBJET_BULLE_PAROLE, OBJET_BULLE_PENSEE } from "../motion/petits-objets/bulles";
 import { DEF_CADRE_COINS, DEF_CADRE_PASSAGE, DEF_CADRE_RECTANGLE } from "../motion/petits-objets/cadres";
 import { OBJET_CARTES_COCHE } from "../motion/petits-objets/cartes";
@@ -52,6 +53,7 @@ const LISTE: readonly DefinitionObjet<unknown>[] = [
   OBJET_VOLET_AVANT_APRES as DefinitionObjet<unknown>, // ecran · objet-volet-avant-apres
   DEF_APPEL_ACTION as DefinitionObjet<unknown>, // etiquette · objet-appel-action
   DEF_APPEL_MOT as DefinitionObjet<unknown>, // etiquette · objet-appel-mot
+  DEF_APPEL_RDV as DefinitionObjet<unknown>, // etiquette · objet-appel-rdv
   DEF_BADGE as DefinitionObjet<unknown>, // etiquette · objet-badge
   OBJET_BULLE_NOTIFICATION as DefinitionObjet<unknown>, // etiquette · objet-bulle-notification
   OBJET_BULLE_PAROLE as DefinitionObjet<unknown>, // etiquette · objet-bulle-parole

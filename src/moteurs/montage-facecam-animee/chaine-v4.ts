@@ -28,6 +28,7 @@ import { MENTION_PLAFOND_FACECAM_ANIMEE } from "./index";
 import { PHRASE_REALISATEUR_PANNE, realiser, type DependancesRealisateur, type EntreeRealisateur, type HistoriqueVideo, type MotTranscrit } from "./realisateur";
 import { controlerDiversiteV4, estRendableV4 } from "./realisateur/regles-v4";
 import { indicesMotsInterditsEcran } from "./realisateur/mots";
+import { zoomsPriseV4 } from "./zoom-gratuit-v4";
 import { plaquettesSansVideo, type PlaquetteRetireeV4 } from "./videos-v4";
 import { ESSAIS_REPLI_SANS_VIDEO_V4, elementsPourRepliV4, nomsRetireesV4, phraseRepliEchecV4, phraseRepliOkV4 } from "./repli-sans-video-v4";
 import { erreursRepliOuvertesV4, idsPlaquettesAVideoOuvertes, retirerSansVideoOuvertV4, telephonesSansMediaV4 } from "./repli-telephone-video";
@@ -137,7 +138,8 @@ export interface EtatChaineV4 {
 
 export interface OutilsChaineV4 {
   /** Lot R2 : plan de scènes pour les scènes d'interface, de chiffres et d'accents. Absent (par défaut) : rendu inchangé. `appeler` absent : pièces du stock seulement. */
-  planScenes?: { appeler?: AppelClaude };
+  /** C9-37-c (20/11) : `objetsPermis` rempli plus tard par le service (zone interdite) ; absent ou vide = identique. */
+  planScenes?: { appeler?: AppelClaude; objetsPermis?: readonly string[] };
   /** GV-MD-03 : calage des animations sur le début du mot dit. ÉTEINT par défaut (absent ou faux : plan d'Opus inchangé, rendu des vidéos existantes identique). */
   calageAuMot?: boolean;
   /** BR-TELEPHONE-a : le réalisateur peut proposer le téléphone qui joue un extrait. ÉTEINT par défaut (absent : message du réalisateur inchangé). */
@@ -148,6 +150,8 @@ export interface OutilsChaineV4 {
   finDouce?: boolean;
   /** G11-09c (W-H, 17/11) : garder le rendu brut. ÉTEINT par défaut (absent : demande de rendu identique). */
   garderMaster?: boolean;
+  /** C8-Z09b-b : zoom gratuit de la prise (W-F : oui sur planche, valeurs provisoires C8-Z10). ÉTEINT par défaut (absent ou faux : demande de rendu identique). */
+  zoomGratuit?: boolean;
   /** Transcription horodatée au mot de la prise brute (temps de la prise). Lève `EnCoursChaineV4` tant qu'elle n'est pas finie. */
   transcrire(d: { priseCle: string; appelId: string }): Promise<{ mots: MotHorodate[]; dureeSec: number; largeurSource?: number; hauteurSource?: number }>;
   /**
@@ -168,7 +172,7 @@ export interface OutilsChaineV4 {
    */
   videos?(d: { videoId: string; plan: PlanFacecamAnimee; mots: MotTranscrit[] }): Promise<{ plan: PlanFacecamAnimee; fichiers: FichierVideoV4[]; manques: string[]; depenseUsd?: number; choix?: ChoixVideoV4[] }>;
   /** Rendu de la vidéo par le service de rendu (lève `EnCoursChaineV4` tant qu'il tourne). `videos` : fichiers d'illustration à envoyer avec la demande. */
-  rendre(d: { idRendu: string; priseCle: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; recadrage?: RecadrageV4; videos?: FichierVideoV4[]; /** GV2-34 : seulement quand le réglage est allumé. */ finDouce?: boolean; /** G11-09c : seulement quand le réglage est allumé. */ garderMaster?: boolean }): Promise<{ cle: string; vignetteCle: string; dureeSec: number; taille: number; lufs?: number; picVraiDbtp?: number; dureeMonteeSec?: number; masterCle?: string; tailleMaster?: number }>;
+  rendre(d: { idRendu: string; priseCle: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; recadrage?: RecadrageV4; videos?: FichierVideoV4[]; /** GV2-34 : seulement quand le réglage est allumé. */ finDouce?: boolean; /** G11-09c : seulement quand le réglage est allumé. */ garderMaster?: boolean; /** C8-Z09b-b : seulement quand l'option est allumée et qu'au moins une fenêtre est permise. */ zoomsPrise?: { fenetres: { debutSec: number; finSec: number; facteur: number }[]; largeur: number; hauteur: number } }): Promise<{ cle: string; vignetteCle: string; dureeSec: number; taille: number; lufs?: number; picVraiDbtp?: number; dureeMonteeSec?: number; masterCle?: string; tailleMaster?: number }>;
 }
 
 /** Un travail extérieur tourne encore : rien n'a changé, le même pas sera refait au passage suivant. */
@@ -680,12 +684,14 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       if (plaquettesSansVideo(etat.realisation.plan).length || telephonesSansMediaV4(etat.realisation.plan, { telephoneVideo: outils.telephoneVideo }).length) return { ...etat, etape: "videos" };
       // Lot R2 : le plan de scènes se compose (et se garde) AVANT le rendu : un pas à lui seul, jamais refait à la reprise.
       if (outils.planScenes && !etat.planScenes) {
-        const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler });
+        const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler, ...(outils.planScenes.objetsPermis?.length ? { objetsPermis: outils.planScenes.objetsPermis } : {}) });
         return { ...etat, planScenes: memo };
       }
       const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: retirerPiecesSousV4(etat.planScenes.plan, intervallesV4(etat.realisation.plan)) } : etat.realisation.plan;
       const gardes = etat.coupes.gardes;
-      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}), ...(outils.finDouce ? { finDouce: true } : {}), ...(outils.garderMaster ? { garderMaster: true } : {}) }));
+      const dims = etat.cadrage ? SORTIE_V4 : etat.transcription?.largeur && etat.transcription?.hauteur && etat.transcription.largeur < etat.transcription.hauteur ? { largeur: etat.transcription.largeur, hauteur: etat.transcription.hauteur } : undefined;
+      const zoomsPrise = outils.zoomGratuit === true && dims ? zoomsPriseV4({ actif: true, plan: etat.realisation.plan, gardes, dureeSec: etat.coupes.dureeSec, largeur: dims.largeur, hauteur: dims.hauteur }) : undefined;
+      const rendu = await compterMuets(etat, () => outils.rendre({ idRendu: `fa4-${etat.demande.versionId}${suffixe}`, priseCle: etat.demande.priseCle, plan: planRendu, gardes, ...(etat.cadrage ? { recadrage: etat.cadrage } : {}), ...(etat.videos?.fichiers.length ? { videos: etat.videos.fichiers } : {}), ...(outils.finDouce ? { finDouce: true } : {}), ...(outils.garderMaster ? { garderMaster: true } : {}), ...(zoomsPrise ? { zoomsPrise } : {}) }));
       return { ...etat, ...(etat.muets ? { muets: { ...etat.muets, rendu: 0 } } : {}), etape: "prete", rendu };
     }
     case "prete":

@@ -842,13 +842,13 @@ async function envoyerVersBufferInterne(
 
 /**
  * Premier commentaire d'un réseau : celui de l'écran ; celui que la vidéo porte déjà n'est lu que si l'appelant le demande
- * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram, Facebook et
- * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
+ * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Instagram, Facebook et
+ * LinkedIn le reçoivent par Buffer ou Zernio ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
  */
 async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean, outil: OutilPublication = "buffer"): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  // Zernio : seuls Facebook et LinkedIn le reçoivent (zernio-corps.ts) ; Instagram, TikTok, YouTube : à la main, aucun firstComment.
+  // Zernio : Instagram (prouvé le 20/11), Facebook et LinkedIn le reçoivent (zernio-corps.ts, « à confirmer ») ; TikTok et YouTube : à la main, aucun firstComment.
   if (outil === "zernio" ? premierCommentaireTransmissibleZernio(reseau) : premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
   // Posé à la main : le texte est tout de même montré et recopié, il passe donc le même filtre, avant tout envoi.
   try {
@@ -1416,6 +1416,11 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
     return { publication: ecrite, deja: false };
   } catch (e) {
     const { incertain, message } = lireErreurEnvoi("zernio", e);
+    // Console serveur seulement (jamais le journal ni l'écran) : code, statut et détail du fournisseur, adresses retirées.
+    if (e instanceof ErreurZernio) {
+      const brut = (e.detailTechnique ?? "").replace(/https?:\/\/\S+/g, "<adresse>").slice(0, 300);
+      console.warn(`[studio] outil de publication, envoi du visuel sur ${reseau} : ${[e.code, e.statut].filter((x) => x !== undefined).join(" ")}${brut ? ` · ${brut}` : ""}`);
+    }
     await sousVerrou(() => d.publications.modifier(pub.id, incertain ? { etatEnvoi: "a-verifier", erreur: message } : { etatEnvoi: "refuse", statut: "echec", erreur: message }));
     throw new ErreurStudio(incertain ? "ENVOI_A_VERIFIER" : "ENVOI_REFUSE", incertain ? `${nom} : la réponse de l'outil de publication s'est perdue, l'envoi est à vérifier (rien ne sera envoyé deux fois).` : message);
   }

@@ -8,8 +8,9 @@
  */
 import type { CSSProperties } from "react";
 import { CalquePlanScenes } from "../plan-scenes/CalquePlanScenes";
-import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Freeze, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import { boiteAccessoire, entreeEcranPartage, geometrieEcranPartage, margeFlou, planAuTemps, SOURCE_DOUBLE, transformation, type ProprietesImageComposition, type SourceDouble } from "../../../src/briques/composition/scene";
+import { etatRaccordA } from "../../src/composition/raccords-instants";
 import { ContenuAccessoire } from "./Accessoire";
 import { Silhouette } from "./Silhouette";
 
@@ -85,18 +86,36 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
   const second = !camera && planDouble?.angle === "second" && p.doubles.second;
   const boite = tr.double;
   const decor = p.decor;
+  // C10-03b-v20f : pendant une fenêtre `fondFlouCartes`, le calque décor SEUL reçoit un flou et un voile noir (fondu linéaire). Absent ou hors fenêtre : rien ne change.
+  const fenetreFlou = (p.fondFlouCartes ?? []).find((w) => t >= w.debutSec && t < w.finSec);
+  const fondu = fenetreFlou ? (fenetreFlou.fonduSec > 0 ? Math.max(0, Math.min(1, (t - fenetreFlou.debutSec) / fenetreFlou.fonduSec, (fenetreFlou.finSec - t) / fenetreFlou.fonduSec)) : 1) : 0;
+  const flouCarte = fenetreFlou ? fenetreFlou.flouPx * fondu * k : 0;
+  const flouDecor = (decor.flouPx > 0 ? decor.flouPx * k : 0) + flouCarte;
+  const voileCarte = fenetreFlou && fenetreFlou.assombrir * fondu > 0 ? fenetreFlou.assombrir * fondu : 0;
   const decorImage = decor.image ? (
-    <Img src={decor.image} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: decor.flouPx > 0 ? `blur(${decor.flouPx * k}px)` : undefined, transform: decor.flouPx > 0 ? "scale(1.04)" : undefined }} />
+    <Img src={decor.image} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: flouDecor > 0 ? `blur(${flouDecor}px)` : undefined, transform: flouDecor > 0 ? "scale(1.04)" : undefined }} />
   ) : null;
+  const decorCalque = voileCarte > 0 ? (
+    <>
+      {decorImage}
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "#000", opacity: voileCarte }} />
+    </>
+  ) : decorImage;
   // Facecam lot C : écran partagé par passages (carte en haut, la personne glisse en bas). Absent : rien ne change.
   const ep = plan?.type === "double" ? plan.ecranPartage : undefined;
   const geo = ep ? geometrieEcranPartage(ep, entreeEcranPartage(image - Math.round(plan!.debutSec * fps), ep.entreeImages)) : null;
+  // Raccords entre deux illustrations voisines (même règle que le chemin FFmpeg) : absents ou inutiles, rien ne change.
+  const voisines = (a: number) => [a, a + 1].every((j) => { const x = p.plans[j]; return x?.type === "illustration" && !!x.illustration && !x.ecranPartage && !x.miseEnPage; });
+  const raccordsUtiles = (p.raccords ?? []).filter((r) => voisines(r.indexAvant));
+  const raccord = raccordsUtiles.length
+    ? etatRaccordA(image, fps, p.plans.map((x) => ({ debutImage: Math.round(x.debutSec * fps), finImage: Math.round(x.finSec * fps) })), raccordsUtiles, { largeurPx: p.largeur })
+    : null;
   const scene = (
     <AbsoluteFill style={{ backgroundColor: decor.teinte, overflow: "hidden" }}>
       {/* 4:5 et 1:1 : le décor reste fixe et s'étend sur les côtés ; seul le double change de taille. */}
-      {p.ratio !== "9:16" && decorImage}
+      {p.ratio !== "9:16" && decorCalque}
       <div style={{ position: "absolute", left: 0, top: 0, width: p.largeur, height: p.hauteur, transformOrigin: "0 0", transform: `translate(${tr.conteneur.x}px, ${tr.conteneur.y}px) scale(${tr.conteneur.echelle})` }}>
-        {p.ratio === "9:16" && decorImage}
+        {p.ratio === "9:16" && decorCalque}
         <div style={{ position: "absolute", left: boite.gauche, top: boite.haut, width: boite.largeur, height: boite.hauteur }}>
           {/* Les deux angles restent montés (pistes continues) ; un seul est visible. */}
           <AbsoluteFill style={{ opacity: second || camera ? 0 : 1 }}>
@@ -117,20 +136,39 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
           {p.accessoire && <AccessoireDansLeCadre p={p} echelleBoite={boite.largeur / SOURCE_DOUBLE.largeur} k={k} />}
         </div>
       </div>
-      {/* 5. Illustrations plein écran : chacune démarre au début de son plan (coupe franche, aucune transition). */}
-      {p.plans.map((pl, i) =>
-        pl.type === "illustration" && pl.illustration ? (
-          <Sequence key={i} from={Math.round(pl.debutSec * fps)} durationInFrames={Math.max(1, Math.round((pl.finSec - pl.debutSec) * fps))} layout="none">
-            <AbsoluteFill style={{ backgroundColor: "#000" }}>
-              {pl.illustration.video ? (
-                <OffthreadVideo src={pl.illustration.url} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <Img src={pl.illustration.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              )}
-            </AbsoluteFill>
+      {/* 5. Illustrations plein écran : chacune démarre au début de son plan (coupe franche, sauf raccord demandé). */}
+      {p.plans.map((pl, i) => {
+        if (!(pl.type === "illustration" && pl.illustration)) return null;
+        const de = Math.round(pl.debutSec * fps);
+        const duree = Math.max(1, Math.round((pl.finSec - pl.debutSec) * fps));
+        // Raccord (champ facultatif, jamais sur un plan avec la personne) : seul le plan ENTRANT d'un raccord utile démarre plus tôt, le plan sortant dure plus tard ; les autres plans gardent `from={de}` exact.
+        const marge = Math.ceil(fps / 2);
+        const entrant = raccordsUtiles.some((r) => r.indexAvant + 1 === i);
+        const sortant = raccordsUtiles.some((r) => r.indexAvant === i);
+        const dans = raccord && (i === raccord.indexAvant || i === raccord.indexAvant + 1);
+        const style = dans ? { opacity: i === raccord.indexAvant ? raccord.opaciteAvant : raccord.opaciteApres, transform: `translateX(${(i === raccord.indexAvant ? raccord.decalageAvantPx : raccord.decalageApresPx).toFixed(2)}px)` } : {};
+        const debut = entrant ? Math.max(0, de - marge) : de;
+        const avance = de - debut;
+        const lecteur = <OffthreadVideo src={pl.illustration.url} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+        // Vidéo entrante : l'image 0 de la vidéo reste à `de` (comme FFmpeg) ; avant, elle est figée sur son image 0.
+        const video = avance > 0 ? (
+          <>
+            <Sequence from={0} durationInFrames={avance} layout="none"><Freeze frame={0}>{lecteur}</Freeze></Sequence>
+            <Sequence from={avance} layout="none">{lecteur}</Sequence>
+          </>
+        ) : lecteur;
+        const corps = (
+          <AbsoluteFill style={{ backgroundColor: "#000", ...style }}>
+            {pl.illustration.video ? video : <Img src={pl.illustration.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+          </AbsoluteFill>
+        );
+        if (!entrant && !sortant) return <Sequence key={i} from={de} durationInFrames={duree} layout="none">{corps}</Sequence>;
+        return (
+          <Sequence key={i} from={debut} durationInFrames={avance + duree + (sortant ? marge : 0)} layout="none">
+            {(image >= de && image < de + duree) || dans ? corps : null}
           </Sequence>
-        ) : null,
-      )}
+        );
+      })}
     </AbsoluteFill>
   );
   if (!ep || !geo) return scene;

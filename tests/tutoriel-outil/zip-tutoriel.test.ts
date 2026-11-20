@@ -167,6 +167,49 @@ describe("éteint par défaut (R-9)", () => {
     const r = await extraireZipSur(construire(SAINE), { attestationImages: true });
     expect(r.ok).toBe(true);
   });
+  it("de bout en bout (allumé) : nom + courriel, adresse sur plusieurs lignes, tabulations → aucune trace en clair", async () => {
+    ALLUME();
+    const r = await entree([
+      { nom: "demo-data.csv", donnees: u8("nom,ville\nJean Dupont jean@orange.fr,Paris\n") },
+      { nom: "adresses.csv", donnees: u8('id,adresse,nom\n1,"12 rue des Lilas\n75011 Paris",Martin\n') },
+      { nom: "tab.csv", donnees: u8("nom\temail\nJean Dupont\tjean@orange.fr\n") },
+      { nom: "d.json", donnees: u8('{"adresse":"Jean Dupont, jean.dupont@orange.fr, 12 rue des Lilas"}') },
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const nom of ["demo-data.csv", "adresses.csv", "tab.csv", "d.json"]) {
+      const sortie = new TextDecoder().decode(r.fichiers.get(nom));
+      expect(sortie).not.toMatch(/Jean|Dupont|Lilas|75011|Martin|orange/);
+    }
+  });
+  it("de bout en bout (allumé) : en-tête NFD, espace insécable avant guillemet, fins de ligne \\r seules → aucune trace en clair", async () => {
+    ALLUME();
+    const r = await entree([
+      { nom: "nfd.csv", donnees: u8("Pre\u0301nom,ville\nJean,Paris\n") },
+      { nom: "nbsp.csv", donnees: u8('id,nom,ville\n1,\u00a0"Dupont, Jean",Paris\n') },
+      { nom: "mac.csv", donnees: u8("id,nom\r1,Jean Dupont\r2,Paul Martin") },
+      { nom: "nfd.json", donnees: u8('{"pre\u0301nom":"Jean"}') },
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const nom of ["nfd.csv", "nbsp.csv", "mac.csv", "nfd.json"]) {
+      expect(new TextDecoder().decode(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
+  it("de bout en bout (allumé) : ligne `sep=;`, ligne de titre, invisible dans l'en-tête, fin de ligne U+2028 → aucune trace en clair", async () => {
+    ALLUME();
+    const r = await entree([
+      { nom: "sep.csv", donnees: u8("sep=;\nnom;ville\nJean Dupont;Paris\n") },
+      { nom: "titre.csv", donnees: u8("Export clients\nid,nom\n1,Jean Dupont\n") },
+      { nom: "zw.csv", donnees: u8("id,no\u200bm\n1,Jean Dupont\n") },
+      { nom: "ls.csv", donnees: u8("nom,ville\u2028Jean Dupont,Paris") },
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const nom of ["sep.csv", "titre.csv", "zw.csv", "ls.csv"]) {
+      expect(new TextDecoder().decode(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont/);
+    }
+  });
   it("même une archive piégée n'est pas lue quand c'est éteint", async () => {
     const r = await entree([{ nom: "../x.js", donnees: u8("x") }]);
     expect(r.rapport.refus).toEqual([MESSAGE_ZIP_FERME]);
@@ -231,6 +274,26 @@ describe("masquage des données, jamais du script", () => {
     expect(JSON.stringify(r.rapport)).not.toContain("06 12");
     expect(r.rapport.masques).toEqual([]);
     expect(journal.join(" ")).not.toContain("06 12");
+  });
+  it("JSON imbriqué 20 000 niveaux avec un courriel : refus ou masqué, jamais le courriel d'origine", async () => {
+    ALLUME();
+    const profond = "[".repeat(20_000) + '{"courriel":"jean@vrai-client.fr","nom":"Martin"}' + "]".repeat(20_000);
+    const r = await entree([{ nom: "index.html", donnees: u8("<p>x</p>") }, { nom: "demo-data.json", donnees: u8(profond) }]);
+    if (r.ok) {
+      expect(texte(r.fichiers.get("demo-data.json"))).not.toContain("jean@vrai-client.fr");
+      expect(texte(r.fichiers.get("demo-data.json"))).not.toContain("Martin");
+    } else expect(JSON.stringify(r.rapport)).not.toContain("vrai-client");
+  });
+  it("une détection qui échoue : le fichier est refusé, jamais gardé tel quel", async () => {
+    ALLUME();
+    const piege = new Proxy(new Set<string>(), { get: () => { throw new Error("boum"); } }) as unknown as ReadonlySet<string>;
+    const r = await extraireZipSur(
+      construire([{ nom: "index.html", donnees: u8("<p>x</p>") }, { nom: "demo-data.json", donnees: u8('{"nom":"Martin"}') }]),
+      { attestationImages: true, nomsNeutres: piege },
+      ports(),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.rapport.refus.join(" ")).toContain("la recherche de données de personnes a échoué");
   });
   it("la maquette externe est refusée après masquage (fetch)", async () => {
     ALLUME();

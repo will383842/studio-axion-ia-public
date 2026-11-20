@@ -13,7 +13,9 @@
 import "server-only";
 import { construireRequetePlan, MAX_JETONS_PLAN_SCENES, type AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { MotMinute } from "@/briques/plan-scenes/schema";
+import { coutPireRegardUsd } from "@/briques/regardeur";
 import { ErreurClaude, type RequeteClaude, type ReponseClaude } from "@/fournisseurs/claude/client";
+import { IMAGES_REGARD_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/regardeur";
 import { requeteScript } from "@/moteurs/montage-tutoriel-outil/script";
 import { formatDuRatio } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
@@ -25,6 +27,12 @@ export const PARAM_PLAFOND_TUTORIEL = "tutoriel.plafondClaudeUsd";
 export const PREFIXE_ETAPE_TUTORIEL = "Tutoriel ·";
 export const ETAPE_PLAN_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} plan de scènes`;
 export const ETAPE_SCRIPT_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} script`;
+/** T-EXT-27b : le regard de Claude sur les images-clés de la vidéo finie. ÉTEINT par défaut ; il exige aussi `tutoriel.claude`. */
+export const PARAM_REGARD_TUTORIEL = "tutoriel.regardeur";
+/** Bâtie sur le préfixe du tutoriel : la dépense compte dans le plafond `tuto`, jamais dans celui des textes de publication. */
+export const ETAPE_REGARD_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} Regardeur`;
+/** Nombre d'images-clés du regard : celui de l'adaptateur du regardeur (`instantsTutoriel`), jamais plus que le plafond commun. */
+export { IMAGES_REGARD_TUTORIEL };
 
 /** Le plafond est arrondi au 0,05 $ supérieur. */
 const PAS_PLAFOND_USD = 0.05;
@@ -35,6 +43,17 @@ const CARACTERES_PAR_JETON = 3;
 export async function claudeTutorielActif(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
   const l = lire ?? (await import("./_commun")).lireParametre;
   return (await l<unknown>(PARAM_CLAUDE_TUTORIEL, false)) === true;
+}
+
+/** Vrai SEULEMENT si `tutoriel.regardeur` ET `tutoriel.claude` valent exactement `true` (absent, `"true"`, `1`, lecture en échec : éteint). */
+export async function regardTutorielActif(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
+  try {
+    const l = lire ?? (await import("./_commun")).lireParametre;
+    if ((await l<unknown>(PARAM_REGARD_TUTORIEL, false)) !== true) return false;
+    return await claudeTutorielActif(l);
+  } catch {
+    return false;
+  }
 }
 
 /** Rôle de l'appel (copie locale du modèle `roleRedactionGuide` : la requête du service passée au contrat commun des rôles). */
@@ -81,9 +100,15 @@ export function plafondTutorielParDefautUsd(): number {
   const plan1 = pireCasDe(construireRequetePlan(e), "tutoriel-plan");
   const plan2 = pireCasDe(construireRequetePlan(e, [{ reponse: reponseMax, motif: "ce n'est pas du JSON lisible" }]), "tutoriel-plan");
   const script = pireCasDe(requeteScript("Une idée de tutoriel pour un tableau de bord de suivi des commandes."), "tutoriel-script");
-  const total = plan1 + plan2 + script;
+  // T-EXT-27b : un regard au pire (les images-clés du format maître), par la fonction commune.
+  const total = plan1 + plan2 + script + coutPireRegardUsd(IMAGES_REGARD_TUTORIEL);
   const pas = Math.ceil(Math.round(total * 1e6) / 1e6 / PAS_PLAFOND_USD);
   return Math.round(pas * 5) / 100;
+}
+
+/** Plafond propre `tuto` d'une vidéo du tutoriel : le même objet pour les textes et pour le regard (même forme que les plafonds du tableau animé, conversion de `cas-concret-branchements.ts`). */
+export function plafondPropreTutoriel(deps: { plafondUsd?: () => number } = {}): Parameters<typeof executerRolePourVideo>[3]["plafondPropre"] {
+  return { id: "tuto", parametre: PARAM_PLAFOND_TUTORIEL, defautUsd: (deps.plafondUsd ?? plafondTutorielParDefautUsd)(), prefixeEtape: PREFIXE_ETAPE_TUTORIEL } as unknown as Parameters<typeof executerRolePourVideo>[3]["plafondPropre"];
 }
 
 /** Phrases rendues au moteur quand la garde d'argent arrête l'appel : jamais un montant. */
@@ -108,8 +133,7 @@ export function appelClaudeTutoriel(videoId: Id, origine: CommandeFabrication["o
     const etape = plan ? ETAPE_PLAN_TUTORIEL : ETAPE_SCRIPT_TUTORIEL;
     const role = roleDepuisRequete(requete, id);
     const entree = entreeDepuisRequete(requete);
-    // Même forme que les plafonds du tableau animé ; son identifiant n'est pas dans leur liste fermée : même conversion que `cas-concret-branchements.ts` (le fichier d'argent n'est pas modifié).
-    const plafondPropre = { id: "tuto", parametre: PARAM_PLAFOND_TUTORIEL, defautUsd: (deps.plafondUsd ?? plafondTutorielParDefautUsd)(), prefixeEtape: PREFIXE_ETAPE_TUTORIEL } as unknown as Parameters<typeof executerRolePourVideo>[3]["plafondPropre"];
+    const plafondPropre = plafondPropreTutoriel(deps);
     const executer = deps.executer ?? (await import("./depense-claude-video")).executerRolePourVideo;
     const r = await executer(videoId, role, entree, { etape, plafondPropre, origine });
     if (!r.ok) throw new ErreurClaude("requete", PHRASE_ARRET[r.arret] ?? "Claude n'a pas été appelé : rien n'a été payé.");

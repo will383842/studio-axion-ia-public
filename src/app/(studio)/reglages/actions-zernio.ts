@@ -23,6 +23,8 @@ import { aUnPostPossible } from "@/services/retirer-programmation";
 import { etatEnvoiDuCreneau, PREFIXE_ETATS_ENVOI_CALENDRIER } from "@/services/branchement-envoi-calendrier";
 import { RAISON_A_COMPLETER } from "@/services/envoi-depuis-creneau";
 import { outilPour } from "@/domaine/outil-publication";
+import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
+import { ciblesZernioPour } from "@/services/zernio-cibles";
 
 const PARAM_MODES = "zernio.mode_envoi";
 const PARAM_BASCULES = "zernio.bascules";
@@ -320,9 +322,10 @@ export async function poserEssaiZernioAction(demande: { creneauId: string; duree
       if ((await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) === false) {
         throw new ErreurStudio("ESSAI_ARRET", "« Tout arrêter » est actif : reprenez les envois avant de poser un essai.");
       }
-      const actuel = await lireParametre<{ expireLe?: unknown } | null>(PARAM_ESSAI_BROUILLON, null);
-      const expire = actuel && typeof actuel === "object" ? Date.parse(String(actuel.expireLe)) : NaN;
-      if (Number.isFinite(expire) && maintenantMs < expire) {
+      // Même lecture que l'écran : seul un essai LISIBLE et encore valide bloque. Un essai illisible (écran sans « Retirer ») ou expiré
+      // (encore lu pendant la fenêtre de nettoyage) est écrasé par la nouvelle pose.
+      const lu = await lireEssai(maintenantMs);
+      if (lu && maintenantMs < Date.parse(lu.expireLe)) {
         throw new ErreurStudio("ESSAI_DEJA", "Un essai est déjà actif : retirez-le avant d'en poser un autre.");
       }
       const c = creneauId ? await depots().creneauxEditoriaux.obtenir(creneauId) : null;
@@ -330,7 +333,16 @@ export async function poserEssaiZernioAction(demande: { creneauId: string; duree
       if (raison || !c) throw new ErreurStudio("ESSAI_NON_ELIGIBLE", raison ?? "Ce créneau est introuvable.");
       const reseau = Object.keys(c.heuresParReseau)[0];
       const poseLe = new Date(maintenantMs).toISOString();
-      const valeur = { version: 1, creneauId: c.id, compte: c.compteCible, reseau, poseLe, expireLe: new Date(maintenantMs + heures * H_MS).toISOString() };
+      // Créneau programmé en un clic (« rien de choisi ») : l'essai garde la cible RÉELLE que l'envoi prendra (mêmes règles, lecture seule), jamais le marqueur.
+      let compte = c.compteCible;
+      if (estCompteParDefaut(compte)) {
+        const cibles = await (async () => ciblesZernioPour(fournisseurParId("publication", "zernio"), reseau as IdReseau))().catch(() => {
+          throw new ErreurStudio("ESSAI_NON_ELIGIBLE", "La liste des comptes de l'outil de publication n'a pas pu être lue : l'essai n'est pas posé.");
+        });
+        if (!cibles.ok || cibles.canaux.length !== 1) throw new ErreurStudio("ESSAI_NON_ELIGIBLE", cibles.ok ? "Plusieurs comptes sont reliés pour ce réseau : l'essai exige un seul compte." : cibles.message);
+        compte = cibles.canaux[0].id;
+      }
+      const valeur = { version: 1, creneauId: c.id, compte, reseau, poseLe, expireLe: new Date(maintenantMs + heures * H_MS).toISOString() };
       await ecrireParametre(PARAM_ESSAI_BROUILLON, valeur);
       // Relu comme le lira le tour : un essai qui ne se relit pas n'est pas gardé (fermé).
       if (!(await lireEssai(maintenantMs))) {
