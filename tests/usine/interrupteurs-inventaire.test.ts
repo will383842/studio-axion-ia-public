@@ -86,6 +86,7 @@ const LITTERALES: Record<string, Etat> = {
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
   { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
+  { cle: "tableau.deja_vu_usine.actif", etat: "eteint", appel: "src/services/tableau-deja-vu-usine.ts", motif: /valeur !== true\) return undefined/ },
   { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
@@ -250,6 +251,13 @@ const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; dec
     declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
   },
   {
+    // Texte de légende enregistré par réseau (valeur, défaut `null` : rien d'enregistré) ; la fabrique est cleLegende(id, réseau).
+    gabarit: "visuels.legende.*.*",
+    etat: "valeur",
+    appel: "src/app/(studio)/carrousels/[id]/page.tsx",
+    motif: /lireParametre<\{ texte\?: unknown; simulation\?: unknown \} \| null>\(`visuels\.legende\.\$\{id\}\.\$\{r\}`, null\)/,
+  },
+  {
     // Défaut `undefined` → `interpreterReglageBibliotheque` rend `{ actif: false }` (seul `true` ou `{ capacites }` allume).
     gabarit: "bibliothequeVideo.*",
     etat: "eteint",
@@ -292,6 +300,8 @@ type Motif = "dedoublonnage" | "memoire" | "valeur" | "relais";
 /** Clés (ou gabarits `*`) résolues dans le texte mais HORS table. */
 const EXCLUS_CLES: Record<string, Motif> = {
   "budget.engage.*": "dedoublonnage",
+  "calendrier.proposerSemaine.compteur": "memoire", // compteur d'appels du jour (proposer-semaine.ts), pas un interrupteur
+  "zernio.essai_brouillon": "memoire", // état de l'essai en cours (créneau, expiration), lu fermé ; l'arrêt reste zernio.envoi_autorise
   "credits.alertes.*": "dedoublonnage",
   "credits.cleRefusee.*": "dedoublonnage",
   "credits.epuise.*": "dedoublonnage",
@@ -416,6 +426,9 @@ const EXCLUS_CLES: Record<string, Motif> = {
 const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/(studio)/carrousels/[id]/actions.ts:cle": { exclu: "memoire" },
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
+  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" }, // même légende, lue pour programmer en un clic
+  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" }, // états d'envoi du calendrier lus pour le contrôle d'essai
+  "services/tableau-deja-vu-usine.ts:id": { couvre: "tableau.deja_vu_usine.actif" },
   "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
   "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
   "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },
@@ -423,6 +436,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/api/usine/visuels/route.ts:`${PREFIXE_COTE}${cle}`": { exclu: "dedoublonnage" },
   "services/_commun.ts:id: string": { exclu: "relais" },
   "services/zip-tutoriel.ts:id": { exclu: "relais" }, // port réel de l'entrée zip : la clé est PARAM_ENTREE_ZIP, tutoriel.entreeZip en table
+  "services/tutoriel-depot.ts:id": { exclu: "relais" }, // lecteur des 3 interrupteurs du formulaire (T-EXT-33) : la clé est passée en paramètre (tutoriel.formulaire, tutoriel.entreeZip, tutoriel.entreePhrase)
   // VL-07 : registre de dépense et morceaux déjà lus de la vidéo longue (mémoire par vidéo, pas des interrupteurs).
   "services/video-longue-branchements.ts:cleDepense(videoId)": { exclu: "memoire" },
   "services/video-longue-branchements.ts:cle": { exclu: "memoire" },

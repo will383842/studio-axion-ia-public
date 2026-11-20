@@ -99,6 +99,38 @@ describe("sans la forme de l'équipe : « Rien à valider pour l'instant », rie
   });
 });
 
+describe("seulement en pause de validation du script", () => {
+  const cas: [string, Record<string, unknown>][] = [
+    ["termine", { statut: "termine" }],
+    ["echec", { statut: "echec" }],
+    ["annule", { statut: "annule" }],
+    ["en_cours", { statut: "en_cours" }],
+    ["en_file sans pause", { statut: "en_file", sansPause: true }],
+    ["en_file, autre code de pause", { statut: "en_file", code: "TO_SCRIPT_ABSENT" }],
+  ];
+  for (const [nom, mod] of cas) {
+    it(`${nom} : les 5 gestes refusent, rien n'est écrit`, async () => {
+      await installer();
+      await allumer();
+      const t = await travail();
+      const { pause: _p, ...sansPause } = t.parametres ?? {};
+      void _p;
+      const parametres = mod.sansPause ? sansPause : mod.code ? { ...sansPause, pause: { code: mod.code, message: "x" } } : t.parametres;
+      await depots().travaux.modifier("t1", { statut: mod.statut as never, parametres });
+      const avant = await instantane();
+      const r = [
+        await a.choisirVersionAction("v1", "A"),
+        await a.corrigerScriptAction("v1", [{ id: "voix-1", dit: "Autre" }]),
+        await a.choisirPropositionAction("v1", "prop-1", true),
+        await a.refaireEcrireAction("v1"),
+        await a.validerTutorielAction("v1", { empreinteDevis: "abc" }),
+      ];
+      for (const x of r) expect(x).toEqual({ ok: true, donnees: { statut: "refusee", phrase: "Rien à valider pour l'instant." } });
+      expect(await instantane()).toBe(avant);
+    });
+  }
+});
+
 describe("choisir, corriger, valider", () => {
   it("valider sans version choisie : refus, rien d'écrit", async () => {
     await installer();
@@ -178,6 +210,8 @@ describe("choisir, corriger, valider", () => {
     await allumer();
     await a.choisirVersionAction("v1", "A");
     await a.validerTutorielAction("v1");
+    // AUTORISATION PERMANENTE (c) : la validation reprend la fabrication (en_cours) ; on remet la pause de validation pour mesurer la même chose
+    await depots().travaux.modifier("t1", { statut: "en_file", parametres: { ...(await travail()).parametres, pause: { code: "TO_SCRIPT_A_VALIDER", message: "x" } } });
     const figeAvant = ((await equipe()).registre as RegistreTextes).fige?.empreinte;
     expect(figeAvant).toBeTruthy();
     expect(await a.choisirPropositionAction("v1", "prop-1", true)).toMatchObject({ ok: true, donnees: { statut: "refusee", phrase: "Le texte est déjà validé : choisissez ou corrigez à nouveau, puis validez de nouveau." } });
