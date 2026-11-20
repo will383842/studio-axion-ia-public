@@ -71,7 +71,7 @@ describe("constat C5-5.01 · partie 1 : FFmpeg ignore le plan de scènes", () =>
     expect(fichiersTexte.filter((f) => /planScenes/.test(readFileSync(f, "utf8"))).map((f) => f.slice(RACINE.length + 1).replaceAll("\\", "/"))).toEqual(["studio-rendu/src/composition/texte-instants.ts"]);
   });
 
-  it("seuls `ImageComposee.tsx`, `cas-concret/Ecran.tsx` et `VideoAnimeeV4.tsx` montent `CalquePlanScenes` (navigateur)", () => {
+  it("seuls `ImageComposee.tsx`, `cas-concret/Ecran.tsx`, `VideoAnimeeV4.tsx` + `CalquesCommuns.tsx` et `TutorielOutil.tsx` (ajoutés par T-EXT-54b #1335 / T-EXT-50 #1319, fusionnés dans la branche) montent `CalquePlanScenes` (navigateur)", () => {
     const racines = ["src", "studio-rendu/src", "studio-rendu/compositions"].map((d) => join(RACINE, d));
     const lister = (d: string): string[] => {
       try {
@@ -85,7 +85,8 @@ describe("constat C5-5.01 · partie 1 : FFmpeg ignore le plan de scènes", () =>
       .filter((f) => f.endsWith(".tsx") && /<CalquePlanScenes\b/.test(readFileSync(f, "utf8")))
       .map((f) => f.slice(RACINE.length + 1).replaceAll("\\", "/"))
       .sort();
-    expect(montent.map((f) => f.split("/").slice(-2).join("/"))).toEqual(["cas-concret/Ecran.tsx", "commune/ImageComposee.tsx", "interface-claire/VideoAnimeeV4.tsx"].sort().map((x) => x) as string[]);
+    // 20/11 (BR-DESSIN-FACECAM-b-v20a, correction CI) : attente déplacée, pas retirée — liste FERMÉE : les 3 montages d'origine + les 2 ajoutés depuis (T-EXT-54b, T-EXT-50). Tout autre fichier qui monterait le calque fait rougir.
+    expect(montent.map((f) => f.split("/").slice(-2).join("/"))).toEqual(["cas-concret/Ecran.tsx", "commune/CalquesCommuns.tsx", "commune/ImageComposee.tsx", "interface-claire/VideoAnimeeV4.tsx", "plan-scenes/TutorielOutil.tsx"]);
   });
 });
 

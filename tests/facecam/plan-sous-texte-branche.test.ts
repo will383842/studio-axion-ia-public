@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-let reglages: Record<string, unknown> = {};
+const reglages: Record<string, unknown> = {};
 vi.mock("@/services/_commun", async (original) => ({
   ...(await original<Record<string, unknown>>()),
   lireParametre: async (cle: string, defaut: unknown) => (cle in reglages ? reglages[cle] : defaut),
