@@ -246,7 +246,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         </Link>
       )}
       {retirable && <RetirerDuCalendrier key={entree.cle} cle={entree.cle} />}
-      {retirableRapatriee && <RetirerRapatriee key={entree.cle} publicationId={lireCleFiche(entree.cle)!.id} brouillon={estBrouillonDiffuseur(entree.etat)} />}
+      {retirableRapatriee && <RetirerRapatriee key={entree.cle} publicationId={lireCleFiche(entree.cle)!.id} brouillon={estBrouillonDiffuseur(entree.etat) || !!entree.brouillonRepris} introuvable={entree.etat === "a_verifier"} />}
       {retirableChezDiffuseur && <RetirerProgrammation key={entree.cle} cle={entree.cle} />}
     </aside>
     </TiroirAccessible>

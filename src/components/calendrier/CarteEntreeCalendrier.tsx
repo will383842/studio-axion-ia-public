@@ -42,6 +42,8 @@ export interface EntreeCarte {
   compte?: string;
   /** RAP-3 · publication reprise du diffuseur : la carte le dit et montre le début du texte. */
   chezDiffuseur?: boolean;
+  /** RAP-3 · repris du diffuseur en brouillon (l'état affiché peut alors être « à vérifier »). */
+  brouillonRepris?: boolean;
   /** RAP-3 · adresse DU STUDIO de la miniature (jamais celle du diffuseur) ; absente : carte texte, sans image. */
   vignette?: string;
 }
