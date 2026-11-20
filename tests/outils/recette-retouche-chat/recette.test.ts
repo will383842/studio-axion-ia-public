@@ -37,7 +37,7 @@ describe("C7-25-a · recette du chat de retouche", () => {
     expect(ligneRecette(releve({ depenses: [{ travailId: "t1", total: { centimes: 3, devise: "EUR" } }] }), { ...C, issue: LANCEE }).verdict).toBe("ecart");
     const usd = ligneRecette(releve({ reservations: [{ travailId: "t1", centimes: 2, devise: "USD", statut: "active" }] }), { ...C, issue: LANCEE });
     expect(usd.verdict).toBe("ecart");
-    expect(usd.raisons).toContain("devise autre que EUR non nulle");
+    expect(usd.raisons).toContain("devise autre que l'euro non nulle");
   });
 
   it("c) deux versions nées du même parent : écart (double version)", () => {
@@ -48,6 +48,13 @@ describe("C7-25-a · recette du chat de retouche", () => {
 
   it("c bis) lancée mais aucune version : écart", () => {
     expect(ligneRecette(releve({ versions: [] }), { ...C, issue: LANCEE }).verdict).toBe("ecart");
+  });
+
+  it("a ter) lancée sans travailId : écart (rien n'a été regardé)", () => {
+    const r = releve({ reservations: [{ travailId: "t1", centimes: 50, devise: "EUR", statut: "active" }], engagements: { t1: 50 } });
+    const l = ligneRecette(r, { ...C, issue: { statut: "lancee" } });
+    expect(l.verdict).toBe("ecart");
+    expect(l.raisons).toContain("lancée sans travail : rien de prouvé");
   });
 
   it("d) dépense avec appelId : écart « 1 appel Claude »", () => {

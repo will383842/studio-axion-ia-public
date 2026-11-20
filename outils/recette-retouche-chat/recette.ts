@@ -49,11 +49,12 @@ export function ligneRecette(
   if (reserveCentimes !== 0) raisons.push(`réservé ${pluriel(reserveCentimes, "centime")}`);
   if (engageCentimes !== 0) raisons.push(`engagé ${pluriel(engageCentimes, "centime")}`);
   if (reelCentimes !== 0) raisons.push(`coût réel ${pluriel(reelCentimes, "centime")}`);
-  if (autreDevise) raisons.push("devise autre que EUR non nulle");
+  if (autreDevise) raisons.push("devise autre que l'euro non nulle");
   if (appelsClaude !== 0) raisons.push(pluriel(appelsClaude, "appel") + " Claude");
 
   let verdict: Verdict;
   if (c.issue.statut === "lancee") {
+    if (!t) raisons.push("lancée sans travail : rien de prouvé");
     if (versionsEcrites !== 1) raisons.push(`${pluriel(versionsEcrites, "version")} écrite${versionsEcrites > 1 ? "s" : ""} (une seule attendue)`);
     verdict = raisons.length ? "ecart" : "gratuit-prouve";
   } else if (c.issue.statut === "plan-pret" || c.issue.statut === "inchangee") {
