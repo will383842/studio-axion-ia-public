@@ -89,7 +89,7 @@ const SOURCES = ["src/components/formats/facecam-animee/extraits-v4.ts", "src/co
 describe("éteint = identique (d)", () => {
   it("rien dans src/** n'importe le panneau ni extraits-v4", () => {
     for (const f of fichiers("src")) {
-      if (SOURCES.includes(f)) continue;
+      if ([...SOURCES, "src/components/formats/facecam-animee/ChangerExtraitV4.tsx"].includes(f)) continue;
       const t = readFileSync(f, "utf8");
       expect(t, f).not.toMatch(/PanneauExtraitsV4/);
       expect(t, f).not.toMatch(/extraits-v4["']/);

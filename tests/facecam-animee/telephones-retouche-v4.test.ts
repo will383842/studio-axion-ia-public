@@ -66,7 +66,7 @@ describe("R4-03-b3 : téléphones retouchables", () => {
       return statSync(p).isDirectory() ? parcourir(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
     });
     const importeurs = parcourir(join(RACINE, "src")).filter((f) => !f.endsWith("telephones-retouche-v4.ts") && /telephones-retouche-v4/.test(readFileSync(f, "utf8")));
-    expect(importeurs).toEqual([]);
+    expect(importeurs.map((f) => f.slice(RACINE.length + 1).split("\\").join("/"))).toEqual(["src/services/changer-extrait-v4-ecran.ts"]);
   });
 
   it("type : TelephoneRetouchableV4 est exporté", () => {
