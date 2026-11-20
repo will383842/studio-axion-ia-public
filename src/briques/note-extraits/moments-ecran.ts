@@ -76,6 +76,15 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-cercle": "texte",
   "objet-ovale": "texte",
   "objet-double-boucle": "texte",
+  // C9-34-ETIQUETTES-v20f (20/11/2026) : étiquettes et bulles = texte (voisin : carton définition).
+  "objet-pastille-icone": "texte",
+  "objet-etiquette-icone": "texte",
+  "objet-badge": "texte",
+  "objet-tampon": "texte",
+  "objet-bulle-parole": "texte",
+  "objet-bulle-pensee": "texte",
+  "objet-bulle-notification": "texte",
+  "objet-post-it": "texte",
 };
 
 const DUREE_MAX_SEC = 6;
