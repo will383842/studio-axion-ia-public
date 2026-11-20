@@ -55,11 +55,12 @@ export type DepsLectureCapture = {
   lire?: Lire;
 };
 
-/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+/** ALLUMÉ par défaut (prix accepté) : vrai seulement si la valeur lue est exactement `true` ou absente (undefined/null) ; tout le reste et une lecture en échec : éteint. */
 export async function lectureCaptureClaudeActive(lire?: Lire): Promise<boolean> {
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
-    return (await l<unknown>(PARAM_LECTURE_CAPTURE_CLAUDE, false)) === true;
+    const v = await l<unknown>(PARAM_LECTURE_CAPTURE_CLAUDE, true);
+    return v === true || v === undefined || v === null;
   } catch {
     return false;
   }
