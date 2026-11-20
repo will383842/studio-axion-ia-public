@@ -15,8 +15,8 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { OperationMontage } from "@/moteurs/types";
 import { appliquerOperations } from "./appliquer";
 import { impactRetouche, type ImpactRetouche } from "./impact";
-import { lireOperations } from "./schema";
-import { apercevoirRetouche, PHRASE_SANS_PLAN, type PortsRetoucheChat } from "./service";
+import { lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
+import { apercevoirRetouche, appliquerRetouche, PHRASE_RENDU_NON_BRANCHE, PHRASE_SANS_PLAN, type IssueRetoucheChat, type PortsRetoucheChat } from "./service";
 
 /* ------------------------------------------------------------------ */
 /* Interface minimale « en attendant 53a »                              */
@@ -59,9 +59,14 @@ const dans = <T extends string>(liste: readonly T[], v: unknown): v is T => type
 const objet = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const sansExces = (o: Record<string, unknown>, permis: string[]) => Object.keys(o).every((k) => permis.includes(k));
 
-/** Les étapes du film = les scènes du plan, dans l'ordre (numéro = rang + 1). */
-export function etapesDuPlan(plan: PlanValide): EtapeFilm[] {
-  return plan.scenes.map((s, i) => ({ numero: i + 1, etapeId: s.id }));
+/** Les étapes du film = les cibles de la navigation filmée, dans l'ordre du film (numéro = rang + 1 ; une étape répétée compte une fois). */
+export function etapesDuFilm(etapeIds: readonly string[]): EtapeFilm[] {
+  return [...new Set(etapeIds)].map((etapeId, i) => ({ numero: i + 1, etapeId }));
+}
+
+/** Identifiants d'étape des cibles de la navigation filmée de la commande (`entrees.tutorielOutil.navigationFilmee`) ; sans film : liste vide. */
+export function etapeIdsDuFilm(entrees: Record<string, unknown> | undefined): string[] {
+  return lireEntreesTutoriel(entrees).navigationFilmee?.cibles.map((c) => c.etapeId) ?? [];
 }
 
 /** Réglages du film, lecture stricte : étape inconnue, cran inconnu, champ en trop → `null` (jamais d'exception). */
@@ -222,6 +227,8 @@ const enMots = (c: { etape: number; libelle: string; avant: string; apres: strin
 export interface PortsFilm {
   /** // en attendant T-EXT-53a : règles de lecture du film (`lireParReglesFilm`) ; absent : aucune opération du film lue par règles. */
   lireFilm?: (phrase: string, etapes: readonly EtapeFilm[]) => unknown[];
+  /** Identifiants d'étape des cibles du film de la version choisie (`etapeIdsDuFilm`) ; absent : la vidéo n'a pas de film, aucune étape à régler. */
+  etapesFilm?: (videoId: string) => Promise<readonly string[]> | readonly string[];
   /** Réglages du film de la version choisie (projet de montage du tutoriel) ; absent : film réglé comme avant. */
   reglagesAvant?: (videoId: string) => Promise<unknown> | unknown;
 }
@@ -243,8 +250,7 @@ function lireAvant(brut: unknown, etapes: readonly EtapeFilm[]): ReglagesFilm | 
   return brut === undefined || brut === null ? undefined : (lireReglagesFilm(brut, etapes.map((e) => e.etapeId)) ?? undefined);
 }
 
-function composer(demande: string, plan: PlanValide, operationsPlan: OperationRetouche[], remarquesPlan: string[], opsFilm: OperationFilm[], remarquesFilm: string[], avant: ReglagesFilm | undefined, objetsPermis?: readonly string[]): ApercuRetoucheTutoriel {
-  const etapes = etapesDuPlan(plan);
+function composer(demande: string, plan: PlanValide, etapes: readonly EtapeFilm[], operationsPlan: OperationRetouche[], remarquesPlan: string[], opsFilm: OperationFilm[], remarquesFilm: string[], avant: ReglagesFilm | undefined, objetsPermis?: readonly string[]): ApercuRetoucheTutoriel {
   const a = appliquerOperations(plan, operationsPlan, objetsPermis?.length ? { objetsPermis } : {});
   const film = appliquerOperationsFilm(avant, opsFilm, etapes);
   const changements = changementsFilm(avant, film.reglages, etapes);
@@ -269,33 +275,38 @@ function composer(demande: string, plan: PlanValide, operationsPlan: OperationRe
 export async function apercevoirRetoucheTutoriel(videoId: string, demande: string, ports: PortsRetoucheChat, film: PortsFilm = {}): Promise<ApercuRetoucheTutoriel | { statut: "inchangee"; demande: string; operations: []; impact: ImpactRetouche; remarques: string[] }> {
   const courante = await ports.lireVersionChoisie(videoId);
   if (!courante) return { statut: "inchangee", demande, operations: [], impact: { scenes: [], total: 0, voixTouchee: false, phrase: "Aucune scène ne change, la voix ne change pas." }, remarques: [PHRASE_SANS_PLAN] };
-  const etapes = etapesDuPlan(courante.plan);
+  const etapes = etapesDuFilm((await film.etapesFilm?.(videoId)) ?? []);
   const ap = await apercevoirRetouche(videoId, demande, ports);
   // Le film : supplément du lecteur commun (53b) s'il existe, sinon règles du film (53a) ; relus dans les deux cas.
   const supplementaires = (ap as { supplementaires?: unknown[] }).supplementaires;
   const brut = supplementaires?.length ? supplementaires : (film.lireFilm?.(demande, etapes) ?? []);
   const lu = lireOperationsFilm(brut);
   const avant = lireAvant(await film.reglagesAvant?.(videoId), etapes);
-  const r = composer(demande, courante.plan, ap.operations, ap.remarques, lu.operations, lu.remarques, avant, courante.objetsPermis);
+  const r = composer(demande, courante.plan, etapes, ap.operations, ap.remarques, lu.operations, lu.remarques, avant, courante.objetsPermis);
   return r;
 }
 
-/** Application : mêmes opérations, relues (elles viennent du navigateur), sans lecteur ni rendu ; le plan prêt est rendu tel quel. */
-export async function appliquerRetoucheTutoriel(videoId: string, e: { demande: string; operations: unknown; reglagesFilm?: unknown }, ports: PortsRetoucheChat, film: PortsFilm = {}): Promise<ApercuRetoucheTutoriel | { statut: "inchangee"; impact: null; remarques: string[] }> {
+export const REMARQUE_REGLAGES_ILLISIBLES = "Réglages du film illisibles : version d'avant gardée";
+
+/**
+ * Application : sans réglages du film reçus (ou avec un port de rendu), EXACTEMENT `appliquerRetouche` (mêmes phrases, mêmes remarques,
+ * « plan-pret » avec `PHRASE_RENDU_NON_BRANCHE`). Avec des réglages reçus (relus, étapes du film), le plan prêt les porte en plus.
+ */
+export async function appliquerRetoucheTutoriel(videoId: string, e: { demande: string; operations: unknown; reglagesFilm?: unknown }, ports: PortsRetoucheChat, film: PortsFilm = {}): Promise<IssueRetoucheChat & { reglagesFilm?: ReglagesFilm | null; changements?: ChangementFilm[] }> {
+  const base = await appliquerRetouche(videoId, { demande: e.demande, operations: e.operations }, ports);
+  if (e.reglagesFilm === undefined || base.statut === "rendue") return base;
   const courante = await ports.lireVersionChoisie(videoId);
-  if (!courante) return { statut: "inchangee", impact: null, remarques: [PHRASE_SANS_PLAN] };
-  const etapes = etapesDuPlan(courante.plan);
-  const lu = lireOperations(e.operations);
-  const f = ports.filtrerOperations?.(lu.operations, e.demande) ?? { operations: lu.operations, remarques: [] };
+  if (!courante) return base;
+  const etapes = etapesDuFilm((await film.etapesFilm?.(videoId)) ?? []);
+  const recu = lireReglagesFilm(e.reglagesFilm, etapes.map((x) => x.etapeId));
+  if (!recu) return { ...base, remarques: [...base.remarques, REMARQUE_REGLAGES_ILLISIBLES] };
   const avant = lireAvant(await film.reglagesAvant?.(videoId), etapes);
-  const recu = e.reglagesFilm === undefined ? undefined : lireReglagesFilm(e.reglagesFilm, etapes.map((x) => x.etapeId));
-  const remarques = [...lu.remarques, ...f.remarques, ...(e.reglagesFilm !== undefined && !recu ? ["Réglages du film illisibles : version d'avant gardée"] : [])];
-  const r = composer(e.demande, courante.plan, f.operations, remarques, [], [], avant, courante.objetsPermis);
-  // Les réglages reçus (relus) remplacent ceux de l'aperçu : ce sont ceux que Williams a vus.
-  const reglagesFilm = recu ?? null;
-  const changements = reglagesFilm ? changementsFilm(avant, reglagesFilm, etapes).map(enMots) : [];
-  if (!changements.length && !r.impact.scenes.length && !r.impact.voixTouchee) return { statut: "inchangee", impact: null, remarques: [...r.remarques, r.impact.phrase] };
-  return { ...r, reglagesFilm, changements };
+  // Les réglages reçus (relus) sont ceux que Williams a vus dans l'aperçu.
+  const changements = changementsFilm(avant, recu, etapes).map(enMots);
+  if (base.statut === "plan-pret") return { ...base, reglagesFilm: recu, changements };
+  if (!changements.length) return base;
+  const impact = base.impact ?? impactRetouche(courante.plan, courante.plan, []);
+  return { statut: "plan-pret", plan: courante.plan, impact, remarques: [...base.remarques.filter((r) => r !== impact.phrase), PHRASE_RENDU_NON_BRANCHE], reglagesFilm: recu, changements };
 }
 
 /** // en attendant T-EXT-46b : l'opération à ajouter à celles de `lancerRetouche` (relue par le moteur ; absente si rien à régler). */

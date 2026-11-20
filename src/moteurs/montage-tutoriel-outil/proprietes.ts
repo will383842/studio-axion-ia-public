@@ -56,9 +56,9 @@ export type ProprietesTutorielOutil = {
   /** Navigation filmée (instants et zones), sans la clé du film (T-EXT-38). */
   navigation?: Omit<NavigationFilmee, "videoCle">;
   /** Schéma animé du flux (T-EXT-50) : posé par-dessus le plan entre `debutImage` et `debutImage + dureeImages` ; absent : rendu d'aujourd'hui. */
+  schemaFlux?: { debutImage: number; dureeImages: number; plan: PlanSchemaFlux };
   /** T-EXT-53c : réglages du film (crans par étape) choisis par le chat de retouche ; transmis tels quels au film. Absent : rendu d'aujourd'hui. // en attendant T-EXT-53a (type `ReglagesFilm`) */
   reglagesFilm?: unknown;
-  schemaFlux?: { debutImage: number; dureeImages: number; plan: PlanSchemaFlux };
 };
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */

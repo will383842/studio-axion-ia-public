@@ -7,7 +7,7 @@ import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/reto
 import { portsStudio } from "@/services/retouche-chat/studio";
 import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
 import { historiqueVersions, versionARetablir } from "@/services/retouche-chat/historique";
-import { apercevoirRetoucheTutoriel, appliquerRetoucheTutoriel, type PortsFilm } from "@/services/retouche-chat/tutoriel-retouche-film";
+import { apercevoirRetoucheTutoriel, appliquerRetoucheTutoriel, etapeIdsDuFilm, type PortsFilm } from "@/services/retouche-chat/tutoriel-retouche-film";
 import { depots, lireParametre } from "@/services/_commun";
 
 /**
@@ -53,12 +53,14 @@ export async function POST(requete: NextRequest) {
   // T-EXT-53c : le tutoriel passe par `tutoriel-retouche-film.ts` (plan + film, « plan-pret » rendu au navigateur) ; mêmes gardes que
   // ci-dessus. Les autres générateurs : code d'aujourd'hui. // en attendant T-EXT-53b : règles seules, aucun lecteur ni appel Claude.
   if (c.generateur === "tutoriel-outil" && (c.action === "apercu" || c.action === "appliquer")) {
+    const versionChoisie = async (videoId: string) => {
+      const video = await depots().videos.obtenir(videoId);
+      return video?.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
+    };
     const film: PortsFilm = {
-      reglagesAvant: async (videoId) => {
-        const video = await depots().videos.obtenir(videoId);
-        const version = video?.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
-        return (version?.projetMontage as { tutoriel?: { reglagesFilm?: unknown } } | undefined)?.tutoriel?.reglagesFilm;
-      },
+      // Les étapes du film sont les cibles de la navigation filmée de la version choisie (pas les scènes du plan).
+      etapesFilm: async (videoId) => etapeIdsDuFilm((await versionChoisie(videoId))?.commande?.entrees),
+      reglagesAvant: async (videoId) => ((await versionChoisie(videoId))?.projetMontage as { tutoriel?: { reglagesFilm?: unknown } } | undefined)?.tutoriel?.reglagesFilm,
     };
     if (c.action === "apercu") return NextResponse.json(await apercevoirRetoucheTutoriel(c.videoId, c.demande, ports, film));
     return NextResponse.json(await appliquerRetoucheTutoriel(c.videoId, { demande: c.demande, operations: c.operations, ...(c.reglagesFilm !== undefined ? { reglagesFilm: c.reglagesFilm } : {}) }, ports, film));

@@ -28,6 +28,7 @@ import { lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel } from "./chaine";
+import { etapeIdsDuFilm, lireReglagesFilm, REMARQUE_REGLAGES_ILLISIBLES } from "@/services/retouche-chat/tutoriel-retouche-film";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -373,23 +374,23 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
     // T-EXT-52b : rendus, empreintes de formats et film de la version d'avant (absents si elle n'en a pas écrit).
     const avant = p ? { ...(p.sortiesFormats ? { rendus: p.sortiesFormats } : {}), ...(p.empreintesFormats ? { empreintesFormats: p.empreintesFormats } : {}), ...(p.film ? { film: p.film } : {}) } : {};
-    const reglagesFilm = reglagesDeRetouche(p?.reglagesFilm, operations, (m) => (e.reserves = [...e.reserves, m]));
+    const reglagesFilm = reglagesDeRetouche(p?.reglagesFilm, operations, etapeIdsDuFilm(commande.entrees), (m) => (e.reserves = [...e.reserves, m]));
     return { ...e, ...(ratios ? { ratios } : {}), ...(reglagesFilm !== undefined ? { reglagesFilm } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}), ...avant } } : {}) };
   }
 
   /**
-   * T-EXT-53c : la dernière opération `reglagesFilm` remplace les réglages d'avant. Illisible (pas un objet avec `parEtape`
-   * objet) : réglages d'avant gardés, avec une réserve ; jamais d'exception.
+   * T-EXT-53c : la dernière opération `reglagesFilm` remplace les réglages d'avant, relue STRICTEMENT (étape absente du film, cran
+   * inconnu ou champ en trop → refus). Illisible : réglages d'avant gardés, avec une réserve ; jamais d'exception.
    */
-  function reglagesDeRetouche(avant: unknown, operations: OperationMontage[] | undefined, reserver: (m: string) => void): unknown {
+  function reglagesDeRetouche(avant: unknown, operations: OperationMontage[] | undefined, etapeIds: readonly string[], reserver: (m: string) => void): unknown {
     const op = operations?.filter((o): o is Extract<OperationMontage, { type: "reglagesFilm" }> => o.type === "reglagesFilm").at(-1);
     if (!op) return avant;
-    const r = op.reglages as { parEtape?: unknown } | null | undefined;
-    if (!r || typeof r !== "object" || !r.parEtape || typeof r.parEtape !== "object" || Array.isArray(r.parEtape)) {
-      reserver("Réglages du film illisibles : version d'avant gardée");
+    const lu = lireReglagesFilm(op.reglages, etapeIds);
+    if (!lu) {
+      reserver(REMARQUE_REGLAGES_ILLISIBLES);
       return avant;
     }
-    return op.reglages;
+    return lu;
   }
 
   /**

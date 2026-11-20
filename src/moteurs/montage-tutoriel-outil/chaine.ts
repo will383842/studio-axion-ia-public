@@ -612,9 +612,8 @@ function filmDesEntrees(commande: CommandeFabrication): FilmTutoriel | undefined
 /** T-EXT-52b : empreinte d'un format = plan du ratio + voix + effets du film + (carte de fin, sous-titres). Une seule fonction d'empreinte d'export (R4). */
 function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel): string {
   const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
-  // T-EXT-53c : les réglages du film choisis par le chat entrent dans l'empreinte (sans eux : empreinte d'avant, à l'octet près).
-  const reglagesChat = etat.reglagesFilm !== undefined ? { reglages: etat.reglagesFilm } : {};
-  const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs, ...reglagesChat }, film: filmDesEntrees(commande) } : etat.reglagesFilm !== undefined ? { reglagesFilm: reglagesChat } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
+  // T-EXT-53c : les réglages du chat n'entrent PAS dans l'empreinte tant que le rendu les ignore (en attendant T-EXT-53a) : sinon une version réglée ferait refaire tous les formats pour un film identique.
+  const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs }, film: filmDesEntrees(commande) } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
   const fin = fnv1a64(jsonCanonique({ fin: CARTE_FIN_AXION, finMs: DUREE_CARTE_FIN_MS, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null }));
   return empreinteFormat(planPourRatio(etat.plan!.plan, ratio), ratio, { voix: etat.audio?.empreinte ?? "", effetsFilm, fin });
 }
