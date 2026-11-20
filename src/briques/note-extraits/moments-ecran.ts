@@ -58,6 +58,13 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-particules": "geste",
   "objet-panneau-reglages": "interface",
   "objet-anneau-donnees": "chiffre",
+  // C9-34-TRAITS-v19c (19/11/2026) : soulignements et surligneur = texte (voisin : soulignement droit), flèches = geste (voisin : flèche à main levée).
+  "objet-soulignement-vague": "texte",
+  "objet-soulignement-double": "texte",
+  "objet-surligneur": "texte",
+  "objet-fleche-droite": "geste",
+  "objet-fleche-courbe": "geste",
+  "objet-fleche-pointillee": "geste",
 };
 
 const DUREE_MAX_SEC = 6;

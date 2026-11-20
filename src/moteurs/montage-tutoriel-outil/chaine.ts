@@ -33,6 +33,12 @@ import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { hautBandeSousTitresPct } from "../../briques/plan-scenes/tutoriel/motion-film";
 import { planCacheLeFilm, plagesFixesSortie, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
+import type { InstantRegard, LectureRegard, VerdictRegard } from "@/briques/regardeur";
+import type { RapportControleImage } from "@/briques/controle-image";
+import { instantsTutoriel, textesPermisDuRegistre, verdictRegardTutoriel } from "./equipe/regardeur";
+import type { VerdictControleur } from "./equipe/controleur";
+import type { RegistreTextes } from "./equipe/registre-textes";
+import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
 import { lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
@@ -66,6 +72,8 @@ export interface OutilsTutoriel {
     /** Clé de stockage d'un fichier de la vidéo. */
     cle: (nom: string) => string;
   };
+  /** T-EXT-27b : regard de Claude sur les images-clés du format maître (service ; le moteur n'en importe aucun). Absent = éteint, rien ne change. */
+  regarder?: (x: { demandeMaitre: DemandeRendu; instants: InstantRegard[] }) => Promise<LectureRegard | null>;
   /** T-EXT-31 : mixage de la voix, mesure du son et vignette. Absent = éteint (chemin d'avant, inchangé). */
   finitions?: { actif: true };
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
@@ -157,7 +165,11 @@ export interface EtatTutoriel {
   parent?: { plan?: PlanValide; audio?: AudioTutoriel };
   echecSimuleFait?: boolean;
   /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
-  appelsClaude?: { script: number; plan: number };
+  appelsClaude?: { script: number; plan: number; regard?: number };
+  /** T-EXT-27b : ce que le regard a vu (une fois par version) ; absent tant que le pas n'a pas eu lieu. */
+  regard?: { instants: number; relues: number; verdict: VerdictRegard };
+  /** T-EXT-27b : grille de qualité chiffrée, seulement quand le verdict du contrôleur et celui du contrôle de l'image sont dans l'état. */
+  grille?: GrilleTutoriel;
 }
 
 /** Enveloppe d'un appel Claude : ne compte que les appels revenus sans lever. */
@@ -169,7 +181,7 @@ function compterAppels(appeler: AppelClaude, n: { v: number }): AppelClaude {
   };
 }
 
-const avecAppels = (etat: EtatTutoriel, cle: "script" | "plan", n: number): EtatTutoriel => (n > 0 ? { ...etat, appelsClaude: { script: 0, plan: 0, ...etat.appelsClaude, [cle]: (etat.appelsClaude?.[cle] ?? 0) + n } } : etat);
+const avecAppels = (etat: EtatTutoriel, cle: "script" | "plan" | "regard", n: number): EtatTutoriel => (n > 0 ? { ...etat, appelsClaude: { script: 0, plan: 0, ...etat.appelsClaude, [cle]: (etat.appelsClaude?.[cle] ?? 0) + n } } : etat);
 
 /** Ordre des formats : 4:5 d'abord, puis les autres formats demandés, dans leur ordre. */
 export function ratiosTutoriel(ratios: readonly Ratio[]): Ratio[] {
@@ -556,6 +568,36 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
   return { statut: ratios.every(faitRatio) ? "faite" : "en-cours", etat: e };
 }
 
+/** Textes permis à l'écran pour le regard : le registre des textes choisis quand l'état le porte ; sinon le script validé, les textes du plan et la carte de fin. */
+function textesPermisDuRegard(etat: EtatTutoriel): string[] {
+  const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
+  if (registre?.entrees) return textesPermisDuRegistre(registre);
+  const dansPlan = (v: unknown): string[] => (typeof v === "string" ? [v] : Array.isArray(v) ? v.flatMap(dansPlan) : v && typeof v === "object" ? Object.values(v).flatMap(dansPlan) : []);
+  return [etat.script?.texte ?? "", ...(etat.plan ? dansPlan(etat.plan.plan.scenes.map((sc) => [sc.parametres, sc.calques])) : []), CARTE_FIN_AXION.titre, CARTE_FIN_AXION.sousTitre];
+}
+
+/** T-EXT-27b : UN regard par version fabriquée, sur le format maître. Ne fait jamais échouer ni attendre : il range un verdict. */
+async function pasRegarder(pas: PasTutoriel, outils: OutilsTutoriel): Promise<PasTutoriel> {
+  const etat = pas.etat;
+  const maitre = etat.rendus.find((r) => r.ratio === etat.ratios[0]);
+  if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie) return pas;
+  const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
+  const instants = instantsTutoriel(etat.plan.plan, { finMs: DUREE_CARTE_FIN_MS, ...(registre?.entrees ? { registre } : {}) });
+  let lecture: LectureRegard | null = null;
+  try {
+    lecture = await outils.regarder({ demandeMaitre: maitre.demande, instants });
+  } catch {
+    lecture = null;
+  }
+  const verdict = verdictRegardTutoriel(instants, lecture, { textesPermis: textesPermisDuRegard(etat), fin: { texte: `${CARTE_FIN_AXION.titre} ${CARTE_FIN_AXION.sousTitre}`, motCle: CARTE_FIN_AXION.titre } });
+  let suite: EtatTutoriel = { ...(lecture ? avecAppels(etat, "regard", 1) : etat), regard: { instants: instants.length, relues: verdict.relues, verdict } };
+  if (!lecture) suite = { ...suite, reserves: [...suite.reserves, "À vérifier · Les images n'ont pas pu être relues."] };
+  // Grille chiffrée : seulement si le contrôle de l'image et le verdict du contrôleur sont déjà dans l'état ; sinon pas de grille (rapport de master).
+  const porte = suite as EtatTutoriel & { controleImage?: RapportControleImage; controleur?: VerdictControleur };
+  if (porte.controleImage && porte.controleur) suite = { ...suite, grille: noterTutoriel({ controleImage: porte.controleImage, controleur: porte.controleur, regardeur: verdict, dureeSec: maitre.sortie.dureeSec }) };
+  return { ...pas, etat: suite };
+}
+
 /** Un pas de l'étape `cle`. Lève `ErreurTutoriel`, une erreur de la voix ou du rendu : le moteur la rend lisible. */
 export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<PasTutoriel> {
   switch (cle) {
@@ -569,7 +611,7 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
     case "plan":
       return pasPlan(etat, commande, outils);
     case "montage":
-      return pasMontage(etat, etat.ratios.slice(0, 1), commande, outils, travailId, true);
+      return pasRegarder(await pasMontage(etat, etat.ratios.slice(0, 1), commande, outils, travailId, true), outils);
     case "exports":
       return pasMontage(etat, etat.ratios.slice(1), commande, outils, travailId);
   }
