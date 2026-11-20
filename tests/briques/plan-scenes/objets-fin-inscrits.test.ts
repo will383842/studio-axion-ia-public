@@ -1,6 +1,6 @@
 /**
  * C9-34-FIN-v20h : les 10 derniers petits objets (dossier, chrono, barre de progression, étape en segments, 3 appels, frise de montage,
- * pellicule, onde) sont inscrits au plan de scènes, PORTE FERMÉE. `objet-volet-avant-apres` reste dehors (hors v4 : exige 2 captures signées, N-05 / C10-08).
+ * pellicule, onde) sont inscrits au plan de scènes, PORTE FERMÉE. `objet-volet-avant-apres` est inscrit ensuite par N-05-VOLET-d-v20j, sans adresse.
  * (a) inscription, toile, moment ; (b) volet non inscrit ; (c) consigne sans permis IDENTIQUE à master ; (d) aucun profil ne permet ces objets.
  * Aucun appel réel : Claude est simulé.
  */
@@ -59,11 +59,16 @@ describe("(a) inscription, toile, moment", () => {
   });
 });
 
-describe("(b) le volet avant/après reste hors du plan de scènes", () => {
-  it("objet-volet-avant-apres NON inscrit", () => {
-    expect(IDS_PIECES as readonly string[]).not.toContain("objet-volet-avant-apres");
-    expect(CATALOGUE_BRIQUES).not.toHaveProperty("objet-volet-avant-apres");
-    expect(TOILES).not.toHaveProperty("objet-volet-avant-apres");
+describe("(b) le volet avant/après est inscrit au plan de scènes SANS adresse (N-05-VOLET-d-v20j, seconde lecture du pilote)", () => {
+  it("objet-volet-avant-apres inscrit, toile 1000 × 625, exemple sans avant ni apres, adresses refusées", () => {
+    expect(IDS_PIECES as readonly string[]).toContain("objet-volet-avant-apres");
+    const def = (CATALOGUE_BRIQUES as Record<string, { exemple: unknown; schema: { safeParse: (x: unknown) => { success: boolean } } }>)["objet-volet-avant-apres"];
+    expect(def).toBeDefined();
+    expect(TOILES["objet-volet-avant-apres" as keyof typeof TOILES]).toEqual({ largeur: 1000, hauteur: 625 });
+    expect(def.exemple).toEqual({ etiquettes: true });
+    expect(def.exemple).not.toHaveProperty("avant");
+    expect(def.exemple).not.toHaveProperty("apres");
+    expect(def.schema.safeParse({ avant: "a", apres: "b" }).success).toBe(false);
   });
 });
 

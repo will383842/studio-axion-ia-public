@@ -38,7 +38,14 @@ import { DEF_APPEL_RDV, EXEMPLES_APPEL_RDV } from "../../motion/petits-objets/ap
 import { OBJET_FRISE_MONTAGE, EXEMPLES_FRISE } from "../../motion/petits-objets/frise-montage";
 import { OBJET_PELLICULE, EXEMPLES_PELLICULE } from "../../motion/petits-objets/pellicule";
 import { OBJET_ONDE_MOTIF, EXEMPLES_ONDE } from "../../motion/petits-objets/onde";
+import { OBJET_VOLET_AVANT_APRES } from "../../motion/petits-objets/volet-avant-apres";
+import type { DefinitionObjet } from "../../motion/petits-objets/contrat";
+import { validerVoletPlan } from "./volet-plan";
+import { RenduVoletPlan } from "./rendu-volet-plan";
 import { envelopperObjets } from "./objets";
+
+// N-05-VOLET-d-v20j : le plan n'accepte qu'un volet SANS adresse ; les captures sont posées sur la copie de rendu (poser-captures-volet.ts).
+const DEF_VOLET_PLAN = { ...OBJET_VOLET_AVANT_APRES, valider: validerVoletPlan, Rendu: RenduVoletPlan } as DefinitionObjet<unknown>;
 
 export const OBJETS_PLAN_SCENES = [
   OBJET_GROS_CHIFFRE, OBJET_ETAPE, OBJET_CARTES_COCHE, OBJET_COCHE,
@@ -58,6 +65,8 @@ export const OBJETS_PLAN_SCENES = [
   OBJET_SCHEMA_FLUX, OBJET_SCHEMA_ETOILE, OBJET_ICONES_RELIEES, OBJET_AGENTS_GLOBE, OBJET_GRILLE_POINTILLEE, OBJET_VIGNETTES_NUMEROTEES, OBJET_FENETRE_APP, OBJET_TERMINAL_COMMANDE,
   // C9-34-FIN-v20h (20/11/2026) : 10 derniers petits objets (porte fermée)
   DEF_DOSSIER, DEF_CHRONO, DEF_BARRE_PROGRESSION, OBJET_ETAPE_SEGMENTS, DEF_APPEL_ACTION, DEF_APPEL_MOT, DEF_APPEL_RDV, OBJET_FRISE_MONTAGE, OBJET_PELLICULE, OBJET_ONDE_MOTIF,
+  // N-05-VOLET-d-v20j : le volet avant / après, sans adresse (porte fermée)
+  DEF_VOLET_PLAN,
 ];
 
 /** Graine fixe et pure : somme des codes de caractères de l'identifiant. */
@@ -69,7 +78,7 @@ export function graineObjet(id: string): number {
 
 export const PIECES_OBJETS = envelopperObjets(OBJETS_PLAN_SCENES, graineObjet);
 
-const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it" | "objet-schema-flux" | "objet-schema-etoile" | "objet-icones-reliees" | "objet-agents-globe" | "objet-grille-pointillee" | "objet-vignettes-numerotees" | "objet-fenetre-app" | "objet-terminal-commande" | "objet-dossier" | "objet-chrono" | "objet-barre-progression" | "objet-etape-segments" | "objet-appel-action" | "objet-appel-mot" | "objet-appel-rdv" | "objet-frise-montage" | "objet-pellicule" | "objet-onde-motif", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
+const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it" | "objet-schema-flux" | "objet-schema-etoile" | "objet-icones-reliees" | "objet-agents-globe" | "objet-grille-pointillee" | "objet-vignettes-numerotees" | "objet-fenetre-app" | "objet-terminal-commande" | "objet-dossier" | "objet-chrono" | "objet-barre-progression" | "objet-etape-segments" | "objet-appel-action" | "objet-appel-mot" | "objet-appel-rdv" | "objet-frise-montage" | "objet-pellicule" | "objet-onde-motif" | "objet-volet-avant-apres", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
   id,
   nom,
   description,
@@ -143,6 +152,7 @@ export const BRIQUES_OBJETS = {
   "objet-frise-montage": objet("objet-frise-montage", "Frise de montage", "Une frise de blocs de montage qui se pose au fil de ce qui est expliqué.", OBJET_FRISE_MONTAGE, EXEMPLES_FRISE[0]),
   "objet-pellicule": objet("objet-pellicule", "Pellicule", "Une pellicule de cases qui défile au rythme de ce qui est dit.", OBJET_PELLICULE, EXEMPLES_PELLICULE[0]),
   "objet-onde-motif": objet("objet-onde-motif", "Onde", "Une onde de barres qui bouge au rythme de la voix.", OBJET_ONDE_MOTIF, EXEMPLES_ONDE[0]),
+  "objet-volet-avant-apres": objet("objet-volet-avant-apres", "Volet avant / après", "Un volet qui découvre un « après » par-dessus un « avant ».", DEF_VOLET_PLAN, { etiquettes: true }),
 } as const;
 
 export const RENDUS_OBJETS = {
@@ -208,4 +218,5 @@ export const RENDUS_OBJETS = {
   "objet-frise-montage": PIECES_OBJETS["objet-frise-montage"].Rendu as RenduBrique,
   "objet-pellicule": PIECES_OBJETS["objet-pellicule"].Rendu as RenduBrique,
   "objet-onde-motif": PIECES_OBJETS["objet-onde-motif"].Rendu as RenduBrique,
+  "objet-volet-avant-apres": PIECES_OBJETS["objet-volet-avant-apres"].Rendu as RenduBrique,
 } as const;

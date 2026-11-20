@@ -24,6 +24,7 @@
  * Version 2 (refus lisible aujourd'hui) : autres ratios, fins par réseau, correction des sous-titres seule, maquette.
  */
 import { createHash } from "node:crypto";
+import { alerteRemarque } from "@/domaine/livraison-avec-remarques";
 import type { CommandeFabrication, SegmentSousTitres, EtapeTravail, ErreurTravail, IdReseau, LigneCout, StyleResolu, Travail, ValeurStyleSousTitres } from "@/domaine/types";
 import { ZERO, centimes } from "@/lib/montants";
 import { decouperEnScenes, type EntreeDecoupage, type OutilsDecoupage } from "./decoupage";
@@ -521,7 +522,7 @@ export function verifieDe(controles: Pick<CompteRenduFabrication["controles"], "
 /** Alertes et note d'une sortie (contrôles, fin absente, voix sans la recette). */
 export function qualiteDe(controles: CompteRenduFabrication["controles"], fin: CompteRenduFabrication["fin"], recette: CompteRenduFabrication["recetteVoix"], enPlus: CompteRenduFabrication["alertes"] = []) {
   const alertes = [
-    ...controles.indicatifs.map((l) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message: `${l.libelle} : ${l.raison}` })),
+    ...controles.indicatifs.map((l) => (l.remarque ? alerteRemarque(l.libelle, l.raison) : { code: "defaut-visuel" as const, gravite: "info" as const, message: `${l.libelle} : ${l.raison}` })),
     // Un contrôle non fait n'est plus rangé en « info » : le rapport dit ce qui n'a PAS été vérifié.
     ...controles.nonFaits.map((l) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message: `Non vérifié : ${l.libelle} : ${l.raison}` })),
     // Pas de fin validée : la vidéo est livrée sans écran de fin, et le rapport le dit (jamais un échec). Déjà dite par
