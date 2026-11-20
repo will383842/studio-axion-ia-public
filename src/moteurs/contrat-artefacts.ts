@@ -56,6 +56,7 @@ export const LECTEURS_ARTEFACTS: Readonly<Record<string, Readonly<Record<string,
   "image-video": Object.freeze({ plan: NV_PLAN, voix: NV_VOIX, "rendus-scenes": NV_SCENES }),
   "tutoriel-outil": Object.freeze({ plan: NV_PLAN, voix: NV_VOIX, "rendus-scenes": NV_SCENES }),
   "demo-facecam": Object.freeze({ plan: NV_PLAN }),
+  "tableau-de-bord": Object.freeze({ plan: NV_PLAN, voix: NV_VOIX, "rendus-scenes": NV_SCENES }),
   "video-longue": Object.freeze({ plan: NV_PLAN_VL, voix: NV_VOIX_VL, "rendus-scenes": NV_SCENES_VL }),
 });
 

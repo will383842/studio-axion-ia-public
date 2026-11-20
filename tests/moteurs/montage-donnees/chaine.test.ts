@@ -2,7 +2,7 @@
  * Chaîne du montage « données » (G4-09a). DONNÉE ENTIÈREMENT FICTIVE : aucun chiffre réel.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { nombresPermis } from "../../../src/briques/donnees-video/garde-chiffres";
 import { nombresAffirmes, memeValeur } from "../../../src/domaine/nombres-fr";
@@ -146,10 +146,10 @@ describe("chaîne", () => {
   });
 });
 
-describe("garde statique : moteur non inscrit, imports interdits", () => {
+describe("garde statique : moteur inscrit, masqué, sans dépense, imports interdits", () => {
   const racine = process.cwd();
   const dossier = join(racine, "src/moteurs/montage-donnees");
-  const fichiers = ["entrees.ts", "proprietes.ts", "chaine.ts"].map((f) => join(dossier, f));
+  const fichiers = ["entrees.ts", "proprietes.ts", "chaine.ts", "index.ts"].map((f) => join(dossier, f));
 
   const tous = (rep: string): string[] =>
     readdirSync(rep).flatMap((n) => {
@@ -157,19 +157,24 @@ describe("garde statique : moteur non inscrit, imports interdits", () => {
       return statSync(p).isDirectory() ? tous(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
     });
 
-  it("aucun fichier de src/ (hors le dossier) n'importe montage-donnees", () => {
-    for (const f of tous(join(racine, "src")).filter((p) => !p.startsWith(dossier))) expect(readFileSync(f, "utf8"), f).not.toMatch(/montage-donnees/);
+  it("seuls l'inscription du moteur, ses ids et le format masqué citent montage-donnees (liste exacte, G4-09b)", () => {
+    const citeurs = tous(join(racine, "src"))
+      .filter((p) => !p.startsWith(dossier))
+      .filter((f) => /montage-donnees/.test(readFileSync(f, "utf8")))
+      .map((f) => relative(racine, f).split(sep).join("/"))
+      .sort();
+    expect(citeurs).toEqual(["src/formats/tableau-de-bord/index.ts", "src/moteurs/ids.ts", "src/moteurs/index.ts"]);
   });
-  it("ids.ts ne le cite pas", () => {
-    expect(readFileSync(join(racine, "src/moteurs/ids.ts"), "utf8")).not.toMatch(/montage-donnees/);
+  it("ids.ts le cite une fois", () => {
+    expect(readFileSync(join(racine, "src/moteurs/ids.ts"), "utf8").match(/montage-donnees/g)).toHaveLength(1);
   });
-  it("aucun des 3 fichiers n'importe de module interdit", () => {
+  it("aucun des 4 fichiers n'importe de module interdit (fournisseur, argent, serveur, rendu)", () => {
     for (const f of fichiers) {
       const imports = readFileSync(f, "utf8").split("\n").filter((l) => /^\s*(import|export)\b.*\bfrom\b/.test(l)).join("\n");
       expect(imports, f).not.toMatch(/@\/fournisseurs|@\/services|credits|couts|budget|server-only|remotion/);
     }
   });
-  it("pas d'index.ts dans le dossier", () => {
-    expect(readdirSync(dossier)).not.toContain("index.ts");
+  it("index.ts existe dans le dossier (moteur inscrit, en pause sans dépense)", () => {
+    expect(readdirSync(dossier)).toContain("index.ts");
   });
 });
