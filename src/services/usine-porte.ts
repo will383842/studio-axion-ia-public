@@ -129,24 +129,38 @@ export interface LigneSemaineUsine {
 
 const texteOptionnel = (v: unknown, max = 300): string | undefined => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
 
-/** Bornes de ce que l'Usine peut envoyer pour la semaine : ce qui dépasse est refusé (message clair), jamais gardé tel quel. */
-export const BORNES_SEMAINE_USINE = { propositions: 50, signature: 800, texte: 1000, parts: 40, cleDePart: 80, valeurDePart: 200 } as const;
+/** Bornes de ce que l'Usine peut envoyer pour la semaine : trop de propositions = refus de la semaine ; un sujet trop grand = carte gardée sans son sujet. */
+export const BORNES_SEMAINE_USINE = { propositions: 50, signature: 800, texte: 1000, parts: 40, cleDePart: 80, valeurDePart: 200, assemble: 10000 } as const;
 const refusSemaine = (detail: string) => new ErreurStudio("SEMAINE_USINE_TROP_GRANDE", `La réponse de l'usine dépasse les limites prévues (${detail}) : la semaine n'a pas été gardée.`);
 
-function verifierBornesSujet(s: IdeeUsine): void {
-  const B = BORNES_SEMAINE_USINE;
-  if (s.signature.length > B.signature) throw refusSemaine(`signature de plus de ${B.signature} caractères`);
-  for (const t of [s.metier, s.taille, s.service, s.douleur, s.casUsage, s.sujet, s.format, s.famille, s.fin]) {
-    if (t !== undefined && t.length > B.texte) throw refusSemaine("texte de plus de 1 000 caractères");
-  }
-  const parts = Object.entries(s.parts);
-  if (parts.length > B.parts) throw refusSemaine(`parts : plus de ${B.parts} éléments`);
-  for (const [k, v] of parts) {
-    if (k.length > B.cleDePart || (v !== null && v.length > B.valeurDePart)) throw refusSemaine("parts : un élément est trop long");
-  }
+const objetOuVide = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+const tropLong = (v: unknown, max: number): boolean => typeof v === "string" && v.length > max;
+
+/** Chaque texte reçu de l'Usine, AVANT assemblage (casUsage, fin) : plus de 1 000 caractères = sujet écarté. Lit l'objet brut, sans rien copier. */
+function texteBrutTropLong(brut: Record<string, unknown>): boolean {
+  const T = BORNES_SEMAINE_USINE.texte;
+  const champs: unknown[] = [
+    objetOuVide(brut.metier).libelle, objetOuVide(brut.taille).libelle, objetOuVide(brut.service).libelle,
+    objetOuVide(brut.douleur).dite, objetOuVide(brut.cas_usage).titre, objetOuVide(brut.cas_usage).ce_que_ca_change,
+    objetOuVide(brut.sujet).titre, objetOuVide(brut.actualite).titre, objetOuVide(brut.actualite).ce_qui_change,
+    objetOuVide(brut.format).libelle, objetOuVide(brut.accroche).famille,
+    ...Object.values(objetOuVide(brut.fins)).map((f) => objetOuVide(f).dit),
+  ];
+  return champs.some((t) => tropLong(t, T));
 }
 
-/** Lit la réponse `{ propositions: [...] }` ; une ligne qui n'est pas un objet avec clé, jour, réseau et type est ignorée. Le statut de l'usine n'est jamais lu. */
+/** Vrai si le sujet lu dépasse une borne (signature, parts, champs assemblés : plafond de sûreté). */
+function sujetTropGrand(s: IdeeUsine): boolean {
+  const B = BORNES_SEMAINE_USINE;
+  if (s.signature.length > B.signature) return true;
+  for (const t of [s.metier, s.taille, s.service, s.douleur, s.sujet, s.format, s.famille]) if (t !== undefined && t.length > B.texte) return true;
+  for (const t of [s.casUsage, s.fin]) if (t !== undefined && t.length > B.assemble) return true;
+  const parts = Object.entries(s.parts);
+  if (parts.length > B.parts) return true;
+  return parts.some(([k, v]) => k.length > B.cleDePart || (v !== null && v.length > B.valeurDePart));
+}
+
+/** Lit la réponse `{ propositions: [...] }` (plus de 50 : refus) ; une ligne qui n'est pas un objet avec clé, jour, réseau et type est ignorée. Le statut de l'usine n'est jamais lu. */
 export function lireSemaineUsine(corps: unknown): LigneSemaineUsine[] {
   const lignes = corps && typeof corps === "object" ? (corps as { propositions?: unknown }).propositions : undefined;
   if (!Array.isArray(lignes)) return [];
@@ -161,8 +175,9 @@ export function lireSemaineUsine(corps: unknown): LigneSemaineUsine[] {
     const titre = texteOptionnel(o.titre);
     const pourquoi = texteOptionnel(o.pourquoi);
     const ressembleA = texteOptionnel(o.ressemble_a);
-    const sujet = o.sujet && typeof o.sujet === "object" ? lireIdeesUsine({ lignes: [o.sujet] })[0] : undefined;
-    if (sujet) verifierBornesSujet(sujet);
+    // Un sujet trop grand n'entraîne pas le refus de la semaine : la carte est gardée sans son sujet (pas de bouton « Retenir ce sujet »).
+    const lu = o.sujet && typeof o.sujet === "object" && !texteBrutTropLong(o.sujet as Record<string, unknown>) ? lireIdeesUsine({ lignes: [o.sujet] })[0] : undefined;
+    const sujet = lu && !sujetTropGrand(lu) ? lu : undefined;
     sortie.push({ cle, jour: o.jour, reseau: o.reseau, type: o.type, ...(sujet ? { sujet } : {}), ...(heure ? { heure } : {}), ...(titre ? { titre } : {}), ...(pourquoi ? { pourquoi } : {}), ...(ressembleA ? { ressembleA } : {}) });
   }
   return sortie;
