@@ -3,6 +3,7 @@
  * Tout est doublé : `lancerRetouche` est un double qui compte ses appels (aucun moteur, aucune réservation, aucun
  * rendu, aucun appel à Claude ni à la voix), dépôts en mémoire, réseau interdit. 0 €.
  */
+import { readFileSync } from "node:fs";
 import { hash } from "@node-rs/argon2";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -52,7 +53,7 @@ const { appliquerOperations } = await import("@/services/retouche-chat/appliquer
 const { CLES_REGLAGE_RETOUCHE } = await import("@/services/retouche-chat/generateurs");
 const { FABRIQUER_PAR_GENERATEUR, fabriquerVersionTutoriel } = await import("@/services/retouche-chat/tutoriel-fabriquer");
 const { POST } = await import("@/app/api/retouche-chat/route");
-const { ZoneFabriquer, versionAFabriquer, remarquesAffichees } = await import("@/components/retouche-chat/ChatRetouche");
+const { ZoneFabriquer, versionAFabriquer, remarquesAffichees, texteSansNouvelleVersion, PHRASE_RENDU_NON_BRANCHE_COPIE } = await import("@/components/retouche-chat/ChatRetouche");
 
 type Deps = NonNullable<Parameters<typeof fabriquerVersionTutoriel>[3]>;
 type VersionLue = NonNullable<Awaited<ReturnType<Deps["lireVersionChoisie"]>>>;
@@ -431,6 +432,31 @@ describe("46b · écran : bouton « Fabriquer cette version »", () => {
     expect(remarquesAffichees(remarques, true)).toEqual(["Autre remarque."]);
     expect(remarquesAffichees(remarques, false)).toEqual(remarques);
     expect(remarquesAffichees([PHRASE_RENDU_NON_BRANCHE], true)).toEqual([]);
+  });
+
+  it("la copie de la phrase dans le composant client est strictement égale à celle du service", () => {
+    expect(PHRASE_RENDU_NON_BRANCHE_COPIE).toBe(PHRASE_RENDU_NON_BRANCHE);
+  });
+
+  it("le composant client n'importe aucun module serveur (service de retouche, server-only, fournisseurs, base)", () => {
+    const src = readFileSync("src/components/retouche-chat/ChatRetouche.tsx", "utf8");
+    const importes = [...src.matchAll(/^\s*import\s[^;]*?from\s+["']([^"']+)["']/gm)].map((m) => m[1]);
+    expect(importes.length).toBeGreaterThan(0);
+    for (const chemin of importes) {
+      expect(chemin).not.toMatch(/^@\/services\/retouche-chat\/(service|tutoriel-|comprendre|appliquer|generateurs)/);
+      expect(chemin).not.toMatch(/server-only|^@\/fournisseurs\/|^@\/services\/|^@\/db|^@\/lib\/db/);
+    }
+    expect(src).not.toMatch(/import\s+["']server-only["']/);
+  });
+
+  it("rien à dire avec le bouton de fabrication : jamais « Rien n'a changé. » ; la phrase d'impact existante ou rien", () => {
+    const sansRemarque = remarquesAffichees([PHRASE_RENDU_NON_BRANCHE], true);
+    expect(sansRemarque).toEqual([]);
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: "Une scène change." }, true)).toBe("Une scène change.");
+    expect(texteSansNouvelleVersion(sansRemarque, undefined, true)).toBe("");
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: 3 }, true)).toBe("");
+    expect(texteSansNouvelleVersion(["Autre remarque."], { phrase: "Une scène change." }, true)).toBe("Autre remarque.");
+    expect(texteSansNouvelleVersion([], { phrase: "Une scène change." }, false)).toBe("Rien n'a changé.");
   });
 
   it("`versionAFabriquer` emporte les réglages du film non vides, et seulement eux", () => {

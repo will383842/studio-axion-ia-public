@@ -11,7 +11,6 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { OperationRetouche } from "@/briques/operations";
 import { ApercuFamille } from "./ApercuFamille";
 import { CollerOperations } from "./CollerOperations";
-import { PHRASE_RENDU_NON_BRANCHE } from "@/services/retouche-chat/service";
 
 export type EnvoiRetouche = (corps: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
@@ -73,7 +72,10 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
       if (r.statut === "rendue" && typeof r.versionId === "string") {
         setVersions((v) => [...v, r.versionId as string]);
         dire({ auteur: "studio", texte: ["C'est fait : nouvelle version.", ...remarques].join(" ") });
-      } else dire({ auteur: "studio", texte: remarques.join(" ") || "Rien n'a changé." });
+      } else {
+        const texte = texteSansNouvelleVersion(remarques, r.impact, afabriquer !== null);
+        if (texte) dire({ auteur: "studio", texte });
+      }
       setAFabriquer(afabriquer);
       setApercu(null);
     } catch {
@@ -187,9 +189,27 @@ export function versionAFabriquer(generateur: string | undefined, demande: strin
   return reponse.reglagesFilm ? { demande, plan, reglagesFilm: reponse.reglagesFilm } : { demande, plan };
 }
 
+/**
+ * T-EXT-46b : même texte que `PHRASE_RENDU_NON_BRANCHE` (services/retouche-chat/service). Recopié ici car ce composant est
+ * client : il ne doit importer aucun module serveur (« server-only »). L'égalité stricte est gardée par un test.
+ */
+export const PHRASE_RENDU_NON_BRANCHE_COPIE = "Le plan retouché est prêt ; son rendu se branchera avec le générateur de cette vidéo.";
+
 /** T-EXT-46b : quand le bouton de fabrication est là, la phrase « son rendu se branchera… » serait contradictoire : elle n'est pas affichée (aucune phrase nouvelle). */
 export function remarquesAffichees(remarques: readonly string[], fabricable: boolean): string[] {
-  return remarques.filter((m) => !(fabricable && m === PHRASE_RENDU_NON_BRANCHE));
+  return remarques.filter((m) => !(fabricable && m === PHRASE_RENDU_NON_BRANCHE_COPIE));
+}
+
+/**
+ * T-EXT-46b : texte quand aucune nouvelle version n'est rendue. Sans rien à dire et avec le bouton de fabrication, on reprend
+ * la phrase d'impact déjà fournie (aucune phrase nouvelle) ou rien ; « Rien n'a changé. » seulement sans bouton.
+ */
+export function texteSansNouvelleVersion(remarques: readonly string[], impact: unknown, fabricable: boolean): string {
+  const texte = remarques.join(" ");
+  if (texte) return texte;
+  if (!fabricable) return "Rien n'a changé.";
+  const phrase = impact && typeof impact === "object" ? (impact as { phrase?: unknown }).phrase : undefined;
+  return typeof phrase === "string" ? phrase : "";
 }
 
 /** T-EXT-46b : bouton « Fabriquer cette version », puis la phrase et le lien de suivi. Aucun montant. Rien si rien à fabriquer. */
