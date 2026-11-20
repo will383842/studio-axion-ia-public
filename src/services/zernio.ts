@@ -9,8 +9,11 @@
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
+import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import { transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { reconcilier } from "./reconciliation-calendrier";
+import { peutTransiter, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { transiterEnvoi } from "./envois-planifies";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
@@ -238,6 +241,98 @@ async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Pr
     await depots().publications.modifier(p.id, modif);
     return true;
   });
+}
+
+/** Préfixe des marques d'envoi du calendrier (recopié de `branchement-envoi-calendrier.ts`, qui importe ce module). */
+export const PREFIXE_MARQUES_CALENDRIER = "envoi-calendrier:";
+
+/**
+ * Le créneau (statut final) ne passe « publie » que si, à sa version courante, CHAQUE réseau prévu (`heuresParReseau`) a un envoi vivant
+ * (non annulé) et que tous ces envois sont « envoye » : un réseau sans envoi (texte manquant, trop tôt, exclu…) garde le créneau « programme ».
+ * Un envoi d'une version périmée (décalé depuis) ne fait jamais publier la version courante.
+ */
+async function creneauToutParti(e: EnvoiPlanifie, creneau: CreneauEditorial | null | undefined): Promise<boolean> {
+  if (!creneau || !e.creneauId) return false;
+  const version = creneau.decalages ?? e.versionCreneau;
+  if (e.versionCreneau !== version) return false;
+  const freres = await depots().envoisPlanifies.lister((x) => x.creneauId === e.creneauId && x.versionCreneau === version && x.statut !== "annule");
+  if (!freres.length || !freres.every((x) => x.statut === "envoye")) return false;
+  const prevus = Object.keys(creneau.heuresParReseau ?? {}).filter((r) => (creneau.heuresParReseau as Record<string, string | undefined>)[r]);
+  return prevus.every((r) => freres.some((x) => x.reseau === r));
+}
+
+/**
+ * RETOUR-PUBLISHED · Zernio a CONFIRMÉ « published » pour cette Publication zernio : le Studio suit. On retrouve l'envoi planifié par sa clé
+ * (`cleDiffuseur ?? cle` == `cleEnvoi`), puis : le VRAI créneau passe « publie » (via `reconcilier`), `pub_<clé>` passe « publiee »,
+ * l'envoi passe « envoye » et les marques `promotion:<clé>` / `a-verifier:<clé>` (si elles existent) passent « parti ».
+ * N'est appelée QUE sur un « published » confirmé ; un échec ou un statut ambigu ne lève rien (CAL-23 : jamais « annulé »).
+ * Idempotent (chaque étape ne fait rien si elle est déjà faite) et sans appel au diffuseur. Un échec ici n'arrête jamais la synchro.
+ */
+async function suivrePublicationConfirmee(p: Publication): Promise<void> {
+  if (!p.cleEnvoi) return;
+  const d = depots();
+  const envois = await d.envoisPlanifies.lister((e) => (e.cleDiffuseur ?? e.cle) === p.cleEnvoi);
+  for (const e of envois) {
+    await sousVerrou(async () => {
+      // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon, confirmé…) reste tel quel.
+      let envoi = await d.envoisPlanifies.obtenir(e.id);
+      if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) envoi = await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
+      // Tout autre état (annulé, valide, confirmé…) : rien n'est écrit, ni créneau, ni pub_<clé>, ni marques (même règle que la reprise).
+      if (envoi?.statut !== "envoye") return;
+      const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
+      const pub = await d.publications.obtenir(`pub_${e.cle}`);
+      const tousPartis = await creneauToutParti(e, creneau);
+      const r = reconcilier({ diffuseur: "publie" }, {
+        // Sans créneau réel, ou tant que des réseaux restent à partir : créneau fictif déjà « publie » (rien à changer de ce côté).
+        creneau: creneau && tousPartis ? { id: creneau.id, statut: creneau.statut } : { id: "-", statut: "publie" },
+        publication: { id: pub?.id ?? "-", statut: pub?.statut ?? "publiee" },
+      });
+      if (creneau && r.creneau) await d.creneauxEditoriaux.modifier(creneau.id, { statut: r.creneau.statut });
+      if (pub && r.publication) await d.publications.modifier(pub.id, { statut: r.publication.statut, modifieLe: maintenant() });
+      // Seules les marques qui disent « programmé » ou « à vérifier » sont levées ; « en-cours » (tentative en vol) et « libre » restent.
+      // Lecture directe du dépôt (et non `lireParametre`) : ces marques ne sont pas des interrupteurs.
+      for (const [nom, leve] of [["promotion", ["programme", "a-verifier"]], ["a-verifier", ["a-verifier"]]] as const) {
+        const id = `${PREFIXE_MARQUES_CALENDRIER}${nom}:${e.cle}`;
+        const m = await d.parametres.obtenir(id);
+        if (m && (leve as readonly unknown[]).includes(m.valeur)) await d.parametres.enregistrer({ ...m, valeur: "parti", modifieLe: maintenant() });
+      }
+    });
+  }
+}
+
+/**
+ * RETOUR-PUBLISHED · reprise : une Publication zernio déjà « publiee » dont l'envoi planifié est resté « programme » (écriture interrompue
+ * au passage précédent) est suivie à nouveau. Lecture des dépôts seule, 20 au plus par passage ; idempotent.
+ */
+async function reprendreRetoursPublies(): Promise<void> {
+  const d = depots();
+  // Envois restés « programme », ou déjà « envoye » dont le suivi (pub_<clé>, créneau, marques) n'est pas terminé : une coupure peut survenir entre deux écritures.
+  const candidats = await d.envoisPlanifies.lister((e) => e.statut === "programme" || e.statut === "envoye");
+  const restes: typeof candidats = [];
+  for (const e of candidats) {
+    if (e.statut === "programme") {
+      restes.push(e);
+      continue;
+    }
+    const pub = await d.publications.obtenir(`pub_${e.cle}`);
+    const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
+    const marque = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}promotion:${e.cle}`);
+    const verifier = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}a-verifier:${e.cle}`);
+    // Le créneau « programme » n'est un reste que s'il peut vraiment passer « publie » (sinon il reste « programme » en permanence et saturerait la reprise).
+    const creneauARattraper = creneau?.statut === "programme" && (await creneauToutParti(e, creneau));
+    if ((pub && pub.statut === "programmee") || creneauARattraper || marque?.valeur === "programme" || marque?.valeur === "a-verifier" || verifier?.valeur === "a-verifier") restes.push(e);
+  }
+  if (!restes.length) return;
+  const cles = new Set(restes.map((e) => e.cleDiffuseur ?? e.cle));
+  const pubs = await d.publications.lister((p) => p.via === "zernio" && p.statut === "publiee" && !!p.cleEnvoi && cles.has(p.cleEnvoi));
+  pubs.sort((x, y) => (x.etatLuLe ?? "").localeCompare(y.etatLuLe ?? "") || x.id.localeCompare(y.id));
+  for (const p of pubs.slice(0, RATTRAPAGE_PAR_PASSAGE)) {
+    try {
+      await suivrePublicationConfirmee(p);
+    } catch {
+      await journaliser("publication", "Le calendrier n'a pas pu suivre une publication confirmée par Zernio : à vérifier.").catch(() => undefined);
+    }
+  }
 }
 
 /** L5-06 · plafond de sécurité du nombre de pages lues pour une liste de posts. */
@@ -479,6 +574,11 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       if (p.visuelId) visuelsTouches.add(p.visuelId);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
       await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
+      try {
+        await suivrePublicationConfirmee(p);
+      } catch {
+        /* repris au prochain passage par `reprendreRetoursPublies` : la synchro continue */
+      }
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
       if (p.visuelId) visuelsTouches.add(p.visuelId);
@@ -490,6 +590,11 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       if (p.visuelId) visuelsTouches.add(p.visuelId);
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
     }
+  }
+  try {
+    await reprendreRetoursPublies();
+  } catch {
+    /* lecture impossible : on réessaiera au prochain passage */
   }
   // Interrupteur éteint (défaut) : aucune écriture sur `visuels.statut`, ni après le passage ni au rattrapage (comportement de master).
   let suitLesVisuels = false;
