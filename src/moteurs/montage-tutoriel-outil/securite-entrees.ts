@@ -890,10 +890,20 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
     return [{ type: "detection-echouee", ligne: 1, debut: 0, fin: texte.length }];
   }
   // Priorité à l'ordre de découverte ci-dessus : une plage déjà prise n'est pas reprise.
-  const pris: { debut: number; fin: number }[] = [];
+  // Table d'occupation (une case par caractère) : temps linéaire, même priorité qu'avant (ordre de découverte).
+  const occupe = new Uint8Array(texte.length + 1);
   const gardes = bruts.filter((b) => {
-    if (pris.some((p) => b.debut < p.fin && b.fin > p.debut)) return false;
-    pris.push(b);
+    const fin = Math.min(b.fin, texte.length);
+    let libre = true;
+    for (let i = b.debut; i < fin; i++) {
+      if (occupe[i]) {
+        libre = false;
+        break;
+      }
+    }
+    if (!libre) return false;
+    // Une plage vide (debut >= fin) n'occupe rien : elle est gardée comme avant (aucune plage prise ne la chevauche).
+    occupe.fill(1, b.debut, fin);
     return true;
   });
   gardes.sort((a, b) => a.debut - b.debut);

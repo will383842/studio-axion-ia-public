@@ -689,3 +689,52 @@ describe("verdict Opus : lectures à la main, mêmes refus qu'avant", () => {
     expect(verifierMaquette([{ chemin: "a.js", texte: "import x from './b.js'; var important = 1;" }]).ok).toBe(true);
   });
 });
+
+describe("verdict Opus : temps de la détection (dédoublonnage linéaire)", () => {
+  const chrono = <T,>(f: () => T): { r: T; ms: number } => {
+    const t0 = performance.now();
+    const r = f();
+    return { r, ms: performance.now() - t0 };
+  };
+  const nb = (d: { type: string }[], type: string) => d.filter((x) => x.type === type).length;
+
+  it("CSV de 40 000 lignes nom,email : 40 000 courriels + 40 000 colonnes, en moins d'une seconde", () => {
+    let t = "nom,email\n";
+    for (let i = 0; i < 40000; i++) t += `Client ${i},client${i}@societe.fr\n`;
+    const { r, ms } = chrono(() => detecterDonneesPersonnelles(t, { chemin: "demo-data.csv" }));
+    expect(nb(r, "courriel")).toBe(40000);
+    expect(nb(r, "colonne-personne")).toBe(40000);
+    expect(ms).toBeLessThan(1000);
+  });
+  it("40 000 téléphones, un par ligne", () => {
+    const t = "06 12 34 56 78\n".repeat(40000);
+    const { r, ms } = chrono(() => detecterDonneesPersonnelles(t));
+    expect(nb(r, "telephone")).toBe(40000);
+    expect(ms).toBeLessThan(1000);
+  });
+  it("JSON de 200 000 objets {nom} : 200 000 colonnes", () => {
+    const t = '{"nom":[' + '{"nom":"a"},'.repeat(200000) + '{"nom":"a"}]}';
+    const { r, ms } = chrono(() => detecterDonneesPersonnelles(t, { chemin: "d.json" }));
+    expect(nb(r, "colonne-personne")).toBe(200001);
+    expect(ms).toBeLessThan(1000);
+  });
+  it("JSON de 300 000 entrées imbriquées", () => {
+    const t = "{" + '"a":{"nom":"x"},'.repeat(300000) + '"z":1}';
+    const { r, ms } = chrono(() => detecterDonneesPersonnelles(t, { chemin: "d.json" }));
+    expect(nb(r, "colonne-personne")).toBe(300000);
+    expect(ms).toBeLessThan(1000);
+  });
+  it("{\"nom\":[1,1,…] ×200 000 et CSV de 200 000 lignes à colonne nom : moins d'une seconde", () => {
+    const a = chrono(() => detecterDonneesPersonnelles('{"nom":[' + "1,".repeat(200000) + "1]}", { chemin: "d.json" }));
+    expect(a.ms).toBeLessThan(1000);
+    const b = chrono(() => detecterDonneesPersonnelles("nom\n" + "Martin\n".repeat(200000), { chemin: "d.csv" }));
+    expect(nb(b.r, "colonne-personne")).toBe(200000);
+    expect(b.ms).toBeLessThan(1000);
+  });
+  it("la priorité par ordre de découverte est inchangée : un courriel dans une colonne reste un courriel", () => {
+    const d = detecterDonneesPersonnelles("nom,email\nMartin,martin@societe.fr\n", { chemin: "a.csv" });
+    expect(nb(d, "courriel")).toBe(1);
+    const c = d.filter((x) => x.type === "colonne-personne");
+    for (const x of c) for (const y of d.filter((z) => z.type === "courriel")) expect(x.debut < y.fin && x.fin > y.debut).toBe(false);
+  });
+});
