@@ -60,7 +60,7 @@ export function KitGeo({
       {urlVideo && (
         <Carte className="flex items-center justify-between gap-3">
           <h3 className="text-base font-semibold text-texte">Vidéo</h3>
-          <a href={urlVideo} download className="inline-flex min-h-11 items-center rounded-full bg-orange px-4 text-sm font-semibold text-sur-orange">
+          <a href={urlVideo} download className="inline-flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-semibold text-sur-accent">
             Télécharger la vidéo
           </a>
         </Carte>
