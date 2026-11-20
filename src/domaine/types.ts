@@ -1183,7 +1183,7 @@ export interface Publication extends EntiteBase {
   /** RAP · Retirée chez le diffuseur par un geste du fondateur, retrait confirmé par relecture. La publication n'est jamais effacée. */
   retireeLe?: DateIso;
   /** RAP · Média vu chez le diffuseur (type et nombre seulement : aucune adresse gardée). */
-  mediaDiffuseur?: { type: "image" | "video" | "document" | "aucun"; nombre: number };
+  mediaDiffuseur?: { type: "image" | "video" | "document" | "aucun"; nombre: number; /** RAP-3 · adresse https de l'image (ou de la vignette d'une vidéo) vue chez le diffuseur : jamais montrée telle quelle au navigateur, lue côté serveur (miniature-diffuseur). */ miniature?: string };
   /** Dernière lecture de l'état chez Buffer. */
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
