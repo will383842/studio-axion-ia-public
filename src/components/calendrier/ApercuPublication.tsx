@@ -17,7 +17,7 @@ import { RESEAUX_CALENDRIER } from "./BarreFiltres";
 import { MonogrammeReseau, estBrouillonDiffuseur, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
-import { LIBELLES_ENVOI, PHRASE_DEPLACER_CHEZ_DIFFUSEUR, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
+import { LIBELLES_ENVOI, PHRASE_LECTURE_SEULE_DIFFUSEUR, adresseDiffuseurSure, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
 import { AlerteDureeReseau } from "@/components/publication/AlerteDureeReseau";
 import { ApercuMedia } from "./ApercuMedia";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
@@ -95,6 +95,8 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const chez = entree.chezDiffuseur === true;
   const retirableRapatriee = chez && lireCleFiche(entree.cle)?.origine === "publication" && !["publie", "retire_diffuseur", "essai"].includes(entree.etat);
 
+  const lienDiffuseur = chez ? adresseDiffuseurSure(entree.lienDiffuseur) : null;
+
   const surTouche = (e: KeyboardEvent<HTMLElement>) => {
     // Une touche déjà traitée plus bas (flèches du carrousel, Échap de la vue agrandie) ne change pas de publication.
     if (e.defaultPrevented) return;
@@ -150,6 +152,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         {nom} · {type.libelle}
       </h2>
       <p className="text-xs text-texte-faible">{a.dateDite}</p>
+      {chez && entree.canalNom && <p data-compte-fiche className="text-xs text-texte-faible">Compte : {entree.canalNom}</p>}
       <p className="mt-1 text-xs text-texte-faible">Format : {a.formatLibelle}</p>
       {entree.media?.genre === "video" && (
         <div className="mt-1">
@@ -216,7 +219,14 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       )}
 
       {chez ? (
-        <p className="mt-3 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{PHRASE_DEPLACER_CHEZ_DIFFUSEUR}</p>
+        <div className="mt-3 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">
+          <p data-lecture-seule>{PHRASE_LECTURE_SEULE_DIFFUSEUR}</p>
+          {lienDiffuseur && (
+            <a href={lienDiffuseur} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center rounded-[10px] border border-trait-fort px-3 font-bold text-texte hover:bg-surface-3">
+              Ouvrir chez le diffuseur
+            </a>
+          )}
+        </div>
       ) : (
       <div className="mt-3">
         <label htmlFor="apercu-date" className="text-sm font-bold text-texte">

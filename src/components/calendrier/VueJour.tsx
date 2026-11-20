@@ -38,6 +38,8 @@ export interface ProprietesVueJour {
   reseaux?: readonly IdReseau[];
   /** Rendu serveur : l'adresse de la fiche d'une carte. */
   lienEntree?: (entree: EntreeCarte) => string | null | undefined;
+  /** Rendu client : ouvre la fiche d'une publication reprise du diffuseur (les autres cartes ne changent pas). */
+  onOuvrirRapatriee?: (entree: EntreeCarte) => void;
   className?: string;
 }
 
@@ -47,14 +49,14 @@ const deuxChiffres = (h: number) => String(h).padStart(2, "0");
  * Vue du jour : une ligne par heure de Paris, les cartes de tous les réseaux, le début de chaque texte et les
  * créneaux libres. Un jour passé ne propose pas de créneau libre. Aucune action d'envoi ici.
  */
-export function VueJour({ jour, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, className }: ProprietesVueJour) {
+export function VueJour({ jour, aujourdhui, entrees, reseaux = RESEAUX_CALENDRIER, lienEntree, onOuvrirRapatriee, className }: ProprietesVueJour) {
   if (reseaux.length === 0) return <div className="rounded-xl border border-dashed border-trait-fort bg-surface-1 p-5 text-center text-texte-doux">Aucun réseau affiché. Rallumez un réseau ci-dessus.</div>;
   const passe = jour < aujourdhui;
   const duJour = trierEntrees(entrees.filter((e) => e.jour === jour && reseaux.includes(e.reseau)));
   const sansHeure = duJour.filter((e) => heureLisible(e.heure) === null);
   const carte = (e: EntreeCarte) => (
     <li key={e.cle}>
-      <CarteEntreeCalendrier entree={e} libellesEtat={LIBELLES_ENVOI} avecTitre verrouillee={estVerrouillee(e, aujourdhui)} href={lienEntree?.(e)} />
+      <CarteEntreeCalendrier entree={e} libellesEtat={LIBELLES_ENVOI} avecTitre verrouillee={estVerrouillee(e, aujourdhui)} href={lienEntree?.(e)} onOuvrir={e.chezDiffuseur ? onOuvrirRapatriee : undefined} />
     </li>
   );
   const vide = duJour.length === 0;

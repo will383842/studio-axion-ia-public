@@ -18,7 +18,7 @@ describe("RAP-3 · fiche d'une rapatriée", () => {
   it("pas de « Déplacer », pas de champ date, la phrase du diffuseur", () => {
     const h = rendu();
     expect(h).not.toMatch(/Déplacer au|type="date"/);
-    expect(h).toContain("Pour changer la date, déplacez-la chez le diffuseur : le calendrier suivra.");
+    expect(h).toContain("Cette publication vient du diffuseur : elle se modifie et se déplace chez lui.");
     expect(apercuReseau(entreeDepuisPublication(pub as never), "2026-11-20").deplacable).toBe(false);
     expect(PHRASE_DEPLACER_CHEZ_DIFFUSEUR).toBe("Pour changer la date, déplacez-la chez le diffuseur : le calendrier suivra.");
   });
