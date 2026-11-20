@@ -61,3 +61,38 @@ describe("barreTemps — hors des zones des boutons (N-07), 4 formats", () => {
     }
   }
 });
+
+describe("barreTemps — rail (FIX-X1-16-a)", () => {
+  const rail = (image: number, zone = ZONE_NULLE, fond: "ivoire" | "noir" = "ivoire") => barreTemps({ image, dureeImages: 100, zone, fond });
+  it("à 0 % la barre est vide et le rail est visible, pleine largeur de la zone", () => {
+    const b = rail(0);
+    expect(b.boite.largeur).toBe(0);
+    expect(b.rail.boite.largeur).toBeCloseTo(100, 9);
+    expect(b.rail.boite.hauteur).toBeGreaterThan(0);
+    expect(b.rail.couleur).toMatch(/^rgba\(/);
+  });
+  it("barre ⊆ rail à tout instant (même y, même hauteur, x identique)", () => {
+    for (let i = 0; i <= 100; i += 5) {
+      const { boite, rail: r } = rail(i, { haut: 0, droite: 7, bas: 12, gauche: 4 });
+      expect(r.boite.y).toBe(boite.y);
+      expect(r.boite.hauteur).toBe(boite.hauteur);
+      expect(boite.x).toBeGreaterThanOrEqual(r.boite.x);
+      expect(boite.x + boite.largeur).toBeLessThanOrEqual(r.boite.x + r.boite.largeur + 1e-9);
+    }
+  });
+  it("le rail ne dépend pas du temps et la barre existante est inchangée", () => {
+    expect(rail(10).rail).toEqual(rail(90).rail);
+    expect(rail(25).boite.largeur).toBeCloseTo(25, 9);
+  });
+  it("rail dans la zone sûre des 4 formats", () => {
+    for (const ratio of RATIOS_ESSAI)
+      for (const reseau of listerReseaux().filter((r) => r.zonesProtegees[ratio])) {
+        const r = rail(0, reseau.zonesProtegees[ratio]!).rail;
+        const v = boiteDansZoneSure(r.boite, ratio, [reseau.id]);
+        expect(v.ok, v.raison).toBe(true);
+      }
+  });
+  it("rail atténué : différent de la couleur de la barre, sur les deux fonds", () => {
+    for (const fond of ["ivoire", "noir"] as const) expect(rail(50, ZONE_NULLE, fond).rail.couleur).not.toBe(rail(50, ZONE_NULLE, fond).couleur);
+  });
+});
