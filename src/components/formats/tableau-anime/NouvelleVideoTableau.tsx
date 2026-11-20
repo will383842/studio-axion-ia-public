@@ -50,6 +50,7 @@ import { RECETTE_TABLEAU } from "@/domaine/qualite-script/recettes/tableau";
 import type { ChoixConfirmation } from "@/domaine/sujets-traites";
 import type { CorrectionScene, DonneesScriptTableau, EcranCreationTableau, RefusSujetTraite } from "@/services/tableau-creation";
 import { texteAvecFin } from "@/moteurs/montage-tableau/fin-choisie";
+import { DETAIL_SANS_VOIX, LIBELLE_SANS_VOIX } from "@/moteurs/montage-tableau/sans-voix";
 import { importantsDeLaScene } from "./importants";
 import { CoutVoixTableau } from "./CoutVoix";
 import { DUREE_DECOUPAGE_TEXTE } from "./durees";
@@ -169,6 +170,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   const [texteClaude, setTexteClaude] = useState<string | null>(null);
   const [voirNonValidees, setVoirNonValidees] = useState(false);
   const [dejaVu, setDejaVu] = useState(!!b?.dejaVu);
+  // TA-SV : « Sans voix » (sous-titres et texte à l'écran) ; décoché par défaut : le mode avec voix reste le défaut.
+  const [sansVoix, setSansVoix] = useState(false);
   /** Le texte dit se relit (cartes par phrase) ; sinon il se tape ou se colle en entier. */
   const [relecture, setRelecture] = useState(() => !!b?.donnees.texte.trim());
   /** Le texte au moment où la relecture s'ouvre (ses lignes de départ) et une clé pour la rouvrir à neuf. */
@@ -358,7 +361,7 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
   /** « Fabriquer la vidéo » depuis la relecture de la fiche : le prix confirmé, et le repère « script relu ». */
   async function fabriquerRelu(s: ScriptRelu, accord: number | true): Promise<ResultatLancement> {
     if (!b) return { ok: false, message: injoignable };
-    const r = await fabriquerVideoTableauAction(b.videoId, accord, s.empreinte).catch(() => null);
+    const r = await fabriquerVideoTableauAction(b.videoId, accord, s.empreinte, sansVoix).catch(() => null);
     if (!r) return { ok: false, message: injoignable };
     if (!r.ok) return { ok: false, message: r.message };
     if (r.donnees.statut === "refusee") return { ok: false, message: r.donnees.phrase };
@@ -680,7 +683,8 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
       {/* 4. Fabriquer (pas pendant la relecture d'un texte modifié : il sera redécoupé d'abord) */}
       {b?.fiche && !corriger && !relireTexte && (
         <section aria-label="Fabriquer" className="space-y-3">
-          <CoutVoixTableau centimes={b.coutVoixCentimes} voix={b.voix} />
+          <CaseACocher libelle={LIBELLE_SANS_VOIX} detail={DETAIL_SANS_VOIX} coche={sansVoix} desactive={occupe || enCours} onChange={setSansVoix} />
+          {sansVoix ? <CoutVoixTableau centimes={0} voix={b.voix} sansVoix /> : <CoutVoixTableau centimes={b.coutVoixCentimes} voix={b.voix} />}
           <CaseACocher
             libelle="Ce conseil n'est pas en première page d'une recherche"
             detail="Cherchez le sujet sur Google : si le même conseil apparaît en première page, la vidéo n'apporte rien."
@@ -694,10 +698,10 @@ export function NouvelleVideoTableau({ ecran }: { ecran: EcranCreationTableau })
             controler={controlerFiche}
             lancer={fabriquerRelu}
             enregistrer={enregistrerRelu}
-            prixCentimes={b.voix === "reutilisee" ? 0 : b.coutVoixCentimes}
-            prixDejaPaye={b.voix === "reutilisee"}
+            prixCentimes={sansVoix || b.voix === "reutilisee" ? 0 : b.coutVoixCentimes}
+            prixDejaPaye={!sansVoix && b.voix === "reutilisee"}
             debit={debitDe(b.donnees.texte)}
-            libelleLancer={b.voix === "reutilisee" ? "Fabriquer (voix déjà faite)" : "Fabriquer"}
+            libelleLancer={!sansVoix && b.voix === "reutilisee" ? "Fabriquer (voix déjà faite)" : "Fabriquer"}
             bloque={occupe ? "Un travail est en cours : attendez qu'il se termine." : !dejaVu ? RAISON_CASE_DEJA_VU : b.raisonFabriquerCase ? null : b.raisonFabriquer}
           />
         </section>

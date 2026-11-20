@@ -52,7 +52,7 @@ export type ResultatChaineDonnees =
 
 const refus = (etape: EtapeChaineDonnees, erreurs: string[]): ResultatChaineDonnees => ({ ok: false, etape, erreurs });
 
-export async function chaineMontageDonnees(entrees: Record<string, unknown> | undefined, ports: { voix?: PortVoix; calage?: PortCalage } = {}): Promise<ResultatChaineDonnees> {
+export async function chaineMontageDonnees(entrees: Record<string, unknown> | undefined, ports: { voix?: PortVoix; calage?: PortCalage; narration?: (donnee: Parameters<typeof narrationModele>[0]) => Promise<ReturnType<typeof narrationModele> | null> } = {}): Promise<ResultatChaineDonnees> {
   const lecture = lireEntreesDonnees(entrees);
   if (!lecture.ok) return refus("entree", lecture.erreurs);
   const { donnee, ratio } = lecture.entrees;
@@ -63,7 +63,10 @@ export async function chaineMontageDonnees(entrees: Record<string, unknown> | un
   if (!g0.ok) return refus("garde-chiffres", g0.erreurs.length ? g0.erreurs : ["Chiffres refusés."]);
 
   // Narration du modèle, sans IA.
-  const narration = narrationModele(donnee);
+  const modele = narrationModele(donnee);
+  // Port facultatif (G4-06-b) : le texte de l'IA s'il est rendu, sinon le modèle gratuit + une remarque. Sans port : identique.
+  const ia = ports.narration ? await Promise.resolve().then(() => ports.narration!(donnee)).catch(() => null) : null;
+  const narration = ia ?? (ports.narration ? { ...modele, remarques: [...modele.remarques, "Narration par l'IA indisponible : texte modèle."] } : modele);
   if (!narration.texte.trim()) return refus("narration", ["Donnée trop courte : aucune narration possible.", ...narration.remarques]);
   const g1 = garderChiffres(donnee, muette ? { textesEcran: [narration.texte] } : { textesEcran: [], texteDit: narration.texte });
   if (!g1.ok) return refus("garde-chiffres", [...g1.erreurs, ...g1.horsDonnee.map((h) => `Le nombre « ${h.brut} » n'est pas dans la donnée.`)]);

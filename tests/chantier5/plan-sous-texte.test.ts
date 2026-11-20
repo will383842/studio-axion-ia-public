@@ -73,11 +73,12 @@ function fichiers(dossier: string): string[] {
 }
 
 describe("PlanSousTexte (5.05a) : garde statique", () => {
-  it("monté nulle part", () => {
+  // BR-DESSIN-FACECAM-b-v20a (20/11) : attente DÉPLACÉE, non affaiblie : « monté nulle part » devient « monté UNE seule fois » (TexteCompose).
+  it("monté UNE seule fois, par TexteCompose", () => {
     const touches = ["src", "studio-rendu/src", "studio-rendu/compositions"]
       .flatMap(fichiers)
       .filter((f) => !f.endsWith("commune/PlanSousTexte.tsx"))
       .filter((f) => readFileSync(f, "utf8").includes("PlanSousTexte"));
-    expect(touches).toEqual([]);
+    expect(touches).toEqual(["studio-rendu/compositions/commune/TexteCompose.tsx"]);
   });
 });

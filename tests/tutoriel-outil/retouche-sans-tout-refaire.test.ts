@@ -2,12 +2,12 @@
  * T-EXT-52b · Retouche sans tout refaire : un format dont rien ne change est repris tel quel (même fichier, aucune demande de
  * rendu). Moteur réel ; voix, Claude et rendu SIMULÉS (doubles) : aucun appel réel, 0 €. Réglage éteint = comportement d'avant.
  */
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { InstantRegard, LectureRegard } from "@/briques/regardeur";
 import type { EtatRendu, ServiceRendu } from "@/fournisseurs/types";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
+import { proprietesTutoriel } from "@/moteurs/montage-tutoriel-outil/chaine";
 import { creerMoteurTutorielOutil, type EtatTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import type { OperationMontage } from "@/moteurs/types";
 import { PARAM_RETOUCHE_PARTIELLE_TUTORIEL, retouchePartielleActive } from "@/services/tutoriel-branchements";
@@ -37,9 +37,9 @@ async function premiere(partielle?: boolean, plus: Partial<OutilsTutoriel> = {},
   const j = journalVide();
   const moteur = creerMoteurTutorielOutil({ outils: une(outils(j, partielle, plus)) });
   const c = commande ?? commandeTutoriel({ ratios: TROIS });
-  const { resultat } = await mener(moteur, c, await moteur.lancer(c, { travailId: "t-v1", versionId: "ver-1", titre: "Tuto", maintenant: T0 }));
+  const { resultat, travail } = await mener(moteur, c, await moteur.lancer(c, { travailId: "t-v1", versionId: "ver-1", titre: "Tuto", maintenant: T0 }));
   const parent: Parent = { versionId: "ver-1", projetMontage: resultat!.projetMontage as Record<string, unknown>, pistes: [] };
-  return { j, resultat: resultat!, parent, c };
+  return { j, resultat: resultat!, travail, parent, c };
 }
 
 /** Retouche avec ses propres doubles (journal neuf : on compte ce que la retouche seule demande). */
@@ -51,7 +51,7 @@ async function retoucher(parent: Parent, c: CommandeFabrication, partielle: bool
   return { j, ...fin };
 }
 
-const tuto = (p: Record<string, unknown>) => p.tutoriel as { empreintesFormats?: Record<string, string>; sortiesFormats?: Record<string, { fichierCle: string }>; origineFormats?: Record<string, string>; plan: { plan: PlanValide } };
+const tuto = (p: Record<string, unknown>) => p.tutoriel as { navigationFilm?: { videoCle: string }; empreintesFormats?: Record<string, string>; sortiesFormats?: Record<string, { fichierCle: string }>; origineFormats?: Record<string, string>; plan: { plan: PlanValide } };
 
 function planModifie(parent: Parent): PlanValide {
   const plan = structuredClone(tuto(parent.projetMontage).plan.plan);
@@ -114,15 +114,30 @@ describe("tutoriel d'outil : retouche sans tout refaire (52b)", () => {
     }
   });
 
-  it("réglage éteint : les demandes de rendu ENTIÈRES sont celles du code d'avant (instantané pris sur tdb/T-EXT-45b, sans cette PR)", async () => {
-    // Fichier attendu : demandes (triées par idRendu) de la fabrication puis de la retouche, produites par le code de la base, réglage absent.
-    const attendu = JSON.parse(readFileSync(new URL("./retouche-sans-tout-refaire.attendu.json", import.meta.url), "utf8")) as { premiere: unknown[]; retouche: unknown[] };
-    const tri = (d: { idRendu: string }[]) => [...d].sort((x, y) => x.idRendu.localeCompare(y.idRendu));
+  it("réglage éteint : les demandes de rendu ENTIÈRES (identifiant, entrées, sortie, propriétés) sont celles que bâtissent les fonctions d'avant", async () => {
+    // Attendu construit ICI, sans passer par le code de la PR : identifiant, opération, file, entrées (voix), sortie et propriétés
+    // de `proprietesTutoriel` (fonction de la base, non modifiée par la PR) calculées sur l'état final de la version.
+    const demandesAttendues = (j: Journal, etat: EtatTutoriel, ids: string[]) => {
+      const base = outilsDoubles(j);
+      return ids.map((idRendu) => {
+        const nom = idRendu.split("-").slice(-2, -1)[0]!;
+        const ratio = nom.replace("x", ":") as CommandeFabrication["ratios"][number];
+        return {
+          idRendu,
+          operation: "composition",
+          file: "longue",
+          entrees: { audio: `https://stockage.test/${etat.audio!.fichierCle}` },
+          sortie: { urlDepot: `https://depot.test/studio/test/videos/v-to/tutoriel-${nom}.mp4`, cle: `studio/test/videos/v-to/tutoriel-${nom}.mp4` },
+          parametres: { composition: "TutorielOutil", proprietes: proprietesTutoriel(etat, ratio, true, base) },
+        };
+      });
+    };
+    const entieres = (j: Journal) => JSON.parse(JSON.stringify(compositions(j).sort((x, y) => x.idRendu.localeCompare(y.idRendu))));
     for (const reglage of [undefined, false]) {
-      const { j, parent, c } = await premiere(reglage);
+      const { j, travail, parent, c } = await premiere(reglage);
       const r = await retoucher(parent, c, reglage);
-      expect(JSON.parse(JSON.stringify(tri(j.rendus)))).toEqual(attendu.premiere);
-      expect(JSON.parse(JSON.stringify(tri(r.j.rendus)))).toEqual(attendu.retouche);
+      expect(entieres(j)).toEqual(JSON.parse(JSON.stringify(demandesAttendues(j, etatDe(travail), ["t-v1-1x1-0", "t-v1-4x5-0", "t-v1-9x16-0"]))));
+      expect(entieres(r.j)).toEqual(JSON.parse(JSON.stringify(demandesAttendues(r.j, etatDe(r.travail), ["t-r-1x1-0", "t-r-4x5-0", "t-r-9x16-0"]))));
     }
   });
 
@@ -222,14 +237,48 @@ describe("52b : le film de navigation", () => {
     expect(etatDe(r.travail).reserves.some((x) => x.includes("film de navigation"))).toBe(false);
   });
 
-  it("film changé : les 3 formats sont refaits avec le NOUVEAU film, et la réserve le dit (jamais « celui de la version d'avant »)", async () => {
+  it("film changé, voix inchangée : le film d'AVANT est gardé, aucune capture demandée, la réserve de la fiche est posée", async () => {
     const { parent } = await premiere(true, {}, avecFilm("studio/test/film-a.mp4"));
     const r = await retoucher(parent, avecFilm("studio/test/film-b.mp4"), true);
+    // Le film n'est jamais refilmé (aucune capture) et n'est jamais celui de la commande : toutes les images viennent du film d'avant.
+    expect(r.j.rendus.filter((d) => d.operation !== "composition")).toHaveLength(0);
+    expect(r.j.voix).toHaveLength(0);
+    for (const d of compositions(r.j)) {
+      expect(d.entrees.filmNavigation).toBe("https://stockage.test/studio/test/film-a.mp4");
+      expect(JSON.stringify(d)).not.toContain("film-b");
+    }
+    // Rien d'autre n'a changé : les 3 formats sont repris (même empreinte), donc aucun rendu du tout.
+    expect(compositions(r.j)).toHaveLength(0);
+    const e = etatDe(r.travail);
+    expect(e.reserves).toContain("Le film de navigation est celui de la version d'avant.");
+    expect(e.navigationFilm?.videoCle).toBe("studio/test/film-a.mp4");
+    expect(tuto(r.resultat!.projetMontage as Record<string, unknown>).navigationFilm?.videoCle).toBe("studio/test/film-a.mp4");
+  });
+
+  it("film changé ET un format refait : le rendu refait utilise le film d'avant, jamais le nouveau", async () => {
+    const { parent } = await premiere(true, {}, avecFilm("studio/test/film-a.mp4"));
+    const r = await retoucher(parent, avecFilm("studio/test/film-b.mp4"), true, [{ type: "planScenes", plan: planModifie(parent) }]);
+    expect(compositions(r.j)).toHaveLength(3);
+    for (const d of compositions(r.j)) expect(d.entrees.filmNavigation).toBe("https://stockage.test/studio/test/film-a.mp4");
+    expect(r.j.rendus.filter((d) => d.operation !== "composition")).toHaveLength(0);
+    expect(etatDe(r.travail).reserves).toContain("Le film de navigation est celui de la version d'avant.");
+  });
+
+  it("film changé : la retouche suivante garde toujours le film d'avant (la navigation gardée est réécrite dans le résultat)", async () => {
+    const { parent } = await premiere(true, {}, avecFilm("studio/test/film-a.mp4"));
+    const r1 = await retoucher(parent, avecFilm("studio/test/film-b.mp4"), true);
+    const p2: Parent = { versionId: "ver-2", projetMontage: r1.resultat!.projetMontage as Record<string, unknown>, pistes: [] };
+    const r2 = await retoucher(p2, avecFilm("studio/test/film-a.mp4"), true);
+    expect(compositions(r2.j)).toHaveLength(0);
+    expect(etatDe(r2.travail).reserves.some((x) => x.includes("film de navigation"))).toBe(false);
+  });
+
+  it("réglage éteint : le film de la commande est utilisé tel quel (comme avant), aucune réserve de film", async () => {
+    const { parent } = await premiere(undefined, {}, avecFilm("studio/test/film-a.mp4"));
+    const r = await retoucher(parent, avecFilm("studio/test/film-b.mp4"), undefined);
     expect(compositions(r.j)).toHaveLength(3);
     for (const d of compositions(r.j)) expect(d.entrees.filmNavigation).toBe("https://stockage.test/studio/test/film-b.mp4");
-    const reserves = etatDe(r.travail).reserves;
-    expect(reserves).toContain("Le film de navigation a changé : les formats sont refaits avec le nouveau film.");
-    expect(reserves.join(" ")).not.toContain("celui de la version d'avant");
+    expect(etatDe(r.travail).reserves.some((x) => x.includes("film de navigation"))).toBe(false);
   });
 });
 
