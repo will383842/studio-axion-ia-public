@@ -253,8 +253,44 @@ describe("tutoriel d'outil : reprise sans payer deux fois", () => {
     libere = true;
     const fini = await mener(moteur, c, await moteur.reessayer!(coupe1, T0 + 900_000), 1200);
     expect(fini.statut).toBe("termine");
-    expect(compositions(j).filter((d) => d.idRendu.includes("-9x16-r"))).toHaveLength(1);
-    expect(compositions(j).filter((d) => d.idRendu.includes("-1x1-"))).toHaveLength(1);
+    // Le journal du double compte chaque soumission ; `studio-rendu` dédoublonne un même `idRendu` (files.ts), donc on compte les identifiants distincts
+    // (la demande inscrite avant paiement peut être ressoumise telle quelle après un état jeté : un seul rendu payé).
+    const distincts = (m: string) => new Set(compositions(j).filter((d) => d.idRendu.includes(m)).map((d) => d.idRendu));
+    expect(distincts("-9x16-r").size).toBe(1);
+    expect(distincts("-1x1-").size).toBe(1);
+    expect(j.voix).toHaveLength(1);
+  });
+
+  it.each([
+    ["-9x16-r1-0", 3, "-9x16-r2-"],
+    ["-9x16-1", 1, "-9x16-r"],
+  ])("réponse de `soumettre` perdue après acceptation de %s : le « Réessayer » suivant ne repaie pas le 9:16 sous une série neuve", async (idPerdu, echecs9x16, serieInterdite) => {
+    const j = journalVide();
+    const o = echecsCollants(outilsDoubles(j, { renduEchecs: echecs9x16 }));
+    const base: ServiceRendu = o.rendu.service();
+    let perdu = false;
+    const service: ServiceRendu = {
+      ...base,
+      async soumettre(d) {
+        const r = await base.soumettre(d);
+        if (d.idRendu.endsWith(idPerdu) && !perdu) {
+          perdu = true;
+          throw new Error("réponse perdue après acceptation");
+        }
+        return r;
+      },
+    };
+    o.rendu.service = () => service;
+    const moteur = creerMoteurTutorielOutil({ outils: une(o) });
+    const c = commandeTutoriel({ ratios: ["9:16"] });
+    let t = await mener(moteur, c, await lancer(moteur, c));
+    for (let i = 1; i <= 6 && t.statut !== "termine"; i++) t = await mener(moteur, c, await moteur.reessayer!(t, T0 + i * 500_000), i * 600);
+    expect(perdu).toBe(true);
+    expect(t.statut).toBe("termine");
+    const ids = compositions(j).map((d) => d.idRendu);
+    // Une seule composition pour l'identifiant perdu : la reprise l'a ressoumise telle quelle (idempotent chez le service), pas remplacée par une série neuve.
+    expect(ids.some((i) => i.endsWith(idPerdu))).toBe(true);
+    expect(ids.some((i) => i.includes(serieInterdite))).toBe(false);
     expect(j.voix).toHaveLength(1);
   });
 

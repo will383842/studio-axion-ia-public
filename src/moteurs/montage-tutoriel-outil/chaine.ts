@@ -135,6 +135,8 @@ export interface RenduTutoriel {
   serie?: number;
   /** T-EXT-45b : « Réessayer » a remis ce rendu tombé à zéro ; le prochain pas le redemande. */
   aSoumettre?: true;
+  /** T-EXT-45b : la demande est déjà inscrite dans l'état mais pas encore soumise ; le pas suivant la soumet SOUS CE MÊME identifiant (idempotent chez `studio-rendu`). */
+  aEnvoyer?: true;
   /** T-EXT-31 : son mesuré du mp4 rendu. */
   mesure?: FinitionTutoriel<MesureSon>;
   /** T-EXT-31 : vignette produite (clé du .jpg). */
@@ -435,22 +437,30 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai: 0 });
   }
   if (courant.sortie) return etat;
+  // T-EXT-45b : une demande inscrite mais pas encore soumise est soumise telle quelle (même identifiant), AVANT tout calcul de série neuve.
+  // Si `soumettre` lève après acceptation (réponse perdue), l'état gardé porte cette demande : le « Réessayer » suivant la ressoumet sous le même identifiant.
+  if (courant.aEnvoyer) {
+    await service.soumettre(courant.demande);
+    const { aEnvoyer: _e, aSoumettre: _s, ...envoye } = courant;
+    void _e;
+    void _s;
+    return remplacer(envoye);
+  }
   const serie = courant.serie ? { serie: courant.serie } : {};
   // T-EXT-45b : « Réessayer » a pu remettre à zéro un rendu qui tourne encore (ou est déjà fini) chez `studio-rendu` : on suit TOUJOURS
   // l'ancienne demande avant d'en soumettre une neuve. Une demande neuve (identifiant neuf) n'est soumise que si l'ancienne est en échec.
   const e = courant.demande ? await suivreRendu(service, courant.demande) : undefined;
   if (courant.aSoumettre && (!e || e.statut === "echec")) {
+    // La demande neuve est inscrite dans l'état AVANT d'être payée ; le pas suivant la soumet (verdict Opus c23c27a4).
     const demande = await demandeRendu(etat, ratio, courant.essai, commande, outils, travailId, courant.serie);
-    await service.soumettre(demande);
-    return remplacer({ ratio, demande, essai: courant.essai, ...serie });
+    return remplacer({ ratio, demande, essai: courant.essai, ...serie, aEnvoyer: true });
   }
   if (!e) return etat;
   if (e.statut === "echec") {
     const essai = courant.essai + 1;
     if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) throw new ErreurRendu(e.erreur);
     const demande = await demandeRendu(etat, ratio, essai, commande, outils, travailId, courant.serie);
-    await service.soumettre(demande);
-    return remplacer({ ratio, demande, essai, ...serie });
+    return remplacer({ ratio, demande, essai, ...serie, aEnvoyer: true });
   }
   // L'ancienne demande est en file, en cours ou finie : on la garde (plus de « à soumettre »), rien n'est payé deux fois.
   const { aSoumettre: _a, ...suivi } = courant;
