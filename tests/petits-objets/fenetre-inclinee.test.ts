@@ -87,6 +87,26 @@ describe("X1-03 visage et rendu", () => {
   });
 });
 
+describe("X1-03 FIX : un instant où la fenêtre est inclinée ET remplie", () => {
+  const props = (image: number) => ({ image, fps: FPS, dureeImages: 75, fond: "ivoire" as const, graine: 3, parametres: { largeur: 60, hauteur: 50, titre: "Mon espace" } });
+  const rotX = (html: string): number => Number(/rotateX\((-?[\d.]+)deg\)/.exec(html)?.[1] ?? NaN);
+  const rempli = (html: string): boolean => html.includes("Mon espace") && [...html.matchAll(/fill-opacity="([\d.]+)"/g)].some((m) => Number(m[1]) > 0);
+  it("il existe une image où rotateX > 0 et où le titre et un bloc ont fill-opacity > 0", () => {
+    const images = Array.from({ length: 76 }, (_, i) => i);
+    const bons = images.filter((i) => {
+      const html = renderToStaticMarkup(createElement(FenetreInclineeVue, props(i)));
+      return rotX(html) > 0 && rempli(html);
+    });
+    expect(bons.length).toBeGreaterThan(0);
+  });
+  it("à la fin : 0° et contenu complet ; perspective relative au cadre", () => {
+    const html = renderToStaticMarkup(createElement(FenetreInclineeVue, props(70)));
+    expect(rotX(html)).toBe(0);
+    expect(rempli(html)).toBe(true);
+    expect(html).toMatch(/perspective:\d+cqh/);
+  });
+});
+
 describe("X1-03 éteint et garde", () => {
   const SOURCES = ["src/briques/motion/petits-objets/fenetre-inclinee.ts", "studio-rendu/compositions/petits-objets/FenetreInclinee.tsx"];
   it("aucune bibliothèque 3D, aucun hasard, aucune horloge, aucun cubic-bezier", () => {
