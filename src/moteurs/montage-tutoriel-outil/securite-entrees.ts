@@ -823,7 +823,7 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
             const elements = nom.endsWith("srcset") ? valeur.split(",").map((x) => x.trim().split(/\s+/)[0] ?? "") : [valeur];
             for (const el of elements) {
               const v = el.replace(/^[\u0000-\u0020]+/, "");
-              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne: ligne(), motif: `${nom} : adresse externe` });
+              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne: ligne(), motif: `${nomCourt(nom)} : adresse externe` });
             }
           }
         }
@@ -1049,6 +1049,7 @@ function detecterColonnes(
   const texte = ext === "json" ? texteBrut : texteBrut.replace(/\r(?!\n)|[\u2028\u2029\u0085]/g, "\n");
   if (ext === "json") {
     const ESPACE = /\s/;
+    const DELIMITEURS_JSON = ',:[]{}"';
     /**
      * Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `debut` ; retourne la fin.
      * SANS récursion (pile explicite) : une imbrication de 200 000 niveaux ne fait jamais déborder la pile.
@@ -1071,39 +1072,42 @@ function detecterColonnes(
             j++;
             attendValeur = false;
             continue;
+          } else if (pile.length > 0 && c === pile[pile.length - 1]) {
+            attendValeur = false; // valeur absente (`{"a":}`) : le fermant est lu par la boucle du conteneur
+            continue;
           } else {
-            const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(j, j + 40));
-            if (nombre) {
-              // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
-              trouves.push({ debut: j, fin: j + nombre[0].length, nu: true });
-              j += nombre[0].length;
-            } else {
-              j += 1; // true, false, null…
+            // Valeur nue : nombre, true, false, null, ou n'importe quel mot (JSON invalide). On la lit EN ENTIER (jusqu'au prochain
+            // délimiteur) pour ne jamais retomber au milieu d'un mot. Un littéral exact true/false/null n'est pas une donnée ;
+            // tout autre mot ou nombre est remplacé par un texte entre guillemets (JSON valide).
+            let k = j;
+            while (k < texte.length && !ESPACE.test(texte[k]!) && !DELIMITEURS_JSON.includes(texte[k]!)) k++;
+            if (k === j) k = j + 1; // délimiteur inattendu : sauté, le parcours avance toujours
+            const mot = texte.slice(j, k);
+            if (mot !== "true" && mot !== "false" && mot !== "null" && !DELIMITEURS_JSON.includes(mot) && !valeurNeutre(mot, neutres)) {
+              trouves.push({ debut: j, fin: k, nu: true });
             }
+            j = k;
           }
           if (pile.length === 0) return j;
           attendValeur = false;
           continue;
         }
         const fermant = pile[pile.length - 1]!;
-        while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
-        let fini = texte[j] === fermant || j >= texte.length;
-        if (!fini && fermant === "}") {
-          // clé : on la saute, puis la valeur
-          if (texte[j] !== '"') fini = true;
-          else {
-            j++;
-            while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
-            j++;
-            while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
-          }
-        }
-        if (fini) {
+        while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === "," || texte[j] === ":")) j++;
+        if (texte[j] === fermant || j >= texte.length) {
           j++;
           pile.pop();
           if (pile.length === 0) return j;
           continue;
         }
+        if (fermant === "}" && texte[j] === '"') {
+          // clé : on la saute, puis la valeur
+          j++;
+          while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
+          j++;
+          while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
+        }
+        // Tout autre caractère (JSON invalide) vaut début de valeur : jamais « fin de conteneur » sur un caractère inattendu.
         attendValeur = true;
       }
     };
@@ -1200,15 +1204,28 @@ function detecterColonnes(
       return trouves;
     }
   }
-  // Lecture ambiguë dans une colonne qui n'est PAS de personne (guillemet égaré refermé par un autre guillemet) : les lignes
-  // du milieu sortiraient de leur colonne et resteraient en clair. Même refus que le guillemet jamais refermé.
+  // Lecture ambiguë avec fin de ligne dedans, QUELLE QUE SOIT sa colonne (personne ou non) : un guillemet égaré a avalé une fin de
+  // ligne, la fin de la ligne suivante a glissé dans les colonnes d'après et resterait en clair. Même refus que le guillemet non refermé.
+  // Lecture ambiguë dans une colonne qui n'est PAS de personne (guillemet égaré refermé par un autre guillemet) : même refus.
   for (const valeurs of lignes) {
     for (let c = 0; c < valeurs.length; c++) {
-      if (valeurs[c]!.ambigu && !colonnes.has(c)) {
+      const v = valeurs[c]!;
+      if (v.ambigu && (!colonnes.has(c) || v.valeur.includes("\n"))) {
         etat.nonFerme = true;
-        etat.pos = valeurs[c]!.debut;
+        etat.pos = v.debut;
         return trouves;
       }
+    }
+  }
+  // Ligne de données dont le nombre de cellules diffère de l'en-tête (plus large : virgule non protégée qui décale le nom hors
+  // de sa colonne ; plus étroite : cellule avalée) : les noms ne sont plus dans la colonne lue. Même refus. Une ligne vide est tolérée.
+  const largeur = lignes[indiceEntete]!.length;
+  for (let l = indiceEntete + 1; l < lignes.length; l++) {
+    const valeurs = lignes[l]!;
+    if (valeurs.length !== largeur && !(valeurs.length === 1 && valeurs[0]!.valeur === "")) {
+      etat.nonFerme = true;
+      etat.pos = valeurs[0]!.debut;
+      return trouves;
     }
   }
   for (let l = indiceEntete + 1; l < lignes.length; l++) {

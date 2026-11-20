@@ -252,6 +252,52 @@ describe("éteint par défaut (R-9)", () => {
       expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
     }
   });
+  const SEPS_E2E = [",", ";", "\t", "|"] as const;
+  const FINS_E2E = ["\n", "\r\n", "\r"] as const;
+  const variantes = (modele: string): string[] => SEPS_E2E.flatMap((S) => FINS_E2E.map((E) => (S === "|" ? `sep=|${E}` : "") + modele.replace(/,/g, S).replace(/\n/g, E)));
+  it.each([
+    ["1", 'id,ville,nom\n1,Paris,"Jean Dupont\n2,"Lyon",Paul Martin\n'],
+    ["2", 'id,nom,ville,code\n1,"Jean Dupont,Paris,A\n2,"x",Paul Martin,Lyon,B\n'],
+    ["3", 'id,ville,nom\n1,Paris, France,Jean Dupont\n'],
+    ["4", 'id,societe,nom\n1,Durand, Fils et Cie,Jean Dupont\n2,Exemple,Paul Martin\n'],
+    ["5", 'id,nom,ville\n1,Jean Dupont\n2,Paul Martin,Lyon\n'],
+    ["6", 'id,ville,nom\n1,"Paris,\nCentre",Jean Dupont\n'],
+    ["7", 'id,nom\n1,"Jean,\nDupont"\n2,"Paul" Martin\n'],
+  ])("de bout en bout (allumé) : cellules hors de leur colonne, entrée %s (4 séparateurs, \\n, \\r\\n, \\r) → archive entière refusée (verdict cdbfbcda)", async (_i, csv) => {
+    ALLUME();
+    for (const variante of variantes(csv)) {
+      const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8(variante) }]);
+      expect(r.ok, JSON.stringify(variante)).toBe(false);
+      expect(r.rapport.refus.join(" ")).toContain("guillemet jamais refermé");
+      expect(JSON.stringify(r.rapport)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+      expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
+  it("de bout en bout (allumé) : témoins CSV légitimes (RFC 4180, multiligne quotée, BOM, ligne vide finale) → acceptés, noms masqués (verdict cdbfbcda)", async () => {
+    ALLUME();
+    for (const csv of ['"id","nom"\r\n"1","Jean Dupont"\r\n', 'id,ville,nom\n1,"Paris\nCentre",Jean Dupont\n', '﻿id,nom\n1,Jean Dupont\n', 'id,nom,ville\n1,Jean Dupont,Paris\n\n']) {
+      const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8(csv) }]);
+      expect(r.ok, JSON.stringify(csv)).toBe(true);
+      if (!r.ok) continue;
+      expect(texte(r.fichiers.get("demo-data.csv"))).not.toMatch(/Jean|Dupont/);
+    }
+  });
+  it.each([
+    ["1", '{"nom":{"actif":true,"complet":"Jean Dupont"}}'],
+    ["2", '{"adresse":{"principale":true,"rue":"12 rue des Lilas","ville":"Paris"}}'],
+    ["3", '[{"nom":{"verifie":false,"valeur":"Jean Dupont"}}]'],
+    ["4", '{"clients":[{"id":1,"adresse":{"facturation":null,"ligne1":"12 rue des Lilas"}}]}'],
+    ["5", '{"nom":{"a":"Jean Dupont","b":true,"c":"Paul Martin"}}'],
+  ])("de bout en bout (allumé) : JSON, valeur nue avant la donnée, entrée %s → noms masqués, JSON valide (verdict cdbfbcda)", async (_i, json) => {
+    ALLUME();
+    const r = await entree([...SAINE, { nom: "demo-data.json", donnees: u8(json) }]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const sortie = texte(r.fichiers.get("demo-data.json"));
+    expect(sortie).not.toMatch(/Jean|Dupont|Paul|Martin|Lilas/);
+    expect(() => JSON.parse(sortie)).not.toThrow();
+    expect(JSON.stringify(r.rapport)).not.toMatch(/Jean|Dupont|Paul|Martin|Lilas/);
+  });
   it("de bout en bout (allumé) : témoin légitime (cellule sur plusieurs lignes bien formée) → accepté, nom masqué (verdict 92172ecb)", async () => {
     ALLUME();
     const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8('id,ville,nom\n1,"Paris\nCentre",Jean Dupont\n') }]);
