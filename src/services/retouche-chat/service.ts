@@ -35,7 +35,8 @@ export interface SortieRenduPartiel {
 
 export interface PortsRetoucheChat {
   appeler: AppelClaude;
-  lireVersionChoisie: (videoId: string) => Promise<{ versionId: string; plan: PlanValide } | null>;
+  /** C9-38-b-a (20/11) : `objetsPermis` = liste des petits objets permis de la vidéo ; absente = aucun objet, comme aujourd'hui. */
+  lireVersionChoisie: (videoId: string) => Promise<{ versionId: string; plan: PlanValide; objetsPermis?: readonly string[] } | null>;
   /** Rendu partiel du générateur ; absent : pas encore branché pour ce générateur. */
   rendreScenes?: (e: EntreeRenduPartiel) => Promise<SortieRenduPartiel>;
   enregistrerVersion: (e: { videoId: string; parentVersionId: string; plan: PlanValide; demande: string; operations: OperationRetouche[]; impact: ImpactRetouche; rendu: SortieRenduPartiel }) => Promise<{ versionId: string }>;
@@ -67,7 +68,7 @@ export async function apercevoirRetouche(videoId: string, demande: string, ports
   if (!courante) return { demande, operations: [], impact: vide, remarques: [PHRASE_SANS_PLAN] };
   const c = await comprendreDemande({ phrase: demande, plan: courante.plan }, ports.appeler);
   const f = ports.filtrerOperations?.(c.operations, demande) ?? { operations: c.operations, remarques: [] };
-  const a = appliquerOperations(courante.plan, f.operations);
+  const a = appliquerOperations(courante.plan, f.operations, courante.objetsPermis?.length ? { objetsPermis: courante.objetsPermis } : {});
   return { demande, operations: a.operations, impact: impactRetouche(courante.plan, a.plan, a.operations), remarques: [...c.remarques, ...f.remarques, ...texteRemarques(a.remarques)] };
 }
 
@@ -77,7 +78,7 @@ export async function appliquerRetouche(videoId: string, e: { demande: string; o
   // Les opérations viennent du navigateur : relues comme celles du LLM (liste fermée, jamais de code).
   const lu = lireOperations(e.operations);
   const f = ports.filtrerOperations?.(lu.operations, e.demande) ?? { operations: lu.operations, remarques: [] };
-  const a = appliquerOperations(courante.plan, f.operations);
+  const a = appliquerOperations(courante.plan, f.operations, courante.objetsPermis?.length ? { objetsPermis: courante.objetsPermis } : {});
   const impact = impactRetouche(courante.plan, a.plan, a.operations);
   const remarques = [...lu.remarques, ...f.remarques, ...texteRemarques(a.remarques)];
   if (!impact.scenes.length && !impact.voixTouchee) return { statut: "inchangee", impact, remarques: [...remarques, impact.phrase] };
