@@ -11,6 +11,7 @@ import "server-only";
 import { adapterPlan } from "@/briques/plan-scenes-generateurs/adaptateur";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { piecesPermisesDesEntrees } from "@/briques/plan-scenes-objets/pieces-permises";
 import { lireEtatV4 } from "@/moteurs/montage-facecam-animee/chaine-v4";
 import { depots, lireParametre } from "../_commun";
 import { planDuProjet, portsStudio } from "./studio";
@@ -50,7 +51,9 @@ export function portsGenerateurStudio(g: IdGenerateurRetouche, options: Partial<
         const version = video?.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
         if (!version || planDuProjet(version.projetMontage)) return null;
         const plan = await planDeDepart(g, videoId, version.id);
-        return plan ? { versionId: version.id, plan } : null;
+        // C9-38-b-b2 (20/11) : le repli porte aussi la liste des petits objets permis (lue comme -b1) ; liste vide = identique.
+        const objetsPermis = piecesPermisesDesEntrees(version.commande?.entrees);
+        return plan ? { versionId: version.id, plan, ...(objetsPermis.length ? { objetsPermis } : {}) } : null;
       },
     },
     options.rendu,
