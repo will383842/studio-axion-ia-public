@@ -116,6 +116,6 @@ describe("sourcesPourRetoucheExtraitV4", () => {
     const marche = (d: string): string[] =>
       readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? marche(p) : /\.(ts|tsx)$/.test(n) ? [p] : []; });
     const importeurs = marche("src").filter((p) => !p.endsWith("sources-retouche-extrait-v4.ts") && readFileSync(p, "utf8").includes("sources-retouche-extrait-v4"));
-    expect(importeurs).toEqual([]);
+    expect(importeurs.map((f) => f.split("\\").join("/"))).toEqual(["src/services/changer-extrait-v4-ecran.ts"]);
   });
 });
