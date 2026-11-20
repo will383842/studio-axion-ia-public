@@ -30,6 +30,7 @@ beforeEach(() => {
   reinitialiserDepots();
   reinitialiserRequete();
   ecritures.length = 0;
+  (globalThis as Record<symbol, unknown>)[Symbol.for("studio-axion-ia.relire-diffuseur")] = undefined;
   injecterClientZernio(client);
 });
 
@@ -47,5 +48,27 @@ describe("RAP-2 · relireDiffuseurAction", () => {
     expect(r.ok).toBe(true);
     expect(await depots().publications.compter((p) => !!p.rapatrieeLe)).toBe(1);
     expect(ecritures).toEqual([]);
+  });
+
+  it("anti-rebond : un second clic dans la minute est refusé sans relire le diffuseur ; il repasse après la minute", async () => {
+    await auth.seConnecter(MDP, false);
+    const { relireDiffuseurAction } = await import("@/app/(studio)/calendrier/actions/relire-diffuseur");
+    let listes = 0;
+    const compte = new Proxy(client, { get: (c, k) => (k === "listerPosts" ? async (q?: Record<string, unknown>) => { listes++; return (c as never as ClientZernio).listerPosts(q as never); } : (c as never)[k]) }) as ClientZernio;
+    injecterClientZernio(compte);
+    expect((await relireDiffuseurAction()).ok).toBe(true);
+    const apresPremier = listes;
+    expect(apresPremier).toBeGreaterThan(0);
+    const second = await relireDiffuseurAction();
+    expect(second.ok).toBe(false);
+    expect(listes).toBe(apresPremier);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.now() + 61_000);
+    try {
+      expect((await relireDiffuseurAction()).ok).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(listes).toBeGreaterThan(apresPremier);
   });
 });
