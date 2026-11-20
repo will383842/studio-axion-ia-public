@@ -196,7 +196,9 @@ export async function validerTutoriel(videoId: Id, options: { empreinteDevis?: s
     const version = c.travail.versionId ? await d.versions.obtenir(c.travail.versionId) : null;
     if (version) await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: { ...(version.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } } });
   }
-  const relance = validerScriptTutoriel(c.travail, script.texte);
+  // T-EXT-55 : le moteur exige le registre FIGÉ dans l'équipe du travail qu'il reçoit (le choix de Williams reste le texte déjà figé).
+  const tuto0 = objet(c.travail.parametres?.tutoriel) ? c.travail.parametres.tutoriel : {};
+  const relance = validerScriptTutoriel({ ...c.travail, parametres: { ...(c.travail.parametres ?? {}), tutoriel: { ...tuto0, equipe } } }, script.texte);
   const tuto = objet(relance.parametres?.tutoriel) ? relance.parametres.tutoriel : {};
   await d.travaux.modifier(c.travail.id, { statut: relance.statut, etapes: relance.etapes, parametres: { ...(relance.parametres ?? {}), tutoriel: { ...tuto, equipe } } });
   return ok("Votre texte est validé : la vidéo reprend.");

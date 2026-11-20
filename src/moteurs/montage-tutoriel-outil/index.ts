@@ -23,6 +23,7 @@ import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
+import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe/scenariste";
 import { lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
@@ -149,8 +150,8 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Ce que la version d'avant offre (projet de montage) : son plan et sa voix, repris sans être refaits ni repayés. */
-export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan"> | null {
-  const p = projetMontage?.tutoriel as Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan"> | undefined;
+export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "equipe"> | null {
+  const p = projetMontage?.tutoriel as Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "equipe"> | undefined;
   return p && typeof p === "object" && p.plan?.plan ? p : null;
 }
 
@@ -213,6 +214,8 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   });
   const lignesReelles: LigneCout[] = [];
   if (etat.audio && etat.audio.caracteres > 0) lignesReelles.push(ligne("Voix", etat.audio.fournisseur, "caractere", etat.audio.caracteres, "reel"));
+  // T-EXT-55 : une ligne réelle par rôle de l'équipe (appels REVENUS ; un appel repris par `payerUneFois` n'est pas recompté).
+  for (const [role, n] of Object.entries(etat.appelsClaude?.roles ?? {})) if (n > 0) lignesReelles.push(ligne(`Tutoriel · ${role}`, "claude", "appel", n, "reel"));
   if (etat.appelsClaude?.script) lignesReelles.push(ligne("Script", "claude", "appel", etat.appelsClaude.script, "reel"));
   if (etat.appelsClaude?.plan) lignesReelles.push(ligne("Plan de scènes", "claude", "appel", etat.appelsClaude.plan, "reel"));
   lignesReelles.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "reel"));
@@ -223,7 +226,8 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {
       moteur: ID_MOTEUR_TUTORIEL_OUTIL,
-      tutoriel: { script: etat.script, audio: etat.audio, sousTitres: etat.sousTitres, motsPlan: etat.motsPlan, plan: etat.plan },
+      // T-EXT-55 : l'équipe reste dans le projet (la retouche et le regardeur en ont besoin).
+      tutoriel: { script: etat.script, audio: etat.audio, sousTitres: etat.sousTitres, motsPlan: etat.motsPlan, plan: etat.plan, ...(etat.equipe ? { equipe: etat.equipe } : {}) },
     },
   };
 }
@@ -235,14 +239,41 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
 /**
  * Williams valide (et a pu modifier) le script proposé : il fait foi, la fabrication reprend au pas suivant. Le texte
  * vide garde la proposition telle quelle. Aucune vérification bloquante : seules des remarques.
+ *
+ * T-EXT-55 · ÉQUIPE présente dans l'état : il faut un choix (`{ version }` ou `{ corrige }`), ou un texte égal à celui déjà
+ * choisi ou à l'une des deux versions ; le registre des textes doit être FIGÉ, sinon rien ne change. Le texte retenu est
+ * celui de `figerScriptChoisi` (la correction de Williams, mot pour mot), jamais repassé par un rôle.
  */
-export function validerScriptTutoriel(travail: Travail, texte?: string): Travail {
+export function validerScriptTutoriel(travail: Travail, texte?: string, choix?: ChoixScript): Travail {
   const etat = lireEtat(travail);
-  const valide = (texte ?? etat.proposition ?? "").trim();
-  if (!valide) return travail;
+  const equipe = etat.equipe;
+  if (!equipe) {
+    const valide = (texte ?? etat.proposition ?? "").trim();
+    if (!valide) return travail;
+    const { proposition: _p, ...reste } = etat;
+    void _p;
+    return sansPause(avecEtat({ ...travail, statut: "en_cours" }, { ...reste, script: { texte: valide, source: "valide", remarques: [] } }));
+  }
+  if (!equipe.registre?.fige) return travail;
+  const retenu = scriptDeValidation(equipe, texte, choix);
+  if (!retenu?.texte.trim()) return travail;
   const { proposition: _p, ...reste } = etat;
   void _p;
-  return sansPause(avecEtat({ ...travail, statut: "en_cours" }, { ...reste, script: { texte: valide, source: "valide", remarques: [] } }));
+  return sansPause(avecEtat({ ...travail, statut: "en_cours" }, { ...reste, equipe: { ...equipe, scriptChoisi: retenu }, script: { texte: retenu.texte, source: "valide", remarques: [] } }));
+}
+
+/** Le script que Williams a choisi : son choix, sinon celui déjà figé (même texte), sinon une des deux versions (même texte). */
+function scriptDeValidation(equipe: NonNullable<EtatTutoriel["equipe"]>, texte: string | undefined, choix: ChoixScript | undefined): ScriptChoisi | null {
+  const p = equipe.propositionScripts;
+  if (choix) {
+    if ("corrige" in choix ? typeof choix.corrige !== "string" || !choix.corrige.trim() : choix.version !== "A" && choix.version !== "B") return null;
+    return p ? figerScriptChoisi(p, choix) : null;
+  }
+  const t = (texte ?? equipe.scriptChoisi?.texte ?? "").trim();
+  if (!t) return null;
+  if (equipe.scriptChoisi && equipe.scriptChoisi.texte.trim() === t) return equipe.scriptChoisi;
+  const v = p?.versions.find((x) => x.phrases.map((ph) => ph.texte).join(" ").trim() === t);
+  return p && v ? figerScriptChoisi(p, { version: v.id }) : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -265,7 +296,8 @@ const RATIOS_TUTORIEL: Ratio[] = ["4:5", "9:16", "1:1", "16:9"];
 function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<{ code: string; message: string } | null> | null {
   const port = outils.devis;
   if (!port) return null;
-  const idee = !etat.script && !etat.proposition && "aEcrire" in scriptRetenu(commande.script.texteComplet, lireEntreesTutoriel(commande.entrees));
+  const entrees = lireEntreesTutoriel(commande.entrees);
+  const idee = !etat.script && !etat.proposition && ("aEcrire" in scriptRetenu(commande.script.texteComplet, entrees) || (!!outils.equipe && !!entrees.depot));
   const depense = cle === "script" ? idee : cle === "voix" || cle === "plan" || cle === "montage" || cle === "exports";
   if (!depense) return null;
   return (async () => {
@@ -290,7 +322,8 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     // Avant chaque dépense : le déjà consommé PLUS ce que cette étape peut encore dépenser doit tenir dans le devis.
     const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
     const aVenir: Partial<Consommation> = {};
-    if (cle === "script") aVenir.appelsClaude = essais("script");
+    // Le script : « script » (ancien écrivain) et, équipe allumée, chaque rôle de l'équipe (tout sauf le plan de scènes).
+    if (cle === "script") aVenir.appelsClaude = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
     else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
     else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
     const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);
@@ -353,7 +386,7 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const p = lireProjetTutoriel(parent?.projetMontage);
     const e = etatInitial(commande);
     const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
-    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}) };
+    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}), ...(p?.equipe ? { equipe: p.equipe } : {}) };
   }
 
   /**

@@ -14,10 +14,12 @@
 import { cleDepenseUsine } from "./cle-depense-usine";
 import { appelClaudeTutoriel, claudeTutorielActif, regardTutorielActif } from "./tutoriel-claude";
 import { creerRegardTutoriel } from "./tutoriel-regard";
+import { equipeTutorielActive, portsEquipe } from "./tutoriel-equipe";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
 import { lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
+import { ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
 
 brancherServicesTutoriel({
@@ -53,15 +55,17 @@ brancherServicesTutoriel({
     };
     // T-EXT-27b : le regard de Claude sur les images-clés. Éteint (champ absent) sans `tutoriel.regardeur` ET `tutoriel.claude` à `true`.
     const regarder = (await regardTutorielActif()) ? creerRegardTutoriel({ videoId: c.videoId, origine: c.origine, rendu }) : undefined;
+    // T-EXT-55 : l'équipe de rôles. Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
+    const equipe = (await equipeTutorielActive()) ? portsEquipe(c, c.videoId) : undefined;
     return {
       ...(devis
         ? {
             devis: {
-              // Rôles appelés par la chaîne (pas encore intégrés en équipe) : plan (2 essais) et, depuis une idée, script (1 essai).
-              roles: [...(idee ? [{ id: "script", essaisMax: 1 }] : []), { id: "plan", essaisMax: 2 }],
+              // Rôles appelés par la chaîne : plan (2 essais) et, équipe allumée, chaque rôle de l'équipe (ses essais, `ROLES_TUTORIEL`).
+              roles: [...(equipe ? ROLES_TUTORIEL.filter((r) => r.essaisMax > 0).map((r) => ({ id: r.id, essaisMax: r.essaisMax })) : idee ? [{ id: "script", essaisMax: 1 }] : []), { id: "plan", essaisMax: 2 }],
               accord: lireAccordDevis(c.entrees),
               consomme: async (etat) => ({
-                appelsClaude: (etat.appelsClaude?.script ?? 0) + (etat.appelsClaude?.plan ?? 0),
+                appelsClaude: (etat.appelsClaude?.script ?? 0) + (etat.appelsClaude?.plan ?? 0) + Object.values(etat.appelsClaude?.roles ?? {}).reduce((s, n) => s + n, 0),
                 caracteresVoix: etat.audio && !etat.audio.reutilise ? etat.audio.caracteres : 0,
                 rendus: etat.rendus.length,
               }),
@@ -84,6 +88,7 @@ brancherServicesTutoriel({
             throw new ErreurClaude("requete", "Claude n'est pas encore relié au tutoriel d'outil.");
           },
       ...(regarder ? { regarder } : {}),
+      ...(equipe ? { equipe } : {}),
       rendu,
     };
   },
