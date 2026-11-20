@@ -3,14 +3,14 @@
  * de la page, sous ce qui est déjà écrit et au-dessus des sous-titres, jamais sur l'écriture. Pur, ne lève jamais.
  * Côté moteur seulement (jamais lu par le rendu). `permis` vide = éteint (`{}`). Rien ne l'appelle encore (N-04e).
  */
-import type { ObjetScene } from "../../briques/tableau-scene/objets";
-import type { ProprietesTableauScene } from "../../briques/tableau-scene/types";
-import { OBJET_GROS_CHIFFRE } from "../../briques/motion/petits-objets/gros-chiffre";
-import { OBJET_ETAPE } from "../../briques/motion/petits-objets/etapes";
-import { OBJET_COCHE } from "../../briques/motion/petits-objets/marques";
-import { OBJETS_PAR_VIDEO_MAX, type DefinitionObjet } from "../../briques/motion/petits-objets/contrat";
-import { objetsDepuisMots } from "../../briques/plan-scenes-objets/regles";
-import type { MotMinute } from "../../briques/plan-scenes/schema";
+import type { ObjetScene } from "@/briques/tableau-scene/objets";
+import type { ProprietesTableauScene } from "@/briques/tableau-scene/types";
+import { OBJET_GROS_CHIFFRE } from "@/briques/motion/petits-objets/gros-chiffre";
+import { OBJET_ETAPE } from "@/briques/motion/petits-objets/etapes";
+import { OBJET_COCHE } from "@/briques/motion/petits-objets/marques";
+import { OBJETS_PAR_VIDEO_MAX, type DefinitionObjet } from "@/briques/motion/petits-objets/contrat";
+import { objetsDepuisMots } from "@/briques/plan-scenes-objets/regles";
+import type { MotMinute } from "@/briques/plan-scenes/schema";
 
 /** Les trois objets que le tableau sait poser (jamais `objet-cartes-coche`). */
 const DEFINITIONS: Readonly<Record<string, DefinitionObjet<unknown>>> = {
