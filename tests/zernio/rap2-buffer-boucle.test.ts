@@ -25,6 +25,8 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const { synchroniserEtatsBuffer, reconcilierEnvoi } = await import("@/services/buffer");
 const MDP = "essai-rap2-boucle";
+let nbNotifs = 0;
+const nouvelles = async () => (await depots().notifications.lister(() => true)).slice(nbNotifs);
 const T0 = Date.parse("2026-11-20T08:00:00Z");
 const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -38,6 +40,8 @@ beforeEach(async () => {
   reinitialiserDepots();
   reinitialiserRequete();
   appels.publicationsRecentes = 0;
+  // Les dépôts en mémoire portent des données de démonstration : on ne mesure que ce que ces tests y ajoutent.
+  nbNotifs = (await depots().notifications.lister(() => true)).length;
   await auth.seConnecter(MDP, false);
 });
 
@@ -49,14 +53,14 @@ describe("une rapatriée « à vérifier » reste hors de la relecture des envoi
   it("5 rapatriées puis synchro forcée : aucun absent, aucun échec, aucune notification d'envoi, zéro requête", async () => {
     for (let i = 0; i < 5; i++) await depots().publications.enregistrer(rapatriee(i) as never);
     await synchroniserEtatsBuffer({ force: true, instant: T0 + 3600_000 });
-    const pubs = await depots().publications.lister(() => true);
+    const pubs = await depots().publications.lister((p) => p.id.startsWith("rap-"));
     expect(pubs).toHaveLength(5);
     for (const p of pubs) {
       expect(p.etatEnvoi).toBe("a-verifier");
       expect(p.statut).toBe("programmee");
       expect(p.erreur).toBeUndefined();
     }
-    const notifs = await depots().notifications.lister(() => true);
+    const notifs = await nouvelles();
     expect(notifs.filter((n) => (n as { envoi?: unknown }).envoi)).toHaveLength(0);
     expect(notifs).toHaveLength(0);
     expect(appels.publicationsRecentes).toBe(0);
@@ -68,7 +72,7 @@ describe("une rapatriée « à vérifier » reste hors de la relecture des envoi
     const apres = await reconcilierEnvoi("rap-1", T0 + 3600_000);
     expect(apres).toEqual(avant);
     expect((await depots().publications.obtenir("rap-1"))?.modifieLe).toBe(iso(T0));
-    expect(await depots().notifications.lister(() => true)).toHaveLength(0);
+    expect(await nouvelles()).toHaveLength(0);
     expect(appels.publicationsRecentes).toBe(0);
   });
 
@@ -79,7 +83,7 @@ describe("une rapatriée « à vérifier » reste hors de la relecture des envoi
     expect(p?.etatEnvoi).toBe("absent");
     expect(p?.statut).toBe("echec");
     expect(appels.publicationsRecentes).toBe(1);
-    const notifs = await depots().notifications.lister(() => true);
+    const notifs = await nouvelles();
     expect(notifs).toHaveLength(1);
     expect((notifs[0] as { envoi?: { statut: string } }).envoi?.statut).toBe("a-envoyer");
   });
