@@ -55,5 +55,7 @@ describe("RAP-2 · pas de doublon publié", () => {
     expect(appels).toHaveLength(0);
     expect(faux.appels.filter((a: { methode: string }) => a.methode !== "GET")).toHaveLength(0);
     expect(await depots().envoisPlanifies.compter()).toBe(0);
+    // Aucun appel au diffuseur ne vise l'identifiant externe d'une rapatriée (ni dans l'adresse, ni dans le corps).
+    for (const a of faux.appels as { url: string; corps?: string }[]) for (const idExt of ["zr_a", "zr_b", "zr_c"]) expect(`${a.url} ${a.corps ?? ""}`).not.toContain(idExt);
   });
 });

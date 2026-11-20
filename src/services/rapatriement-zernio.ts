@@ -133,6 +133,8 @@ export async function depsRapatriementServeur(): Promise<DepsRapatriement> {
     creerSiAbsente: (p) =>
       sousVerrou(async () => {
         if (await depots().publications.obtenir(p.id)) return "existait" as const;
+        // Un envoi du Studio a pu créer ce même post chez le diffuseur depuis la lecture : pas de doublon local.
+        if (p.idExterne && (await depots().publications.compter((x) => x.idExterne === p.idExterne)) > 0) return "existait" as const;
         await depots().publications.enregistrer({ ...p, ...horodatage() });
         return "creee" as const;
       }),

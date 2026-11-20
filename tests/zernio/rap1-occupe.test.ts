@@ -90,5 +90,19 @@ describe("RAP-1 · verrou « occupe » (point E)", () => {
     await voisine({ rapatrieeLe: LE, origineDiffuseur: "import-buffer", idExterne: "p1", cleEnvoi: "imp-1" });
     await tour();
     expect(notifications).toHaveLength(0);
+    // Comportement : le créneau part, une seule fois, et rien ne vise l'identifiant de la rapatriée chez le diffuseur.
+    expect(appels).toHaveLength(1);
+    expect(JSON.stringify(appels)).not.toContain('"p1"');
+    expect(JSON.stringify(appels)).not.toContain("zr_");
+  });
+
+  it("reessayerEnvoi sur une rapatriée lève (jamais de renvoi), qu'elle soit « envoyée » ou, par hypothèse, « refusée »", async () => {
+    await preparer();
+    const { reessayerEnvoi } = await import("@/services/reprise-envois");
+    await voisine({ id: "zr_p1_compte-2", rapatrieeLe: LE, origineDiffuseur: "import-buffer", idExterne: "p1", cleEnvoi: "imp-1" });
+    await expect(reessayerEnvoi("zr_p1_compte-2", { service: fournisseur() })).rejects.toThrow();
+    await voisine({ id: "zr_p1_compte-2", rapatrieeLe: LE, origineDiffuseur: "import-buffer", idExterne: "p1", cleEnvoi: "imp-1", etatEnvoi: "refuse" });
+    await expect(reessayerEnvoi("zr_p1_compte-2", { service: fournisseur() })).rejects.toThrow();
+    expect(appels).toHaveLength(0);
   });
 });

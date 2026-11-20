@@ -179,6 +179,22 @@ describe("RAP-2 · budget et débit", () => {
     expect(f.etat.liste).toBeLessThanOrEqual(6 + 10);
   });
 
+  it("77 rapatriées suivies (> 50 : passage complet à chaque tour) : deuxième passage ≤ 51 requêtes au total, rapatriement compris", async () => {
+    const f = faux([...lot(65, "scheduled"), ...lot(12, "draft")]);
+    injecterClientZernio(f.client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect(await rapatriees()).toHaveLength(77);
+    f.etat.liste = 0;
+    f.etat.unitaires = 0;
+    f.etat.comptes = 0;
+    await synchroniserEtatsZernio({ instant: T0 + 60 * 60_000 });
+    const total = f.etat.comptes + f.etat.liste + f.etat.unitaires;
+    // Mesuré : 1 requête de comptes + 5 de liste (3 du rapatriement, 2 de la liste complète) + 0 lecture unitaire = 6 ; plafond 51.
+    expect(total).toBeLessThanOrEqual(BUDGET_REQUETES_PAR_PASSAGE);
+    expect(f.etat.unitaires).toBe(0);
+    expect(f.etat.ecritures).toBe(0);
+  });
+
   it("plus de posts que 6 requêtes n'en lisent : écart non vérifié, rien n'est créé", async () => {
     const f = faux(lot(650, "scheduled")); // 7 pages de 100 > 6
     injecterClientZernio(f.client);
