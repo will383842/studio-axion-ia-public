@@ -130,13 +130,8 @@ export const BORNES_TABLEAU = {
 const ancre = z.number().int().nonnegative();
 const idElement = identifiantSur;
 
-/** Mot sans casse, sans accent, sans ponctuation : « D'abord » et « dabord » désignent le même mot. */
-export const cleMot = (m: string) =>
-  m
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+import { cleMot } from "./cle-mot";
+export { cleMot };
 
 export const schemaLigne = z
   .strictObject({

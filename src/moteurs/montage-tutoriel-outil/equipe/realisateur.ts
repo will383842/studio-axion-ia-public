@@ -168,6 +168,9 @@ function realiserSansGarde(e: EntreeRealisateur): ResultatRealisateur {
       et.cible = z.cible;
       if (z.zone) et.zone = { ...z.zone };
     }
+    // Même étape que la précédente (même rôle, même aller, même cible, même zone) : la phrase la réutilise.
+    const prec = etapes[etapes.length - 1];
+    if (prec && prec.role === et.role && prec.aller === et.aller && prec.cible === et.cible && JSON.stringify(prec.zone) === JSON.stringify(et.zone)) return prec;
     etapes.push(et);
     return et;
   };

@@ -99,7 +99,7 @@ const fin = SEGMENTS[0].finSec;
 
 describe("(a) éteint : réglage absent = pas de `sortie`, le groupe disparaît net", () => {
   it("pas d'entrée bibliothèque", async () => {
-    const entrees = await entreesDuLancement();
+    const entrees = await entreesDuLancement(false); // v20g : avocat allumé par défaut, `false` écrit en base
     expect(entrees).toEqual({});
     const p = composer(commande(entrees));
     expect("sortie" in p.texte.sousTitres!).toBe(false);

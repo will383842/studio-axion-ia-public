@@ -138,7 +138,8 @@ export function nombreDeLettres(w: string): number {
 
 /** Nombres écrits en chiffres dans un texte (« 45 min », « 2,5 h » → [45, 2.5]). */
 export function nombresDansTexte(texte: string): number[] {
-  return [...texte.matchAll(/\d+(?:[.,]\d+)?/g)].map((m) => Number(m[0].replace(",", ".")));
+  /* Milliers groupés par espace, insécable ou fine insécable (« 1 000 » → 1000) avant le motif simple. */
+  return [...texte.matchAll(/\d{1,3}(?:[ \u00A0\u202F]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?/g)].map((m) => Number(m[0].replace(/[ \u00A0\u202F]/g, "").replace(",", ".")));
 }
 
 /**

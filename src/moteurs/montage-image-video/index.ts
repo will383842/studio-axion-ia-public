@@ -64,6 +64,8 @@ export interface EntreesImageVideo {
   /** MODE « SCRIPT COMPLET » : `texte` est le script de Will, dit tel quel (aucune écriture par l'IA). */
   scriptColle?: boolean;
   reseaux: ReseauIV[];
+  /** IV-SV : mode sans voix (aucune voix, aucun appel HeyGen, aucun coût de voix ni d'écoute). Absent : avec voix. */
+  sansVoix?: true;
   offre?: Offre;
   typeImpose?: TypeImage;
   /** Plafond de dépense de la vidéo (centimes d'euro) ; absent : `PLAFOND_VIDEO_IV_CENTIMES`. */
@@ -89,6 +91,7 @@ export function lireEntreesImageVideo(entrees: Record<string, unknown> | undefin
     ...(typeof e.texte === "string" ? { texte: e.texte } : {}),
     ...(e.scriptColle === true && typeof e.texte === "string" ? { scriptColle: true } : {}),
     reseaux,
+    ...(e.sansVoix === true ? { sansVoix: true as const } : {}),
     ...(typeof e.offre === "string" ? { offre: e.offre as Offre } : {}),
     ...(typeof e.typeImpose === "string" ? { typeImpose: e.typeImpose as TypeImage } : {}),
     ...(typeof e.plafondCentimes === "number" && Number.isFinite(e.plafondCentimes) ? { plafondCentimes: e.plafondCentimes } : {}),
@@ -121,6 +124,7 @@ export function demandeDeLaCommande(commande: CommandeFabrication, versionId: st
     // Titre ou idée : le script généré attend Williams (relecture, modification, « Valider et fabriquer »).
     ...(e.texte !== undefined && !e.scriptColle ? { scriptAValider: true } : {}),
     reseaux: e.reseaux,
+    ...(e.sansVoix ? { sansVoix: true as const } : {}),
     ...(e.offre ? { offre: e.offre } : {}),
     ...(e.typeImpose ? { typeImpose: e.typeImpose } : {}),
     validationCarte: reglages.validationCarte,
@@ -206,12 +210,13 @@ export function estimerImageVideo(commande: CommandeFabrication): Estimation {
   const relectures = versions + (filFacebook ? 2 : 0);
   const caracteres = Math.ceil(Math.max(commande.dureeCibleSec || 50, 30) * CARACTERES_PAR_SECONDE) + reseaux * 160;
   const voix = Math.ceil(caracteres * 6 * tarifVoixCentimesEur(CENTIMES_USD_PAR_CARACTERE_HEYGEN, taux) - 1e-9);
+  // IV-SV : sans voix, ni ligne « Voix » ni ligne « Écoute » (rien n'est lu, rien n'est écouté).
   const lignes = [
     ligne("Lecture de l'image", "anthropic", "appel", 4, centimesEurDeUsd(PRIX_AU_PIRE_USD.lecture, taux)),
     ligne("Écriture du script", "anthropic", "appel", 2, centimesEurDeUsd(PRIX_AU_PIRE_USD.ecriture, taux)),
-    ligne("Voix", "heygen", "caractere", caracteres * 6, voix),
+    ...(e.sansVoix ? [] : [ligne("Voix", "heygen", "caractere", caracteres * 6, voix)]),
     ligne("Relecture des images finales", "anthropic", "appel", relectures, centimesEurDeUsd(PRIX_AU_PIRE_USD.relectureParVersion * relectures, taux)),
-    ligne("Écoute", "transcription", "appel", versions, centimesEurDeUsd(PRIX_AU_PIRE_USD.transcriptionParVersion * versions, taux)),
+    ...(e.sansVoix ? [] : [ligne("Écoute", "transcription", "appel", versions, centimesEurDeUsd(PRIX_AU_PIRE_USD.transcriptionParVersion * versions, taux))]),
     ligne("Montage image → vidéo", "studio", "forfait", 1, 0),
   ];
   return { dureeFabricationSec: ETAPES_IV.reduce((s, k) => s + NOMS[k].dureeEstimeeSec, 0), lignes, total: centimes(lignes.reduce((s, l) => s + l.total.centimes, 0)) };
@@ -219,6 +224,8 @@ export function estimerImageVideo(commande: CommandeFabrication): Estimation {
 
 /** Étape de la chaîne où se paie chaque ligne du prix au pire (même ordre que `estimerImageVideo`). */
 const ETAPE_DES_LIGNES: readonly EtapeChaineIV[] = ["lecture", "ecriture", "voix", "controles", "controles", "rendu"];
+/** Idem sans voix (IV-SV) : ni « Voix » ni « Écoute ». */
+const ETAPE_DES_LIGNES_SANS_VOIX: readonly EtapeChaineIV[] = ["lecture", "ecriture", "controles", "rendu"];
 
 /**
  * Plafond proposé à Will pour « Relever le plafond » (centimes d'euro) : ce qui est déjà engagé, plus le pire coût de
@@ -229,8 +236,9 @@ export function plafondProposeIV(etat: Pick<EtatFabricationIV, "demande" | "cais
   const engage = etat.caisse.reservations.reduce((s, r) => s + r.centimes, 0);
   const etape = etat.etape === "refusee" ? (etat.refus?.etape ?? "lecture") : etat.etape;
   const depuis = etape === "prete" ? ETAPES_IV.length : ETAPES_IV.indexOf(etape);
-  const commande = { entrees: { imageVideo: { reseaux: [...etat.demande.reseaux] } }, tauxUsdEur: etat.demande.tauxUsdEur, dureeCibleSec: 50 } as unknown as CommandeFabrication;
-  const restant = estimerImageVideo(commande).lignes.reduce((s, l, i) => s + (ETAPES_IV.indexOf(ETAPE_DES_LIGNES[i]) >= depuis ? l.total.centimes : 0), 0);
+  const commande = { entrees: { imageVideo: { reseaux: [...etat.demande.reseaux], ...(etat.demande.sansVoix ? { sansVoix: true } : {}) } }, tauxUsdEur: etat.demande.tauxUsdEur, dureeCibleSec: 50 } as unknown as CommandeFabrication;
+  const etapesDesLignes = etat.demande.sansVoix ? ETAPE_DES_LIGNES_SANS_VOIX : ETAPE_DES_LIGNES;
+  const restant = estimerImageVideo(commande).lignes.reduce((s, l, i) => s + (ETAPES_IV.indexOf(etapesDesLignes[i]) >= depuis ? l.total.centimes : 0), 0);
   return Math.max(Math.ceil((engage + restant) / 100) * 100, etat.caisse.plafondCentimes + 100);
 }
 

@@ -39,6 +39,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
   const [script, setScript] = useState("");
   const [cible, setCible] = useState<number>(6);
   const [fin, setFin] = useState<"aucune" | "rdv">("aucune");
+  const [sansVoix, setSansVoix] = useState(false);
   const [courts, setCourts] = useState(false);
   const [pageSite, setPageSite] = useState(false);
   const [chapitres, setChapitres] = useState<ChapitrePlan[]>([]);
@@ -105,7 +106,20 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
               onChange={setCible}
             />
             <p className="-mt-2 text-sm text-texte-doux">C&apos;est une cible, pas une limite.</p>
-            <p className="text-sm font-semibold text-texte">Voix : votre double.</p>
+            <SelecteurPastilles
+              libelle="Son"
+              options={[
+                { valeur: "avec", libelle: "Avec la voix de mon double" },
+                { valeur: "sans", libelle: "Sans voix (sous-titres et texte à l'écran)" },
+              ]}
+              valeur={sansVoix ? "sans" : "avec"}
+              onChange={(v) => setSansVoix(v === "sans")}
+            />
+            {sansVoix ? (
+              <p className="text-sm text-texte-doux">Silence total, sans musique : chaque scène reste le temps de lire le texte.</p>
+            ) : (
+              <p className="text-sm font-semibold text-texte">Voix : votre double.</p>
+            )}
             <SelecteurPastilles
               libelle="Fin"
               options={[
@@ -149,6 +163,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
               dureeSec={dureeSec}
               chapitres={planFinal.length}
               courts={courts ? planFinal.length : 0}
+              sansVoix={sansVoix}
               peutLancer={actif && !depensesCoupees}
               onLancer={() => setPause(PHRASE_LANCEMENT_NON_RELIEE)}
               onRetour={() => aller(2)}

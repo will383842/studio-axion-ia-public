@@ -12,13 +12,31 @@ import {
 const NOMS: NomReglageHabillage[] = ["transitionsPlanScenes", "transitionsStyleMontage", "lutsSupplementaires"];
 const CLES = ["habillage.transitionsPlanScenes", "habillage.transitionsStyleMontage", "habillage.lutsSupplementaires"];
 
-describe("C6-H4a · réglages de l'habillage commun (éteints par défaut)", () => {
+describe("C6-H4a · réglages de l'habillage commun (éteints par défaut, sauf transitionsPlanScenes)", () => {
   it("estAllume : seul true exact allume", () => {
     expect(estAllume(true)).toBe(true);
     for (const v of [false, "true", 1, "oui", null, undefined, {}, []]) expect(estAllume(v)).toBe(false);
   });
 
-  for (const nom of NOMS) {
+  describe("transitionsPlanScenes (ALLUMER-TRANSITIONS-CC-v20g : allumé par défaut)", () => {
+    const nom: NomReglageHabillage = "transitionsPlanScenes";
+    it("seul false exact éteint ; absent, true, \"true\", 1, null allument", async () => {
+      expect(await habillageActif(nom, async () => false)).toBe(false);
+      for (const v of [true, "true", 1, null, undefined]) expect(await habillageActif(nom, async () => v)).toBe(true);
+    });
+    it("lecture qui rejette ou lève : éteint", async () => {
+      expect(await habillageActif(nom, () => Promise.reject(new Error("x")))).toBe(false);
+      expect(await habillageActif(nom, () => { throw new Error("sync"); })).toBe(false);
+    });
+    it("lire reçoit la clé exacte et le défaut true", async () => {
+      const lire = vi.fn(async () => true);
+      await habillageActif(nom, lire);
+      expect(lire).toHaveBeenCalledTimes(1);
+      expect(lire).toHaveBeenCalledWith("habillage.transitionsPlanScenes", true);
+    });
+  });
+
+  for (const nom of NOMS.filter((n) => n !== "transitionsPlanScenes")) {
     describe(nom, () => {
       it("true allume, toute autre valeur éteint", async () => {
         expect(await habillageActif(nom, async () => true)).toBe(true);

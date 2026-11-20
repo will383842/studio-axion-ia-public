@@ -20,13 +20,15 @@ import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
+import { relancerRendusTombes } from "./reprise";
 import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
-import { lireEntreesTutoriel } from "./entrees";
+import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe/scenariste";
+import { estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
-import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
+import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, prochainPasPaye, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel, sortieGardee } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -77,7 +79,7 @@ const DEFINITIONS: Record<CleEtapeTutoriel, Omit<DefinitionEtapeMoteur, "dependD
 function etapesDe(commande: CommandeFabrication, ratios: Ratio[] = ratiosTutoriel(commande.ratios), seulementRendu = false): DefinitionEtapeMoteur[] {
   const cles = ETAPES_TUTORIEL.filter((c) => {
     if (seulementRendu) return c === "montage";
-    if (c === "voix") return commande.distribution.length > 0;
+    if (c === "voix") return commande.distribution.length > 0 && !estSansVoix(commande.entrees);
     if (c === "exports") return ratios.length > 1;
     return true;
   });
@@ -98,7 +100,8 @@ function estimation(lignes: LigneCout[], dureeFabricationSec: number): Estimatio
 
 function lignesEstimees(commande: CommandeFabrication): LigneCout[] {
   const l: LigneCout[] = [];
-  if (commande.distribution.length) l.push(ligne("Voix", "heygen", "caractere", (commande.script.texteComplet ?? "").length, "estime"));
+  // T-EXT-SV : mode sans voix = aucune ligne « voix », donc rien à bloquer côté crédits.
+  if (commande.distribution.length && !estSansVoix(commande.entrees)) l.push(ligne("Voix", "heygen", "caractere", (commande.script.texteComplet ?? "").length, "estime"));
   l.push(ligne("Plan de scènes", "claude", "appel", 1, "estime"));
   l.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "estime"));
   return l;
@@ -149,8 +152,8 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Ce que la version d'avant offre (projet de montage) : son plan et sa voix, repris sans être refaits ni repayés. */
-export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan"> | null {
-  const p = projetMontage?.tutoriel as Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan"> | undefined;
+export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | null {
+  const p = projetMontage?.tutoriel as (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | undefined;
   return p && typeof p === "object" && p.plan?.plan ? p : null;
 }
 
@@ -213,6 +216,8 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   });
   const lignesReelles: LigneCout[] = [];
   if (etat.audio && etat.audio.caracteres > 0) lignesReelles.push(ligne("Voix", etat.audio.fournisseur, "caractere", etat.audio.caracteres, "reel"));
+  // T-EXT-55 : une ligne réelle par rôle de l'équipe (appels REVENUS ; un appel repris par `payerUneFois` n'est pas recompté).
+  for (const [role, n] of Object.entries(etat.appelsClaude?.roles ?? {})) if (n > 0) lignesReelles.push(ligne(`Tutoriel · ${role}`, "claude", "appel", n, "reel"));
   if (etat.appelsClaude?.script) lignesReelles.push(ligne("Script", "claude", "appel", etat.appelsClaude.script, "reel"));
   if (etat.appelsClaude?.plan) lignesReelles.push(ligne("Plan de scènes", "claude", "appel", etat.appelsClaude.plan, "reel"));
   lignesReelles.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "reel"));
@@ -223,7 +228,25 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {
       moteur: ID_MOTEUR_TUTORIEL_OUTIL,
-      tutoriel: { script: etat.script, audio: etat.audio, sousTitres: etat.sousTitres, motsPlan: etat.motsPlan, plan: etat.plan },
+      tutoriel: {
+        script: etat.script,
+        audio: etat.audio,
+        sousTitres: etat.sousTitres,
+        motsPlan: etat.motsPlan,
+        plan: etat.plan,
+        // T-EXT-55 : l'équipe reste dans le projet (la retouche et le regardeur en ont besoin).
+        ...(etat.equipe ? { equipe: etat.equipe } : {}),
+        // T-EXT-52b : écrit seulement quand le réglage a calculé les empreintes (éteint : exactement comme avant).
+        ...(etat.empreintesFormats
+          ? {
+              empreintesFormats: etat.empreintesFormats,
+              sortiesFormats: Object.fromEntries(etat.rendus.filter((r) => r.sortie).map((r) => [r.ratio, sortieGardee(r)])),
+              origineFormats: Object.fromEntries(etat.rendus.filter((r) => r.sortie).map((r) => [r.ratio, r.reprise ? "reprise" : "rendu"])),
+              ...(etat.film ? { film: etat.film } : {}),
+              ...(etat.navigationFilm ? { navigationFilm: etat.navigationFilm } : {}),
+            }
+          : {}),
+      },
     },
   };
 }
@@ -235,14 +258,41 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
 /**
  * Williams valide (et a pu modifier) le script proposé : il fait foi, la fabrication reprend au pas suivant. Le texte
  * vide garde la proposition telle quelle. Aucune vérification bloquante : seules des remarques.
+ *
+ * T-EXT-55 · ÉQUIPE présente dans l'état : il faut un choix (`{ version }` ou `{ corrige }`), ou un texte égal à celui déjà
+ * choisi ou à l'une des deux versions ; le registre des textes doit être FIGÉ, sinon rien ne change. Le texte retenu est
+ * celui de `figerScriptChoisi` (la correction de Williams, mot pour mot), jamais repassé par un rôle.
  */
-export function validerScriptTutoriel(travail: Travail, texte?: string): Travail {
+export function validerScriptTutoriel(travail: Travail, texte?: string, choix?: ChoixScript): Travail {
   const etat = lireEtat(travail);
-  const valide = (texte ?? etat.proposition ?? "").trim();
-  if (!valide) return travail;
+  const equipe = etat.equipe;
+  if (!equipe) {
+    const valide = (texte ?? etat.proposition ?? "").trim();
+    if (!valide) return travail;
+    const { proposition: _p, ...reste } = etat;
+    void _p;
+    return sansPause(avecEtat({ ...travail, statut: "en_cours" }, { ...reste, script: { texte: valide, source: "valide", remarques: [] } }));
+  }
+  if (!equipe.registre?.fige) return travail;
+  const retenu = scriptDeValidation(equipe, texte, choix);
+  if (!retenu?.texte.trim()) return travail;
   const { proposition: _p, ...reste } = etat;
   void _p;
-  return sansPause(avecEtat({ ...travail, statut: "en_cours" }, { ...reste, script: { texte: valide, source: "valide", remarques: [] } }));
+  return sansPause(avecEtat({ ...travail, statut: "en_cours" }, { ...reste, equipe: { ...equipe, scriptChoisi: retenu }, script: { texte: retenu.texte, source: "valide", remarques: [] } }));
+}
+
+/** Le script que Williams a choisi : son choix, sinon celui déjà figé (même texte), sinon une des deux versions (même texte). */
+function scriptDeValidation(equipe: NonNullable<EtatTutoriel["equipe"]>, texte: string | undefined, choix: ChoixScript | undefined): ScriptChoisi | null {
+  const p = equipe.propositionScripts;
+  if (choix) {
+    if ("corrige" in choix ? typeof choix.corrige !== "string" || !choix.corrige.trim() : choix.version !== "A" && choix.version !== "B") return null;
+    return p ? figerScriptChoisi(p, choix) : null;
+  }
+  const t = (texte ?? equipe.scriptChoisi?.texte ?? "").trim();
+  if (!t) return null;
+  if (equipe.scriptChoisi && equipe.scriptChoisi.texte.trim() === t) return equipe.scriptChoisi;
+  const v = p?.versions.find((x) => x.phrases.map((ph) => ph.texte).join(" ").trim() === t);
+  return p && v ? figerScriptChoisi(p, { version: v.id }) : null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -265,12 +315,16 @@ const RATIOS_TUTORIEL: Ratio[] = ["4:5", "9:16", "1:1", "16:9"];
 function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<{ code: string; message: string } | null> | null {
   const port = outils.devis;
   if (!port) return null;
-  const idee = !etat.script && !etat.proposition && "aEcrire" in scriptRetenu(commande.script.texteComplet, lireEntreesTutoriel(commande.entrees));
+  const entrees = lireEntreesTutoriel(commande.entrees);
+  const aEcrire = "aEcrire" in scriptRetenu(commande.script.texteComplet, entrees);
+  // Équipe allumée : un dossier, une phrase ou une idée passent par l'équipe (payante) MÊME si un travail d'avant la PR garde une
+  // proposition de l'ancien écrivain (chaine.ts : pasScript va dans pasEquipe avant de regarder `etat.proposition`). La garde suit le même chemin.
+  const idee = !etat.script && (!!outils.equipe ? (!!entrees.depot || aEcrire) : (!etat.proposition && aEcrire));
   const depense = cle === "script" ? idee : cle === "voix" || cle === "plan" || cle === "montage" || cle === "exports";
   if (!depense) return null;
   return (async () => {
     const texte = etat.script?.texte ?? commande.script.texteComplet ?? "";
-    const lit = !!outils.voix && commande.distribution.length > 0 && !!etat.script;
+    const lit = !!outils.voix && commande.distribution.length > 0 && !estSansVoix(commande.entrees) && !!etat.script;
     const parent = etat.parent?.audio;
     // Le devis reste le même du premier au dernier pas : seule la voix d'une version d'avant, reprise telle quelle, est « déjà payée ».
     const payee = (!!parent?.fichierCle && !!etat.script && parent.empreinte === empreinteAudioMaitre({ ...commande, script: { ...commande.script, texteComplet: etat.script.texte } }));
@@ -290,12 +344,30 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     // Avant chaque dépense : le déjà consommé PLUS ce que cette étape peut encore dépenser doit tenir dans le devis.
     const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
     const aVenir: Partial<Consommation> = {};
-    if (cle === "script") aVenir.appelsClaude = essais("script");
+    // Le script : « script » (ancien écrivain) et, équipe allumée, chaque rôle de l'équipe (tout sauf le plan de scènes).
+    // Équipe : seuls les essais RESTANTS (essais permis moins appels déjà faits) comptent, car `consomme` contient déjà ceux des rôles passés.
+    // Le « +1 » (un rôle qui va être appelé coûte au moins un appel, même si tous les essais du devis sont faits : l'orchestre peut
+    // permettre un essai de plus, qui ne passe que si « consommé + 1 » tient dans le devis) ne se compte QUE si le prochain pas paie
+    // vraiment. Un pas gratuit (lecture d'une sortie déjà payée, réalisateur, contrôleur, registre, pause « à valider ») ne réserve rien :
+    // sinon la vidéo s'arrêterait APRÈS son dernier appel payé et n'atteindrait jamais l'écran de validation.
+    // Le plan de scènes, pas encore fait, reste RÉSERVÉ dans le devis : le total du devis le compte, donc un rôle ne peut pas
+    // prendre ses appels (un essai de plus que ceux que le devis lui donne). Rôles + plan : « consommé + restants + plan » ≤ total.
+    if (cle === "script") {
+      const restants = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0);
+      const paie = await prochainPasPaye(etat, commande, outils);
+      aVenir.appelsClaude = (paie ? Math.max(1, restants) : restants) + (etat.plan ? 0 : essais("plan"));
+    }
     else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
     else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
     const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);
     return reste.ok ? null : { code: CODE_DEVIS_ATTEINT, message: reste.message };
   })();
+}
+
+/** Une lecture partagée : le premier appel lit, les suivants rendent le même résultat (ou la même erreur). */
+function lectureUnique<T>(lire: () => Promise<T>): () => Promise<T> {
+  let promesse: Promise<T> | undefined;
+  return () => (promesse ??= lire());
 }
 
 export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): MoteurVideo {
@@ -305,7 +377,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     if (["termine", "echec", "annule"].includes(travail.statut)) return { travail };
     const iso = new Date(maintenant).toISOString();
     const fabrique = fabriqueOutils();
-    const outils = fabrique ? await fabrique(commande, travail.id) : null;
+    const outilsBruts = fabrique ? await fabrique(commande, travail.id) : null;
+    // Le dossier est lu UNE SEULE fois par pas : la garde du devis et le pas d'équipe décident sur la même lecture.
+    const outils = outilsBruts?.equipe ? { ...outilsBruts, equipe: { ...outilsBruts.equipe, lireDossier: lectureUnique(outilsBruts.equipe.lireDossier.bind(outilsBruts.equipe)) } } : outilsBruts;
     if (!outils) return { travail: { ...travail, statut: "en_file", modifieLe: iso, parametres: { ...travail.parametres, pause: { code: CODE_OUTILS_NON_RELIES, message: PHRASE_OUTILS_NON_RELIES } } } };
 
     let etat = lireEtat(travail);
@@ -353,7 +427,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const p = lireProjetTutoriel(parent?.projetMontage);
     const e = etatInitial(commande);
     const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
-    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}) };
+    // T-EXT-52b : rendus, empreintes de formats et film de la version d'avant (absents si elle n'en a pas écrit).
+    const avant = p ? { ...(p.sortiesFormats ? { rendus: p.sortiesFormats } : {}), ...(p.empreintesFormats ? { empreintesFormats: p.empreintesFormats } : {}), ...(p.film ? { film: p.film } : {}), ...(p.navigationFilm ? { navigationFilm: p.navigationFilm } : {}) } : {};
+    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}), ...avant } } : {}) ,...(p?.equipe ? { equipe: p.equipe } : {}) };
   }
 
   /**
@@ -393,7 +469,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
       }
       const { erreur: _e, ...reste } = travail;
       void _e;
-      return { ...reste, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
+      // T-EXT-45b : un rendu tombé repart en série neuve (« Réessayer » le redemande vraiment) ; un rendu fini n'est jamais touché.
+      const repris = enEchec.has("montage") || enEchec.has("exports") ? avecEtat(reste as Travail, relancerRendusTombes(lireEtat(travail))) : reste;
+      return { ...repris, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
     },
     retoucher: async ({ commande, contexte, parent, operations }) => {
       const ctx = { ...contexte, type: "retouche" as const };

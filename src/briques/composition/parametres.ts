@@ -16,6 +16,7 @@ import { lireEntreeBandeau, poserBandeauNom } from "@/briques/sous-titres/bandea
 import { etiquettesAutonomes } from "@/briques/sous-titres/noms-outils";
 import { escalierPermis, etiquettesOutilPermises, pavePermis, sortieAnimeePermise } from "./porte-texte";
 import { SORTIE_PAR_DEFAUT } from "../sous-titres/sortie";
+import { fondFlouObjets } from "../motion/habillage-commun/fond-flou-objets";
 import { largeurLibrePct, positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
 import { tirerMarqueMot } from "../sous-titres/marques-mot";
 import { motsAPlaque } from "../sous-titres/pave";
@@ -155,6 +156,8 @@ export interface EntreeComposition {
   passagesClairs?: { debutSec: number; finSec: number; texte: string }[];
   /** Lot R2 (ajout pur, FACULTATIF, réglage éteint par défaut) : plan de scènes posé par-dessus l'image. Absent : paramètres identiques. */
   planScenes?: import("../plan-scenes/schema").PlanValide;
+  /** BR-DESSIN-FACECAM-b-v20a (20/11, ajout pur, éteint) : `true` = le plan de scènes se dessine SOUS les sous-titres (calque texte), pas dans l'image. */
+  planScenesSousTexte?: true;
 }
 
 /**
@@ -317,7 +320,9 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (e.sourcePreCadree) image.sourcePreCadree = true;
   if (e.source10bits) image.source10bits = true;
   if (cameras) image.cameras = cameras;
-  if (e.planScenes) image.planScenes = e.planScenes;
+  if (e.planScenes && e.planScenesSousTexte !== true) image.planScenes = e.planScenes;
+  // C10-04b : fond flouté sous le carton magazine, posé seulement s'il y a un carton (sinon, paramètres identiques).
+  { const f = fondFlouObjets(image.planScenes); if (f.length) image.fondFlouCartes = f; }
   // BR-TABLEAU-RACCORDS-b : fondus entre scènes, seulement si la commande porte `raccordsTableau === true` (jamais une chaîne).
   if ((c.entrees as Record<string, unknown> | undefined)?.raccordsTableau === true) { const r = raccordsStyleMontage(image.plans, "fondu"); if (r.length) image.raccords = r; }
 
@@ -411,7 +416,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   } catch { /* contrôle informatif : ne bloque jamais la composition */ }
   }
   const incrustations = recalerObjets(inc.incrustations, ratio, reseauxCalques, { geometrie: recette.incrustations, basSousTitres: calqueFinal ? (de, a) => basSousTitres(calqueFinal, de, a, fps) : undefined });
-  const texte: ProprietesTexteComposition = { ratio, largeur, hauteur, fps, images, encadre, incrustations, sousTitres };
+  const texte: ProprietesTexteComposition = { ratio, largeur, hauteur, fps, images, encadre, incrustations, sousTitres, ...(e.planScenes && e.planScenesSousTexte === true ? { planScenes: e.planScenes } : {}) };
   // G6 : la commande annonce l'union des zones des réseaux cochés ; la géométrie calculée doit la respecter.
   if (c.zonesProtegees && ratio === "9:16") {
     const calculee = zonesProtegeesUnion(reseaux, "9:16");
