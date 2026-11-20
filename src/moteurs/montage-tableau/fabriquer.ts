@@ -102,6 +102,7 @@ import type { AudioBrut } from "@/briques/voix-maitre/types";
 import { listerReseaux } from "@/reseaux";
 import type { IdReseau, MotHorodate, Ratio } from "@/domaine/types";
 import type { ContexteTableau } from "./regles";
+import { objetsDesScenes } from "./objets-tableau";
 import type { LeveeVariete, ResumeVisuel } from "@/briques/variete";
 import type { NouvelEvenementTrace } from "@/domaine/tracabilite-tableau";
 import { RECETTE_VOIX_TABLEAU, reglagesRecette } from "./recette-voix";
@@ -313,6 +314,7 @@ export interface OutilsFabrication {
   videoId: string;
   /** BR-TABLEAU-RACCORDS-b : `true` pose un fondu entre deux scènes dessinées voisines (≥ 0,6 s). Absent : coupe franche, rien ne change. */
   raccords?: true;
+  objetsPermis?: readonly string[]; // N-04e : pièces d'objets permises (aucun profil ne le permet encore) ; absent ou vide : scènes identiques
   /** Environnement des clés (`dev`, `prod`) : `studio/<env>/scenes/<videoId>/<empreinte>.mp4`. */
   env: string;
   /** Fiche brute (JSON lu). */
@@ -1216,6 +1218,8 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // « reference/3 » : les mots de la voix et les heures fines qu'on en lit (fin dite de chaque bloc, mots importants).
     const enPlusV2 = blocs2 ? { mots: audioS.mots, fps: FPS_BLOCS_2 } : estStyleReference3(calageS.fiche) ? { mots: audioS.mots, temps3: tempsReference3(calageS.fiche, audioS.mots, prononciations) } : estStyleReference2(calageS.fiche) ? { mots: audioS.mots } : {};
     const proprietes = [...o.preparation.proprietesScenes({ miseEnPage: mise, scenes: calageS.fiche.scenes, heures: calageS.elements as ElementCale[], stylo: calageS.fiche.stylo, preuves, ...enPlusV2 }), ...(fin ? [fin] : [])];
+    const objets = o.objetsPermis?.length ? objetsDesScenes({ proprietes: proprietes as unknown as readonly ProprietesTableauScene[], permis: o.objetsPermis, mots: audioS.mots.map((m) => ({ texte: m.mot, debutMs: Math.round(m.debutSec * 1000), finMs: Math.round(Math.max(m.finSec, m.debutSec) * 1000) })) }) : {};
+    if (Object.keys(objets).length) proprietes.splice(0, proprietes.length, ...proprietes.map((p) => (objets[p.scene.id]?.length ? { ...p, objets: objets[p.scene.id] } : p))); // N-04e
     // Voix propre au vertical de TikTok et Shorts : ses scènes communes sont celles du vertical (mêmes images) ; seule
     // la dernière diffère, et son fil de progression repart d'où il en était.
     const reference = autreVoix && imageVerticale ? proprietesFaites.get("vertical") : undefined;

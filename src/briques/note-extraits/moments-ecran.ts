@@ -69,6 +69,13 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-fleche-droite": "geste",
   "objet-fleche-courbe": "geste",
   "objet-fleche-pointillee": "geste",
+  // C9-34-CADRES-v20b (20/11/2026) : cadres et entourages = texte (voisin : entourage au feutre).
+  "objet-cadre-rectangle": "texte",
+  "objet-cadre-coins": "texte",
+  "objet-cadre-passage": "texte",
+  "objet-cercle": "texte",
+  "objet-ovale": "texte",
+  "objet-double-boucle": "texte",
 };
 
 const DUREE_MAX_SEC = 6;
