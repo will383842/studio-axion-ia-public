@@ -22,6 +22,7 @@ import type { AlerteQualite, CommandeFabrication, EtapeTravail, LigneCout, Ratio
 import { formatFacecamAnimee } from "@/formats/facecam-animee";
 import { ZERO } from "@/lib/montants";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, ResultatFabrication, SortieProduite } from "../types";
+import { alerteTailleMaster } from "./master-v4";
 import { projetMontageV4 } from "./projet-v4";
 import { segmentsSrtV4 } from "./sous-titres-srt";
 import type { ControleSousTitresV4, EtapeChaineV4, EtatChaineV4, OutilsChaineV4 } from "./chaine-v4";
@@ -301,6 +302,8 @@ export function resultatV4(etat: EtatChaineV4): ResultatFabrication {
   const dureePlan = etat.coupes?.dureeSec;
   const mesures: AlerteQualite[] = [
     ...(niveau !== undefined && Math.abs(niveau - NIVEAU_VISE_LUFS_V4) > 1 ? [{ code: "niveau-sonore" as const, gravite: "info" as const, message: `Niveau sonore mesuré : ${+niveau.toFixed(1)} LUFS (visé : ${NIVEAU_VISE_LUFS_V4}).` }] : []),
+    // G11-09d : rendu brut gardé trop lourd (au-delà de 0,4 Go) : Williams est prévenu. Absent (réglage éteint) : rien.
+    ...(r.tailleMaster !== undefined && alerteTailleMaster(r.tailleMaster) ? [alerteTailleMaster(r.tailleMaster)!] : []),
     ...(r.dureeMonteeSec !== undefined && dureePlan !== undefined && Math.abs(r.dureeMonteeSec - dureePlan) > 2 / 30 + 1e-9 ? [{ code: "duree" as const, gravite: "info" as const, message: `Durée montée ${+r.dureeMonteeSec.toFixed(2)} s, différente du plan (${+dureePlan.toFixed(2)} s).` }] : []),
   ];
   // Repli « sans vidéo » réussi : Will est prévenu que la mise en scène a été refaite sans vidéo d'illustration.

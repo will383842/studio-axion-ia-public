@@ -57,6 +57,8 @@ brancherServicesTutoriel({
     // T-EXT-31 : mixage, mesure du son et vignette. Réglage absent ou autre que `true` = éteint.
     const { lireParametre } = await import("./_commun");
     const finitions = (await lireParametre<boolean>("tutoriel.finitions", false)) === true;
+    // T-EXT-26a : fin commune (« Aucune » par défaut, « Prendre rendez-vous » si choisie). Seul `true` exact allume ; éteint, `fin` est absent.
+    const finCommune = (await lireParametre<boolean>("tutoriel.finCommune", false)) === true;
     // T-EXT-42 : devis et plafond par vidéo, en quantités, montrés avant toute dépense. Seul `true` exact allume ; éteint, `devis` est absent.
     const devis = (await lireParametre<boolean>("tutoriel.devisAvantDepense", false)) === true;
     const idee = "aEcrire" in scriptRetenu(c.script.texteComplet, lireEntreesTutoriel(c.entrees));
@@ -90,6 +92,7 @@ brancherServicesTutoriel({
         : {}),
       ...(finitions ? { finitions: { actif: true as const } } : {}),
       ...((await retouchePartielleActive()) ? { retouchePartielle: true } : {}),
+      ...(finCommune ? { fin: { actif: true } } : {}),
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       ...(voixReelle ? { voix: {
         ...voixReelle,
