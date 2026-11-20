@@ -226,6 +226,15 @@ export async function completerManque(args: { manque: string; contexte: Contexte
   const { manque, contexte, fournies, appeler } = args;
   if (!estManque(manque)) return aRevoir(manque, [`Manque « ${manque} » : non pris en charge ici.`]);
   if (fournies?.[PIECE_DU_MANQUE[manque]] !== undefined) return { statut: "fournie", manque };
+  // V2-05 : la demande (10 à 300 caractères après trim) et le numéro de proposition (1 ou 2) sont contrôlés AVANT l'appel payant :
+  // une demande trop longue ferait grossir l'entrée du rôle sans borne.
+  if (contexte.demande !== undefined) {
+    const longueur = contexte.demande.trim().length;
+    if (typeof contexte.demande !== "string" || longueur < 10 || longueur > 300) return aRevoir(manque, ["La demande doit faire de 10 à 300 caractères : aucune proposition."]);
+  }
+  if (contexte.proposition !== undefined && (contexte.proposition as number) !== 1 && (contexte.proposition as number) !== 2) {
+    return aRevoir(manque, ["Le numéro de proposition doit être 1 ou 2 : aucune proposition."]);
+  }
   let brut: unknown;
   try {
     brut = await appeler(entreeMaquettiste(manque, contexte));

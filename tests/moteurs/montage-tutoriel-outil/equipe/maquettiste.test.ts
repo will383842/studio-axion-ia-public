@@ -250,4 +250,27 @@ describe("V2-05 : entrée « demande » (une phrase, traitée comme une donnée)
     expect(r.statut).toBe("fournie");
     expect(journal.claude).toHaveLength(0);
   });
+
+  it("demande hors de 10 à 300 caractères, ou proposition 3 : « à revoir » sans aucun appel", async () => {
+    const cas: ContexteMaquettiste[] = [
+      { ...sansCarte, demande: "123456789" },
+      { ...sansCarte, demande: "x".repeat(301) },
+      { ...sansCarte, demande: "   court   " },
+      { ...sansCarte, demande: "x".repeat(100_000) },
+      { ...sansCarte, proposition: 3 as unknown as 1 },
+    ];
+    for (const c of cas) {
+      const journal = journalVide();
+      const r = await completerManque({ manque: "maquette", contexte: c, appeler: appelDouble(journal) });
+      expect(r.statut).toBe("a-revoir");
+      expect(journal.claude).toHaveLength(0);
+    }
+  });
+  it("bornes comprises : 10 et 300 caractères appellent le double (une seule fois)", async () => {
+    for (const d of ["x".repeat(10), "x".repeat(300)]) {
+      const journal = journalVide();
+      await completerManque({ manque: "maquette", contexte: { ...sansCarte, demande: d }, appeler: appelDouble(journal) });
+      expect(journal.claude).toHaveLength(1);
+    }
+  });
 });
