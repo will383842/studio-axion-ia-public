@@ -46,6 +46,8 @@ const REGISTRE: EntreeCodeFormat[] = [
   // Décision « lien suivi, version 2 » (12/11) : un seul code pour tous les visuels (ajout en fin de registre, rien renuméroté).
   { code: "VS", formatId: "visuel", creeLe: "2026-11-12" },
   { code: "VL", formatId: "video-longue", creeLe: "2026-11-18" },
+  // G4-09b (20/11) : « Tableau de bord » (masqué). « TB » est déjà celui de « Tableau animé » (jamais réattribué) : TDB est libre.
+  { code: "TDB", formatId: "tableau-de-bord", creeLe: "2026-11-20" },
 ];
 
 export const MOTIF_CODE_FORMAT = /^[A-Z]{2,3}$/;
