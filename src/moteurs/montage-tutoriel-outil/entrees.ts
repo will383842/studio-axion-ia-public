@@ -5,6 +5,7 @@
  *    (`scriptValide`), comme Image → vidéo (lot F). Cette pause n'est ni un échec ni un prix.
  * Lecture tolérante : un champ mal formé est ignoré, jamais une erreur.
  */
+import { lireModeVoix, MODE_SANS_VOIX } from "../../formats/tutoriel-outil/mode-sans-voix";
 import { lireNavigationFilmee, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 import type { IdGabarit } from "./sortie-usine";
 
@@ -34,6 +35,8 @@ export interface EntreesTutoriel {
   gabarit?: IdGabarit;
   /** T-EXT-26a : fin choisie dans le formulaire (« prendre-rendez-vous », valeur déjà lue par l'équipe, est lue comme « rendez-vous »). Toute autre valeur est ignorée : jamais une phrase inventée. */
   fin?: "aucune" | "rendez-vous";
+  /** T-EXT-SV : `true` = mode « sans voix » choisi par l'utilisateur (silence total, 0 appel HeyGen, 0 €). Absent = avec voix (défaut). */
+  sansVoix?: true;
 }
 
 const gabaritConnu = (v: unknown): IdGabarit | undefined => GABARITS_CONNUS.find((g) => g === v);
@@ -52,6 +55,9 @@ function lireDepot(v: unknown): DepotTutoriel | undefined {
   return undefined;
 }
 
+/** Le mode sans voix est-il choisi pour cette commande ? */
+export const estSansVoix = (entrees: Record<string, unknown> | undefined): boolean => lireModeVoix(entrees?.[ENTREE_TUTORIEL]) === MODE_SANS_VOIX;
+
 const texte = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
 export function lireEntreesTutoriel(entrees: Record<string, unknown> | undefined): EntreesTutoriel {
@@ -63,5 +69,5 @@ export function lireEntreesTutoriel(entrees: Record<string, unknown> | undefined
   const film = o.navigationFilmee === undefined ? null : lireNavigationFilmee(o.navigationFilmee);
   const depot = lireDepot(o.depot);
   const gabarit = gabaritConnu(o.gabarit);
-  return { ...(depot ? { depot } : {}), ...(gabarit ? { gabarit } : {}), ...(idee ? { idee } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}), ...(o.fin === "aucune" ? { fin: "aucune" as const } : o.fin === "rendez-vous" || o.fin === "prendre-rendez-vous" ? { fin: "rendez-vous" as const } : {}) };
+  return { ...(depot ? { depot } : {}), ...(gabarit ? { gabarit } : {}), ...(idee ? { idee } : {}), ...(lireModeVoix(o) === MODE_SANS_VOIX ? { sansVoix: true as const } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}), ...(o.fin === "aucune" ? { fin: "aucune" as const } : o.fin === "rendez-vous" || o.fin === "prendre-rendez-vous" ? { fin: "rendez-vous" as const } : {}) };
 }

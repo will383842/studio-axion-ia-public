@@ -39,17 +39,17 @@ import { instantsTutoriel, textesPermisDuRegistre, verdictRegardTutoriel } from 
 import type { VerdictControleur } from "./equipe/controleur";
 import type { RegistreTextes } from "./equipe/registre-textes";
 import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
-import { ENTREE_TUTORIEL, lireEntreesTutoriel } from "./entrees";
+import { estSansVoix, ENTREE_TUTORIEL, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { finDuTutoriel, type FinDuTutoriel } from "./fin";
-import { COMPOSITION_TUTORIEL, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
+import { COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, CARTE_FIN_AXION, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
 import { controlerApresCalage } from "./equipe/controleur";
 import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
 import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
-import { dejaPaye, payerUneFois } from "./reprise";
+import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
 
 export const ETAPES_TUTORIEL = ["script", "voix", "calage", "plan", "montage", "exports"] as const;
 export type CleEtapeTutoriel = (typeof ETAPES_TUTORIEL)[number];
@@ -164,6 +164,12 @@ export interface RenduTutoriel {
   demande: DemandeRendu;
   essai: number;
   sortie?: { fichierCle: string; dureeSec: number; taille: number };
+  /** T-EXT-45b : série de « Réessayer » (absente = jamais relancé). Elle entre dans l'identifiant de la demande : jamais un identifiant déjà vu par `studio-rendu`. */
+  serie?: number;
+  /** T-EXT-45b : « Réessayer » a remis ce rendu tombé à zéro ; le prochain pas le redemande. */
+  aSoumettre?: true;
+  /** T-EXT-45b : la demande est déjà inscrite dans l'état mais pas encore soumise ; le pas suivant la soumet SOUS CE MÊME identifiant (idempotent chez `studio-rendu`). */
+  aEnvoyer?: true;
   /** T-EXT-31 : son mesuré du mp4 rendu. */
   mesure?: FinitionTutoriel<MesureSon>;
   /** T-EXT-31 : vignette produite (clé du .jpg). */
@@ -210,6 +216,8 @@ export interface EtatTutoriel {
   regard?: { instants: number; relues: number; verdict: VerdictRegard };
   /** T-EXT-27b : grille de qualité chiffrée, seulement quand le verdict du contrôleur et celui du contrôle de l'image sont dans l'état. */
   grille?: GrilleTutoriel;
+  /** T-EXT-45b : appels payants déjà revenus (étape + empreinte de l'entrée) : une reprise ne les repaie pas. Résultats seulement. */
+  payes?: RegistrePaye;
 }
 
 /** Enveloppe d'un appel Claude : ne compte que les appels revenus sans lever. */
@@ -225,6 +233,9 @@ const avecAppels = (etat: EtatTutoriel, cle: "plan" | "regard", n: number): Etat
 
 /** T-EXT-55 : un appel de rôle REVENU (un appel repris par `payerUneFois` n'est pas recompté). */
 const avecAppelRole = (etat: EtatTutoriel, role: IdRole): EtatTutoriel => ({ ...etat, appelsClaude: { plan: 0, ...etat.appelsClaude, roles: { ...etat.appelsClaude?.roles, [role]: (etat.appelsClaude?.roles?.[role] ?? 0) + 1 } } });
+
+/** T-EXT-45b : le registre ne garde que ce qui a été payé ET utilisable (appel revenu, résultat rendu) ; le reste reste refaisable. `faitLe` = date de la commande (l'état reste déterministe). */
+const avecPayes = (etat: EtatTutoriel, registre: RegistrePaye, paye: boolean): EtatTutoriel => (paye ? { ...etat, payes: registre } : etat);
 
 /** Ordre des formats : 4:5 d'abord, puis les autres formats demandés, dans leur ordre. */
 export function ratiosTutoriel(ratios: readonly Ratio[]): Ratio[] {
@@ -415,10 +426,12 @@ export function outilsVoixMaitre(o: OutilsVoixTutoriel, commande: CommandeFabric
 async function pasVoix(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
   if (etat.audio) return { statut: "faite", etat };
   const texte = etat.script!.texte;
-  if (!outils.voix || !commande.distribution.length) {
+  // T-EXT-SV : mode « sans voix » choisi = silence total, rythme = vitesse de lecture du texte, 0 appel de voix, 0 €, aucune réserve.
+  const sansVoix = estSansVoix(commande.entrees);
+  if (sansVoix || !outils.voix || !commande.distribution.length) {
     const mots = horodaterTexte(texte, MOTS_PAR_SECONDE);
     const audio: AudioTutoriel = { dureeSec: mots.at(-1)?.finSec ?? 1, mots, empreinte: "sans-voix", reutilise: false, coutCentimes: 0, caracteres: 0, fournisseur: "aucune" };
-    const reserves = commande.distribution.length ? [...etat.reserves, "À vérifier · Voix : aucune voix n'est reliée, la vidéo sort muette."] : etat.reserves;
+    const reserves = !sansVoix && commande.distribution.length ? [...etat.reserves, "À vérifier · Voix : aucune voix n'est reliée, la vidéo sort muette."] : etat.reserves;
     return { statut: "faite", etat: { ...etat, audio, reserves } };
   }
   // Seule la voix HeyGen épinglée parle : refus clair avant tout appel (aucune dépense).
@@ -504,14 +517,14 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
     const nu = planNu({ mots, format, facecam: false, dureeMs: mots.at(-1)?.finMs ?? 0 });
     return { statut: "faite", etat: { ...etat, plan: { plan: nu, remarques: [], source: "repli", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };
   }
-  const suite = await pasPlanClassique(etat, outils, { texte, mots, format, empreinteEntree });
+  const suite = await pasPlanClassique(etat, outils, { texte, mots, format, empreinteEntree, faitLe: commande.construiteLe });
   if (cran !== "sobre" || !suite.etat.plan) return suite;
   const plan = suite.etat.plan;
   const niveau1 = planNiveau1(plan.plan);
   return { ...suite, etat: { ...suite.etat, plan: { ...plan, plan: niveau1, scenesTouchees: plan.scenesTouchees.filter((id) => niveau1.scenes.some((s) => s.id === id)) } } };
 }
 
-async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: { texte: string; mots: MotMinute[]; format: ReturnType<typeof formatDuRatio>; empreinteEntree: string }): Promise<PasTutoriel> {
+async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: { texte: string; mots: MotMinute[]; format: ReturnType<typeof formatDuRatio>; empreinteEntree: string; faitLe: string }): Promise<PasTutoriel> {
   const { texte, mots, format, empreinteEntree } = e;
   const parent = etat.parent?.plan;
   // Retouche sans changement de texte ni de minutage : le plan d'avant, tel quel, sans appel.
@@ -519,8 +532,9 @@ async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: {
     return { statut: "faite", etat: { ...etat, plan: { plan: parent, remarques: [], source: "repris", empreinteEntree, scenesTouchees: [] } } };
   }
   const n = { v: 0 };
-  const r = await genererPlan({ script: texte, mots, format, facecam: false }, compterAppels(outils.claude, n));
-  etat = avecAppels(etat, "plan", n.v);
+  const payee = await payerUneFois(etat.payes, "plan", empreinteEntree, () => genererPlan({ script: texte, mots, format, facecam: false }, compterAppels(outils.claude, n)), e.faitLe);
+  const r = payee.resultat;
+  etat = avecAppels(avecPayes(etat, payee.registre, n.v > 0), "plan", n.v);
   const plan = parent ? fusionnerAvecParent(r.plan, parent) : r.plan;
   const scenesTouchees = parent ? scenesARerendre(parent, plan) : plan.scenes.map((s) => s.id);
   const reserves = r.source === "repli" ? [...etat.reserves, `À vérifier · Plan de scènes : ${r.remarques[0]?.message ?? "plan simple."}`] : etat.reserves;
@@ -555,7 +569,7 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
 
 const nomRatio = (r: Ratio) => r.replace(":", "x");
 
-async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<DemandeRendu> {
+async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string, serie?: number): Promise<DemandeRendu> {
   const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}.mp4`);
   // Voix mixée (T-EXT-31) quand elle existe, sinon la voix brute, comme avant.
   const voix = etat.sonMixe?.fini && !etat.sonMixe.echec ? etat.sonMixe.fichierCle : etat.audio?.fichierCle;
@@ -564,7 +578,7 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
   const lectures: Record<string, string> = { ...(voix ? { audio: voix } : {}), ...(nav ? { filmNavigation: nav.videoCle } : {}) };
   const signe = await outils.rendu.signer(lectures, { cle, mime: "video/mp4" });
   return {
-    idRendu: `${travailId}-${nomRatio(ratio)}-${essai}`,
+    idRendu: serie ? `${travailId}-${nomRatio(ratio)}-r${serie}-${essai}` : `${travailId}-${nomRatio(ratio)}-${essai}`,
     operation: "composition",
     file: "longue",
     entrees: signe.lectures,
@@ -586,18 +600,38 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai: 0 });
   }
   if (courant.sortie) return etat;
-  const e = await suivreRendu(service, courant.demande!);
+  // T-EXT-45b : une demande inscrite mais pas encore soumise est soumise telle quelle (même identifiant), AVANT tout calcul de série neuve.
+  // Si `soumettre` lève après acceptation (réponse perdue), l'état gardé porte cette demande : le « Réessayer » suivant la ressoumet sous le même identifiant.
+  if (courant.aEnvoyer) {
+    await service.soumettre(courant.demande);
+    const { aEnvoyer: _e, aSoumettre: _s, ...envoye } = courant;
+    void _e;
+    void _s;
+    return remplacer(envoye);
+  }
+  const serie = courant.serie ? { serie: courant.serie } : {};
+  // T-EXT-45b : « Réessayer » a pu remettre à zéro un rendu qui tourne encore (ou est déjà fini) chez `studio-rendu` : on suit TOUJOURS
+  // l'ancienne demande avant d'en soumettre une neuve. Une demande neuve (identifiant neuf) n'est soumise que si l'ancienne est en échec.
+  const e = courant.demande ? await suivreRendu(service, courant.demande) : undefined;
+  if (courant.aSoumettre && (!e || e.statut === "echec")) {
+    // La demande neuve est inscrite dans l'état AVANT d'être payée ; le pas suivant la soumet (verdict Opus c23c27a4).
+    const demande = await demandeRendu(etat, ratio, courant.essai, commande, outils, travailId, courant.serie);
+    return remplacer({ ratio, demande, essai: courant.essai, ...serie, aEnvoyer: true });
+  }
+  if (!e) return etat;
   if (e.statut === "echec") {
     const essai = courant.essai + 1;
     if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) throw new ErreurRendu(e.erreur);
-    const demande = await demandeRendu(etat, ratio, essai, commande, outils, travailId);
-    await service.soumettre(demande);
-    return remplacer({ ratio, demande, essai });
+    const demande = await demandeRendu(etat, ratio, essai, commande, outils, travailId, courant.serie);
+    return remplacer({ ratio, demande, essai, ...serie, aEnvoyer: true });
   }
-  if (e.statut !== "termine") return etat;
+  // L'ancienne demande est en file, en cours ou finie : on la garde (plus de « à soumettre »), rien n'est payé deux fois.
+  const { aSoumettre: _a, ...suivi } = courant;
+  void _a;
+  if (e.statut !== "termine") return courant.aSoumettre ? remplacer(suivi) : etat;
   const dureeAttendue = (etat.plan!.plan.dureeMs + finRetenue(etat, commande, outils).finMs) / 1000;
   const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : dureeAttendue;
-  return remplacer({ ...courant, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
+  return remplacer({ ...suivi, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
 }
 
 type SuiteFinition<R> = { f: FinitionTutoriel<R>; fini: boolean };
@@ -727,7 +761,15 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
   };
   for (const ratio of ratios) {
     if (faitRatio(ratio)) continue;
-    e = e.rendus.find((r) => r.ratio === ratio)?.sortie ? await pasFinitions(e, ratio, outils, travailId) : await pasRendu(e, ratio, commande, outils, travailId);
+    if (e.rendus.find((r) => r.ratio === ratio)?.sortie) {
+      e = await pasFinitions(e, ratio, outils, travailId);
+      continue;
+    }
+    const avant = e.rendus.find((r) => r.ratio === ratio)?.demande;
+    e = await pasRendu(e, ratio, commande, outils, travailId);
+    // T-EXT-45b : un pas qui paie rend son état dès que le résultat payé est là. Une demande neuve vient d'être soumise : si un format
+    // plus loin levait dans ce même pas, `avancer` jetterait l'état et la série suivante repayerait ce format sous un autre identifiant.
+    if (e.rendus.find((r) => r.ratio === ratio)?.demande !== avant) return { statut: "en-cours", etat: e };
   }
   return { statut: ratios.every(faitRatio) ? "faite" : "en-cours", etat: e };
 }

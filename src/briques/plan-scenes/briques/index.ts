@@ -16,6 +16,7 @@ import { ListeCrm } from "./ListeCrm";
 import { AvantApres, Barres, Citation, Compteur, Etapes, Jauge, ListeAuMot, Repere } from "./PiecesDonnees";
 import { TableauDeBord } from "./TableauDeBord";
 import { RENDUS_OBJETS } from "./objets-inscrits";
+import { CadreCapture, FluxRamifie, IntercalaireChapitre } from "./PiecesLongues";
 import { ZoomCamera, transformZoom } from "./ZoomCamera";
 
 export type RenduBrique = ComponentType<ProprietesBrique<never> & { enfants?: ReactNode }>;
@@ -40,6 +41,10 @@ export const RENDUS_BRIQUES: Record<IdPiece, RenduBrique> = {
   citation: Citation as RenduBrique,
   repere: Repere as RenduBrique,
   ...RENDUS_OBJETS,
+  // VL-10 : pièces 16:9 de la vidéo longue (porte fermée : PIECES_GARDEES)
+  "intercalaire-chapitre": IntercalaireChapitre as RenduBrique,
+  "flux-ramifie": FluxRamifie as RenduBrique,
+  "cadre-capture": CadreCapture as RenduBrique,
 };
 
 export { transformZoom };

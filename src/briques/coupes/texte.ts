@@ -19,7 +19,7 @@ export function estHesitation(mot: string): boolean {
 
 /** Mot coupé en son milieu par Whisper (« impor- », « ré… ») : faux départ. */
 export function estMotInacheve(mot: string): boolean {
-  return /[-‐–—]$/.test(mot.trim()) || /\w(…|\.\.\.)$/.test(mot.trim());
+  return /[-‐–—]$/.test(mot.trim()) || /[\p{L}\p{N}](…|\.\.\.)$/u.test(mot.trim());
 }
 
 /** Fin de phrase : point, point d'exclamation ou d'interrogation, points de suspension. */

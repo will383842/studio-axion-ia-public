@@ -18,21 +18,23 @@ import { equipeTutorielActive, portsEquipe } from "./tutoriel-equipe";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
-import { lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
+import { estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
 
 brancherServicesTutoriel({
   outils: async (c, travailId): Promise<OutilsTutoriel | null> => {
+    // T-EXT-SV : mode sans voix = ni personnage ni voix ; seuls le rendu et le stockage sont reliés (0 appel HeyGen, 0 €).
+    const sansVoix = estSansVoix(c.entrees);
     const personnageId = c.distribution[0]?.personnageId;
-    if (!personnageId) return null;
+    if (!personnageId && !sansVoix) return null;
     const { branchementsReels, TARIF_VOIX_CENTIMES_PAR_CARACTERE } = await import("./tableau-outils");
     const { verifierEtReserverSelonOrigine } = await import("./credits");
     const { centimes } = await import("@/lib/montants");
     const { ErreurClaude } = await import("@/fournisseurs/claude/client");
-    let b: Awaited<ReturnType<typeof branchementsReels>>;
+    let b: Pick<Awaited<ReturnType<typeof branchementsReels>>, "env" | "montage"> & { voix?: Awaited<ReturnType<typeof branchementsReels>>["voix"] };
     try {
-      b = await branchementsReels(personnageId, c.videoId);
+      b = sansVoix ? await (await import("./tableau-outils")).branchementsReelsSansVoix(c.videoId) : await branchementsReels(personnageId!, c.videoId);
     } catch {
       // Rendu, stockage ou voix pas reliés : pause claire (le moteur le dit), rien n'est dépensé.
       return null;
@@ -59,6 +61,7 @@ brancherServicesTutoriel({
     const regarder = (await regardTutorielActif()) ? creerRegardTutoriel({ videoId: c.videoId, origine: c.origine, rendu }) : undefined;
     // T-EXT-55 : l'équipe de rôles. Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
     const equipe = (await equipeTutorielActive()) ? portsEquipe(c, c.videoId) : undefined;
+    const voixReelle = sansVoix ? undefined : b.voix;
     return {
       ...(devis
         ? {
@@ -77,14 +80,14 @@ brancherServicesTutoriel({
       ...(finitions ? { finitions: { actif: true as const } } : {}),
       ...(finCommune ? { fin: { actif: true } } : {}),
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
-      voix: {
-        ...b.voix,
+      ...(voixReelle ? { voix: {
+        ...voixReelle,
         avantLecture: async () => {
           const caracteres = (c.script.texteComplet ?? "").length;
           const total = centimes(Math.ceil(caracteres * TARIF_VOIX_CENTIMES_PAR_CARACTERE));
-          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: b.voix.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId, ...cleDepenseUsine(c.origine, travailId) });
+          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: voixReelle.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId, ...cleDepenseUsine(c.origine, travailId) });
         },
-      },
+      } } : {}),
       claude: (await claudeTutorielActif())
         ? appelClaudeTutoriel(c.videoId, c.origine)
         : async () => {

@@ -79,11 +79,21 @@ describe("(c) mémo", () => {
   });
 });
 
-describe("(d) les appelants ne passent rien", () => {
-  it.each(["src/moteurs/montage-facecam/chaine.ts", "src/moteurs/montage-facecam-animee/chaine-v4.ts"])("%s : aucun appel planPourVideo( ne contient objetsPermis", (f) => {
+// FIX-GARDE-OBJETS-PERMIS-v20f (20/11) : l'ancienne attente « aucune chaîne ne passe objetsPermis » datait d'avant
+// C9-37-b (#1410) et C9-37-c (#1397), qui branchent la liste (vide par défaut). Remplacée par une attente au moins
+// aussi stricte : chaque appel passe `objetsPermis`, et la valeur vient de la source réelle (jamais une liste en dur).
+describe("(d) les appelants passent la liste venue de leur port, vide par défaut", () => {
+  it.each([
+    ["src/moteurs/montage-facecam/chaine.ts", "piecesPermisesDesEntrees(c.entrees)"],
+    ["src/moteurs/montage-facecam-animee/chaine-v4.ts", "outils.planScenes.objetsPermis"],
+  ])("%s : chaque appel planPourVideo( contient objetsPermis tiré de %s", (f, source) => {
     const texte = lire(f);
     const appels = texte.split("\n").filter((l) => l.includes("planPourVideo({"));
     expect(appels.length).toBeGreaterThan(0);
-    for (const l of appels) expect(l).not.toContain("objetsPermis");
+    for (const l of appels) {
+      expect(l).toContain("objetsPermis");
+      expect(l).toContain(source);
+      expect(l).not.toMatch(/objetsPermis\s*:\s*\[/); // pas de liste écrite en dur
+    }
   });
 });

@@ -842,13 +842,13 @@ async function envoyerVersBufferInterne(
 
 /**
  * Premier commentaire d'un réseau : celui de l'écran ; celui que la vidéo porte déjà n'est lu que si l'appelant le demande
- * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram, Facebook et
- * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
+ * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Instagram, Facebook et
+ * LinkedIn le reçoivent par Buffer ou Zernio ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
  */
 async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean, outil: OutilPublication = "buffer"): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  // Zernio : seuls Facebook et LinkedIn le reçoivent (zernio-corps.ts) ; Instagram, TikTok, YouTube : à la main, aucun firstComment.
+  // Zernio : Instagram (prouvé le 20/11), Facebook et LinkedIn le reçoivent (zernio-corps.ts, « à confirmer ») ; TikTok et YouTube : à la main, aucun firstComment.
   if (outil === "zernio" ? premierCommentaireTransmissibleZernio(reseau) : premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
   // Posé à la main : le texte est tout de même montré et recopié, il passe donc le même filtre, avant tout envoi.
   try {
