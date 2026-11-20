@@ -95,18 +95,17 @@ export function ipNonPublique(ip: string): boolean {
   }
   if (v === 6) {
     const x = ip.toLowerCase().replace(/^\[|\]$/g, "");
-    const transposee = /^(?:0*:)*:?ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(x) ?? /^::(\d+\.\d+\.\d+\.\d+)$/.exec(x);
-    if (transposee) return ipNonPublique(transposee[1]);
-    if (/^::ffff:[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(x)) return true; // IPv4 transposée écrite en hexadécimal : refusée.
-    if (x === "::" || x === "::1") return true;
+    // Tout se juge sur les 8 groupes de 16 bits (jamais sur le texte) : forme longue, hexadécimale, pointée ou zéros de tête, c'est la même adresse.
     const g = groupesIpv6(x);
     if (!g) return true;
-    if (g.slice(0, 6).every((n) => n === 0)) return true; // ::a.b.c.d (IPv4 « compatible », abandonnée) : refusée.
-    if (g[0] === 0x64 && g[1] === 0xff9b) return true; // 64:ff9b::/96 (NAT64) : refusée, elle traduit vers de l'IPv4 interne.
+    const v4 = (h: number, b: number) => `${h >> 8}.${h & 255}.${b >> 8}.${b & 255}`;
+    if (g.slice(0, 5).every((n) => n === 0) && g[5] === 0xffff) return ipNonPublique(v4(g[6], g[7])); // ::ffff:a.b.c.d (IPv4 transposée)
+    if (g.slice(0, 4).every((n) => n === 0) && g[4] === 0xffff && g[5] === 0) return ipNonPublique(v4(g[6], g[7])); // ::ffff:0:a.b.c.d (IPv4 traduite, RFC 2765)
+    if (g.slice(0, 6).every((n) => n === 0)) return true; // :: , ::1 et ::a.b.c.d (IPv4 « compatible », abandonnée) : refusées.
+    if (g[0] === 0x64 && g[1] === 0xff9b) return true; // 64:ff9b::/32 (NAT64, dont 64:ff9b:1::/48) : traduit vers de l'IPv4 interne.
     if (g[0] === 0x2002) return true; // 2002::/16 (6to4) : l'IPv4 y est encodée, refusée.
-    const premier = parseInt(x.split(":")[0] || "0", 16);
     // fc00::/7 (privées), fe80::/10 (lien local), ff00::/8 (multidiffusion), 2001:db8::/32 (documentation).
-    return (premier & 0xfe00) === 0xfc00 || (premier & 0xffc0) === 0xfe80 || (premier & 0xff00) === 0xff00 || x.startsWith("2001:db8:");
+    return (g[0] & 0xfe00) === 0xfc00 || (g[0] & 0xffc0) === 0xfe80 || (g[0] & 0xff00) === 0xff00 || (g[0] === 0x2001 && g[1] === 0x0db8);
   }
   return true;
 }
