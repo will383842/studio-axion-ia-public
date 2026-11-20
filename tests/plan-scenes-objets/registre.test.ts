@@ -61,6 +61,8 @@ describe("registre des petits objets (C9-27b)", () => {
       "objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle",
       // C9-34-ETIQUETTES-v20f
       "objet-pastille-icone", "objet-etiquette-icone", "objet-badge", "objet-tampon", "objet-bulle-parole", "objet-bulle-pensee", "objet-bulle-notification", "objet-post-it",
+      // C9-34-SCHEMAS-v20g
+      "objet-schema-flux", "objet-schema-etoile", "objet-icones-reliees", "objet-agents-globe", "objet-grille-pointillee", "objet-vignettes-numerotees", "objet-fenetre-app", "objet-terminal-commande",
     ];
     for (const id of idsObjets()) expect(pieces.has(id), id).toBe(inscritsAuPlan.includes(id));
   });
