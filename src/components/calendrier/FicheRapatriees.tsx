@@ -29,7 +29,7 @@ function useFiche(entrees: readonly EntreeApercu[]) {
 
 /** Vue du jour : liens des publications du Studio inchangés ; les reprises s'ouvrent dans la fiche. */
 export function VueJourAvecFiche({ jour, aujourdhui, entrees, reseaux, liens }: { jour: string; aujourdhui: string; entrees: readonly EntreeApercu[]; reseaux?: readonly IdReseau[]; liens: Readonly<Record<string, string | null | undefined>> }) {
-  const { ouvrir, fiche } = useFiche(entrees);
+  const { ouvrir, fiche } = useFiche(entrees.filter((e) => e.chezDiffuseur));
   return (
     <>
       <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseaux} lienEntree={(e) => liens[e.cle] ?? null} onOuvrirRapatriee={ouvrir} />

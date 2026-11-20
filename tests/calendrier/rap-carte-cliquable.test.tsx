@@ -90,6 +90,20 @@ describe("RAP · carte rapatriée cliquable", () => {
     verifierFiche(ouverte[0].props.entree as Entree);
   });
 
+  it("vue jour : les flèches de la fiche d'une reprise ne parcourent que les reprises", () => {
+    const studio: Entree = { cle: "creneau:c1|linkedin", jour: "2026-11-25", reseau: "linkedin", type: "video", etat: "a_valider", heure: "09:00", titre: "T", texte: "t" };
+    const autre = { ...rapatriee, cle: `${rapatriee.cle}-bis`, heure: "10:30" } as Entree;
+    const m = monter(VueJourAvecFiche, { jour: "2026-11-25", aujourdhui: AUJOURDHUI, entrees: [studio, rapatriee, autre], liens: {} });
+    const vue = trouver(m.rendre(), (e) => e.type === VueJour)[0];
+    (vue.props.onOuvrirRapatriee as (e: Entree) => void)(rapatriee);
+    const cle = () => (trouver(m.rendre(), (e) => e.type === ApercuPublication)[0].props.entree as Entree).cle;
+    const props = () => trouver(m.rendre(), (e) => e.type === ApercuPublication)[0].props;
+    for (const sens of ["onSuivante", "onPrecedente", "onSuivante", "onSuivante"]) {
+      (props()[sens] as () => void)();
+      expect(cle()).not.toBe(studio.cle);
+    }
+  });
+
   it("aucune reprise : rien n'est ajouté sous le mois", () => {
     expect(monter(RapatrieesDuMois, { aujourdhui: AUJOURDHUI, entrees: [] }).rendre()).toBeNull();
   });
