@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BandeauEcartDiffuseur, etatBandeauEcart } from "@/components/calendrier/BandeauEcartDiffuseur";
 
 vi.mock("@/app/(studio)/calendrier/actions/relire-diffuseur", () => ({ relireDiffuseurAction: vi.fn() }));
+vi.mock("@/app/(studio)/calendrier/actions/retirer-introuvables", () => ({ retirerIntrouvablesAction: vi.fn() }));
 const NOW = Date.parse("2026-11-20T10:30:00.000Z");
 const ecart = (o: object) => ({ luLe: "2026-11-20T10:20:00.000Z", verifie: true, chezDiffuseur: 77, absents: 0, exemples: [], ...o });
 const html = (e: unknown) => renderToStaticMarkup(<BandeauEcartDiffuseur ecart={e as never} maintenant={NOW} />).replace(/&#x27;/g, "'");
@@ -31,4 +32,23 @@ describe("RAP-3 · bandeau d'écart", () => {
   it("jamais de nom de l'ancien outil, ni de texte de post", () => {
     expect(html(ecart({ absents: 2, exemples: [{ postId6: "abc123", reseau: "instagram", jourParis: "2026-11-25", raison: "absent" }] }))).not.toMatch(/buffer/i);
   });
+});
+
+describe("RAP-3 finitions · rapatriées introuvables", () => {
+  it("phrase comptée (pluriel / singulier) et bouton « Retirer du calendrier les N introuvables »", () => {
+    const h = html(ecart({ introuvables: 77 }));
+    expect(h).toContain("77 publications du calendrier introuvables chez le diffuseur");
+    expect(h).toContain("Retirer du calendrier les 77 introuvables");
+    expect(h).toContain("Relire le diffuseur");
+    expect(html(ecart({ introuvables: 1 }))).toContain("1 publication du calendrier introuvable chez le diffuseur");
+    expect(html(ecart({ introuvables: 1 }))).toContain("Retirer du calendrier l'introuvable");
+  });
+  it("cumulé avec l'écart dans l'autre sens ; visible même si l'écart est non vérifié", () => {
+    const h = html(ecart({ absents: 3, introuvables: 2 }));
+    expect(h).toContain("3 publications du diffuseur ne sont pas encore au calendrier");
+    expect(h).toContain("2 publications du calendrier introuvables chez le diffuseur");
+    expect(html(ecart({ verifie: false, introuvables: 2 }))).toContain("2 publications du calendrier introuvables");
+    expect(etatBandeauEcart(ecart({ introuvables: 2 }) as never, NOW)).not.toBe("aucun");
+  });
+  it("0 introuvable : pas de bouton de retrait", () => expect(html(ecart({ absents: 3, introuvables: 0 }))).not.toContain("introuvable"));
 });

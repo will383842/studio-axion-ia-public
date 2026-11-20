@@ -25,3 +25,20 @@ export async function retirerRapatrieeDuCalendrier(d: DepsRetraitRapatriee, id: 
   await d.ecrire(id, { retireeLe: maintenant, modifieLe: maintenant });
   return { ok: true, message: MESSAGE_RETRAIT_LOCAL };
 }
+
+/** RAP-3 finitions · rapatriée INTROUVABLE chez le diffuseur : « à vérifier », encore au calendrier, ni retirée ni publiée. */
+export const estRapatrieeIntrouvable = (p: Publication): boolean => estRapatriee(p) && !p.retireeLe && p.etatEnvoi === "a-verifier" && p.statut !== "publiee";
+
+export interface DepsRetraitIntrouvables {
+  lister(): Promise<Publication[]>;
+  ecrire(id: string, modif: Partial<Publication>): Promise<void>;
+  maintenant(): string;
+}
+
+/** Geste LOCAL groupé : pose `retireeLe` sur les seules rapatriées introuvables. N'efface rien, ne demande rien au diffuseur. */
+export async function retirerLesRapatrieesIntrouvables(d: DepsRetraitIntrouvables): Promise<{ retirees: number }> {
+  const cibles = (await d.lister()).filter(estRapatrieeIntrouvable);
+  const m = d.maintenant();
+  for (const p of cibles) await d.ecrire(p.id, { retireeLe: m, modifieLe: m });
+  return { retirees: cibles.length };
+}
