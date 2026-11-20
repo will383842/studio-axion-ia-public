@@ -9,6 +9,7 @@ import { DEBIT_MOTS_PAR_SEC } from "@/domaine/image-video/complexite";
 import { exigerVoixMaitre } from "@/briques/voix-maitre/voix-epinglee";
 import { estimerImageVideo, lireEntreesImageVideo, demandeDeLaCommande, plafondProposeIV } from "@/moteurs/montage-image-video";
 import { attendWillIV, avancerJusquAArretIV, etatInitialIV, validerCarteIV, validerScriptIV, type EtatFabricationIV, type OutilsFabricationIV } from "@/moteurs/montage-image-video/fabrication";
+import { empreinteSon } from "@/moteurs/montage-image-video/assemblage";
 import { wavSilenceIV } from "@/moteurs/montage-image-video/sans-voix";
 import { carteFixe, demandeEssai, monde, outilsSimules } from "./doubles-fabrication";
 
@@ -98,6 +99,38 @@ describe("IV-SV · fabrication simulée sans voix", () => {
     expect(e.controles?.verdict?.ok).toBe(true);
     expect(e.livraison?.some((l) => l.version !== "aucune" && l.fichierCle)).toBe(true);
     expect(e.journal.join(" ")).toMatch(/sans voix/i);
+  });
+
+  it("piste de silence LISIBLE (comme en production) : aucune transcription ni écoute payante, aucun appel réseau (garde de porte.ts)", async () => {
+    const reseau = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      throw new Error("appel réseau interdit dans ce test");
+    });
+    try {
+      const carte = carteFixe("A");
+      const m = monde();
+      const o: OutilsFabricationIV = {
+        ...outilsSimules(carte, m),
+        // Comme `src/services/image-video.ts` : un vrai WAV de silence est rangé dans le stockage, la lecture du son réussit.
+        pisteMuette: async (d) => {
+          const octets = wavSilenceIV(d.dureeSec);
+          const cle = `voix-seule/sans-voix-${d.version}-${Math.round(d.dureeSec * 1000)}.wav`;
+          m.sons.set(cle, octets);
+          return { cle, empreinte: empreinteSon(octets) };
+        },
+      };
+      const e = await jusquAuBout(etatInitialIV(demandeEssai(carte, { sansVoix: true })), o);
+      expect(e.refus).toBeUndefined();
+      expect(e.etape).toBe("prete");
+      // La piste existe bel et bien : sans la garde de la porte, l'écoute la lirait et paierait une transcription.
+      expect([...m.sons.keys()].some((c) => c.startsWith("voix-seule/sans-voix-"))).toBe(true);
+      expect(m.transcriptions.length).toBe(0);
+      expect(m.ordre).not.toContain("transcription");
+      expect(m.ordre).not.toContain("heygen");
+      expect(e.caisse.reservations.some((r) => r.etape === "ecoute" || r.etape === "voix" || r.fournisseur === "transcription" || r.fournisseur === "heygen")).toBe(false);
+      expect(reseau).not.toHaveBeenCalled();
+    } finally {
+      reseau.mockRestore();
+    }
   });
 
   it("avec voix : la voix est lue et payée comme avant", async () => {
