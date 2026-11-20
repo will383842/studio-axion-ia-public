@@ -455,7 +455,7 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
  * T-EXT-55 · Après le calage (équipe allumée seulement) : le contrôleur relit les durées réelles (sans IA ; ses remarques
  * deviennent des réserves, jamais un échec), puis la vidéo attend le film de navigation, fait sur le poste de capture.
  */
-function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication): PasTutoriel {
+function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication, outils: Pick<OutilsTutoriel, "fin">): PasTutoriel {
   const equipe = pas.etat.equipe;
   // Décision sur l'ÉTAT de la vidéo, jamais sur le port : le port est recréé à chaque pas et peut manquer un tour (réglage lu en échec).
   if (!equipe?.parcours || pas.statut !== "faite") return pas;
@@ -971,7 +971,7 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
       return pasVoix(etat, commande, outils);
     case "calage":
       // Sans étape « voix » (aucune distribution), le calage part de l'estimation du texte.
-      return pasApresCalage(pasCalage(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils), commande);
+      return pasApresCalage(pasCalage(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils), commande, outils);
     case "plan":
       return pasPlan(etat, commande, outils);
     case "montage":
