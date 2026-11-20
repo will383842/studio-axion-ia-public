@@ -450,6 +450,8 @@ export interface DemandeRenduIV {
   mixage: DemandeMixageIV;
   /** Piste voix seule de la version (son, mots à l'heure finale). */
   piste: PisteVoixSeuleIV;
+  /** IV-SV : mode sans voix. Aucune piste n'est envoyée au mixage : le serveur de rendu fabrique lui-même le silence (`preparerSilence`). */
+  sansVoix?: true;
   /**
    * Passage de l'étape « rendu » (1 au premier ; « Réessayer » l'augmente) : un rendu raté repart sous un autre
    * identifiant (le serveur garde un échec), ce qui est déjà rendu est repris tel quel.
@@ -1783,7 +1785,7 @@ async function pasRendu(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<E
     const id = choisi ? idRenduAvecStyleIV(idSans, choisi) : idSans;
     if (e.rendus[v.id]?.demande === id) continue;
     if (choisi && styleRetenuIV(choisi, formatDeHauteurIV(ligne.hauteur)).deplace) e.journal.push(`Remarque · ${nomVersion(v)} : ${REMARQUE_SOUS_TITRES_DEPLACES_IV}.`);
-    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1, ...(choisi ? { styleSousTitres: choisi } : {}) };
+    const demandeRendu = { id, videoId: e.demande.videoId, version: v.id, reseaux: v.reseaux, ligne, mixage, piste: v.piste, essai: e.tentatives.rendu ?? 1, ...(e.demande.sansVoix ? { sansVoix: true as const } : {}), ...(choisi ? { styleSousTitres: choisi } : {}) };
     let r: Awaited<ReturnType<OutilsFabricationIV["rendre"]>>;
     /** Écran irrendable : au 1er échec de la version, ses écrans passent en texte seul et la mise en scène est refaite ; au 2e : IV_RENDU. */
     const textesSeuls = (err: ErreurRenduDefinitifIV): EtatFabricationIV => {

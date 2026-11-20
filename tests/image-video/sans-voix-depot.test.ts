@@ -23,6 +23,7 @@ const texte = await import("@/services/image-video-texte");
 const lot = await import("@/services/image-video-lot");
 const { brancherServicesImageVideo } = await import("@/moteurs/montage-image-video");
 const { RESEAUX_IV } = await import("@/domaine/image-video/plafonds");
+const { TAUX_USD_EUR_PAR_DEFAUT } = await import("@/lib/montants");
 const { ID_FORMAT_IMAGE_VIDEO } = await import("@/formats/image-video");
 
 const MDP = "image-video-depot-studio";
@@ -108,10 +109,10 @@ const plafondDe = (v: { entrees?: Record<string, unknown> }) => (v.entrees?.imag
 describe("IV-SV · les modes « Titre ou idée » et « Mon script » : prix sans voix côté serveur", () => {
   it("titre ou idée : le plafond est le prix SANS voix, aucune cloche « accepté sans confirmation »", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
-    const sansVoix = ecran.prixDuDepot(RESEAUX_IV, ecran.TAUX_USD_EUR_PAR_DEFAUT, 50, true);
-    const avecVoix = ecran.prixDuDepot(RESEAUX_IV, ecran.TAUX_USD_EUR_PAR_DEFAUT, 50);
+    const sansVoix = ecran.prixDuDepot(RESEAUX_IV, TAUX_USD_EUR_PAR_DEFAUT, 50, true);
+    const avecVoix = ecran.prixDuDepot(RESEAUX_IV, TAUX_USD_EUR_PAR_DEFAUT, 50);
     expect(sansVoix).toBeLessThan(avecVoix);
-    const issue = await texte.deposerTexteImageVideo({ texte: TEXTE, reseaux: [...RESEAUX_IV], accordCentimes: sansVoix, sansVoix: true }, { voix: sansVoixDispo, taux: async () => ecran.TAUX_USD_EUR_PAR_DEFAUT });
+    const issue = await texte.deposerTexteImageVideo({ texte: TEXTE, reseaux: [...RESEAUX_IV], accordCentimes: sansVoix, sansVoix: true }, { voix: sansVoixDispo, taux: async () => TAUX_USD_EUR_PAR_DEFAUT });
     expect(issue, JSON.stringify(issue)).toMatchObject({ statut: "lancee" });
     const [video] = await videosIV();
     expect(plafondDe(video)).toBe(sansVoix);
@@ -121,8 +122,8 @@ describe("IV-SV · les modes « Titre ou idée » et « Mon script » : prix san
 
   it("mon script : le plafond est le prix SANS voix, aucune cloche", async () => {
     await ecrireParametre(ecran.PARAM_ACCORD_ESSAI_IV, true);
-    const sansVoix = ecran.prixDuDepot(RESEAUX_IV, ecran.TAUX_USD_EUR_PAR_DEFAUT, Math.max(50, ecran.dureeCibleDuScript(SCRIPT.split(/\s+/).length)), true);
-    const issue = await texte.deposerScriptImageVideo({ script: SCRIPT, reseaux: [...RESEAUX_IV], accordCentimes: sansVoix, sansVoix: true }, { voix: sansVoixDispo, taux: async () => ecran.TAUX_USD_EUR_PAR_DEFAUT });
+    const sansVoix = ecran.prixDuDepot(RESEAUX_IV, TAUX_USD_EUR_PAR_DEFAUT, Math.max(50, ecran.dureeCibleDuScript(SCRIPT.split(/\s+/).length)), true);
+    const issue = await texte.deposerScriptImageVideo({ script: SCRIPT, reseaux: [...RESEAUX_IV], accordCentimes: sansVoix, sansVoix: true }, { voix: sansVoixDispo, taux: async () => TAUX_USD_EUR_PAR_DEFAUT });
     expect(issue, JSON.stringify(issue)).toMatchObject({ statut: "lancee" });
     const [video] = await videosIV();
     expect(plafondDe(video)).toBe(sansVoix);
