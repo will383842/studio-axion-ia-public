@@ -123,6 +123,19 @@ describe("RAP-2 · rapatriement dans le tour existant", () => {
     expect(notifs[0].envoi).toBeUndefined(); // cloche seulement : aucune file d'envoi (ni push ni e-mail)
   });
 
+  it.each([
+    ["sans millisecondes", "2026-11-21T10:30:00Z", "2026-11-21T10:30:00.000Z"],
+    ["en +01:00", "2026-11-21T23:30:00+01:00", "2026-11-21T22:30:00.000Z"],
+  ])("date d'une rapatriée déplacée chez le diffuseur, %s : stockée normalisée (toISOString)", async (_nom, brute, attendu) => {
+    const f = faux([fabrique(0, "scheduled")]);
+    injecterClientZernio(f.client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    const avant = (await rapatriees())[0];
+    f.posts[0] = { ...f.posts[0], scheduledFor: brute };
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 20 * 60_000 });
+    expect((await depots().publications.obtenir(avant.id))!.date).toBe(attendu);
+  });
+
   it("post déplacé chez le diffuseur (+2 h) : la date de la rapatriée suit, une ligne de journal, aucune cloche ; une publication née au Studio garde sa date (dateExterne)", async () => {
     const f = faux([fabrique(0, "scheduled")]);
     injecterClientZernio(f.client);
