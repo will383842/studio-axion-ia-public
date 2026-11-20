@@ -27,7 +27,7 @@ import { scriptRetenu } from "./script";
 import { lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
-import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
+import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -150,8 +150,8 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Ce que la version d'avant offre (projet de montage) : son plan et sa voix, repris sans être refaits ni repayés. */
-export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan"> | null {
-  const p = projetMontage?.tutoriel as Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan"> | undefined;
+export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | null {
+  const p = projetMontage?.tutoriel as (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | undefined;
   return p && typeof p === "object" && p.plan?.plan ? p : null;
 }
 
@@ -224,7 +224,22 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {
       moteur: ID_MOTEUR_TUTORIEL_OUTIL,
-      tutoriel: { script: etat.script, audio: etat.audio, sousTitres: etat.sousTitres, motsPlan: etat.motsPlan, plan: etat.plan },
+      tutoriel: {
+        script: etat.script,
+        audio: etat.audio,
+        sousTitres: etat.sousTitres,
+        motsPlan: etat.motsPlan,
+        plan: etat.plan,
+        // T-EXT-52b : écrit seulement quand le réglage a calculé les empreintes (éteint : exactement comme avant).
+        ...(etat.empreintesFormats
+          ? {
+              empreintesFormats: etat.empreintesFormats,
+              sortiesFormats: Object.fromEntries(etat.rendus.filter((r) => r.sortie).map((r) => [r.ratio, r.sortie])),
+              origineFormats: Object.fromEntries(etat.rendus.filter((r) => r.sortie).map((r) => [r.ratio, r.reprise ? "reprise" : "rendu"])),
+              ...(etat.film ? { film: etat.film } : {}),
+            }
+          : {}),
+      },
     },
   };
 }
@@ -354,7 +369,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const p = lireProjetTutoriel(parent?.projetMontage);
     const e = etatInitial(commande);
     const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
-    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}) };
+    // T-EXT-52b : rendus, empreintes de formats et film de la version d'avant (absents si elle n'en a pas écrit).
+    const avant = p ? { ...(p.sortiesFormats ? { rendus: p.sortiesFormats } : {}), ...(p.empreintesFormats ? { empreintesFormats: p.empreintesFormats } : {}), ...(p.film ? { film: p.film } : {}) } : {};
+    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}), ...avant } } : {}) };
   }
 
   /**

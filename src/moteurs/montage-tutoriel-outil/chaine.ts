@@ -29,6 +29,7 @@ import { exigerVoixMaitre, VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/v
 import type { AudioMaitre } from "@/briques/voix-maitre/types";
 import { horodaterTexte } from "@/domaine/derivations";
 import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorodate, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
+import { empreinteEffetsFilm, empreinteFormat, filmReutilisable, formatsARefaire, type FilmTutoriel } from "./rendu-partiel";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { hautBandeSousTitresPct } from "../../briques/plan-scenes/tutoriel/motion-film";
@@ -77,6 +78,8 @@ export interface OutilsTutoriel {
   regarder?: (x: { demandeMaitre: DemandeRendu; instants: InstantRegard[] }) => Promise<LectureRegard | null>;
   /** T-EXT-31 : mixage de la voix, mesure du son et vignette. Absent = éteint (chemin d'avant, inchangé). */
   finitions?: { actif: true };
+  /** T-EXT-52b : retouche sans tout refaire (un format dont rien ne change est repris tel quel). Seul `true` allume ; absent = éteint, comportement d'avant. */
+  retouchePartielle?: boolean;
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
   sousTitres?: { style?: ValeurStyleSousTitres | null; base?: BaseSousTitres; intensite?: IntensiteSousTitres };
   /**
@@ -131,6 +134,8 @@ export interface RenduTutoriel {
   demande: DemandeRendu;
   essai: number;
   sortie?: { fichierCle: string; dureeSec: number; taille: number };
+  /** T-EXT-52b : fichier repris tel quel de la version d'avant (aucune demande de rendu, même `fichierCle`). */
+  reprise?: true;
   /** T-EXT-45b : série de « Réessayer » (absente = jamais relancé). Elle entre dans l'identifiant de la demande : jamais un identifiant déjà vu par `studio-rendu`. */
   serie?: number;
   /** T-EXT-45b : « Réessayer » a remis ce rendu tombé à zéro ; le prochain pas le redemande. */
@@ -152,6 +157,13 @@ export interface SonMixeTutoriel {
   echec?: boolean;
 }
 
+/** T-EXT-52b : le fichier rendu d'un format, gardé pour être repris par la version suivante (jamais recopié sous une autre clé). */
+export interface SortieFormatTutoriel {
+  fichierCle: string;
+  dureeSec: number;
+  taille: number;
+}
+
 export interface EtatTutoriel {
   script?: { texte: string; source: SourceScript; remarques: string[] };
   /** Script écrit depuis l'idée, en attente de la relecture de Williams. */
@@ -167,7 +179,18 @@ export interface EtatTutoriel {
   rendus: RenduTutoriel[];
   reserves: string[];
   /** Version d'avant (retouche, réexport) : ce qui peut être repris sans être refait ni repayé. */
-  parent?: { plan?: PlanValide; audio?: AudioTutoriel };
+  parent?: {
+    plan?: PlanValide;
+    audio?: AudioTutoriel;
+    /** T-EXT-52b : rendus terminés de la version d'avant, ses empreintes de formats et son film. */
+    rendus?: Partial<Record<Ratio, SortieFormatTutoriel>>;
+    empreintesFormats?: Partial<Record<Ratio, string>>;
+    film?: FilmTutoriel;
+  };
+  /** T-EXT-52b : empreinte de chaque format de CETTE version (écrite seulement réglage allumé). */
+  empreintesFormats?: Partial<Record<Ratio, string>>;
+  /** T-EXT-52b : film de CETTE version (réglage allumé et film dans les entrées). */
+  film?: FilmTutoriel;
   echecSimuleFait?: boolean;
   /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
   appelsClaude?: { script: number; plan: number; regard?: number };
@@ -569,6 +592,61 @@ async function pasMixage(etat: EtatTutoriel, commande: CommandeFabrication, outi
   }
 }
 
+/**
+ * T-EXT-52b : le film de navigation de la version, avec son empreinte. // en attendant T-EXT-38 / 03b : l'empreinte du film
+ * (scénario + calage + maquette + poste) n'est pas encore dans les entrées ; on prend ici ce qui fait le film SANS ses effets
+ * (clé de la vidéo, maquette, taille, cibles, plages figées), jamais le cran, la bascule ni la bande des sous-titres.
+ */
+function filmDesEntrees(commande: CommandeFabrication): FilmTutoriel | undefined {
+  const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  if (!nav) return undefined;
+  const { cran: _c, basculeMs: _b, hautSousTitresPct: _h, ...sansEffets } = nav;
+  void _c;
+  void _b;
+  void _h;
+  return { videoCle: nav.videoCle, empreinte: fnv1a64(jsonCanonique(sansEffets)) };
+}
+
+/** T-EXT-52b : empreinte d'un format = plan du ratio + voix + effets du film + (carte de fin, sous-titres). Une seule fonction d'empreinte d'export (R4). */
+function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel): string {
+  const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs }, film: filmDesEntrees(commande) } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
+  const fin = fnv1a64(jsonCanonique({ fin: CARTE_FIN_AXION, finMs: DUREE_CARTE_FIN_MS, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null }));
+  return empreinteFormat(planPourRatio(etat.plan!.plan, ratio), ratio, { voix: etat.audio?.empreinte ?? "", effetsFilm, fin });
+}
+
+/** Demande de forme seulement (jamais soumise) : le rendu repris garde la résolution de son format dans le résultat. */
+function demandeReprise(etat: EtatTutoriel, ratio: Ratio, sortie: SortieFormatTutoriel, travailId: string): DemandeRendu {
+  return {
+    idRendu: `${travailId}-${nomRatio(ratio)}-reprise`,
+    operation: "composition",
+    file: "longue",
+    entrees: {},
+    sortie: { urlDepot: "", cle: sortie.fichierCle },
+    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: { plan: planPourRatio(etat.plan!.plan, ratio) } },
+  };
+}
+
+/**
+ * T-EXT-52b : réglage allumé et plan connu : calcule l'empreinte du format et, si elle est celle de la version d'avant,
+ * reprend son fichier (aucune demande de rendu). Éteint : l'état est rendu tel quel.
+ */
+function reprendreFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): EtatTutoriel {
+  if (outils.retouchePartielle !== true || !etat.plan) return etat;
+  const empreinte = empreinteDuFormat(etat, ratio, commande, outils);
+  let e: EtatTutoriel = { ...etat, empreintesFormats: { ...etat.empreintesFormats, [ratio]: empreinte } };
+  const film = filmDesEntrees(commande);
+  if (film && !e.film) e = { ...e, film };
+  const avantFilm = e.parent?.film;
+  const voixInchangee = !e.parent?.audio?.empreinte || e.parent.audio.empreinte === e.audio?.empreinte;
+  const reserve = "Le film de navigation est celui de la version d'avant.";
+  if (avantFilm && film && !filmReutilisable(avantFilm, film) && voixInchangee && !e.reserves.includes(reserve)) e = { ...e, reserves: [...e.reserves, reserve] };
+  const sortieAvant = e.parent?.rendus?.[ratio];
+  if (e.rendus.some((r) => r.ratio === ratio) || !sortieAvant || !e.parent?.empreintesFormats) return e;
+  if (formatsARefaire(e.parent.empreintesFormats, { [ratio]: empreinte }, [ratio]).gardes.length === 0) return e;
+  return { ...e, rendus: [...e.rendus, { ratio, demande: demandeReprise(e, ratio, sortieAvant, travailId), essai: 0, sortie: { ...sortieAvant }, reprise: true }] };
+}
+
 async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string, avecMixage = false): Promise<PasTutoriel> {
   let e = etat;
   const finitions = !!outils.finitions?.actif;
@@ -579,9 +657,10 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
   }
   const faitRatio = (r: Ratio) => {
     const x = e.rendus.find((y) => y.ratio === r);
-    return finitions ? finitionsFinies(x) : !!x?.sortie;
+    return x?.reprise ? true : finitions ? finitionsFinies(x) : !!x?.sortie;
   };
   for (const ratio of ratios) {
+    e = reprendreFormat(e, ratio, commande, outils, travailId);
     if (faitRatio(ratio)) continue;
     e = e.rendus.find((r) => r.ratio === ratio)?.sortie ? await pasFinitions(e, ratio, outils, travailId) : await pasRendu(e, ratio, commande, outils, travailId);
   }
