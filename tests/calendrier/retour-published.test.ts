@@ -131,7 +131,7 @@ describe("RETOUR-PUBLISHED · échec ou ambigu : rien n'est levé (CAL-23)", () 
 });
 
 describe("RETOUR-PUBLISHED · marques levées seulement si l'envoi est « envoye »", () => {
-  it.each(["valide", "annule", "confirme"] as const)("envoi « %s » : marques et envoi restent tels quels", async (statutEnvoi) => {
+  it.each(["annule", "confirme"] as const)("envoi « %s » : marques et envoi restent tels quels", async (statutEnvoi) => {
     await programmationManuelle("a-verifier", { envoi: statutEnvoi });
     await passer("published");
     const e = await etat();
@@ -268,5 +268,70 @@ describe("RETOUR-PUBLISHED · réseau prévu sans envoi, reprise non saturée", 
     await d.publications.modifier("pz_1", { etatLuLe: iso(T0) } as never);
     await passer("scheduled");
     expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+  });
+});
+
+describe("RETOUR-PUBLISHED-2 · REC-V1 : envoi resté « valide » avec la marque à vérifier, constaté par le diffuseur", () => {
+  const PARTI = { creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined } as const;
+  it("REC-V1 (marque promotion seule + Publication zernio publiee) : le suivi du passage fait passer le créneau « publie »", async () => {
+    await programmationManuelle("programme", { envoi: "valide" });
+    await ecrireParametre(`${PREFIXE}promotion:${CLE_ENVOI}`, "a-verifier");
+    const appels = await passer("published");
+    expect(await etat()).toEqual(PARTI);
+    expect((await depots().envoisPlanifies.obtenir(CLE_ENVOI))?.envoyeLe).toBeTruthy();
+    expect(appels.filter((a) => a.methode !== "GET")).toHaveLength(0);
+  });
+  it("marque a-verifier:<clé> seule : même résultat", async () => {
+    await programmationManuelle("programme", { envoi: "valide" });
+    await ecrireParametre(`${PREFIXE}promotion:${CLE_ENVOI}`, "libre");
+    await ecrireParametre(`${PREFIXE}a-verifier:${CLE_ENVOI}`, "a-verifier");
+    await passer("published");
+    expect((await etat()).envoi).toBe("envoye");
+    expect((await etat()).creneau).toBe("publie");
+  });
+  it.each(["libre", "en-cours", "programme", "parti", undefined] as const)("valide SANS marque à vérifier (promotion = %s) : rien ne bouge, même sur published", async (m) => {
+    await programmationManuelle("programme", { envoi: "valide" });
+    if (m) await ecrireParametre(`${PREFIXE}promotion:${CLE_ENVOI}`, m);
+    else await depots().parametres.supprimer(`${PREFIXE}promotion:${CLE_ENVOI}`);
+    await passer("published");
+    expect((await etat()).envoi).toBe("valide");
+    expect((await etat()).creneau).toBe("programme");
+    expect((await etat()).pub).toBe("programmee");
+  });
+  it.each(["failed", "partial", "introuvable", "scheduled"] as const)("valide + marque mais post %s : rien ne bouge, jamais « annule »", async (issue) => {
+    await programmationManuelle("a-verifier", { envoi: "valide" });
+    await passer(issue);
+    expect(await etat()).toEqual({ creneau: "programme", envoi: "valide", pub: "programmee", promotion: "a-verifier", verifier: "a-verifier" });
+  });
+  it("valide + marque, Publication zernio d'une AUTRE clé publiee : rien ne bouge", async () => {
+    await programmationManuelle("a-verifier", { envoi: "valide" });
+    await depots().publications.modifier("pz_1", { cleEnvoi: "e".repeat(64) } as never);
+    await passer("scheduled");
+    expect((await etat()).envoi).toBe("valide");
+  });
+  it("reprise après coupure : Publication zernio déjà publiee, envoi valide + marque : le passage suivant termine le suivi", async () => {
+    await programmationManuelle("a-verifier", { envoi: "valide", pubZernio: "publiee" });
+    await passer("scheduled");
+    expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: "parti" });
+  });
+  it("reprise : valide + marque mais Publication zernio seulement programmee : rien ne bouge", async () => {
+    await programmationManuelle("a-verifier", { envoi: "valide" });
+    await passer("scheduled", 2);
+    expect(await etat()).toEqual({ creneau: "programme", envoi: "valide", pub: "programmee", promotion: "a-verifier", verifier: "a-verifier" });
+  });
+  it("2e passage idempotent", async () => {
+    await programmationManuelle("a-verifier", { envoi: "valide" });
+    await passer("published");
+    const lire = async () => [await depots().envoisPlanifies.obtenir(CLE_ENVOI), await depots().creneauxEditoriaux.obtenir("cre_1"), await depots().publications.obtenir(`pub_${CLE_ENVOI}`), await marque("promotion"), await marque("a-verifier")];
+    const avant = await lire();
+    await passer("published", 2);
+    expect(await lire()).toEqual(avant);
+  });
+  it("la transition valide → envoye reste fermée pour tout autre appelant", async () => {
+    const { peutTransiter } = await import("@/domaine/envoi-planifie");
+    const { transiterEnvoi } = await import("@/services/envois-planifies");
+    expect(peutTransiter("valide", "envoye")).toBe(false);
+    await programmationManuelle("a-verifier", { envoi: "valide" });
+    await expect(transiterEnvoi(depots().envoisPlanifies, CLE_ENVOI, "envoye", iso(T0))).rejects.toThrow();
   });
 });
