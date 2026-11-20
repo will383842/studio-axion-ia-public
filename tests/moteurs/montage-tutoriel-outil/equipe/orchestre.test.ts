@@ -9,6 +9,7 @@ import { roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquett
 import { roleScenariste } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { roleStrategeValeur } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
 import { appliquerSortie, prochainPas, ROLES_TUTORIEL, type DossierLu, type EntreesEquipe, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
+import { empreinteDescription, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import type { IdRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
 import { dossierComplet, entreesCompletes, fauxScenariste } from "../../../tutoriel-outil/equipe-doubles";
 
@@ -234,6 +235,41 @@ describe("V2-08 : le pas « pièce créée » (option phraseOuverte)", () => {
     const textes = suite.e.registre?.entrees.filter((x) => x.ou === "maquette") ?? [];
     expect(textes.length).toBeGreaterThan(0);
     expect(textes.every((x) => x.origine === "maquette-creee" && x.choisi === true)).toBe(true);
+  });
+
+  it("pièce corrigée après le « oui » : les anciens textes, la carte et la suite sont effacés ; au nouveau « oui », le registre porte les textes de la nouvelle pièce", async () => {
+    const fait = await courir(phrase(ATELIER), ouvert, sortiePhrase);
+    const p = fait.e.pieceCreee!;
+    const apercuDe = (empreinte: string) => ({ version: "apercu-piece.v1" as const, empreinteDescription: empreinte, images: [{ ecranId: "accueil", etat: "avant" as const, cle: "a.png" }], controle: { ok: true, defauts: [] } });
+    const gardee = { ...fait.e, pieceCreee: { ...p, statut: "gardee" as const, apercu: apercuDe(p.empreinte), gardee: { empreinte: p.empreinte, le: "2026-11-20T10:00:00.000Z" } } };
+    const avant = await courir(gardee, ouvert, sortiePhrase);
+    expect(avant.pause?.code).toBe("TO_SCRIPT_A_VALIDER");
+    expect(avant.e.fiche).toBeDefined();
+    // Williams corrige un texte : la description et son empreinte changent, le « oui » n'est plus valable.
+    const ancien = p.contenu as DescriptionMaquette;
+    const NOUVEAU = "Titre corrigé par Williams";
+    const corrigee: DescriptionMaquette = { ...ancien, ecrans: ancien.ecrans.map((x, i) => (i === 0 ? { ...x, titre: NOUVEAU } : x)) };
+    const empreinte = empreinteDescription(corrigee);
+    expect(empreinte).not.toBe(p.empreinte);
+    const apresCorrection = { ...avant.e, pieceCreee: { ...avant.e.pieceCreee!, contenu: corrigee, empreinte } };
+    const pause = prochainPas(apresCorrection, ouvert);
+    if (!("pause" in pause)) throw new Error("une pause « à construire » est attendue");
+    expect(pause.pause.code).toBe("TO_PIECE_A_CONSTRUIRE");
+    for (const champ of ["carte", "donnees", "textesMaquette", "carteEmpreinte", "fiche", "propositionScripts", "parcours", "verdict", "registre"] as const) expect(pause.etat?.[champ]).toBeUndefined();
+    // Nouveau « oui » sur la nouvelle pièce.
+    const reoui = { ...pause.etat!, pieceCreee: { ...pause.etat!.pieceCreee!, statut: "gardee" as const, apercu: apercuDe(empreinte), gardee: { empreinte, le: "2026-11-20T11:00:00.000Z" } } };
+    const suite = await courir(reoui, ouvert, sortiePhrase);
+    expect(suite.pause?.code).toBe("TO_SCRIPT_A_VALIDER");
+    const textes = (suite.e.registre?.entrees ?? []).filter((x) => x.ou === "maquette");
+    expect(JSON.stringify(textes)).toContain(NOUVEAU);
+    expect(JSON.stringify(suite.e.textesMaquette)).toContain(NOUVEAU);
+    if (ancien.ecrans[0]!.titre !== NOUVEAU) expect(JSON.stringify(suite.e.textesMaquette)).not.toContain(JSON.stringify(ancien.ecrans[0]!.titre).slice(1, -1));
+    // Même sans la pause (état gardé avec une carte d'une autre empreinte) : la carte est redéduite.
+    const perime = { ...avant.e, pieceCreee: reoui.pieceCreee };
+    const r = prochainPas(perime, ouvert);
+    if (!("faire" in r) || r.payant) throw new Error("redéduction locale attendue");
+    expect(r.etat.carteEmpreinte).toBe(empreinte);
+    expect(r.etat.fiche).toBeUndefined();
   });
 
   it("avant « gardée », le registre ne contient aucun texte de la maquette", async () => {

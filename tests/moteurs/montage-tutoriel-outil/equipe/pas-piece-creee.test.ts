@@ -122,7 +122,7 @@ describe("appliquerPieceGardee", () => {
     expect(lireTableauDeBord(e.donnees).ok).toBe(true);
     expect(e.textesMaquette?.length).toBeGreaterThan(0);
     expect(e.textesMaquette?.every((t) => t.creee === true && t.textes.length > 0)).toBe(true);
-    expect(e.carteOrigine).toBe("piece-gardee");
+    expect(e.carteEmpreinte).toBe(e.pieceCreee?.empreinte);
   });
 
   it("flux : carte par étape, textes créés, aucune donnée chiffrée", () => {

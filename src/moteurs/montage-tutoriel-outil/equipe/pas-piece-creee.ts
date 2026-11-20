@@ -34,8 +34,8 @@ export interface EtatPiece {
   carte?: CarteZones;
   donnees?: TableauDeBord;
   textesMaquette?: { etapeId: string; textes: string[]; creee: boolean }[];
-  /** Interne à l'état (pas au schéma de la carte) : la carte vient d'une pièce gardée, l'analyste n'est pas appelé. */
-  carteOrigine?: "piece-gardee";
+  /** Interne à l'état (pas au schéma de la carte) : empreinte de la pièce gardée dont viennent la carte et les textes ; l'analyste n'est pas appelé. Si l'empreinte gardée diffère, tout est redéduit. */
+  carteEmpreinte?: string;
 }
 
 export const CODE_PIECE_A_REVOIR = "TO_PIECE_A_REVOIR";
@@ -123,14 +123,14 @@ export function appliquerPieceGardee<E extends EtatPiece>(e: E): E & EtatPiece {
       if (!carte.ok) return revoir(carte.erreurs);
       const donnees = tableauDepuisDescription(d, DATE_EXEMPLE);
       if (!donnees.ok) return revoir(donnees.erreurs);
-      return { ...e, carte: carte.carte, donnees: donnees.donnee, textesMaquette: textesDeLaMaquette(d).map((t) => ({ etapeId: t.ecranId, textes: t.textes, creee: true })), carteOrigine: "piece-gardee" };
+      return { ...e, carte: carte.carte, donnees: donnees.donnee, textesMaquette: textesDeLaMaquette(d).map((t) => ({ etapeId: t.ecranId, textes: t.textes, creee: true })), carteEmpreinte: p.gardee?.empreinte ?? p.empreinte };
     }
     const f = p.contenu as FluxAutomatisation;
     const carte = carteDepuisFlux(f);
     if (!carte.ok) return revoir(carte.erreurs);
     const { donnees: _d, ...sansDonnees } = e;
     void _d;
-    return { ...sansDonnees, carte: carte.carte, textesMaquette: textesDuFlux(f).map((t) => ({ etapeId: t.etapeId, textes: t.textes, creee: true })), carteOrigine: "piece-gardee" } as E & EtatPiece;
+    return { ...sansDonnees, carte: carte.carte, textesMaquette: textesDuFlux(f).map((t) => ({ etapeId: t.etapeId, textes: t.textes, creee: true })), carteEmpreinte: p.gardee?.empreinte ?? p.empreinte } as E & EtatPiece;
   } catch {
     return revoir(["Déduction impossible."]);
   }

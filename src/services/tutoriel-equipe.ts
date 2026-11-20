@@ -36,7 +36,7 @@ export async function equipeTutorielActive(lire?: <T>(id: string, defaut: T) => 
 
 /**
  * V2-08 : vrai SEULEMENT si `tutoriel.entreePhrase` ET `tutoriel.pieceCreeeClaude` valent exactement `true` (absent, `"true"`, `1`, lecture
- * en échec : éteint). Lecteur injectable (jamais un `lireParametre("…")` littéral) ; ce fichier n'écrit jamais un réglage.
+ * en échec : éteint). Lecteur injectable (jamais une clé écrite en dur dans ce fichier) ; ce fichier n'écrit jamais un réglage.
  */
 export async function phraseOuverteTutoriel(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
   try {

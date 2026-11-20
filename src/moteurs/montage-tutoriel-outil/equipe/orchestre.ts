@@ -230,6 +230,13 @@ function dossierDePiece(e: EtatEquipe): DossierLu {
   };
 }
 
+/** Efface la carte, les données, les textes de la maquette et tout ce qui en découle (la pièce, les appels et les paiements restent). */
+function sansDeductionDePiece(e: EtatEquipe): EtatEquipe {
+  const { carte: _c, donnees: _d, textesMaquette: _t, carteEmpreinte: _o, fiche: _f, propositionScripts: _p, scriptChoisi: _s, parcours: _pa, verdict: _v, registre: _r, verdictCalage: _vc, remarquesTronc: _rt, correctionNotee: _cn, ...reste } = e;
+  void [_c, _d, _t, _o, _f, _p, _s, _pa, _v, _r, _vc, _rt, _cn];
+  return reste;
+}
+
 function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): PasEquipe {
   let dossier = entrees.dossier;
   const demande: DemandeTutoriel = dossier ? { ...e.demande, dossier: dossier.inventaire } : e.demande;
@@ -270,12 +277,13 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): Pas
       return { faire: "maquettiste", payant: true, entree: avecRemarques(e, "maquettiste", entree), empreinteEntree: empreinteDe("maquettiste", avecRemarques(e, "maquettiste", entree)) };
     }
     const r = pasPieceCreee(p);
-    if ("pause" in r) return { pause: r.pause, ...(r.etat ? { etat: { ...e, pieceCreee: r.etat } } : {}) };
-    if (e.carteOrigine !== "piece-gardee") {
-      const gardee = appliquerPieceGardee(e);
+    // La pièce quitte « gardée » : tout ce qui vient de l'ancienne pièce est effacé (rien n'est repris d'un texte que Williams ne voit plus).
+    if ("pause" in r) return { pause: r.pause, ...(r.etat ? { etat: { ...sansDeductionDePiece(e), pieceCreee: r.etat } } : {}) };
+    if (e.carteEmpreinte !== p.gardee?.empreinte) {
+      const gardee = appliquerPieceGardee(sansDeductionDePiece(e));
       // en attendant qu'un gabarit serve le cas 2 (G-Decision et G-Journee ne servent que 1, 4, 5) : une maquette gardée est, pour la suite, un tableau de bord existant (cas 1).
       const g = gardee.cahier?.cas === 2 ? { ...gardee, cahier: { ...gardee.cahier, cas: 1 as const } } : gardee;
-      return local("maquettiste", g, g.carteOrigine === "piece-gardee" ? "Votre maquette est gardée : ses zones, ses chiffres et ses textes sont relevés." : "La maquette gardée n'a pas pu être relue : elle est à revoir.");
+      return local("maquettiste", g, g.carteEmpreinte !== undefined ? "Votre maquette est gardée : ses zones, ses chiffres et ses textes sont relevés." : "La maquette gardée n'a pas pu être relue : elle est à revoir.");
     }
     dossier = dossierDePiece(e);
   }
