@@ -266,6 +266,46 @@ describe("T-EXT-55 · le choix de Williams, puis la fabrication", () => {
     expect(etatDe(fin.travail).plan).toBeDefined();
   });
 
+  it("un seul tour SANS port à l'étape calage : le film reste attendu (pause TO_FILM_A_CAPTURER), ni plan payé ni rendu ; puis la reprise normale va au bout", async () => {
+    const { j, m, c, eq, arret } = await jusquAuChoix();
+    let claudeAvant = 0;
+    let rendusAvant = 0; // comptés juste avant le tour sans port (la voix a déjà ses propres rendus)
+    const mSans = moteurAvec(j); // le port « équipe » manque ce tour-là (réglage lu en échec)
+    let t = validerScriptTutoriel(avecRegistreFige(arret.travail), undefined, { version: "A" });
+    let sansPort = 0;
+    for (let i = 100; i < 300; i++) {
+      const suivante = t.etapes.find((e) => e.statut !== "terminee" && e.statut !== "ignoree")?.cle;
+      const moteur = suivante === "calage" && sansPort === 0 ? mSans : m;
+      if (moteur === mSans) {
+        sansPort++;
+        claudeAvant = j.claude.length;
+        rendusAvant = j.rendus.length;
+      }
+      const r = await tour(moteur, c, t, i, eq);
+      expect(r.appelsDuTour).toBe(0);
+      t = r.travail;
+      if (sansPort > 0) break;
+    }
+    expect(sansPort).toBe(1);
+    // Ce tour sans port : l'étape calage n'est pas « terminée », la pause est posée, rien de payé ni de rendu.
+    expect(t.parametres?.pause).toMatchObject({ code: "TO_FILM_A_CAPTURER" });
+    expect(t.etapes.find((e) => e.cle === "calage")?.statut).not.toBe("terminee");
+    expect(etatDe(t).plan).toBeUndefined();
+    expect(etatDe(t).equipe?.verdictCalage).toBeDefined();
+    expect(j.claude).toHaveLength(claudeAvant);
+    expect(j.rendus).toHaveLength(rendusAvant);
+    // Tours suivants, port revenu mais toujours sans film : même pause, toujours rien de payé.
+    const encore = await mener(m, c, { ...t, statut: "en_cours" }, eq, 200);
+    expect(encore.travail.parametres?.pause).toMatchObject({ code: "TO_FILM_A_CAPTURER" });
+    expect(etatDe(encore.travail).plan).toBeUndefined();
+    expect(j.claude).toHaveLength(claudeAvant);
+    expect(j.rendus).toHaveLength(rendusAvant);
+    // Le film déposé : la suite jusqu'à `termine`.
+    const fin = await mener(m, commandeDossier(FILM), { ...encore.travail, statut: "en_cours" }, eq, 300);
+    expect(fin.travail.statut).toBe("termine");
+    expect(etatDe(fin.travail).plan).toBeDefined();
+  });
+
   it("tronc fourni : `evaluer` une fois avec les 2 versions, ses remarques gardées, le texte des versions inchangé ; `noterCorrection` seulement pour une correction", async () => {
     const sans = await jusquAuChoix();
     const avecTronc = await jusquAuChoix({ tronc: true, film: FILM });
