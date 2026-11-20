@@ -58,6 +58,10 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-particules": "geste",
   "objet-panneau-reglages": "interface",
   "objet-anneau-donnees": "chiffre",
+  // VL-10 : pièces 16:9 de la vidéo longue (porte fermée).
+  "intercalaire-chapitre": "texte",
+  "flux-ramifie": "demarche",
+  "cadre-capture": "interface",
   // C9-34-TRAITS-v19c (19/11/2026) : soulignements et surligneur = texte (voisin : soulignement droit), flèches = geste (voisin : flèche à main levée).
   "objet-soulignement-vague": "texte",
   "objet-soulignement-double": "texte",
@@ -65,6 +69,42 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-fleche-droite": "geste",
   "objet-fleche-courbe": "geste",
   "objet-fleche-pointillee": "geste",
+  // C9-34-CADRES-v20b (20/11/2026) : cadres et entourages = texte (voisin : entourage au feutre).
+  "objet-cadre-rectangle": "texte",
+  "objet-cadre-coins": "texte",
+  "objet-cadre-passage": "texte",
+  "objet-cercle": "texte",
+  "objet-ovale": "texte",
+  "objet-double-boucle": "texte",
+  // C9-34-ETIQUETTES-v20f (20/11/2026) : étiquettes et bulles = texte (voisin : carton définition).
+  "objet-pastille-icone": "texte",
+  "objet-etiquette-icone": "texte",
+  "objet-badge": "texte",
+  "objet-tampon": "texte",
+  "objet-bulle-parole": "texte",
+  "objet-bulle-pensee": "texte",
+  "objet-bulle-notification": "texte",
+  "objet-post-it": "texte",
+  // C9-34-SCHEMAS-v20g (20/11/2026) : schémas = démarche, fenêtre et terminal = interface (voisin : panneau de réglages ; le type Montre n'a pas de valeur « schema »).
+  "objet-schema-flux": "demarche",
+  "objet-schema-etoile": "demarche",
+  "objet-icones-reliees": "demarche",
+  "objet-agents-globe": "demarche",
+  "objet-grille-pointillee": "demarche",
+  "objet-vignettes-numerotees": "demarche",
+  "objet-fenetre-app": "interface",
+  "objet-terminal-commande": "interface",
+  // C9-34-FIN-v20h (20/11/2026) : voisins existants (étape = démarche, chiffres, étiquettes = texte)
+  "objet-dossier": "demarche",
+  "objet-chrono": "chiffre",
+  "objet-barre-progression": "chiffre",
+  "objet-etape-segments": "demarche",
+  "objet-appel-action": "texte",
+  "objet-appel-mot": "texte",
+  "objet-appel-rdv": "texte",
+  "objet-frise-montage": "interface",
+  "objet-pellicule": "interface",
+  "objet-onde-motif": "demarche",
 };
 
 const DUREE_MAX_SEC = 6;

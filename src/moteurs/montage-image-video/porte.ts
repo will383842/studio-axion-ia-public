@@ -129,7 +129,7 @@ export function plafondsDesReseaux(reseaux: readonly ReseauIV[], versions: reado
  * remontent.
  */
 export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise<VerdictPorteIV> {
-  const ctx: ContexteControlesIV = { carte: e.carte, ficheValidee: e.fiche, ...(e.regles ? { regles: e.regles } : {}), voix: e.voix, publication: e.publication, liens: e.liens, ...(e.appelCommentaire ? { appelCommentaire: e.appelCommentaire } : {}), ...(e.scriptColle ? { scriptColle: true } : {}) };
+  const ctx: ContexteControlesIV = { carte: e.carte, ficheValidee: e.fiche, ...(e.sansVoix ? { sansVoix: true } : {}), ...(e.regles ? { regles: e.regles } : {}), voix: e.voix, publication: e.publication, liens: e.liens, ...(e.appelCommentaire ? { appelCommentaire: e.appelCommentaire } : {}), ...(e.scriptColle ? { scriptColle: true } : {}) };
   const generaux: string[] = [];
   if (!e.reseaux.length) generaux.push("aucun réseau demandé : la vidéo n'a nulle part où partir.");
   if (!e.versions.length) generaux.push("aucune version de la vidéo n'a été fournie aux contrôles.");
@@ -156,6 +156,8 @@ export async function porteUniqueIV(e: EntreePorteIV, o: OutilsPorteIV): Promise
   const ecoutes = new Map<string, EcouteVersionIV>();
   let appelsPayes = 0;
   for (const v of e.versions) {
+    // IV-SV : sans voix, rien à écouter (aucune transcription, aucune dépense).
+    if (e.sansVoix) continue;
     const r = await ecouterVersionIV(
       {
         videoId: e.videoId,

@@ -50,6 +50,9 @@ export const LIBELLES_ENVOI: TableLibelles = {
   en_cours: { libelle: "Envoi en cours", ton: "neutre" },
   a_verifier: { libelle: "À vérifier", ton: "ambre" },
   brouillon_buffer: { libelle: "Brouillon chez le diffuseur", ton: "neutre" },
+  // RAP-3 : publications reprises du diffuseur. « Retirée » est un geste local : le post reste chez le diffuseur.
+  programme_diffuseur: { libelle: "Programmée chez le diffuseur", ton: "ambre" },
+  retire_diffuseur: { libelle: "Retirée du calendrier", ton: "neutre" },
 };
 
 /** Où se place le texte par rapport au visuel, sur chaque réseau. */
@@ -116,7 +119,7 @@ export function apercuReseau(entree: EntreeApercu, aujourdhui: string): ApercuRe
   const jourDit = jourOk ? JOUR_DIT.format(new Date(`${entree.jour}T12:00:00Z`)) : "";
   const dateDite = !jourOk ? "Date illisible" : heure ? `${jourDit} à ${heure}, heure de Paris` : jourDit;
   const verrou = verrouFiche(entree, aujourdhui);
-  const deplacable = lireCleFiche(entree.cle)?.origine === "creneau";
+  const deplacable = lireCleFiche(entree.cle)?.origine === "creneau" && !entree.chezDiffuseur;
   const texte = typeof entree.texte === "string" ? entree.texte : "";
   const commentaire = typeof entree.premierCommentaire === "string" ? entree.premierCommentaire.trim() : "";
   const sans = sansPremierCommentaire(entree.reseau);
@@ -139,7 +142,7 @@ export function apercuReseau(entree: EntreeApercu, aujourdhui: string): ApercuRe
     phraseEtat: entree.etat === "essai" ? "Essai : rien n'est parti vers le réseau." : phraseEtat(entree),
     verrou,
     deplacable,
-    phraseVerrou: verrou ? PHRASES_VERROU[verrou] : deplacable ? null : PHRASE_DEPUIS_LA_VIDEO,
+    phraseVerrou: verrou ? PHRASES_VERROU[verrou] : deplacable ? null : entree.chezDiffuseur ? PHRASE_DEPLACER_CHEZ_DIFFUSEUR : PHRASE_DEPUIS_LA_VIDEO,
   };
 }
 
@@ -175,10 +178,26 @@ export interface PublicationApercu {
   canalNom?: string;
   /** État de l'envoi par Buffer (« refuse », « absent », « a-verifier », « en-cours »…), s'il y en a un. */
   etatEnvoi?: string;
+  /** RAP-3 · publication reprise du diffuseur (née chez lui, pas au Studio). */
+  rapatrieeLe?: string;
+  /** RAP-3 · retirée du calendrier par un geste local (le post reste chez le diffuseur). */
+  retireeLe?: string;
+  /** RAP-3 · média vu chez le diffuseur ; l'adresse n'en sort jamais (le navigateur passe par le serveur). */
+  mediaDiffuseur?: { type: string; nombre: number; miniature?: string };
 }
+
+/** Une rapatriée : même définition que `estRapatriee` (domaine), sur la forme des données de la page. */
+const reprise = (p: Pick<PublicationApercu, "via" | "rapatrieeLe" | "videoId" | "visuelId">): boolean => p.via === "zernio" && !!p.rapatrieeLe && !p.videoId && !p.visuelId;
+
+/** RAP-3 · le déplacement se fait chez le diffuseur : pas de bouton « Déplacer » ni de champ date pour une rapatriée. */
+export const PHRASE_DEPLACER_CHEZ_DIFFUSEUR = "Pour changer la date, déplacez-la chez le diffuseur : le calendrier suivra.";
+
+/** RAP-3 · adresse (du Studio) de la miniature d'une rapatriée. */
+export const adresseMiniature = (publicationId: string): string => `/api/calendrier/miniature/${encodeURIComponent(publicationId)}`;
 
 /** Une publication du calendrier → l'entrée de l'aperçu. Jour et heure sont ceux de Paris. */
 export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {
+  if (reprise(p)) return entreeRapatriee(p);
   const estVideo = Boolean(p.videoId);
   return {
     cle: `publication:${p.id}|${p.reseau}`,
@@ -196,16 +215,38 @@ export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {
   };
 }
 
+/** RAP-3 · carte d'une rapatriée : heure de Paris, début du texte, vignette lue par le serveur (jamais l'adresse du diffuseur). */
+function entreeRapatriee(p: PublicationApercu): EntreeApercu {
+  const type = p.mediaDiffuseur?.type === "video" ? "video" : "image";
+  const vignette = p.mediaDiffuseur?.miniature ? adresseMiniature(p.id) : undefined;
+  return {
+    cle: `publication:${p.id}|${p.reseau}`,
+    jour: cleJour(p.date),
+    reseau: p.reseau as EntreeApercu["reseau"],
+    type,
+    etat: etatAffiche(p),
+    heure: heureDeParis(p.date),
+    titre: p.texte.trim().slice(0, 70) || undefined,
+    texte: p.texte,
+    media: vignette ? { genre: "image", url: vignette } : undefined,
+    vignette,
+    chezDiffuseur: true,
+    canalNom: p.canalNom || undefined,
+  };
+}
+
 /**
  * L'état affiché d'une publication, le même sur téléphone, en semaine et en mois : l'envoi par Buffer d'abord (refusé, absent ou
  * échec = « à corriger » ; à vérifier ; en cours ; brouillon dans Buffer), puis le statut. Un essai garde son état « essai ».
  */
-export function etatAffiche(p: Pick<PublicationApercu, "statut" | "via" | "etatEnvoi">): string {
+export function etatAffiche(p: Pick<PublicationApercu, "statut" | "via" | "etatEnvoi"> & Partial<Pick<PublicationApercu, "rapatrieeLe" | "retireeLe" | "videoId" | "visuelId">>): string {
   if (p.via === "simulation") return "essai";
-  const base = etatDepuisStatut(p.statut) ?? "inconnu";
+  const rapatriee = reprise(p);
+  if (rapatriee && p.retireeLe) return "retire_diffuseur";
+  const base = rapatriee && p.statut === "programmee" ? "programme_diffuseur" : (etatDepuisStatut(p.statut) ?? "inconnu");
   if (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent" || p.statut === "echec") return "a_corriger";
   if (p.etatEnvoi === "a-verifier") return "a_verifier";
   if (p.etatEnvoi === "en-cours") return "en_cours";
-  if (p.via === "buffer" && p.statut === "brouillon") return "brouillon_buffer";
+  if ((p.via === "buffer" || rapatriee) && p.statut === "brouillon") return "brouillon_buffer";
   return base;
 }

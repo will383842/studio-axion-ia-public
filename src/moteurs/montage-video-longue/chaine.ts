@@ -59,6 +59,23 @@ export function chapitresDepuisVoix(entrees: EntreesVideoLongue, mots: MotHoroda
   return entrees.chapitres.map((c, i) => ({ debutSec: debuts[i], finSec: i + 1 < debuts.length ? debuts[i + 1] : Math.round(dureeSec * 10) / 10, libelle: c.titre, blocRecette: "chapitres" }));
 }
 
+/** Mots par seconde de lecture (même estimation que l'écran : `MOTS_PAR_SECONDE` de `PlanChapitres`, et la recette du format). */
+export const MOTS_PAR_SECONDE_LECTURE = 2.6;
+
+/** Mode sans voix (PUR) : chaque mot reste à l'écran le temps de le lire, chapitre après chapitre ; aucune voix, aucun coût. */
+export function estimerMotsSansVoix(entrees: EntreesVideoLongue): { mots: MotHorodate[]; dureeSec: number } {
+  const mots: MotHorodate[] = [];
+  let t = 0;
+  const pas = 1 / MOTS_PAR_SECONDE_LECTURE;
+  for (const c of entrees.chapitres) {
+    for (const mot of c.texte.split(/\s+/).filter(Boolean)) {
+      mots.push({ mot, debutSec: Math.round(t * 1000) / 1000, finSec: Math.round((t + pas) * 1000) / 1000 });
+      t += pas;
+    }
+  }
+  return { mots, dureeSec: Math.round(t * 10) / 10 };
+}
+
 export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAvance<EntreesVideoLongue>, deps: DependancesVideoLongue): Promise<EtatVideoLongue> {
   const etape = premiereEtapePrete(ctx, etat)?.cle;
   if (!etape) return { ...etat, fini: true };
@@ -68,6 +85,11 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
       if (ctx.entrees.chapitres.length === 0) return { ...etat, echec: { etape, message: "Aucun texte de chapitre n'a été reçu : validez d'abord votre script, chapitre par chapitre.", reessayable: false } };
       return faite(etat);
     case "voix": {
+      // Sans voix : aucune lecture, aucun port de voix touché. Le temps de chaque mot suit la durée de lecture estimée.
+      if (ctx.entrees.sansVoix) {
+        const lue = estimerMotsSansVoix(ctx.entrees);
+        return faite({ ...etat, voix: { mots: lue.mots, dureeSec: lue.dureeSec, morceaux: 0 } });
+      }
       const lue = await lireVoixLongue(ctx.entrees.chapitres, deps.voix);
       return faite({ ...etat, voix: { mots: lue.mots, dureeSec: lue.dureeSec, morceaux: lue.morceaux.length } });
     }

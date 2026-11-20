@@ -2,7 +2,7 @@
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
 import "server-only";
-import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, sourceSure, videoIdSure } from "@/domaine/types";
+import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, estRapatriee, sourceSure, videoIdSure } from "@/domaine/types";
 import { centimesUsd } from "@/fournisseurs/claude/tarifs";
 import { DELAI_TOTAL_MS } from "@/fournisseurs/claude/client";
 import { estimationRealisteRole } from "@/generateur/roles/estimation";
@@ -842,13 +842,13 @@ async function envoyerVersBufferInterne(
 
 /**
  * Premier commentaire d'un réseau : celui de l'écran ; celui que la vidéo porte déjà n'est lu que si l'appelant le demande
- * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Seuls Instagram, Facebook et
- * LinkedIn le reçoivent par Buffer ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
+ * (`avecVideo`) : les autres écrans ne le montrent pas, ils n'envoient donc rien qu'ils n'affichent. Instagram, Facebook et
+ * LinkedIn le reçoivent par Buffer ou Zernio ; pour les autres rien n'est envoyé (`aLaMain` : l'écran dit de le poser soi-même).
  */
 async function commentairePour(kitVue: VueKit, reseau: IdReseau, surcharge: string | undefined, avecVideo: boolean, outil: OutilPublication = "buffer"): Promise<{ texte?: string; aLaMain: boolean }> {
   const texte = (surcharge ?? (avecVideo ? await premierCommentaireDeVideo(kitVue.videoId, reseau, kitVue.variante) : undefined))?.trim();
   if (!texte) return { aLaMain: false };
-  // Zernio : seuls Facebook et LinkedIn le reçoivent (zernio-corps.ts) ; Instagram, TikTok, YouTube : à la main, aucun firstComment.
+  // Zernio : Instagram (prouvé le 20/11), Facebook et LinkedIn le reçoivent (zernio-corps.ts, « à confirmer ») ; TikTok et YouTube : à la main, aucun firstComment.
   if (outil === "zernio" ? premierCommentaireTransmissibleZernio(reseau) : premierCommentaireTransmissible(reseau)) return { texte, aLaMain: false };
   // Posé à la main : le texte est tout de même montré et recopié, il passe donc le même filtre, avant tout envoi.
   try {
@@ -1461,7 +1461,7 @@ export async function listerCalendrier(debutIso: string, finIso: string): Promis
   // Une publication (même un essai) d'une vidéo d'exemple suit l'interrupteur « Afficher les exemples ».
   // Une vidéo archivée sort du calendrier ; ses publications reviennent si elle est restaurée.
   const videosMasquees = new Set((await depots().videos.lister((v) => !exemplesVideo(v) || v.statut === "archivee")).map((v) => v.id));
-  const pubs = await depots().publications.lister((p) => exemples(p) && !!sourceSure(p) && !videosMasquees.has(videoIdSure(p) ?? "") && p.date >= debutIso && p.date <= finIso);
+  const pubs = await depots().publications.lister((p) => exemples(p) && (!!sourceSure(p) || (estRapatriee(p) && !p.retireeLe)) && !videosMasquees.has(videoIdSure(p) ?? "") && p.date >= debutIso && p.date <= finIso);
   pubs.sort((a, b) => a.date.localeCompare(b.date));
   const parJour = new Map<string, JourCalendrier["publications"]>();
   const cartes = new Map<string, VueVideoCarte | null>();

@@ -20,7 +20,7 @@ export const formatTutorielOutil: DefinitionFormat = {
   nomCourt: "Tutoriel d'outil",
   accroche: "Un outil montré à l'écran, pas à pas",
   description: "Votre script ou une idée : le studio montre l'outil en plein écran (curseur, clics, zooms, frappe, légendes) sur une voix HeyGen. Pas de visage.",
-  icone: "baguette",
+  icone: "appareils",
   adresseCreation: "/tutoriel-outil",
   statut: "masque",
   famille: "motion",
@@ -32,6 +32,7 @@ export const formatTutorielOutil: DefinitionFormat = {
   ratioMaitre: "4:5",
   miseEnPage: "plein-ecran",
   miseEnPageParRatio: { "4:5": "plein-ecran", "9:16": "plein-ecran", "1:1": "plein-ecran" },
+  // T-EXT-SV : avec voix, 1 personnage. 0 n'est admis QUE dans le mode « sans voix » : `bornesPersonnages` (mode-sans-voix.ts), lu au lancement.
   personnages: { min: 1, max: 1, roles: ["voix"], sources: ["double"] },
   entrees: [],
   etapes: ["express", "fabrication"],

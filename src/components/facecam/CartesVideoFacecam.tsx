@@ -124,7 +124,7 @@ export function CartesVideoFacecam({ videoId, cartes, possible, envoi, geste }: 
                         value=""
                         disabled={envoi}
                         onChange={(e) => choisirAnimation(geste, videoId, c.id, e.target.value)}
-                        className="h-9 max-w-[11rem] rounded-lg border border-trait bg-surface px-2 font-sans text-sm text-texte-doux"
+                        className="h-9 max-w-[11rem] rounded-lg border border-trait bg-surface-1 px-2 font-sans text-sm text-texte-doux"
                       >
                         <option value="">Changer l&rsquo;animation</option>
                         {modelesPossibles(c.textes, c.modele).map((m) => (

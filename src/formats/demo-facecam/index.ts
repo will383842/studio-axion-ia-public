@@ -20,7 +20,7 @@ export const formatDemoFacecam: DefinitionFormat = {
   nomCourt: "Démo facecam",
   accroche: "Vous et votre écran, côte à côte",
   description: "Déposez votre facecam et votre enregistrement d'écran (ou une seule vidéo) : écran partagé, motion design autour de l'écran, sous-titres calés.",
-  icone: "ecran-partage",
+  icone: "visage",
   adresseCreation: "/demo-facecam",
   statut: "masque",
   famille: "ecran-partage",

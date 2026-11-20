@@ -1,3 +1,5 @@
+/** C10-15-b2 : éteint par défaut, seul `true` allume. */
+export const RYTHME_MESURE_ACTIF = false;
 import type { PlanDeScenes } from "@/briques/plan-scenes/schema";
 
 /** Valeurs « à mesurer », jamais bloquantes : elles ne produisent qu'une réserve « À vérifier ». */

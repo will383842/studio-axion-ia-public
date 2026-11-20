@@ -103,15 +103,18 @@ describe("réglage « premier commentaire »", () => {
     expect(commentaire.startsWith(COMMENTAIRE)).toBe(true);
   });
 
-  it("Instagram (non transmis par Zernio) : les hashtags restent dans le texte, jamais perdus, et l'aperçu le dit", async () => {
+  it("Instagram (transmis par Zernio, ZRN-01) : les hashtags quittent le texte et rejoignent le premier commentaire, c'est le choix du réglage", async () => {
     await definirPlacement("instagram", "premier-commentaire");
     await cocherTout();
     const kit = (await pub.obtenirKit(VIDEO))!;
     const ig = kit.reseaux.find((x) => x.reseau === "instagram")! as import("@/services/publications").VueKitReseauApercu;
-    expect(ig.apercuEnvoi?.texte).toBe(texteDAvant(ig, kit.serie?.entete));
-    if (ig.motsDiese.length) expect(ig.apercuEnvoi?.repli).toMatch(/restent à la fin du texte/);
+    const mots = ig.motsDiese.filter((m) => !estInterdit(m));
+    expect(ig.apercuEnvoi?.repli).toBeUndefined();
     await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN);
-    expect(demande(0).texte).toBe(texteDAvant(ig, kit.serie?.entete));
+    if (mots.length) {
+      expect(demande(0).texte).not.toContain(mots[0]);
+      expect(demande(0).premierCommentaire).toContain(mots.join(" "));
+    }
   });
 });
 
