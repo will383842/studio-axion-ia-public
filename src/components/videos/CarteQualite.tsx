@@ -1,4 +1,5 @@
 import { Icone } from "@/components/ui/Icone";
+import { PREFIXE_REMARQUE_LIVRAISON, remarquesDeLivraison } from "@/domaine/livraison-avec-remarques";
 import type { NoteQualite } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 
@@ -16,6 +17,8 @@ export function CarteQualite({ note }: { note: NoteQualite }) {
   const r = 30;
   const c = 2 * Math.PI * r;
   const t = ton(note.globale);
+  const remarques = remarquesDeLivraison(note);
+  const autres = remarques.length ? note.alertes.filter((a) => !remarques.includes(a)) : note.alertes;
   return (
     <section aria-label="Qualité" className="rounded-carte border border-trait bg-surface-1 p-4">
       <div className="flex items-center gap-4">
@@ -33,9 +36,23 @@ export function CarteQualite({ note }: { note: NoteQualite }) {
           <p className="text-xs text-texte-faible">Estimation</p>
         </div>
       </div>
-      {note.alertes.length > 0 && (
+      {remarques.length > 0 && (
+        <div role="status" className="mt-4 border-t border-trait pt-3">
+          <p className="text-sm font-semibold text-brique">Prête, avec remarques</p>
+          <p className="text-xs text-texte-faible">La vidéo est livrée. Regardez ces points avant de la publier.</p>
+          <ul className="mt-2 space-y-1.5">
+            {remarques.map((a, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <Icone nom="attention" size={16} className="mt-0.5 shrink-0 text-brique" />
+                <span className="text-texte-doux">{a.message.slice(PREFIXE_REMARQUE_LIVRAISON.length)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {autres.length > 0 && (
         <ul className="mt-4 space-y-1.5 border-t border-trait pt-3">
-          {note.alertes.map((a, i) => (
+          {autres.map((a, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
               <Icone nom={a.gravite === "info" ? "info" : "attention"} size={16} className={cn("mt-0.5 shrink-0", a.gravite === "bloquant" ? "text-brique" : a.gravite === "attention" ? "text-ambre" : "text-texte-faible")} />
               <span className="text-texte-doux">{a.message}</span>
