@@ -637,7 +637,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       const studio = Date.parse(p.date);
       if (rapatriee) {
         if (Number.isFinite(diffuseur) && !(Math.abs(diffuseur - studio) <= ECART_DATE_TOLERE_MS)) {
-          changement.date = post.scheduledFor;
+          changement.date = new Date(post.scheduledFor!).toISOString();
           if (Number.isFinite(studio)) deplaceeChezLeDiffuseur = { avant: studio, apres: diffuseur };
         }
       } else if (Number.isFinite(diffuseur)) {
