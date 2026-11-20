@@ -205,13 +205,18 @@ describe("reductionNecessaire", () => {
   it("texte très long : réduit, entre 0,1 et 1, sans être strictement identique à la taille normale", () => {
     const texte = Array.from({ length: 80 }, (_, i) => `mot${"x".repeat(i % 7)}`).join(" ");
     const f = reductionNecessaire(scene("a", "citation", { texte }, 0, 79));
-    expect(f).toBeLessThan(1);
-    expect(f).toBeGreaterThanOrEqual(0.1);
+    expect(f).toBe(0.49);
+  });
+  it("hauteur seule : mots courts (la largeur tient), beaucoup de lignes : réduction exacte par la hauteur", () => {
+    const texte = (n: number) => Array.from({ length: n }, () => "ab").join(" ");
+    expect(reductionNecessaire(scene("a", "repere", { texte: texte(20) }, 0, 0))).toBe(0.89);
+    expect(reductionNecessaire(scene("a", "repere", { texte: texte(40) }, 0, 0))).toBe(0.6);
+    // Ce même texte, plus court, tient à sa taille normale : la réduction ne vient donc que de la hauteur.
+    expect(reductionNecessaire(scene("a", "repere", { texte: texte(5) }, 0, 0))).toBe(1);
   });
   it("un mot trop large pour sa ligne réduit la taille", () => {
     const f = reductionNecessaire(scene("a", "repere", { texte: "x".repeat(60) }, 0, 0));
-    expect(f).toBeLessThan(1);
-    expect(f).toBeGreaterThan(0);
+    expect(f).toBe(0.390625);
   });
 });
 
@@ -236,6 +241,14 @@ describe("appliquerControles", () => {
     expect(r.scenes.map((s) => s.id)).toEqual(["bonne"]);
     expect(r.remarques).toEqual([{ code: "LITTERALITE", sceneId: "fausse", message: "Ce que la scène affichait n'était pas dit dans le script : scène retirée." }]);
     expect(entree).toEqual(copie);
+  });
+  it("une 2e scène de même pièce et même texte, juste après la 1re, est retirée par REPETITION (remarque exacte)", () => {
+    const mm = mots("un deux trois un deux");
+    const a = scene("a", "repere", { texte: "un deux" }, 0, 1, 0, 1000, "haut");
+    const b = scene("b", "repere", { texte: "un deux" }, 3, 4, 1050, 3000, "haut");
+    const r = appliquerControles([a, b], contexte(mm, { dureeMs: 5000 }));
+    expect(r.scenes.map((s) => [s.id, s.debutMs, s.finMs])).toEqual([["a", 0, 1000]]);
+    expect(r.remarques).toEqual([{ code: "REPETITION", sceneId: "b", message: "Même pièce deux fois de suite : la seconde est retirée." }]);
   });
   it("une scène figée n'est jamais modifiée ni retirée, même fausse", () => {
     const fausse = scene("figee", "citation", { texte: "jamais dit ici" }, 0, 1, 0, 100, "haut");
