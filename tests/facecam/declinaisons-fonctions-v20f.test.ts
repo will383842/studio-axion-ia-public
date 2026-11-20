@@ -244,6 +244,14 @@ describe("bouchePctDesPlans et controlePlans", () => {
     expect(c).toEqual(controlerFormat({ ratio: "1:1", plans, sousTitres: { centrePct } }));
   });
 
+  it("controlePlans : c'est la bouche qui décide de la ligne des sous-titres (valeur exacte, pas de recalcul)", () => {
+    // bouche à 38 + 0,36 × 75 = 65 % : la ligne est calée ≈ 75 % -> aucun défaut.
+    // Si la bouche était ignorée (ligne du milieu, 67,5 %), le défaut « sous-titres-sur-visage » apparaîtrait.
+    const c = controlePlans("1:1", [planFormat("1:1", { yeuxHauteur: 0.38, visage: [0.3, 0.1, 0.4, 0.75] })]);
+    expect(c.ok).toBe(true);
+    expect(c.defauts).toEqual([]);
+  });
+
   it("controlePlans : un visage sorti de l'image est signalé (ok faux), un visage bien placé ne l'est pas", () => {
     const bon = controlePlans("16:9", [planFormat("16:9", { yeuxHauteur: 0.34, yeuxLargeur: 0.5, visage: [0.4, 0.15, 0.2, 0.3] })]);
     const coupe = controlePlans("16:9", [planFormat("16:9", { yeuxHauteur: 0.05, yeuxLargeur: 0.5, visage: [0.4, -0.2, 0.2, 0.3] })]);
