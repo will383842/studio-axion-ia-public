@@ -443,6 +443,18 @@ function raisonDeLErreur(e: unknown): { raison: RaisonPauseLotIV; phrase: string
 /** Travail créé pour cette vidéo depuis `lanceeLe` ? (le lancement a-t-il abouti avant l'erreur) */
 const unTravailExiste = async (videoId: Id) => (await dernierTravail(videoId)) !== null;
 
+/**
+ * Le lot est-il « sans voix » ? Le choix est posé dans les entrées de chaque vidéo à l'enregistrement du lot
+ * (`entrees.imageVideo.sansVoix === true`, exactement) : il suit le lot pour le budget, la reprise et « Refaire ».
+ */
+async function lotSansVoixIV(lot: Pick<LotIV, "videos">): Promise<boolean> {
+  for (const v of lot.videos) {
+    const video = await depots().videos.obtenir(v.videoId);
+    if (video) return (video.entrees?.imageVideo as { sansVoix?: unknown } | undefined)?.sansVoix === true;
+  }
+  return false;
+}
+
 async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void> {
   // 1. Sous verrou : relire, recalculer les statuts depuis les travaux, écrire.
   const { lot: apres, fini } = await sousVerrou(async () => {
@@ -507,7 +519,7 @@ async function travailleSurLot(id: string, dep: DependancesLotIV): Promise<void>
     return true;
   });
   if (!prepare) return;
-  const lignes = lignesUneVideo(apres.reseaux, apres.tauxUsdEur);
+  const lignes = lignesUneVideo(apres.reseaux, apres.tauxUsdEur, await lotSansVoixIV(apres));
   try {
     await transfererDuLot(id, suivante.videoId, lignes, additionner(...lignes.map((l) => l.total)));
     await (dep.lancerVideo ?? lancerVideoParDefaut)(suivante.videoId, apres.prixParVideoCentimes);
@@ -599,7 +611,8 @@ export async function reprendreLotImageVideo(lotId: string): Promise<{ statut: "
   if (lu.statut !== "en-pause") return { statut: "refusee", phrase: PHRASES_LOT_IV.rienAReprendre };
   const restant = lu.videos.filter((v) => v.statut === "en-attente").length;
   if (restant > 0) {
-    const lignes = Array.from({ length: restant }, () => lignesUneVideo(lu.reseaux, lu.tauxUsdEur)).flat();
+    const sansVoixLot = await lotSansVoixIV(lu);
+    const lignes = Array.from({ length: restant }, () => lignesUneVideo(lu.reseaux, lu.tauxUsdEur, sansVoixLot)).flat();
     const total = additionner(...lignes.map((l) => l.total));
     try {
       await reserverLot(lotId, lignes, total, total.centimes, { reprise: true });
@@ -633,8 +646,8 @@ export async function refaireVideoDuLot(lotId: string, rang: number, d: DemandeR
   if (!lot || !v) return { statut: "refusee", phrase: PHRASES_LOT_IV.introuvable };
   if (v.statut !== "mise-de-cote" && v.statut !== "faite") return { statut: "refusee", phrase: PHRASES_LOT_IV.rienARefaire };
   const ancienne = await depots().videos.obtenir(v.videoId);
-  const entrees = (ancienne?.entrees?.imageVideo ?? {}) as { largeur?: number; hauteur?: number };
-  const issue = await avecAccordAutomatique((a) => deposerImageVideo({ fichierId: v.fichierId, reseaux: lot.reseaux, ...(lot.offre ? { offre: lot.offre } : {}), largeur: Number(entrees.largeur ?? 0), hauteur: Number(entrees.hauteur ?? 0), accordCentimes: a ?? d.accordCentimes }, { ...dep, sansControleSujet: true }), typeof d.accordCentimes === "number" ? d.accordCentimes : undefined);
+  const entrees = (ancienne?.entrees?.imageVideo ?? {}) as { largeur?: number; hauteur?: number; sansVoix?: unknown };
+  const issue = await avecAccordAutomatique((a) => deposerImageVideo({ fichierId: v.fichierId, reseaux: lot.reseaux, ...(lot.offre ? { offre: lot.offre } : {}), largeur: Number(entrees.largeur ?? 0), hauteur: Number(entrees.hauteur ?? 0), ...(entrees.sansVoix === true ? { sansVoix: true } : {}), accordCentimes: a ?? d.accordCentimes }, { ...dep, sansControleSujet: true }), typeof d.accordCentimes === "number" ? d.accordCentimes : undefined);
   if (issue.statut !== "lancee") return issue;
   await sousVerrou(async () => {
     const lu = await lireLotIV(lotId);
