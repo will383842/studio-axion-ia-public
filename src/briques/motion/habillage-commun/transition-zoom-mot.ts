@@ -53,3 +53,24 @@ export function zoomMot(scenes: ScenesZoomMot, t: number): EtatZoomMot | null {
     echelleScene: x >= 1 ? 1 : arrondi(ECHELLE_SCENE_DEPART + (1 - ECHELLE_SCENE_DEPART) * pScene),
   };
 }
+
+/**
+ * FIX-X1-05-a : échelle MAXIMALE pour que le mot ENTIER tienne dans le cadre (largeur du cadre moins deux marges), en pixels.
+ * Bornée à `[1, ECHELLE_PLEIN_CADRE]` ; entrée invalide (non finie, mot vide) : 1 (aucun grossissement inventé).
+ */
+export function echelleMotDansCadre(largeurMot: number, largeurCadre: number, marge: number): number {
+  if (![largeurMot, largeurCadre, marge].every(Number.isFinite) || largeurMot <= 0 || marge < 0) return 1;
+  const libre = largeurCadre - 2 * marge;
+  return Math.min(ECHELLE_PLEIN_CADRE, Math.max(1, libre / largeurMot));
+}
+
+/**
+ * Comme `zoomMot`, mais tant que le mot est visible (`ouverture < 1`) son échelle ne dépasse pas celle qui le garde ENTIER
+ * dans le cadre. `zoomMot` reste inchangé (même signature, mêmes valeurs).
+ */
+export function zoomMotDansCadre(scenes: ScenesZoomMot, t: number, cadre: { largeurMot: number; largeurCadre: number; marge: number }): EtatZoomMot | null {
+  const etat = zoomMot(scenes, t);
+  if (!etat || etat.ouverture >= 1) return etat;
+  const max = echelleMotDansCadre(cadre.largeurMot, cadre.largeurCadre, cadre.marge);
+  return { ...etat, echelleMot: Math.min(etat.echelleMot, max) };
+}
