@@ -12,7 +12,8 @@
  *    travail reste en pause claire.
  */
 import { cleDepenseUsine } from "./cle-depense-usine";
-import { appelClaudeTutoriel, claudeTutorielActif } from "./tutoriel-claude";
+import { appelClaudeTutoriel, claudeTutorielActif, regardTutorielActif } from "./tutoriel-claude";
+import { creerRegardTutoriel } from "./tutoriel-regard";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
@@ -42,6 +43,16 @@ brancherServicesTutoriel({
     // T-EXT-42 : devis et plafond par vidéo, en quantités, montrés avant toute dépense. Seul `true` exact allume ; éteint, `devis` est absent.
     const devis = (await lireParametre<boolean>("tutoriel.devisAvantDepense", false)) === true;
     const idee = "aEcrire" in scriptRetenu(c.script.texteComplet, lireEntreesTutoriel(c.entrees));
+    const rendu: NonNullable<OutilsTutoriel["rendu"]> = {
+      service: () => b.montage.rendu(),
+      signer: async (lectures, depot) => {
+        const s = await b.montage.signer(lectures, [depot]);
+        return { lectures: s.lectures, urlDepot: s.depots[depot.cle] };
+      },
+      cle: (nom) => `studio/${b.env}/videos/${c.videoId}/${nom}`,
+    };
+    // T-EXT-27b : le regard de Claude sur les images-clés. Éteint (champ absent) sans `tutoriel.regardeur` ET `tutoriel.claude` à `true`.
+    const regarder = (await regardTutorielActif()) ? creerRegardTutoriel({ videoId: c.videoId, origine: c.origine, rendu }) : undefined;
     return {
       ...(devis
         ? {
@@ -72,14 +83,8 @@ brancherServicesTutoriel({
         : async () => {
             throw new ErreurClaude("requete", "Claude n'est pas encore relié au tutoriel d'outil.");
           },
-      rendu: {
-        service: () => b.montage.rendu(),
-        signer: async (lectures, depot) => {
-          const s = await b.montage.signer(lectures, [depot]);
-          return { lectures: s.lectures, urlDepot: s.depots[depot.cle] };
-        },
-        cle: (nom) => `studio/${b.env}/videos/${c.videoId}/${nom}`,
-      },
+      ...(regarder ? { regarder } : {}),
+      rendu,
     };
   },
 });
