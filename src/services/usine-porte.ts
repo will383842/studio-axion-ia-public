@@ -149,11 +149,23 @@ export function lireSemaineUsine(corps: unknown): LigneSemaineUsine[] {
   return sortie;
 }
 
+/** Phrase de l'Usine accompagnant une réponse partielle (« TikTok n'est pas proposé : aucun compte actif »), telle quelle, bornée ; absente sinon. */
+export function lireMessageSemaineUsine(corps: unknown): string | undefined {
+  return corps && typeof corps === "object" ? texteOptionnel((corps as { message?: unknown }).message, 500) : undefined;
+}
+
+/** Comme `proposerSemaineUsine`, avec le message de l'Usine quand la réponse est partielle. */
+export async function proposerSemaineUsineAvecMessage(demande: { debut: string; reseaux?: readonly string[] }, o: Options = {}): Promise<{ lignes: LigneSemaineUsine[]; message?: string }> {
+  const corps = { debut: demande.debut, ...(demande.reseaux?.length ? { reseaux: [...demande.reseaux] } : {}) };
+  const brut = await appeler("/api/porte/planification/semaine", { methode: "POST", corps }, o);
+  const message = lireMessageSemaineUsine(brut);
+  return { lignes: lireSemaineUsine(brut), ...(message ? { message } : {}) };
+}
+
 /**
  * Demande à l'usine de PROPOSER une semaine (tirage, rythmes, anti-répétition : tout se passe côté usine, le Studio ne choisit aucun sujet).
  * La demande ne porte aucun statut : l'usine ne peut rien écrire dans le calendrier par cet appel, le Studio affiche seulement.
  */
 export async function proposerSemaineUsine(demande: { debut: string; reseaux?: readonly string[] }, o: Options = {}): Promise<LigneSemaineUsine[]> {
-  const corps = { debut: demande.debut, ...(demande.reseaux?.length ? { reseaux: [...demande.reseaux] } : {}) };
-  return lireSemaineUsine(await appeler("/api/porte/planification/semaine", { methode: "POST", corps }, o));
+  return (await proposerSemaineUsineAvecMessage(demande, o)).lignes;
 }

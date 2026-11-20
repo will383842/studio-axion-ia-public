@@ -16,18 +16,20 @@ export interface ProprietesCarteProposition {
   /** Publication proche déjà au calendrier ; absente ou vide : la ligne « Ressemble à » n'est pas montrée. */
   ressembleA?: string;
   /** Écran « À valider » de l'usine : l'UNIQUE lieu de validation (décision Q4). */
-  lienAValider: string;
+  lienAValider?: string;
+  /** Lundi de la semaine proposée : avec `cle`, c'est tout ce que le navigateur envoie au serveur pour retenir. Absent : pas de bouton. */
+  debut?: string;
   /** Le sujet que l'Usine propose (champ `sujet` de la proposition). Absent : la carte n'a pas de bouton « Retenir ce sujet ». Repris de `entree` s'il y est. */
   sujet?: IdeeUsine;
-  /** Action serveur (jour, réseau de la carte) ; par défaut l'action du Studio. Fournie par les tests. */
-  retenir?: (sujet: IdeeUsine, jour: string, reseau: string) => Promise<Resultat<{ id: string; rappelUsine: boolean }>>;
+  /** Action serveur (`debut`, `cle` seulement : le serveur retrouve le sujet, le jour et le réseau) ; par défaut l'action du Studio. Fournie par les tests. */
+  retenir?: (debut: string, cle: string) => Promise<Resultat<{ id: string; rappelUsine: boolean }>>;
   className?: string;
 }
 
 export const PHRASE_RETENU_SANS_USINE = "Sujet retenu au Studio, mais l'Usine n'a pas pu en être prévenue pour le moment.";
-const retenirParDefaut: NonNullable<ProprietesCarteProposition["retenir"]> = async (sujet, jour, reseau) => {
+const retenirParDefaut: NonNullable<ProprietesCarteProposition["retenir"]> = async (debut, cle) => {
   const { retenirSujetSemaineAction } = await import("@/app/(studio)/calendrier/retenir-sujet");
-  return retenirSujetSemaineAction(sujet, jour, reseau);
+  return retenirSujetSemaineAction(debut, cle);
 };
 
 /**
@@ -36,19 +38,19 @@ const retenirParDefaut: NonNullable<ProprietesCarteProposition["retenir"]> = asy
  * « À valider » de l'usine. Seul bouton, et seulement si l'Usine a donné le sujet : « Retenir ce sujet » (écrit le sujet, rien d'autre :
  * aucun créneau, aucune fabrication, rien chez le diffuseur).
  */
-export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, sujet: sujetDonne, retenir = retenirParDefaut, className }: ProprietesCarteProposition) {
+export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, debut, sujet: sujetDonne, retenir = retenirParDefaut, className }: ProprietesCarteProposition) {
   const sujet = sujetDonne ?? (entree as { sujet?: IdeeUsine }).sujet;
   const [etat, setEtat] = useState<"libre" | "en-cours" | "retenu">("libre");
   const [message, setMessage] = useState<string | null>(null);
   // Garde synchrone : deux clics rapides arrivent avant que l'état se mette à jour.
   const occupe = useRef(false);
   async function retenirCeSujet() {
-    if (!sujet || occupe.current || etat === "retenu") return;
+    if (!sujet || !debut || occupe.current || etat === "retenu") return;
     occupe.current = true;
     setEtat("en-cours");
     setMessage(null);
     try {
-      const r = await retenir(sujet, entree.jour, entree.reseau);
+      const r = await retenir(debut, entree.cle);
       if (r.ok) {
         setEtat("retenu");
         if (r.donnees.rappelUsine) setMessage(PHRASE_RETENU_SANS_USINE);
@@ -89,19 +91,21 @@ export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, s
           <b className="text-texte">Ressemble à :</b> {proche}
         </span>
       )}
-      {sujet && (
-        <button type="button" disabled={etat !== "libre"} aria-busy={etat === "en-cours"} onClick={() => void retenirCeSujet()} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-trait-fort bg-surface-1 px-3 text-xs font-bold text-texte hover:bg-surface-2 disabled:opacity-70">
+      {sujet && debut && (
+        <button type="button" disabled={etat !== "libre"} aria-busy={etat === "en-cours"} onClick={() => void retenirCeSujet()} className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-trait-fort bg-surface-1 px-3 text-sm font-bold text-texte hover:bg-surface-2 disabled:opacity-70">
           {etat === "retenu" ? "Retenu" : etat === "en-cours" ? "Un instant…" : "Retenir ce sujet"}
         </button>
       )}
       {message && (
-        <span role="status" className="text-xs text-texte-doux">
+        <span role={etat === "libre" ? "alert" : "status"} className="text-xs text-texte-doux">
           {message}
         </span>
       )}
-      <Link href={lienAValider} className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
-        Voir dans « À valider »
-      </Link>
+      {lienAValider && (
+        <Link href={lienAValider} className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
+          Voir dans « À valider »
+        </Link>
+      )}
     </div>
   );
 }

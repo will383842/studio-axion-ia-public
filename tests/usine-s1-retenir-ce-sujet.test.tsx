@@ -3,7 +3,8 @@
  * `fetch` et l'action sont des doublures. Le jeu du contrat (PR #50 de l'usine) est recopié avec son empreinte.
  */
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +51,20 @@ describe("contrat recopié · jeu et empreinte", () => {
     expect(calculee).toBe("f2eb03e9f281978bc1c69ef53b06fe90179db2e544aff7c87b6eea351a2cc926");
   });
 
+  // Dérive : comparaison à la SOURCE (dépôt de l'Usine) quand elle est là, sans réseau. En local : USINE_CONTRAT_DIR=<usine>/tests/contrat/fixtures
+  // (ou le dépôt de l'Usine posé à côté). En CI, si l'étape de CI récupère l'Usine et fixe USINE_CONTRAT_DIR, le test compare ; sinon il est
+  // signalé « ignoré » (jamais vert par défaut sans le dire). USINE_CONTRAT_EXIGE=1 le rend obligatoire (échec si la source manque).
+  const SOURCE = [process.env.USINE_CONTRAT_DIR, resolve(process.cwd(), "../usine-axion-ia-public/tests/contrat/fixtures"), resolve(process.cwd(), "../will383842/usine-axion-ia-public/tests/contrat/fixtures")].find((d) => !!d && existsSync(d));
+  const sansSource = !SOURCE && process.env.USINE_CONTRAT_EXIGE !== "1";
+  it.skipIf(sansSource)("dérive : le jeu recopié est identique, fichier par fichier, à la source de l'Usine, et l'empreinte est celle de son contrat", () => {
+    expect(SOURCE, "source du contrat introuvable : fixer USINE_CONTRAT_DIR").toBeTruthy();
+    const noms = (d: string | URL) => readdirSync(d).filter((n) => n.endsWith(".json")).sort();
+    expect(noms(DOSSIER)).toEqual(noms(SOURCE!));
+    for (const nom of noms(SOURCE!)) expect(readFileSync(new URL(nom, DOSSIER), "utf8").replaceAll("\r\n", "\n"), nom).toBe(readFileSync(resolve(SOURCE!, nom), "utf8").replaceAll("\r\n", "\n"));
+    const doc = resolve(SOURCE!, "../../../docs/CONTRAT-PORTE.md");
+    if (existsSync(doc)) expect(readFileSync(doc, "utf8")).toContain(readFileSync(new URL("EMPREINTE.sha256", DOSSIER), "utf8").trim());
+  });
+
   it("le jeu d'erreurs contient les sept codes de la semaine", () => {
     const { codes } = lire<{ codes: string[] }>("erreurs.json");
     for (const c of ["arrete", "aucun_compte", "aucun_sujet", "aucun_format", "rythme_zero", "semaine_pleine", "semaine_passee"]) expect(codes).toContain(c);
@@ -91,6 +106,22 @@ describe("lecture du champ sujet de la proposition", () => {
   });
 });
 
+describe("réponse partielle : le message de l'Usine est lu", () => {
+  it("lireMessageSemaineUsine rend la phrase telle quelle, bornée ; rien sans message", () => {
+    expect(porte.lireMessageSemaineUsine({ propositions: [], message: "TikTok n'est pas proposé : aucun compte actif." })).toBe("TikTok n'est pas proposé : aucun compte actif.");
+    expect(porte.lireMessageSemaineUsine({ propositions: [] })).toBeUndefined();
+    expect(porte.lireMessageSemaineUsine({ message: 5 })).toBeUndefined();
+    expect(porte.lireMessageSemaineUsine(null)).toBeUndefined();
+  });
+  it("proposerSemaineUsineAvecMessage rend lignes et message ; proposerSemaineUsine reste un tableau", async () => {
+    const f = vi.fn(async () => reponse(200, { propositions: [{ cle: "a", jour: "2026-11-24", reseau: "instagram", type: "video" }], message: "TikTok n'est pas proposé : aucun compte actif." }));
+    const r = await porte.proposerSemaineUsineAvecMessage({ debut: "2026-11-23" }, { env: ENV, fetchImpl: F(f) });
+    expect(r.message).toBe("TikTok n'est pas proposé : aucun compte actif.");
+    expect(r.lignes).toHaveLength(1);
+    expect(await porte.proposerSemaineUsine({ debut: "2026-11-23" }, { env: ENV, fetchImpl: F(f) })).toHaveLength(1);
+  });
+});
+
 describe("retenir : jour et réseau transmis à la porte", () => {
   const origine = { signature: "s", parts: { metier: "m" }, typeContenu: "video" as const };
   const corps = (f: ReturnType<typeof vi.fn>) => JSON.parse((f.mock.calls[0] as unknown as [string, { body: string }])[1].body) as Record<string, unknown>;
@@ -116,9 +147,9 @@ function trouver(n: ReactNode, quoi: (e: ReactElement<{ children?: ReactNode }>)
   const e = n as ReactElement<{ children?: ReactNode }>;
   return (quoi(e) ? e : trouver(e.props.children, quoi)) as never;
 }
-const rendre = (retenir?: Parameters<typeof CarteProposition>[0]["retenir"], sujet: IdeeUsine | null = idee) => {
+const rendre = (retenir?: Parameters<typeof CarteProposition>[0]["retenir"], sujet: IdeeUsine | null = idee, debut: string | null = "2026-11-23") => {
   curseur = 0;
-  return CarteProposition({ entree, lienAValider: "/a-valider", ...(sujet ? { sujet } : {}), ...(retenir ? { retenir } : {}) }) as ReactElement;
+  return CarteProposition({ entree, lienAValider: "/a-valider", ...(debut ? { debut } : {}), ...(sujet ? { sujet } : {}), ...(retenir ? { retenir } : {}) }) as ReactElement;
 };
 const texte = (n: ReactNode): string => (Array.isArray(n) ? n.map(texte).join("") : typeof n === "string" || typeof n === "number" ? String(n) : n && typeof n === "object" && "props" in n ? texte((n as ReactElement<{ children?: ReactNode }>).props.children) : "");
 const bouton = (arbre: ReactElement) => trouver(arbre, (e) => e.type === "button");
@@ -131,19 +162,30 @@ describe("bouton « Retenir ce sujet »", () => {
     expect(renderToStaticMarkup(<CarteProposition entree={entree} lienAValider="/a-valider" />)).not.toContain("<button");
   });
 
-  it("avec sujet : bouton en français simple, appelle l'action avec le sujet, le jour et le réseau de la carte, puis « Retenu »", async () => {
+  it("avec sujet : bouton en français simple, n'envoie à l'action que le lundi et la clé de la carte (ni sujet, ni jour, ni réseau), puis « Retenu »", async () => {
     const retenir = vi.fn(async () => ({ ok: true as const, donnees: { id: "suj-1", rappelUsine: false } }));
     expect(texte(bouton(rendre(retenir))!)).toBe("Retenir ce sujet");
     await bouton(rendre(retenir))!.props.onClick!();
-    expect(retenir).toHaveBeenCalledWith(idee, "2026-11-24", "instagram");
+    expect(retenir).toHaveBeenCalledWith("2026-11-23", "p1");
     const apres = rendre(retenir);
     expect(texte(bouton(apres)!)).toBe("Retenu");
     expect(bouton(apres)!.props.disabled).toBe(true);
   });
 
+  it("sans adresse « À valider » : le bouton est là, le lien manque", () => {
+    curseur = 0;
+    const arbre = CarteProposition({ entree, debut: "2026-11-23", sujet: idee }) as ReactElement;
+    expect(bouton(arbre)).not.toBeNull();
+    expect(trouver(arbre, (e) => typeof e.type !== "string" && String((e.type as { name?: string }).name) === "Link")).toBeNull();
+  });
+
+  it("sans lundi connu : pas de bouton (rien ne pourrait être retrouvé côté serveur)", () => {
+    expect(bouton(rendre(undefined, idee, null))).toBeNull();
+  });
+
   it("le sujet est repris de l'entrée quand elle le porte (liste des propositions)", () => {
     curseur = 0;
-    const arbre = CarteProposition({ entree: { ...entree, sujet: idee } as EntreeCarte, lienAValider: "/a-valider" }) as ReactElement;
+    const arbre = CarteProposition({ entree: { ...entree, sujet: idee } as EntreeCarte, lienAValider: "/a-valider", debut: "2026-11-23" }) as ReactElement;
     expect(bouton(arbre)).not.toBeNull();
   });
 
