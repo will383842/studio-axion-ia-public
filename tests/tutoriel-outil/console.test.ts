@@ -323,11 +323,12 @@ describe("aucun allumage par le code", () => {
   const cles = c.REGLAGES_TUTORIEL.map((r) => r.cle);
   // Noms des constantes qui portent ces clés (CLE_*, PARAM_*), détectés dans les exports du service et de tutoriel-claude.
   const constantes = Object.entries(c).filter(([, v]) => typeof v === "string" && cles.includes(v)).map(([n]) => n);
-  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA", "CLE_FIN_COMMUNE"])];
+  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA", "CLE_FIN_COMMUNE", "REGLAGES_TUTORIEL"])];
   // Un nom compte seulement s'il vient d'ailleurs : une constante locale homonyme (ex. un `CLE_FORMULAIRE` d'une autre action) n'est pas la clé.
   const nomsConstantes = {
     test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
   };
+  const PREFIXE_CONSTRUIT = /["'`](?:tutoriel|mentionIA)\.(?:["'`]\s*\+|\$\{)|["'`]tutoriel\.?["'`]\s*\+/;
   const ECRITURE = /\becrireParametre\b|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
   it("la détection voit les constantes CLE_* / PARAM_* et parametres.enregistrer", () => {
     expect(constantes).toEqual(expect.arrayContaining(["CLE_FORMULAIRE", "CLE_FINITIONS", "CLE_MENTION_TUTORIEL"]));
@@ -341,6 +342,10 @@ describe("aucun allumage par le code", () => {
     expect(cles.some((k) => citeCle("ecrireParametre(`tutoriel.claude`, true)", k))).toBe(true);
     expect(cles.some((k) => citeCle(`ecrireParametre("tutoriel.claude", true)`, k))).toBe(true);
     expect(cles.some((k) => citeCle(`ecrireParametre("tutoriel.claudeX", true)`, k))).toBe(false);
+    expect(nomsConstantes.test(`ecrireParametre(r.cle, true); REGLAGES_TUTORIEL.map((r) => ecrireParametre(r.cle, true))`)).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("tutoriel." + "claude", true)`)).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test("const n = 1; ecrireParametre(`tutoriel.${n}`, true)")).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("tutoriel.claude", true)`)).toBe(false);
     // Homonyme local (autre sens) : pas une écriture de la clé du tutoriel.
     expect(nomsConstantes.test(`const CLE_FORMULAIRE = /^[a-z]+$/; ecrireParametre(x, true)`)).toBe(false);
   });
@@ -349,7 +354,7 @@ describe("aucun allumage par le code", () => {
       .filter((f) => !f.endsWith("tutoriel-console.ts") && !f.endsWith("scenes-tutoriel.ts"))
       .filter((f) => {
         const s = readFileSync(f, "utf8");
-        return ECRITURE.test(s) && (cles.some((k) => citeCle(s, k)) || nomsConstantes.test(s));
+        return ECRITURE.test(s) && (cles.some((k) => citeCle(s, k)) || nomsConstantes.test(s) || PREFIXE_CONSTRUIT.test(s));
       });
     expect(coupables).toEqual([]);
   });

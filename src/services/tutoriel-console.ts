@@ -6,7 +6,7 @@
  *    (aucun `true` écrit en dur). Aucune clé n'est ajoutée à `reglages.ts`.
  *  - Le plafond Claude par vidéo est affiché seulement (« réglé » / « par défaut »), jamais modifiable ici.
  *  - Aucun appel payant : lecture des dépôts, écriture d'un réglage.
- *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15), `lienSuivi` (T-EXT-34) et les clés des fiches 41 et 33 (`PARAM_FORMULAIRE`,
+ *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15), `lienSuivi` (T-EXT-34) et les clés des fiches 33 et 41 (`PARAM_FORMULAIRE`,
  *    `PARAM_ENTREE_ZIP`) sont importés. La clé de fin commune (26a) est écrite ici parce que 26a ne l'exporte pas :
  *    le test de la console la compare au texte de `tutoriel-branchements.ts`. Plus aucune attente.
  */
