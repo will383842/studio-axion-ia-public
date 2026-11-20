@@ -4,6 +4,7 @@
  * `fetch` est injectable (les tests ne touchent jamais le réseau).
  */
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { ErreurStudio } from "@/services/_commun";
 import { lireIdeesUsine, lireMetiersUsine, NB_IDEES_USINE, type FiltresUsine, type IdeeUsine, type MetierUsine, type OrigineUsine } from "@/domaine/usine";
 
@@ -86,10 +87,25 @@ export function reinitialiserRetenuesEchouees(): void {
   retenuesEchouees = 0;
 }
 
+/** Jour et réseau visés au calendrier : facultatifs côté porte, toujours donnés ensemble (contrat `retenir`, PR #50 de l'usine). */
+export interface ViseeUsine {
+  jour: string;
+  reseau: string;
+}
+const viseeCourante = new AsyncLocalStorage<ViseeUsine>();
+/** Le temps de `f`, les retenues faites vers l'usine portent aussi le jour et le réseau visés (sans changer `ecrireSujetDeLUsine`). */
+export function avecViseeUsine<T>(visee: ViseeUsine, f: () => Promise<T>): Promise<T> {
+  return viseeCourante.run(visee, f);
+}
+export function viseeUsineCourante(): ViseeUsine | undefined {
+  return viseeCourante.getStore();
+}
+
 /** Dit à l'usine que ce sujet est pris. Renvoie false (sans lever) si l'appel échoue : le sujet existe déjà. Chaque échec est compté. */
 export async function retenirSujetUsine(origine: OrigineUsine, referenceStudio: string, o: Options = {}): Promise<boolean> {
   try {
-    await appeler("/api/porte/sujets/retenir", { methode: "POST", corps: { signature: origine.signature, parts: origine.parts, type_contenu: origine.typeContenu, reference_studio: referenceStudio } }, o);
+    const visee = viseeCourante.getStore();
+    await appeler("/api/porte/sujets/retenir", { methode: "POST", corps: { signature: origine.signature, parts: origine.parts, type_contenu: origine.typeContenu, reference_studio: referenceStudio, ...(visee ? { jour: visee.jour, reseau: visee.reseau } : {}) } }, o);
     return true;
   } catch {
     retenuesEchouees += 1;
@@ -107,6 +123,8 @@ export interface LigneSemaineUsine {
   titre?: string;
   pourquoi?: string;
   ressembleA?: string;
+  /** Le sujet à retenir (même forme qu'une ligne de `/sujets`). Absent ou illisible : pas de bouton « Retenir ce sujet ». */
+  sujet?: IdeeUsine;
 }
 
 const texteOptionnel = (v: unknown, max = 300): string | undefined => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined);
@@ -125,7 +143,8 @@ export function lireSemaineUsine(corps: unknown): LigneSemaineUsine[] {
     const titre = texteOptionnel(o.titre);
     const pourquoi = texteOptionnel(o.pourquoi);
     const ressembleA = texteOptionnel(o.ressemble_a);
-    sortie.push({ cle, jour: o.jour, reseau: o.reseau, type: o.type, ...(heure ? { heure } : {}), ...(titre ? { titre } : {}), ...(pourquoi ? { pourquoi } : {}), ...(ressembleA ? { ressembleA } : {}) });
+    const sujet = o.sujet && typeof o.sujet === "object" ? lireIdeesUsine({ lignes: [o.sujet] })[0] : undefined;
+    sortie.push({ cle, jour: o.jour, reseau: o.reseau, type: o.type, ...(sujet ? { sujet } : {}), ...(heure ? { heure } : {}), ...(titre ? { titre } : {}), ...(pourquoi ? { pourquoi } : {}), ...(ressembleA ? { ressembleA } : {}) });
   }
   return sortie;
 }

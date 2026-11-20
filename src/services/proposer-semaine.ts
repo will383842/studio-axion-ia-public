@@ -8,6 +8,7 @@
 import "server-only";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
 import type { IdReseau } from "@/domaine/types";
+import type { IdeeUsine } from "@/domaine/usine";
 import { cleJour } from "@/lib/dates";
 import { RESEAUX } from "@/reseaux";
 import { creerVerrou, ecrireParametre, ErreurStudio, lireParametre } from "@/services/_commun";
@@ -37,6 +38,8 @@ export interface PropositionSemaine extends EntreeCarte {
   etat: "propose";
   pourquoi?: string;
   ressembleA?: string;
+  /** Le sujet que l'Usine propose ; absent : la carte n'a pas de bouton « Retenir ce sujet ». */
+  sujet?: IdeeUsine;
 }
 export interface SemaineProposee {
   propositions: PropositionSemaine[];
@@ -105,6 +108,7 @@ export async function proposerSemaine(demande: { debut: string; reseaux?: readon
       ...(l.titre ? { titre: l.titre } : {}),
       ...(l.pourquoi ? { pourquoi: l.pourquoi } : {}),
       ...(l.ressembleA ? { ressembleA: l.ressembleA } : {}),
+      ...(l.sujet ? { sujet: l.sujet } : {}),
     });
   }
   return { propositions, appelsRestants };
