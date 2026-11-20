@@ -12,6 +12,12 @@ const lire = vi.hoisted(() => vi.fn());
 vi.mock("@/services/_commun", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/services/_commun")>()), lireParametre: lire }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
 
+const fournir = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ plan: {}, fichiers: [], manques: [], depenseUsd: 0 })));
+vi.mock("@/moteurs/montage-facecam-animee/videos-v4-studio", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/moteurs/montage-facecam-animee/videos-v4-studio")>()), fournirVideosV4: fournir }));
+vi.mock("@/services/depense-claude-video", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/services/depense-claude-video")>()), plafondRestantVideosFa: vi.fn(async () => 1) }));
+
+import { resultatV4 } from "@/moteurs/montage-facecam-animee";
+import { approvisionnerFenetresStudio } from "@/moteurs/montage-facecam-animee/images/production";
 import { demandeRenduV4, outilsFacecamAnimee } from "@/services/facecam-animee";
 
 const CLES = { extraitsMaison: "facecamAnimee.extraitsMaison", zoomGratuit: "facecamAnimee.zoomGratuit", garderMaster: "facecamAnimee.garderMaster" } as const;
@@ -95,5 +101,50 @@ describe("FA-SERVICE-INV-v20h : 3 réglages éteints", () => {
     expect(bloc).not.toMatch(/fournisseurs\/|credits|budget|plafond/i);
     // Les trois imports neufs viennent du moteur de la face caméra animée, jamais d'un fournisseur.
     for (const m of ["consigne-extraits-maison", "zoom-gratuit-v4", "master-v4"]) expect(src).toMatch(new RegExp(`from "@/moteurs/montage-facecam-animee/[a-z/-]*${m}"`));
+  });
+
+  it("d) extraits maison : à true l'enveloppe des extraits remplace le défaut ; absent ou éteint, le défaut (approvisionnerFenetresStudio) reste", async () => {
+    vi.stubEnv("PEXELS_API_KEY", "cle-factice");
+    try {
+      const approvisionnerDonne = async (valeurs: Record<string, unknown>) => {
+        reglages(valeurs);
+        fournir.mockClear();
+        const outils = await outilsFacecamAnimee({ videoId: "v-1", travailId: "t-1", production: false, planScenes: null, signer: { lecture: async (c: string) => c, depot: async (c: string) => c }, rendu: { soumettre: vi.fn(), etat: vi.fn() } } as never);
+        await outils.videos({ plan: PLAN, mots: [] } as never);
+        expect(fournir).toHaveBeenCalledTimes(1);
+        return (fournir.mock.calls[0]![1] as { approvisionner?: unknown }).approvisionner;
+      };
+      expect(await approvisionnerDonne({})).toBeUndefined();
+      expect(await approvisionnerDonne({ [CLES.extraitsMaison]: "true" })).toBeUndefined();
+      const enveloppe = await approvisionnerDonne({ [CLES.extraitsMaison]: true });
+      expect(typeof enveloppe).toBe("function");
+      expect(enveloppe).not.toBe(approvisionnerFenetresStudio);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("e) alerte de taille du master : au-delà de 0,4 Go seulement ; absente ou en dessous, mesures identiques", () => {
+    const etat = (tailleMaster?: number) => ({ rendu: { cle: "r.mp4", vignetteCle: "r.jpg", dureeSec: 5, taille: 10, ...(tailleMaster !== undefined ? { tailleMaster } : {}) }, coupes: { dureeSec: 5 } }) as never;
+    const codes = (tailleMaster?: number) => (resultatV4(etat(tailleMaster)).noteQualite.alertes ?? []).map((a) => a.code);
+    expect(codes(500_000_000)).toContain("montant");
+    expect(codes(300_000_000)).toEqual(codes(undefined));
+    expect(codes(300_000_000)).not.toContain("montant");
+  });
+
+  it("f) rendre() : masterCle et tailleMaster rendus seulement si master demandé ET mesure finie", async () => {
+    const rendreAvec = async (reglage: boolean, master: boolean, tailleMaster: unknown) => {
+      reglages({ [CLES.garderMaster]: reglage });
+      const etat = vi.fn(async () => ({ statut: "termine" as const, sortieCle: "s.mp4", mesures: { taille: 10, dureeSec: 5, ...(tailleMaster !== undefined ? { tailleMaster } : {}) } }));
+      const outils = await outilsFacecamAnimee({ videoId: "v-1", travailId: "t-1", production: false, planScenes: null, signer: { lecture: async (c: string) => c, depot: async (c: string) => c }, rendu: { soumettre: vi.fn(async () => ({ statut: "en_cours" as const })), etat } } as never);
+      return outils.rendre({ idRendu: "r-1", priseCle: "p.mp4", plan: PLAN, gardes: GARDES, ...(master ? { garderMaster: true } : {}) } as never);
+    };
+    const avec = await rendreAvec(true, true, 123_456);
+    expect(avec.masterCle).toMatch(/\/r-1-master\.mp4$/);
+    expect(avec.tailleMaster).toBe(123_456);
+    for (const r of [await rendreAvec(true, false, 123_456), await rendreAvec(true, true, undefined), await rendreAvec(true, true, "gros"), await rendreAvec(true, true, Number.NaN)]) {
+      expect("masterCle" in r).toBe(false);
+      expect("tailleMaster" in r).toBe(false);
+    }
   });
 });
