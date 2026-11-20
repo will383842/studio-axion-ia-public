@@ -6,18 +6,18 @@
 import { describe, expect, it } from "vitest";
 import { controlerSousTitres, donneesCalque, type StyleSousTitresVarie } from "@/briques/sous-titres";
 import { filtrerSelectif } from "@/briques/sous-titres/selectif";
-import { boiteAuTemps, elementDe, escalierAuTemps, etiquetteAuTemps, largeurElement, paveAuTemps, sceneAuTemps, segmentAuTemps, type DonneesCalque } from "@/briques/sous-titres/scene";
+import { boiteAuTemps, elementDe, escalierAuTemps, largeurElement, paveAuTemps, sceneAuTemps, segmentAuTemps, type DonneesCalque } from "@/briques/sous-titres/scene";
 import type { SegmentRendu } from "@/briques/sous-titres/types-rendu";
 
 const seg = (id: string, debut: number, texte: string, extra: Partial<SegmentRendu> = {}): SegmentRendu => {
   const mots = texte.split(" ");
   return { id, debutSec: debut, finSec: debut + 1, mots: mots.map((mot, i) => ({ mot, debutSec: debut + i / mots.length, finSec: debut + (i + 1) / mots.length })), ...extra };
 };
-// a : gardé (mot-clé « devis ») ; b : vidé ; c : gardé (nombre) ; d : vidé ; e : vidé, style impact ; f : vidé, style bandeau.
+// a : gardé (mot-clé « devis », nom d'outil « Excel ») ; b : vidé ; c : gardé (nombre en chiffres : plaque) ; d : vidé ; e : vidé, style impact ; f : vidé, style bandeau.
 const ENTREE: SegmentRendu[] = [
-  seg("a", 0, "Le devis arrive."),
+  seg("a", 0, "Le devis Excel arrive."),
   seg("b", 1, "puis on regarde ensemble"),
-  seg("c", 2, "pour trente euros."),
+  seg("c", 2, "pour 30 euros."),
   seg("d", 3, "et voilà tout"),
   seg("e", 4, "vraiment très bien", { style: "impact", inclinaison: 3 }),
   seg("f", 5, "juste ici", { style: "bandeau" }),
@@ -60,7 +60,6 @@ describe.each(["karaoke", "minimal"] as const)("groupes vidés dans la vraie cha
           sceneAuTemps(d, t);
           boiteAuTemps(d, t);
           paveAuTemps(d, t);
-          etiquetteAuTemps(d, t);
           escalierAuTemps(d, t);
         }).not.toThrow();
       }
@@ -77,7 +76,20 @@ describe.each(["karaoke", "minimal"] as const)("groupes vidés dans la vraie cha
       const t = milieu(id);
       expect(boiteAuTemps(d, t)).toBeNull();
       expect(paveAuTemps({ ...d, paveAnime: true }, t)).toBeNull();
-      expect(etiquetteAuTemps(d, t)).toBeNull();
+      // etiquetteAuTemps lit d.etiquettesOutils, jamais posé par donneesCalque : l'étiquette d'outil passe par motsOutils (test dédié).
+    });
+    it("chemins plaque/étiquette VIVANTS sur les groupes gardés (sinon les « rien » ci-dessus passeraient à vide)", () => {
+      if (style === STYLES.pave) {
+        const p = paveAuTemps({ ...d, paveAnime: true }, milieu("c"));
+        expect(p).not.toBeNull();
+        expect(p?.texte).toBe("30");
+        expect(paveAuTemps({ ...d, paveAnime: true }, milieu("a"))).toBeNull();
+      }
+      if (style === STYLES.outils) {
+        expect(d.motsOutils?.a).toBeDefined();
+        expect(d.motsOutils?.b).toBeUndefined();
+        expect(sceneAuTemps(d, milieu("a"))?.mots.some((m) => m.etiquette)).toBe(true);
+      }
     });
     it.each(GARDES)("groupe gardé %s : dessiné avec ses mots", (id) => {
       const el = sceneAuTemps(d, milieu(id));
@@ -94,12 +106,12 @@ describe.each(["karaoke", "minimal"] as const)("groupes vidés dans la vraie cha
   it("escalier : un groupe vidé donne une ligne vide, sans exception", () => {
     const d = { ...donnees(base, null), escalier: { zone: { xPx: 60, yPx: 1300, largeurPx: 900, hauteurPx: 420 }, taillePx: 48 } };
     expect(escalierAuTemps(d, milieu("b"))?.lignes.at(-1)).toBe("");
-    expect(escalierAuTemps(d, milieu("a"))?.lignes).toEqual(["Le devis arrive."]);
+    expect(escalierAuTemps(d, milieu("a"))?.lignes).toEqual(["Le devis Excel arrive."]);
   });
 
   it("controlerSousTitres : aucune exception, aucun débordement dû aux groupes vidés", () => {
     const d = donnees(base, null);
-    expect(() => controlerSousTitres(d, { texte: "Le devis arrive. pour trente euros.", motsScript: ["Le", "devis", "arrive."], dureeVideoSec: 7, fps: 30 })).not.toThrow();
+    expect(() => controlerSousTitres(d, { texte: "Le devis Excel arrive. pour 30 euros.", motsScript: ["Le", "devis", "Excel", "arrive."], dureeVideoSec: 7, fps: 30 })).not.toThrow();
     expect(controlerSousTitres(d).some((a) => a.code === "debordement-sous-titres")).toBe(false);
   });
 });
