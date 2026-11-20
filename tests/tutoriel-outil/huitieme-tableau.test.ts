@@ -13,6 +13,33 @@ import { inflateRawSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 
+// Surveillance des écritures sur disque : chaque module fs reprend l'original, ses fonctions d'écriture notent leur appel.
+const { ecrituresDisque, surveillerFs } = vi.hoisted(() => {
+  const ecrituresDisque: string[] = [];
+  const NOMS_ECRITURE =
+    /^(writeFile|appendFile|mkdir|mkdtemp|rm|rmdir|unlink|rename|copyFile|cp|truncate|symlink|link|createWriteStream)(Sync)?$/;
+  const surveillerFs = (prefixe: string, original: Record<string, unknown>) => {
+    const enveloppe: Record<string, unknown> = { ...original };
+    for (const [nom, valeur] of Object.entries(original)) {
+      if (typeof valeur === "function" && NOMS_ECRITURE.test(nom)) {
+        enveloppe[nom] = (...args: unknown[]) => {
+          ecrituresDisque.push(`${prefixe}.${nom}(${String(args[0])})`);
+          return (valeur as (...a: unknown[]) => unknown)(...args);
+        };
+      }
+    }
+    return { ...enveloppe, default: enveloppe };
+  };
+  return { ecrituresDisque, surveillerFs };
+});
+vi.mock("node:fs", async () => surveillerFs("fs", await vi.importActual<Record<string, unknown>>("node:fs")));
+vi.mock("fs", async () => surveillerFs("fs", await vi.importActual<Record<string, unknown>>("fs")));
+vi.mock("node:fs/promises", async () =>
+  surveillerFs("fs/promises", await vi.importActual<Record<string, unknown>>("node:fs/promises")),
+);
+vi.mock("fs/promises", async () =>
+  surveillerFs("fs/promises", await vi.importActual<Record<string, unknown>>("fs/promises")),
+);
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -157,7 +184,7 @@ function outilsDeLaSuite(journal: Journal, scriptEcrit: string): ReturnType<type
 /** Maillons d'AMONT (dépôt → script choisi → accord du devis), communs aux deux tests. */
 async function amont() {
     /* ---- dépôt (T-EXT-33, vrai `deposerTutoriel`) et contrôle des entrées (T-EXT-41, vraie `extraireZipSur`) ---- */
-    const aLeDisque: string[] = []; // appels aux doubles d'écriture : rien n'est écrit sur disque, seuls les doubles sont appelés
+    const appelsDesDoubles: string[] = []; // appels aux doubles injectés : prouve que seuls les doubles de base et de stockage sont appelés ; l'absence d'écriture sur disque est prouvée par `ecrituresDisque`
     const zip = zipDe(dossierAtelier());
     const controle = await controlerEntrees(zip);
     if (!controle.ok) maillon("contrôle des entrées", controle.rapport.refus.join(" | "));
@@ -169,15 +196,15 @@ async function amont() {
       octets: async () => zip,
       extraire: (o, opts) => extraireZipSur(o, opts, PORTS_MEMOIRE),
       brouillon: async () => {
-        aLeDisque.push("brouillon");
+        appelsDesDoubles.push("brouillon");
         return { id: "v-huit" };
       },
-      ratios: async () => void aLeDisque.push("ratios"),
+      ratios: async () => void appelsDesDoubles.push("ratios"),
       lancer: async () => {
-        aLeDisque.push("lancer");
+        appelsDesDoubles.push("lancer");
         return { statut: "lancee", travailId: "t-huit" };
       },
-      abandonner: async () => void aLeDisque.push("abandonner"),
+      abandonner: async () => void appelsDesDoubles.push("abandonner"),
     };
     const depot = await deposerTutoriel({ mode: "dossier", fichierId: "f-atelier", attestationImages: false }, dep);
     if (depot.statut !== "lancee") maillon("dépôt", `${depot.phrase}${depot.rapport ? ` : ${depot.rapport.refus.join(" | ")}` : ""}`);
@@ -226,12 +253,12 @@ async function amont() {
     const entreesAccord = { [ENTREE_DEVIS_TUTORIEL]: accord };
     expect(lireAccordDevis(entreesAccord)).toEqual(accord);
     expect(accordValide(devis, lireAccordDevis(entreesAccord))).toBe(true);
-    return { aLeDisque, fichiers, cahier, carte, fiche, proposition, script, devis, entreesAccord };
+    return { appelsDesDoubles, fichiers, cahier, carte, fiche, proposition, script, devis, entreesAccord };
 }
 
 describe("8e tableau de bord inconnu : la chaîne passe sans fiche nouvelle", () => {
   it("du zip à la vidéo découpée en scènes, avec des doubles, à 0 €", async () => {
-    const { aLeDisque, fichiers, cahier, carte, fiche, proposition, script, entreesAccord } = await amont();
+    const { appelsDesDoubles, fichiers, cahier, carte, fiche, proposition, script, entreesAccord } = await amont();
     /* ---- réalisateur ---- */
     const parcoursLu = realiser({ cahier, carte, fiche, script, largeur: 1080, hauteur: 1350 });
     exiger("réalisateur", parcoursLu);
@@ -313,7 +340,8 @@ describe("8e tableau de bord inconnu : la chaîne passe sans fiche nouvelle", ()
     /* ---- 0 € : rien de réel ; rien n'est écrit dans le dépôt ---- */
     expect(j.voix.length).toBe(1);
     expect(resultat.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
-    expect(aLeDisque).toEqual(["brouillon", "ratios", "lancer"]);
+    expect(appelsDesDoubles).toEqual(["brouillon", "ratios", "lancer"]);
+    expect(ecrituresDisque).toEqual([]);
   });
 
   it("aval indépendant du parcours : moteur (doubles) → découpe → index, depuis le script choisi (0 €)", async () => {
