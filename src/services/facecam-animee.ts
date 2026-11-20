@@ -35,6 +35,9 @@ import type { SourcesSujets } from "./sujets-traites";
 import { phrasePrisesSautees } from "@/components/formats/facecam-animee/sujet-deja-traite";
 import { estimerOpusV4, type EstimationOpusV4 } from "@/moteurs/montage-facecam-animee/realisateur/cout-v4";
 import { exigerSession } from "./auth";
+import { PARAM_EXTRAITS_MAISON_FA } from "@/moteurs/montage-facecam-animee/realisateur/consigne-extraits-maison";
+import { PARAM_ZOOM_GRATUIT_FA } from "@/moteurs/montage-facecam-animee/zoom-gratuit-v4";
+import { nomMasterV4, PARAM_GARDER_MASTER_FA } from "@/moteurs/montage-facecam-animee/master-v4";
 import { listerScripts, obtenirScript } from "./scripts";
 import { TEXTE_DIT_MAX_FA, texteDitDuScript } from "@/components/formats/facecam-animee/scripts-valides";
 
@@ -110,7 +113,7 @@ export function visageDeLaPiste(piste: { echantillons?: { yeuxX?: number; yeuxY?
 }
 
 /** Demande au service de rendu pour une vidéo v4. PUR. */
-export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; sortie: { urlDepot: string; cle: string }; vignette: { urlDepot: string; cle: string }; recadrage?: RecadrageV4; videos?: { nom: string; url: string }[]; finDouce?: boolean }) {
+export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFacecamAnimee; gardes: GardeV4[]; sortie: { urlDepot: string; cle: string }; vignette: { urlDepot: string; cle: string }; recadrage?: RecadrageV4; videos?: { nom: string; url: string }[]; finDouce?: boolean; zoomsPrise?: { fenetres: { debutSec: number; finSec: number; facteur: number }[]; largeur: number; hauteur: number }; master?: { urlDepot: string; cle: string } }) {
   return {
     idRendu: d.idRendu,
     operation: "composition" as const,
@@ -125,6 +128,9 @@ export function demandeRenduV4(d: { idRendu: string; prise: string; plan: PlanFa
       vignette: d.vignette,
       // Prise horizontale : colonne 9:16 fixe sur le visage, ramenée à 1080 × 1920 au montage (aucun zoom en plus).
       ...(d.finDouce ? { finDouce: true } : {}),
+      // C8-Z09b-c / G11-09d : seulement quand le réglage est allumé (sinon, demande identique).
+      ...(d.zoomsPrise ? { zoomsPrise: d.zoomsPrise } : {}),
+      ...(d.master ? { master: d.master } : {}),
       ...(d.recadrage ? { recadrage: { x: d.recadrage.x, largeur: d.recadrage.largeur, hauteur: d.recadrage.hauteur, sortieLargeur: SORTIE_V4.largeur, sortieHauteur: SORTIE_V4.hauteur } } : {}),
     },
   };
@@ -181,11 +187,34 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     finDouce = false;
   }
 
+  // BR-EXTRAITS-MAISON-c, C8-Z09b-c, G11-09d : éteints par défaut (absent = faux, seul `true` exact allume ; lecture en échec = éteint).
+  let extraitsMaison = false;
+  let zoomGratuit = false;
+  let garderMaster = false;
+  try {
+    extraitsMaison = (await lireParametre<unknown>(PARAM_EXTRAITS_MAISON_FA, false)) === true;
+  } catch {
+    extraitsMaison = false;
+  }
+  try {
+    zoomGratuit = (await lireParametre<unknown>(PARAM_ZOOM_GRATUIT_FA, false)) === true;
+  } catch {
+    zoomGratuit = false;
+  }
+  try {
+    garderMaster = (await lireParametre<unknown>(PARAM_GARDER_MASTER_FA, false)) === true;
+  } catch {
+    garderMaster = false;
+  }
+
   return {
     ...(planScenes ? { planScenes } : {}),
     ...(calageAuMot ? { calageAuMot } : {}),
     ...(telephoneVideo ? { telephoneVideo: true } : {}),
     ...(finDouce ? { finDouce } : {}),
+    ...(extraitsMaison ? { extraitsMaison: true } : {}),
+    ...(zoomGratuit ? { zoomGratuit: true } : {}),
+    ...(garderMaster ? { garderMaster: true } : {}),
     async transcrire({ priseCle, appelId }) {
       if (dep.transcrire) return dep.transcrire({ priseCle, appelId });
       const [{ fournisseurFacecam }, { lireJsonGz }] = await Promise.all([import("@/fournisseurs/facecam"), import("./monteur-facecam")]);
@@ -302,11 +331,23 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           if (r.simule || !r.texte) return { ok: false, message: "Claude n'est pas relié au studio." };
           return { ok: true, texte: r.texte, coutUsd: r.coutUsd };
         });
-      return fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd }));
+      // BR-EXTRAITS-MAISON-c : allumé, une fenêtre `axion:` prend d'abord un extrait de l'archive (0 €, aucune banque, aucun Claude) ; sinon repli sur le défaut.
+      let approvisionner: DependancesVideosV4["approvisionner"];
+      if (extraitsMaison) {
+        const [{ avecExtraitsMaisonV4 }, { portsAxionV4 }, { extraitMaisonPourRecherche }, { approvisionnerFenetresStudio }] = await Promise.all([
+          import("@/moteurs/montage-facecam-animee/extraits-maison/approvisionner"),
+          import("./ports-axion-v4"),
+          import("./extraits-maison-v4"),
+          import("@/moteurs/montage-facecam-animee/images/production"),
+        ]);
+        approvisionner = avecExtraitsMaisonV4(approvisionnerFenetresStudio as never, portsAxionV4({ videoId: dep.videoId, signerLecture, outils: preparation, extraitPour: extraitMaisonPourRecherche as never })) as unknown as DependancesVideosV4["approvisionner"];
+      }
+      return fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd, ...(approvisionner ? { approvisionner } : {}) }));
     },
-    async rendre({ idRendu, priseCle, plan, gardes, recadrage, videos, finDouce }) {
+    async rendre({ idRendu, priseCle, plan, gardes, recadrage, videos, finDouce, garderMaster: master, zoomsPrise }) {
       const sortieCle = cleFA(`${idRendu}.mp4`);
       const vignetteCle = cleFA(`${idRendu}.jpg`);
+      const masterCle = master ? cleFA(nomMasterV4(idRendu)) : undefined;
       const demande = demandeRenduV4({
         idRendu,
         prise: await signerLecture(priseCle),
@@ -316,6 +357,8 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         vignette: { urlDepot: await signerDepot(vignetteCle, "image/jpeg"), cle: vignetteCle },
         ...(recadrage ? { recadrage } : {}),
         ...(finDouce ? { finDouce: true } : {}),
+        ...(zoomsPrise ? { zoomsPrise } : {}),
+        ...(masterCle ? { master: { urlDepot: await signerDepot(masterCle, "video/mp4"), cle: masterCle } } : {}),
         ...(videos?.length ? { videos: await Promise.all(videos.map(async (v) => ({ nom: v.nom, url: await signerLecture(v.cle) }))) } : {}),
       });
       let e: Awaited<ReturnType<typeof client.suivreRendu>>;
@@ -330,8 +373,8 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         const m = e.mesures ?? {};
         // GV2-34 : les vraies mesures du son et de la durée montée, quand le rendu les donne (nombres finis seulement).
         const mesure = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : undefined);
-        const [lufs, picVraiDbtp, dureeMonteeSec] = [mesure(m.lufs), mesure(m.picVraiDbtp), mesure(m.dureeMonteeSec)];
-        return { cle: e.sortieCle || sortieCle, vignetteCle, dureeSec: Number(m.dureeSec) || plan.duree, taille: Number(m.taille) || 0, ...(lufs !== undefined ? { lufs } : {}), ...(picVraiDbtp !== undefined ? { picVraiDbtp } : {}), ...(dureeMonteeSec !== undefined ? { dureeMonteeSec } : {}) };
+        const [lufs, picVraiDbtp, dureeMonteeSec, tailleMaster] = [mesure(m.lufs), mesure(m.picVraiDbtp), mesure(m.dureeMonteeSec), mesure(m.tailleMaster)];
+        return { cle: e.sortieCle || sortieCle, vignetteCle, dureeSec: Number(m.dureeSec) || plan.duree, taille: Number(m.taille) || 0, ...(lufs !== undefined ? { lufs } : {}), ...(picVraiDbtp !== undefined ? { picVraiDbtp } : {}), ...(dureeMonteeSec !== undefined ? { dureeMonteeSec } : {}), ...(masterCle && tailleMaster !== undefined ? { masterCle, tailleMaster } : {}) };
       }
       if (e.statut === "echec") throw new ErreurChaineV4("Le montage de la vidéo n'a pas abouti. Vous pouvez réessayer.", e.erreur.reessayable, e.erreur.message);
       throw new EnCoursChaineV4("Le montage");
