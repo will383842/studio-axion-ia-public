@@ -246,6 +246,8 @@ export interface EtatTutoriel {
   empreintesFormats?: Partial<Record<Ratio, string>>;
   /** T-EXT-52b : film de CETTE version (réglage allumé et film dans les entrées). */
   film?: FilmTutoriel;
+  /** T-EXT-53c : réglages du film de CETTE version (retouche par chat) ; absents : film réglé comme avant. */
+  reglagesFilm?: unknown;
   /** T-EXT-52b : navigation du film RETENUE pour CETTE version (celle des entrées, ou celle de la version d'avant quand le film change). */
   navigationFilm?: NavigationFilmee;
   echecSimuleFait?: boolean;
@@ -633,8 +635,8 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
   void _cle;
   // T-EXT-44 : la caméra garde la zone visée au-dessus de la bande des sous-titres (lue dans les sous-titres déjà calculés).
   const haut = sousTitres ? hautBandeSousTitresPct(sousTitres.positions.basPct) : undefined;
-  const navigationFinale = navigation ? { ...sansFilm, ...(haut !== undefined ? { hautSousTitresPct: haut } : {}) } : undefined;
-  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), ...(laFin.fin ? { fin: { ...laFin.fin } } : {}), finMs: laFin.finMs, ...(navigationFinale ? { navigation: navigationFinale } : {}) };
+  const navigationFinale = navigation ? { ...sansFilm, ...(haut !== undefined ? { hautSousTitresPct: haut } : {}), ...(etat.reglagesFilm !== undefined ? { reglagesFilm: etat.reglagesFilm } : {}) } : undefined;
+  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), ...(laFin.fin ? { fin: { ...laFin.fin } } : {}), finMs: laFin.finMs, ...(navigationFinale ? { navigation: navigationFinale } : {}), ...(etat.reglagesFilm !== undefined ? { reglagesFilm: etat.reglagesFilm } : {}) };
 }
 
 const nomRatio = (r: Ratio) => r.replace(":", "x");
@@ -834,6 +836,7 @@ function filmDeNavigation(nav: NavigationFilmee): FilmTutoriel {
 /** T-EXT-52b : empreinte d'un format = plan du ratio + voix + effets du film + (carte de fin, sous-titres). Une seule fonction d'empreinte d'export (R4). */
 function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel): string {
   const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  // T-EXT-53c : les réglages du chat n'entrent PAS dans l'empreinte du format tant que le rendu les ignore (en attendant T-EXT-53a) : sinon une version réglée ferait refaire tous les formats pour un film identique.
   const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs }, film: filmDeNavigation(nav) } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
   const laFin = finRetenue(etat, commande, outils);
   const fin = fnv1a64(jsonCanonique({ fin: laFin.fin ?? null, finMs: laFin.finMs, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null }));

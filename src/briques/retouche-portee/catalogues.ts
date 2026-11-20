@@ -50,6 +50,7 @@ export const PORTEE_MOTEURS: Readonly<Record<OperationMontage["type"], PorteeOpe
   refaireSegmentVoix: "voix",
   ajusterRythme: "scenes",
   planScenes: "scenes",
+  reglagesFilm: "scenes",
 };
 
 /** Tableau : `CATALOGUE_RETOUCHES` (`src/moteurs/montage-tableau/retouches.ts:69-81`) : pages → scenes, fin → final, voix → voix. */
