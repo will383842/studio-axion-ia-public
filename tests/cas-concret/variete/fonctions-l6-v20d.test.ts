@@ -178,7 +178,7 @@ describe("misesEnPageL6", () => {
   });
   it("la combinaison déjà vue est évitée quand c'est possible (historique de la même combinaison)", () => {
     const premiere = misesEnPageL6(T, ECRANS, DECLINAISON).combinaison!;
-    const h = [entree(1, { misesEnPage: premiere }, [])];
+    const h = [entree(1, { graine: T.graine, sel: T.sel + 1, misesEnPage: premiere }, [])];
     const apres = misesEnPageL6(T, ECRANS, DECLINAISON, h).combinaison!;
     expect(apres).not.toBe(premiere);
   });
