@@ -110,10 +110,12 @@ interface EntreeCache {
   taille: number;
 }
 const cache = new Map<string, EntreeCache>();
+const enCours = new Map<string, Promise<MiniatureLue | null>>();
 let octetsCache = 0;
 
 export function viderCacheMiniatures(): void {
   cache.clear();
+  enCours.clear();
   octetsCache = 0;
 }
 export const tailleCacheMiniatures = () => ({ entrees: cache.size, octets: octetsCache });
@@ -149,20 +151,35 @@ export async function lireMiniatureDiffuseur(publicationId: string, deps: { fetc
     const deja = cache.get(cle);
     if (deja && deja.expire > instant) return deja.valeur;
     if (deja) oterDuCache(cle);
+    // Une seule lecture par clé : les cartes demandées en même temps partagent la même promesse (jamais gardée une fois finie).
+    const partagee = enCours.get(cle);
+    if (partagee) return await partagee;
     const refus = () => {
       garder(cle, null, instant + CACHE_REFUS_MS);
       return null;
     };
-    if (!adresseMiniatureSure(adresse)) return refus();
-    if (!(await hotePublic(adresse, deps.resoudre ?? resoudreDns))) return refus();
-    const r = await (deps.fetch ?? fetchMiniatureSur)(adresse, { method: "GET", redirect: "manual", credentials: "omit", headers: { Accept: "image/*" }, signal: AbortSignal.timeout(DELAI_MS) });
-    const type = (r.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-    if (r.status !== 200 || !TYPES_IMAGE.has(type)) return null;
-    const octets = await lireBorne(r);
-    if (!octets || octets.byteLength === 0) return null;
-    const lue = { octets, type };
-    garder(cle, lue, instant + CACHE_DUREE_MS);
-    return lue;
+    const lecture = (async (): Promise<MiniatureLue | null> => {
+      try {
+        if (!adresseMiniatureSure(adresse)) return refus();
+        if (!(await hotePublic(adresse, deps.resoudre ?? resoudreDns))) return refus();
+        const r = await (deps.fetch ?? fetchMiniatureSur)(adresse, { method: "GET", redirect: "manual", credentials: "omit", headers: { Accept: "image/*" }, signal: AbortSignal.timeout(DELAI_MS) });
+        const type = (r.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+        if (r.status !== 200 || !TYPES_IMAGE.has(type)) return null;
+        const octets = await lireBorne(r);
+        if (!octets || octets.byteLength === 0) return null;
+        const lue = { octets, type };
+        garder(cle, lue, instant + CACHE_DUREE_MS);
+        return lue;
+      } catch {
+        return null;
+      }
+    })();
+    enCours.set(cle, lecture);
+    try {
+      return await lecture;
+    } finally {
+      if (enCours.get(cle) === lecture) enCours.delete(cle);
+    }
   } catch {
     return null;
   }

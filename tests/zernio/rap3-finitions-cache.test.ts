@@ -24,6 +24,33 @@ describe("RAP-3 finitions · cache de la miniature", () => {
     await m.lireMiniatureDiffuseur("zr_a", deps(f));
     expect(f).toHaveBeenCalledTimes(2);
   });
+  it("lectures simultanées de la même clé : UNE seule lecture chez le diffuseur, partagée ; un échec n'est pas gardé", async () => {
+    await depots().publications.enregistrer(rap("zr_a"));
+    let ouvrir!: () => void;
+    const porte = new Promise<void>((r) => (ouvrir = r));
+    const f = vi.fn(async () => {
+      await porte;
+      return new Response(new Uint8Array(10), { status: 200, headers: { "content-type": "image/png" } });
+    });
+    const lectures = Array.from({ length: 5 }, () => m.lireMiniatureDiffuseur("zr_a", deps(f)));
+    await new Promise((r) => setTimeout(r, 10));
+    ouvrir();
+    const res = await Promise.all(lectures);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(res.every((x) => x !== null && x.octets.byteLength === 10)).toBe(true);
+    // clés différentes : lectures distinctes
+    await depots().publications.enregistrer(rap("zr_b"));
+    await m.lireMiniatureDiffuseur("zr_b", deps(f));
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+  it("lecture en cours qui échoue : les suivantes réessaient (rien de gardé)", async () => {
+    await depots().publications.enregistrer(rap("zr_a"));
+    const f = vi.fn(async () => new Response("x", { status: 500 }));
+    await Promise.all([m.lireMiniatureDiffuseur("zr_a", deps(f)), m.lireMiniatureDiffuseur("zr_a", deps(f))]);
+    expect(f).toHaveBeenCalledTimes(1);
+    await m.lireMiniatureDiffuseur("zr_a", deps(f));
+    expect(f).toHaveBeenCalledTimes(2);
+  });
   it("la clé contient l'adresse : une adresse changée n'est pas servie depuis l'ancienne entrée", async () => {
     await depots().publications.enregistrer(rap("zr_a"));
     const f = img();
