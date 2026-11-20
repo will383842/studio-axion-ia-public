@@ -444,7 +444,7 @@ export async function preparerEtLancer(demande: DemandeCasConcret, dependances: 
 async function preparerSousVerrou(demande: DemandeCasConcret, dependances: DependancesCasConcret): Promise<IssueCasConcret> {
   // X7 : le même contrôle que la feuille, avant de créer quoi que ce soit.
   const essai = demande.essai === true;
-  const c = await controleAvantPrix(demande.casId, { reseaux: demande.reseaux, mot: demande.mot, avecMot: demande.avecMot, essai, ...(demande.sansVoix ? { sansVoix: true } : {}), ...(demande.finDemandee ? { finDemandee: demande.finDemandee } : {}), ...(demande.empreinteVue ? { empreinteVue: demande.empreinteVue } : {}), ...(demande.porteB ? { porteB: demande.porteB } : {}) }, dependances.maintenant ?? Date.now());
+  const c = await controleAvantPrix(demande.casId, { reseaux: demande.reseaux, mot: demande.mot, avecMot: demande.avecMot, essai, ...(demande.sansVoix === true ? { sansVoix: true } : {}), ...(demande.finDemandee ? { finDemandee: demande.finDemandee } : {}), ...(demande.empreinteVue ? { empreinteVue: demande.empreinteVue } : {}), ...(demande.porteB ? { porteB: demande.porteB } : {}) }, dependances.maintenant ?? Date.now());
   if (c.refus) return refus(c.refus);
   const { cas, reseaux, mot, motSur, voix, reprise } = c;
   const sansVoix = demande.sansVoix === true;

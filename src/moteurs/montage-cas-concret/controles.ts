@@ -353,7 +353,7 @@ function controlerFichier(fin: FinPlanifiee, m: MesuresFin | undefined, seuils: 
   // 14/10 : fin propre (son éteint, dernières images identiques) ; indicatif, jamais bloquant. Mesure absente (export
   // d'avant) : aucune ligne.
   const finFichier = controleFinDesMesures(m as Readonly<Record<string, number | undefined>>);
-  if (finFichier.mesuree && !sansVoix) res.push(finFichier.defauts.length ? ligne("fin", "Fin propre", false, "echoue", `Fichier pour ${nom} · ${finFichier.defauts.join(" ; ")}.`) : ligne("fin", "Fin propre", false, "reussi", `Fichier pour ${nom} · image tenue puis fondu, son éteint.`));
+  if (finFichier.mesuree) res.push(finFichier.defauts.length ? ligne("fin", "Fin propre", false, "echoue", `Fichier pour ${nom} · ${finFichier.defauts.join(" ; ")}.`) : ligne("fin", "Fin propre", false, "reussi", `Fichier pour ${nom} · image tenue puis fondu, son éteint.`));
   return res;
 }
 
