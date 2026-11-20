@@ -208,6 +208,28 @@ describe("FIX-DECOUPAGE-REPRENDRE-d", () => {
     expect(apres.versions.at(-1)!.fiche).toEqual(avant.versions.at(-1)!.fiche);
   });
 
+  it("g) refus non réparable + page qui ne tient qu'après allègement : la fiche gardée et le départ de « Reprendre » gardent l'élément (aucun retrait silencieux)", async () => {
+    const { videoId, accord } = await decoupageRefuse((f) => (f.scenes[0].texteDit += MOT_CHANGE));
+    const gardee = await poserDefautDeForme(videoId);
+    const video = (await depots().videos.obtenir(videoId))!;
+    const cle = Object.keys(video.entrees as object).find((k) => lireBrouillonTableau({ entrees: { [k]: (video.entrees as Record<string, unknown>)[k] } } as never))!;
+    const b = lireBrouillonTableau(video)!;
+    const surchargee = copie(gardee) as FicheTableau;
+    const sc = surchargee.scenes.slice(1).find((s) => s.elements.some((e) => e.type === "ligne") && surchargee.scenes.filter((x) => x.page === s.page).length === 1)!;
+    sc.elements.push({ ...structuredClone(sc.elements.find((e) => e.type === "ligne")!), id: "zz0", bloc: "detail" } as never);
+    surchargee.scenes[0].texteDit += MOT_CHANGE; // refus non réparable : le texte dit est changé
+    b.versions[b.versions.length - 1] = { ...b.versions.at(-1)!, fiche: surchargee };
+    await depots().videos.modifier(videoId, { entrees: { ...(video.entrees as object), [cle]: b } } as never);
+    surcharge.actif = true;
+    expect(await reprendreTacheTableau(videoId)).toMatchObject({ statut: "accord-requis" });
+    expect(await reprendreTacheTableau(videoId, accord)).toMatchObject({ statut: "en-cours" });
+    const claude = doubleClaude();
+    await travaillerTachesTableau({ appeler: claude.appeler, aujourdhui: AUJOURDHUI_EXEMPLES });
+    surcharge.actif = false;
+    // la fiche d'avant envoyée à Claude garde l'élément « zz0 » : l'allègement n'a rien retiré en silence
+    expect(claude.appels[0].variable).toContain("zz0");
+  });
+
   it("f) une VRAIE tâche d'écriture en erreur : « Reprendre » inchangé (prix demandé, tâche toEqual)", async () => {
     const { videoId } = await decoupageRefuse((f) => (f.scenes[0].texteDit += MOT_CHANGE));
     const id = (await ouvrir(videoId)).tache!.id;

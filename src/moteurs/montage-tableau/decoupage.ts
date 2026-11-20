@@ -671,7 +671,8 @@ export function reparerFicheGardee(fiche: FicheTableau, e: EntreeDecoupage): { o
   const j = jugerFiche({ ...fiche, appelId: null } as FicheTableau, e);
   const avecFin = (f: FicheTableau): FicheTableau => ({ ...f, appelId: fiche.appelId });
   if (j.ok) return { ok: true, fiche: avecFin(j.fiche), reparations: j.reparations ?? [], retraits: j.retraits };
-  return { ok: false, refus: j.refus, fiche: avecFin(j.fiche ?? fiche), reparations: j.reparations ?? [] };
+  // Sans fiche rendue (allègement qui aurait retiré du contenu), les réparations ne sont pas dans la fiche gardée : elles ne sont pas annoncées.
+  return { ok: false, refus: j.refus, fiche: avecFin(j.fiche ?? fiche), reparations: j.fiche ? (j.reparations ?? []) : [] };
 }
 
 /**
@@ -728,7 +729,9 @@ export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fic
   const { v, refus, cles } = jugement;
   const avecReparations = reparations.length ? { reparations, ...(clesAvant ? { clesAvant } : {}) } : {};
   // Refusée mais réparée en partie : la fiche réparée est rendue (gardée « à corriger », renvoyée à la relance).
-  if (refus.length || !v.ok) return { ok: false, refus, cles, ...avecReparations, ...(reparations.length ? { fiche: brute as FicheTableau } : {}) };
+  // Jamais en silence : si l'allègement a retiré du contenu (`retraits`), la fiche allégée n'est PAS rendue (gardée « à corriger » ni envoyée
+  // à la relance) ; l'appelant garde alors la fiche rendue, non allégée, comme avant.
+  if (refus.length || !v.ok) return { ok: false, refus, cles, ...avecReparations, ...(reparations.length && !retraits.length ? { fiche: brute as FicheTableau } : {}) };
   // Style tiré ou imposé : il reste dans la fiche (la fabrication le relit via `styleTableauDe`, sinon elle retomberait sur
   // le style de la série). Sinon le style de la série n'a servi qu'à juger : la fabrication le pose à son tour.
   if (jugee === lue || e.tirage || estStyleTableau(e.styleImpose)) return { ok: true, fiche: v.fiche, retraits, ...avecReparations };
