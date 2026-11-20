@@ -76,12 +76,17 @@ describe("C9-38-a : appliquerOperations et la liste des objets permis", () => {
     expect(appliquerOperations(p, o, { objetsPermis: [] })).toEqual(r);
   });
 
-  it("e) les appelants ne passent rien : exactement 2 arguments", () => {
-    for (const f of ["src/services/retouche-chat/service.ts", "src/components/retouche-chat/CollerOperations.tsx"]) {
-      const t = readFileSync(f, "utf8");
-      const appels = [...t.matchAll(/appliquerOperations\(([^)]*)\)/g)];
-      expect(appels.length).toBeGreaterThan(0);
-      for (const a of appels) expect(a[1]!.split(",")).toHaveLength(2);
-    }
+  // C9-38-b-a (20/11, seconde lecture du pilote) : attente DÉPLACÉE, pas retirée. CollerOperations.tsx reste à exactement
+  // 2 arguments ; service.ts passe la liste portée par la version lue (jamais une liste écrite en dur), 3e argument exact.
+  it("e) les appelants : CollerOperations.tsx exactement 2 arguments ; service.ts 3e argument = la liste de la version lue", () => {
+    const t = readFileSync("src/components/retouche-chat/CollerOperations.tsx", "utf8");
+    const appels = [...t.matchAll(/appliquerOperations\(([^)]*)\)/g)];
+    expect(appels.length).toBeGreaterThan(0);
+    for (const a of appels) expect(a[1]!.split(",")).toHaveLength(2);
+
+    const s = readFileSync("src/services/retouche-chat/service.ts", "utf8");
+    const attendu = "appliquerOperations(courante.plan, f.operations, courante.objetsPermis?.length ? { objetsPermis: courante.objetsPermis } : {})";
+    expect(s.split(attendu)).toHaveLength(3); // exactement 2 occurrences
+    expect([...s.matchAll(/appliquerOperations\(/g)]).toHaveLength(2); // aucun autre appel
   });
 });
