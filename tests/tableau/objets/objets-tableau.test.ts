@@ -142,7 +142,7 @@ describe("garde statique", () => {
     marche("studio-rendu");
     // Exemption RESSERRÉE (pilote, 20/11) : EXACTEMENT ObjetsTableau.tsx, et SEULEMENT pour un `import type` de tableau-scene/objets.
     const EXEMPTE = "studio-rendu/compositions/tableau/ObjetsTableau.tsx";
-    const IMPORT_TYPE_OBJETS = /^\s*import\s+type\b[^;]*?from\s+["'][^"']*tableau-scene\/objets["'];?\s*$/gm;
+    const IMPORT_TYPE_OBJETS = /^\s*import\s+type\s+\{[^}]*\}\s*from\s+["'][^"']*tableau-scene\/objets["'];?\s*$/gm;
     const lit = (f: string) => {
       const t = readFileSync(f, "utf8");
       return f === EXEMPTE ? t.replace(IMPORT_TYPE_OBJETS, "") : t;
