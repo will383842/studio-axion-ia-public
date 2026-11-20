@@ -188,7 +188,7 @@ export function menagerCartesAuto(avant: EtatMonteur, apres: EtatMonteur, ctx: C
     if (!p) continue;
     const nom = nomCarte(p.texte);
     if (horloge(d.de) !== horloge(p.debutSec)) instants.push({ carte: nom, de: d.de, a: p.debutSec });
-    phrases.push({ carte: nom, remplace: false, texte: `Carte « ${nom} » placée à ${horloge(p.debutSec)}, juste ${d.sens} la carte « ${d.pres} ».` });
+    phrases.push({ carte: nom, remplace: false, texte: `Carte « ${nom} » placée à ${horloge(p.debutSec)}, juste ${d.sens === "apres" ? "après" : "avant"} la carte « ${d.pres} ».` });
   }
   for (const a of manquantes) {
     const occupe = cartesMonteur(etat).find((x) => chevauche(a, x));
