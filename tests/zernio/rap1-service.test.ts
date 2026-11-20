@@ -110,6 +110,6 @@ describe("RAP-1 · rapatrierPostsZernio", () => {
     const p = { id: "zr_p_c", reseau: "instagram", statut: "programmee", via: "zernio", date: "2026-12-01T09:00:00.000Z", texte: "t", idExterne: "p" } as never;
     const res = await Promise.all([d.creerSiAbsente(p), d.creerSiAbsente(p)]);
     expect(res.sort()).toEqual(["creee", "existait"]);
-    expect(await depots().publications.compter()).toBe(1);
+    expect(await depots().publications.compter((x) => x.id === "zr_p_c")).toBe(1);
   });
 });

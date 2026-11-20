@@ -1176,6 +1176,14 @@ export interface Publication extends EntiteBase {
   cleEnvoi?: string;
   /** Début de l'envoi (pour relire Buffer à partir de cet instant). */
   envoiCommenceLe?: DateIso;
+  /** RAP · Créée par le rapatriement d'un post qui existait déjà chez le diffuseur (pas par le Studio). */
+  rapatrieeLe?: DateIso;
+  /** RAP · `metadata.origine` lu chez le diffuseur : "import-buffer", "studio", ou "externe" (post fait à la main chez le diffuseur). */
+  origineDiffuseur?: "import-buffer" | "studio" | "externe";
+  /** RAP · Retirée chez le diffuseur par un geste du fondateur, retrait confirmé par relecture. La publication n'est jamais effacée. */
+  retireeLe?: DateIso;
+  /** RAP · Média vu chez le diffuseur (type et nombre seulement : aucune adresse gardée). */
+  mediaDiffuseur?: { type: "image" | "video" | "document" | "aucun"; nombre: number };
   /** Dernière lecture de l'état chez Buffer. */
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
@@ -1250,6 +1258,14 @@ export function sourceSure(p: Pick<Publication, "videoId" | "visuelId"> & { id?:
     }
     return undefined;
   }
+}
+
+/**
+ * RAP · Publication née chez le diffuseur puis rapatriée dans le Studio : ni vidéo ni visuel, mais `rapatrieeLe`.
+ * Seuls le calendrier et la synchro l'acceptent, explicitement ; `sourceDe` et `sourceSure` ne sont pas élargis.
+ */
+export function estRapatriee(p: Pick<Publication, "via" | "rapatrieeLe" | "videoId" | "visuelId">): boolean {
+  return p.via === "zernio" && !!p.rapatrieeLe && !p.videoId && !p.visuelId;
 }
 
 /** Deux publications ont la même source : même famille ET même identifiant (un visuel sans vidéo n'égale jamais une autre). */
