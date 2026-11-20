@@ -50,7 +50,7 @@ const FLUX_EN_ATTENDANT_25B = {
   resultat: { vue: "messagerie", etat: "tache-creee", surMot: "sereinement" },
   contenus: {
     boite: {
-      messages: [{ id: "m1", de: "Cabinet Durand (exemple)", objet: "Demande de devis (exemple)", adresse: "contact@exemple.test", corps: "Bonjour, je souhaite un devis pour une cuisine. (exemple)", dossier: "d1" }],
+      messages: [{ id: "m1", de: "Cabinet Durand (exemple)", objet: "Demande de devis (exemple)", adresse: "contact@exemple.invalid", corps: "Bonjour, je souhaite un devis pour une cuisine. (exemple)", dossier: "d1" }],
       nouveau: "m1",
       dossiers: [{ id: "d1", nom: "Devis" }],
       brouillon: { texte: "Bonjour, merci de votre message. Nous vous répondons très vite. (exemple)" },

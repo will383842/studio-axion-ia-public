@@ -4,13 +4,22 @@
  * Claude (`simuler` des rôles ou double de `outilsDoubles`), voix, rendu. 0 €, aucun fichier écrit.
  *
  * Règle de la fiche : si un maillon casse, ce test reste ROUGE et son message nomme le maillon (« maillon : … ») ; aucune
- * réparation de production ici. Les deux pièces qui ne sont pas sur master (dépôt T-EXT-33, contrôle des entrées T-EXT-41)
- * sont écrites en minimal dans CE fichier, marquées « en attendant T-EXT-xx ».
+ * réparation de production ici. Le dépôt (T-EXT-33, `deposerTutoriel`) et le contrôle des
+ * entrées (T-EXT-41, `extraireZipSur`) sont les VRAIES pièces de master, avec des dépendances et des ports en mémoire.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import { creerZip, lireZip } from "../../src/lib/zip";
+import { inflateRawSync } from "node:zlib";
+import { describe, expect, it, vi } from "vitest";
+import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
+
+vi.mock("next/headers", () => mockHeaders);
+vi.mock("next/navigation", () => mockNavigation);
+vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
+
+import { creerZip } from "../../src/lib/zip";
+import { extraireZipSur, type PortsZip, type ResultatZip } from "../../src/services/zip-tutoriel";
+import { deposerTutoriel, type DependancesDepotTutoriel } from "../../src/services/tutoriel-depot";
 import type { RequeteClaude } from "../../src/fournisseurs/claude/client";
 import type { PlanValide } from "../../src/briques/plan-scenes/schema";
 import type { CommandeFabrication, Licence, Travail } from "../../src/domaine/types";
@@ -54,27 +63,20 @@ function dossierAtelier(): FichierDossier[] {
     .map((nom) => ({ chemin: `atelier/${nom}`, contenu: readFileSync(join(DOSSIER, nom), "utf8") }));
 }
 
-/** en attendant T-EXT-33 : dépôt minimal, dépendances injectées (rien n'est écrit sur disque, tout reste en mémoire). */
-interface DepotMemoire {
-  ranger(nom: string, octets: Uint8Array): void;
-}
-function deposer(zip: Uint8Array, depot: DepotMemoire): FichierDossier[] {
-  depot.ranger("depot.zip", zip);
-  return lireZip(zip).map((f) => ({ chemin: f.nom, contenu: new TextDecoder().decode(f.donnees) }));
+/** Ports en mémoire de la vraie `extraireZipSur` : le choix « dossier ouvert » est passé par le test (aucun interrupteur réel). */
+const PORTS_MEMOIRE: PortsZip = {
+  lireParametre: async () => true,
+  inflate: (donnees, maxOutputLength) => inflateRawSync(donnees, { maxOutputLength }),
+  journaliser: async () => {},
+};
+
+/** Contrôle des entrées (T-EXT-41) : la vraie `extraireZipSur`, ports en mémoire. */
+function controlerEntrees(zip: Uint8Array): Promise<ResultatZip> {
+  return extraireZipSur(zip, { attestationImages: false }, PORTS_MEMOIRE);
 }
 
-/** en attendant T-EXT-41 : contrôle minimal des entrées (chemins piégés, taille, script externe). Ne lève jamais. */
-function controlerEntrees(fichiers: FichierDossier[]): { ok: true } | { ok: false; erreurs: string[] } {
-  const erreurs: string[] = [];
-  let total = 0;
-  for (const f of fichiers) {
-    total += f.contenu.length;
-    if (f.chemin.startsWith("/") || f.chemin.split("/").includes("..")) erreurs.push(`chemin refusé : ${f.chemin}`);
-    if (/\.html?$/i.test(f.chemin) && /<script[^>]+src\s*=\s*["']?\s*(?:https?:)?\/\//i.test(f.contenu)) erreurs.push(`script externe : ${f.chemin}`);
-    if (/\.(m?js)$/i.test(f.chemin) && /\bfetch\s*\(\s*["']https?:/i.test(f.contenu)) erreurs.push(`appel réseau : ${f.chemin}`);
-  }
-  if (total > 2_000_000) erreurs.push("dossier trop gros");
-  return erreurs.length ? { ok: false, erreurs } : { ok: true };
+function zipDe(fichiers: FichierDossier[]): Uint8Array {
+  return creerZip(fichiers.map((f) => ({ nom: f.chemin, donnees: new TextEncoder().encode(f.contenu) })));
 }
 
 /** Les couleurs réellement écrites dans les feuilles de style du dossier. */
@@ -154,13 +156,31 @@ function outilsDeLaSuite(journal: Journal, scriptEcrit: string): ReturnType<type
 
 /** Maillons d'AMONT (dépôt → script choisi → accord du devis), communs aux deux tests. */
 async function amont() {
-    /* ---- dépôt (T-EXT-33) et contrôle des entrées (T-EXT-41) ---- */
-    const aLeDisque: string[] = [];
-    const zip = creerZip(dossierAtelier().map((f) => ({ nom: f.chemin, donnees: new TextEncoder().encode(f.contenu) })));
-    const fichiers = deposer(zip, { ranger: (nom) => aLeDisque.push(nom) });
+    /* ---- dépôt (T-EXT-33, vrai `deposerTutoriel`) et contrôle des entrées (T-EXT-41, vraie `extraireZipSur`) ---- */
+    const aLeDisque: string[] = []; // appels aux doubles d'écriture : rien n'est écrit sur disque, seuls les doubles sont appelés
+    const zip = zipDe(dossierAtelier());
+    const controle = await controlerEntrees(zip);
+    if (!controle.ok) maillon("contrôle des entrées", controle.rapport.refus.join(" | "));
+    const fichiers: FichierDossier[] = [...controle.fichiers].map(([chemin, donnees]) => ({ chemin, contenu: new TextDecoder().decode(donnees) }));
     expect(fichiers.map((f) => f.chemin.split("/").pop()).sort()).toEqual(["LISEZMOI.md", "app.js", "demo-data.js", "index.html", "styles.css"]);
-    const controle = controlerEntrees(fichiers);
-    if (!controle.ok) maillon("contrôle des entrées", controle.erreurs.join(" | "));
+    const dep: DependancesDepotTutoriel = {
+      interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: false }),
+      fichier: async (id) => ({ id, nom: "atelier.zip", taille: zip.length, cleStockage: `essai/${id}.zip` }),
+      octets: async () => zip,
+      extraire: (o, opts) => extraireZipSur(o, opts, PORTS_MEMOIRE),
+      brouillon: async () => {
+        aLeDisque.push("brouillon");
+        return { id: "v-huit" };
+      },
+      ratios: async () => void aLeDisque.push("ratios"),
+      lancer: async () => {
+        aLeDisque.push("lancer");
+        return { statut: "lancee", travailId: "t-huit" };
+      },
+      abandonner: async () => void aLeDisque.push("abandonner"),
+    };
+    const depot = await deposerTutoriel({ mode: "dossier", fichierId: "f-atelier", attestationImages: false }, dep);
+    if (depot.statut !== "lancee") maillon("dépôt", `${depot.phrase}${depot.rapport ? ` : ${depot.rapport.refus.join(" | ")}` : ""}`);
 
     /* ---- chef de projet : cas 1, entrée B ---- */
     const demande = { dossier: inventaire(fichiers), ratios: ["4:5", "9:16", "1:1"] };
@@ -293,7 +313,7 @@ describe("8e tableau de bord inconnu : la chaîne passe sans fiche nouvelle", ()
     /* ---- 0 € : rien de réel ; rien n'est écrit dans le dépôt ---- */
     expect(j.voix.length).toBe(1);
     expect(resultat.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
-    expect(aLeDisque).toEqual(["depot.zip"]);
+    expect(aLeDisque).toEqual(["brouillon", "ratios", "lancer"]);
   });
 
   it("aval indépendant du parcours : moteur (doubles) → découpe → index, depuis le script choisi (0 €)", async () => {
@@ -335,10 +355,13 @@ describe("8e tableau de bord inconnu : la chaîne passe sans fiche nouvelle", ()
     expect(dossierAtelier().some((f) => /scenario|script/i.test(f.chemin))).toBe(false);
   });
 
-  it("un dossier piégé est refusé avant toute chose (chemin remontant, script externe)", () => {
-    const piege = [...dossierAtelier(), { chemin: "../evil.js", contenu: "x" }, { chemin: "atelier/x.html", contenu: '<script src="https://cdn.example/x.js"></script>' }];
-    const r = controlerEntrees(piege);
-    expect(r.ok).toBe(false);
+  it("un dossier piégé est refusé avant toute chose (chemin remontant, script externe), chaque piège séparément", async () => {
+    const remontant = await controlerEntrees(zipDe([...dossierAtelier(), { chemin: "../evil.js", contenu: "x" }]));
+    expect(remontant.ok).toBe(false);
+    expect(remontant.rapport.refus.join(" | ")).toContain("chemin qui sort du dossier (« .. »)");
+    const externe = await controlerEntrees(zipDe([...dossierAtelier(), { chemin: "atelier/x.html", contenu: '<script src="https://cdn.example/x.js"></script>' }]));
+    expect(externe.ok).toBe(false);
+    expect(externe.rapport.refus.join(" | ")).toContain("src : adresse externe");
   });
 });
 
