@@ -18,7 +18,7 @@ Note datée, écrite le 20/11/2026 à partir des traces du Studio (journal des �
 | Commentaire avec le mot `ESSAIGPT7` sous une publication du compte, depuis un second compte consentant | commentaire `…686569932`, `nature: premier` |
 | **Réponse automatique en message privé** « suivez le compte puis répondez OK » | formulation `mp-ig-suivre-v1-2` ; abonnement constaté (`deja_suivi`) |
 | « OK » reçu, puis demande d'adresse | `okRecus: 1`, formulation `mp-m1-v6-1` |
-| Adresse lue puis refusée par le site (adresse hors de la liste d'essai, code 422) | message automatique `mp-adresse-refusee-v3-3` : le refus est expliqué, rien n'est perdu |
+| Adresse lue puis refusée par le site (adresse hors de la liste d'essai, code 422) | message automatique `mp-adresse-refusee-v3-3` : le refus est expliqué à la personne, la conversation garde son état (`site_refuse`) |
 
 Sur Instagram, la réponse automatique passe par le message privé : le parcours ne pose pas de réponse publique sous le commentaire. Le refus de l'adresse est le comportement attendu pour une adresse hors de la liste d'essai, et la chaîne est restée correcte jusqu'au bout.
 
@@ -28,4 +28,4 @@ Le test `tests/auto-rep-01-jamais-linkedin-tiktok.test.ts` (#1344, fusionné le 
 
 ## Allumage
 
-L'allumage des réponses automatiques reste un geste du fondateur, et il peut les éteindre d'un clic dans le Studio. Le fondateur a jugé le parcours fonctionnel après ces deux essais (18/11/2026).
+L'allumage des réponses automatiques reste un geste du fondateur, qui peut aussi les éteindre depuis le Studio. Témoignage, et non trace : le fondateur a jugé le parcours fonctionnel après ces deux essais (18/11/2026).
