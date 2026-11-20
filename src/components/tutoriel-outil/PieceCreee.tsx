@@ -42,7 +42,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
       setMessage({ ok: r.ok, texte: r.message });
     });
 
-  const touchable = (vue.statut === "a-valider" || vue.statut === "a-construire") && !vue.autreEnAttente;
+  const touchable = (vue.statut === "a-valider" || vue.statut === "a-construire") && !vue.autreEnAttente && !vue.nomsIllisibles;
   const peutGarder = vue.statut === "a-valider" && vue.defauts.length === 0;
   const tousLesTextes = vue.textes.flatMap((e) => e.textes.map((t) => ({ ecranId: e.ecranId, titre: e.titre, texte: t })));
   const choisi = tousLesTextes.find((t) => `${t.ecranId}|${t.texte}` === cible);

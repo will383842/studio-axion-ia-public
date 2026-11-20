@@ -9,13 +9,15 @@
  *    par l'orchestre (V2-08), sous le plafond de V2-07.
  *  - Aucun montant n'est rendu.
  *
+ * POUR V2-08 : le verrou `enFile` ne vaut que dans UN SEUL processus Studio. La garantie « une seule relance payée » repose donc
+ * sur un seul serveur ; avec plusieurs processus, il faudra une écriture conditionnelle (comparaison avant écriture) sur l'état.
+ * Le vrai appel payant de la 2e proposition passera par `payerUneFois` (clé : vidéo + proposition 2), plafond vérifié avant l'appel.
+ *
  * // en attendant V2-08 : l'état « pièce créée » de l'équipe n'est pas encore sur master. Interface minimale `EtatPieceCreee`,
  * rangée dans `parametres.pieceCreee` du travail de fabrication de la vidéo, derrière le dépôt injectable `DepotPiece`.
  * V2-08 remplacera `depotParDefaut` par `EtatEquipe.pieceCreee` ; les gestes ci-dessous ne changent pas.
  */
 import "server-only";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { appliquerRelecture, chiffresARelire, type ChiffreARelire, type DecisionChiffre } from "@/briques/donnees-video/relecture-chiffres";
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { nombresAffirmes } from "@/domaine/nombres-fr";
@@ -81,6 +83,8 @@ export interface DependancesPiece {
   interdits?: readonly string[];
   /** Noms permis dans les textes créés (`ecrans-outils/noms.json`). */
   nomsPermis?: readonly string[];
+  /** Lecteur des noms de la charte (par défaut : la copie sous `src/`). Qui échoue = noms illisibles. */
+  noms?: () => Promise<{ interdits: string[]; permis: string[] }>;
 }
 
 export type IssuePiece = { ok: true; message: string; statut?: StatutPiece } | { ok: false; message: string };
@@ -104,6 +108,8 @@ export interface VuePieceCreee {
   statut: StatutPiece;
   /** Une autre proposition est demandée et pas encore arrivée : corriger et déposer sont fermés. */
   autreEnAttente: boolean;
+  /** Les noms de la charte ne sont pas lisibles : la page reste lisible, rien ne peut être modifié. */
+  nomsIllisibles: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -123,16 +129,14 @@ export async function creationDepuisPhraseOuverte(lire?: LecteurReglage): Promis
   }
 }
 
-/* Noms de la charte : lus une fois dans les deux fichiers du dépôt, puis gardés. Illisibles = refus (jamais « tout permis »). */
-const DOSSIER_NOMS = ["outils", "maquettes-tableaux-de-bord"];
-const FICHIERS_NOMS = [join(...DOSSIER_NOMS, "charte", "noms-neutres.json"), join(...DOSSIER_NOMS, "ecrans-outils", "noms.json")];
-let nomsEnMemoire: Promise<{ interdits: string[]; permis: string[] }> | null = null;
+/* Noms de la charte : copie sous `src/` (les fichiers d'`outils/` n'entrent pas dans l'image). Illisibles = refus (jamais « tout permis »). */
+type NomsCharte = { interdits: string[]; permis: string[] };
 
-async function lireNomsDeLaCharte(): Promise<{ interdits: string[]; permis: string[] }> {
+async function nomsParDefaut(): Promise<NomsCharte> {
+  const { NOMS_NEUTRES, NOMS_ECRANS_OUTILS } = await import("./tutoriel-piece-creee-noms");
   const interdits = new Set<string>();
   const permis = new Set<string>();
-  for (const f of FICHIERS_NOMS) {
-    const j = JSON.parse(await readFile(join(process.cwd(), f), "utf8")) as { interdits?: unknown; maquettes?: Record<string, { produit?: unknown; organisation?: unknown; vues?: Record<string, unknown> }> };
+  for (const j of [NOMS_NEUTRES, NOMS_ECRANS_OUTILS]) {
     for (const m of Array.isArray(j.interdits) ? j.interdits : []) if (typeof m === "string" && m.trim()) interdits.add(m);
     for (const m of Object.values(j.maquettes ?? {})) {
       for (const v of [m.produit, m.organisation, ...Object.values(m.vues ?? {})]) if (typeof v === "string" && v.trim()) permis.add(v);
@@ -142,18 +146,18 @@ async function lireNomsDeLaCharte(): Promise<{ interdits: string[]; permis: stri
   return { interdits: [...interdits], permis: [...permis] };
 }
 
-/** Les listes données par l'appelant font foi ; sinon celles de la charte (les deux fichiers du dépôt). */
-async function avecNoms(d: DependancesPiece): Promise<DependancesPiece> {
+export const MESSAGE_NOMS = "Les noms neutres de la charte ne sont pas lisibles : rien n'est modifié pour l'instant.";
+
+/** Les listes données par l'appelant font foi ; sinon celles de la charte. `null` si elles sont illisibles. */
+async function avecNoms(d: DependancesPiece): Promise<DependancesPiece | null> {
   if (d.interdits && d.nomsPermis) return d;
-  nomsEnMemoire ??= lireNomsDeLaCharte();
-  let n: { interdits: string[]; permis: string[] };
   try {
-    n = await nomsEnMemoire;
-  } catch (e) {
-    nomsEnMemoire = null;
-    throw new Error("Les noms neutres de la charte ne sont pas lisibles : rien n'est écrit.", { cause: e });
+    const n = await (d.noms ?? nomsParDefaut)();
+    if (!n.interdits.length) return null;
+    return { ...d, interdits: d.interdits ?? n.interdits, nomsPermis: d.nomsPermis ?? n.permis };
+  } catch {
+    return null;
   }
-  return { ...d, interdits: d.interdits ?? n.interdits, nomsPermis: d.nomsPermis ?? n.permis };
 }
 
 /** Un seul geste à la fois par vidéo (dans ce processus) : lecture, contrôle puis écriture ne se mélangent pas. */
@@ -232,7 +236,9 @@ function avecDescription(etat: EtatPieceCreee, description: DescriptionMaquette)
 /** Ce que l'écran montre, ou `null` (« Rien à voir pour l'instant »). Session exigée ; lecture seule, rien n'est écrit. */
 export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): Promise<VuePieceCreee | null> {
   await sessionOk(d);
-  d = await avecNoms(d);
+  const avec = await avecNoms(d);
+  const nomsIllisibles = avec === null;
+  if (avec) d = avec;
   const etat = await (await deposDe(d)).lire(videoId);
   if (!etat) return null;
   const description = descriptionDe(etat, d);
@@ -241,7 +247,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
   const ids = (etat.apercu?.images ?? []).map((i) => i.cle);
   const urls = ids.length ? await (d.urls ?? (await import("./fichiers")).urlsFichiers)(ids) : {};
   const tableau = tableauDepuisDescription(description, maintenant(d).slice(0, 10));
-  const defauts = [...(etat.apercu?.controle.defauts ?? []), ...controlerTextesCrees(description, d.nomsPermis ?? [])];
+  const defauts = [...(etat.apercu?.controle.defauts ?? []), ...controlerTextesCrees(description, d.nomsPermis ?? []), ...(nomsIllisibles ? [MESSAGE_NOMS] : [])];
   return {
     phrase: etat.phrase,
     cas: etat.cas,
@@ -253,6 +259,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     propositionsRestantes: etat.proposition >= PROPOSITIONS_PIECE_MAX ? 0 : 1,
     statut: etat.statut,
     autreEnAttente: autreEnAttente(etat),
+    nomsIllisibles,
   };
 }
 
@@ -270,7 +277,9 @@ export function enregistrerApercu(videoId: string, ids: unknown, d: DependancesP
 async function enregistrerApercuSeul(videoId: string, ids: unknown, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
-  d = await avecNoms(d);
+  const avec = await avecNoms(d);
+  if (!avec) return refus(MESSAGE_NOMS);
+  d = avec;
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
@@ -376,7 +385,9 @@ export function garderPiece(videoId: string, demande: DemandeGarder, d: Dependan
 async function garderPieceSeul(videoId: string, demande: DemandeGarder, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
-  d = await avecNoms(d);
+  const avec = await avecNoms(d);
+  if (!avec) return refus(MESSAGE_NOMS);
+  d = avec;
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
@@ -441,7 +452,9 @@ export function corrigerTexte(videoId: string, demande: DemandeCorrection, d: De
 async function corrigerTexteSeul(videoId: string, demande: DemandeCorrection, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
-  d = await avecNoms(d);
+  const avec = await avecNoms(d);
+  if (!avec) return refus(MESSAGE_NOMS);
+  d = avec;
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");

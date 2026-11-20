@@ -1,7 +1,10 @@
 /** T-EXT-V2-09 : écran « Votre maquette » (service + présentation). Doubles seulement : aucun appel réel, aucun rendu, 0 €. */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { NOMS_ECRANS_OUTILS, NOMS_NEUTRES } from "@/services/tutoriel-piece-creee-noms";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
 import { empreinteDescription, tableauDepuisDescription, textesDeLaMaquette, VERSION_APERCU } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PieceCreee, type GestesPiece } from "@/components/tutoriel-outil/PieceCreee";
@@ -325,5 +328,48 @@ describe("corrections du verdict Opus", () => {
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
     expect(m.compteurs.relances).toBe(1);
     expect(m.compteurs.ecritures).toBe(1);
+  });
+
+  describe("noms de la charte dans l'image du studio", () => {
+    const lire = (f: string) => JSON.parse(readFileSync(join(process.cwd(), "outils", "maquettes-tableaux-de-bord", f), "utf8")) as { interdits: string[]; maquettes: unknown };
+
+    it("la copie sous src/ est identique aux deux fichiers d'outils/", () => {
+      const n = lire("charte/noms-neutres.json");
+      const e = lire("ecrans-outils/noms.json");
+      expect(NOMS_NEUTRES).toEqual({ interdits: n.interdits, maquettes: n.maquettes });
+      expect(NOMS_ECRANS_OUTILS).toEqual({ interdits: e.interdits, maquettes: e.maquettes });
+    });
+
+    it("le service ne lit aucun fichier d'outils/ à l'exécution", () => {
+      const source = readFileSync(join(process.cwd(), "src", "services", "tutoriel-piece-creee.ts"), "utf8");
+      expect(source).not.toMatch(/readFile|process\.cwd|node:fs|"outils"/);
+    });
+
+    it("lecteur de noms en échec : la vue reste lisible, chaque geste refuse sans lever ni écrire", async () => {
+      const m = monde(avecApercu(etatInitial()));
+      const dep: DependancesPiece = { ...m.dep, noms: async () => { throw new Error("fichier absent"); } };
+      const vue = (await vuePieceCreee(VIDEO, dep))!;
+      expect(vue.nomsIllisibles).toBe(true);
+      expect(vue.textes.length).toBeGreaterThan(0);
+      const html = renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue, gestes: {} as GestesPiece }));
+      expect(decode(html)).toContain("Commandes du jour");
+      const e = etatInitial();
+      const rs = [
+        await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Commandes prêtes" }, dep),
+        await garderPiece(VIDEO, { empreinte: e.empreinte }, dep),
+        await enregistrerApercu(VIDEO, ["f-1"], dep),
+      ];
+      for (const r of rs) expect(r.ok).toBe(false);
+      expect(m.compteurs.ecritures).toBe(0);
+      expect(m.etat().statut).toBe("a-valider");
+    });
+
+    it("lecteur de noms qui rend des listes vides : même refus (jamais « tout permis »)", async () => {
+      const m = monde(avecApercu(etatInitial()));
+      const dep: DependancesPiece = { ...m.dep, noms: async () => ({ interdits: [], permis: [] }) };
+      const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Velora du jour" }, dep);
+      expect(r.ok).toBe(false);
+      expect(m.compteurs.ecritures).toBe(0);
+    });
   });
 });
