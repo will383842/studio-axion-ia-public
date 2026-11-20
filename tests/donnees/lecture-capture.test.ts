@@ -72,7 +72,7 @@ describe("éteint = identique (gardes statiques)", () => {
   const fichier = join(racine, "src", "briques", "donnees-video", "lecture-capture.ts");
   const source = readFileSync(fichier, "utf8");
 
-  it("aucun fichier de src/ n'importe lecture-capture", () => {
+  it("aucun fichier de src/ n'importe lecture-capture hors lecture-capture-claude.ts et tableau-de-bord-relecture.ts", () => {
     const trouves: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -82,7 +82,8 @@ describe("éteint = identique (gardes statiques)", () => {
       }
     };
     parcourir(join(racine, "src"));
-    expect(trouves).toEqual([join(racine, "src", "services", "lecture-capture-claude.ts")]);
+    // G4-08-b1-v20j : + le service de relecture du tableau de bord (premier appelant de la lecture), liste blanche +1 exacte.
+    expect(trouves.sort()).toEqual([join(racine, "src", "services", "lecture-capture-claude.ts"), join(racine, "src", "services", "tableau-de-bord-relecture.ts")]);
   });
   it("seuls des import type depuis @/fournisseurs/", () => {
     const imports = source.split("\n").filter((l) => /^\s*import\b/.test(l) && l.includes("@/fournisseurs/"));
