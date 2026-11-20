@@ -268,6 +268,81 @@ describe("RAP-3 fenêtres · (3) la marque ne dépend pas d'une seule écriture"
   });
 });
 
+describe("RAP-3 suite finale · marque d'espace et clic hors verrou", () => {
+  const ecritureEnEchec = (premiereSeulement: boolean) => {
+    const reel = depots().parametres.enregistrer.bind(depots().parametres);
+    let n = 0;
+    return vi.spyOn(depots().parametres, "enregistrer").mockImplementation(async (x) => {
+      if (x.id === PARAM_ECART_CALENDRIER && (!premiereSeulement || n++ === 0)) throw new Error("écriture impossible");
+      return reel(x);
+    });
+  };
+  it("la première écriture de la mesure échoue, le repli réussit : la marque est posée au passage suivant, rien n'est retirable sur 27 h", async () => {
+    const nos = [fabrique(0, "scheduled"), fabrique(1, "scheduled"), fabrique(2, "scheduled")];
+    const f = faux(nos);
+    injecterClientZernio(f.client);
+    await passe(T0);
+    f.introuvables = new Set(nos.map((p) => p._id));
+    f.posts = [fabrique(7, "scheduled", { _id: "etranger-1" }), fabrique(8, "scheduled", { _id: "etranger-2" })];
+    const espion = ecritureEnEchec(true);
+    await passe(T0 + 40 * M);
+    espion.mockRestore();
+    for (const dt of [55 * M, 24 * H + 50 * M, 27 * H]) {
+      await passe(T0 + dt);
+      expect(await retirables()).toEqual([]);
+    }
+    const mesure = (await depots().parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as { espaceSuspectLe?: string };
+    expect(mesure.espaceSuspectLe).toBeTruthy();
+    expect((await retirerIntrouvablesAction(nos.map((p) => idDe(Number(p._id.slice(-1)))))).ok).toBe(false);
+    expect(await retirees()).toEqual([]);
+  });
+  it("calendrier neuf, écriture de la mesure en échec : pas de marque ; un vrai post disparu depuis plus de 24 h reste retirable", async () => {
+    const trois = [fabrique(0, "scheduled"), fabrique(1, "scheduled"), fabrique(2, "scheduled")];
+    const f = faux(trois);
+    injecterClientZernio(f.client);
+    const espion = ecritureEnEchec(false);
+    await passe(T0); // import des 3 posts, mesure non écrite
+    espion.mockRestore();
+    await passe(T0 + 40 * M);
+    f.introuvables = new Set(["p-scheduled-0"]);
+    f.posts = [trois[1], trois[2]];
+    for (const dt of [95 * M, 130 * M, 25 * H + 50 * M]) await passe(T0 + dt);
+    vi.setSystemTime(T0 + 25 * H + 55 * M);
+    const mesure = (await depots().parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as { espaceSuspectLe?: string };
+    expect(mesure.espaceSuspectLe).toBeUndefined();
+    expect(await retirables()).toEqual([idDe(0)]);
+  });
+  it("les lectures du clic se font hors du verrou global", async () => {
+    const trois = [fabrique(0, "scheduled"), fabrique(1, "scheduled"), fabrique(2, "scheduled")];
+    const f = faux(trois);
+    injecterClientZernio(f.client);
+    await etatRetirable(f);
+    const { sousVerrou } = await import("@/services/_commun");
+    let libre: boolean | null = null;
+    f.auLire = async () => {
+      f.auLire = undefined;
+      libre = await Promise.race([sousVerrou(async () => true), new Promise<boolean>((r) => setTimeout(() => r(false), 200))]);
+    };
+    const r = await retirerIntrouvablesAction([idDe(0), idDe(1)]);
+    expect(r.ok).toBe(true);
+    expect(libre).toBe(true);
+  });
+  it("l'état change pendant les lectures : rien n'est retiré", async () => {
+    const trois = [fabrique(0, "scheduled"), fabrique(1, "scheduled"), fabrique(2, "scheduled")];
+    const f = faux(trois);
+    injecterClientZernio(f.client);
+    await etatRetirable(f);
+    f.auLire = async () => {
+      f.auLire = undefined;
+      const p = (await depots().publications.lister((x) => x.idExterne === "p-scheduled-1"))[0];
+      await depots().publications.modifier(p.id, { etatEnvoi: undefined, erreur: undefined, constatsIntrouvable: undefined });
+    };
+    const r = await retirerIntrouvablesAction([idDe(0), idDe(1)]);
+    expect(r.ok).toBe(false);
+    expect(await retirees()).toEqual([]);
+  });
+});
+
 describe("RAP-3 fenêtres · (4) textes et notification groupée", () => {
   it("retrait unitaire d'une rapatriée « à vérifier » : le diffuseur ne la retrouve plus, rien n'est changé chez lui", async () => {
     const f = faux([fabrique(0, "scheduled")]);
