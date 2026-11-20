@@ -44,9 +44,8 @@ describe("L5-11 gardes", () => {
   });
   it("T-G4 liste fermée du client inchangée", () => {
     const src = lire("src/fournisseurs/publication/zernio-client.ts");
-    const debut = src.indexOf("const ROUTES");
-    const bloc = src.slice(debut, src.indexOf("};", debut));
-    expect(bloc.match(/inbox/g)?.length).toBe(4);
+    const bloc = /const ROUTES\b[\s\S]*?\n\];/.exec(src)?.[0] ?? "";
+    expect(bloc.split("\n").filter((l) => l.includes("/v1/inbox")).length).toBe(4);
     expect(bloc).not.toMatch(/GET[^\n]*\/v1\/inbox\/comments/);
   });
 });
