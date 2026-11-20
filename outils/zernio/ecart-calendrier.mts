@@ -94,7 +94,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     for (const status of STATUTS_RAPATRIES) {
       for (let page = 1; page <= 50; page++) {
         const lus = await client.listerPosts({ status, page, limit: 100 });
-        for (const p of lus) if (!vus.has(p._id)) (vus.add(p._id), lignes.push(...ligneDe(p)));
+        for (const p of lus) {
+          if (vus.has(p._id)) continue;
+          vus.add(p._id);
+          lignes.push(...ligneDe(p));
+        }
         if (lus.length < 100) break;
       }
     }

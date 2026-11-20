@@ -40,6 +40,13 @@ export interface ResultatRapatriement {
 export async function lirePostsAVenirZernio(client: Pick<ClientZernio, "listerPosts">, budget: { restant: number }): Promise<{ posts: PostZernio[]; complete: boolean }> {
   const posts: PostZernio[] = [];
   const vus = new Set<string>();
+  const ajouter = (lus: PostZernio[]): void => {
+    for (const p of lus) {
+      if (vus.has(p._id)) continue;
+      vus.add(p._id);
+      posts.push(p);
+    }
+  };
   for (const status of STATUTS_RAPATRIES) {
     if (budget.restant <= 0) return { posts, complete: false };
     const pagesMax = budget.restant;
@@ -48,11 +55,11 @@ export async function lirePostsAVenirZernio(client: Pick<ClientZernio, "listerPo
       await listerToutesLesPagesZernio(client, { status }, LIMITE_PAGE, pagesMax, sortie);
     } catch {
       budget.restant -= sortie.requetes;
-      for (const p of sortie.posts) if (!vus.has(p._id)) (vus.add(p._id), posts.push(p));
+      ajouter(sortie.posts);
       return { posts, complete: false };
     }
     budget.restant -= sortie.requetes;
-    for (const p of sortie.posts) if (!vus.has(p._id)) (vus.add(p._id), posts.push(p));
+    ajouter(sortie.posts);
     // Plafond atteint sur une page encore pleine : il peut en rester.
     if (sortie.requetes >= pagesMax && sortie.posts.length >= pagesMax * LIMITE_PAGE) return { posts, complete: false };
   }
