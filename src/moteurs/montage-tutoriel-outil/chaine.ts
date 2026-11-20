@@ -349,6 +349,33 @@ async function pasScript(etat: EtatTutoriel, commande: CommandeFabrication, outi
   return { statut: "pause", etat, code: "TO_SCRIPT_NON_ECRIT", message: "L'écriture depuis une idée n'est pas encore ouverte : collez votre script. Rien n'a échoué." };
 }
 
+/**
+ * T-EXT-55 · Le prochain pas de l'étape script PAIERA-t-il un appel de rôle ? Lecture seule, 0 €, jamais un appel.
+ * Sert à la garde du devis : le « +1 appel à venir » ne se compte que si le pas suivant paie vraiment (un pas sans IA, la lecture
+ * d'une sortie déjà payée ou une pause ne dépensent rien). Doute (lecture en échec) : oui, c'est le sens prudent.
+ */
+export async function prochainPasPaye(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<boolean> {
+  const port = outils.equipe;
+  if (!port) return true;
+  try {
+    const entrees = lireEntreesTutoriel(commande.entrees);
+    const equipe: EtatEquipe = etat.equipe ?? { demande: demandeEquipe(commande, entrees), payes: {} };
+    let dossier: DossierLu | null = null;
+    if (entrees.depot?.mode === "dossier") {
+      try {
+        dossier = await port.lireDossier();
+      } catch {
+        dossier = null;
+      }
+    }
+    const pas = prochainPas(equipe, { dossier });
+    if (!("faire" in pas) || !pas.payant) return false;
+    return dejaPaye(equipe.payes, `Tutoriel · ${pas.faire}`, pas.empreinteEntree) === null;
+  } catch {
+    return true;
+  }
+}
+
 const ROLES_LIBELLE: Partial<Record<IdRole, string>> = { "chef-de-projet": "le chef de projet", analyste: "l'analyste", maquettiste: "le maquettiste", stratege: "le stratège de valeur", scenariste: "le scénariste" };
 
 /** Note l'état d'un rôle au journal (jamais ses sorties). */

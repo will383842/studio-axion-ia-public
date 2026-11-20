@@ -53,6 +53,11 @@ describe("T-EXT-55 · équipe éteinte (défaut) : rien ne change", () => {
     expect(await equipeTutorielActive(lire)).toBe(false);
   });
 
+  it.each(["true", 1])("`tutoriel.equipe` = %s avec `tutoriel.claude` exactement true : éteint (seul true exact allume l'équipe)", async (v) => {
+    const lire = (async (id: string, defaut: unknown) => (id === "tutoriel.equipe" ? v : id === "tutoriel.claude" ? true : defaut)) as <T>(id: string, d: T) => Promise<T>;
+    expect(await equipeTutorielActive(lire)).toBe(false);
+  });
+
   it("`tutoriel.equipe` sans `tutoriel.claude` (ou l'inverse) : éteint ; les deux exactement `true` : allumé ; lecture en échec : éteint", async () => {
     const lecteur = (valeurs: Record<string, unknown>) => (async (id: string, d: unknown) => (id in valeurs ? valeurs[id] : d)) as <T>(id: string, d: T) => Promise<T>;
     expect(await equipeTutorielActive(lecteur({ "tutoriel.equipe": true }))).toBe(false);
@@ -293,6 +298,21 @@ describe("T-EXT-55 · réponse payée mais illisible : gardée, comptée, jamais
     expect(arret.travail.erreur).toBeUndefined();
     expect(eq.appels.filter((r) => r === "scenariste")).toHaveLength(2);
     expect(etatDe(arret.travail).appelsClaude?.roles?.scenariste).toBe(2);
+    const avant = eq.appels.length;
+    const encore = await mener(m, c, await m.reessayer(arret.travail, T0 + 100_000), eq, 100);
+    expect(eq.appels).toHaveLength(avant);
+    expect(encore.travail.parametres?.pause).toMatchObject({ code: "TO_EQUIPE_BLOQUEE" });
+    expect(etatDe(encore.travail).appelsClaude?.roles?.scenariste).toBe(2);
+  });
+
+  it("deux refus aux erreurs DIFFÉRENTES (cas réel), puis « Réessayer » : aucun 3e appel payé, le compte reste à 2", async () => {
+    const j = journalVide();
+    const eq = fauxPort({ illisibleVarie: "scenariste" });
+    const m = moteurAvec(j, eq.port);
+    const c = commandeDossier();
+    const arret = await mener(m, c, await lancer(m, c), eq);
+    expect(arret.travail.parametres?.pause).toMatchObject({ code: "TO_EQUIPE_BLOQUEE" });
+    expect(eq.appels.filter((r) => r === "scenariste")).toHaveLength(2);
     const avant = eq.appels.length;
     const encore = await mener(m, c, await m.reessayer(arret.travail, T0 + 100_000), eq, 100);
     expect(eq.appels).toHaveLength(avant);

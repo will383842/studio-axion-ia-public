@@ -99,7 +99,7 @@ export interface Equipe {
 }
 
 /** Faux port : un appel = la simulation du rôle (aucun Claude). `panne` : le premier appel de ce rôle lève (rien n'est payé). */
-export function fauxPort(options: { panne?: IdRole; tronc?: boolean; illisible?: IdRole } = {}): Equipe {
+export function fauxPort(options: { panne?: IdRole; tronc?: boolean; illisible?: IdRole; illisibleVarie?: IdRole; refusePremier?: IdRole } = {}): Equipe {
   const eq: Equipe = { port: undefined as never, appels: [], dossierLu: 0, tronc: { evaluer: [], corrections: [] } };
   let enPanne = options.panne;
   const roles = { "chef-de-projet": roleChefDeProjet, analyste: roleAnalyste, stratege: roleStrategeValeur } as const;
@@ -114,6 +114,10 @@ export function fauxPort(options: { panne?: IdRole; tronc?: boolean; illisible?:
       eq.appels.push(role);
       // Réponse réelle payée, refusée par la garde du rôle : le port rend la sortie « illisible » (jamais undefined).
       if (options.illisible === role) return { illisible: true };
+      // Premier essai refusé par la garde du rôle, le second valable (le cas du 2e essai permis du scénariste).
+      if (options.refusePremier === role && eq.appels.filter((r) => r === role).length === 1) return { illisible: true };
+      // Deux refus d'un même rôle aux erreurs DIFFÉRENTES (le cas réel) : les empreintes d'entrée diffèrent, `dejaPaye` ne masque rien.
+      if (options.illisibleVarie === role) return eq.appels.filter((r) => r === role).length % 2 === 1 ? { version: "scripts-tutoriel.v1", versions: [] } : { version: "autre", versions: [{ id: "A" }] };
       if (role === "scenariste") return fauxScenariste(fiche!);
       const sortie = (roles as Record<string, { simuler(e: typeof entree): unknown }>)[role]!.simuler(entree);
       if (role === "stratege") fiche = sortie as never;
