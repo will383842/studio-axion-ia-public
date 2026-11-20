@@ -5,12 +5,14 @@
 import { describe, expect, it } from "vitest";
 import { dureeDiteSec } from "@/domaine/duree-tableau";
 import { lireEntreesTableau, etapesTableau } from "../../../src/moteurs/montage-tableau/etapes";
-import { COUT_VOIX_SANS_VOIX_CENTIMES, LECTURE_MIN_SCENE_SEC, LIBELLE_SANS_VOIX, MOTEUR_SANS_VOIX_PRET, dureeSceneSansVoixSec, planSansVoix, remarqueDuree } from "../../../src/moteurs/montage-tableau/sans-voix";
+import { DETAIL_SANS_VOIX, COUT_VOIX_SANS_VOIX_CENTIMES, LECTURE_MIN_SCENE_SEC, LIBELLE_SANS_VOIX, MOTEUR_SANS_VOIX_PRET, dureeSceneSansVoixSec, planSansVoix, remarqueDuree } from "../../../src/moteurs/montage-tableau/sans-voix";
 
 describe("rythme de lecture sans voix", () => {
   it("le libellé de l'écran est celui de la consigne ; le coût de la voix est 0", () => {
     expect(LIBELLE_SANS_VOIX).toBe("Sans voix (sous-titres et texte à l'écran)");
     expect(COUT_VOIX_SANS_VOIX_CENTIMES).toBe(0);
+    // L'écran avant « Fabriquer » n'affiche jamais de montant.
+    expect(`${LIBELLE_SANS_VOIX} ${DETAIL_SANS_VOIX}`).not.toMatch(/€/);
   });
   it("une scène reste au moins le plancher, et au moins le temps de dire son texte (estimation existante)", () => {
     expect(dureeSceneSansVoixSec("Oui.")).toBe(LECTURE_MIN_SCENE_SEC);

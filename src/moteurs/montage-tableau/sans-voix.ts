@@ -13,7 +13,7 @@ import { caracteresDits, dureeDiteSec } from "@/domaine/duree-tableau";
 export const LIBELLE_SANS_VOIX = "Sans voix (sous-titres et texte à l'écran)";
 
 /** Détail affiché sous le choix. */
-export const DETAIL_SANS_VOIX = "Même vidéo, silence total, sans musique : rien n'est dépensé en voix (0 €).";
+export const DETAIL_SANS_VOIX = "Même vidéo, silence total, sans musique : rien n'est dépensé en voix.";
 
 /**
  * Le moteur de fabrication (`fabriquer.ts`, fichier réservé à will-dc le 20/11) sait-il sauter l'étape « voix » et
