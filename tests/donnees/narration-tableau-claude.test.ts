@@ -86,7 +86,7 @@ function doubles(opts: { engagements?: Partial<Record<"dmpln" | "tbnar" | "tblec
 }
 const origine = "usine" as const;
 
-describe("a) interrupteur tableau.narrationClaude : seul true exact allume", () => {
+describe("a) interrupteur tableau.narrationClaude : allumé si true exact ou absent, tout le reste éteint", () => {
   it("la clé", () => {
     expect(PARAM_NARRATION_CLAUDE).toBe("tableau.narrationClaude");
     expect(PARAM_PLAFOND_NARRATION).toBe("tableau.plafondNarrationUsd");
@@ -94,8 +94,13 @@ describe("a) interrupteur tableau.narrationClaude : seul true exact allume", () 
   it.each([
     [true, true],
     [false, false],
-    ["true", true],
-    [1, true],
+    ["false", false],
+    ["true", false],
+    [0, false],
+    [1, false],
+    [{}, false],
+    [[], false],
+    ["", false],
     [undefined, true],
     [null, true],
   ])("valeur %j → %s", async (valeur, attendu) => {
@@ -108,7 +113,7 @@ describe("a) interrupteur tableau.narrationClaude : seul true exact allume", () 
 
 describe("b) le port : un appel, rôle Sonnet, repli gratuit sinon", () => {
   it("éteint (false exact, échec de lecture) : null et 0 appel", async () => {
-    for (const valeur of [false]) {
+    for (const valeur of [false, "false", "true", 0, 1, {}]) {
       const d = doubles({ lire: (id) => (id === PARAM_NARRATION_CLAUDE ? valeur : undefined) });
       expect(await portNarrationClaude("v1", origine, d)(donnee())).toBeNull();
       expect(d.executer).toHaveBeenCalledTimes(0);
