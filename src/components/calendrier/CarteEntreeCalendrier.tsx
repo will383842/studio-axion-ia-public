@@ -42,6 +42,8 @@ export interface EntreeCarte {
   compte?: string;
   /** RAP-3 · publication reprise du diffuseur : la carte le dit et montre le début du texte. */
   chezDiffuseur?: boolean;
+  /** RAP-3 · repris du diffuseur en brouillon (l'état affiché peut alors être « à vérifier »). */
+  brouillonRepris?: boolean;
   /** RAP-3 · adresse DU STUDIO de la miniature (jamais celle du diffuseur) ; absente : carte texte, sans image. */
   vignette?: string;
 }
@@ -117,6 +119,9 @@ export function RepereReseau({ reseau, nombre, className }: { reseau: IdReseau; 
 }
 
 /** Verrou de la maquette : déjà publiée, ou jour passé (comparé au jour de Paris fourni). */
+/** RAP-3 finitions : le post repris du diffuseur est-il un brouillon (alors on ne dit jamais « programmé »). */
+export const estBrouillonDiffuseur = (etat: string): boolean => etat === "brouillon_buffer";
+
 export function estVerrouillee(entree: Pick<EntreeCarte, "etat" | "jour">, aujourdhui: string): boolean {
   if (entree.etat === "publie") return true;
   return jourLisible(entree.jour) && jourLisible(aujourdhui) && entree.jour < aujourdhui;
@@ -238,7 +243,7 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
       </span>
       {entree.chezDiffuseur ? (
         <span data-chez-diffuseur className="mt-1 flex items-start gap-1.5">
-          {entree.vignette && <VignetteDiffuseur src={entree.vignette} alt={`Image du post ${nomReseau(entree.reseau)} programmé chez le diffuseur`} taille={40} />}
+          {entree.vignette && <VignetteDiffuseur src={entree.vignette} alt={`Image du post ${nomReseau(entree.reseau)} ${estBrouillonDiffuseur(entree.etat) ? "brouillon chez le diffuseur" : "programmé chez le diffuseur"}`} taille={40} />}
           {entree.titre && <span className="text-xs text-texte-doux">{entree.titre}</span>}
         </span>
       ) : (

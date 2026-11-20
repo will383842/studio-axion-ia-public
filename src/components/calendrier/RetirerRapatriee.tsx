@@ -21,8 +21,16 @@ function useRouteurOuNul() {
 
 export const LIBELLE_RETIRER_RAPATRIEE = "Retirer du calendrier (reste programmée chez le diffuseur)";
 export const PHRASE_RETIRER_RAPATRIEE = "Retirer ce post du calendrier du Studio ? Il reste programmé chez le diffuseur et partira à l'heure prévue : rien n'est annulé là-bas. Pour l'annuler vraiment, faites-le chez le diffuseur.";
+// Un brouillon n'est pas programmé : il reste simplement chez le diffuseur.
+export const LIBELLE_RETIRER_BROUILLON = "Retirer du calendrier (reste chez le diffuseur)";
+export const PHRASE_RETIRER_BROUILLON = "Retirer ce post du calendrier du Studio ? Il reste en brouillon chez le diffuseur : rien n'est supprimé là-bas. Pour le supprimer vraiment, faites-le chez le diffuseur.";
 
-export function RetirerRapatriee({ publicationId }: { publicationId: string }) {
+// « À vérifier » : le diffuseur ne retrouve plus le post, rien ne « reste programmé » là-bas à promettre.
+export const LIBELLE_RETIRER_INTROUVABLE = "Retirer du calendrier (le diffuseur ne le retrouve plus)";
+export const PHRASE_RETIRER_INTROUVABLE = "Retirer ce post du calendrier du Studio ? Le diffuseur ne retrouve plus ce post ; rien n'est changé chez lui.";
+export const PHRASE_RETIRER_INTROUVABLE_BROUILLON = "Retirer ce brouillon du calendrier du Studio ? Le diffuseur ne retrouve plus ce brouillon ; rien n'est changé chez lui.";
+
+export function RetirerRapatriee({ publicationId, brouillon = false, introuvable = false }: { publicationId: string; brouillon?: boolean; introuvable?: boolean }) {
   const routeur = useRouteurOuNul();
   const [etape, setEtape] = useState<"repos" | "confirmation" | "fait">("repos");
   const [enCours, setEnCours] = useState(false);
@@ -50,12 +58,12 @@ export function RetirerRapatriee({ publicationId }: { publicationId: string }) {
     <div className="mt-6 border-t border-trait pt-3">
       {etape === "repos" && (
         <button type="button" onClick={() => setEtape("confirmation")} className={BOUTON}>
-          {LIBELLE_RETIRER_RAPATRIEE}
+          {introuvable ? LIBELLE_RETIRER_INTROUVABLE : brouillon ? LIBELLE_RETIRER_BROUILLON : LIBELLE_RETIRER_RAPATRIEE}
         </button>
       )}
       {etape === "confirmation" && (
         <div>
-          <p className="text-sm text-texte">{PHRASE_RETIRER_RAPATRIEE}</p>
+          <p className="text-sm text-texte">{introuvable ? (brouillon ? PHRASE_RETIRER_INTROUVABLE_BROUILLON : PHRASE_RETIRER_INTROUVABLE) : brouillon ? PHRASE_RETIRER_BROUILLON : PHRASE_RETIRER_RAPATRIEE}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" onClick={() => void confirmer()} disabled={enCours} className={cn(BOUTON, "disabled:opacity-60")}>
               Oui, retirer du calendrier
@@ -66,7 +74,7 @@ export function RetirerRapatriee({ publicationId }: { publicationId: string }) {
           </div>
         </div>
       )}
-      {etape === "fait" && <p role="status" className="text-sm font-bold text-texte">C&apos;est fait : ce post n&apos;est plus au calendrier. Il reste programmé chez le diffuseur.</p>}
+      {etape === "fait" && <p role="status" className="text-sm font-bold text-texte">C&apos;est fait : ce post n&apos;est plus au calendrier. {introuvable ? "Rien n'est changé chez le diffuseur." : brouillon ? "Il reste en brouillon chez le diffuseur." : "Il reste programmé chez le diffuseur."}</p>}
       {refus && <p role="alert" className="mt-2 rounded-[10px] bg-surface-1 p-2 text-sm font-bold text-texte">{refus}</p>}
     </div>
   );
