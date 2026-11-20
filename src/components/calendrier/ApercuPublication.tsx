@@ -14,7 +14,7 @@ import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { MonogrammeReseau, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { MonogrammeReseau, estBrouillonDiffuseur, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ENVOI, PHRASE_DEPLACER_CHEZ_DIFFUSEUR, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
@@ -111,7 +111,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
   const visuel = (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
       {chez ? (
-        entree.vignette ? <VignetteDiffuseur key={entree.cle} src={entree.vignette} alt={`Image du post ${nom} programmé chez le diffuseur`} taille={320} grande /> : <span>Pas d&apos;image sur ce post</span>
+        entree.vignette ? <VignetteDiffuseur key={entree.cle} src={entree.vignette} alt={`Image du post ${nom} ${estBrouillonDiffuseur(entree.etat) ? "brouillon chez le diffuseur" : "programmé chez le diffuseur"}`} taille={320} grande /> : <span>Pas d&apos;image sur ce post</span>
       ) : entree.type === "carrousel" || (a.media.genre === "video" && a.media.url) || (entree.type === "infographie" && a.media.url) ? (
         <ApercuMedia key={entree.cle} type={a.media.genre === "video" ? "video" : entree.type === "infographie" ? "infographie" : "carrousel"} url={a.media.url} poster={a.media.poster} pages={entree.media?.pages} />
       ) : a.media.genre === "image" && a.media.url ? (
@@ -246,7 +246,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
         </Link>
       )}
       {retirable && <RetirerDuCalendrier key={entree.cle} cle={entree.cle} />}
-      {retirableRapatriee && <RetirerRapatriee key={entree.cle} publicationId={lireCleFiche(entree.cle)!.id} />}
+      {retirableRapatriee && <RetirerRapatriee key={entree.cle} publicationId={lireCleFiche(entree.cle)!.id} brouillon={estBrouillonDiffuseur(entree.etat)} />}
       {retirableChezDiffuseur && <RetirerProgrammation key={entree.cle} cle={entree.cle} />}
     </aside>
     </TiroirAccessible>
