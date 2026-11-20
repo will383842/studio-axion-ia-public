@@ -69,8 +69,8 @@ export async function controlerFicheTableauAction(videoId: string, script: unkno
  * « Fabriquer la vidéo » : `accord` = le montant affiché et confirmé (centimes d'euro), sinon rien ne part ; `relu` = le
  * repère « script relu » (empreinte des lignes relues de la fiche), sinon refus.
  */
-export async function fabriquerVideoTableauAction(videoId: string, accord?: AccordPrix, relu?: string): Promise<Resultat<IssueFabricationTableau>> {
-  const r = await essayer(() => avecAccordAutomatique((a) => fabriquerVideoTableau(videoId, a ?? accord, {}, relu), undefined, { videoId }));
+export async function fabriquerVideoTableauAction(videoId: string, accord?: AccordPrix, relu?: string, sansVoix?: boolean): Promise<Resultat<IssueFabricationTableau>> {
+  const r = await essayer(() => avecAccordAutomatique((a) => fabriquerVideoTableau(videoId, a ?? accord, {}, relu, { sansVoix: sansVoix === true }), undefined, { videoId }));
   if (r.ok && r.donnees.statut === "lancee") {
     revalidatePath("/videos");
     revalidatePath(`/videos/${videoId}`);

@@ -55,4 +55,22 @@ export const TOILES = {
   "objet-cercle": { largeur: 1080, hauteur: 1920 },
   "objet-ovale": { largeur: 1080, hauteur: 1920 },
   "objet-double-boucle": { largeur: 1080, hauteur: 1920 },
+  // C9-34-ETIQUETTES-v20f : recopiées de def.toile (etiquettes.tsx:36, bulles.tsx:26, post-it.tsx:15)
+  "objet-pastille-icone": { largeur: 1000, hauteur: 1000 },
+  "objet-etiquette-icone": { largeur: 1000, hauteur: 1000 },
+  "objet-badge": { largeur: 1000, hauteur: 1000 },
+  "objet-tampon": { largeur: 1000, hauteur: 1000 },
+  "objet-bulle-parole": { largeur: 1000, hauteur: 560 },
+  "objet-bulle-pensee": { largeur: 1000, hauteur: 560 },
+  "objet-bulle-notification": { largeur: 1000, hauteur: 560 },
+  "objet-post-it": { largeur: 600, hauteur: 600 },
+  // C9-34-SCHEMAS-v20g : recopiées de def.toile (schema-flux.tsx:30, schemas-relies.tsx:39, grille-vignettes.tsx:27, fenetre-app.tsx:62, terminal-commande.tsx:61)
+  "objet-schema-flux": { largeur: 1000, hauteur: 600 },
+  "objet-schema-etoile": { largeur: 1000, hauteur: 600 },
+  "objet-icones-reliees": { largeur: 1000, hauteur: 600 },
+  "objet-agents-globe": { largeur: 1000, hauteur: 600 },
+  "objet-grille-pointillee": { largeur: 1000, hauteur: 1000 },
+  "objet-vignettes-numerotees": { largeur: 1000, hauteur: 1000 },
+  "objet-fenetre-app": { largeur: 1000, hauteur: 1000 },
+  "objet-terminal-commande": { largeur: 1000, hauteur: 1000 },
 } as const;

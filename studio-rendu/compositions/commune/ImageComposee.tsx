@@ -86,9 +86,21 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
   const second = !camera && planDouble?.angle === "second" && p.doubles.second;
   const boite = tr.double;
   const decor = p.decor;
+  // C10-03b-v20f : pendant une fenêtre `fondFlouCartes`, le calque décor SEUL reçoit un flou et un voile noir (fondu linéaire). Absent ou hors fenêtre : rien ne change.
+  const fenetreFlou = (p.fondFlouCartes ?? []).find((w) => t >= w.debutSec && t < w.finSec);
+  const fondu = fenetreFlou ? (fenetreFlou.fonduSec > 0 ? Math.max(0, Math.min(1, (t - fenetreFlou.debutSec) / fenetreFlou.fonduSec, (fenetreFlou.finSec - t) / fenetreFlou.fonduSec)) : 1) : 0;
+  const flouCarte = fenetreFlou ? fenetreFlou.flouPx * fondu * k : 0;
+  const flouDecor = (decor.flouPx > 0 ? decor.flouPx * k : 0) + flouCarte;
+  const voileCarte = fenetreFlou && fenetreFlou.assombrir * fondu > 0 ? fenetreFlou.assombrir * fondu : 0;
   const decorImage = decor.image ? (
-    <Img src={decor.image} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: decor.flouPx > 0 ? `blur(${decor.flouPx * k}px)` : undefined, transform: decor.flouPx > 0 ? "scale(1.04)" : undefined }} />
+    <Img src={decor.image} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: flouDecor > 0 ? `blur(${flouDecor}px)` : undefined, transform: flouDecor > 0 ? "scale(1.04)" : undefined }} />
   ) : null;
+  const decorCalque = voileCarte > 0 ? (
+    <>
+      {decorImage}
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "#000", opacity: voileCarte }} />
+    </>
+  ) : decorImage;
   // Facecam lot C : écran partagé par passages (carte en haut, la personne glisse en bas). Absent : rien ne change.
   const ep = plan?.type === "double" ? plan.ecranPartage : undefined;
   const geo = ep ? geometrieEcranPartage(ep, entreeEcranPartage(image - Math.round(plan!.debutSec * fps), ep.entreeImages)) : null;
@@ -101,9 +113,9 @@ function ImageComposeeExistante(p: ProprietesImageComposition) {
   const scene = (
     <AbsoluteFill style={{ backgroundColor: decor.teinte, overflow: "hidden" }}>
       {/* 4:5 et 1:1 : le décor reste fixe et s'étend sur les côtés ; seul le double change de taille. */}
-      {p.ratio !== "9:16" && decorImage}
+      {p.ratio !== "9:16" && decorCalque}
       <div style={{ position: "absolute", left: 0, top: 0, width: p.largeur, height: p.hauteur, transformOrigin: "0 0", transform: `translate(${tr.conteneur.x}px, ${tr.conteneur.y}px) scale(${tr.conteneur.echelle})` }}>
-        {p.ratio === "9:16" && decorImage}
+        {p.ratio === "9:16" && decorCalque}
         <div style={{ position: "absolute", left: boite.gauche, top: boite.haut, width: boite.largeur, height: boite.hauteur }}>
           {/* Les deux angles restent montés (pistes continues) ; un seul est visible. */}
           <AbsoluteFill style={{ opacity: second || camera ? 0 : 1 }}>

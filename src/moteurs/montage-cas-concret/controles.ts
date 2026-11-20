@@ -76,6 +76,8 @@ export interface EntreeControleCasConcret {
   planDesFins: PlanDesFins;
   /** Bruitages posés dans la vidéo (aucun : vidéo sans bruitages). */
   bruitagesPoses: readonly string[];
+  /** CC-SV : mode sans voix : silence total voulu, donc ni volume, ni crête, ni fin de voix, ni bruitages à contrôler. */
+  sansVoix?: true;
   /** Zone sûre commune aux réseaux visés, en fractions (`zoneSureDe`) ; null : mise en page « non faite ». */
   zone: ZoneSure | null;
   /** Fins dont la prise de voix a été gardée malgré un rejet (`rapportVoix().finsGardeesMalgreRejet`). */
@@ -322,10 +324,11 @@ const lire = (m: MesuresFin, cle: string): number | null => {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 };
 
-function controlerFichier(fin: FinPlanifiee, m: MesuresFin | undefined, seuils: SeuilsControleImage): LigneControleCasConcret[] {
+function controlerFichier(fin: FinPlanifiee, m: MesuresFin | undefined, seuils: SeuilsControleImage, sansVoix = false): LigneControleCasConcret[] {
   const nom = nomsReseaux(fin.reseaux);
   if (!m) return [ligne("fichier", "Fichier exporté", true, "non-fait", `Fichier pour ${nom} : mesures absentes, rien n'a été vérifié sur le fichier.`)];
-  const res = controlerMesures(m, seuils).map((c) => depuisBrique(c, FAMILLE_BRIQUE[c.id] ?? "fichier", `Fichier pour ${nom} · `));
+  // Sans voix : le son est volontairement muet (volume et crête n'ont pas de sens) ; l'image reste contrôlée en entier.
+  const res = controlerMesures(m, seuils).filter((c) => !sansVoix || (c.id !== "volume" && c.id !== "crete")).map((c) => depuisBrique(c, FAMILLE_BRIQUE[c.id] ?? "fichier", `Fichier pour ${nom} · `));
 
   const libelleImage = "Taille de l'image";
   const attendu = `largeur ${FICHIER_LARGEUR}, hauteur ${FICHIER_HAUTEUR}, ${FICHIER_IMAGES_PAR_SECONDE} images par seconde`;
@@ -340,7 +343,9 @@ function controlerFichier(fin: FinPlanifiee, m: MesuresFin | undefined, seuils: 
   const libelleVoix = "Fin de la voix";
   const duree = lire(m, "dureeSec");
   const voix = lire(m, "voixFinSec");
-  if (duree === null || voix === null) res.push(ligne("voix", libelleVoix, true, "non-fait", `Fichier pour ${nom} · fin de la voix non mesurée.`));
+  if (sansVoix) {
+    // Rien à dire : la voix n'existe pas ; la fin propre (image tenue) reste regardée plus bas.
+  } else if (duree === null || voix === null) res.push(ligne("voix", libelleVoix, true, "non-fait", `Fichier pour ${nom} · fin de la voix non mesurée.`));
   else if (duree - voix < VOIX_AVANT_FIN_MIN_SEC - 1e-6) {
     res.push(ligne("voix", libelleVoix, true, "echoue", `Fichier pour ${nom} · la voix finit à ${secondes(duree - voix)} de la fin ; il faut ${secondes(VOIX_AVANT_FIN_MIN_SEC)} au moins.`));
   } else res.push(ligne("voix", libelleVoix, true, "reussi", `Fichier pour ${nom} · la voix finit à ${secondes(duree - voix)} de la fin.`));
@@ -364,7 +369,7 @@ function indicatifs(e: EntreeControleCasConcret): LigneControleCasConcret[] {
     const fin = e.planDesFins.fins.find((f) => f.id === g.id);
     res.push(ligne("voix", "Voix de la fin", false, "echoue", `Fin${fin ? ` pour ${nomsReseaux(fin.reseaux)}` : ""} : la voix a été gardée malgré un rejet (${g.phrase}).`));
   }
-  if (e.bruitagesPoses.length === 0) res.push(ligne("bruitage", "Bruitages", false, "echoue", "Aucun bruitage validé : la vidéo est sans bruitages."));
+  if (e.bruitagesPoses.length === 0 && e.sansVoix !== true) res.push(ligne("bruitage", "Bruitages", false, "echoue", "Aucun bruitage validé : la vidéo est sans bruitages."));
   return res;
 }
 
@@ -429,7 +434,7 @@ export function controlerVideoCasConcret(entree: EntreeControleCasConcret): Rapp
       lignes.push(...proteger("Écrans", "ecran", () => controlerEcrans(props, fin.reseaux)));
       lignes.push(...proteger("Mise en page", "mise-en-page", () => controlerPage(props, entree.zone, seuils, false)));
     } else lignes.push(ligne("ecran", "Écrans", true, "non-fait", `Fin pour ${nomsReseaux(fin.reseaux)} : propriétés des écrans absentes, rien n'a été vérifié.`));
-    lignes.push(...proteger("Fichier exporté", "fichier", () => controlerFichier(fin, entree.mesuresParFin[fin.id], seuils)));
+    lignes.push(...proteger("Fichier exporté", "fichier", () => controlerFichier(fin, entree.mesuresParFin[fin.id], seuils, entree.sansVoix === true)));
   }
   if (!entree.planDesFins.fins.length) lignes.push(ligne("fin", "Fin de la vidéo", true, "echoue", "Aucune fin n'est prévue : la vidéo ne dit ni le diagnostic ni le lien."));
   lignes.push(...indicatifs(entree));

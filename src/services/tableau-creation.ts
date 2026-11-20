@@ -29,6 +29,7 @@ import { ecranTableauVisible, FORMAT_TABLEAU_ANIME } from "@/components/formats/
 import { phraseDuRefus } from "@/components/formats/tableau-anime/vue";
 import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import { voixPourFormat } from "@/domaine/voix-format";
+import { COUT_VOIX_SANS_VOIX_CENTIMES, MOTEUR_SANS_VOIX_PRET, RAISON_SANS_VOIX_MOTEUR_ABSENT } from "@/moteurs/montage-tableau/sans-voix";
 import type { PastilleControle } from "@/domaine/relecture-script";
 import { contexteDesLignes, contexteDuGenerateur, correctionsDeLaRelecture, lireLignesRelues, pastillesTexteTableau, RAISON_CASE_DEJA_VU, repereFiche, repereTexte, texteDeWillAccepte, texteDesLignes } from "@/domaine/relecture-tableau";
 import { MENTION_IA_PAR_DEFAUT } from "@/domaine/derivations";
@@ -1351,7 +1352,7 @@ export const RAISON_SCRIPT_NON_RELU = "Le script a changé depuis votre relectur
  * des lignes relues : `repereFiche`), puis sans un MONTANT confirmé au moins égal au prix de la voix (`true` ne
  * suffit pas). Ensuite : fiche rangée dans le stockage, script de la vidéo, entrées du tableau, lancement commun.
  */
-export async function fabriquerVideoTableau(videoId: Id, accordBrut: AccordPrix | unknown, dependances: DependancesCreationTableau = {}, relu?: unknown): Promise<IssueFabricationTableau> {
+export async function fabriquerVideoTableau(videoId: Id, accordBrut: AccordPrix | unknown, dependances: DependancesCreationTableau = {}, relu?: unknown, options: { sansVoix?: boolean } = {}): Promise<IssueFabricationTableau> {
   await exigerSession();
   if (!creationTableauVisible()) return { statut: "refusee", phrase: "Le tableau animé n'est pas encore ouvert." };
   // Une vidéo arrêtée à la relecture se relance d'ici (« Relancer ») : rien n'a été payé de la voix à ce moment-là.
@@ -1373,9 +1374,12 @@ export async function fabriquerVideoTableau(videoId: Id, accordBrut: AccordPrix 
   if (!relecture.ok) return { statut: "refusee", phrase: `La relecture de la fiche n'a pas abouti : ${relecture.points.slice(0, 3).map((p) => p.message).join(" ")}` };
 
   // Voix déjà payée par une fabrication arrêtée, même texte dit : reprise, aucun prix ; texte changé : relue et payée.
-  const dejaPayee = await voixDejaPayee(video.id, brouillon, r.fiche);
+  // TA-SV : « sans voix » : aucune voix à reprendre ni à payer, aucun prix (0 €), refus clair tant que le moteur ne le gère pas.
+  const sansVoix = options.sansVoix === true;
+  if (sansVoix && !MOTEUR_SANS_VOIX_PRET) return { statut: "refusee", phrase: RAISON_SANS_VOIX_MOTEUR_ABSENT };
+  const dejaPayee = sansVoix ? null : await voixDejaPayee(video.id, brouillon, r.fiche);
   // 14/10 : contrôle de ressemblance de la voix : le prix confirmé couvre toutes les lectures possibles (3 au plus).
-  const montant = dejaPayee?.etat === "reutilisee" ? 0 : estimerFabrication(r.fiche, TARIF_VOIX_CENTIMES_PAR_CARACTERE, [], { lecturesVoixMax: await lecturesVoixMaxDuReglage() }).centimes;
+  const montant = sansVoix ? COUT_VOIX_SANS_VOIX_CENTIMES : dejaPayee?.etat === "reutilisee" ? 0 : estimerFabrication(r.fiche, TARIF_VOIX_CENTIMES_PAR_CARACTERE, [], { lecturesVoixMax: await lecturesVoixMaxDuReglage() }).centimes;
   const accord = accordPropre(accordBrut);
   if (montant > 0 && (typeof accord !== "number" || accord < montant)) {
     return { statut: "accord-requis", centimes: montant, phrase: dejaPayee?.etat === "relue" ? `Le texte dit a changé : la voix sera relue, ce qui est payant. Confirmez pour lancer.` : `La voix est payante. Confirmez pour lancer.` };
@@ -1409,6 +1413,8 @@ export async function fabriquerVideoTableau(videoId: Id, accordBrut: AccordPrix 
     dejaVu: brouillon.dejaVu,
     // La voix déjà payée (même texte dit) : le moteur la reprend au lancement, rien n'est relu.
     ...(dejaPayee?.etat === "reutilisee" ? { voixPayee: dejaPayee.reprise } : {}),
+    // TA-SV : le mode sans voix est écrit dans les entrées (lu par le moteur et par les raccords).
+    ...(sansVoix ? { sansVoix: true as const } : {}),
   };
   await depots().videos.modifier(video.id, { distribution, entrees: { ...aJour.entrees, [ENTREE_TABLEAU]: entreesTableau } });
 
