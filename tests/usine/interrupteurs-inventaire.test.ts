@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42 ; 41 avec `zernio.rapatriement_actif`, RAP-2). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42 ; 41 avec `zernio.rapatriement_actif`, RAP-2 ; 42 avec `tutoriel.finCommune`, T-EXT-26a). */
 const LITTERALES: Record<string, Etat> = {
   "accueil.bilan_semaine": "eteint",
   afficherExemples: "allume",
@@ -71,6 +71,7 @@ const LITTERALES: Record<string, Etat> = {
   "style.faconDeParler": "valeur",
   "taux.usdEur": "valeur",
   "tutoriel.devisAvantDepense": "eteint",
+  "tutoriel.finCommune": "eteint",
   "tutoriel.finitions": "eteint",
   "tutoriel.suiviCloche": "eteint",
   "videoLongue.actif": "eteint",
@@ -97,6 +98,9 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "comite.source_usine.actif", etat: "eteint", appel: "src/services/branchement-idees-usine.ts", motif: /REGLAGE_SOURCE_USINE, false\)\) === true/ },
   { cle: "facecamAnimee.calageAuMot", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /PARAM_CALAGE_AU_MOT_FA, false\)\) === true/ },
   { cle: "facecamAnimee.finDouce", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /PARAM_FIN_DOUCE_FA, false\)\) === true/ },
+  { cle: "facecamAnimee.extraitsMaison", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/realisateur/consigne-extraits-maison.ts", motif: /PARAM_EXTRAITS_MAISON_FA, false\)\) === true/ },
+  { cle: "facecamAnimee.zoomGratuit", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/zoom-gratuit-v4.ts", motif: /PARAM_ZOOM_GRATUIT_FA, false\)\) === true/ },
+  { cle: "facecamAnimee.garderMaster", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/master-v4.ts", motif: /PARAM_GARDER_MASTER_FA, false\)\) === true/ },
   { cle: "facecamAnimee.accordEssaiReel", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /lireParametre<boolean>\(PARAM_ACCORD_ESSAI_FA, false\)/ },
   { cle: "facecamAnimee.plafondClaudeUsd", etat: "valeur", appel: "src/services/facecam-animee.ts", motif: /lireParametre<number>\(PARAM_PLAFOND_CLAUDE_FA, PLAFOND_CLAUDE_FA_USD\)/ },
   { cle: "facecamAnimee.plafondVideosUsd", etat: "valeur", appel: "src/services/depense-claude-video.ts", motif: /parametre: PARAM_PLAFOND_VIDEOS_FA, defautUsd: PLAFOND_VIDEOS_FA_USD/ },
@@ -819,7 +823,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche, + videoLongue.actif, + tutoriel.devisAvantDepense)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(41);
+  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche, + videoLongue.actif, + tutoriel.devisAvantDepense, + tutoriel.finCommune)", () => {
+    expect(Object.keys(LITTERALES)).toHaveLength(42);
   });
 });

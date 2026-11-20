@@ -119,6 +119,8 @@ export interface EntreeRelecture {
   /** Fin retenue pour chaque sortie (services : `choisirFin`) ; absente : aucune fin. */
   choisirFin?: (appelId: string | null, sortie: IdSortie) => FinRetenue | undefined;
   contenusPreuves?: Readonly<Record<string, ContenuPreuve>>;
+  /** S-13-b : seul `true` exact ; un refus de variété devient une remarque. Absent : comme avant. */
+  preteAvecRemarques?: true;
 }
 
 /** Un point bloquant de la relecture, rattaché à sa scène quand on la connaît. */
@@ -174,6 +176,7 @@ export async function relireFicheTableau(e0: EntreeRelecture): Promise<Relecture
     ...(e.leveeVariete ? { leveeVariete: e.leveeVariete } : {}),
     ...(relues.length ? { sorties: relues.map((s) => ({ id: s.id, libelle: s.libelle, fiche: s.fiche, options: s.options })) } : {}),
     ...(impossible ? { sortiesImpossibles: [impossible] } : {}),
+    ...(e.preteAvecRemarques ? { preteAvecRemarques: true as const } : {}),
   });
   // Les refus des règles de la fiche nomment déjà leur scène (« Scène s06 · … ») : rattachés à elle.
   const points = rapport.bloquants.flatMap((l): PointRelecture[] => {

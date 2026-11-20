@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Espace démo · Atelier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <button data-aller="commandes">Commandes</button>
+    <button data-aller="planning">Planning</button>
+    <button data-aller="stocks">Bois en stock</button>
+  </header>
+  <section id="commandes" class="ecran visible etat-maintenant" data-zone="commandes" data-zone-prouve="Toutes les commandes en cours se lisent d'un coup d'œil." data-zone-etat="les-deux" data-zone-gestes="clic apparition" data-zone-aller="commandes">
+    <p class="exemple">Données d'exemple</p>
+    <div class="avant">Avant : un tableur en désordre, des notes sur papier.</div>
+    <div class="maintenant" id="liste-commandes"></div>
+  </section>
+  <section id="planning" class="ecran etat-maintenant" data-zone="planning" data-zone-prouve="Le planning des machines montre qui travaille où chaque jour." data-zone-etat="maintenant" data-zone-gestes="clic defilement" data-zone-aller="planning">
+    <p class="exemple">Données d'exemple</p>
+    <div class="avant">Avant : un tableau à la main, des conflits de machine.</div>
+    <table class="maintenant"><tbody id="lignes-planning"></tbody></table>
+  </section>
+  <section id="stocks" class="ecran etat-maintenant" data-zone="stocks" data-zone-prouve="Le stock de bois signale ce qu'il faut commander." data-zone-etat="maintenant" data-zone-gestes="clic zoom" data-zone-aller="stocks">
+    <p class="exemple">Données d'exemple</p>
+    <div class="avant">Avant : on compte les planches à la main.</div>
+    <div class="maintenant" id="liste-stocks"></div>
+  </section>
+  <script src="demo-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

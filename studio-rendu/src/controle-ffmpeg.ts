@@ -35,6 +35,7 @@ import { argumentsRecollage, controleRecollage, listeConcat, verifierRecollable 
 import { argumentsRecollables } from "./composition/reglages-recollables.js";
 import type { SondeFfprobe } from "./composition/empreinte-encodage.js";
 import { controlerCouleurs, ecartCouleurs, mesurerCouleurs, type Zone } from "./composition/couleurs.js";
+import { imagesDans, listeConcatPlages, type SegmentAvant, type SegmentRecollage } from "./operations/recollage-plages.js";
 import { mesurerVmaf, noterEtRelancer } from "./operations/composition.js";
 import { argumentsEtalonnageVideo, filtreEtalonnage } from "./operations/etalonnage.js";
 import { executer, FFMPEG, FFPROBE } from "./outils.js";
@@ -337,6 +338,26 @@ export function controles(dossier: string): { nom: string; executer: () => Promi
     { nom: "export dégradé (CRF 45) : note VMAF sous 93, relance UNIQUE plus fine (noterEtRelancer)", executer: async () => {
       await exportDe("master10.mov", "liste.txt", EXPORT_DEGRADE, "export10-degrade.mp4")();
       await relanceDegrade(dossier);
+    } },
+    // T-EXT-52c-c : preuve réelle du recollage par plages (fonctions pures de recollage-plages.ts) ; aucun chemin de production ne l'appelle.
+    { nom: "recollage par plages (T-EXT-52c-c : tronçon d'avant + morceau neuf, -c copy, mêmes images, 1 flux vidéo + 1 audio)", executer: async () => {
+      const sonde = async (f: string) => JSON.parse(await executer(FFPROBE, ["-v", "error", "-show_streams", "-show_format", "-of", "json", join(dossier, f)])) as SondeFfprobe;
+      const temps = async (f: string) => (await executer(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time", "-of", "csv=p=0", join(dossier, f)])).split(/\r?\n/).filter(Boolean).map(Number);
+      await ff(argumentsMiniExportRecollable("prise.mp4", 0, 1.2, "plg-avant.mp4"))();
+      await ff(argumentsMiniExportRecollable("prise.mp4", 0.6, 0.6, "plg-neuf.mp4"))();
+      const v = verifierRecollable(await sonde("plg-avant.mp4"), await sonde("plg-neuf.mp4"));
+      if (!v.ok) throw new Error(`non recollable : ${v.raisons.join(" ; ")}`);
+      const avant: SegmentAvant = { source: "avant", debutSec: 0, finSec: 1 };
+      const segments: SegmentRecollage[] = [avant, { source: "plage", entree: "neuf", dureeSec: 0.6 }];
+      await writeFile(join(dossier, "plg.txt"), listeConcatPlages(segments, { avant: "plg-avant.mp4", plages: { neuf: "plg-neuf.mp4" } }));
+      await ff(argumentsRecollage("plg.txt", "plg-recolle.mp4"))();
+      const attendu = imagesDans(await temps("plg-avant.mp4"), avant) + (await temps("plg-neuf.mp4")).length;
+      const r = controleRecollage({ images: attendu, tempsSec: [] }, { images: (await temps("plg-recolle.mp4")).length, tempsSec: await temps("plg-recolle.mp4") });
+      if (!r.ok) throw new Error(`recollage par plages refusé : ${r.raisons.join(" ; ")}`);
+      await ff(["-i", "plg-recolle.mp4", "-i", "voix.wav", "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-shortest", "plg-son.mp4"])();
+      const f = await sonde("plg-son.mp4");
+      const nb = (t: string) => (f.streams ?? []).filter((x: { codec_type?: string }) => x.codec_type === t).length;
+      if (nb("video") !== 1 || nb("audio") !== 1) throw new Error(`attendu 1 flux vidéo et 1 audio, trouvé ${nb("video")} et ${nb("audio")}`);
     } },
     // G11-08 : graphe « visage + écran » (écran divisé), exécuté sur prise.mp4 (visage) et carte.mp4 (écran) ; aucun chemin de production ne l'appelle.
     { nom: "graphe écran divisé (grapheEcranDivise, visage + écran)", executer: ff(["-i", "prise.mp4", "-i", "carte.mp4", "-filter_complex", grapheEcranDivise({ largeur: W, hauteur: H, rectEcran: { x: 0, y: 0, largeur: W, hauteur: H / 2 }, rectVisage: { x: 0, y: H / 2, largeur: W, hauteur: H / 2 }, fps: FPS }), "-map", "[sortie]", "-frames:v", "5", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "ecran-divise.mp4"]) },

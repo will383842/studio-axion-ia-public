@@ -15,14 +15,14 @@ import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import type { ReseauIV } from "@/domaine/image-video/plafonds";
 import { nombreDeMotsDuScript, refusScriptColle, SCRIPT_CARACTERES_MAX, SCRIPT_MOTS_MAX } from "@/moteurs/montage-image-video/texte/script-limites";
 
-export function DepotScript({ script, onScript, reseaux, montant, blocage, onRefus, children }: { script: string; onScript: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; onRefus: (phrase: string | null) => void; /** Sélecteur de réseaux, placé entre le script et la barre du prix. */ children?: ReactNode }) {
+export function DepotScript({ script, onScript, reseaux, montant, blocage, sansVoix, onRefus, children }: { script: string; onScript: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; /** IV-SV : mode sans voix. */ sansVoix?: boolean; onRefus: (phrase: string | null) => void; /** Sélecteur de réseaux, placé entre le script et la barre du prix. */ children?: ReactNode }) {
   const router = useRouter();
   const mots = nombreDeMotsDuScript(script);
   const pret = !refusScriptColle(script) && reseaux.length > 0 && !blocage;
 
   async function fabriquer(accord: number): Promise<{ centimes: number } | void> {
     onRefus(null);
-    const r = await deposerScriptImageVideoAction({ script, reseaux, accordCentimes: accord });
+    const r = await deposerScriptImageVideoAction({ script, reseaux, accordCentimes: accord, ...(sansVoix ? { sansVoix: true } : {}) });
     if (!r.ok) return void onRefus(r.message);
     if (r.donnees.statut === "accord-requis") return { centimes: r.donnees.centimes };
     if (r.donnees.statut === "refusee") return void onRefus(r.donnees.phrase);

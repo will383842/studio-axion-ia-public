@@ -172,7 +172,7 @@ describe("R4-03-b1 · gardes statiques", () => {
     expect(src).not.toMatch(/credits|budget|depense|couts|plafond|lireParametre/);
     expect(src).not.toMatch(/\bDate\b|Math\.random/);
   });
-  it("aucun fichier de src n'importe retouche-extrait-v4", () => {
+  it("seul src/services/retouche-extrait-v4-demande.ts importe retouche-extrait-v4", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -182,9 +182,8 @@ describe("R4-03-b1 · gardes statiques", () => {
       }
     };
     parcourir(join(racine, "src"));
-    for (const f of fichiers) {
-      if (f === chemin) continue;
-      expect(readFileSync(f, "utf8"), f).not.toMatch(/(?<!sources-)retouche-extrait-v4["']/);
-    }
+    const autorise = join(racine, "src/services/retouche-extrait-v4-demande.ts");
+    const importeurs = fichiers.filter((f) => f !== chemin && /(?<!sources-)retouche-extrait-v4["']/.test(readFileSync(f, "utf8")));
+    expect(importeurs).toEqual([autorise]);
   });
 });

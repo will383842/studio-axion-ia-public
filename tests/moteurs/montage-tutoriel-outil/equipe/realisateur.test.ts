@@ -64,17 +64,17 @@ function erreurs(r: ReturnType<typeof realiser>): string {
 }
 
 describe("réalisateur (T-EXT-22)", () => {
-  it("G-Décision : une étape par phrase, un geste par phrase, dernière étape « appel », scénario accepté", () => {
+  it("G-Décision : un geste par phrase, deux phrases sur la même zone réutilisent l'étape, dernière étape « appel », scénario accepté", () => {
     const r = realiser(entree());
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     const p = r.parcours;
-    expect(p.scenario.etapes).toHaveLength(7);
+    expect(p.scenario.etapes).toHaveLength(6);
     expect(p.gestes.map((g) => g.phraseIndex)).toEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(p.plansDessines).toEqual([]);
     expect(p.scenario.etapes[0]!.role).toBe("accroche");
     expect(p.scenario.etapes[1]!.role).toBe("probleme");
-    expect(p.scenario.etapes[6]!.role).toBe("appel");
+    expect(p.scenario.etapes[5]!.role).toBe("appel");
     expect(lireScenarioMaquette(p.scenario).ok).toBe(true);
     expect(p.gestes[2]!.geste).toBe("zoom");
     expect(p.gestes[2]!.zoom?.facteur).toBeLessThanOrEqual(1.6);
@@ -94,7 +94,7 @@ describe("réalisateur (T-EXT-22)", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.parcours.plansDessines.map((x) => [x.phraseIndex, x.montre])).toEqual([[0, "avant-dessine"], [1, "avant-dessine"]]);
-    expect(r.parcours.scenario.etapes).toHaveLength(5);
+    expect(r.parcours.scenario.etapes).toHaveLength(4);
     expect(r.parcours.gestes).toHaveLength(7);
   });
 
@@ -156,9 +156,34 @@ describe("réalisateur (T-EXT-22)", () => {
   });
 
   it("11 phrases de changement : refus « 9 étapes filmées au plus »", () => {
+    const dix = Array.from({ length: 10 }, (_, i) => zone(`z${i}`));
+    const longues = dix.map((z, i) => ph(`Etape ${i} numéro ${i} se montre.`, "changement", z.id));
+    const s = script([SEPT[0]!, ...longues, SEPT[6]!]);
+    expect(erreurs(realiser(entree({ script: s, carte: carte([ZONES[0]!, ...dix]) })))).toMatch(/9 étapes filmées au plus/);
+  });
+
+  it("11 phrases sur la même zone : une seule étape, un geste par phrase, pas de refus", () => {
     const longues = Array.from({ length: 11 }, (_, i) => ph(`Etape ${i} numéro ${i} se montre.`, "changement", "alerte"));
     const s = script([SEPT[0]!, ...longues, SEPT[6]!]);
-    expect(erreurs(realiser(entree({ script: s })))).toMatch(/9 étapes filmées au plus/);
+    const r = realiser(entree({ script: s }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.parcours.scenario.etapes.map((e) => e.role)).toEqual(["accroche", "parcours", "appel"]);
+    expect(r.parcours.gestes).toHaveLength(13);
+    expect(new Set(r.parcours.gestes.slice(1, 12).map((g) => g.etapeId))).toEqual(new Set(["e2"]));
+  });
+
+  it("deux phrases sur des zones différentes, ou séparées par une autre zone : une étape chacune", () => {
+    const s = script([
+      ph("Ici une alerte apparaît toute seule.", "changement", "alerte"),
+      ph("Là votre liste se met à jour.", "changement", "liste"),
+      ph("Ensuite revenez sur l'alerte maintenant.", "changement", "alerte"),
+      ph("Votre entreprise gagne en sérénité.", "gain"),
+    ]);
+    const r = realiser(entree({ script: s }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.parcours.scenario.etapes).toHaveLength(4);
   });
 
   it("G-Flux (cahier direct ou cas 5) : plus refusé pour « pas encore disponible »", () => {

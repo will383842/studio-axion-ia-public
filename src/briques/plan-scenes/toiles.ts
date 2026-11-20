@@ -84,4 +84,6 @@ export const TOILES = {
   "objet-frise-montage": { largeur: 1000, hauteur: 1000 },
   "objet-pellicule": { largeur: 1000, hauteur: 1000 },
   "objet-onde-motif": { largeur: 1000, hauteur: 300 },
+  // N-05-VOLET-d-v20j : recopiée de L_VOLET × H_VOLET
+  "objet-volet-avant-apres": { largeur: 1000, hauteur: 625 },
 } as const;

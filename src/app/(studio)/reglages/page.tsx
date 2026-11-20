@@ -235,6 +235,14 @@ export default async function PageReglages() {
               </Link>
             </CartePliante>
           </Apparition>
+          <Apparition index={3}>
+            <CartePliante id="tutoriel-outil" icone="baguette" titre="Tutoriel d'outil" resume="Un interrupteur par réglage, tous éteints par défaut.">
+              <Link href="/reglages/tutoriel-outil" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:underline">
+                <span className="flex-1">Ouvrir les réglages du tutoriel</span>
+                <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
+              </Link>
+            </CartePliante>
+          </Apparition>
           {/* X3-10b-c : « Animations par défaut », seulement si dosageMotion.actif vaut true. */}
           {defautsDosage && (
             <Apparition index={4}>
