@@ -25,7 +25,9 @@ const gardees = PIECES_GARDEES as unknown as string[];
 const GARDEES_DE_ORIGINE = [...PIECES_GARDEES];
 // C9-34-TRAITS-v19c : les 6 traits inscrits ensuite ne font pas partie des 18 objets d'avant ; on les exclut pour garder SHA_PLAN_TOUS_OBJETS figé (sha non recalculé).
 const TRAITS_C9_34 = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
-const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id)).map((d) => d.id);
+// C9-34-CADRES-v20b : les 6 cadres et entourages inscrits ensuite sont exclus de la même façon (sha non recalculé).
+const CADRES_C9_34 = ["objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle"];
+const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id) && !CADRES_C9_34.includes(d.id)).map((d) => d.id);
 
 describe("G4-11-PORTE-a : éteint = identique à master", () => {
   it("la liste ne contient que les 3 pièces 16:9 de VL-10 et estGardee ≡ famille objet ou liste", () => {

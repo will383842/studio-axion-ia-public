@@ -48,4 +48,11 @@ export const TOILES = {
   "objet-fleche-droite": { largeur: 1000, hauteur: 1000 },
   "objet-fleche-courbe": { largeur: 1000, hauteur: 1000 },
   "objet-fleche-pointillee": { largeur: 1000, hauteur: 1000 },
+  // C9-34-CADRES-v20b : recopiées de def.toile (cadres.tsx:22, entourages.tsx:17)
+  "objet-cadre-rectangle": { largeur: 1080, hauteur: 1920 },
+  "objet-cadre-coins": { largeur: 1080, hauteur: 1920 },
+  "objet-cadre-passage": { largeur: 1080, hauteur: 1920 },
+  "objet-cercle": { largeur: 1080, hauteur: 1920 },
+  "objet-ovale": { largeur: 1080, hauteur: 1920 },
+  "objet-double-boucle": { largeur: 1080, hauteur: 1920 },
 } as const;
