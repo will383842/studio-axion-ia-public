@@ -10,6 +10,8 @@ import { creerServiceRenduSimule } from "@/fournisseurs/simulation/rendu";
 import type { OutilsMontage } from "@/briques/composition/montage";
 import type { ParametresDemandeComposition } from "@/briques/composition/scene";
 import { profilNeutre } from "@/briques/bibliotheque-video/profils/neutre";
+import type { ProfilVideo } from "@/briques/bibliotheque-video/types";
+import { ID } from "@/briques/bibliotheque-video/noms";
 import { VERSION_BIBLIOTHEQUE } from "@/briques/bibliotheque-video/version";
 import { fnv1a64 } from "@/briques/plan-scenes/empreinte";
 import type { RequeteClaude, ReponseClaude } from "@/fournisseurs/claude/client";
@@ -132,5 +134,25 @@ describe("Facecam sans objets permis : plan de scènes figé (C9-37t)", () => {
     expect(clesObjet(outils)).toEqual([]);
   });
 
-  it.todo("objets permis (C9-37 branché) : seules les entrées objet-* des pièces permises apparaissent");
+  it("objets permis (C9-37-b branché) : la liste des pièces permises passe au plan ; la scène objet permise est gardée, la non permise est retirée", async () => {
+    // Entrée simulée qui permet `objet.chiffre` (forme recopiée de tests/demo-facecam/objets-permis-demo.test.ts, pas importée).
+    const permet = { bibliothequeVideo: { version: VERSION_BIBLIOTHEQUE, profil: { ...profilNeutre("facecam"), capacites: { [ID.objetChiffre]: { permis: true } } as unknown as ProfilVideo["capacites"] }, recents: [], graine: "G", figeeLe: "2026-11-20" } };
+    const llmObjets = () => {
+      const requetes: RequeteClaude[] = [];
+      const scene = (id: string, piece: string, parametres: unknown, premier: number, dernier: number, debutMs: number, finMs: number) => ({ id, version: 1, mots: { premier, dernier }, debutMs, finMs, niveau: 1, position: "centre", piece, parametres });
+      const plan = { version: "plan-scenes-1", scenes: [scene("a", "objet-gros-chiffre", { valeur: 5, unite: "heures" }, 0, 3, 0, 2000), scene("b", "objet-fleche-droite", {}, 5, 8, 2500, 4500)] };
+      return { requetes, appeler: async (r: RequeteClaude): Promise<ReponseClaude> => (requetes.push(r), { texte: JSON.stringify(plan), stopReason: "end_turn" } as ReponseClaude) };
+    };
+    const pieces = (o: { soumises: DemandeRendu[] }) => ((composition(o).image.planScenes as { scenes: { piece: string }[] } | undefined)?.scenes ?? []).map((s) => s.piece);
+    const l = llmObjets();
+    const outils = outilsRendu();
+    const etat = await jusquAuBout({ facecam: creerFacecamSimule(), habillage: outils, planScenes: async () => ({ appeler: l.appeler }) }, commande(permet, TEXTE_AVEC_FAITS));
+    expect(etat.fini).toBe(true);
+    expect(pieces(outils)).toContain("objet-gros-chiffre");
+    expect(pieces(outils)).not.toContain("objet-fleche-droite");
+    // La consigne du LLM liste la pièce permise et jamais la non permise.
+    const systeme = l.requetes.map((r) => r.systeme.map((b) => b.texte).join("\n")).join("\n");
+    expect(systeme).toContain("- objet-gros-chiffre (");
+    expect(systeme).not.toContain("- objet-fleche-droite (");
+  });
 });

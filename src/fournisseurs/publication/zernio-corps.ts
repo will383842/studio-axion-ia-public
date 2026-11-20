@@ -124,9 +124,9 @@ export function plateformeZernio(reseau: string): string {
   return p;
 }
 
-/** Premier commentaire transmis par Zernio : Facebook et LinkedIn confirmés ; TikTok n'en a pas ; Instagram à prouver. */
+/** Premier commentaire transmis par Zernio : Facebook et LinkedIn confirmés ; Instagram prouvé par l'essai réel du 20/11/2026 ; TikTok et YouTube n'en ont pas. */
 export function premierCommentaireTransmissibleZernio(reseau: string): boolean {
-  return reseau === "facebook" || reseau === "linkedin";
+  return reseau === "instagram" || reseau === "facebook" || reseau === "linkedin";
 }
 
 /* --- Corps ------------------------------------------------------------------------------------------------------- */
@@ -211,6 +211,7 @@ export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsP
     case "instagram":
       if (type === "video") specifique.shareToFeed = true; // vidéo seule = Reel
       if (d.contenuIA) specifique.isAiGenerated = true;
+      if (commentaire) specifique.firstComment = commentaire;
       break;
     case "facebook":
       if (!cible.pageId) throw refus("Facebook : aucune page choisie (la page par défaut n'est jamais utilisée).");
