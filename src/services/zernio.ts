@@ -8,7 +8,7 @@
  */
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
-import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
+import { estRapatriee, type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import { transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { reconcilier } from "./reconciliation-calendrier";
@@ -20,6 +20,7 @@ import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { phraseLisible } from "@/lib/erreur-lisible";
 import { obtenirReseau } from "@/reseaux";
+import { depsRapatriementServeur, rapatrierPostsZernio, type ResultatRapatriement } from "./rapatriement-zernio";
 import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou, creerVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 import { passerProgrammee } from "./buffer";
@@ -357,6 +358,45 @@ export const PAGES_LISTE_MAX_ZERNIO = 50;
 export const BUDGET_REQUETES_PAR_PASSAGE = 51;
 export const PAGES_LISTE_PAR_PASSAGE = 10;
 export const LECTURES_UNITAIRES_PAR_PASSAGE_COMPLET = 40;
+/** RAP-2 · requêtes de lecture du rapatriement par passage (comptées dans le budget de 51, qui ne change pas). */
+export const BUDGET_RAPATRIEMENT_PAR_PASSAGE = 6;
+/** RAP-2 · réglage `zernio.rapatriement_actif` (lu en littéral plus bas, pour l'inventaire) : absent = actif ; `false` = mesure seule, rien n'est créé. */
+/** RAP-2 · mesure de l'écart calendrier / diffuseur (valeur lue par le bandeau ; ce n'est pas un interrupteur). */
+export const PARAM_ECART_CALENDRIER = "zernio.ecart_calendrier";
+const EXEMPLES_ECART_MAX = 10;
+/** RAP-2 · la mesure inchangée est tout de même réécrite au-delà de ce délai, pour que « relu à HH:MM » reste vrai. */
+const RAFRAICHISSEMENT_ECART_MS = 30 * 60_000;
+
+export interface EcartCalendrier {
+  luLe: string;
+  /** Faux : la lecture chez le diffuseur n'a pas pu être menée à terme (budget, débit, panne) ; `absents` n'est alors qu'un minimum. */
+  verifie: boolean;
+  chezDiffuseur: number;
+  absents: number;
+  exemples: { postId6: string; reseau: string; jourParis: string; raison: string }[];
+}
+
+/** RAP-2 · écrit la mesure sous le verrou, seulement si elle change (ou si elle est devenue trop ancienne). Jamais bloquant. */
+async function ecrireEcartCalendrier(valeur: EcartCalendrier): Promise<void> {
+  await sousVerrou(async () => {
+    const existant = await depots().parametres.obtenir(PARAM_ECART_CALENDRIER);
+    const avant = existant?.valeur as EcartCalendrier | undefined;
+    const sansHeure = (e?: EcartCalendrier) => JSON.stringify(e ? { ...e, luLe: "" } : null);
+    const recent = !!avant && Date.parse(valeur.luLe) - Date.parse(avant.luLe) < RAFRAICHISSEMENT_ECART_MS;
+    if (sansHeure(avant) === sansHeure(valeur) && recent) return;
+    const m = maintenant();
+    await depots().parametres.enregistrer({ id: PARAM_ECART_CALENDRIER, valeur, creeLe: existant?.creeLe ?? m, modifieLe: m });
+  });
+}
+
+const ecartDepuis = (r: ResultatRapatriement, luLe: string): EcartCalendrier => ({
+  luLe,
+  verifie: r.lectureComplete,
+  chezDiffuseur: r.lus,
+  absents: r.absents.length,
+  exemples: r.absents.slice(0, EXEMPLES_ECART_MAX).map((a) => ({ postId6: a.postId.slice(0, 6), reseau: a.reseau, jourParis: a.jour, raison: a.raison })),
+});
+
 /** L5-06 · nombre de visuels rattrapés au plus par passage. */
 const RATTRAPAGE_PAR_PASSAGE = 20;
 
@@ -502,7 +542,30 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   } catch {
     /* lecture ou alerte impossible : on réessaiera au prochain passage */
   }
-  let suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
+  // RAP-2 · rapatriement des posts du diffuseur absents du calendrier : lecture seule chez le diffuseur (6 requêtes au plus, décomptées du budget),
+  // écriture seulement dans le Studio. Son échec n'arrête jamais la synchro ; les posts lus servent aux lectures du passage (jamais relus seuls).
+  const deRapatriement = new Map<string, PostZernio>();
+  {
+    const budgetRap = { restant: BUDGET_RAPATRIEMENT_PAR_PASSAGE };
+    const luLe = new Date(instant).toISOString();
+    try {
+      const actif = (await lireParametre<boolean>("zernio.rapatriement_actif", true)) !== false;
+      const deps = await depsRapatriementServeur();
+      const resultat = await rapatrierPostsZernio({ ...deps, client: { listerPosts: (q) => client.listerPosts(q) }, instant: () => luLe, budget: budgetRap }, { aBlanc: !actif });
+      for (const x of resultat.posts) if (postDeListeComplet(x)) deRapatriement.set(x._id, x);
+      await ecrireEcartCalendrier(ecartDepuis(resultat, luLe));
+    } catch {
+      // Lecture ou écriture locale impossible : la mesure est « non vérifiée », la synchro continue.
+      try {
+        const avant = (await d.parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as EcartCalendrier | undefined;
+        await ecrireEcartCalendrier({ chezDiffuseur: 0, absents: 0, exemples: [], ...avant, luLe, verifie: false });
+      } catch {
+        /* rien de plus à faire : on réessaiera au prochain passage */
+      }
+    }
+    requetes += BUDGET_RAPATRIEMENT_PAR_PASSAGE - budgetRap.restant;
+  }
+  let suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && !p.retireeLe && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
     .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""));
   // L5-06 · liste complète (lecture seule) : un échec de lecture laisse le passage incrémental habituel.
   // Au-delà de 50 publications suivies (ou sur demande), le passage est complet : la boucle de fond en profite sans option.
@@ -526,12 +589,15 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   // L5-06 · l'étape des visuels est calculée UNE fois, après la boucle, sur l'état final du passage (jamais sur un état intermédiaire).
   const visuelsTouches = new Set<string>();
   for (const p of suivies) {
-    const vid = videoIdSure(p);
+    const rapatriee = estRapatriee(p);
+    const vid = rapatriee ? undefined : videoIdSure(p);
     const entite = vid ? { type: "video", id: vid } : undefined;
     const lien = vid ? `/videos/${vid}` : "/calendrier";
+    // Une rapatriée n'a pas de vidéo à suivre : ses notifications restent à la cloche (pas de rafale de push si le diffuseur supprime en masse).
+    const optionsNotif = rapatriee ? { cloche: true } : undefined;
     let post: PostZernio;
     try {
-      const deListe = dejaLus?.get(p.idExterne!);
+      const deListe = dejaLus?.get(p.idExterne!) ?? deRapatriement.get(p.idExterne!);
       if (deListe) post = deListe;
       else if (lecturesUnitaires >= plafondUnitaires || requetes >= BUDGET_REQUETES_PAR_PASSAGE) continue;
       else {
@@ -545,7 +611,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
         if (p.etatEnvoi !== "a-verifier" && instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
           await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
-          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo });
+          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo }, optionsNotif);
         }
       }
       continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
@@ -563,11 +629,18 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     if (etat.statut === "echec") changement.erreur = etat.erreur;
     if (etat.statut === "publiee" && p.erreur) changement.erreur = undefined;
     // L0-11 : la date du Studio fait foi, la synchro ne l'écrase jamais. Celle du diffuseur est rangée dans `dateExterne`.
+    // RAP-2 : exception pour une rapatriée, née chez le diffuseur : sa date suit celle du diffuseur (décision du fondateur), sans cloche.
     let ecartDate: { studio: number; diffuseur: number } | null = null;
-    if (etat.statut === "programmee") {
+    let deplaceeChezLeDiffuseur: { avant: number; apres: number } | null = null;
+    if (etat.statut === "programmee" || (rapatriee && etat.statut === "brouillon")) {
       const diffuseur = typeof post.scheduledFor === "string" ? Date.parse(post.scheduledFor) : NaN;
       const studio = Date.parse(p.date);
-      if (Number.isFinite(diffuseur)) {
+      if (rapatriee) {
+        if (Number.isFinite(diffuseur) && !(Math.abs(diffuseur - studio) <= ECART_DATE_TOLERE_MS)) {
+          changement.date = new Date(post.scheduledFor!).toISOString();
+          if (Number.isFinite(studio)) deplaceeChezLeDiffuseur = { avant: studio, apres: diffuseur };
+        }
+      } else if (Number.isFinite(diffuseur)) {
         const ecarte = Number.isFinite(studio) && Math.abs(diffuseur - studio) > ECART_DATE_TOLERE_MS;
         if (ecarte && p.dateExterne !== post.scheduledFor) {
           changement.dateExterne = post.scheduledFor;
@@ -577,6 +650,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     }
     if (!(await ecrireSiInchange(p, changement))) continue;
     const nom = obtenirReseau(p.reseau).nom;
+    if (deplaceeChezLeDiffuseur) await journaliser("publication", `Déplacée chez le diffuseur : ${heureParis(deplaceeChezLeDiffuseur.avant)} → ${heureParis(deplaceeChezLeDiffuseur.apres)} (heure de Paris)`);
     if (ecartDate) {
       // Cloche seulement (jamais de push ni d'e-mail) : une fois par date relue chez le diffuseur.
       const phrase = `${nom} : la date du Studio (${heureParis(ecartDate.studio)}) est gardée ; le diffuseur indique ${heureParis(ecartDate.diffuseur)}. Corrigez-la dans le Studio ou chez le diffuseur.`;
@@ -604,7 +678,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       console.warn(`[studio] Zernio, échec sur ${p.reseau} : ${etat.note ?? "échec"}`);
       await journaliser("publication", phrase, entite);
       if (p.visuelId) visuelsTouches.add(p.visuelId);
-      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo });
+      await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo }, optionsNotif);
     }
   }
   try {

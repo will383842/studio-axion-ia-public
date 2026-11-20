@@ -110,7 +110,7 @@ export function deciderRapatriement(
         reseau: reseauDepuisPlateforme(pf.platform)!,
         statut: post.status === "draft" ? "brouillon" : "programmee",
         via: "zernio",
-        date: post.scheduledFor!,
+        date: new Date(post.scheduledFor!).toISOString(),
         texte: pf.customContent ?? post.content ?? "",
         idExterne: post._id,
         etatEnvoi: "envoye",

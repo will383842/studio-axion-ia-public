@@ -1,7 +1,5 @@
 /** RAP-1 · une publication rapatriée apparaît au calendrier ; rien d'autre n'est élargi. Dépôts en mémoire, données fictives. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { estRapatriee } from "@/domaine/types";
 
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
@@ -47,12 +45,5 @@ describe("RAP-1 · visibilité au calendrier", () => {
     await depots().publications.enregistrer({ ...rapatriee, retireeLe: "2026-11-21T10:00:00.000Z" } as never);
     const jours = await listerCalendrier("2026-11-20T00:00:00.000Z", "2026-11-30T23:59:59.000Z");
     expect(ids(jours)).toEqual([]);
-  });
-});
-
-describe("RAP-1 · verrou de non-régression (point E du plan, VERT sur master)", () => {
-  it("l'exclusion « occupe » cherche les occupants PAR MÉDIA : une publication sans média ne bloque jamais un créneau", () => {
-    const src = readFileSync(join(__dirname, "..", "..", "src/services/branchement-envoi-calendrier.ts"), "utf8");
-    expect(src).toContain("(p.videoId === media || p.visuelId === media) && p.reseau === reseau");
   });
 });

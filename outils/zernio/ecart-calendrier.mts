@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { creerClientZernio, type PostZernio } from "../../src/fournisseurs/publication/zernio-client";
+import { creerClientZernio, type ClientZernio, type PostZernio } from "../../src/fournisseurs/publication/zernio-client";
 import { estErreurZernio } from "../../src/fournisseurs/publication/zernio-erreurs";
 import { STATUTS_RAPATRIES } from "../../src/domaine/rapatriement-zernio";
 
@@ -58,15 +58,38 @@ export interface LignePhoto {
 
 export function ligneDe(post: PostZernio): LignePhoto[] {
   const empreinte = createHash("sha256").update(String(post.content ?? "")).digest("hex");
-  return post.platforms.map((pf) => ({
+  const plateformes = Array.isArray(post.platforms) && post.platforms.length > 0 ? post.platforms : [{ platform: "inconnue", accountId: "" } as PostZernio["platforms"][number]];
+  return plateformes.map((pf) => ({
     id: post._id,
     statut: post.status,
     scheduledFor: typeof post.scheduledFor === "string" ? post.scheduledFor : null,
-    plateforme: pf.platform,
+    plateforme: typeof pf.platform === "string" && pf.platform ? pf.platform : "inconnue",
     compte: typeof pf.accountId === "string" ? pf.accountId : String(pf.accountId?._id ?? ""),
     origine: typeof post.metadata?.origine === "string" ? post.metadata.origine : "externe",
     empreinteTexte: empreinte,
   }));
+}
+
+const PAGES_MAX = 50;
+
+/** Lit tous les posts à venir ; `complete:false` si le plafond de pages est atteint sur une page encore pleine (il peut en rester). */
+export async function lirePhotographie(client: Pick<ClientZernio, "listerPosts">, pagesMax: number = PAGES_MAX): Promise<{ lignes: LignePhoto[]; posts: number; complete: boolean }> {
+  const lignes: LignePhoto[] = [];
+  const vus = new Set<string>();
+  let complete = true;
+  for (const status of STATUTS_RAPATRIES) {
+    for (let page = 1; page <= pagesMax; page++) {
+      const lus = await client.listerPosts({ status, page, limit: 100 });
+      for (const p of lus) {
+        if (vus.has(p._id)) continue;
+        vus.add(p._id);
+        lignes.push(...ligneDe(p));
+      }
+      if (lus.length < 100) break;
+      if (page === pagesMax) complete = false;
+    }
+  }
+  return { lignes, posts: vus.size, complete };
 }
 
 export function comparer(avant: LignePhoto[], apres: LignePhoto[]): { ajoutes: LignePhoto[]; disparus: LignePhoto[]; modifies: { id: string; avant: LignePhoto; apres: LignePhoto }[] } {
@@ -89,23 +112,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!cle) arreter("ZERNIO_API_KEY absente de l'environnement : rien n'est lu.");
   const client = creerClientZernio({ cle, envoiAutorise: () => false });
   try {
-    const lignes: LignePhoto[] = [];
-    const vus = new Set<string>();
-    for (const status of STATUTS_RAPATRIES) {
-      for (let page = 1; page <= 50; page++) {
-        const lus = await client.listerPosts({ status, page, limit: 100 });
-        for (const p of lus) {
-          if (vus.has(p._id)) continue;
-          vus.add(p._id);
-          lignes.push(...ligneDe(p));
-        }
-        if (lus.length < 100) break;
-      }
-    }
+    const { lignes, posts, complete } = await lirePhotographie(client);
     mkdirSync(dirname(chemin), { recursive: true, mode: 0o700 });
-    writeFileSync(chemin, JSON.stringify({ photographieLe: new Date().toISOString(), lignes }, null, 2) + "\n", { mode: 0o600 });
+    writeFileSync(chemin, JSON.stringify({ photographieLe: new Date().toISOString(), complete, lignes }, null, 2) + "\n", { mode: 0o600 });
     chmodSync(chemin, 0o600);
-    console.log(`Photographie : ${vus.size} post(s), ${lignes.length} ligne(s). Écrite dans le fichier demandé (hors dépôt).`);
+    console.log(`Photographie : ${posts} post(s), ${lignes.length} ligne(s). Écrite dans le fichier demandé (hors dépôt).`);
+    if (!complete) console.warn("ATTENTION : lecture INCOMPLÈTE (plafond de pages atteint) ; ne pas la présenter comme complète.");
     const avantChemin = arg("--comparer");
     if (avantChemin) {
       const avant = (JSON.parse(readFileSync(resolve(avantChemin), "utf8")) as { lignes: LignePhoto[] }).lignes;
