@@ -34,7 +34,7 @@ describe("planifierEcransPartages", () => {
   });
   it("jamais pendant l'accroche : le début est ramené à 2 s", () => {
     const r = planifierEcransPartages([{ texte: AVANT_APRES, debutSec: 0, finSec: 6 }], 40);
-    expect(r[0].debutSec).toBe(REGLES_ECRAN_PARTAGE.pasAvantSec);
+    expect(r[0].debutSec).toBe(2);
     expect(r[0].finSec).toBe(6);
   });
   it("durée bornée à 8 s", () => {
