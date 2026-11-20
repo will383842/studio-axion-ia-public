@@ -322,8 +322,10 @@ export async function poserEssaiZernioAction(demande: { creneauId: string; duree
       if ((await lireParametre<boolean>(PARAM_ARRET_ZERNIO, true)) === false) {
         throw new ErreurStudio("ESSAI_ARRET", "« Tout arrêter » est actif : reprenez les envois avant de poser un essai.");
       }
-      // Même lecture que l'écran : seul un essai LISIBLE et actif bloque. Un essai illisible (écran sans « Retirer ») est écrasé par la nouvelle pose.
-      if (await lireEssai(maintenantMs)) {
+      // Même lecture que l'écran : seul un essai LISIBLE et encore valide bloque. Un essai illisible (écran sans « Retirer ») ou expiré
+      // (encore lu pendant la fenêtre de nettoyage) est écrasé par la nouvelle pose.
+      const lu = await lireEssai(maintenantMs);
+      if (lu && maintenantMs < Date.parse(lu.expireLe)) {
         throw new ErreurStudio("ESSAI_DEJA", "Un essai est déjà actif : retirez-le avant d'en poser un autre.");
       }
       const c = creneauId ? await depots().creneauxEditoriaux.obtenir(creneauId) : null;
