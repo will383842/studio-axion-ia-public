@@ -11,6 +11,8 @@ import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import { transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { reconcilier } from "./reconciliation-calendrier";
+import { peutTransiter } from "@/domaine/envoi-planifie";
+import { transiterEnvoi } from "./envois-planifies";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
@@ -238,6 +240,45 @@ async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Pr
     await depots().publications.modifier(p.id, modif);
     return true;
   });
+}
+
+/** Préfixe des marques d'envoi du calendrier (recopié de `branchement-envoi-calendrier.ts`, qui importe ce module). */
+const PREFIXE_MARQUES_CALENDRIER = "envoi-calendrier:";
+
+/**
+ * RETOUR-PUBLISHED · Zernio a CONFIRMÉ « published » pour cette Publication zernio : le Studio suit. On retrouve l'envoi planifié par sa clé
+ * (`cleDiffuseur ?? cle` == `cleEnvoi`), puis : le VRAI créneau passe « publie » (via `reconcilier`), `pub_<clé>` passe « publiee »,
+ * l'envoi passe « envoye » et les marques `promotion:<clé>` / `a-verifier:<clé>` (si elles existent) passent « parti ».
+ * N'est appelée QUE sur un « published » confirmé ; un échec ou un statut ambigu ne lève rien (CAL-23 : jamais « annulé »).
+ * Idempotent (chaque étape ne fait rien si elle est déjà faite) et sans appel au diffuseur. Un échec ici n'arrête jamais la synchro.
+ */
+async function suivrePublicationConfirmee(p: Publication): Promise<void> {
+  if (!p.cleEnvoi) return;
+  const d = depots();
+  const envois = await d.envoisPlanifies.lister((e) => (e.cleDiffuseur ?? e.cle) === p.cleEnvoi);
+  for (const e of envois) {
+    await sousVerrou(async () => {
+      const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
+      const pub = await d.publications.obtenir(`pub_${e.cle}`);
+      const r = reconcilier({ diffuseur: "publie" }, {
+        // Sans créneau réel : un créneau fictif déjà « publie » (rien à changer de ce côté).
+        creneau: creneau ? { id: creneau.id, statut: creneau.statut } : { id: "-", statut: "publie" },
+        publication: { id: pub?.id ?? "-", statut: pub?.statut ?? "publiee" },
+      });
+      if (creneau && r.creneau) await d.creneauxEditoriaux.modifier(creneau.id, { statut: r.creneau.statut });
+      if (pub && r.publication) await d.publications.modifier(pub.id, { statut: r.publication.statut, modifieLe: maintenant() });
+      // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon…) reste tel quel.
+      const envoi = await d.envoisPlanifies.obtenir(e.id);
+      if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
+      // Seules les marques qui disent « programmé » ou « à vérifier » sont levées ; « en-cours » (tentative en vol) et « libre » restent.
+      // Lecture directe du dépôt (et non `lireParametre`) : ces marques ne sont pas des interrupteurs.
+      for (const [nom, leve] of [["promotion", ["programme", "a-verifier"]], ["a-verifier", ["a-verifier"]]] as const) {
+        const id = `${PREFIXE_MARQUES_CALENDRIER}${nom}:${e.cle}`;
+        const m = await d.parametres.obtenir(id);
+        if (m && (leve as readonly unknown[]).includes(m.valeur)) await d.parametres.enregistrer({ ...m, valeur: "parti", modifieLe: maintenant() });
+      }
+    });
+  }
 }
 
 /** L5-06 · plafond de sécurité du nombre de pages lues pour une liste de posts. */
@@ -479,6 +520,11 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       if (p.visuelId) visuelsTouches.add(p.visuelId);
       if (p.varianteId) await synchroniserEtats(p.varianteId);
       await journaliser("publication", `Publiée par Zernio sur ${nom}`, entite);
+      try {
+        await suivrePublicationConfirmee(p);
+      } catch {
+        /* le créneau sera repris à la main : la synchro continue */
+      }
     } else if (etat.statut === "programmee") {
       if (vid) await passerProgrammee(vid);
       if (p.visuelId) visuelsTouches.add(p.visuelId);
