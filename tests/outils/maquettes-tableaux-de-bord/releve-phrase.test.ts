@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { relevePhrase } from "../../../outils/maquettes-tableaux-de-bord/essai-reel/releve-phrase";
 
-const exporter = (roles: string[], plafondUsd = 1) =>
-  JSON.stringify({ plafondUsd, lignes: roles.map((role) => ({ role, coutUsd: 0.1 })) });
+const exporter = (roles: string[], plafondUsd = 1, plafondCreationUsd = 1) =>
+  JSON.stringify({ plafondUsd, plafondCreationUsd, lignes: roles.map((role) => ({ role, coutUsd: 0.1 })) });
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -38,7 +38,7 @@ describe("relevé de l'essai parti d'une phrase", () => {
   });
 
   it("argent au-dessus du plafond (0,40 $ pour 0,26 $) : relevé ok mais sousLePlafond faux, écart négatif", () => {
-    const r = relevePhrase(JSON.stringify({ plafondUsd: 0.26, lignes: [{ role: "maquettiste", coutUsd: 0.4 }] }));
+    const r = relevePhrase(JSON.stringify({ plafondUsd: 0.26, plafondCreationUsd: 0.26, lignes: [{ role: "maquettiste", coutUsd: 0.4 }] }));
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.releve.sousLePlafond).toBe(false);
@@ -59,7 +59,7 @@ describe("relevé de l'essai parti d'une phrase", () => {
   });
 
   it("aucune ligne maquettiste (rôle mal nommé) mais dépense au-dessus du plafond : la dépense est montrée, arrêt", () => {
-    const r = relevePhrase(JSON.stringify({ plafondUsd: 0.26, lignes: [{ role: "Maquettiste ", coutUsd: 0.4 }] }));
+    const r = relevePhrase(JSON.stringify({ plafondUsd: 0.26, plafondCreationUsd: 0.26, lignes: [{ role: "Maquettiste ", coutUsd: 0.4 }] }));
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.raison).toContain("aucune création relevée");
@@ -69,9 +69,50 @@ describe("relevé de l'essai parti d'une phrase", () => {
     }
   });
 
+  it("2 appels maquettiste à 0,20 $ pour un plafond de création de 0,26 $ : signalé, même sous un plafond vidéo large", () => {
+    const r = relevePhrase(
+      JSON.stringify({ plafondUsd: 2, plafondCreationUsd: 0.26, lignes: [{ role: "maquettiste", coutUsd: 0.2 }, { role: "maquettiste", coutUsd: 0.2 }] }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.releve.sousLePlafond).toBe(true); // 0,40 $ sous 2 $ : le plafond vidéo seul ne voit rien
+    expect(r.releve.depenseMaquettisteUsd).toBeCloseTo(0.4, 6);
+    expect(r.releve.sousLePlafondCreation).toBe(false);
+    expect(r.releve.ecartCreation).toBeCloseTo(-0.14, 6);
+    expect(r.releve.arret).toBe(true);
+  });
+
+  it("les rôles V1 ne font pas dépasser le plafond de création : 2 x 0,13 $ + 0,01 $ pour 0,26 $", () => {
+    const r = relevePhrase(
+      JSON.stringify({
+        plafondUsd: 1,
+        plafondCreationUsd: 0.26,
+        lignes: [{ role: "maquettiste", coutUsd: 0.13 }, { role: "maquettiste", coutUsd: 0.13 }, { role: "tutoriel-plan", coutUsd: 0.01 }],
+      }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.releve.depenseMaquettisteUsd).toBeCloseTo(0.26, 6);
+    expect(r.releve.sousLePlafondCreation).toBe(true);
+    expect(r.releve.arret).toBe(false);
+  });
+
+  it("plafond de création absent, nul ou négatif : export refusé", () => {
+    const ligne = [{ role: "maquettiste", coutUsd: 0.1 }];
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, lignes: ligne })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: 0, lignes: ligne })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: -1, lignes: ligne })).ok).toBe(false);
+  });
+
+  it("3 appels maquettiste : la raison montre aussi la dépense et le plafond (terminal seulement)", () => {
+    const r = relevePhrase(exporter(["maquettiste", "maquettiste", "maquettiste"]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.raison).toContain("dépense relevée 0.3 $ pour un plafond de 1 $");
+  });
+
   it("export illisible refusé", () => {
     expect(relevePhrase("pas du json").ok).toBe(false);
-    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, lignes: [{ role: "x", coutUsd: -1 }] })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: 1, lignes: [{ role: "x", coutUsd: -1 }] })).ok).toBe(false);
   });
 
   it("aucune lecture réseau", () => {
