@@ -88,6 +88,7 @@ import { fabriquerSousTitres } from "@/briques/sous-titres";
 import { marquerMotsImportants } from "@/briques/sous-titres/mots-importants";
 import { COULEURS_VIDEO } from "@/briques/habillage/charte-video";
 import { STYLE_SOUS_TITRES_MINIMAL } from "@/donnees/elements-avocat";
+import { alerteRemarque } from "@/domaine/livraison-avec-remarques";
 import { substituerPrononciations } from "@/domaine/prononciations";
 import type { AlerteQualite, CommandeFabrication, IntensiteSousTitres, MediaCommande, SegmentSousTitres, StyleResolu, ValeurDecor, ValeurProfilSon, ValeurStyleSousTitres } from "@/domaine/types";
 import { bandeDe, bandeDuCalque, bornerDansLaBande, groupesTableau, INTENSITE_SOUS_TITRES_TABLEAU, sousTitresDynamiquesTableau, sousTitresTableau, supplementsSousTitresTableau, zoneTexteTableau, type BandeSousTitres, type SousTitresTableau } from "./sous-titres-tableau";
@@ -312,6 +313,8 @@ export type OutilsVoixFabrication = Pick<OutilsVoixMaitre, "voix" | "stockage" |
 
 export interface OutilsFabrication {
   videoId: string;
+  /** S-13-b : seul `true` exact ; échecs hors liste fermée = remarques, vidéo prête. Absent : comme avant. */
+  preteAvecRemarques?: true;
   /** BR-TABLEAU-RACCORDS-b : `true` pose un fondu entre deux scènes dessinées voisines (≥ 0,6 s). Absent : coupe franche, rien ne change. */
   raccords?: true;
   objetsPermis?: readonly string[]; // N-04e : pièces d'objets permises (aucun profil ne le permet encore) ; absent ou vide : scènes identiques
@@ -884,6 +887,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
       ...(o.dejaVu ? { dejaVu: o.dejaVu } : {}),
       ...(o.leveeVariete ? { leveeVariete: o.leveeVariete } : {}),
       ...(o.contenusPreuves ? { contenusPreuves: o.contenusPreuves } : {}),
+      ...(o.preteAvecRemarques === true ? { preteAvecRemarques: true as const } : {}),
     });
     if (rapport.verdict === "bloque") throw new ErreurFabrication("script", rapport.bloquants.map((l) => `${l.libelle} : ${l.raison}`));
     return { resume: rapport.resume };
@@ -1388,6 +1392,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         mesures: composition.mesures,
         // Après le montage : la voix est payée, les scènes rendues, le fichier déposé (GV2-35).
         apresMontage: true,
+        ...(o.preteAvecRemarques === true ? { preteAvecRemarques: true as const } : {}),
         // La mise en page de CETTE sortie (format, écran d'appel, bulles), celle qui a été rendue.
         sorties: [{ id, libelle: format.libelle, fiche: calageS.fiche, options: { preuves, ...(imageVerticale ? {} : { format: image }), ...(appel ? { appel } : {}) } }],
       },
@@ -1397,7 +1402,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
     // Les contrôles du fichier fini déclassés en alertes : dits sur la sortie livrée et au rapport, sans jeter la vidéo.
     for (const l of controles.indicatifs.filter((x) => x.declasse)) {
       const message = `${l.libelle} : ${l.raison}`;
-      alertesSortie.push({ code: l.libelle === "Volume du son" || l.libelle === "Crête du son" ? "niveau-sonore" : "defaut-visuel", gravite: "attention", message });
+      alertesSortie.push(l.remarque ? alerteRemarque(l.libelle, l.raison) : { code: l.libelle === "Volume du son" || l.libelle === "Crête du son" ? "niveau-sonore" : "defaut-visuel", gravite: "attention", message });
       noterAlerte({ etape: "controles", ...(nomEtape ? { sortie: nomEtape } : {}), code: "controle-fichier", message });
       dire(`Alerte : ${message}`);
     }

@@ -32,6 +32,7 @@ import type { ProprietesTableauScene } from "@/briques/tableau-scene/types";
 import { ErreurMiseEnPage, boitesDeControle, boitesZoneHaute, mettreEnPage, miseEnPageBrique, reseauxVerticaux, seuilsImageBlocs2, zoneSureDeLaMise, type MiseEnPageTableau, type OptionsMiseEnPage } from "./mise-en-page";
 import { REGLES_TABLEAU, textesEcrits, textesEcransScene, type ContexteTableau } from "./regles";
 import { parleDuCommentaire } from "./variantes-fin";
+import type { CodeResteBloquant } from "@/domaine/livraison-avec-remarques";
 
 /** Nombre d'images clés relues (plan § 12). */
 export const IMAGES_CLES_RELUES = 6;
@@ -53,6 +54,8 @@ export interface LigneControleTableau {
   sorties?: string[];
   /** Échec bloquant d'avant le montage devenu simple alerte sur la vidéo déjà faite (`apresMontage`). */
   declasse?: boolean;
+  /** S-13-b : échec non listé devenu remarque de livraison (`preteAvecRemarques`) ; la ligne ne bloque plus. */
+  remarque?: boolean;
 }
 
 /**
@@ -120,6 +123,8 @@ export interface EntreeControleTableau {
    * et mise en page de la sortie deviennent des alertes « attention » (GV2-35).
    */
   apresMontage?: boolean;
+  /** S-13-b : seul `true` exact allume « prête, avec remarques » (échecs hors liste fermée = remarques). Absent : comme avant. */
+  preteAvecRemarques?: true;
   /**
    * Propriétés de rendu des scènes (calage fait : heures de la voix). Présentes, elles servent au contrôle « Dessin inachevé »
    * (FIX-CONTROLES-IMAGE-AVANT-PRET-b) ; absentes, ce contrôle est « non fait » (jamais un faux « réussi »).
@@ -592,6 +597,23 @@ function declasserApresMontage(lignes: LigneControleTableau[], e: EntreeControle
   });
 }
 
+/** Ce qui reste bloquant avec l'option (liste fermée, décision n° 8) ; `undefined` : l'échec devient une remarque. */
+function codeResteBloquantTableau(l: LigneControleTableau, e: EntreeControleTableau): CodeResteBloquant | undefined {
+  if (l.famille === "fiche") return l.libelle === "Phrase non choisie" ? "phrase-non-choisie" : /chiffre/i.test(l.libelle) ? "chiffre-faux" : /interdit/i.test(l.libelle) ? "mot-interdit" : "mot-dit-faux";
+  if (l.libelle === "Durée") return "duree-plus-180-s";
+  return l.libelle === "Image noire" && e.mesures?.imageNoireTete ? "image-noire-au-debut" : undefined;
+}
+
+/** `preteAvecRemarques` : après le montage, tout échec bloquant hors liste fermée ; avant la voix, la variété seule. */
+function classerRemarques(lignes: LigneControleTableau[], e: EntreeControleTableau): LigneControleTableau[] {
+  if (e.preteAvecRemarques !== true) return lignes;
+  return lignes.map((l) => {
+    if (l.etat !== "echoue" || !l.bloquant) return l;
+    if (!e.apresMontage) return l.famille === "variete" ? { ...l, bloquant: false, remarque: true } : l;
+    return codeResteBloquantTableau(l, e) ? l : { ...l, bloquant: false, declasse: true, remarque: true };
+  });
+}
+
 function assembler(lignes: LigneControleTableau[]): RapportControleTableau {
   const bloquants = lignes.filter((l) => l.etat === "echoue" && l.bloquant);
   const indicatifs = lignes.filter((l) => l.etat === "echoue" && !l.bloquant);
@@ -642,7 +664,7 @@ export async function controlerVideoTableau(entree: EntreeControleTableau, outil
   const premiere = faites.find((f) => f.mise);
   if (premiere?.mise) lignes.push(...(await relire(premiere.ficheSortie, premiere.mise, outils)));
   else lignes.push(ligne("relecture", "Relecture des images clés", false, "non-fait", "Relecture non faite : pas de mise en page."));
-  return assembler(declasserApresMontage(lignes, entree));
+  return assembler(classerRemarques(declasserApresMontage(lignes, entree), entree));
 }
 
 /** Mesures du fichier seules (fiche ou mise en page indisponible) : réutilise la brique sans mise en page. */
