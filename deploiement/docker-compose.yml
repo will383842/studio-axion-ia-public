@@ -95,6 +95,8 @@ services:
       STUDIO_RENDU_URL: ${STUDIO_RENDU_URL:-}
       STUDIO_RENDU_CLE: ${STUDIO_RENDU_CLE:-}
       USINE_URL: ${USINE_URL:-}
+      # Adresse https de l'écran « À valider » de l'usine : sans elle, le bouton « Proposer la semaine » du calendrier reste masqué.
+      USINE_A_VALIDER_URL: ${USINE_A_VALIDER_URL:-}
       USINE_PORTE_SECRET: ${USINE_PORTE_SECRET:-}
       # Porte v2 (usine -> studio, /api/usine/*) : secret DIFFERENT de USINE_PORTE_SECRET, 32 caractères au moins, sinon la porte répond 404.
       # Le précédent n'est rempli que pendant une rotation, avec son échéance (date ISO avec Z ou décalage horaire, 24 h au plus dans le futur) ; sans échéance valide il est ignoré.

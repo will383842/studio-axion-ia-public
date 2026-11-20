@@ -95,7 +95,7 @@ describe("C2-U17a : capacités texte livrées et éteintes", () => {
   });
 
   it("éteint : sans entrée bibliothèque (ou sans la capacité), `parametresComposition` ne pose pas `sortie` (appel réel ; chemin complet dans tests/briques/composition/sortie-animee-branchee.test.ts)", async () => {
-    const sansEntree = composerAvocatSortie(await entreesAvocat());
+    const sansEntree = composerAvocatSortie(await entreesAvocat(false)); // v20g : avocat allumé par défaut, `false` écrit en base
     expect("sortie" in sansEntree.texte.sousTitres!).toBe(false);
     for (const reglage of [true, { capacites: ["texte.surlignage-marqueur"] }]) {
       expect("sortie" in composerAvocatSortie(await entreesAvocat(reglage)).texte.sousTitres!).toBe(false);

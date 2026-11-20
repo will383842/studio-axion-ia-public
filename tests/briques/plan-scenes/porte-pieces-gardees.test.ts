@@ -21,14 +21,24 @@ const catalogue = CATALOGUE_BRIQUES as unknown as Record<string, any>;
 const toiles = TOILES as unknown as Record<string, unknown>;
 const copie = () => structuredClone(PLAN_DEMO) as unknown as Record<string, any>;
 const gardees = PIECES_GARDEES as unknown as string[];
+// VL-10 : la liste d'origine (les 3 pièces 16:9), restaurée après chaque test qui y pose une pièce factice.
+const GARDEES_DE_ORIGINE = [...PIECES_GARDEES];
 // C9-34-TRAITS-v19c : les 6 traits inscrits ensuite ne font pas partie des 18 objets d'avant ; on les exclut pour garder SHA_PLAN_TOUS_OBJETS figé (sha non recalculé).
 const TRAITS_C9_34 = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
-const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id)).map((d) => d.id);
+// C9-34-CADRES-v20b : les 6 cadres et entourages inscrits ensuite sont exclus de la même façon (sha non recalculé).
+const CADRES_C9_34 = ["objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle"];
+// C9-34-ETIQUETTES-v20f : les 8 étiquettes et bulles inscrites ensuite sont exclues de la même façon (sha non recalculé).
+const ETIQUETTES_C9_34 = ["objet-pastille-icone", "objet-etiquette-icone", "objet-badge", "objet-tampon", "objet-bulle-parole", "objet-bulle-pensee", "objet-bulle-notification", "objet-post-it"];
+// C9-34-SCHEMAS-v20g : les 8 schémas, fenêtre et terminal inscrits ensuite sont exclus de la même façon (sha figé gardé).
+const SCHEMAS_C9_34 = ["objet-schema-flux", "objet-schema-etoile", "objet-icones-reliees", "objet-agents-globe", "objet-grille-pointillee", "objet-vignettes-numerotees", "objet-fenetre-app", "objet-terminal-commande"];
+// C9-34-FIN-v20h : les 10 derniers petits objets inscrits sont exclus de la même façon (sha figé gardé).
+const FIN_C9_34 = ["objet-dossier", "objet-chrono", "objet-barre-progression", "objet-etape-segments", "objet-appel-action", "objet-appel-mot", "objet-appel-rdv", "objet-frise-montage", "objet-pellicule", "objet-onde-motif"];
+const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id) && !CADRES_C9_34.includes(d.id) && !ETIQUETTES_C9_34.includes(d.id) && !SCHEMAS_C9_34.includes(d.id) && !FIN_C9_34.includes(d.id)).map((d) => d.id);
 
 describe("G4-11-PORTE-a : éteint = identique à master", () => {
-  it("la liste est vide et estGardee ≡ famille objet", () => {
-    expect(PIECES_GARDEES).toEqual([]);
-    for (const d of Object.values(CATALOGUE_BRIQUES) as any[]) expect(estGardee(d)).toBe(d.famille === "objet");
+  it("la liste ne contient que les 3 pièces 16:9 de VL-10 et estGardee ≡ famille objet ou liste", () => {
+    expect(PIECES_GARDEES).toEqual(["intercalaire-chapitre", "flux-ramifie", "cadre-capture"]);
+    for (const d of Object.values(CATALOGUE_BRIQUES) as any[]) expect(estGardee(d)).toBe(d.famille === "objet" || GARDEES_DE_ORIGINE.includes(d.id));
   });
   it("test 1 : consignePlan identique (sans argument, liste vide, tous les objets)", () => {
     expect(consignePlan()).toBe(AVANT);
@@ -49,7 +59,7 @@ describe("G4-11-PORTE-a : pièce de données factice gardée", () => {
   afterEach(() => {
     delete catalogue["donnee-test"];
     delete toiles["donnee-test"];
-    gardees.length = 0;
+    gardees.splice(0, gardees.length, ...GARDEES_DE_ORIGINE);
   });
 
   it("test 2 : consigne du plan, pièce la plus proche, validation", () => {

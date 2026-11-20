@@ -25,6 +25,13 @@ vi.mock("@/components/formats/tableau-anime/aiguillage", async (original) => {
   return { ...vrai, ecranTableauVisible: (f: { id: string; statut: string } | null | undefined) => (aiguillage.ouvert ? vrai.ecranTableauVisible(f as never) : false) };
 });
 
+/** TA-SV : le moteur « sans voix » est simulé prêt ou non (la constante réelle reste `false` tant que `fabriquer.ts` ne le gère pas). */
+const moteurSansVoix = vi.hoisted(() => ({ pret: false }));
+vi.mock("@/moteurs/montage-tableau/sans-voix", async (original) => {
+  const vrai = await original<typeof import("../../../src/moteurs/montage-tableau/sans-voix")>();
+  return { ...vrai, get MOTEUR_SANS_VOIX_PRET() { return moteurSansVoix.pret; } };
+});
+
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
 const { decouperScriptTableau, ecranCreationTableau, lireBrouillonTableau, fabriquerVideoTableau, travaillerTachesTableau, corrigerFicheTableau, reprendreTacheTableau, brouillonsRecentsTableau, cocherDejaVuTableau, RAISON_CASE_DEJA_VU, rouvrirFicheTableau, validerDonneesScript } = await import("@/services/tableau-creation");
@@ -247,6 +254,34 @@ describe("Fabriquer la vidéo", () => {
     if (options.case !== false) await cocherDejaVuTableau(r.videoId, true, { aujourdhui: AUJOURDHUI_EXEMPLES });
     return r.videoId;
   }
+
+  it("TA-SV : sans voix, moteur pas prêt : refus net avant tout prix, rien n'est lancé", async () => {
+    const videoId = await brouillonPret();
+    const lancer = vi.fn(async () => ({ travailId: "trav-essai" }));
+    const deps = { aujourdhui: AUJOURDHUI_EXEMPLES, deposerFiche: async () => undefined, lancer };
+    const { RAISON_SANS_VOIX_MOTEUR_ABSENT } = await import("@/moteurs/montage-tableau/sans-voix");
+    expect(await fabriquerVideoTableau(videoId, undefined, deps, await relu(videoId), { sansVoix: true })).toEqual({ statut: "refusee", phrase: RAISON_SANS_VOIX_MOTEUR_ABSENT });
+    expect(lancer).not.toHaveBeenCalled();
+  });
+
+  it("TA-SV : sans voix, moteur prêt : aucun prix (0 €), entrée « sansVoix » écrite, aucune voix reprise ; avec voix : prix inchangé", async () => {
+    const videoId = await brouillonPret();
+    const lancer = vi.fn(async () => ({ travailId: "trav-essai" }));
+    const deps = { aujourdhui: AUJOURDHUI_EXEMPLES, deposerFiche: async () => undefined, lancer };
+    // Avec voix (défaut) : le prix est demandé comme avant.
+    expect((await fabriquerVideoTableau(videoId, undefined, deps, await relu(videoId))).statut).toBe("accord-requis");
+    moteurSansVoix.pret = true;
+    try {
+      expect(await fabriquerVideoTableau(videoId, undefined, deps, await relu(videoId), { sansVoix: true })).toMatchObject({ statut: "lancee" });
+    } finally {
+      moteurSansVoix.pret = false;
+    }
+    expect(lancer).toHaveBeenCalledWith(videoId, 0);
+    const video = await depots().videos.obtenir(videoId);
+    const entrees = (video?.entrees as { tableau?: { sansVoix?: boolean; voixPayee?: unknown } }).tableau;
+    expect(entrees?.sansVoix).toBe(true);
+    expect(entrees?.voixPayee).toBeUndefined();
+  });
 
   it("sans la case « déjà vu » cochée : refus AVANT le prix, avec la raison ; cochée : datée du jour, gardée et transmise", async () => {
     const videoId = await brouillonPret({ case: false });

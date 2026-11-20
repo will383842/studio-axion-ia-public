@@ -1,0 +1,78 @@
+{
+ "note": "Produit par outils/chantier5/planche-plan-scenes.mts (C5-5.09b-v20b). Sortie du rendu, pas un instantané à régénérer sans accord du relecteur.",
+ "source": "outils/chantier5/mots-planche.json",
+ "tempsTexteSec": [
+  0.1,
+  0.55,
+  4.07,
+  4.53,
+  1.48,
+  10.06
+ ],
+ "imagesTexte": {
+  "sans-plan": 42,
+  "avec-plan": 223
+ },
+ "images": [
+  {
+   "colonne": "sans-plan",
+   "tSec": 0.1,
+   "md5": "5f28438fc2402b02ba872928d1ef939b"
+  },
+  {
+   "colonne": "sans-plan",
+   "tSec": 0.55,
+   "md5": "f37f5b7b66033368e7e037eea2e747f1"
+  },
+  {
+   "colonne": "sans-plan",
+   "tSec": 4.07,
+   "md5": "5442ef3642700e42ddbe9bc14c40d30f"
+  },
+  {
+   "colonne": "sans-plan",
+   "tSec": 4.53,
+   "md5": "e8228c32032aed2faec463c862be6469"
+  },
+  {
+   "colonne": "sans-plan",
+   "tSec": 1.48,
+   "md5": "c0f25003fcdd84e7222a33a32c0ed300"
+  },
+  {
+   "colonne": "sans-plan",
+   "tSec": 10.06,
+   "md5": "5f28438fc2402b02ba872928d1ef939b"
+  },
+  {
+   "colonne": "avec-plan",
+   "tSec": 0.1,
+   "md5": "07214396d1c8b100742b1729068cd15d"
+  },
+  {
+   "colonne": "avec-plan",
+   "tSec": 0.55,
+   "md5": "758fd03b17cbfcdc5e04d9b2ae318781"
+  },
+  {
+   "colonne": "avec-plan",
+   "tSec": 4.07,
+   "md5": "a391c58d8f818c1567045974bd8581a8"
+  },
+  {
+   "colonne": "avec-plan",
+   "tSec": 4.53,
+   "md5": "e8228c32032aed2faec463c862be6469"
+  },
+  {
+   "colonne": "avec-plan",
+   "tSec": 1.48,
+   "md5": "c00c965b8280043aaaa27b7e38f62d57"
+  },
+  {
+   "colonne": "avec-plan",
+   "tSec": 10.06,
+   "md5": "5f28438fc2402b02ba872928d1ef939b"
+  }
+ ]
+}

@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42 ; 41 avec `zernio.rapatriement_actif`, RAP-2). */
 const LITTERALES: Record<string, Etat> = {
   "accueil.bilan_semaine": "eteint",
   afficherExemples: "allume",
@@ -76,6 +76,7 @@ const LITTERALES: Record<string, Etat> = {
   "videoLongue.actif": "eteint",
   "veille.derniereLecture": "valeur",
   "veille.resumeSemaine": "valeur",
+  "zernio.rapatriement_actif": "allume",
   "zernio.synchro_etape_visuels": "eteint",
 };
 
@@ -86,7 +87,6 @@ const LITTERALES: Record<string, Etat> = {
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
   { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
-  { cle: "tableau.deja_vu_usine.actif", etat: "eteint", appel: "src/services/tableau-deja-vu-usine.ts", motif: /valeur !== true\) return undefined/ },
   { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
   { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
@@ -130,7 +130,7 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
   { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },
   { cle: "tableau.styleTire", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ },
-  { cle: "planScenes.facecamDessin", etat: "eteint", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, false\)\) === true/ },
+  { cle: "planScenes.facecamDessin", etat: "allume", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, true\)\) !== false/ },
   {
     cle: "adaptations_reseaux.actif",
     etat: "eteint",
@@ -151,6 +151,8 @@ const PAR_CONSTANTE: Constante[] = [
   { cle: "retoucheSegments.liberer", etat: "eteint", appel: "src/components/videos/fiche/LibererPlace.tsx", motif: /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) !== true/, aussi: [["src/components/videos/fiche/actions-liberer.ts", /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) === true/]] },
   { cle: "demoFacecam.reel", etat: "eteint", appel: "src/services/entrees-demo-facecam.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE_DEMO_REEL, false\)\) === true/ },
   { cle: "demoFacecam.envoi", etat: "eteint", appel: "src/app/(studio)/demo-facecam/actions.ts", motif: /lireParametre<unknown>\(CLE_ENVOI_DEMO_FACECAM, false\)\) === true/ },
+  { cle: "demoFacecam.planClaude", etat: "allume", appel: "src/services/demo-facecam-claude.ts", motif: /l<unknown>\(PARAM_PLAN_CLAUDE_DEMO, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
+  { cle: "tableau.lectureCaptureClaude", etat: "allume", appel: "src/services/lecture-capture-claude.ts", motif: /l<unknown>\(PARAM_LECTURE_CAPTURE_CLAUDE, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
   { cle: "bibliothequeVideo.archive.inscription", etat: "eteint", appel: "src/services/archive-extraits.ts", motif: /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) !== true/, aussi: [["src/app/(studio)/bibliotheque/source-extraits/page.tsx", /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) === true/], ["src/services/extraits-de-la-video.ts", /archive = await lire\(REGLAGE_INSCRIPTION, false\);[\s\S]*?if \(archive !== true\) return eteint;/]] },
   { cle: "bibliothequeVideo.archive.effacerFicheASuppression", etat: "eteint", appel: "src/services/suppression-video.ts", motif: /lireParametre<unknown>\(REGLAGE_EFFACER_FICHE_EXTRAITS, false\)\) === true/ },
   { cle: "avocat.bandeauNom", etat: "eteint", appel: "src/services/bandeau-nom.ts", motif: /lireParametre<unknown>\(PARAM_BANDEAU_AVOCAT, false\)\) !== true/ },
@@ -251,7 +253,7 @@ const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; dec
     declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
   },
   {
-    // Texte de légende enregistré par réseau (valeur, défaut `null` : rien d'enregistré) ; la fabrique est cleLegende(id, réseau).
+    // Texte de légende enregistré d'un carrousel (page de détail) : une valeur, pas un interrupteur ; `simulation === true` est un champ de la donnée.
     gabarit: "visuels.legende.*.*",
     etat: "valeur",
     appel: "src/app/(studio)/carrousels/[id]/page.tsx",
@@ -300,8 +302,6 @@ type Motif = "dedoublonnage" | "memoire" | "valeur" | "relais";
 /** Clés (ou gabarits `*`) résolues dans le texte mais HORS table. */
 const EXCLUS_CLES: Record<string, Motif> = {
   "budget.engage.*": "dedoublonnage",
-  "calendrier.proposerSemaine.compteur": "memoire", // compteur d'appels du jour (proposer-semaine.ts), pas un interrupteur
-  "zernio.essai_brouillon": "memoire", // état de l'essai en cours (créneau, expiration), lu fermé ; l'arrêt reste zernio.envoi_autorise
   "credits.alertes.*": "dedoublonnage",
   "credits.cleRefusee.*": "dedoublonnage",
   "credits.epuise.*": "dedoublonnage",
@@ -395,6 +395,8 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "zernio.comptes": "memoire",
   "zernio.mode_envoi": "memoire",
   "zernio.tests": "memoire",
+  "zernio.essai_brouillon": "memoire", // brouillon de l'essai Zernio (creneauId), pas un interrupteur
+  "calendrier.proposerSemaine.compteur": "memoire", // compteur { jour, n } des propositions de semaine
   "buffer.mode": "valeur",
   "bibliothequeVideo.archive.cochees": "valeur", // liste d'identifiants de vidéos cochées
   "bibliothequeVideo.archive.sources": "valeur", // choix « pretes » | « cochees » | « publiees », défaut null → politique du code
@@ -426,9 +428,9 @@ const EXCLUS_CLES: Record<string, Motif> = {
 const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/(studio)/carrousels/[id]/actions.ts:cle": { exclu: "memoire" },
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
-  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" }, // même légende, lue pour programmer en un clic
-  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" }, // états d'envoi du calendrier lus pour le contrôle d'essai
-  "services/tableau-deja-vu-usine.ts:id": { couvre: "tableau.deja_vu_usine.actif" },
+  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" },
+  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" },
+  "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
   "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
   "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
   "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },
@@ -818,6 +820,6 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
   });
 
   it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche, + videoLongue.actif, + tutoriel.devisAvantDepense)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(40);
+    expect(Object.keys(LITTERALES)).toHaveLength(41);
   });
 });

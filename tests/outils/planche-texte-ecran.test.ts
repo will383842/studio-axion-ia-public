@@ -163,7 +163,7 @@ describe("planche de référence du texte à l'écran (C2-U15a)", () => {
   // champ `sortie` (posé seulement quand la capacité est permise) rien ne change. Garde conservée, déplacée.
   it("la sortie n'est posée par aucune planche à elle seule : le champ vient de `parametres.ts`, derrière la porte", async () => {
     expect(SORTIE_ACTIVE).toBe(true);
-    const sansEntree = composerAvocatSortie(await entreesAvocat());
+    const sansEntree = composerAvocatSortie(await entreesAvocat(false)); // v20g : avocat allumé par défaut, `false` écrit en base
     expect("sortie" in sansEntree.texte.sousTitres!).toBe(false);
     for (const reglage of [true, { capacites: ["texte.surlignage-marqueur"] }]) {
       expect("sortie" in composerAvocatSortie(await entreesAvocat(reglage)).texte.sousTitres!).toBe(false);

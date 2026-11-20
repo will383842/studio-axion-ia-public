@@ -395,25 +395,96 @@ const ECHAPPEMENTS_SIMPLES: Record<string, string> = { n: "\n", t: "\t", r: "\r"
  * et `"https:\/\/x"` comme `"https://x"`.
  */
 export function decoderEchappementsJs(texte: string): string {
-  return texte.replace(/\\(?:u\{([0-9a-f]{1,6})\}|u([0-9a-f]{4})|x([0-9a-f]{2})|([0-7]{1,3})|(\r\n|[\n\r\u2028\u2029])|([\s\S]))/gi, (tout, a?: string, b?: string, c?: string, o?: string, nl?: string, autre?: string) => {
-    if (nl !== undefined) return "";
-    if (o !== undefined) return String.fromCodePoint(parseInt(o, 8));
-    if (autre !== undefined) return ECHAPPEMENTS_SIMPLES[autre.toLowerCase()] ?? autre;
-    const n = parseInt(a ?? b ?? c ?? "", 16);
-    return Number.isFinite(n) && n <= 0x10ffff ? String.fromCodePoint(n) : tout;
-  });
+  let p = texte.indexOf("\\");
+  if (p === -1) return texte;
+  // Lecture à la main, un seul passage (la version à expression régulière appelait une fonction par échappement : 1 million
+  // d'appels sur 2 Mo de `\`) ; mêmes règles : `\u{…}`, `\uXXXX`, `\xNN`, octal, continuation de ligne, `\<caractère>`.
+  const n = texte.length;
+  const sortie: string[] = [];
+  let debut = 0;
+  while (p !== -1 && p + 1 < n) {
+    const q = p + 1;
+    const c = texte[q]!;
+    const cb = c === "U" ? "u" : c === "X" ? "x" : c;
+    let fin = q + 1;
+    let par: string | undefined;
+    if (cb === "u" && texte[q + 1] === "{") {
+      let j = q + 2;
+      while (j < n && j - (q + 2) < 6 && estHex(texte.charCodeAt(j))) j++;
+      if (j > q + 2 && texte[j] === "}") {
+        const v = parseInt(texte.slice(q + 2, j), 16);
+        fin = j + 1;
+        par = v <= 0x10ffff ? String.fromCodePoint(v) : texte.slice(p, fin);
+      }
+    }
+    if (par === undefined && cb === "u" && q + 4 < n && estHex(texte.charCodeAt(q + 1)) && estHex(texte.charCodeAt(q + 2)) && estHex(texte.charCodeAt(q + 3)) && estHex(texte.charCodeAt(q + 4))) {
+      par = String.fromCodePoint(parseInt(texte.slice(q + 1, q + 5), 16));
+      fin = q + 5;
+    }
+    if (par === undefined && cb === "x" && q + 2 < n && estHex(texte.charCodeAt(q + 1)) && estHex(texte.charCodeAt(q + 2))) {
+      par = String.fromCodePoint(parseInt(texte.slice(q + 1, q + 3), 16));
+      fin = q + 3;
+    }
+    if (par === undefined) {
+      if (c >= "0" && c <= "7") {
+        let j = q + 1;
+        while (j < n && j - q < 3 && texte[j]! >= "0" && texte[j]! <= "7") j++;
+        par = String.fromCodePoint(parseInt(texte.slice(q, j), 8));
+        fin = j;
+      } else if (c === "\r" && texte[q + 1] === "\n") {
+        par = "";
+        fin = q + 2;
+      } else if (c === "\n" || c === "\r" || c === " " || c === " ") {
+        par = "";
+      } else {
+        par = ECHAPPEMENTS_SIMPLES[c.toLowerCase()] ?? c;
+      }
+    }
+    sortie.push(texte.slice(debut, p), par);
+    debut = fin;
+    p = texte.indexOf("\\", fin);
+  }
+  sortie.push(texte.slice(debut));
+  return sortie.join("");
 }
 
-/** Décode les échappements CSS (`\72 `, `\000072`, `\<caractère>`) comme le fait le navigateur ; supprime la continuation de ligne. */
+function estHex(c: number): boolean {
+  return (c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102);
+}
+
+/** Décode les échappements CSS (`\72 `, `\000072`, `\<caractère>`) comme le fait le navigateur ; supprime la continuation de ligne. Un seul passage, à la main. */
 export function decoderEchappementsCss(texte: string): string {
-  return texte.replace(/\\(?:([0-9a-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|([\s\S]))/gi, (_t, h?: string, nl?: string, autre?: string) => {
-    if (nl !== undefined) return "";
-    if (h !== undefined) {
-      const n = parseInt(h, 16);
-      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : "\uFFFD";
+  let p = texte.indexOf("\\");
+  if (p === -1) return texte;
+  const n = texte.length;
+  const sortie: string[] = [];
+  let debut = 0;
+  while (p !== -1 && p + 1 < n) {
+    const q = p + 1;
+    let fin = q + 1;
+    let par: string;
+    if (estHex(texte.charCodeAt(q))) {
+      let j = q + 1;
+      while (j < n && j - q < 6 && estHex(texte.charCodeAt(j))) j++;
+      const v = parseInt(texte.slice(q, j), 16);
+      par = v > 0 && v <= 0x10ffff ? String.fromCodePoint(v) : "�";
+      if (texte[j] === "\r" && texte[j + 1] === "\n") j += 2;
+      else if (j < n && (texte[j] === " " || texte[j] === "\t" || texte[j] === "\n" || texte[j] === "\r" || texte[j] === "\f")) j++;
+      fin = j;
+    } else if (texte[q] === "\r" && texte[q + 1] === "\n") {
+      par = "";
+      fin = q + 2;
+    } else if (texte[q] === "\n" || texte[q] === "\r" || texte[q] === "\f") {
+      par = "";
+    } else {
+      par = texte[q]!;
     }
-    return autre ?? "";
-  });
+    sortie.push(texte.slice(debut, p), par);
+    debut = fin;
+    p = texte.indexOf("\\", fin);
+  }
+  sortie.push(texte.slice(debut));
+  return sortie.join("");
 }
 
 /** Minuscules ASCII seulement : la longueur ne change jamais (les index restent ceux du texte d'origine). */
@@ -535,7 +606,91 @@ function verifierJs(chemin: string, brut: string, base: number, source: string, 
   }
 }
 
+/** Encodage déclaré : seul « utf-8 » (ou son alias « utf8 ») est permis. Blancs ASCII retirés à la main (temps linéaire). */
+function estUtf8(valeur: string): boolean {
+  let d = 0;
+  let f = valeur.length;
+  while (d < f && estBlanc(valeur[d]!)) d++;
+  while (f > d && estBlanc(valeur[f - 1]!)) f--;
+  const v = minusculesAscii(valeur.slice(d, f));
+  return v === "utf-8" || v === "utf8";
+}
+
+/** Valeurs `charset=…` d'un `content` de meta (« text/html; charset=iso-2022-jp »), lues à la main en un passage. */
+function charsetsDeContent(contenu: string): string[] {
+  const bas = minusculesAscii(contenu);
+  const sortie: string[] = [];
+  // La recherche suivante repart APRÈS la valeur lue (jamais depuis un « charset » déjà inclus dans une valeur : temps linéaire).
+  for (let p = bas.indexOf("charset"); p !== -1; ) {
+    let j = p + 7;
+    while (j < contenu.length && estBlanc(contenu[j]!)) j++;
+    if (contenu[j] !== "=") {
+      p = bas.indexOf("charset", Math.max(j, p + 7));
+      continue;
+    }
+    j++;
+    while (j < contenu.length && estBlanc(contenu[j]!)) j++;
+    if (contenu[j] === '"' || contenu[j] === "'") j++;
+    while (j < contenu.length && estBlanc(contenu[j]!)) j++;
+    const d = j;
+    while (j < contenu.length && !estBlanc(contenu[j]!) && contenu[j] !== '"' && contenu[j] !== "'" && contenu[j] !== ";") j++;
+    sortie.push(contenu.slice(d, j));
+    p = bas.indexOf("charset", Math.max(j, p + 7));
+  }
+  return sortie;
+}
+
+/** `@charset` d'une feuille de style : tout autre encodage que utf-8 (ou une valeur illisible) est refusé. Lecture à la main, un passage. */
+function charsetCssNonUtf8(texte: string): number {
+  const bas = minusculesAscii(texte);
+  for (let p = bas.indexOf("@charset"); p !== -1; p = bas.indexOf("@charset", p + 8)) {
+    let j = p + 8;
+    while (j < texte.length && /\s/.test(texte[j]!)) j++;
+    const q = texte[j];
+    let valeur: string | null = null;
+    if (q === '"' || q === "'") {
+      const f = texte.indexOf(q, j + 1);
+      if (f !== -1) valeur = texte.slice(j + 1, f);
+    }
+    if (valeur === null || !estUtf8(valeur)) return p;
+  }
+  return -1;
+}
+
+/**
+ * Déclaration XML (`<?xml version="1.0" encoding="iso-2022-jp"?>`) d'un .html : tout encodage autre que utf-8 (ou une valeur
+ * illisible) est refusé. Lecture à la main : chaque recherche repart APRÈS la déclaration lue (temps linéaire).
+ */
+function declarationXmlNonUtf8(texte: string): number {
+  const bas = minusculesAscii(texte);
+  for (let p = bas.indexOf("<?xml"); p !== -1; ) {
+    let fin = bas.indexOf(">", p + 5);
+    if (fin === -1) fin = texte.length;
+    const e = bas.indexOf("encoding", p + 5);
+    if (e !== -1 && e < fin) {
+      let j = e + 8;
+      while (j < fin && estBlanc(texte[j]!)) j++;
+      let valeur: string | null = null;
+      if (texte[j] === "=") {
+        j++;
+        while (j < fin && estBlanc(texte[j]!)) j++;
+        const q = texte[j];
+        if (q === '"' || q === "'") {
+          const f = texte.indexOf(q, j + 1);
+          if (f !== -1 && f < fin) valeur = texte.slice(j + 1, f);
+        }
+      }
+      if (valeur === null || !estUtf8(valeur)) return p;
+    }
+    p = bas.indexOf("<?xml", Math.max(fin, p + 5));
+  }
+  return -1;
+}
+
 function verifierCss(chemin: string, brut: string, base: number, source: string, refus: RefusMaquette[]): void {
+  const pc = charsetCssNonUtf8(brut);
+  const pd = pc !== -1 ? pc : charsetCssNonUtf8(decoderEchappementsCss(brut));
+  if (pd !== -1) refus.push({ chemin, ligne: ligneDe(source, base + Math.min(pd, brut.length)), motif: "encodage déclaré autre que utf-8 (« @charset »)" });
   // Barres obliques inverses dans url() / @import : refusées sur le texte brut (adresse masquée).
   const basBrut = minusculesAscii(brut);
   for (let p = basBrut.indexOf("url("); p !== -1; ) {
@@ -565,16 +720,29 @@ function verifierCss(chemin: string, brut: string, base: number, source: string,
   }
 }
 
+/** Un caractère de contrôle C0 permis seulement : tabulation (9), \n (10), saut de page (12), \r (13). */
+const CONTROLE_C0 = /[\u0000-\u0008\u000b\u000e-\u001f]/;
+/** Fichiers texte hors maquette : tout C0 sauf tabulation, \n et \r (le saut de page U+000C est refusé aussi). */
+const CONTROLE_TEXTE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/;
+
 /** Vérifie les fichiers html, css et js de la maquette. Les autres types ne sont pas lus ici. */
 export function verifierMaquette(fichiers: readonly { chemin: string; texte: string }[]): { ok: boolean; refus: RefusMaquette[] } {
   const refus: RefusMaquette[] = [];
   try {
     for (const { chemin, texte } of fichiers) {
       const ext = extensionDe(chemin);
+      if (ext === "js" || ext === "css" || ext === "html" || ext === "htm") {
+        // Caractères de contrôle C0 (sauf tabulation, \n, \r, saut de page) : le navigateur peut en tenir compte (ISO-2022-JP :
+        // « ␛(B » est retiré au décodage, `fe␛(Btch` devient `fetch`), alors que les contrôles ci-dessous lisent le texte brut.
+        const c = CONTROLE_C0.exec(texte);
+        if (c) refus.push({ chemin, ligne: ligneDe(texte, c.index), motif: "caractère de contrôle" });
+      }
       if (ext === "js") verifierJs(chemin, texte, 0, texte, refus);
       else if (ext === "css") verifierCss(chemin, texte, 0, texte, refus);
       else if (ext === "html" || ext === "htm") {
         verifierCss(chemin, texte, 0, texte, refus); // <style> et attributs style
+        const px = declarationXmlNonUtf8(texte);
+        if (px !== -1) refus.push({ chemin, ligne: ligneDe(texte, px), motif: "encodage déclaré autre que utf-8 (déclaration XML)" });
         // Balises lues une fois, en un passage (aucune expression régulière à retour en arrière : temps linéaire).
         const balises = balisesDe(texte);
         if (!balises) refus.push({ chemin, ligne: 1, motif: "balises trop imbriquées ou sans fin : maquette illisible" });
@@ -638,10 +806,16 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
         }
         // Toutes les balises, toutes les valeurs d'attribut : entités décodées (le navigateur le fait avant tout le reste).
         for (const t of balises ?? []) {
+          const nomB = /^<([a-z][^\s/>]*)/i.exec(t.texte.slice(0, 64))?.[1]?.toLowerCase() ?? "";
           for (const a of attributsDe(t.texte)) {
             const nom = a.nom.toLowerCase();
             const valeur = decoderEntites(a.valeur);
             const ligne = () => ligneDe(texte, t.index + a.index);
+            // Encodage déclaré : seul utf-8 (attribut charset de meta, script, link…, et « charset= » du content d'une meta).
+            if (nom === "charset" && !estUtf8(valeur)) refus.push({ chemin, ligne: ligne(), motif: "encodage déclaré autre que utf-8 (attribut charset)" });
+            if (nomB === "meta" && nom === "content" && charsetsDeContent(valeur).some((c) => !estUtf8(c))) {
+              refus.push({ chemin, ligne: ligne(), motif: "encodage déclaré autre que utf-8 (meta content-type)" });
+            }
             if (nom === "style") {
               const dansStyle: RefusMaquette[] = [];
               verifierCss(chemin, valeur, 0, valeur, dansStyle);
@@ -651,7 +825,7 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
             const elements = nom.endsWith("srcset") ? valeur.split(",").map((x) => x.trim().split(/\s+/)[0] ?? "") : [valeur];
             for (const el of elements) {
               const v = el.replace(/^[\u0000-\u0020]+/, "");
-              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne: ligne(), motif: `${nom} : adresse externe` });
+              if (/^(?:https?|wss?|ftp):/i.test(v) || v.startsWith("//") || v.startsWith("\\\\")) refus.push({ chemin, ligne: ligne(), motif: `${nomCourt(nom)} : adresse externe` });
             }
           }
         }
@@ -672,7 +846,32 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
 
 // ───────────────────────── Données de personnes ─────────────────────────
 
-export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne";
+/** "detection-echouee" : la détection elle-même a échoué ; on ne sait pas, donc on refuse (jamais « aucune donnée »). */
+export type TypeDonnee =
+  | "courriel"
+  | "telephone"
+  | "iban"
+  | "carte"
+  | "nir"
+  | "colonne-personne"
+  | "detection-echouee"
+  | "guillemet-non-ferme"
+  | "caractere-controle"
+  | "json-illisible"
+  | "fins-de-ligne-melangees";
+/** Types qui ne sont pas une donnée mais un REFUS du fichier entier (jamais rendu, jamais masqué). */
+type TypeRefus = "detection-echouee" | "guillemet-non-ferme" | "caractere-controle" | "json-illisible" | "fins-de-ligne-melangees";
+const MOTIFS_REFUS: Record<TypeRefus, string> = {
+  "detection-echouee": "la recherche de données de personnes a échoué, le fichier est refusé",
+  "guillemet-non-ferme": "guillemet jamais refermé dans le CSV, le fichier est refusé",
+  "caractere-controle": "caractère de contrôle dans le texte (UTF-16 sans BOM, ou fichier qui n'est pas du texte), le fichier est refusé",
+  "json-illisible": "JSON illisible (JSON.parse le rejette), le fichier est refusé",
+  "fins-de-ligne-melangees": "fins de ligne mélangées dans un CSV qui a une colonne de personne, le fichier est refusé",
+};
+/** Motif de refus d'une détection de refus (jamais la valeur trouvée), ou `undefined` si c'est une vraie donnée. */
+export function motifRefusDetection(d: Detection): string | undefined {
+  return (MOTIFS_REFUS as Record<string, string | undefined>)[d.type];
+}
 export interface Detection {
   type: TypeDonnee;
   ligne: number;
@@ -691,7 +890,7 @@ export interface OptionsDonnees {
 
 const DOMAINES_EXEMPLE = new Set(["exemple.fr", "exemple.com", "example.com", "example.org"]);
 const COLONNES_PERSONNE = new Set(["nom", "prenom", "prénom", "email", "courriel", "telephone", "téléphone", "adresse", "date_naissance", "iban"]);
-const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne">, string> = {
+const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | TypeRefus>, string> = {
   courriel: "contact@exemple.fr",
   telephone: "01 00 00 00 00",
   iban: "FR00 0000 0000 0000 0000 0000 000",
@@ -736,24 +935,126 @@ function toutZero(chaine: string): boolean {
   return /^0+$/.test(chaine.replace(/\D/g, ""));
 }
 
-/** Découpe une ligne CSV simple (guillemets, séparateur « , » ou « ; ») en valeurs avec leur position intérieure. */
-function decouperLigneCsv(ligne: string, separateur: string): { valeur: string; debut: number; fin: number }[] {
-  const sortie: { valeur: string; debut: number; fin: number }[] = [];
+const CELLULE_VIDE: { valeur: string; debut: number; fin: number } = { valeur: "", debut: 0, fin: 0 };
+
+/** Espace séparateur Unicode (catégorie Zs : U+0020, U+00A0, U+1680, U+2000-U+200A, U+202F, U+205F, U+3000), sans expression régulière. */
+function estEspaceZs(c: number): boolean {
+  return c === 0x20 || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x202f || c === 0x205f || c === 0x3000;
+}
+
+/** Caractère de format invisible (BOM, espaces de largeur nulle, marques de sens, césure conditionnelle…). */
+function estInvisible(c: number): boolean {
+  return c === 0xad || (c >= 0x200b && c <= 0x200f) || (c >= 0x202a && c <= 0x202e) || (c >= 0x2060 && c <= 0x2064) || c === 0xfeff;
+}
+
+/**
+ * Lit tout le CSV en un seul passage (temps linéaire) : guillemets suivis à travers les retours à la ligne,
+ * séparateur « , », « ; » ou tabulation. Chaque valeur garde sa position dans le texte entier.
+ * Un guillemet jamais refermé absorbe le reste du texte dans UNE seule cellule : si cette colonne n'est pas une colonne de
+ * personne, la suite resterait en clair. `etat.nonFerme` le signale : l'appelant refuse alors le fichier entier
+ * (`guillemet-non-ferme`), jamais de rendu sans masquage.
+ * Chaque cellule quotée dont la lecture est ambiguë (texte après le guillemet fermant, ou fin de ligne ET séparateur dedans)
+ * porte `ambigu` : `detecterColonnes` refuse le fichier si elle n'est pas dans une colonne de personne.
+ */
+interface EtatCsv {
+  nonFerme: boolean;
+  pos: number;
+  /** Types de fin de ligne vus HORS guillemets au dernier parcours (bits : 1 `\n`, 2 `\r\n`, 4 `\r`, 8 U+2028, 16 U+2029, 32 U+0085). */
+  fins: number;
+  /** Position de la 1re fin de ligne d'un autre type que la 1re, ou -1. */
+  diff: number;
+}
+const BIT_FIN: Record<string, number> = { "\n": 1, "\r": 4, "\u2028": 8, "\u2029": 16, "\u0085": 32 };
+
+function lireCsv(
+  texte: string,
+  separateur: string,
+  etat: EtatCsv,
+  garder = Infinity,
+  brut?: string,
+): { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[][] {
+  const lignes: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[][] = [];
+  const vide: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[] = [];
+  // `garder` : nombre de lignes dont on garde les cellules ; le reste est seulement parcouru (guillemets suivis, `etat` mis à jour)
+  // sans rien allouer : lire tout un gros CSV trois fois (un séparateur à la fois) ne coûte alors qu'un parcours léger.
+  let ligne: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[] = garder > 0 ? [] : vide;
+  let toutVide = true; // la ligne en cours ne contient que des cellules vides non quotées
+  const n = texte.length;
+  etat.fins = 0;
+  etat.diff = -1;
   let i = 0;
-  while (i <= ligne.length) {
-    if (ligne[i] === '"') {
+  for (;;) {
+    let delimiteur: string | undefined;
+    const garde = ligne !== vide;
+    // Blancs avant un guillemet ouvrant (`1, "Dupont, Jean"`) : la valeur est lue comme entre guillemets.
+    let k0 = i;
+    // Les caractères invisibles (BOM U+FEFF, U+200B…) devant le guillemet sont sautés aussi : un lecteur qui les retire lit un guillemet ouvrant.
+    while (k0 < n && (estEspaceZs(texte.charCodeAt(k0)) || estInvisible(texte.charCodeAt(k0)) || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
+    if (texte[k0] === '"') {
+      i = k0;
       let j = i + 1;
-      while (j < ligne.length && !(ligne[j] === '"' && ligne[j + 1] !== '"')) j += ligne[j] === '"' ? 2 : 1;
-      sortie.push({ valeur: ligne.slice(i + 1, j), debut: i + 1, fin: j });
-      i = j + 2;
-    } else {
-      let j = ligne.indexOf(separateur, i);
-      if (j === -1) j = ligne.length;
-      sortie.push({ valeur: ligne.slice(i, j), debut: i, fin: j });
+      while (j < n && !(texte[j] === '"' && texte[j + 1] !== '"')) j += texte[j] === '"' ? 2 : 1;
+      if (j >= n && !etat.nonFerme) {
+        etat.nonFerme = true;
+        etat.pos = k0;
+      }
+      const ouvrant = i;
+      const fermant = Math.min(j, n);
       i = j + 1;
+      while (i < n && texte[i] !== separateur && texte[i] !== "\n") i++;
+      delimiteur = texte[i];
+      const finReste = (delimiteur === "\n" || i >= n) && i > j + 1 && texte[i - 1] === "\r" ? i - 1 : i;
+      if (finReste > j + 1 && texte.slice(j + 1, finReste).trim() !== "") {
+        // Texte entre le guillemet fermant et le séparateur (« "Jean" Dupont ») : la plage va jusqu'au séparateur,
+        // guillemets compris (remplacement entre guillemets), pour que ce reste ne reste jamais en clair.
+        toutVide = false;
+        if (garde) ligne.push({ valeur: texte.slice(ouvrant + 1, finReste), debut: ouvrant, fin: finReste, nu: true, ambigu: true });
+      } else {
+        toutVide = false;
+        if (garde) {
+          const valeur = texte.slice(ouvrant + 1, fermant);
+          // Lecture ambiguë : une cellule quotée qui contient à la fois une fin de ligne ET le séparateur peut être un guillemet égaré
+          // refermé par le guillemet d'une autre cellule (`1,"Paris,Jean⏎2,Lyon,"⏎`) : une autre lecture ferait sortir des lignes de leur colonne.
+          const ambigu = valeur.includes("\n") && valeur.includes(separateur);
+          ligne.push(ambigu ? { valeur, debut: ouvrant + 1, fin: fermant, ambigu: true } : { valeur, debut: ouvrant + 1, fin: fermant });
+        }
+      }
+    } else {
+      let j = i;
+      while (j < n && texte[j] !== separateur && texte[j] !== "\n") j++;
+      delimiteur = texte[j];
+      const fin = (delimiteur === "\n" || j >= n) && j > i && texte[j - 1] === "\r" ? j - 1 : j;
+      if (fin === i) {
+        if (garde) ligne.push(CELLULE_VIDE); // cellule vide : jamais une donnée, aucune allocation
+      } else {
+        toutVide = false;
+        if (garde) ligne.push({ valeur: texte.slice(i, fin), debut: i, fin });
+      }
+      i = j;
     }
+    if (delimiteur === separateur) {
+      i += 1;
+      continue;
+    }
+    if (garde && toutVide && lignes.length >= LIGNES_ENTETE_MAX) {
+      ligne.length = 0; // ligne entièrement vide après la zone d'en-tête : rien à masquer, le tableau est réutilisé
+    } else {
+      if (garde) lignes.push(ligne);
+      ligne = lignes.length < garder ? [] : vide;
+    }
+    toutVide = true;
+    if (i >= n) break;
+    if (brut !== undefined) {
+      // Fin de ligne HORS guillemets (la cellule est finie) : son type d'origine, avant la normalisation en `\n`.
+      const o = brut[i]!;
+      const bit = o === "\n" ? (i > 0 && brut[i - 1] === "\r" ? 2 : 1) : (BIT_FIN[o] ?? 1);
+      if (etat.fins !== 0 && (etat.fins & bit) === 0 && etat.diff < 0) etat.diff = i;
+      etat.fins |= bit;
+    }
+    i += 1;
+    if (i >= n) break;
   }
-  return sortie;
+  return lignes;
 }
 
 function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined): boolean {
@@ -767,69 +1068,248 @@ function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined):
   return mots.length > 0 && mots.every((m) => lower.has(minuscule(m)));
 }
 
-function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
+/** Retire les caractères de format invisibles (U+200B, U+200D, U+2060, U+FEFF, U+00AD…) : « no​m » doit rester « nom ». */
+function sansInvisibles(s: string): string {
+  return s.replace(/\p{Cf}/gu, "");
+}
+
+/** Nom de colonne normalisé : invisibles retirés, trim, une paire de guillemets englobante retirée, trim, NFKC, minuscules. */
+function nomColonne(valeur: string): string {
+  let v = sansInvisibles(valeur).trim();
+  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = sansInvisibles(v.slice(1, -1)).trim();
+  return v.normalize("NFKC").toLowerCase();
+}
+
+/**
+ * Texte d'une clé JSON de `texte[i]` (guillemet ouvrant) à `texte[k]` (fermant), échappements décodés (`pr\u00e9nom` vaut
+ * `prénom`, la sortie par défaut de `json.dumps` de Python). Chemin rapide sans barre oblique inverse ; temps linéaire.
+ */
+function texteCle(texte: string, i: number, k: number): string {
+  const brut = texte.slice(i + 1, k);
+  if (!brut.includes("\\")) return brut;
+  try {
+    const decode: unknown = JSON.parse(texte.slice(i, k + 1));
+    return typeof decode === "string" ? decode : brut;
+  } catch {
+    return brut;
+  }
+}
+
+/** Nombre de lignes du début d'un CSV où l'on cherche l'en-tête (ligne `sep=;`, titre d'export…). */
+const LIGNES_ENTETE_MAX = 10;
+
+function detecterColonnes(
+  texteBrut: string,
+  ext: string,
+  neutres: ReadonlySet<string> | undefined,
+  etat: EtatCsv & { melange?: boolean },
+): { debut: number; fin: number; nu?: boolean }[] {
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
+  // « CSV (Macintosh) » : fin de ligne `\r` seule ; fins de ligne Unicode U+2028, U+2029 et U+0085 (NEL). Chacune est remplacée
+  // par `\n` (un caractère pour un caractère, positions inchangées) pour la lecture ; `\r\n` reste une seule fin de ligne.
+  const texte = ext === "json" ? texteBrut : texteBrut.replace(/\r(?!\n)|[\u2028\u2029\u0085]/g, "\n");
   if (ext === "json") {
     const ESPACE = /\s/;
-    /** Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `i` ; retourne la fin. */
-    const collecter = (i: number): number => {
-      while (i < texte.length && ESPACE.test(texte[i]!)) i++;
-      const c = texte[i];
-      if (c === '"') {
-        let j = i + 1;
-        while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
-        if (!valeurNeutre(texte.slice(i + 1, j), neutres)) trouves.push({ debut: i + 1, fin: j });
-        return j + 1;
-      }
-      if (c === "[" || c === "{") {
-        const fermant = c === "[" ? "]" : "}";
-        let j = i + 1;
-        while (j < texte.length) {
-          while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ",")) j++;
-          if (texte[j] === fermant || j >= texte.length) return j + 1;
-          if (c === "{") {
-            // clé : on la saute, puis la valeur
-            if (texte[j] !== '"') return j + 1;
+    const DELIMITEURS_JSON = ',:[]{}"';
+    /**
+     * Collecte les feuilles chaîne/nombre d'une valeur JSON à partir de `debut` ; retourne la fin.
+     * SANS récursion (pile explicite) : une imbrication de 200 000 niveaux ne fait jamais déborder la pile.
+     */
+    const collecter = (debut: number): number => {
+      const pile: string[] = [];
+      let j = debut;
+      let attendValeur = true;
+      for (;;) {
+        if (attendValeur) {
+          while (j < texte.length && ESPACE.test(texte[j]!)) j++;
+          const c = texte[j];
+          if (c === '"') {
+            let k = j + 1;
+            while (k < texte.length && texte[k] !== '"') k += texte[k] === "\\" ? 2 : 1;
+            if (!valeurNeutre(texte.slice(j + 1, k), neutres)) trouves.push({ debut: j + 1, fin: k });
+            j = k + 1;
+          } else if (c === "[" || c === "{") {
+            pile.push(c === "[" ? "]" : "}");
             j++;
-            while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
-            j++;
-            while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
+            attendValeur = false;
+            continue;
+          } else if (pile.length > 0 && c === pile[pile.length - 1]) {
+            attendValeur = false; // valeur absente (`{"a":}`) : le fermant est lu par la boucle du conteneur
+            continue;
+          } else {
+            // Valeur nue : nombre, true, false, null, ou n'importe quel mot (JSON invalide). On la lit EN ENTIER (jusqu'au prochain
+            // délimiteur) pour ne jamais retomber au milieu d'un mot. Un littéral exact true/false/null n'est pas une donnée ;
+            // tout autre mot ou nombre est remplacé par un texte entre guillemets (JSON valide).
+            let k = j;
+            while (k < texte.length && !ESPACE.test(texte[k]!) && !DELIMITEURS_JSON.includes(texte[k]!)) k++;
+            if (k === j) k = j + 1; // délimiteur inattendu : sauté, le parcours avance toujours
+            const mot = texte.slice(j, k);
+            if (mot !== "true" && mot !== "false" && mot !== "null" && !DELIMITEURS_JSON.includes(mot) && !valeurNeutre(mot, neutres)) {
+              trouves.push({ debut: j, fin: k, nu: true });
+            }
+            j = k;
           }
-          const suite = collecter(j);
-          if (suite <= j) return j + 1;
-          j = suite;
+          if (pile.length === 0) return j;
+          attendValeur = false;
+          continue;
         }
-        return j;
+        const fermant = pile[pile.length - 1]!;
+        while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === "," || texte[j] === ":")) j++;
+        if (texte[j] === fermant || j >= texte.length) {
+          j++;
+          pile.pop();
+          if (pile.length === 0) return j;
+          continue;
+        }
+        if (fermant === "}" && texte[j] === '"') {
+          // clé : on la saute, puis la valeur
+          const debutCle = j + 1;
+          j++;
+          while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
+          // Une clé sous une clé de personne est elle-même une donnée (`{"nom":{"Jean Dupont":true}}`) : masquée comme une valeur.
+          // Le JSON est strictement valide ici (JSON.parse l'a accepté) : le texte masqué reste une chaîne valide.
+          // Seule exception : une clé qui est elle-même un nom de colonne de personne (`{"adresse":{"nom":"x"}}`), structure sans donnée.
+          if (!valeurNeutre(texte.slice(debutCle, j), neutres) && !COLONNES_PERSONNE.has(nomColonne(texteCle(texte, debutCle - 1, j)))) {
+            trouves.push({ debut: debutCle, fin: j });
+          }
+          j++;
+          while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
+        }
+        // Tout autre caractère (JSON invalide) vaut début de valeur : jamais « fin de conteneur » sur un caractère inattendu.
+        attendValeur = true;
       }
-      const nombre = /^-?\d[\d.eE+-]*/.exec(texte.slice(i, i + 40));
-      if (nombre) {
-        // Un nombre n'est pas une chaîne : sa plage est remplacée par un texte entre guillemets (JSON valide).
-        trouves.push({ debut: i, fin: i + nombre[0].length, nu: true });
-        return i + nombre[0].length;
-      }
-      return i + 1; // true, false, null…
     };
-    for (const m of texte.matchAll(/"((?:[^"\\]|\\.)*)"\s*:\s*/g)) {
-      if (!COLONNES_PERSONNE.has(m[1]!.toLowerCase())) continue;
-      collecter((m.index ?? 0) + m[0].length);
+    // Clés lues à la main, en UN SEUL passage (état dans / hors chaîne) : chaque chaîne est lue une fois, du guillemet ouvrant
+    // au fermant, et la lecture suivante commence APRÈS ce fermant ; elle ne repart jamais d'un guillemet déjà lu pour relire
+    // le même texte (une recherche par expression régulière, relancée depuis chaque guillemet, était quadratique sur `\"`
+    // répété). Une chaîne qui suit un `:` après sa fermeture est une clé. Seule exception, JSON invalide : une chaîne refermée
+    // et suivie d'autre chose que `:`, `,`, `}`, `]` (`"Paris, "nom":"Jean"`) laisse son fermant servir d'ouvrant à la suivante ;
+    // le texte lu ne se recouvre jamais (chaque octet est lu une fois), donc le temps reste linéaire.
+    // Une clé déjà couverte par une valeur collectée plus haut n'est pas reprise.
+    let traite = 0;
+    const n = texte.length;
+    for (let i = texte.indexOf('"'); i !== -1 && i < n; ) {
+      let k = i + 1;
+      while (k < n && texte[k] !== '"') k += texte[k] === "\\" ? 2 : 1;
+      if (k >= n) break; // chaîne jamais refermée : plus aucune clé après elle
+      let j = k + 1;
+      while (j < n && ESPACE.test(texte[j]!)) j++;
+      if (texte[j] === ":") {
+        j++;
+        while (j < n && ESPACE.test(texte[j]!)) j++;
+        if (j > traite && COLONNES_PERSONNE.has(nomColonne(texteCle(texte, i, k)))) traite = collecter(j);
+        i = texte.indexOf('"', k + 1);
+      } else if (j < n && texte[j] !== "," && texte[j] !== "}" && texte[j] !== "]") {
+        i = k; // JSON invalide : le fermant ouvre la chaîne suivante
+      } else {
+        i = texte.indexOf('"', k + 1);
+      }
     }
     return trouves;
   }
-  const lignes = texte.split("\n");
-  const entete = lignes[0]?.replace(/\r$/, "") ?? "";
-  const sep = entete.split(";").length > entete.split(",").length ? ";" : ",";
-  const cases = decouperLigneCsv(entete, sep);
-  const colonnes = new Set(cases.flatMap((c, i) => (COLONNES_PERSONNE.has(c.valeur.trim().toLowerCase()) ? [i] : [])));
-  if (colonnes.size === 0) return trouves;
-  let decalage = (lignes[0]?.length ?? 0) + 1;
-  for (let l = 1; l < lignes.length; l++) {
-    const brute = lignes[l]!.replace(/\r$/, "");
-    const valeurs = decouperLigneCsv(brute, sep);
+  const finPremiere = texte.indexOf("\n");
+  const premiere = (finPremiere === -1 ? texte : texte.slice(0, finPremiere)).replace(/\r$/, "");
+  // Ligne `sep=X` d'Excel : X est le séparateur ; sinon séparateur le plus fréquent de la 1re ligne
+  // (égalité : « , » puis « ; » puis tabulation), puis les deux autres en repli.
+  const declare = /^\p{Cf}*sep=(.)\s*$/iu.exec(premiere)?.[1];
+  let sep = ",";
+  let meilleur = premiere.split(",").length;
+  for (const candidat of [";", "\t"]) {
+    const nombre = premiere.split(candidat).length;
+    if (nombre > meilleur) {
+      sep = candidat;
+      meilleur = nombre;
+    }
+  }
+  const candidats = declare ? [declare] : [sep, ...[",", ";", "\t"].filter((x) => x !== sep)];
+  // L'en-tête n'est pas forcément la 1re ligne : on prend, parmi les premières lignes, la 1re qui porte un nom de colonne de personne.
+  let lignes: ReturnType<typeof lireCsv> = [];
+  let colonnes = new Set<number>();
+  let indiceEntete = 0;
+  // Position de la 1re cellule ambiguë vue dans les premières lignes (sous n'importe quel séparateur essayé) : si aucune colonne
+  // de personne n'est trouvée, un guillemet égaré a pu avaler l'en-tête, donc le fichier entier est refusé.
+  let ambigueEntete = -1;
+  for (const candidat of candidats) {
+    lignes = lireCsv(texte, candidat, etat, LIGNES_ENTETE_MAX, texteBrut); // seules les premières lignes sont gardées : l'en-tête est là
+    if (ambigueEntete < 0) {
+      for (const valeurs of lignes) {
+        const a = valeurs.find((v) => v.ambigu);
+        if (a) {
+          ambigueEntete = a.debut;
+          break;
+        }
+      }
+    }
+    for (let l = 0; l < Math.min(lignes.length, LIGNES_ENTETE_MAX); l++) {
+      const trouvees = (lignes[l] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : []));
+      if (trouvees.length > 0) {
+        colonnes = new Set(trouvees);
+        indiceEntete = l;
+        break;
+      }
+    }
+    if (colonnes.size > 0) {
+      if (!etat.nonFerme) lignes = lireCsv(texte, candidat, etat, Infinity, texteBrut); // en-tête trouvé : une seule lecture complète, avec ce séparateur
+      break;
+    }
+  }
+  // Guillemet ouvrant jamais refermé (sous l'un des séparateurs essayés) : l'appelant refuse le fichier entier.
+  if (etat.nonFerme) return trouves;
+  if (colonnes.size === 0) {
+    if (ambigueEntete >= 0) {
+      etat.nonFerme = true;
+      etat.pos = ambigueEntete;
+    }
+    return trouves;
+  }
+  // Fins de ligne mélangées (HORS guillemets : `\r\n` des lignes, `\n` dans une cellule entre guillemets reste permis) dans un fichier
+  // qui a une colonne de personne : un lecteur qui coupe sur un autre type de fin de ligne lit les cellules autrement, et un nom
+  // pourrait sortir de sa colonne. Refus du fichier entier.
+  if ((etat.fins & (etat.fins - 1)) !== 0) {
+    etat.melange = true;
+    etat.pos = Math.max(0, etat.diff);
+    return trouves;
+  }
+  // Cellule ambiguë AVANT ou DANS la ligne d'en-tête (titre d'export, en-tête lui-même), quelle que soit sa colonne : le masquage
+  // ne commence qu'après l'en-tête, et un guillemet égaré a pu avaler le vrai en-tête. Même refus.
+  for (let l = 0; l <= indiceEntete && l < lignes.length; l++) {
+    const a = lignes[l]!.find((v) => v.ambigu);
+    if (a) {
+      etat.nonFerme = true;
+      etat.pos = a.debut;
+      return trouves;
+    }
+  }
+  // Lecture ambiguë avec fin de ligne dedans, QUELLE QUE SOIT sa colonne (personne ou non) : un guillemet égaré a avalé une fin de
+  // ligne, la fin de la ligne suivante a glissé dans les colonnes d'après et resterait en clair. Même refus que le guillemet non refermé.
+  // Lecture ambiguë dans une colonne qui n'est PAS de personne (guillemet égaré refermé par un autre guillemet) : même refus.
+  for (const valeurs of lignes) {
+    for (let c = 0; c < valeurs.length; c++) {
+      const v = valeurs[c]!;
+      if (v.ambigu && (!colonnes.has(c) || v.valeur.includes("\n"))) {
+        etat.nonFerme = true;
+        etat.pos = v.debut;
+        return trouves;
+      }
+    }
+  }
+  // Ligne de données dont le nombre de cellules diffère de l'en-tête (plus large : virgule non protégée qui décale le nom hors
+  // de sa colonne ; plus étroite : cellule avalée) : les noms ne sont plus dans la colonne lue. Même refus. Une ligne vide est tolérée.
+  const largeur = lignes[indiceEntete]!.length;
+  for (let l = indiceEntete + 1; l < lignes.length; l++) {
+    const valeurs = lignes[l]!;
+    if (valeurs.length !== largeur && !(valeurs.length === 1 && valeurs[0]!.valeur === "")) {
+      etat.nonFerme = true;
+      etat.pos = valeurs[0]!.debut;
+      return trouves;
+    }
+  }
+  for (let l = indiceEntete + 1; l < lignes.length; l++) {
+    const valeurs = lignes[l]!;
     for (const c of colonnes) {
       const v = valeurs[c];
-      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push({ debut: decalage + v.debut, fin: decalage + v.fin });
+      if (v && !valeurNeutre(v.valeur, neutres)) trouves.push(v.nu ? { debut: v.debut, fin: v.fin, nu: true } : { debut: v.debut, fin: v.fin });
     }
-    decalage += lignes[l]!.length + 1;
   }
   return trouves;
 }
@@ -838,6 +1318,23 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
 export function detecterDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): Detection[] {
   const bruts: { type: TypeDonnee; debut: number; fin: number; nu?: boolean }[] = [];
   try {
+    // AVANT toute détection, pour tout fichier texte lu (.csv, .json, .txt, .md, script) : un caractère de contrôle C0 (hors tabulation,
+    // \n, \r) fait que ce n'est pas du texte. UTF-16 sans BOM est de l'UTF-8 « valide » avec un U+0000 entre les lettres : aucune
+    // détection ne le verrait ; U+000B et U+000C sont des fins de ligne pour d'autres lecteurs. Le saut de page reste permis dans les
+    // maquettes (html, css, js), qui ont leur propre contrôle dans `verifierMaquette`. Jamais la valeur dans le refus.
+    const extFichier = options.chemin ? extensionDe(options.chemin) : "";
+    const c0 = (extFichier === "html" || extFichier === "htm" || extFichier === "css" || extFichier === "js" ? CONTROLE_C0 : CONTROLE_TEXTE).exec(texte);
+    if (c0) return [{ type: "caractere-controle", ligne: ligneDe(texte, c0.index), debut: c0.index, fin: c0.index + 1 }];
+    // Un .json que JSON.parse rejette n'est lu « au mieux » par personne : refusé (pas de masquage par positions sur du JSON invalide).
+    if (extFichier === "json") {
+      try {
+        JSON.parse(texte.charCodeAt(0) === 0xfeff ? texte.slice(1) : texte);
+      } catch (e) {
+        const p = /position (\d+)/.exec(e instanceof Error ? e.message : "");
+        const pos = p ? Math.min(Number(p[1]), texte.length) : 0;
+        return [{ type: "json-illisible", ligne: ligneDe(texte, pos), debut: pos, fin: texte.length }];
+      }
+    }
     for (const m of texte.matchAll(/(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,})/gu)) {
       if (!DOMAINES_EXEMPLE.has(m[1]!.toLowerCase())) bruts.push({ type: "courriel", debut: m.index ?? 0, fin: (m.index ?? 0) + m[0].length });
     }
@@ -859,16 +1356,47 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
     }
     const ext = options.chemin ? extensionDe(options.chemin) : "";
     if (ext === "csv" || ext === "json") {
-      for (const c of detecterColonnes(texte, ext, options.nomsNeutres)) bruts.push({ type: "colonne-personne", ...c });
+      const etat: EtatCsv & { melange?: boolean } = { nonFerme: false, pos: 0, fins: 0, diff: -1 };
+      const colonnes = detecterColonnes(texte, ext, options.nomsNeutres, etat);
+      if (etat.melange) return [{ type: "fins-de-ligne-melangees", ligne: ligneDe(texte, etat.pos), debut: etat.pos, fin: texte.length }];
+      // Un guillemet jamais refermé fait de tout le reste du fichier une seule cellule : si ce n'est pas une colonne de
+      // personne, rien ne serait masqué. On ne rend jamais le fichier : refus, sans recopier la valeur.
+      if (etat.nonFerme) return [{ type: "guillemet-non-ferme", ligne: ligneDe(texte, etat.pos), debut: etat.pos, fin: texte.length }];
+      for (const c of colonnes) bruts.push({ type: "colonne-personne", ...c });
     }
   } catch {
-    return [];
+    // Échec de la détection : jamais « aucune donnée » (le fichier partirait non masqué) ; une détection spéciale force le refus.
+    return [{ type: "detection-echouee", ligne: 1, debut: 0, fin: texte.length }];
   }
   // Priorité à l'ordre de découverte ci-dessus : une plage déjà prise n'est pas reprise.
-  const pris: { debut: number; fin: number }[] = [];
-  const gardes = bruts.filter((b) => {
-    if (pris.some((p) => b.debut < p.fin && b.fin > p.debut)) return false;
-    pris.push(b);
+  // Table d'occupation (une case par caractère) : temps linéaire, même priorité qu'avant (ordre de découverte).
+  // Une colonne de personne passe en premier et absorbe les détections qu'elle contient (courriel, téléphone…) :
+  // la valeur entière est masquée, jamais seulement un morceau (« Jean Dupont jean@orange.fr »).
+  // Seule exception : un courriel (ou un autre type) qui forme TOUTE la valeur reste de son type.
+  const exacts = new Set<string>();
+  for (const b of bruts) if (b.type !== "colonne-personne") exacts.add(`${b.debut}:${b.fin}`);
+  const colonnes = bruts.filter((b) => {
+    if (b.type !== "colonne-personne") return false;
+    if (exacts.size === 0) return true; // aucune autre détection : rien à comparer
+    const dedans = texte.slice(b.debut, b.fin);
+    const debut = b.debut + (dedans.length - dedans.trimStart().length);
+    const fin = b.fin - (dedans.length - dedans.trimEnd().length);
+    return !exacts.has(`${debut}:${fin}`);
+  });
+  const ordonnes = [...colonnes, ...bruts.filter((b) => b.type !== "colonne-personne")];
+  const occupe = new Uint8Array(texte.length + 1);
+  const gardes = ordonnes.filter((b) => {
+    const fin = Math.min(b.fin, texte.length);
+    let libre = true;
+    for (let i = b.debut; i < fin; i++) {
+      if (occupe[i]) {
+        libre = false;
+        break;
+      }
+    }
+    if (!libre) return false;
+    // Une plage vide (debut >= fin) n'occupe rien : elle est gardée comme avant (aucune plage prise ne la chevauche).
+    occupe.fill(1, b.debut, fin);
     return true;
   });
   gardes.sort((a, b) => a.debut - b.debut);
@@ -878,8 +1406,13 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
 /** Remplace chaque donnée détectée par un texte d'exemple fixe (rendu déterministe). */
 export function masquerDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): { texte: string; remplacements: { type: TypeDonnee; nombre: number }[] } {
   const trouvees = detecterDonneesPersonnelles(texte, options);
+  // Détection impossible : on ne rend jamais le texte d'origine comme s'il était propre.
+  // Tout refus du fichier entier (recherche échouée, guillemet non refermé, caractère de contrôle, JSON illisible, fins de ligne
+  // mélangées) : jamais de texte rendu.
+  const refusee = trouvees.find((d) => motifRefusDetection(d) !== undefined);
+  if (refusee) return { texte: "", remplacements: [{ type: refusee.type, nombre: 1 }] };
   let numero = 0;
-  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type] }));
+  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | TypeRefus>] }));
   let sortie = "";
   let curseur = 0;
   for (const { d, par } of remplaces) {
@@ -900,8 +1433,10 @@ export function estFichierScript(chemin: string): boolean {
 
 /** Refus du script qui contient une donnée de personne : type et ligne seulement, jamais la valeur. */
 export function refuserScriptAvecDonnees(chemin: string, texte: string): string[] {
-  return detecterDonneesPersonnelles(texte).map(
-    (d) => `Votre script contient une donnée personnelle (${d.type}, ligne ${d.ligne}) dans « ${nomCourt(chemin)} » : corrigez-le puis renvoyez le dossier.`,
+  return detecterDonneesPersonnelles(texte).map((d) =>
+    d.type === "caractere-controle"
+      ? `Votre script contient un caractère de contrôle (ligne ${d.ligne}) dans « ${nomCourt(chemin)} » : enregistrez-le en UTF-8 puis renvoyez le dossier.`
+      : `Votre script contient une donnée personnelle (${d.type}, ligne ${d.ligne}) dans « ${nomCourt(chemin)} » : corrigez-le puis renvoyez le dossier.`,
   );
 }
 

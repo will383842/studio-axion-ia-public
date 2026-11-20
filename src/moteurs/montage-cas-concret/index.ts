@@ -335,7 +335,8 @@ function demandeDe(commande: CommandeFabrication): DemandeEstimation {
     ...(e.finDemandee ? { finDemandee: e.finDemandee } : {}),
     ecriture: !e.ficheCle,
     ...(e.nouveauScript !== undefined ? { nouveauScript: true } : {}),
-    voix: commande.distribution.length ? { ...(commande.distribution[0].fournisseurVoix ? { fournisseur: commande.distribution[0].fournisseurVoix } : {}) } : null,
+    // CC-SV : sans voix, aucune ligne de coût « voix ».
+    voix: commande.distribution.length && !e.sansVoix ? { ...(commande.distribution[0].fournisseurVoix ? { fournisseur: commande.distribution[0].fournisseurVoix } : {}) } : null,
     texteCorps: commande.script.texteComplet ?? "",
     tauxUsdEur: commande.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT,
     lecturesVoixMax: lecturesVoixMax(ressemblanceDeLaCommande(commande.entrees)),
@@ -363,7 +364,7 @@ function lignesRetoucheSansOperation(commande: CommandeFabrication): LigneCout[]
 
 /** Réservation d'une retouche (`estimerRetouche`) : la voix au pire des SEULS textes relus, plus le montage ; jamais l'écriture. */
 function lignesRetouche(commande: CommandeFabrication, aRelire: ARelire): LigneCout[] {
-  const voix = commande.distribution.length ? ligneVoixPireCas(commande.distribution[0].fournisseurVoix, aRelire.corps, aRelire.fins, commande.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT, lecturesVoixMax(ressemblanceDeLaCommande(commande.entrees))) : [];
+  const voix = commande.distribution.length && !lireEntreesCasConcret(commande.entrees).sansVoix ? ligneVoixPireCas(commande.distribution[0].fournisseurVoix, aRelire.corps, aRelire.fins, commande.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT, lecturesVoixMax(ressemblanceDeLaCommande(commande.entrees))) : [];
   return [...voix, ligne("Montage cas concret", "studio", "forfait", 1, "estime")];
 }
 
@@ -609,7 +610,7 @@ function priseReprise(texte: string, p: EtatVoixCasConcret["corps"]["prise"], v:
  * divergent un jour, la chaîne ignore ce départ et relit tout (plus cher, jamais faux).
  */
 function voixDeRetouche(commande: CommandeFabrication, outils: OutilsCasConcret, cas: CasConcret, entrees: EntreesCasConcret, r: RetoucheEnCours): JournalCasConcret["voix"] | null {
-  if (!r.prisesAvant) return null;
+  if (!r.prisesAvant || entrees.sansVoix) return null;
   const pr = commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation }));
   const lire = (t: string) => (pr.length ? substituerPrononciations(t, pr) : t);
   // Les réseaux tels que la chaîne les lit (`tourDeChaine` pose ceux des entrées dans son contexte).
@@ -676,7 +677,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
   // 17/10 : la voix ne paie jamais plus que sa part du prix confirmé (même calcul que l'estimation de la commande).
   // Sans objet : voix simulée (rien n'est payé), fiche fournie sans texte connu de l'estimation. Retouche : sa fiche est
   // « fournie », mais son prix confirmé est sa réservation (`estimerRetouche`) : elle est plafonnée à celle-ci.
-  const plafonnee = commande.distribution.length > 0 && (commande.distribution[0].fournisseurVoix ?? "simulation") !== "simulation" && (!entrees.ficheCle || !!retouche || !!commande.script.texteComplet?.trim());
+  const plafonnee = !entrees.sansVoix && commande.distribution.length > 0 && (commande.distribution[0].fournisseurVoix ?? "simulation") !== "simulation" && (!entrees.ficheCle || !!retouche || !!commande.script.texteComplet?.trim());
   const voixEstimee = plafonnee ? (retouche?.aRelire ? lignesRetouche(commande, retouche.aRelire) : estimerCommande(commande).lignes).find((l) => l.etape === "Voix") : undefined;
   const taux = commande.tauxUsdEur ?? TAUX_USD_EUR_PAR_DEFAUT;
   // Retouche sans ligne « Voix » réservée (rien à relire) : son plafond est zéro, jamais l'absence de plafond.
@@ -718,6 +719,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       ...((p) => (p.length ? { objetsPermis: p } : {}))(piecesPermisesDesEntrees(commande.entrees)),
       ...((c) => (c === "sobre" || c === "dynamique" || c === "equilibre" ? { dosage: c } : {}))(commande.dosageMotion?.cran),
       ...(retouche?.texteFige ? { texteFige: true as const } : {}),
+      ...(entrees.sansVoix ? { sansVoix: true as const } : {}),
       ...(ecarte ? { structureEcartee: ecarte.structure ?? STRUCTURES[0] } : {}),
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
       ...(commande.distribution[0]?.personnageId ? { personnageId: commande.distribution[0].personnageId } : {}),
@@ -881,7 +883,7 @@ const VERSION_2 = "viendra en version 2";
 /** Refus avant toute réservation : ce qui manque à la commande elle-même. */
 function refusDeCommande(commande: CommandeFabrication): { code: string; message: string } | null {
   const e = lireEntreesCasConcret(commande.entrees);
-  if (!commande.distribution.length) return { code: "CAS_CONCRET_SANS_VOIX", message: "Désignez la voix de cette vidéo." };
+  if (!e.sansVoix && !commande.distribution.length) return { code: "CAS_CONCRET_SANS_VOIX", message: "Désignez la voix de cette vidéo." };
   if (!e.casId && !e.ficheCle) return { code: "CAS_CONCRET_SANS_CAS", message: "Choisissez le cas de cette vidéo." };
   if (!e.reseaux.length) return { code: "CAS_CONCRET_SANS_RESEAU", message: "Cochez au moins un réseau." };
   // X7 : le même contrôle que la feuille « Votre vidéo » et le lancement, sur ce que la commande porte (la validation, la
