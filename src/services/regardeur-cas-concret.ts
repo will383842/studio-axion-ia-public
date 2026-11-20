@@ -102,7 +102,7 @@ export function relecteurCasConcret(dep: DependancesRelecteurCasConcret, ports?:
       instants = instantsCasConcret(fiche, fin, video.dureeSec);
       if (instants.length === 0) return { imagesLues: 0, reserves: ["Images de la vidéo non relues : aucun instant à regarder."] };
       const p = ports ?? (await portsParDefaut(dep, dep.videoId));
-      const juger = (lecture: LectureRegard | null) => verdictDe(jugerRegard({ instants, lecture, textesPermis: textesPermisCasConcret(fiche, fin) }));
+      const juger = (lecture: LectureRegard | null) => verdictDe(jugerRegard({ instants, lecture, textesPermis: textesPermisCasConcret(fiche, fin), ...(dep.fin ? { fin: { texte: dep.fin.ecran } } : {}) }));
 
       // 2. Mémo : une lecture déjà payée n'est jamais repayée (le contrôle est refait à chaque tour).
       const cleMemo = `studio/${dep.env}/cas-concret/${dep.videoId}/regard/${sha([video.cle, instants.map((i) => [i.nom, i.instantSec])], 16)}.json`;

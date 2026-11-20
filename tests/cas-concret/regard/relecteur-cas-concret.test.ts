@@ -79,6 +79,15 @@ describe("relecteurCasConcret (S-12-REGARDEUR-CC-v19c)", () => {
     expect(r.reserves.some((x) => x.startsWith("écran e02 : texte coupé (« "))).toBe(true);
   });
 
+  it("b bis) fin choisie (dep.fin) absente de l'écran : réserve « fin choisie » ; présente : aucune réserve ; sans dep.fin : comme avant", async () => {
+    const FIN = "Abonnez-vous maintenant";
+    const absente = await relecteurCasConcret({ ...dep, fin: { ecran: FIN } }, ports().p)(fiche, null, VIDEO);
+    expect(absente.reserves.join(" ")).toMatch(/fin choisie/);
+    expect(absente.reserves).toContain("fin choisie absente de la vidéo");
+    const sans = await relecteurCasConcret(dep, ports().p)(fiche, null, VIDEO);
+    expect(sans.reserves).toEqual([]);
+  });
+
   it("c) extraction en cours : attente, 0 appel, « non relue » ; échec : « Images de la vidéo non relues », 0 appel", async () => {
     let attentes = 0;
     const a = ports({ extraction: "en-cours" });
