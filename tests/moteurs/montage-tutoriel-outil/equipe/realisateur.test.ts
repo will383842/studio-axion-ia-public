@@ -161,9 +161,9 @@ describe("réalisateur (T-EXT-22)", () => {
     expect(erreurs(realiser(entree({ script: s })))).toMatch(/9 étapes filmées au plus/);
   });
 
-  it("G-Flux (cahier direct ou cas 5) : refus « pas encore disponible »", () => {
-    expect(erreurs(realiser(entree({ cahier: cahier(["G-Flux"]) })))).toMatch(/pas encore disponible/);
-    expect(erreurs(realiser(entree({ cahier: cahier(["G-Flux", "G-Decision"], 5) })))).toMatch(/pas encore disponible/);
+  it("G-Flux (cahier direct ou cas 5) : plus refusé pour « pas encore disponible »", () => {
+    expect(erreurs(realiser(entree({ cahier: cahier(["G-Flux"]) })))).not.toMatch(/pas encore disponible/);
+    expect(erreurs(realiser(entree({ cahier: cahier(["G-Flux", "G-Decision"], 5) })))).not.toMatch(/pas encore disponible/);
   });
 
   it("gabarit qui ne sert pas le cas : refus", () => {

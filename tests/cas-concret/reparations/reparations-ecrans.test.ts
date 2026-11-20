@@ -1,6 +1,6 @@
 /**
  * S-04a-v19b · deux réparations sans IA du cas concret, écrites à part : marque remise, calage approché.
- * Rien ne les appelle encore (garde statique en bas).
+ * Garde statique en bas : seul fabriquer.ts les appelle (S-04a).
  */
 import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -119,7 +119,7 @@ describe("calageApproche", () => {
 });
 
 describe("éteint = identique", () => {
-  it("aucun fichier de src/** n'importe reparations-ecrans", () => {
+  it("seul fabriquer.ts de src/** importe reparations-ecrans (S-04a : le branchement)", () => {
     const touches: string[] = [];
     const marcher = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -129,6 +129,6 @@ describe("éteint = identique", () => {
       }
     };
     marcher(join(__dirname, "..", "..", "..", "src"));
-    expect(touches).toEqual([]);
+    expect(touches.map((t) => t.split("/").slice(-2).join("/"))).toEqual(["montage-cas-concret/fabriquer.ts"]);
   });
 });
