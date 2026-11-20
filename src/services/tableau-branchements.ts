@@ -22,6 +22,8 @@ import { resumeVisuelDepuisFiche } from "@/briques/variete/resume";
 import type { FicheScenes } from "@/briques/fiche-scenes";
 import { depots } from "./_commun";
 import { dejaVuUsine } from "./tableau-deja-vu-usine";
+import { lireEntreesTableau as lireEntreesSansVoix } from "@/moteurs/montage-tableau/etapes";
+import { MOTEUR_SANS_VOIX_PRET, RAISON_SANS_VOIX_MOTEUR_ABSENT } from "@/moteurs/montage-tableau/sans-voix";
 
 /** Date du jour (AAAA-MM-JJ). */
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -67,6 +69,8 @@ async function creationVersionEnCours(travailId: string): Promise<string> {
 
 brancherServicesTableau({
   outils: async (c, travailId): Promise<OutilsTableau | null> => {
+    // TA-SV : « sans voix » : jamais de voix résolue ni de budget « voix » ; refus net tant que le moteur ne le gère pas (rien n'est dépensé).
+    if (lireEntreesSansVoix(c.entrees).sansVoix && !MOTEUR_SANS_VOIX_PRET) throw new Error(RAISON_SANS_VOIX_MOTEUR_ABSENT);
     const personnageId = c.distribution[0]?.personnageId;
     if (!personnageId) return null;
     const { branchementsReels, TARIF_VOIX_CENTIMES_PAR_CARACTERE } = await import("./tableau-outils");
