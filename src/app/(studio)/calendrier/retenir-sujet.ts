@@ -37,7 +37,7 @@ const visee = z.object({
 });
 const unALaFois = creerVerrou();
 
-export const PHRASE_PROPOSITION_INCONNUE = "Cette proposition n'est plus à jour. Demandez la semaine à nouveau, puis retenez le sujet.";
+const PHRASE_PROPOSITION_INCONNUE = "Cette proposition n'est plus à jour. Demandez la semaine à nouveau, puis retenez le sujet.";
 
 export async function retenirSujetSemaineAction(debut: unknown, cle: unknown): Promise<Resultat<{ id: string; rappelUsine: boolean }>> {
   await exigerSession();
