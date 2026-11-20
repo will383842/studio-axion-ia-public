@@ -51,7 +51,8 @@ export type CodeRemarque =
   | "DENSITE"
   | "REPETITION"
   | "LLM_ILLISIBLE"
-  | "LLM_INDISPONIBLE";
+  | "LLM_INDISPONIBLE"
+  | "RYTHME";
 
 export interface Remarque {
   code: CodeRemarque;

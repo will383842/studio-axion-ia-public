@@ -160,6 +160,8 @@ export function geometrieEcranPartage(e: Pick<EcranPartageScene, "hauteurHaut" |
 export type ProprietesImageComposition = {
   /** Lot R2 (ajout pur, FACULTATIF) : plan de scènes validé posé par-dessus l'image. Absent : image inchangée. */
   planScenes?: import("../plan-scenes/schema").PlanValide;
+  /** C10-03b-v20f · éteint : personne ne le passe. Fenêtres où le DÉCOR seul se floute et s'assombrit (fondu linéaire). Absent ou vide : rendu inchangé. */
+  fondFlouCartes?: import("../motion/habillage-commun/fond-flou-carte").FenetreFondFlou[];
   ratio: RatioScene;
   largeur: number;
   hauteur: number;

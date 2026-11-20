@@ -29,6 +29,7 @@ import { exigerVoixMaitre, VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/v
 import type { AudioMaitre } from "@/briques/voix-maitre/types";
 import { horodaterTexte } from "@/domaine/derivations";
 import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorodate, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
+import { empreinteEffetsFilm, empreinteFormat, filmReutilisable, formatsARefaire, type FilmTutoriel } from "./rendu-partiel";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { hautBandeSousTitresPct } from "../../briques/plan-scenes/tutoriel/motion-film";
@@ -39,10 +40,10 @@ import { instantsTutoriel, textesPermisDuRegistre, verdictRegardTutoriel } from 
 import type { VerdictControleur } from "./equipe/controleur";
 import type { RegistreTextes } from "./equipe/registre-textes";
 import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
-import { estSansVoix, ENTREE_TUTORIEL, lireEntreesTutoriel } from "./entrees";
+import { ENTREE_TUTORIEL, estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { finDuTutoriel, type FinDuTutoriel } from "./fin";
-import { COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, CARTE_FIN_AXION, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
+import { COMPOSITION_TUTORIEL, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
@@ -83,6 +84,8 @@ export interface OutilsTutoriel {
   regarder?: (x: { demandeMaitre: DemandeRendu; instants: InstantRegard[] }) => Promise<LectureRegard | null>;
   /** T-EXT-31 : mixage de la voix, mesure du son et vignette. Absent = éteint (chemin d'avant, inchangé). */
   finitions?: { actif: true };
+  /** T-EXT-52b : retouche sans tout refaire (un format dont rien ne change est repris tel quel). Seul `true` allume ; absent = éteint, comportement d'avant. */
+  retouchePartielle?: boolean;
   /** T-EXT-26a : fin commune (« Aucune » par défaut, « Prendre rendez-vous » si choisie). Absent = carte « Axion IA » d'aujourd'hui. */
   fin?: { actif: boolean };
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
@@ -164,6 +167,8 @@ export interface RenduTutoriel {
   demande: DemandeRendu;
   essai: number;
   sortie?: { fichierCle: string; dureeSec: number; taille: number };
+  /** T-EXT-52b : fichier repris tel quel de la version d'avant (aucune demande de rendu, même `fichierCle`). */
+  reprise?: true;
   /** T-EXT-45b : série de « Réessayer » (absente = jamais relancé). Elle entre dans l'identifiant de la demande : jamais un identifiant déjà vu par `studio-rendu`. */
   serie?: number;
   /** T-EXT-45b : « Réessayer » a remis ce rendu tombé à zéro ; le prochain pas le redemande. */
@@ -187,6 +192,23 @@ export interface SonMixeTutoriel {
   echec?: boolean;
 }
 
+/** T-EXT-52b : le fichier rendu d'un format, gardé pour être repris par la version suivante (jamais recopié sous une autre clé). */
+export interface SortieFormatTutoriel {
+  fichierCle: string;
+  dureeSec: number;
+  taille: number;
+  /** Résultat de la mesure du son de la version d'avant (finitions allumées seulement), remis tel quel sur le rendu repris. */
+  mesure?: MesureSon | "echec";
+  /** Résultat de la vignette de la version d'avant (finitions allumées seulement), remis tel quel sur le rendu repris. */
+  vignette?: { cle: string } | "echec";
+}
+
+/** T-EXT-52b : la sortie gardée d'un format = son fichier + les résultats de ses finitions (seulement ceux qui existent). */
+export function sortieGardee(r: RenduTutoriel): SortieFormatTutoriel | undefined {
+  if (!r.sortie) return undefined;
+  return { ...r.sortie, ...(r.mesure?.resultat !== undefined ? { mesure: r.mesure.resultat } : {}), ...(r.vignette?.resultat !== undefined ? { vignette: r.vignette.resultat } : {}) };
+}
+
 export interface EtatTutoriel {
   script?: { texte: string; source: SourceScript; remarques: string[] };
   /** Script écrit depuis l'idée, en attente de la relecture de Williams. */
@@ -206,9 +228,26 @@ export interface EtatTutoriel {
   rendus: RenduTutoriel[];
   reserves: string[];
   /** Version d'avant (retouche, réexport) : ce qui peut être repris sans être refait ni repayé. */
-  parent?: { plan?: PlanValide; audio?: AudioTutoriel; /** T-EXT-26a : fin de la version d'avant, reprise telle quelle. */ fin?: FinDuTutoriel };
+  parent?: {
+    plan?: PlanValide;
+    audio?: AudioTutoriel;
+    /** T-EXT-52b : rendus terminés de la version d'avant, ses empreintes de formats et son film. */
+    rendus?: Partial<Record<Ratio, SortieFormatTutoriel>>;
+    empreintesFormats?: Partial<Record<Ratio, string>>;
+    film?: FilmTutoriel;
+    /** T-EXT-52b : navigation entière du film de la version d'avant (pour le garder quand le film change). */
+    navigationFilm?: NavigationFilmee;
+    /** T-EXT-26a : fin de la version d'avant, reprise telle quelle. */
+    fin?: FinDuTutoriel;
+  };
   /** T-EXT-26a : fin retenue, gardée pour que la retouche et le réexport gardent la même fin (aucun nouveau tirage). */
   fin?: FinDuTutoriel;
+  /** T-EXT-52b : empreinte de chaque format de CETTE version (écrite seulement réglage allumé). */
+  empreintesFormats?: Partial<Record<Ratio, string>>;
+  /** T-EXT-52b : film de CETTE version (réglage allumé et film dans les entrées). */
+  film?: FilmTutoriel;
+  /** T-EXT-52b : navigation du film RETENUE pour CETTE version (celle des entrées, ou celle de la version d'avant quand le film change). */
+  navigationFilm?: NavigationFilmee;
   echecSimuleFait?: boolean;
   /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
   appelsClaude?: { plan: number; regard?: number; roles?: Record<string, number>; /** Hérité : plus écrit (T-EXT-55 retire l'écrivain hors équipe). */ script?: number };
@@ -317,6 +356,34 @@ async function pasScript(etat: EtatTutoriel, commande: CommandeFabrication, outi
   return { statut: "pause", etat, code: "TO_SCRIPT_NON_ECRIT", message: "L'écriture depuis une idée n'est pas encore ouverte : collez votre script. Rien n'a échoué." };
 }
 
+/**
+ * T-EXT-55 · Le prochain pas de l'étape script PAIERA-t-il un appel de rôle ? Lecture seule, 0 €, jamais un appel.
+ * Sert à la garde du devis : le « +1 appel à venir » ne se compte que si le pas suivant paie vraiment (un pas sans IA, la lecture
+ * d'une sortie déjà payée ou une pause ne dépensent rien). Doute (lecture en échec) : oui, c'est le sens prudent.
+ */
+export async function prochainPasPaye(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<boolean> {
+  const port = outils.equipe;
+  if (!port) return true;
+  try {
+    const entrees = lireEntreesTutoriel(commande.entrees);
+    const equipe: EtatEquipe = etat.equipe ?? { demande: demandeEquipe(commande, entrees), payes: {} };
+    let dossier: DossierLu | null = null;
+    if (entrees.depot?.mode === "dossier") {
+      try {
+        dossier = await port.lireDossier();
+      } catch {
+        return true; // lecture en échec : le pas réel peut la réussir et payer un rôle, donc on réserve (sens prudent)
+      }
+      if (dossier === null) return true; // idem : lecture sans résultat
+    }
+    const pas = prochainPas(equipe, { dossier });
+    if (!("faire" in pas) || !pas.payant) return false;
+    return dejaPaye(equipe.payes, `Tutoriel · ${pas.faire}`, pas.empreinteEntree) === null;
+  } catch {
+    return true;
+  }
+}
+
 const ROLES_LIBELLE: Partial<Record<IdRole, string>> = { "chef-de-projet": "le chef de projet", analyste: "l'analyste", maquettiste: "le maquettiste", stratege: "le stratège de valeur", scenariste: "le scénariste" };
 
 /** Note l'état d'un rôle au journal (jamais ses sorties). */
@@ -337,6 +404,8 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
     } catch {
       dossier = null;
     }
+    // Lecture ratée : pause reprenable, SANS rien écrire dans etat.equipe (sinon un classement « phrase seule » resterait pour toujours).
+    if (dossier === null) return { statut: "pause", etat, code: "TO_DOSSIER_INCOMPLET", message: "Votre dossier n'a pas pu être lu pour l'instant : la vidéo reprend dès qu'il est lisible. Rien n'a échoué." };
   }
   const lecture = { dossier };
   const pas = prochainPas(equipe, lecture);
@@ -386,9 +455,10 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
  * T-EXT-55 · Après le calage (équipe allumée seulement) : le contrôleur relit les durées réelles (sans IA ; ses remarques
  * deviennent des réserves, jamais un échec), puis la vidéo attend le film de navigation, fait sur le poste de capture.
  */
-function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): PasTutoriel {
+function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication, outils: Pick<OutilsTutoriel, "fin">): PasTutoriel {
   const equipe = pas.etat.equipe;
-  if (!outils.equipe || !equipe?.parcours || pas.statut !== "faite") return pas;
+  // Décision sur l'ÉTAT de la vidéo, jamais sur le port : le port est recréé à chaque pas et peut manquer un tour (réglage lu en échec).
+  if (!equipe?.parcours || pas.statut !== "faite") return pas;
   let etat = pas.etat;
   const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
   if (!equipe.verdictCalage && etat.audio && etat.script) {
@@ -573,7 +643,8 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
   const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}.mp4`);
   // Voix mixée (T-EXT-31) quand elle existe, sinon la voix brute, comme avant.
   const voix = etat.sonMixe?.fini && !etat.sonMixe.echec ? etat.sonMixe.fichierCle : etat.audio?.fichierCle;
-  const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  // T-EXT-52b : la navigation retenue (film d'avant gardé quand le film change) ; absente, celle des entrées.
+  const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
   // Le film de navigation (T-EXT-38) arrive par l'entrée « filmNavigation » (jamais « navigation » : elle écraserait l'objet).
   const lectures: Record<string, string> = { ...(voix ? { audio: voix } : {}), ...(nav ? { filmNavigation: nav.videoCle } : {}) };
   const signe = await outils.rendu.signer(lectures, { cle, mime: "video/mp4" });
@@ -747,6 +818,90 @@ async function pasMixage(etat: EtatTutoriel, commande: CommandeFabrication, outi
   }
 }
 
+/**
+ * T-EXT-52b : le film de navigation de la version, avec son empreinte. // en attendant T-EXT-38 / 03b : l'empreinte du film
+ * (scénario + calage + maquette + poste) n'est pas encore dans les entrées ; on prend ici ce qui fait le film SANS ses effets
+ * (clé de la vidéo, maquette, taille, cibles, plages figées), jamais le cran, la bascule ni la bande des sous-titres.
+ */
+function filmDeNavigation(nav: NavigationFilmee): FilmTutoriel {
+  const { cran: _c, basculeMs: _b, hautSousTitresPct: _h, ...sansEffets } = nav;
+  void _c;
+  void _b;
+  void _h;
+  return { videoCle: nav.videoCle, empreinte: fnv1a64(jsonCanonique(sansEffets)) };
+}
+
+/** T-EXT-52b : empreinte d'un format = plan du ratio + voix + effets du film + (carte de fin, sous-titres). Une seule fonction d'empreinte d'export (R4). */
+function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel): string {
+  const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs }, film: filmDeNavigation(nav) } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
+  const laFin = finRetenue(etat, commande, outils);
+  const fin = fnv1a64(jsonCanonique({ fin: laFin.fin ?? null, finMs: laFin.finMs, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null }));
+  return empreinteFormat(planPourRatio(etat.plan!.plan, ratio), ratio, { voix: etat.audio?.empreinte ?? "", effetsFilm, fin });
+}
+
+/** Demande de forme seulement (jamais soumise) : le rendu repris garde la résolution de son format dans le résultat. */
+function demandeReprise(etat: EtatTutoriel, ratio: Ratio, sortie: SortieFormatTutoriel, travailId: string): DemandeRendu {
+  return {
+    idRendu: `${travailId}-${nomRatio(ratio)}-reprise`,
+    operation: "composition",
+    file: "longue",
+    entrees: {},
+    sortie: { urlDepot: "", cle: sortie.fichierCle },
+    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: { plan: planPourRatio(etat.plan!.plan, ratio) } },
+  };
+}
+
+/**
+ * T-EXT-52b : réglage allumé et plan connu : calcule l'empreinte du format et, si elle est celle de la version d'avant,
+ * reprend son fichier (aucune demande de rendu). Éteint : l'état est rendu tel quel.
+ */
+function reprendreFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): EtatTutoriel {
+  if (outils.retouchePartielle !== true || !etat.plan) return etat;
+  let e = etat;
+  const nouvelle = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  if (nouvelle && !e.navigationFilm) {
+    const nouveauFilm = filmDeNavigation(nouvelle);
+    const avant = e.parent?.navigationFilm;
+    const voixInchangee = !e.parent?.audio?.empreinte || e.parent.audio.empreinte === e.audio?.empreinte;
+    // Le film change sans que la voix change : on GARDE le film d'avant (aucune capture n'est demandée, le moteur n'en sait pas faire),
+    // seuls les effets (cran, bascule) viennent de la commande. Une version d'avant sans navigation gardée : le film des entrées est pris.
+    if (avant && e.parent?.film && !filmReutilisable(e.parent.film, nouveauFilm) && voixInchangee) {
+      const { cran: _c, basculeMs: _b, hautSousTitresPct: _h, ...base } = avant;
+      void _c;
+      void _b;
+      void _h;
+      const gardee: NavigationFilmee = { ...base, ...(nouvelle.cran !== undefined ? { cran: nouvelle.cran } : {}), ...(nouvelle.basculeMs !== undefined ? { basculeMs: nouvelle.basculeMs } : {}) };
+      const reserve = "Le film de navigation est celui de la version d'avant.";
+      e = { ...e, navigationFilm: gardee, film: filmDeNavigation(gardee), reserves: e.reserves.includes(reserve) ? e.reserves : [...e.reserves, reserve] };
+    } else {
+      e = { ...e, navigationFilm: nouvelle, film: nouveauFilm };
+    }
+  }
+  const empreinte = empreinteDuFormat(e, ratio, commande, outils);
+  e = { ...e, empreintesFormats: { ...e.empreintesFormats, [ratio]: empreinte } };
+  const sortieAvant = e.parent?.rendus?.[ratio];
+  if (e.rendus.some((r) => r.ratio === ratio) || !sortieAvant || !e.parent?.empreintesFormats) return e;
+  if (formatsARefaire(e.parent.empreintesFormats, { [ratio]: empreinte }, [ratio]).gardes.length === 0) return e;
+  // Les résultats de mesure et de vignette de la version d'avant sont remis tels quels : jamais une alerte « non mesuré » fausse.
+  const { mesure, vignette, ...fichier } = sortieAvant;
+  return {
+    ...e,
+    rendus: [
+      ...e.rendus,
+      {
+        ratio,
+        demande: demandeReprise(e, ratio, fichier, travailId),
+        essai: 0,
+        sortie: fichier,
+        reprise: true,
+        ...(mesure !== undefined ? { mesure: { essai: 0, resultat: mesure } } : {}),
+        ...(vignette !== undefined ? { vignette: { essai: 0, resultat: vignette } } : {}),
+      },
+    ],
+  };
+}
+
 async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string, avecMixage = false): Promise<PasTutoriel> {
   let e = etat;
   const finitions = !!outils.finitions?.actif;
@@ -757,9 +912,10 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
   }
   const faitRatio = (r: Ratio) => {
     const x = e.rendus.find((y) => y.ratio === r);
-    return finitions ? finitionsFinies(x) : !!x?.sortie;
+    return x?.reprise ? true : finitions ? finitionsFinies(x) : !!x?.sortie;
   };
   for (const ratio of ratios) {
+    e = reprendreFormat(e, ratio, commande, outils, travailId);
     if (faitRatio(ratio)) continue;
     if (e.rendus.find((r) => r.ratio === ratio)?.sortie) {
       e = await pasFinitions(e, ratio, outils, travailId);
@@ -786,7 +942,8 @@ function textesPermisDuRegard(etat: EtatTutoriel, laFin: FinDuTutoriel): string[
 async function pasRegarder(pas: PasTutoriel, outils: OutilsTutoriel): Promise<PasTutoriel> {
   const etat = pas.etat;
   const maitre = etat.rendus.find((r) => r.ratio === etat.ratios[0]);
-  if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie) return pas;
+  // T-EXT-52b : un maître repris n'a ni film, ni sous-titres, ni fin dans sa demande : aucun regard payé (rien n'a changé dans ce format).
+  if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie || maitre.reprise) return pas;
   const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
   const laFin = etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true);
   const instants = instantsTutoriel(etat.plan.plan, { finMs: laFin.finMs, ...(registre?.entrees ? { registre } : {}) });

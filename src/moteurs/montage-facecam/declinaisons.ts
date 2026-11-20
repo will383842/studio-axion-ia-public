@@ -396,7 +396,7 @@ export function completerAvecDeclinaisons(resultat: ResultatFabrication, etat: E
 /** État de chaîne d'un format ajouté après coup, depuis ce que la fabrication a gardé (rien n'est refait). */
 export function etatRepriseFormats(projetMontage: Record<string, unknown> | undefined, ratios: RatioFacecam[]): EtatChaine | null {
   const reprise = projetMontage?.repriseFormats as RepriseFormats | undefined;
-  if (!reprise?.plans?.length || !reprise.travaux.son || reprise.travaux.son.statut !== "termine") return null;
+  if (!reprise?.plans?.length || !reprise.travaux?.son || reprise.travaux.son.statut !== "termine") return null;
   const voulus = ratios.filter((r): r is RatioDeclinaison => r !== "9:16");
   if (!voulus.length) return null;
   const visages = reprise.travaux.visages?.resultat as { largeurSource?: number; hauteurSource?: number } | undefined;

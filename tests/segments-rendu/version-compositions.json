@@ -1,30 +1,30 @@
 {
-  "version": 9,
+  "version": 12,
   "empreintes": {
     "(racine)": "375aff519bec14ef50525a8e722316e7115aa18b1e59720957c8d15470648caf",
     "_gabarit": "fc93d6595d4a2fa0d850b0c641435c587a41ceb56b83619ec03f0f71c336578b",
     "avis-client": "19919a60556469d93d9bdb9488e7048ba6089ace732e641e6e2bf4faf9cef293",
     "avocat": "0e8433753f23a7a15ea9a84920fd913a6b7902fc97148bb7b7a9991df594ec6f",
     "cas-concret": "530ab5da999293a8d75bd98cdaf43164d644bb0e7fa39bdb35bab109906c6b73",
-    "commune": "b45b58ef48df39a84e134172431fd5bbe1de495ae6098cf38073ee657c5a73b5",
+    "commune": "ddb647e3db3dfaed36ca38f7ffd8e4cbed858d0d567b4637a2e9cc8539183ac8",
     "demo-facecam": "1642839b6a2918b1e23415b5eeccabb250f52e53d3867414725ff75585738938",
     "donnees": "f46033d7f3528e1d92cbda8959f5eae9eae07ee07d59a4741860b0e7f7049fc5",
     "image-video": "4fae817d9dd0ec649a3d08283c80bb86c1c2521f3ddd92cf472fb9a796965630",
     "interface-claire": "a68f56cba13299b85a538f07e63dbe634d80c7998066903627cfdc06e11ce5b1",
-    "petits-objets": "85d326ca19e61cd41ecb71243c328590baa1d0ba87d9511823aa58d6e2d9978b",
+    "petits-objets": "d88cb80b04d1b6664f423517b1e986ed8501039b5b2576bf96e5f1da1db6af50",
     "plan-scenes": "123404734a2980aee2de5da2ba5fa4e509864f1db05722c6eac7c1c3f1b87564",
     "sous-titres": "96b6ab3b48f49b02436d58a3d0d3bb27f9ba3d62ea94b52c5a7650f8e33022b9",
-    "tableau": "8bfc465167a45ab4153a61dc679e7d0587347ff7c1aaff6185704fdf014df5a7"
+    "tableau": "6b124d3e38b2cf503b890bafbe028591a601ceb9db54fb45c80e5d4fed6a38ab"
   },
   "precedent": {
-    "version": 8,
+    "version": 11,
     "empreintes": {
       "(racine)": "375aff519bec14ef50525a8e722316e7115aa18b1e59720957c8d15470648caf",
       "_gabarit": "fc93d6595d4a2fa0d850b0c641435c587a41ceb56b83619ec03f0f71c336578b",
       "avis-client": "19919a60556469d93d9bdb9488e7048ba6089ace732e641e6e2bf4faf9cef293",
       "avocat": "0e8433753f23a7a15ea9a84920fd913a6b7902fc97148bb7b7a9991df594ec6f",
       "cas-concret": "530ab5da999293a8d75bd98cdaf43164d644bb0e7fa39bdb35bab109906c6b73",
-      "commune": "b45b58ef48df39a84e134172431fd5bbe1de495ae6098cf38073ee657c5a73b5",
+      "commune": "ddb647e3db3dfaed36ca38f7ffd8e4cbed858d0d567b4637a2e9cc8539183ac8",
       "demo-facecam": "1642839b6a2918b1e23415b5eeccabb250f52e53d3867414725ff75585738938",
       "donnees": "f46033d7f3528e1d92cbda8959f5eae9eae07ee07d59a4741860b0e7f7049fc5",
       "image-video": "4fae817d9dd0ec649a3d08283c80bb86c1c2521f3ddd92cf472fb9a796965630",
@@ -32,7 +32,7 @@
       "petits-objets": "85d326ca19e61cd41ecb71243c328590baa1d0ba87d9511823aa58d6e2d9978b",
       "plan-scenes": "123404734a2980aee2de5da2ba5fa4e509864f1db05722c6eac7c1c3f1b87564",
       "sous-titres": "96b6ab3b48f49b02436d58a3d0d3bb27f9ba3d62ea94b52c5a7650f8e33022b9",
-      "tableau": "fddc08de662601795332f858564f19e5659769c8c13c2d80f13e670cd8660697"
+      "tableau": "6b124d3e38b2cf503b890bafbe028591a601ceb9db54fb45c80e5d4fed6a38ab"
     }
   }
 }

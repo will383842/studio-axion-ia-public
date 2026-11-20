@@ -121,7 +121,7 @@ describe("accroche tirée du script (C10-01)", () => {
     }
   });
 
-  it("garde statique : imports interdits, et non importé ailleurs", () => {
+  it("garde statique : imports interdits, et non importé ailleurs que generateur.ts (C10-15-b1)", () => {
     const src = readFileSync("src/briques/composition/accroche-script.ts", "utf8");
     expect(src).not.toMatch(/@\/services|server-only|bibliotheque-video/);
     const fichiers = (d: string): string[] =>
@@ -134,6 +134,6 @@ describe("accroche tirée du script (C10-01)", () => {
       .flatMap((d) => { try { return fichiers(d); } catch { return []; } })
       .filter((f) => !f.endsWith("composition/accroche-script.ts"))
       .filter((f) => readFileSync(f, "utf8").includes("composition/accroche-script"));
-    expect(importeurs).toEqual([]);
+    expect(importeurs).toEqual(["src/briques/plan-scenes/generateur.ts"]);
   });
 });

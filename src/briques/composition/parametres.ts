@@ -16,6 +16,7 @@ import { lireEntreeBandeau, poserBandeauNom } from "@/briques/sous-titres/bandea
 import { etiquettesAutonomes } from "@/briques/sous-titres/noms-outils";
 import { escalierPermis, etiquettesOutilPermises, pavePermis, sortieAnimeePermise } from "./porte-texte";
 import { SORTIE_PAR_DEFAUT } from "../sous-titres/sortie";
+import { fondFlouObjets } from "../motion/habillage-commun/fond-flou-objets";
 import { largeurLibrePct, positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
 import { tirerMarqueMot } from "../sous-titres/marques-mot";
 import { motsAPlaque } from "../sous-titres/pave";
@@ -320,6 +321,8 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (e.source10bits) image.source10bits = true;
   if (cameras) image.cameras = cameras;
   if (e.planScenes && e.planScenesSousTexte !== true) image.planScenes = e.planScenes;
+  // C10-04b : fond flouté sous le carton magazine, posé seulement s'il y a un carton (sinon, paramètres identiques).
+  { const f = fondFlouObjets(image.planScenes); if (f.length) image.fondFlouCartes = f; }
   // BR-TABLEAU-RACCORDS-b : fondus entre scènes, seulement si la commande porte `raccordsTableau === true` (jamais une chaîne).
   if ((c.entrees as Record<string, unknown> | undefined)?.raccordsTableau === true) { const r = raccordsStyleMontage(image.plans, "fondu"); if (r.length) image.raccords = r; }
 
