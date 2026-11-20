@@ -25,7 +25,7 @@ export function motsCles(texte: string): string[] {
   return texte
     .split(/[\s'’\-]+/)
     .map(normaliser)
-    .filter((m) => m.length > 1 && !VIDES.has(m));
+    .filter((m) => (m.length > 1 || /^\d$/.test(m)) && !VIDES.has(m));
 }
 
 /**

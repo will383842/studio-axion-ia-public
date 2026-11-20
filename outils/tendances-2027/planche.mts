@@ -16,7 +16,8 @@ mkdirSync(SORTIE, { recursive: true });
 
 const exiger = createRequire(join(RACINE, "studio-rendu", "package.json"));
 type Composition = { width: number; height: number };
-const { bundle } = exiger("@remotion/bundler") as { bundle: (o: { entryPoint: string }) => Promise<string> };
+type ConfigWebpack = { resolve?: { alias?: Record<string, string> } };
+const { bundle } = exiger("@remotion/bundler") as { bundle: (o: { entryPoint: string; webpackOverride?: (c: ConfigWebpack) => ConfigWebpack }) => Promise<string> };
 const { renderStill, selectComposition } = exiger("@remotion/renderer") as {
   selectComposition: (o: { serveUrl: string; id: string; inputProps: Record<string, unknown> }) => Promise<Composition>;
   renderStill: (o: { composition: Composition; serveUrl: string; output: string; frame: number; inputProps: Record<string, unknown>; chromiumOptions?: { gl?: string } }) => Promise<unknown>;
@@ -40,7 +41,10 @@ registerRoot(() => (<>${Object.entries(FORMATS)
 `,
 );
 try {
-  const serveUrl = await bundle({ entryPoint: entree });
+  const serveUrl = await bundle({
+    entryPoint: entree,
+    webpackOverride: (c) => ({ ...c, resolve: { ...c.resolve, alias: { ...(c.resolve?.alias ?? {}), "@": join(RACINE, "src") } } }),
+  });
   for (const nom of Object.keys(FORMATS)) {
     const inputProps = { format: nom, graine: GRAINE };
     const composition = await selectComposition({ serveUrl, id: `Tendances-${nom}`, inputProps });

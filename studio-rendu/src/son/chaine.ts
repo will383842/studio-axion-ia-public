@@ -199,7 +199,9 @@ export async function preparerSon(e: EntreeSon): Promise<SonPrepare> {
   const reglages: ReglagesChaine = { passeHautHz: e.passeHautHz, lraBrut: brut.lra, niveauBrutLufs: brut.i, seuilLra: e.seuilLraCompression, ratioCompression: e.ratioCompression };
   const chaine = filtresVoix(reglages);
   const traitee = await mesureLoud(e.voix, chaine);
-  let gainDb = gainVersCible(traitee.i, e.lufs) + (e.correctionDb ?? 0);
+  // Garde de secours : une mesure non finie (silence, « -inf ») ne passe jamais en `volume=NaNdB` à ffmpeg.
+  const gainMesure = gainVersCible(traitee.i, e.lufs);
+  let gainDb = (Number.isFinite(gainMesure) ? gainMesure : 0) + (e.correctionDb ?? 0);
   const longueur = Math.round(e.dureeSec * FREQUENCE);
   let ton: Float32Array;
   let synthese = false;
@@ -241,6 +243,20 @@ export async function preparerSon(e: EntreeSon): Promise<SonPrepare> {
     bruitages = { chemin: piste, voixDb: +poses.voixDb.toFixed(2), sons: poses.sons };
   }
   return { chemin, lraBrut: brut.lra, compression: chaine.some((f) => f.startsWith("acompressor")), gainDb, tonDeSynthese: synthese, ...(bruitages ? { bruitages } : {}) };
+}
+
+/**
+ * Mode sans voix : SILENCE TOTAL. Un `son-final.wav` muet de la durée de la vidéo (`anullsrc`), sans mesure, sans gain,
+ * sans ton de pièce et sans bruitage. Aucune passe `preparerSon`.
+ */
+export function argumentsSilence(dureeSec: number, sortie: string): string[] {
+  return ["-hide_banner", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", dureeSec.toFixed(3), "-c:a", "pcm_f32le", sortie];
+}
+
+export async function preparerSilence(e: { dossier: string; dureeSec: number; signal?: AbortSignal }): Promise<SonPrepare> {
+  const chemin = join(e.dossier, "son-final.wav");
+  await executerAvecErreurs(FFMPEG, argumentsSilence(e.dureeSec, chemin), e.signal);
+  return { chemin, lraBrut: 0, compression: false, gainDb: 0, tonDeSynthese: false };
 }
 
 export type { MesuresSon };

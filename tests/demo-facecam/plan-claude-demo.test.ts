@@ -20,6 +20,7 @@ import {
   ETAPE_PLAN_DEMO,
   MODELE_CLAUDE_VIDEO,
   PARAM_PLAFOND_PLAN_DEMO,
+  PARAM_PLAN_CLAUDE_DEMO,
   PLAFOND_TOTAL_CLAUDE_VIDEO_EUR,
   PLAFONDS_CLAUDE_VIDEO_EUR,
   planClaudeDemoActif,
@@ -58,14 +59,26 @@ const fauxTaux = (t: number) => async () => t;
 
 describe("a) interrupteur demoFacecam.planClaude", () => {
   it.each([
-    [undefined, false],
-    [false, false],
-    ["true", false],
-    [1, false],
-    [null, false],
+    [undefined, true],
+    [null, true],
     [true, true],
+    [false, false],
+    ["false", false],
+    ["true", false],
+    [0, false],
+    [1, false],
+    [{}, false],
+    [[], false],
+    ["", false],
   ])("valeur %s → %s", async (v, attendu) => {
-    expect(await planClaudeDemoActif((async (_id: string, defaut: unknown) => (v === undefined ? defaut : v)) as never)).toBe(attendu);
+    expect(await planClaudeDemoActif((async () => v) as never)).toBe(attendu);
+  });
+  it("réglage absent → allumé : `lire` reçoit (PARAM_PLAN_CLAUDE_DEMO, true) et rend le défaut reçu", async () => {
+    const lire = vi.fn(async (_id: string, d: unknown) => d);
+    expect(await planClaudeDemoActif(lire as never)).toBe(true);
+    expect(lire).toHaveBeenCalledTimes(1);
+    expect(lire).toHaveBeenCalledWith(PARAM_PLAN_CLAUDE_DEMO, true);
+    expect(PARAM_PLAN_CLAUDE_DEMO).toBe("demoFacecam.planClaude");
   });
   it("lecture en échec = éteint", async () => {
     expect(await planClaudeDemoActif((async () => { throw new Error("base en panne"); }) as never)).toBe(false);
@@ -262,14 +275,16 @@ describe("c) R2 : dependancesDemoParDefaut recopie `planClaudeActif` (réel dema
 describe("c) R2 : branchement de production (demo-facecam-branchements)", () => {
   beforeEach(() => { espion.executer.mockReset(); espion.reglage = undefined; });
 
-  it("l'import branche `planClaudeActif` et `appelerPlan` ; réglage absent → planClaudeActif rend false, puis true seulement pour `true`", async () => {
+  it("l'import branche `planClaudeActif` et `appelerPlan` ; réglage absent → planClaudeActif rend true ; false ou la chaîne true → éteint", async () => {
     await import("@/services/demo-facecam-branchements");
     const { servicesDemoFacecam } = await import("@/moteurs/montage-demo-facecam/dependances");
     const s = servicesDemoFacecam();
     expect(typeof s.appelerPlan).toBe("function");
     expect(typeof s.planClaudeActif).toBe("function");
-    expect(await s.planClaudeActif?.()).toBe(false);
+    expect(await s.planClaudeActif?.()).toBe(true);
     espion.reglage = "true";
+    expect(await s.planClaudeActif?.()).toBe(false);
+    espion.reglage = false;
     expect(await s.planClaudeActif?.()).toBe(false);
     espion.reglage = true;
     expect(await s.planClaudeActif?.()).toBe(true);
@@ -339,7 +354,7 @@ describe("c) chaîne de démo : planClaudeActif", () => {
     expect(f.appels).toBe(2);
     expect(e.remarques.some((r) => r.code === "PLAN_SIMPLE")).toBe(false);
   });
-  it("R2 de bout en bout : branchement de production + dependancesDemoParDefaut, réglage absent → plan simple, 0 appel du faux exécuteur ; réglage `true` → appelé", async () => {
+  it("R2 de bout en bout : branchement de production + dependancesDemoParDefaut, réglage `false` → plan simple, 0 appel du faux exécuteur ; réglage absent ou `true` → appelé", async () => {
     await import("@/services/demo-facecam-branchements");
     const { dependancesDemoParDefaut: parDefaut } = await import("@/moteurs/montage-demo-facecam/dependances");
     const env = { STUDIO_ALIGNEUR_URL: "https://aligneur.exemple", STUDIO_RENDU_URL: "https://rendu.exemple", STUDIO_RENDU_CLE: "cle-test" };
@@ -348,12 +363,16 @@ describe("c) chaîne de démo : planClaudeActif", () => {
     expect(prod?.appelerPlan).toBeDefined();
     espion.executer.mockReset();
     espion.executer.mockResolvedValue({ ok: false });
-    espion.reglage = undefined;
+    espion.reglage = false;
     const sans = await lancerChaine({});
     const eteint = await lancerChaine({ appelerPlan: prod?.appelerPlan, planClaudeActif: prod?.planClaudeActif });
     expect(espion.executer).toHaveBeenCalledTimes(0);
     expect(eteint.sourcePlan).toBe(sans.sourcePlan);
     expect(eteint.remarques.some((r) => r.code === "PLAN_SIMPLE")).toBe(true);
+    espion.reglage = undefined;
+    await lancerChaine({ appelerPlan: prod?.appelerPlan, planClaudeActif: prod?.planClaudeActif });
+    expect(espion.executer.mock.calls.length).toBeGreaterThan(0);
+    espion.executer.mockClear();
     espion.reglage = true;
     await lancerChaine({ appelerPlan: prod?.appelerPlan, planClaudeActif: prod?.planClaudeActif });
     expect(espion.executer.mock.calls.length).toBeGreaterThan(0);

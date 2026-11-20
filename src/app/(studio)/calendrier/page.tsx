@@ -5,6 +5,9 @@ import { EtatVide } from "@/components/ui/EtatVide";
 import { filtrerEntrees, type CriteresFiltre } from "@/domaine/calendrier/regroupement";
 import { AlerteProximite } from "@/components/calendrier/AlerteProximite";
 import { BandeauAujourdhui } from "@/components/calendrier/BandeauAujourdhui";
+import { BandeauEcartDiffuseur } from "@/components/calendrier/BandeauEcartDiffuseur";
+import { lireEcartCalendrier } from "@/services/ecart-calendrier";
+import type { EcartCalendrier } from "@/services/zernio";
 import { VueAgenda } from "@/components/calendrier/VueAgenda";
 import { BoutonProposerSemaine } from "@/components/calendrier/BoutonProposerSemaine";
 import { proposerSemaineAction } from "./actions/proposer-semaine";
@@ -122,16 +125,19 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const suiteF = suiteFiltres(filtres);
   // Les adresses gardent réseaux ET filtres ; `base` = la vue sans filtres (le pont y ajoute types, états, mot).
   const suite = suiteReseaux(reseauxActifs) + suiteF;
+  // RAP-3 : mesure locale de l'écart avec le diffuseur (bandeau en haut, seulement s'il y a quelque chose à dire).
+  const ecart = await lireEcartCalendrier();
+  const maintenant = new Date().getTime();
   if (params.vue === "jour") {
     const jour = dateDemandee ?? cleJour(new Date());
     // Journée de Paris, de minuit à minuit (23 h ou 25 h le jour d'un changement d'heure).
     const finIso = new Date(new Date(instantParis(ajouterJoursParis(jour, 1), "00:00")).getTime() - 1).toISOString();
     const [calendrier, plan, comptes] = await Promise.all([listerCalendrier(instantParis(jour, "00:00"), finIso), chargerPlanDuJour(jour, cleJour(new Date())), comptesCibles(reseauxActifs)]);
-    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={calendrier} plan={plan} comptes={comptes} />;
+    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={calendrier} plan={plan} comptes={comptes} ecart={ecart} maintenant={maintenant} />;
   }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
-    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} reseauxActifs={reseauxActifs} filtres={filtres} />;
+    return <VueMois plage={plage} repere={dateDemandee ?? cleJour(new Date())} calendrier={await listerCalendrier(plage.debutIso, plage.finIso)} suite={suite} reseauxActifs={reseauxActifs} filtres={filtres} ecart={ecart} maintenant={maintenant} />;
   }
   const aujourdhuiCle = cleJour(new Date());
   const decalageDemande = Math.max(-52, Math.min(52, Number.parseInt(params.semaine ?? "0", 10) || 0));
@@ -176,6 +182,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   return (
     <div>
       <EnTetePage titre="Calendrier" />
+      <BandeauEcartDiffuseur ecart={ecart} maintenant={maintenant} />
       <BandeauDepart />
       <EnTeteCalendrier
         vue="semaine"
@@ -229,7 +236,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
  * Vue du jour (CAL-02) : heure par heure, publications de tous les réseaux, créneaux libres.
  * Le jour est celui de Paris.
  */
-function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes }: { jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[]; plan: CreneauDuJour[]; comptes: Partial<Record<IdReseau, string>> }) {
+function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes, ecart, maintenant }: { ecart?: EcartCalendrier | null; maintenant: number; jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[]; plan: CreneauDuJour[]; comptes: Partial<Record<IdReseau, string>> }) {
   const aujourdhui = cleJour(new Date());
   // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
   const duJour = calendrier.flatMap((j) => j.publications).filter((p) => cleJour(p.date) === jour);
@@ -247,6 +254,7 @@ function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes }: {
   return (
     <div>
       <EnTetePage titre="Calendrier" />
+      <BandeauEcartDiffuseur ecart={ecart} maintenant={maintenant} />
       <EnTeteCalendrier
         vue="jour"
         periode={libellePeriode("jour", jour)}
@@ -268,7 +276,7 @@ function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes }: {
 }
 
 /** Vue mois : grille de 6 semaines (lundi d'abord), jours hors mois estompés. */
-function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres }: { plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre }) {
+function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres, ecart, maintenant }: { ecart?: EcartCalendrier | null; maintenant: number; plage: ReturnType<typeof plageMois>; repere: string; calendrier: JourCalendrier[]; suite: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre }) {
   const parJour = new Map(calendrier.map((j) => [j.jour, j.publications]));
   const aujourdhui = cleJour(new Date());
   // Une entrée par publication, rangée sous la clé du jour déjà calculée (jour de Paris), puis passée aux filtres (types, états, mot).
@@ -285,6 +293,7 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres }: {
   return (
     <div>
       <EnTetePage titre="Calendrier" />
+      <BandeauEcartDiffuseur ecart={ecart} maintenant={maintenant} />
       <EnTeteCalendrier
         vue="mois"
         periode={libellePeriode("mois", plage.mois)}

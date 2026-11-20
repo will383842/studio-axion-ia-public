@@ -85,6 +85,26 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-bulle-pensee": "texte",
   "objet-bulle-notification": "texte",
   "objet-post-it": "texte",
+  // C9-34-SCHEMAS-v20g (20/11/2026) : schémas = démarche, fenêtre et terminal = interface (voisin : panneau de réglages ; le type Montre n'a pas de valeur « schema »).
+  "objet-schema-flux": "demarche",
+  "objet-schema-etoile": "demarche",
+  "objet-icones-reliees": "demarche",
+  "objet-agents-globe": "demarche",
+  "objet-grille-pointillee": "demarche",
+  "objet-vignettes-numerotees": "demarche",
+  "objet-fenetre-app": "interface",
+  "objet-terminal-commande": "interface",
+  // C9-34-FIN-v20h (20/11/2026) : voisins existants (étape = démarche, chiffres, étiquettes = texte)
+  "objet-dossier": "demarche",
+  "objet-chrono": "chiffre",
+  "objet-barre-progression": "chiffre",
+  "objet-etape-segments": "demarche",
+  "objet-appel-action": "texte",
+  "objet-appel-mot": "texte",
+  "objet-appel-rdv": "texte",
+  "objet-frise-montage": "interface",
+  "objet-pellicule": "interface",
+  "objet-onde-motif": "demarche",
 };
 
 const DUREE_MAX_SEC = 6;

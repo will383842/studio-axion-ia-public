@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ETAPE_LECTURE_CAPTURE,
   MODELE_CLAUDE_VIDEO,
@@ -57,14 +57,24 @@ function fabrique(reponse: unknown = { ok: true, simule: false, texte: JSON.stri
 }
 
 describe("interrupteur tableau.lectureCaptureClaude", () => {
-  it("seul true exact allume", async () => {
-    const avec = (v: unknown) => lectureCaptureClaudeActive((async () => v) as never);
-    expect(await avec(true)).toBe(true);
-    for (const v of [undefined, false, "true", 1, null]) expect(await avec(v), String(v)).toBe(false);
+  const avec = (v: unknown) => lectureCaptureClaudeActive((async () => v) as never);
+  it("allumé seulement si true exact ou absent (undefined/null)", async () => {
+    for (const v of [true, undefined, null]) expect(await avec(v), String(v)).toBe(true);
+  });
+  it("tout le reste est éteint", async () => {
+    for (const v of [false, "false", "true", 0, 1, {}, [], ""]) expect(await avec(v), JSON.stringify(v)).toBe(false);
+  });
+  it("lecture en échec : éteint", async () => {
     expect(await lectureCaptureClaudeActive((async () => { throw new Error("panne"); }) as never)).toBe(false);
   });
+  it("réglage absent → allumé : lire reçoit (clé, true) et rend ce défaut", async () => {
+    const lire = vi.fn(async (_id: string, d: unknown) => d);
+    expect(await lectureCaptureClaudeActive(lire as never)).toBe(true);
+    expect(lire).toHaveBeenCalledTimes(1);
+    expect(lire).toHaveBeenCalledWith(PARAM_LECTURE_CAPTURE_CLAUDE, true);
+  });
   it("éteint : repli, 0 appel, 0 lecture d'engagé", async () => {
-    for (const v of [undefined, false, "true", 1]) {
+    for (const v of [false, "false", "true", 0, 1, {}, [], ""]) {
       const f = fabrique();
       const r = await lireCaptureTableau("v1", image(882, 1568), "studio", { ...f.deps, lire: (async () => v) as never });
       expect(r).toMatchObject({ ok: false, repli: "saisie-manuelle" });
@@ -72,6 +82,12 @@ describe("interrupteur tableau.lectureCaptureClaude", () => {
       expect(f.demandesEngage).toHaveLength(0);
     }
     expect(PARAM_LECTURE_CAPTURE_CLAUDE).toBe("tableau.lectureCaptureClaude");
+  });
+  it("réglage absent : la lecture se fait (1 appel)", async () => {
+    const f = fabrique();
+    const r = await lireCaptureTableau("v1", image(882, 1568), "studio", { ...f.deps, lire: (async (_id: string, d: unknown) => d) as never });
+    expect(r).toMatchObject({ ok: true, source: "claude" });
+    expect(f.appels).toHaveLength(1);
   });
 });
 
