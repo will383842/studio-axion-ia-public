@@ -14,6 +14,7 @@ import { faitsDuScript } from "../faits-script/extraire";
 import { genererPlan, type AppelClaude } from "../plan-scenes/generateur";
 import { schemaSceneStrict, type FormatPlan, type MotMinute, type PlanDeScenes, type PlanValide, type ScenePlan } from "../plan-scenes/schema";
 import { planDeRepli, validerPlan, type Remarque } from "../plan-scenes/validateur";
+import { mesurerRythme, RYTHME_MESURE_ACTIF } from "../composition/rythme-mesure";
 import { poserObjetsAuPlan } from "./objets-au-plan";
 import { GENERATEURS_PLAN, type IdGenerateurPlan } from "./reglage";
 
@@ -38,6 +39,8 @@ export interface EntreeAdaptateur {
   /** Pièces déjà servies dans les vidéos récentes (facultatif, aucun appelant ne le passe encore). */
   piecesRecentes?: string[];
   objetsPermis?: readonly string[];
+  /** C10-15-b2 : seul `true` allume la mesure du rythme ; absent = RYTHME_MESURE_ACTIF. */
+  rythme?: boolean;
 }
 
 export interface DependancesAdaptateur {
@@ -120,6 +123,8 @@ export async function adapterPlan(e: EntreeAdaptateur, deps: DependancesAdaptate
       source = "llm";
     }
   }
+  const avecRythme = (r: ResultatAdaptateur): ResultatAdaptateur => // C10-15-b2 : réserves non bloquantes, en fin de liste
+    (e.rythme ?? RYTHME_MESURE_ACTIF) === true && r.plan ? { ...r, remarques: [...r.remarques, ...mesurerRythme(r.plan).reserves.map((message) => ({ code: "RYTHME" as const, message }))] } : r;
   const retenues: ScenePlan[] = [];
   const laissees: string[] = [];
   for (const s of base.scenes) {
@@ -135,8 +140,8 @@ export async function adapterPlan(e: EntreeAdaptateur, deps: DependancesAdaptate
   let plan: PlanDeScenes = { ...entete, scenes: retenues };
   if (objets && (plan = poserObjetsAuPlan(plan, mots, objets)).scenes.length) {
     const v = validerPlan(plan, { ...contexte, objetsPermis: objets });
-    return { plan: v.plan, remarques: [...remarques, ...v.remarques], source, laissees };
+    return avecRythme({ plan: v.plan, remarques: [...remarques, ...v.remarques], source, laissees });
   }
   if (!plan.scenes.length) return { plan: null, remarques, source, laissees };
-  return { plan: avecEmpreintes(plan), remarques, source, laissees };
+  return avecRythme({ plan: avecEmpreintes(plan), remarques, source, laissees });
 }

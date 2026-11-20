@@ -16,9 +16,9 @@ import type { MotMinute } from "@/briques/plan-scenes/schema";
 import { coutPireRegardUsd } from "@/briques/regardeur";
 import { ErreurClaude, type RequeteClaude, type ReponseClaude } from "@/fournisseurs/claude/client";
 import { IMAGES_REGARD_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/regardeur";
-import { requeteScript } from "@/moteurs/montage-tutoriel-outil/script";
 import { formatDuRatio } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
+import { entreesPireCasEquipe, ROLES_APPELES, ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import type { CommandeFabrication, Id } from "@/domaine/types";
 import type { executerRolePourVideo } from "./depense-claude-video";
 
@@ -86,23 +86,36 @@ function pireCasDe(requete: RequeteClaude, id: "tutoriel-plan" | "tutoriel-scrip
 }
 
 /**
- * Plafond par défaut d'une vidéo du tutoriel, en dollars : AUCUN prix recopié, tout vient des vraies requêtes et de la
- * fonction unique du pire cas (`pireCasRequete`). Synchrone. Un script fictif de 55 s et 143 mots, au format 4:5 :
- *   pire cas de la 1re requête du plan + pire cas de la 2e (réponse maximale précédente + reprise) + 1 × le script,
- * arrondi au 0,05 $ supérieur. Le réglage `tutoriel.plafondClaudeUsd` ne peut que le remplacer.
+ * Détail du plafond par défaut, en dollars : le plan de scènes (2 requêtes), CHAQUE rôle de l'équipe × ses essais
+ * (`ROLES_TUTORIEL`), le regard. Aucun prix recopié. Le script ×1 de l'ancienne consigne (`requeteScript`, retirée) sort du calcul.
  */
-export function plafondTutorielParDefautUsd(): number {
+export function detailPlafondTutorielUsd(): { plan: number; roles: Record<string, number>; regard: number; total: number } {
   const nbMots = 143;
   const dureeMs = 55_000;
   const mots: MotMinute[] = Array.from({ length: nbMots }, (_, i) => ({ texte: "exemple", debutMs: Math.round((i * dureeMs) / nbMots), finMs: Math.round(((i + 1) * dureeMs) / nbMots) }));
   const e = { script: mots.map((m) => m.texte).join(" "), mots, format: formatDuRatio("4:5"), facecam: false };
   const reponseMax = "x".repeat(MAX_JETONS_PLAN_SCENES * CARACTERES_PAR_JETON);
-  const plan1 = pireCasDe(construireRequetePlan(e), "tutoriel-plan");
-  const plan2 = pireCasDe(construireRequetePlan(e, [{ reponse: reponseMax, motif: "ce n'est pas du JSON lisible" }]), "tutoriel-plan");
-  const script = pireCasDe(requeteScript("Une idée de tutoriel pour un tableau de bord de suivi des commandes."), "tutoriel-script");
+  const plan = pireCasDe(construireRequetePlan(e), "tutoriel-plan") + pireCasDe(construireRequetePlan(e, [{ reponse: reponseMax, motif: "ce n'est pas du JSON lisible" }]), "tutoriel-plan");
+  const pires: Record<string, EntreeRole | undefined> = entreesPireCasEquipe();
+  const roles: Record<string, number> = {};
+  for (const r of ROLES_TUTORIEL) {
+    const role = ROLES_APPELES[r.id];
+    const entree = pires[r.id];
+    if (role && entree && r.essaisMax > 0) roles[r.id] = pireCasRequete(role, entree) * r.essaisMax;
+  }
   // T-EXT-27b : un regard au pire (les images-clés du format maître), par la fonction commune.
-  const total = plan1 + plan2 + script + coutPireRegardUsd(IMAGES_REGARD_TUTORIEL);
-  const pas = Math.ceil(Math.round(total * 1e6) / 1e6 / PAS_PLAFOND_USD);
+  const regard = coutPireRegardUsd(IMAGES_REGARD_TUTORIEL);
+  return { plan, roles, regard, total: plan + Object.values(roles).reduce((s, v) => s + v, 0) + regard };
+}
+
+/**
+ * Plafond par défaut d'une vidéo du tutoriel, en dollars : AUCUN prix recopié, tout vient des vraies requêtes et de la
+ * fonction unique du pire cas (`pireCasRequete`). Synchrone. Plan de scènes (2 requêtes, script fictif de 55 s et 143 mots, 4:5)
+ * + chaque rôle de l'équipe × ses essais + un regard, arrondi au 0,05 $ supérieur. Le réglage `tutoriel.plafondClaudeUsd`
+ * ne peut que le remplacer.
+ */
+export function plafondTutorielParDefautUsd(): number {
+  const pas = Math.ceil(Math.round(detailPlafondTutorielUsd().total * 1e6) / 1e6 / PAS_PLAFOND_USD);
   return Math.round(pas * 5) / 100;
 }
 
