@@ -657,6 +657,36 @@ function charsetCssNonUtf8(texte: string): number {
   return -1;
 }
 
+/**
+ * Déclaration XML (`<?xml version="1.0" encoding="iso-2022-jp"?>`) d'un .html : tout encodage autre que utf-8 (ou une valeur
+ * illisible) est refusé. Lecture à la main : chaque recherche repart APRÈS la déclaration lue (temps linéaire).
+ */
+function declarationXmlNonUtf8(texte: string): number {
+  const bas = minusculesAscii(texte);
+  for (let p = bas.indexOf("<?xml"); p !== -1; ) {
+    let fin = bas.indexOf(">", p + 5);
+    if (fin === -1) fin = texte.length;
+    const e = bas.indexOf("encoding", p + 5);
+    if (e !== -1 && e < fin) {
+      let j = e + 8;
+      while (j < fin && estBlanc(texte[j]!)) j++;
+      let valeur: string | null = null;
+      if (texte[j] === "=") {
+        j++;
+        while (j < fin && estBlanc(texte[j]!)) j++;
+        const q = texte[j];
+        if (q === '"' || q === "'") {
+          const f = texte.indexOf(q, j + 1);
+          if (f !== -1 && f < fin) valeur = texte.slice(j + 1, f);
+        }
+      }
+      if (valeur === null || !estUtf8(valeur)) return p;
+    }
+    p = bas.indexOf("<?xml", Math.max(fin, p + 5));
+  }
+  return -1;
+}
+
 function verifierCss(chemin: string, brut: string, base: number, source: string, refus: RefusMaquette[]): void {
   const pc = charsetCssNonUtf8(brut);
   const pd = pc !== -1 ? pc : charsetCssNonUtf8(decoderEchappementsCss(brut));
@@ -709,6 +739,8 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
       else if (ext === "css") verifierCss(chemin, texte, 0, texte, refus);
       else if (ext === "html" || ext === "htm") {
         verifierCss(chemin, texte, 0, texte, refus); // <style> et attributs style
+        const px = declarationXmlNonUtf8(texte);
+        if (px !== -1) refus.push({ chemin, ligne: ligneDe(texte, px), motif: "encodage déclaré autre que utf-8 (déclaration XML)" });
         // Balises lues une fois, en un passage (aucune expression régulière à retour en arrière : temps linéaire).
         const balises = balisesDe(texte);
         if (!balises) refus.push({ chemin, ligne: 1, motif: "balises trop imbriquées ou sans fin : maquette illisible" });
@@ -890,18 +922,20 @@ function estEspaceZs(c: number): boolean {
  * Un guillemet jamais refermé absorbe le reste du texte dans UNE seule cellule : si cette colonne n'est pas une colonne de
  * personne, la suite resterait en clair. `etat.nonFerme` le signale : l'appelant refuse alors le fichier entier
  * (`guillemet-non-ferme`), jamais de rendu sans masquage.
+ * Chaque cellule quotée dont la lecture est ambiguë (texte après le guillemet fermant, ou fin de ligne ET séparateur dedans)
+ * porte `ambigu` : `detecterColonnes` refuse le fichier si elle n'est pas dans une colonne de personne.
  */
 function lireCsv(
   texte: string,
   separateur: string,
   etat: { nonFerme: boolean; pos: number },
   garder = Infinity,
-): { valeur: string; debut: number; fin: number; nu?: boolean }[][] {
-  const lignes: { valeur: string; debut: number; fin: number; nu?: boolean }[][] = [];
-  const vide: { valeur: string; debut: number; fin: number; nu?: boolean }[] = [];
+): { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[][] {
+  const lignes: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[][] = [];
+  const vide: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[] = [];
   // `garder` : nombre de lignes dont on garde les cellules ; le reste est seulement parcouru (guillemets suivis, `etat` mis à jour)
   // sans rien allouer : lire tout un gros CSV trois fois (un séparateur à la fois) ne coûte alors qu'un parcours léger.
-  let ligne: { valeur: string; debut: number; fin: number; nu?: boolean }[] = garder > 0 ? [] : vide;
+  let ligne: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[] = garder > 0 ? [] : vide;
   let toutVide = true; // la ligne en cours ne contient que des cellules vides non quotées
   const n = texte.length;
   let i = 0;
@@ -929,10 +963,16 @@ function lireCsv(
         // Texte entre le guillemet fermant et le séparateur (« "Jean" Dupont ») : la plage va jusqu'au séparateur,
         // guillemets compris (remplacement entre guillemets), pour que ce reste ne reste jamais en clair.
         toutVide = false;
-        if (garde) ligne.push({ valeur: texte.slice(ouvrant + 1, finReste), debut: ouvrant, fin: finReste, nu: true });
+        if (garde) ligne.push({ valeur: texte.slice(ouvrant + 1, finReste), debut: ouvrant, fin: finReste, nu: true, ambigu: true });
       } else {
         toutVide = false;
-        if (garde) ligne.push({ valeur: texte.slice(ouvrant + 1, fermant), debut: ouvrant + 1, fin: fermant });
+        if (garde) {
+          const valeur = texte.slice(ouvrant + 1, fermant);
+          // Lecture ambiguë : une cellule quotée qui contient à la fois une fin de ligne ET le séparateur peut être un guillemet égaré
+          // refermé par le guillemet d'une autre cellule (`1,"Paris,Jean⏎2,Lyon,"⏎`) : une autre lecture ferait sortir des lignes de leur colonne.
+          const ambigu = valeur.includes("\n") && valeur.includes(separateur);
+          ligne.push(ambigu ? { valeur, debut: ouvrant + 1, fin: fermant, ambigu: true } : { valeur, debut: ouvrant + 1, fin: fermant });
+        }
       }
     } else {
       let j = i;
@@ -1125,6 +1165,17 @@ function detecterColonnes(
   }
   // Guillemet ouvrant jamais refermé (sous l'un des séparateurs essayés) : l'appelant refuse le fichier entier.
   if (etat.nonFerme || colonnes.size === 0) return trouves;
+  // Lecture ambiguë dans une colonne qui n'est PAS de personne (guillemet égaré refermé par un autre guillemet) : les lignes
+  // du milieu sortiraient de leur colonne et resteraient en clair. Même refus que le guillemet jamais refermé.
+  for (const valeurs of lignes) {
+    for (let c = 0; c < valeurs.length; c++) {
+      if (valeurs[c]!.ambigu && !colonnes.has(c)) {
+        etat.nonFerme = true;
+        etat.pos = valeurs[c]!.debut;
+        return trouves;
+      }
+    }
+  }
   for (let l = indiceEntete + 1; l < lignes.length; l++) {
     const valeurs = lignes[l]!;
     for (const c of colonnes) {

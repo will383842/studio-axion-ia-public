@@ -220,6 +220,39 @@ describe("éteint par défaut (R-9)", () => {
       expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
     }
   });
+  it.each([
+    ["1", 'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,"Paul Martin"\n3,Nice,Pierre Durand'],
+    ["2", 'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,Paul Martin\n3,"Nice",Pierre Durand'],
+    ["3", 'id;ville;nom\n1;"Paris;Jean Dupont\n2;Lyon;"Paul Martin"'],
+    ["4", 'ville,nom\n"Paris,Jean Dupont\n"Lyon",Paul Martin'],
+    ["5", 'id,ville,nom\n1,"Paris,Jean Dupont\n2,"Lyon",x'],
+    ["6", 'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,"\n'],
+  ])("de bout en bout (allumé) : guillemet égaré refermé par un autre guillemet, entrée %s (\\n, \\r\\n, \\r, tabulation) → archive entière refusée (verdict 92172ecb)", async (_i, csv) => {
+    ALLUME();
+    for (const variante of [csv, csv.replace(/\n/g, "\r\n"), csv.replace(/\n/g, "\r"), csv.replace(/[,;]/g, "\t")]) {
+      const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8(variante) }]);
+      expect(r.ok).toBe(false);
+      expect(r.rapport.refus.join(" ")).toContain("guillemet jamais refermé");
+      expect(JSON.stringify(r.rapport)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+      expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
+  it("de bout en bout (allumé) : témoin légitime (cellule sur plusieurs lignes bien formée) → accepté, nom masqué (verdict 92172ecb)", async () => {
+    ALLUME();
+    const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8('id,ville,nom\n1,"Paris\nCentre",Jean Dupont\n') }]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(texte(r.fichiers.get("demo-data.csv"))).not.toMatch(/Jean|Dupont/);
+  });
+  it("de bout en bout (allumé) : déclaration XML d'un .html en ISO-2022-JP / UTF-16 → archive entière refusée ; utf-8 accepté (verdict 92172ecb)", async () => {
+    ALLUME();
+    for (const decl of ['<?xml version="1.0" encoding="iso-2022-jp"?>', "<?xml version='1.0' ENCODING = 'utf-16'?>"]) {
+      const r = await entree([...SAINE, { nom: "x.html", donnees: u8(decl + "<p>x</p>") }]);
+      expect(r.ok).toBe(false);
+    }
+    const bon = await entree([...SAINE, { nom: "x.html", donnees: u8('<?xml version="1.0" encoding="utf-8"?><p>x</p>') }]);
+    expect(bon.ok).toBe(true);
+  });
   it("de bout en bout (allumé) : clés JSON, HTML échappé en 2 Mo, et nom toujours masqué (verdict b3cbe685 a)", async () => {
     ALLUME();
     const t0 = performance.now();

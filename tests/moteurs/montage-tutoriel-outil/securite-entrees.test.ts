@@ -1085,3 +1085,119 @@ describe("verdict Opus b3cbe685 : chasse à la même famille (2 Mo piégés, une
     expect(decoderEchappementsCss("\\75 rl(\\000075rl \\\nx \\z \\0 \\110000 \\")).toBe("url(url x z \uFFFD\uFFFD\\");
   });
 });
+
+describe("verdict Opus 92172ecb : guillemet égaré refermé par le guillemet d'une autre cellule → fichier entier refusé", () => {
+  const SEPS = [",", ";", "\t", "|"] as const;
+  const FINS = ["\n", "\r\n", "\r"] as const;
+  /** Les 6 entrées du verdict (puis variantes), pour un séparateur S et une fin de ligne E ; `sep=` déclaré pour « | ». */
+  const pieges = (S: string, E: string): string[] => {
+    const tete = S === "|" ? `sep=|${E}` : "";
+    return [
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${S}Jean Dupont${E}2${S}Lyon${S}"Paul Martin"${E}3${S}Nice${S}Pierre Durand`,
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${S}Jean Dupont${E}2${S}Lyon${S}Paul Martin${E}3${S}"Nice"${S}Pierre Durand`,
+      `${tete}ville${S}nom${E}"Paris${S}Jean Dupont${E}"Lyon"${S}Paul Martin`,
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${S}Jean Dupont${E}2${S}"Lyon"${S}x`,
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${S}Jean Dupont${E}2${S}Lyon${S}"${E}`,
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${S}Jean Dupont${E}2${S}Lyon${S}"`,
+      // fermant suivi de texte seul, sans fin de ligne dans la cellule
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris" France${S}Jean Dupont${E}`,
+      // guillemet doublé dans la cellule égarée
+      `${tete}id${S}ville${S}nom${E}1${S}"Pa""ris${S}Jean Dupont${E}2${S}Lyon${S}"Paul Martin"`,
+      // cellule égarée dans la colonne d'avant la personne, en-tête avec titre d'export
+      `${tete}Export clients${E}id${S}ville${S}nom${E}1${S}"Paris${S}Jean Dupont${E}2${S}Lyon${S}"x"${E}`,
+    ];
+  };
+  const cas = SEPS.flatMap((S) => FINS.flatMap((E) => pieges(S, E).map((t, i) => [JSON.stringify(S), JSON.stringify(E), i + 1, t] as const)));
+  it.each(cas)("séparateur %s, fin de ligne %s, entrée %i : refus entier, aucun nom recopié", (_s, _e, _i, t) => {
+    const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+    expect(d.map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+    expect(JSON.stringify(d)).not.toMatch(/Jean|Dupont|Paul|Martin|Paris|Lyon/);
+    const sortie = masquerDonneesPersonnelles(t, { chemin: "a.csv" });
+    expect(sortie.texte).toBe("");
+    expect(sortie.remplacements).toEqual([{ type: "guillemet-non-ferme", nombre: 1 }]);
+  });
+  it("les 6 entrées citées par le verdict, textuellement", () => {
+    for (const t of [
+      'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,"Paul Martin"\n3,Nice,Pierre Durand',
+      'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,Paul Martin\n3,"Nice",Pierre Durand',
+      'id;ville;nom\n1;"Paris;Jean Dupont\n2;Lyon;"Paul Martin"',
+      'ville,nom\n"Paris,Jean Dupont\n"Lyon",Paul Martin',
+      'id,ville,nom\n1,"Paris,Jean Dupont\n2,"Lyon",x',
+      'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,"\n',
+    ]) {
+      expect(detecterDonneesPersonnelles(t, { chemin: "a.csv" }).map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+      expect(detecterDonneesPersonnelles(t.replace(/\n/g, "\r\n"), { chemin: "a.csv" }).map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+    }
+  });
+  const temoins = (S: string, E: string): string[] => {
+    const tete = S === "|" ? `sep=|${E}` : "";
+    return [
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${E}Centre"${S}Jean Dupont${E}`, // témoin 2e : plusieurs lignes, sans séparateur dedans
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris${S}Centre"${S}Jean Dupont${E}`, // séparateur dedans, sur une seule ligne
+      `${tete}id${S}ville${S}nom${E}1${S}"Paris"${S}Jean Dupont${E}2${S}"Lyon"${S}Paul Martin${E}`,
+    ];
+  };
+  it.each(SEPS.flatMap((S) => FINS.map((E) => [JSON.stringify(S), JSON.stringify(E), S, E] as const)))("témoins légitimes, séparateur %s, fin de ligne %s : non refusés, noms masqués", (_s, _e, S, E) => {
+    for (const t of temoins(S, E)) {
+      const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+      expect(d.length).toBeGreaterThan(0);
+      expect(d.every((x) => x.type === "colonne-personne")).toBe(true);
+      const sortie = masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte;
+      expect(sortie).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
+  it("cellule ambiguë DANS une colonne de personne : masquée en entier, pas de refus ; sans colonne de personne : pas de refus", () => {
+    const a = masquerDonneesPersonnelles('id,nom\n1,"Jean,\nDupont"\n2,"Paul" Martin\n', { chemin: "a.csv" });
+    expect(a.texte).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    expect(a.remplacements.map((r) => r.type)).toEqual(["colonne-personne"]);
+    expect(detecterDonneesPersonnelles('id,ville\n1,"Paris,\nCentre"\n2,"Lyon" x\n', { chemin: "a.csv" })).toEqual([]);
+  });
+  it("temps linéaire : 200 000 cellules ambiguës, puis 200 000 cellules légitimes", () => {
+    const chrono = (f: () => unknown): number => {
+      const t0 = performance.now();
+      f();
+      return performance.now() - t0;
+    };
+    const mauvais = 'id,ville,nom\n' + '1,"Paris,Jean\n2,Lyon,"\n'.repeat(100_000);
+    expect(chrono(() => expect(detecterDonneesPersonnelles(mauvais, { chemin: "a.csv" }).map((x) => x.type)).toEqual(["guillemet-non-ferme"]))).toBeLessThan(1500);
+    const bon = 'id,ville,nom\n' + '1,"Paris\nCentre",Jean Dupont\n'.repeat(100_000);
+    expect(chrono(() => detecterDonneesPersonnelles(bon, { chemin: "a.csv" }))).toBeLessThan(1500);
+  });
+});
+
+describe("verdict Opus 92172ecb : déclaration XML d'un .html avec un encodage autre que utf-8", () => {
+  const refus = (texte: string) => verifierMaquette([{ chemin: "index.html", texte }]);
+  it.each([
+    ['<?xml version="1.0" encoding="iso-2022-jp"?><p>x</p>'],
+    ["<?xml version='1.0' encoding='ISO-2022-JP'?><p>x</p>"],
+    ['<?XML version="1.0" ENCODING = "utf-16" ?><p>x</p>'],
+    ['<?xml version="1.0"\n  encoding\n=\n"shift_jis"?><p>x</p>'],
+    ['<?xml version="1.0"\tencoding="windows-1252"?><p>x</p>'],
+    ['<?xml version="1.0" encoding="utf-8 x"?><p>x</p>'],
+    ['<?xml version="1.0" encoding=iso-2022-jp?><p>x</p>'],
+    ['<?xml version="1.0" encoding?><p>x</p>'],
+    ['<p>a</p>\n<?xml version="1.0" encoding="latin1"?>'],
+    ['<?xml version="1.0" encoding="utf-8"?><?xml version="1.0" encoding="utf-16"?>'],
+  ])("refusé : %s", (t) => {
+    const r = refus(t);
+    expect(r.ok).toBe(false);
+    expect(r.refus.some((x) => x.motif.includes("déclaration XML"))).toBe(true);
+  });
+  it.each([
+    ['<?xml version="1.0" encoding="utf-8"?><p>x</p>'],
+    ["<?xml version='1.0' encoding='UTF-8'?><p>x</p>"],
+    ['<?xml version="1.0" encoding = "utf8" ?><p>x</p>'],
+    ['<?xml version="1.0"?><p>x</p>'],
+    ["<p>x</p>"],
+  ])("accepté : %s", (t) => {
+    expect(refus(t).ok).toBe(true);
+  });
+  it("le motif et la ligne sont donnés ; temps linéaire sur 2 Mo piégés", () => {
+    expect(refus('<p>\n<?xml version="1.0" encoding="utf-16"?>').refus.find((x) => x.motif.includes("déclaration XML"))?.ligne).toBe(2);
+    for (const t of ["<?xml ".repeat(300_000), "<?xml encoding".repeat(150_000), "<?xml encoding=\"".repeat(120_000), "<?xml" + " ".repeat(2_000_000)]) {
+      const t0 = performance.now();
+      refus(t);
+      expect(performance.now() - t0).toBeLessThan(1000);
+    }
+  });
+});
