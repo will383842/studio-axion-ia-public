@@ -599,6 +599,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     try {
       const deListe = dejaLus?.get(p.idExterne!) ?? deRapatriement.get(p.idExterne!);
       if (deListe) post = deListe;
+      // Une rapatriée déjà « à vérifier » (supprimée chez le diffuseur) se contente des listes : aucune lecture unitaire, pour ne pas affamer les publications du Studio.
+      else if (rapatriee && p.etatEnvoi === "a-verifier") continue;
       else if (lecturesUnitaires >= plafondUnitaires || requetes >= BUDGET_REQUETES_PAR_PASSAGE) continue;
       else {
         lecturesUnitaires++;
@@ -608,7 +610,10 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     } catch (e) {
       if (estErreurZernio(e) && e.code === "introuvable") {
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
-        if (p.etatEnvoi !== "a-verifier" && instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
+        if (p.etatEnvoi === "a-verifier") {
+          // Déjà « à vérifier » : on date seulement la lecture, pour qu'elle tourne dans la file au lieu de rester en tête des lectures unitaires.
+          await ecrireSiInchange(p, { etatLuLe: lu });
+        } else if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
           await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
           await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo }, optionsNotif);
