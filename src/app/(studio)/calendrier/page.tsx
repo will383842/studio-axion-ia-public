@@ -202,8 +202,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
         }}
       />
       <PanneauAFaire entrees={aFaire} />
-      {/* CAL-18 : l'usine propose, le Studio affiche ; la validation se fait dans l'écran « À valider » de l'usine. Rien n'est allumé : sans usine reliée ET sans adresse de cet écran, le bouton reste masqué (V1). key : les cartes d'une semaine ne passent jamais sur une autre. */}
-      {usineActive() && adresseAValiderUsine() && <div key={lundiCle} className="mb-3"><BoutonProposerSemaine key={lundiCle} debutSemaine={lundiCle} proposer={proposerSemaineAction} lienAValider={adresseAValiderUsine()!} /></div>}
+      {/* CAL-18 : l'usine propose, le Studio affiche ; la validation se fait dans l'écran « À valider » de l'usine. Rien n'est allumé : sans usine reliée, le bouton reste masqué ; l'adresse de « À valider » est facultative (sans elle, seul le lien manque). key : les cartes d'une semaine ne passent jamais sur une autre. */}
+      {usineActive() && <div key={lundiCle} className="mb-3"><BoutonProposerSemaine key={lundiCle} debutSemaine={lundiCle} proposer={proposerSemaineAction} {...(adresseAValiderUsine() ? { lienAValider: adresseAValiderUsine()! } : {})} /></div>}
       {jours.some((j) => cleJour(j) === aujourdhui) && <BandeauAujourdhui entrees={visiblesReelles} aujourdhui={aujourdhui} />}
       <AlerteProximite entrees={visiblesReelles} className="mb-3" />
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">

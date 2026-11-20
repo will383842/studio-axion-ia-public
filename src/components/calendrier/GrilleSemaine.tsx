@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
 import { CarteProposition } from "./CarteProposition";
+import type { IdeeUsine } from "@/domaine/usine";
 import type { TableLibelles } from "./PastilleStatutPlan";
 import { libelleJour } from "./BarreVue";
 import { CarteEntreeCalendrier, MonogrammeReseau, estVerrouillee, heureLisible, jourLisible, nomReseau, styleReseau, trierEntrees, type EntreeCarte } from "./CarteEntreeCalendrier";
@@ -77,7 +78,7 @@ export interface ProprietesGrilleSemaine {
    * CAL-17 : propositions de l'équipe IA, montrées en cartes pointillées « Proposée » dans la case de leur réseau et de leur jour.
    * Jamais déplaçables ni programmables ici. Sans `lienAValider`, rien n'est montré.
    */
-  propositions?: readonly { entree: EntreeCarte; pourquoi?: string; ressembleA?: string }[];
+  propositions?: readonly { entree: EntreeCarte; pourquoi?: string; ressembleA?: string; sujet?: IdeeUsine }[];
   /** CAL-17 : écran « À valider » de l'usine, seul lieu de validation. */
   lienAValider?: string;
   className?: string;
@@ -482,7 +483,7 @@ function corpsGrille( { semaineDu, aujourdhui, entrees, reseaux = RESEAUX_CALEND
                     {lienAValider &&
                       propositions
                         ?.filter((p) => p.entree.reseau === reseau && p.entree.jour === jour)
-                        .map((p) => <CarteProposition key={p.entree.cle} entree={p.entree} pourquoi={p.pourquoi} ressembleA={p.ressembleA} lienAValider={lienAValider} />)}
+                        .map((p) => <CarteProposition key={p.entree.cle} entree={p.entree} pourquoi={p.pourquoi} ressembleA={p.ressembleA} lienAValider={lienAValider} debut={semaineDu} {...(p.sujet ? { sujet: p.sujet } : {})} />)}
                     {!estPasse && peutAjouter && ajout(jour, reseau, creneauVide)}
                   </div>
                 );

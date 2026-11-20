@@ -8,10 +8,11 @@
 import "server-only";
 import type { EntreeCarte } from "@/components/calendrier/CarteEntreeCalendrier";
 import type { IdReseau } from "@/domaine/types";
+import type { IdeeUsine } from "@/domaine/usine";
 import { cleJour } from "@/lib/dates";
 import { RESEAUX } from "@/reseaux";
 import { creerVerrou, ecrireParametre, ErreurStudio, lireParametre } from "@/services/_commun";
-import { proposerSemaineUsine, usineActive, type Options } from "@/services/usine-porte";
+import { proposerSemaineUsineAvecMessage, usineActive, type Options } from "@/services/usine-porte";
 
 /** Appels permis par jour (jour de Paris) : un compte en quantité, jamais en argent. */
 export const PLAFOND_APPELS_SEMAINE_PAR_JOUR = 5;
@@ -37,10 +38,20 @@ export interface PropositionSemaine extends EntreeCarte {
   etat: "propose";
   pourquoi?: string;
   ressembleA?: string;
+  /** Le sujet que l'Usine propose ; absent : la carte n'a pas de bouton « Retenir ce sujet ». */
+  sujet?: IdeeUsine;
 }
 export interface SemaineProposee {
   propositions: PropositionSemaine[];
   appelsRestants: number;
+  /** Phrase de l'Usine quand la réponse est partielle (ex. un réseau sans compte actif), telle quelle. */
+  message?: string;
+}
+/** Réglage où le serveur garde la DERNIÈRE semaine proposée : seule source de « Retenir ce sujet » (le navigateur n'envoie que `debut` et `cle`). */
+export const PARAM_DERNIERE_SEMAINE = "calendrier.proposerSemaine.derniere";
+export interface DerniereSemaine {
+  debut: string;
+  propositions: { cle: string; jour: string; reseau: string; sujet: IdeeUsine }[];
 }
 export interface OptionsSemaine extends Pick<Options, "env" | "fetchImpl" | "delaiMs"> {
   /** Instant pris pour « aujourd'hui » (tests). */
@@ -84,7 +95,7 @@ export async function proposerSemaine(demande: { debut: string; reseaux?: readon
   const env = o.env ?? (process.env as Parameters<typeof usineActive>[0]);
   if (!usineActive(env)) throw new ErreurStudio("USINE_ETEINTE", "L'usine n'est pas reliée : la semaine ne peut pas être proposée pour le moment. Vous pouvez ajouter vos contenus à la main.");
   const appelsRestants = await reserverAppel(o.maintenant ?? new Date());
-  const lignes = await proposerSemaineUsine({ debut: demande.debut, ...(demande.reseaux?.length ? { reseaux: demande.reseaux } : {}) }, { env, ...(o.fetchImpl ? { fetchImpl: o.fetchImpl } : {}), ...(o.delaiMs ? { delaiMs: o.delaiMs } : {}) });
+  const { lignes, message } = await proposerSemaineUsineAvecMessage({ debut: demande.debut, ...(demande.reseaux?.length ? { reseaux: demande.reseaux } : {}) }, { env, ...(o.fetchImpl ? { fetchImpl: o.fetchImpl } : {}), ...(o.delaiMs ? { delaiMs: o.delaiMs } : {}) });
   const fin = lundi + 7 * JOUR_MS;
   const reseaux = new Set<string>(RESEAUX.map((r) => r.id));
   const propositions: PropositionSemaine[] = [];
@@ -105,7 +116,28 @@ export async function proposerSemaine(demande: { debut: string; reseaux?: readon
       ...(l.titre ? { titre: l.titre } : {}),
       ...(l.pourquoi ? { pourquoi: l.pourquoi } : {}),
       ...(l.ressembleA ? { ressembleA: l.ressembleA } : {}),
+      ...(l.sujet ? { sujet: l.sujet } : {}),
     });
   }
-  return { propositions, appelsRestants };
+  await garderDerniereSemaine({ debut: demande.debut, propositions: propositions.flatMap((p) => (p.sujet ? [{ cle: p.cle, jour: p.jour, reseau: p.reseau, sujet: p.sujet }] : [])) });
+  return { propositions, appelsRestants, ...(message ? { message } : {}) };
+}
+
+/** Garde la semaine côté serveur (remplace la précédente). Un échec d'écriture ne coupe pas l'affichage : le bouton « Retenir » refusera alors, avec sa phrase. */
+async function garderDerniereSemaine(d: DerniereSemaine): Promise<void> {
+  try {
+    await unALaFois(() => ecrireParametre(PARAM_DERNIERE_SEMAINE, d));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+/** Relit la dernière semaine gardée ; une valeur absente ou abîmée vaut « rien de gardé » (null). */
+export async function lireDerniereSemaine(): Promise<DerniereSemaine | null> {
+  const brut = await lireParametre<unknown>(PARAM_DERNIERE_SEMAINE, null);
+  if (!brut || typeof brut !== "object") return null;
+  const { debut, propositions } = brut as { debut?: unknown; propositions?: unknown };
+  if (typeof debut !== "string" || !Array.isArray(propositions)) return null;
+  const bonnes = propositions.filter((p): p is DerniereSemaine["propositions"][number] => !!p && typeof p === "object" && typeof p.cle === "string" && typeof p.jour === "string" && typeof p.reseau === "string" && !!p.sujet && typeof p.sujet === "object" && typeof p.sujet.signature === "string");
+  return { debut, propositions: bonnes };
 }
