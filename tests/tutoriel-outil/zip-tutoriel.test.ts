@@ -237,6 +237,21 @@ describe("éteint par défaut (R-9)", () => {
       expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
     }
   });
+  it.each([
+    ["1", '"Titre,\nJean Dupont\n",z\nnom,ville\nPaul Martin,Paris\n'],
+    ["2", '"Export clients,\nid,nom\n1,Jean Dupont\n2,"x",Paul Martin\n'],
+    ["3", 'id,"ville,nom\n1,Paris,Jean Dupont\n2,"Lyon",Paul Martin\n'],
+    ["4", '\uFEFF"Export clients,\nid,nom\n1,Jean Dupont\n2,"x",Paul Martin\n'],
+  ])("de bout en bout (allumé) : cellule ambiguë avant ou dans l'en-tête, entrée %s (\\n, \\r\\n, \\r, point-virgule, tabulation) → archive entière refusée (verdict c5f5e643)", async (_i, csv) => {
+    ALLUME();
+    for (const variante of [csv, csv.replace(/\n/g, "\r\n"), csv.replace(/\n/g, "\r"), csv.replace(/,/g, ";"), csv.replace(/,/g, "\t")]) {
+      const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8(variante) }]);
+      expect(r.ok).toBe(false);
+      expect(r.rapport.refus.join(" ")).toContain("guillemet jamais refermé");
+      expect(JSON.stringify(r.rapport)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+      expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
   it("de bout en bout (allumé) : témoin légitime (cellule sur plusieurs lignes bien formée) → accepté, nom masqué (verdict 92172ecb)", async () => {
     ALLUME();
     const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8('id,ville,nom\n1,"Paris\nCentre",Jean Dupont\n') }]);

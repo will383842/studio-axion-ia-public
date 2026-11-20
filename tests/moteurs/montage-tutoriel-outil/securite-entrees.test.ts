@@ -1150,7 +1150,10 @@ describe("verdict Opus 92172ecb : guillemet égaré refermé par le guillemet d'
     const a = masquerDonneesPersonnelles('id,nom\n1,"Jean,\nDupont"\n2,"Paul" Martin\n', { chemin: "a.csv" });
     expect(a.texte).not.toMatch(/Jean|Dupont|Paul|Martin/);
     expect(a.remplacements.map((r) => r.type)).toEqual(["colonne-personne"]);
-    expect(detecterDonneesPersonnelles('id,ville\n1,"Paris,\nCentre"\n2,"Lyon" x\n', { chemin: "a.csv" })).toEqual([]);
+    // Verdict c5f5e643 : sans colonne de personne, une cellule ambiguë dans les premières lignes peut cacher l'en-tête : refus (plus strict qu'avant).
+    expect(detecterDonneesPersonnelles('id,ville\n1,"Paris,\nCentre"\n2,"Lyon" x\n', { chemin: "a.csv" }).map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+    // Sans colonne de personne et sans cellule ambiguë : toujours rien à signaler.
+    expect(detecterDonneesPersonnelles('id,ville\n1,"Paris\nCentre"\n2,"Lyon"\n', { chemin: "a.csv" })).toEqual([]);
   });
   it("temps linéaire : 200 000 cellules ambiguës, puis 200 000 cellules légitimes", () => {
     const chrono = (f: () => unknown): number => {
@@ -1199,5 +1202,64 @@ describe("verdict Opus 92172ecb : déclaration XML d'un .html avec un encodage a
       refus(t);
       expect(performance.now() - t0).toBeLessThan(1000);
     }
+  });
+});
+
+describe("verdict Opus c5f5e643 : cellule ambiguë avant ou dans l'en-tête → fichier entier refusé", () => {
+  const SEPS = [",", ";", "\t", "|"] as const;
+  const FINS = ["\n", "\r\n", "\r"] as const;
+  const pieges = (S: string, E: string): string[] => {
+    const tete = S === "|" ? `sep=|${E}` : "";
+    return [
+      // 1. cellule ambiguë d'un titre, avant l'en-tête, dans une colonne de même rang qu'une colonne de personne
+      `${tete}"Titre${S}${E}Jean Dupont${E}"${S}z${E}nom${S}ville${E}Paul Martin${S}Paris${E}`,
+      // 2a. guillemet égaré du titre d'export qui avale l'en-tête
+      `${tete}"Export clients${S}${E}id${S}nom${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin${E}`,
+      // 2b. guillemet égaré dans l'en-tête
+      `${tete}id${S}"ville${S}nom${E}1${S}Paris${S}Jean Dupont${E}2${S}"Lyon"${S}Paul Martin${E}`,
+      // variantes : espace, espace insécable, BOM, largeur nulle devant le guillemet égaré
+      `${tete}\uFEFF"Export clients${S}${E}id${S}nom${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin${E}`,
+      `${tete}\u200b"Export clients${S}${E}id${S}nom${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin${E}`,
+      `${tete} \u00a0"Export clients${S}${E}id${S}nom${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin${E}`,
+      // dernière ligne sans fin de ligne, guillemet doublé, cellule vide avant
+      `${tete}${S}"Export${S}${E}id${S}nom${E}1${S}Jean Dupont${E}2${S}"x" y`,
+      `${tete}"Ex""port${S}${E}id${S}nom${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin`,
+      // en-tête en casse et accents différents
+      `${tete}"Export${S}${E}ID${S}NOM${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin`,
+      `${tete}"Export${S}${E}id${S}Prénom${E}1${S}Jean Dupont${E}2${S}"x"${S}Paul Martin`,
+    ];
+  };
+  const cas = SEPS.flatMap((S) => FINS.flatMap((E) => pieges(S, E).map((t, i) => [JSON.stringify(S), JSON.stringify(E), i + 1, t] as const)));
+  it.each(cas)("séparateur %s, fin de ligne %s, entrée %i : refus entier, aucun nom recopié", (_s, _e, _i, t) => {
+    const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+    expect(d.map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+    expect(JSON.stringify(d)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    const sortie = masquerDonneesPersonnelles(t, { chemin: "a.csv" });
+    expect(sortie.texte).toBe("");
+  });
+  it("les 3 entrées citées par le verdict, textuellement (\\n, \\r\\n, \\r)", () => {
+    for (const t of [
+      '"Titre,\nJean Dupont\n",z\nnom,ville\nPaul Martin,Paris\n',
+      '"Export clients,\nid,nom\n1,Jean Dupont\n2,"x",Paul Martin\n',
+      'id,"ville,nom\n1,Paris,Jean Dupont\n2,"Lyon",Paul Martin\n',
+    ]) {
+      for (const v of [t, t.replace(/\n/g, "\r\n"), t.replace(/\n/g, "\r")]) {
+        expect(detecterDonneesPersonnelles(v, { chemin: "a.csv" }).map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+      }
+    }
+  });
+  it("témoins légitimes : titre sur plusieurs lignes sans séparateur, en-tête quoté, BOM devant un en-tête quoté : non refusés, noms masqués", () => {
+    for (const t of ['"Export\nclients"\nid,nom\n1,Jean Dupont\n', '"id","nom"\n"1","Jean Dupont"\n', '\uFEFF"id","nom"\n1,Jean Dupont\n', "\uFEFFid,nom\n1,Jean Dupont\n"]) {
+      const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+      expect(d.length).toBeGreaterThan(0);
+      expect(d.every((x) => x.type === "colonne-personne")).toBe(true);
+      expect(masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte).not.toMatch(/Jean|Dupont/);
+    }
+  });
+  it("temps linéaire : 200 000 cellules ambiguës avant un en-tête introuvable, puis 400 000 lignes sans colonne de personne", () => {
+    const t0 = performance.now();
+    expect(detecterDonneesPersonnelles('"T,\nx",\n' + 'a,b\n'.repeat(200_000), { chemin: "a.csv" }).map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+    expect(detecterDonneesPersonnelles('id,ville\n' + '1,"Paris\nCentre"\n'.repeat(200_000), { chemin: "a.csv" })).toEqual([]);
+    expect(performance.now() - t0).toBeLessThan(3000);
   });
 });

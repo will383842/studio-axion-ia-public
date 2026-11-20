@@ -916,6 +916,11 @@ function estEspaceZs(c: number): boolean {
   return c === 0x20 || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x202f || c === 0x205f || c === 0x3000;
 }
 
+/** Caractère de format invisible (BOM, espaces de largeur nulle, marques de sens, césure conditionnelle…). */
+function estInvisible(c: number): boolean {
+  return c === 0xad || (c >= 0x200b && c <= 0x200f) || (c >= 0x202a && c <= 0x202e) || (c >= 0x2060 && c <= 0x2064) || c === 0xfeff;
+}
+
 /**
  * Lit tout le CSV en un seul passage (temps linéaire) : guillemets suivis à travers les retours à la ligne,
  * séparateur « , », « ; » ou tabulation. Chaque valeur garde sa position dans le texte entier.
@@ -944,7 +949,8 @@ function lireCsv(
     const garde = ligne !== vide;
     // Blancs avant un guillemet ouvrant (`1, "Dupont, Jean"`) : la valeur est lue comme entre guillemets.
     let k0 = i;
-    while (k0 < n && (estEspaceZs(texte.charCodeAt(k0)) || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
+    // Les caractères invisibles (BOM U+FEFF, U+200B…) devant le guillemet sont sautés aussi : un lecteur qui les retire lit un guillemet ouvrant.
+    while (k0 < n && (estEspaceZs(texte.charCodeAt(k0)) || estInvisible(texte.charCodeAt(k0)) || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
     if (texte[k0] === '"') {
       i = k0;
       let j = i + 1;
@@ -1148,8 +1154,20 @@ function detecterColonnes(
   let lignes: ReturnType<typeof lireCsv> = [];
   let colonnes = new Set<number>();
   let indiceEntete = 0;
+  // Position de la 1re cellule ambiguë vue dans les premières lignes (sous n'importe quel séparateur essayé) : si aucune colonne
+  // de personne n'est trouvée, un guillemet égaré a pu avaler l'en-tête, donc le fichier entier est refusé.
+  let ambigueEntete = -1;
   for (const candidat of candidats) {
     lignes = lireCsv(texte, candidat, etat, LIGNES_ENTETE_MAX); // seules les premières lignes sont gardées : l'en-tête est là
+    if (ambigueEntete < 0) {
+      for (const valeurs of lignes) {
+        const a = valeurs.find((v) => v.ambigu);
+        if (a) {
+          ambigueEntete = a.debut;
+          break;
+        }
+      }
+    }
     for (let l = 0; l < Math.min(lignes.length, LIGNES_ENTETE_MAX); l++) {
       const trouvees = (lignes[l] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : []));
       if (trouvees.length > 0) {
@@ -1164,7 +1182,24 @@ function detecterColonnes(
     }
   }
   // Guillemet ouvrant jamais refermé (sous l'un des séparateurs essayés) : l'appelant refuse le fichier entier.
-  if (etat.nonFerme || colonnes.size === 0) return trouves;
+  if (etat.nonFerme) return trouves;
+  if (colonnes.size === 0) {
+    if (ambigueEntete >= 0) {
+      etat.nonFerme = true;
+      etat.pos = ambigueEntete;
+    }
+    return trouves;
+  }
+  // Cellule ambiguë AVANT ou DANS la ligne d'en-tête (titre d'export, en-tête lui-même), quelle que soit sa colonne : le masquage
+  // ne commence qu'après l'en-tête, et un guillemet égaré a pu avaler le vrai en-tête. Même refus.
+  for (let l = 0; l <= indiceEntete && l < lignes.length; l++) {
+    const a = lignes[l]!.find((v) => v.ambigu);
+    if (a) {
+      etat.nonFerme = true;
+      etat.pos = a.debut;
+      return trouves;
+    }
+  }
   // Lecture ambiguë dans une colonne qui n'est PAS de personne (guillemet égaré refermé par un autre guillemet) : les lignes
   // du milieu sortiraient de leur colonne et resteraient en clair. Même refus que le guillemet jamais refermé.
   for (const valeurs of lignes) {
