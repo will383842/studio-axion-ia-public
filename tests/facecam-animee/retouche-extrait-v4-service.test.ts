@@ -50,7 +50,7 @@ const outils = (): OutilsPreparation => ({
   supprimerDossier: async () => undefined,
 });
 const signer = vi.fn(async (id: string) => `https://signe.test/${id}`);
-const ports = (p: Record<string, unknown> = {}) => ({ videoId: "v-1", sourceSignee: signer, outils: outils(), cleClip: (n: string) => `studio/dev/${n}`, archive: { depots, maintenant: () => NOW }, ...p });
+const ports = (p: Record<string, unknown> = {}) => ({ videoId: "v-1", sourceSignee: signer, outils: outils(), cleClip: (n: string) => `studio/dev/${n}`, archive: { depots, maintenant: () => NOW }, extraitPour: extraitMaisonPourRecherche, ...p });
 
 beforeEach(() => {
   reinitialiserDepots();

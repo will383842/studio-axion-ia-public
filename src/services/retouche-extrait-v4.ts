@@ -1,6 +1,6 @@
 /**
  * R4-03-b2 : retouche gratuite v4, préparer le clip d'un extrait de l'archive pour un téléphone (« telephone-video »), ou dire pourquoi c'est impossible.
- * Service que rien n'importe encore. Chemin : lecture de l'archive → `extraitMaisonPourRecherche` → source signée (PORT injecté)
+ * Service que rien n'importe encore. Chemin : lecture de l'archive → la recherche d'extrait (INJECTÉE : `extraitPour`) → source signée (PORT injecté)
  * → `preparerExtraitV4` (clip 4:5 muet, ffmpeg du studio). 0 € : aucune banque, aucun Claude, aucun réglage lu, aucune écriture en base
  * (seul `outils.deposer`, injecté, range le clip). Ne lève jamais : tout échec devient un refus clair, et rien n'est changé.
  */
@@ -12,7 +12,6 @@ import type { OutilsPreparation } from "@/moteurs/montage-facecam-animee/images/
 import { preparerExtraitV4 } from "@/moteurs/montage-facecam-animee/extraits-maison/preparer";
 import { ecrireRechercheAxion, estRechercheAxion } from "@/moteurs/montage-facecam-animee/extraits-maison/recherche";
 import type { PortsArchive } from "./archive-extraits";
-import { extraitMaisonPourRecherche } from "./extraits-maison-v4";
 import { depots } from "./_commun";
 
 /** Même type d'élément que le téléphone du lot 6 : recopié, rien d'éteint n'est importé. */
@@ -44,7 +43,14 @@ export interface PortsClipExtraitV4 {
   mode?: "direct" | "telecharger";
   recents?: readonly string[];
   archive?: PortsArchive;
-  extraitPour?: typeof extraitMaisonPourRecherche;
+  /**
+   * Recherche d'un extrait dans l'archive (OBLIGATOIRE, type local : ce fichier n'importe pas le service de recherche, la garde de
+   * du test d'archive reste intacte ; R4-03-c y injectera la fonction réelle).
+   */
+  extraitPour(
+    entree: { recherche: string; dureeFenetreSec: number; videoId: string; dejaPris: readonly string[]; recents: readonly string[] },
+    archive?: PortsArchive,
+  ): Promise<{ extrait: { elementId: string; cle: string; finSec: number }; debutSec: number } | null>;
 }
 
 export type CodeRefusClipExtraitV4 = "ARCHIVE_VIDE" | "AUCUN_EXTRAIT" | "ELEMENT_INTROUVABLE";
@@ -87,12 +93,12 @@ export async function clipPourDemandeExtraitV4(projet: ProjetClipV4, demande: De
   try {
     const element = projet.plan.elementsV4?.[demande.rang];
     if (!element || element.id !== ID_TELEPHONE) {
-      return refuser("ELEMENT_INTROUVABLE", `Le rang ${demande.rang} n'est pas un téléphone qui joue un extrait : rien n'a changé.`);
+      return refuser("ELEMENT_INTROUVABLE", "Ce téléphone n'existe plus dans cette version : rien n'a changé.");
     }
     const base = ports.archive?.depots ?? depots;
     const sources = await base().elements.lister(estSource);
     if (sources.length === 0) {
-      return refuser("ARCHIVE_VIDE", "Votre archive de vidéos publiées est vide : aucun extrait à proposer, rien n'a changé.");
+      return refuser("ARCHIVE_VIDE", "Votre archive n'a encore aucune vidéo utilisable : rien n'a changé.");
     }
     const recherche = estRechercheAxion(demande.recherche) ? demande.recherche.trim() : ecrireRechercheAxion([demande.recherche]);
     const archive: PortsArchive = { ...ports.archive, depots: demande.sourceVideoId ? depotsRestreints(base, demande.sourceVideoId) : base };
@@ -104,7 +110,7 @@ export async function clipPourDemandeExtraitV4(projet: ProjetClipV4, demande: De
     const dureeFenetreSec = Math.max(0, element.fin - element.debut);
     const aucun = () => refuser("AUCUN_EXTRAIT", `Aucun extrait de vos vidéos ne correspond à « ${demande.recherche} » : rien n'a changé.`);
 
-    const trouve = await (ports.extraitPour ?? extraitMaisonPourRecherche)(
+    const trouve = await ports.extraitPour(
       { recherche, dureeFenetreSec, videoId: ports.videoId, dejaPris, recents: ports.recents ?? [] },
       archive,
     );
