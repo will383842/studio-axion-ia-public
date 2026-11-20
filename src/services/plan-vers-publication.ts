@@ -7,6 +7,8 @@
 import "server-only";
 import type { Depot, LotEcritures } from "@/domaine/depots";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
+import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { resoudreCleEnvoi } from "@/services/envois-planifies";
 import type { Evenement, Publication } from "@/domaine/types";
 import { cleJour } from "@/lib/dates";
 import type { ReseauDeclinaison } from "@/domaine/types";
@@ -19,6 +21,8 @@ export interface DepotsPasserelle extends DepotsPlan {
   visuels: Depot<Visuel>;
   /** Journal d'activité : trace d'un retrait du calendrier (facultatif pour les doublures de `programmerVisuel`). */
   evenements?: Depot<Evenement>;
+  /** Envois planifiés : sert à résoudre la clé propre au créneau (facultatif ; absent = clé ancienne). */
+  envoisPlanifies?: Depot<EnvoiPlanifie>;
 }
 
 /**
@@ -48,7 +52,11 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   // Une Publication existe déjà pour ce visuel et ce réseau si elle porte l'id courant ou celui d'une version
   // antérieure (le créneau a été décalé depuis) : on la réutilise, on ne recrée jamais.
   const plan: { reseau: ReseauDeclinaison; id: string; existante: Publication | null }[] = [];
-  for (const { reseau, cle } of lignes) {
+  for (const { reseau, cle: cleAncienne } of lignes) {
+    // Même clé que l'envoi du créneau (une entrée de l'ancienne clé peut appartenir à un autre créneau).
+    const cle = d.envoisPlanifies
+      ? await resoudreCleEnvoi(d.envoisPlanifies, { videoId: v.id, reseau, versionCreneau: c.decalages, creneauId: c.id })
+      : cleAncienne;
     const id = `pub_${cle}`;
     const existante = (await d.publications.obtenir(id))
       ?? (await d.publications.trouver((p) => p.visuelId === v.id && p.reseau === reseau && p.statut === "programmee"));
@@ -70,11 +78,17 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
     if (!existante) {
       publications.push(await d.publications.enregistrer({
         id, visuelId: v.id, reseau, statut: "programmee", via: "manuel",
-        date, texte: v.titre, creeLe: maintenant, modifieLe: maintenant,
+        date, texte: c.textes?.[reseau]?.texte?.trim() || v.titre, creeLe: maintenant, modifieLe: maintenant,
       }));
-    } else if (existante.date !== date) {
-      publications.push(await d.publications.modifier(existante.id, { date, modifieLe: maintenant } as Partial<Publication>));
-    } else publications.push(existante);
+    } else {
+      // La légende du créneau (relue par la personne) prend la place du titre ; sans légende, le texte reste tel quel.
+      const legende = c.textes?.[reseau]?.texte?.trim();
+      const modif: Partial<Publication> = {};
+      if (existante.date !== date) modif.date = date;
+      if (legende && existante.texte !== legende) modif.texte = legende;
+      if (Object.keys(modif).length > 0) publications.push(await d.publications.modifier(existante.id, { ...modif, modifieLe: maintenant } as Partial<Publication>));
+      else publications.push(existante);
+    }
   }
 
   if (v.statut === "valide") {

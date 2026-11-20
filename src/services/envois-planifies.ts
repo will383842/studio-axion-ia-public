@@ -4,7 +4,7 @@
  */
 import "server-only";
 import type { Depot } from "@/domaine/depots";
-import { CLE_DIFFUSEUR, cleEnvoi, peutTransiter, type EnvoiPlanifie, type StatutEnvoi } from "@/domaine/envoi-planifie";
+import { CLE_DIFFUSEUR, cleEnvoi, cleEnvoiCreneau, peutTransiter, type EnvoiPlanifie, type StatutEnvoi } from "@/domaine/envoi-planifie";
 import type { Id, ReseauDeclinaison } from "@/domaine/types";
 
 export interface DemandeEnvoi {
@@ -30,9 +30,27 @@ async function lire(d: Depot<EnvoiPlanifie>, id: Id): Promise<EnvoiPlanifie> {
   return e;
 }
 
+/**
+ * Clé d'envoi d'un créneau : la clé ancienne (sans id de créneau) tant qu'elle est libre ou qu'elle est déjà la sienne
+ * (ou celle d'une entrée sans créneau : prudence) ; sinon la clé propre au créneau. Aucune entrée n'est lue pour être modifiée.
+ */
+export async function resoudreCleEnvoi(
+  depot: { obtenir(id: Id): Promise<EnvoiPlanifie | null | undefined> },
+  d: { videoId: Id; reseau: ReseauDeclinaison; versionCreneau: number; creneauId?: string },
+): Promise<string> {
+  const ancienne = cleEnvoi(d.videoId, d.reseau, d.versionCreneau);
+  if (!d.creneauId) return ancienne;
+  // Stabilité : une entrée déjà posée sous la clé propre au créneau reste la sienne, même si l'entrée ancienne disparaît.
+  const propre = cleEnvoiCreneau(d.videoId, d.reseau, d.versionCreneau, d.creneauId);
+  if (await depot.obtenir(propre)) return propre;
+  const existant = await depot.obtenir(ancienne);
+  if (!existant || existant.creneauId === undefined || existant.creneauId === d.creneauId) return ancienne;
+  return propre;
+}
+
 /** Idempotent : la même clé rend l'entrée existante, sans rien changer. */
 export async function creerEnvoi(d: Depot<EnvoiPlanifie>, demande: DemandeEnvoi, maintenant: string): Promise<EnvoiPlanifie> {
-  const cle = cleEnvoi(demande.videoId, demande.reseau, demande.versionCreneau);
+  const cle = await resoudreCleEnvoi(d, demande);
   verifierCreneau(demande);
   const existant = await d.obtenir(cle);
   if (existant) return existant;

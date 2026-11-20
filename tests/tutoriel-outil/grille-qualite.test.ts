@@ -44,6 +44,21 @@ describe("grille de qualité chiffrée", () => {
     expect(critere(base({ dureeSec: Number.NaN }), "duree").etat).toBe("non-fait");
   });
 
+  it("durée : une remarque, jamais un refus (gravité « mineur », sans effet sur proposable)", () => {
+    const [bas, haut] = DUREE_CIBLE_SEC;
+    expect(critere(base(), "duree").gravite).toBe("mineur");
+    const hors = noterTutoriel(base({ dureeSec: haut + 1 }));
+    expect(hors.criteres.find((c) => c.id === "duree")!.etat).toBe("echoue");
+    // 100 − 2 (un mineur) = 98 : pas de perte de 25 points, toujours proposable
+    expect(hors.note).toBe(noterTutoriel(base()).note - 2);
+    expect(hors.proposable).toBe(true);
+    expect(noterTutoriel(base({ dureeSec: bas - 5 })).proposable).toBe(true);
+    expect(noterTutoriel(base({ dureeSec: Number.NaN })).proposable).toBe(true);
+    // l'alerte reste une simple information, pas une « attention »
+    const al = alertesDeGrille(hors).find((a) => a.message.startsWith("À vérifier · Durée"));
+    expect(al?.bloquant).toBe(false);
+  });
+
   it("image fixe : 1,5 s passe, 1,501 s échoue, absente = non fait", () => {
     expect(critere(base({ imageFixeMaxSec: 1.5 }), "image-fixe").etat).toBe("reussi");
     expect(critere(base({ imageFixeMaxSec: 1.501 }), "image-fixe").etat).toBe("echoue");

@@ -115,6 +115,21 @@ describe("résultat du moteur : avec ou sans grille (doubles, 0 €)", () => {
     expect(r.sorties[0]!.rapportQualite.note).toBe(r.noteQualite.globale);
     expect(r.noteQualite.alertes.some((a) => a.message.startsWith("À vérifier · Durée"))).toBe(false);
   });
+  it("sans grille : résultat identique, champ par champ, à la logique de master", async () => {
+    const r = await fabriquer();
+    const r2 = await fabriquer();
+    // déterministe : deux fabrications avec les mêmes doubles donnent exactement le même résultat
+    expect(r2).toEqual(r);
+    // logique de master (avant T-EXT-27), recalculée à partir des alertes de chaque sortie
+    const notes = (alertes: { gravite: string }[]) => Math.max(50, 100 - 10 * alertes.filter((a) => a.gravite === "attention").length);
+    for (const s of r.sorties) {
+      expect(s.rapportQualite.note).toBe(notes(s.rapportQualite.alertes));
+      expect(s.rapportQualite.verifie).toEqual({ image: true, son: s.rapportQualite.verifie.son, sousTitres: true, mentionIA: false, droits: false });
+      expect(s.rapportQualite.alertes.some((a) => a.message.includes("(seuil "))).toBe(false);
+    }
+    expect(r.noteQualite.globale).toBe(notes(r.noteQualite.alertes));
+    expect(Object.keys(r.sorties[0]!.rapportQualite).sort()).toEqual(["alertes", "niveauSonoreLufs", "note", "verifie"]);
+  });
   it("avec grille : la note et les alertes viennent de la grille ; droits = critère « Marque »", async () => {
     const r = await fabriquer(grille(37, "echoue"));
     expect(r.noteQualite.globale).toBe(37);

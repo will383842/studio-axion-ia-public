@@ -99,13 +99,14 @@ function son(e: EntreeGrille): Critere {
   return { ...repli, id: "son" };
 }
 
+// Décision de Williams (18/11) : le contrôle de durée est une REMARQUE, jamais un refus → gravité « mineur » (aucun effet sur `proposable`).
 function duree(dureeSec: number): Critere {
   const [bas, haut] = DUREE_CIBLE_SEC;
   const seuil = `${bas} à ${haut} s`;
-  if (typeof dureeSec !== "number" || !Number.isFinite(dureeSec)) return critere("duree", "Durée de la vidéo", "bloquant", seuil, "non-fait", "la durée n'est pas lisible");
+  if (typeof dureeSec !== "number" || !Number.isFinite(dureeSec)) return critere("duree", "Durée de la vidéo", "mineur", seuil, "non-fait", "la durée n'est pas lisible");
   const ms = Math.round(dureeSec * 1000);
   const ok = ms >= bas * 1000 && ms <= haut * 1000;
-  return critere("duree", "Durée de la vidéo", "bloquant", seuil, ok ? "reussi" : "echoue", `${nombre(ms / 1000)} s`);
+  return critere("duree", "Durée de la vidéo", "mineur", seuil, ok ? "reussi" : "echoue", `${nombre(ms / 1000)} s`);
 }
 
 function imageFixe(max: number | null | undefined): Critere {
