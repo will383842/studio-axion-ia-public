@@ -173,6 +173,31 @@ describe("c) avec genererPlan : 2 essais au plus", () => {
   });
 });
 
+describe("plafond dur : valeurs invalides (engagé, taux) → refus sans appel, repli gratuit", () => {
+  const mots: MotMinute[] = "Bonjour je vous montre un devis".split(" ").map((texte, i) => ({ texte, debutMs: i * 400, finMs: i * 400 + 330 }));
+  const e = { script: mots.map((m) => m.texte).join(" "), mots, format: { largeur: 1080, hauteur: 1350, fps: 25 as const }, facecam: false };
+  const cas: [string, Partial<Record<"dmpln" | "tbnar" | "tblec", number>>, number][] = [
+    ["engagé de la fiche NaN", { dmpln: Number.NaN }, 0.9],
+    ["engagé de la fiche négatif", { dmpln: -1000 }, 0.9],
+    ["engagé d'un autre usage (tbnar) NaN", { tbnar: Number.NaN }, 0.9],
+    ["engagé d'un autre usage (tblec) négatif", { tblec: -1000 }, 0.9],
+    ["taux 0", {}, 0],
+    ["taux NaN", {}, Number.NaN],
+    ["taux négatif", {}, -1],
+  ];
+  it.each(cas)("%s : 0 appel du faux executer, ErreurClaude", async (_nom, engage, taux) => {
+    const { executer, appels } = fauxExecuter();
+    await expect(appelClaudePlanDemo("v1", "studio", { executer, engage: fauxEngage(engage), taux: fauxTaux(taux) })(REQ)).rejects.toBeInstanceOf(ErreurClaude);
+    expect(appels).toHaveLength(0);
+  });
+  it.each(cas)("%s : genererPlan rend le plan de repli gratuit, 0 appel", async (_nom, engage, taux) => {
+    const { executer, appels } = fauxExecuter();
+    const r = await genererPlan(e, appelClaudePlanDemo("v1", "studio", { executer, engage: fauxEngage(engage), taux: fauxTaux(taux) }));
+    expect(appels).toHaveLength(0);
+    expect(r.source).toBe("repli");
+  });
+});
+
 describe("pire cas de la plus grande démo (150 s, 2,8 mots/s) × 1,2 ≤ 0,85 €", () => {
   it.each([0.9, 1.1])("taux %s", (t) => {
     const n = 420;

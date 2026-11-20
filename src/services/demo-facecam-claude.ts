@@ -78,13 +78,18 @@ export interface DependancesPlanDemo {
  * Ne dépend ni du mode indicatif, ni de `quotaSeul`, ni du réglage de plafond.
  */
 async function sousLePlafondDur(videoId: Id, demande: number, deps: DependancesPlanDemo): Promise<boolean> {
+  const valide = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
+  if (!valide(demande)) return false;
   const engage = deps.engage ?? (await import("./depense-claude-video")).engagePlafondPropreCentimes;
   const t = await (deps.taux ?? (await import("./generation-claude")).taux)();
-  const limite = (eur: number) => Math.floor(eurVersUsd(eur * 100, t));
+  // Taux inutilisable (NaN, 0, négatif) : limite négative = refus (jamais « 1 € = 1 $ »).
+  const limite = (eur: number) => (Number.isFinite(t) && t > 0 ? Math.floor(eurVersUsd(eur * 100, t)) : -1);
   const dmpln = await engage(videoId, plafondPropre("dmpln"));
+  if (!valide(dmpln)) return false;
   if (dmpln + demande > limite(PLAFONDS_CLAUDE_VIDEO_EUR.dmpln)) return false;
   const tbnar = await engage(videoId, plafondPropre("tbnar"));
   const tblec = await engage(videoId, plafondPropre("tblec"));
+  if (!valide(tbnar) || !valide(tblec)) return false;
   return dmpln + tbnar + tblec + demande <= limite(PLAFOND_TOTAL_CLAUDE_VIDEO_EUR);
 }
 
