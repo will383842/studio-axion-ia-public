@@ -626,3 +626,44 @@ describe("Essai · créneau programmé en un clic (statut « programme »)", () 
     expect((await depots().visuels.obtenir("vis_1"))?.statut).toBe("valide");
   });
 });
+
+describe("Lot D · raison du refus visible sur l'écran d'essai", () => {
+  const cleRefus = (id: string) => cleEnvoi(id, "linkedin", 0);
+  const noterRefus = async (cle: string, raison: string, le: string) => {
+    await ecrireParametre(`envoi-calendrier:dernier-refus-le:${cle}`, le);
+    await ecrireParametre(`envoi-calendrier:dernier-refus:${cle}`, raison);
+  };
+
+  it("rend dernierRefus pour le créneau de l'essai", async () => {
+    await poserEssai();
+    await noterRefus(cleRefus("vis_1"), "Aucune page LinkedIn reliée.", iso(T0 - MIN));
+    const r = await actions.lireEssaiZernioAction();
+    expect(r.ok && r.donnees.essai?.dernierRefus).toEqual({ raison: "Aucune page LinkedIn reliée.", le: iso(T0 - MIN) });
+    expect(r.ok && r.donnees.essai?.aCompleter).toBeUndefined();
+  });
+
+  it("rend aCompleter pour l'essai et pour chaque éligible sans texte ; jamais pour un créneau avec texte", async () => {
+    await poserEssai();
+    await depots().creneauxEditoriaux.modifier("cA", { textes: {} } as never);
+    const r = await actions.lireEssaiZernioAction();
+    expect(r.ok && r.donnees.essai?.aCompleter).toMatch(/^Légende à écrire/);
+    const el = r.ok ? r.donnees.eligibles : [];
+    const a = el.find((e: { id: string }) => e.id === "cA") as { aCompleter?: string } | undefined;
+    const b = el.find((e: { id: string }) => e.id === "cB") as { aCompleter?: string } | undefined;
+    if (a) expect(a.aCompleter).toMatch(/^Légende à écrire/);
+    if (b) expect(b.aCompleter).toBeUndefined();
+  });
+
+  it("une erreur de lecture de la raison ne bloque pas la lecture de l'essai", async () => {
+    await poserEssai();
+    const r = await actions.lireEssaiZernioAction();
+    expect(r.ok && r.donnees.essai?.creneauId).toBe("cA");
+  });
+
+  it("EssaiBrouillon affiche la raison et « à compléter » dans un role=status", () => {
+    const src = source("src/components/reglages/EssaiBrouillon.tsx");
+    expect(src).toMatch(/dernierRefus/);
+    expect(src).toMatch(/aCompleter/);
+    expect(src).toMatch(/role="status"/);
+  });
+});

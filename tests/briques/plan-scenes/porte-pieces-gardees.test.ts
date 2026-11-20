@@ -1,0 +1,87 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- pièce factice injectée dans le catalogue, le temps du test */
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { CATALOGUE_BRIQUES, pieceLaPlusProche } from "@/briques/plan-scenes/catalogue";
+import { consignePlan } from "@/briques/plan-scenes/generateur";
+import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { TOILES } from "@/briques/plan-scenes/toiles";
+import { PLAN_DEMO } from "@/briques/plan-scenes/demo";
+import { estGardee, PIECES_GARDEES } from "@/briques/plan-scenes/pieces-gardees";
+import { appliquerOperations } from "@/services/retouche-chat/appliquer";
+import { consigneRetouche } from "@/services/retouche-chat/comprendre";
+
+const lire = (f: string) => readFileSync(new URL(`./__fixtures__/${f}`, import.meta.url), "utf8");
+const AVANT = lire("consigne-avant-porte.txt");
+const RETOUCHE_AVANT = lire("consigne-retouche-avant-objets.txt");
+const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+// Valeurs relevées sur master (avant la fiche) : consignePlan(tous les ids objet) et consigneRetouche().
+const SHA_PLAN_TOUS_OBJETS = "72be20c2a347af3ea5ba1bd529e890242dbeda0bcd92652499256b9883b18830";
+const catalogue = CATALOGUE_BRIQUES as unknown as Record<string, any>;
+const toiles = TOILES as unknown as Record<string, unknown>;
+const copie = () => structuredClone(PLAN_DEMO) as unknown as Record<string, any>;
+const gardees = PIECES_GARDEES as unknown as string[];
+// C9-34-TRAITS-v19c : les 6 traits inscrits ensuite ne font pas partie des 18 objets d'avant ; on les exclut pour garder SHA_PLAN_TOUS_OBJETS figé (sha non recalculé).
+const TRAITS_C9_34 = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
+const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id)).map((d) => d.id);
+
+describe("G4-11-PORTE-a : éteint = identique à master", () => {
+  it("la liste est vide et estGardee ≡ famille objet", () => {
+    expect(PIECES_GARDEES).toEqual([]);
+    for (const d of Object.values(CATALOGUE_BRIQUES) as any[]) expect(estGardee(d)).toBe(d.famille === "objet");
+  });
+  it("test 1 : consignePlan identique (sans argument, liste vide, tous les objets)", () => {
+    expect(consignePlan()).toBe(AVANT);
+    expect(consignePlan([])).toBe(AVANT);
+    expect(sha(consignePlan(idsObjets()))).toBe(SHA_PLAN_TOUS_OBJETS);
+  });
+  it("test 4 : consigneRetouche identique au caractère près", () => {
+    expect(consigneRetouche()).toBe(RETOUCHE_AVANT);
+  });
+});
+
+describe("G4-11-PORTE-a : pièce de données factice gardée", () => {
+  beforeEach(() => {
+    catalogue["donnee-test"] = { ...catalogue["legende"], id: "donnee-test", nom: "Donnée test", famille: "donnee", alias: ["chiffres-test"] };
+    toiles["donnee-test"] = { largeur: 800, hauteur: 460 };
+    gardees.push("donnee-test");
+  });
+  afterEach(() => {
+    delete catalogue["donnee-test"];
+    delete toiles["donnee-test"];
+    gardees.length = 0;
+  });
+
+  it("test 2 : consigne du plan, pièce la plus proche, validation", () => {
+    expect(consignePlan()).toBe(AVANT);
+    expect(consignePlan([])).toBe(AVANT);
+    expect(consignePlan(["donnee-test"])).toContain("- donnee-test (Donnée test)");
+    expect(pieceLaPlusProche("donnee-test")).not.toBe("donnee-test");
+    expect(pieceLaPlusProche("chiffres-test")).not.toBe("donnee-test");
+    expect(pieceLaPlusProche("chiffres-test", undefined, ["donnee-test"])).toBe("donnee-test");
+    const p = copie();
+    p.scenes[0].piece = "donnee-test";
+    p.scenes[0].parametres = { texte: "Essai", sousTexte: "", style: "bandeau" };
+    const sans = validerPlan(p);
+    expect(sans.plan.scenes[0]!.piece).not.toBe("donnee-test");
+    expect(sans.remarques.some((r) => /objet non permis/i.test(r.message))).toBe(true);
+    const avec = validerPlan(p, { objetsPermis: ["donnee-test"] });
+    expect(avec.plan.scenes[0]!.piece).toBe("donnee-test");
+  });
+
+  it("jamais l'exemple : paramètres faux → scène retirée, pas réparée", () => {
+    const p = copie();
+    p.scenes[0].piece = "donnee-test";
+    p.scenes[0].parametres = { faux: true };
+    const r = validerPlan(p, { objetsPermis: ["donnee-test"] });
+    expect(r.plan.scenes.some((s) => (s.piece as string) === "donnee-test")).toBe(false);
+  });
+
+  it("test 4 : le chat de retouche ne la propose jamais, et la revalidation sans liste la remplace", () => {
+    expect(consigneRetouche()).toBe(RETOUCHE_AVANT);
+    expect(consigneRetouche()).not.toContain("donnee-test");
+    const plan = validerPlan(PLAN_DEMO).plan;
+    const r = appliquerOperations(plan, [{ type: "changer-brique", sceneId: plan.scenes[0]!.id, piece: "donnee-test" as any }]);
+    expect(r.plan.scenes.some((s) => (s.piece as string) === "donnee-test")).toBe(false);
+  });
+});

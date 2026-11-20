@@ -12,6 +12,10 @@ const OBJETS_INSCRITS_A = ["objet-gros-chiffre", "objet-etape", "objet-cartes-co
 const OBJETS_INSCRITS_C = ["objet-soulignement-droit", "objet-croix", "objet-mot-barre", "objet-compteur-rouleau", "objet-carton-definition", "objet-fleche-main-levee"];
 // BR-OBJETS-2027-b : 3 objets de plus (croquis et traits de feutre).
 const OBJETS_INSCRITS_2027B = ["objet-croquis", "objet-feutre-entourage", "objet-feutre-soulignement"];
+// N-05-v19b : 5 objets de plus (carton magazine, icône qui tourne, particules, panneau de réglages, anneau de données).
+const OBJETS_INSCRITS_N05 = ["objet-carton-magazine", "objet-tourne", "objet-particules", "objet-panneau-reglages", "objet-anneau-donnees"];
+// C9-34-TRAITS-v19c : 6 objets de plus (2 soulignements, surligneur, 3 flèches).
+const OBJETS_INSCRITS_TRAITS = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
 const HEX_CHARTE = new Set(Object.values(CHARTE_AXION).map((c) => c.toLowerCase()));
 
 function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" | "noir" = "ivoire"): string {
@@ -21,8 +25,8 @@ function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" |
 }
 
 describe("catalogue de briques (fausse interface logicielle)", () => {
-  it("contient les 24 briques (18 demandées + 4 + 6 objets inscrits), chacune avec un rendu", () => {
-    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B].sort());
+  it("contient les 42 briques (18 demandées + 4 + 6 + 3 + 5 + 6 objets inscrits), chacune avec un rendu", () => {
+    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS].sort());
     for (const id of IDS_PIECES) expect(RENDUS_BRIQUES[id]).toBeTypeOf("function");
   });
 

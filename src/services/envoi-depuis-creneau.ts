@@ -14,14 +14,14 @@
 import { createHash } from "node:crypto";
 import type { Depot } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
-import { CLE_DIFFUSEUR, cleEnvoi } from "@/domaine/envoi-planifie";
+import { CLE_DIFFUSEUR } from "@/domaine/envoi-planifie";
 import { STATUTS_CRENEAU_ENVOYABLES } from "@/domaine/plan-editorial/envoyable";
 import type { ReseauDeclinaison } from "@/domaine/types";
 import { CODES_AVANT_RESEAU, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, enteteIdempotenceStudio } from "@/fournisseurs/publication/zernio-client";
 import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
 import { instantParis } from "@/lib/horloge-paris";
-import { creerEnvoi, noterCleDiffuseur, validerEnvoi } from "./envois-planifies";
+import { creerEnvoi, resoudreCleEnvoi, noterCleDiffuseur, validerEnvoi } from "./envois-planifies";
 import { promouvoirEnvoisPlanifies, type EtatsPromotion, type NotificationPromotion, type OptionsPromotionEnvois } from "./promotion-envois";
 
 /** Réglage éditorial (créé par L7-08, FAUX par défaut). Un test l'égale à `PARAM_EDITORIALE_ACTIVE` (services/zernio.ts). */
@@ -216,7 +216,7 @@ const valideeLisible = (c: CreneauCalendrier, maintenant: number): boolean => {
 const idempotenceDe = (cle: string): string => enteteIdempotenceStudio(createHash("sha256").update(cle).digest("hex"));
 
 async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<LigneCreneau> {
-  const cle = cleEnvoi(c.videoId, c.reseau, c.versionCreneau);
+  const cle = await resoudreCleEnvoi(deps.depot, { videoId: c.videoId, reseau: c.reseau, versionCreneau: c.versionCreneau, creneauId: c.id });
   const ligne: LigneCreneau = { cle, creneauId: c.id, etat: "refuse" };
   const debut = deps.maintenant();
 
@@ -281,6 +281,7 @@ async function traiter(deps: DepsEnvoiCreneau, c: CreneauCalendrier): Promise<Li
 
   // Envoi planifié local : créé une fois (idempotent), validé avec la date de validation du créneau.
   let e = await creerEnvoi(deps.depot, { videoId: c.videoId, reseau: c.reseau, versionCreneau: c.versionCreneau, jour: c.jour, heure: c.heure, nature: c.nature, creneauId: c.id }, new Date(debut).toISOString());
+  if (e.cle !== cle) throw new Error("Clé d'envoi incohérente : rien n'est envoyé.");
   if (e.statut === "annule") {
     ligne.etat = "refuse";
     ligne.raison = "envoi annulé : rien n'est envoyé";

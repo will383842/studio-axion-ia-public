@@ -59,7 +59,9 @@ export async function idCreneauDuVisuel(d: DepotsPasserelle, visuelId: string): 
  * Les vérifications du visuel, des réseaux et des heures se font avant toute écriture. Le créneau est validé AVANT les refus de
  * `programmerVisuel` (ex. visuel déjà programmé ailleurs) : s'il refuse, le créneau reste « valide » mais aucune Publication n'est créée.
  */
-export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, jour: string, maintenant: string): Promise<{ creneauId: string }> {
+export type TextesCreneau = Partial<Record<IdReseau, { texte: string; premierCommentaire: string }>>;
+
+export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, jour: string, maintenant: string, textes?: TextesCreneau): Promise<{ creneauId: string; aCompleter: IdReseau[] }> {
   const v = await d.visuels.obtenir(visuelId);
   if (!v) throw new ErreurVisuel("INTROUVABLE", `Visuel introuvable : ${visuelId}`);
   if (v.statut !== "valide" && v.statut !== "programme") throw new ErreurVisuel("PROGRAMMER_REFUSE", `Visuel non validé (statut « ${v.statut} ») : il ne peut pas être programmé.`);
@@ -77,11 +79,20 @@ export async function programmerEnUnClic(d: DepotsPasserelle, visuelId: string, 
     for (const r of v.reseaux) heuresParReseau[r] = instantParis(jour, HEURES[r]!);
     const passes = v.reseaux.filter((r) => Date.parse(heuresParReseau[r]!) <= Date.parse(maintenant));
     if (passes.length > 0) throw new ErreurVisuel("PROGRAMMER_DATE", `Heure de publication déjà passée (${passes.join(", ")}) : choisir un jour plus tard.`);
-    await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_PAR_DEFAUT, visuelId: v.id }, maintenant);
+    // Seules les légendes des réseaux préparés et non vides sont gardées : jamais de texte inventé ni d'un autre réseau.
+    const gardes: NonNullable<TextesCreneau> = {};
+    for (const r of v.reseaux) {
+      const t = textes?.[r];
+      if (t && t.texte.trim()) gardes[r] = { texte: t.texte, premierCommentaire: t.premierCommentaire ?? "" };
+    }
+    await creerCreneau(d, { id: creneauId, jourVise: jour, heuresParReseau, compteCible: COMPTE_PAR_DEFAUT, visuelId: v.id, ...(Object.keys(gardes).length > 0 ? { textes: gardes } : {}) }, maintenant);
   }
   await validerParLeFondateur(d, creneauId, maintenant);
   await programmerVisuel(d, creneauId, maintenant);
-  return { creneauId };
+  // Réseaux sans légende enregistrée : le créneau existe, mais ils restent « à compléter ».
+  const final = await d.creneaux.obtenir(creneauId);
+  const aCompleter = v.reseaux.filter((r) => !final?.textes?.[r]?.texte?.trim());
+  return { creneauId, aCompleter };
 }
 
 /** Formulaire d'un clic : l'identifiant du visuel et le jour visé (modifiable). L'action est passée en props. */

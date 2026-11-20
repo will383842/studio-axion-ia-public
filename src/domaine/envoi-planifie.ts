@@ -50,6 +50,11 @@ export function cleEnvoi(videoId: Id, reseau: ReseauDeclinaison, versionCreneau:
   return `envoi:${videoId}:${reseau}:v${versionCreneau}`;
 }
 
+/** Clé propre à UN créneau : utilisée quand la clé ancienne appartient déjà à un autre créneau. */
+export function cleEnvoiCreneau(videoId: Id, reseau: ReseauDeclinaison, versionCreneau: number, creneauId: string): string {
+  return `${cleEnvoi(videoId, reseau, versionCreneau)}:${creneauId}`;
+}
+
 export function peutTransiter(de: StatutEnvoi, vers: StatutEnvoi): boolean {
   return TRANSITIONS_ENVOI[de].includes(vers);
 }

@@ -33,7 +33,7 @@ import { depots, ecrireParametre, ErreurStudio, lireParametre, maintenant as mai
 import { RAISON_A_COMPLETER, lireDernierRefus, envoyerDepuisCreneau, tourEnvoisCalendrier, type CreneauCalendrier, type LigneCreneau, type DemandeBrouillonCreneau, type DepsEnvoiCreneau, type ResultatTourCreneaux } from "./envoi-depuis-creneau";
 import { envoyerVisuelDuCreneau } from "./envoi-visuel-creneau";
 import { dansEssai, essaiCouvre, essaiEnCours, lireEssai } from "./essai-zernio";
-import { annulerEnvoi } from "./envois-planifies";
+import { annulerEnvoi, resoudreCleEnvoi } from "./envois-planifies";
 import { creerNotification } from "./notifications";
 import type { EtatsPromotion, NotificationPromotion } from "./promotion-envois";
 import { clientZernio, editorialeActive, envoiCalendrierAutorise, envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
@@ -105,7 +105,7 @@ export async function etatEnvoiDuCreneau(c: CreneauEditorial, reseau: ReseauDecl
     const sortie: { aCompleter?: string; dernierRefus?: { raison: string; le: string } } = {};
     if (!c.textes?.[reseau]?.texte?.trim()) sortie.aCompleter = RAISON_A_COMPLETER;
     if (media) {
-      const refus = await lireDernierRefus(etatsParametres, cleEnvoi(media, reseau, c.decalages));
+      const refus = await lireDernierRefus(etatsParametres, await resoudreCleEnvoi(depots().envoisPlanifies, { videoId: media, reseau, versionCreneau: c.decalages, creneauId: c.id }));
       if (refus) sortie.dernierRefus = refus;
     }
     return sortie;

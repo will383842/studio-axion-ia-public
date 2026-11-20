@@ -56,7 +56,7 @@ const secondes = (x: number) => `${x.toFixed(1).replace(".", ",")} s`;
 export const estTelephoneAxionV4 = (e: ElementV4Plan): boolean => e.id === ID_TELEPHONE && estRechercheAxion(e.recherches?.[0]);
 
 /** Adresse signée de la vidéo publiée qui porte l'extrait : fiche de l'archive → sortie → fichier. `null` si un maillon manque. */
-async function sourceSignee(elementId: string, ports: PortsTelephoneV4): Promise<string | null> {
+export async function sourceSignee(elementId: string, ports: PortsTelephoneV4): Promise<string | null> {
   const d = (ports.archive?.depots ?? depots)();
   const element = await d.elements.obtenir(elementId);
   const fiche = element && element.valeur.type === "source-extraits" ? element.valeur.fiche : null;

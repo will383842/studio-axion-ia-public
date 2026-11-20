@@ -9,6 +9,7 @@ import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
 import { CalquePlanScenes } from "./CalquePlanScenes";
 import { NavigationFilmee } from "./NavigationFilmee";
 import { PlanDeScenes } from "./PlanDeScenes";
+import { SchemaFlux } from "./tutoriel-flux/SchemaFlux";
 
 export { COMPOSITION_TUTORIEL };
 
@@ -25,6 +26,11 @@ export function TutorielOutil(p: ProprietesTutorielOutil) {
         ) : (
           <PlanDeScenes plan={p.plan} />
         )}
+        {p.schemaFlux ? (
+          <Sequence from={p.schemaFlux.debutImage} durationInFrames={p.schemaFlux.dureeImages}>
+            <SchemaFlux plan={p.schemaFlux.plan} />
+          </Sequence>
+        ) : null}
         {p.sousTitres ? <CalqueSousTitres donnees={p.sousTitres} /> : null}
         {p.audio ? <Audio src={p.audio} /> : null}
       </Sequence>

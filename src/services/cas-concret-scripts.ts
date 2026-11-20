@@ -31,7 +31,7 @@ import { TABLE_FINS_DIAGNOSTIC } from "@/briques/fins/table-diagnostic";
 import { lignesDesEcrans } from "@/moteurs/montage-cas-concret/relecture";
 import { texteDuCorps, type FicheEcrans } from "@/moteurs/montage-cas-concret/fiche";
 import { appliquerModifications, type ModificationEcran } from "@/moteurs/montage-cas-concret/modifier-script";
-import { validerFicheEcrans } from "@/moteurs/montage-cas-concret/regles";
+import { validerFicheEcransTolerant } from "@/moteurs/montage-cas-concret/regles";
 import { avertissementsCorrespondance } from "@/moteurs/montage-cas-concret/correspondance";
 
 export type { EcranApercu } from "@/moteurs/montage-cas-concret/script-valide";
@@ -286,7 +286,7 @@ export async function validerScriptFourniPourVideo(
 /** Les seules modifications qui changent quelque chose. */
 const utiles = (modifications: readonly ModificationEcran[] | undefined): ModificationEcran[] => modifications?.filter((m) => m.texteDit !== undefined || m.ecrits?.some((x) => x !== null)) ?? [];
 
-type Controle = { ok: true; fiche: FicheEcrans } | { ok: false; message: string; problemes: { ligneId?: string; texte: string }[] };
+type Controle = { ok: true; fiche: FicheEcrans; remarques?: string[]; avertissements?: string[] } | { ok: false; message: string; problemes: { ligneId?: string; texte: string }[] };
 
 /** Applique les modifications de Will puis repasse TOUS les contrôles (schéma, règles, faits du cas, interdits de Will). */
 /** Les mots interdits de Will (jargon et promesses interdites de la marque la plus récente), tels que la fabrication les rejoue. */
@@ -295,18 +295,26 @@ export async function motsInterditsDeWill(): Promise<string[]> {
   return [...(marque?.jargonInterdit ?? []), ...(marque?.promessesInterdites ?? [])].filter((x): x is string => typeof x === "string" && !!x.trim());
 }
 
-async function controlerModifications(fiche: FicheEcrans, modifications: readonly ModificationEcran[], cas: CasConcret): Promise<Controle> {
+async function controlerModifications(fiche: FicheEcrans, modifications: readonly ModificationEcran[], cas: CasConcret, fourni = false): Promise<Controle> {
   const a = appliquerModifications(fiche, modifications);
   if (!a.ok) return { ok: false, message: a.raisons.join(" "), problemes: a.raisons.map((texte) => ({ texte })) };
   const motsInterdits = await motsInterditsDeWill();
-  const v = validerFicheEcrans(a.fiche, { cas, texteScript: texteDuCorps(a.fiche), motsInterdits });
-  if (!v.ok) return { ok: false, message: `Le script modifié ne passe pas les contrôles : ${v.problemes.map((p) => p.message).join(" ")}`, problemes: v.problemes.map((p) => ({ ...(p.sceneId ? { ligneId: p.sceneId } : {}), texte: p.message })) };
-  return { ok: true, fiche: v.fiche };
+  // S-04a (CC8) : même tolérance que la fabrication (`fourni` = celui du script que la fabrication lira). Restent bloquants :
+  // mot interdit, chiffre faux (la fabrication, elle, ne ferait qu'avertir) et tout refus technique.
+  const v = validerFicheEcransTolerant(a.fiche, { cas, texteScript: texteDuCorps(a.fiche), motsInterdits }, fourni);
+  const problemes = v.ok ? v.avertissements.filter((p) => REGLES_QUI_RESTENT_BLOQUANTES.includes(p.regle)) : v.problemes;
+  if (problemes.length) return { ok: false, message: `Le script modifié ne passe pas les contrôles : ${problemes.map((p) => p.message).join(" ")}`, problemes: problemes.map((p) => ({ ...(p.sceneId ? { ligneId: p.sceneId } : {}), texte: p.message })) };
+  if (!v.ok) return { ok: false, message: "Le script modifié ne passe pas les contrôles.", problemes: [] };
+  return { ok: true, fiche: v.fiche, remarques: v.remarques.map((p) => p.message), avertissements: v.avertissements.map((p) => p.message) };
 }
 
-/** Les pastilles de l'écran commun : chaque refus bloque (même règle que la validation). */
+/** Règles que la fabrication tolère (avertissement) mais que le contrôle d'une modification refuse toujours. */
+const REGLES_QUI_RESTENT_BLOQUANTES: readonly string[] = ["mots interdits", "nombres des faits"];
+
+/** Les pastilles de l'écran commun : chaque refus bloque ; une remarque (info) ou un avertissement (alerte) ne bloque pas. */
 function pastillesDe(c: Controle): PastilleControle[] {
-  return c.ok ? [] : c.problemes.map((p) => ({ niveau: "bloquant" as const, texte: p.texte, ...(p.ligneId ? { ligneId: p.ligneId } : {}) }));
+  if (c.ok) return [...(c.avertissements ?? []).map((texte) => ({ niveau: "alerte" as const, texte })), ...(c.remarques ?? []).map((texte) => ({ niveau: "info" as const, texte }))];
+  return c.problemes.map((p) => ({ niveau: "bloquant" as const, texte: p.texte, ...(p.ligneId ? { ligneId: p.ligneId } : {}) }));
 }
 
 /** Les lignes de relecture d'un script validé (celles que montre l'écran commun). PUR. */
@@ -366,7 +374,7 @@ export async function controlerScriptValideCasConcret(casId: string, modificatio
   const script = await scriptValideCourant(cas);
   if (!script) return [{ niveau: "bloquant", texte: "Ce cas n'a pas de script validé à relire." }];
   const m = utiles(modifications);
-  return m.length ? pastillesDe(await controlerModifications(ficheARelire(script, cas), m, cas)) : [];
+  return m.length ? pastillesDe(await controlerModifications(ficheARelire(script, cas), m, cas, script.fourni === true)) : [];
 }
 
 /** Contrôle GRATUIT des modifications du script qui attend la validation de Will (fiche vidéo). */
@@ -394,7 +402,7 @@ export async function modifierScriptValideCasConcret(casId: string, modification
   const m = utiles(modifications);
   const avant = empreinteScriptValide(actuel);
   if (!m.length) return { casId: cas.id, numero: numeroDe(actuel), empreinte: avant, modifie: false };
-  const c = await controlerModifications(ficheARelire(actuel, cas), m, cas);
+  const c = await controlerModifications(ficheARelire(actuel, cas), m, cas, actuel.fourni === true);
   if (!c.ok) throw new ErreurStudio("SCRIPT_MODIFIE_REFUSE", c.message);
   const valideLe = new Date(dependances.maintenant ?? Date.now()).toISOString().slice(0, 10);
   const candidat = scriptDeFiche(c.fiche, { versionCas: cas.version, valideLe, source: `Modifié par Will avant le lancement (remplace la version ${numeroDe(actuel)}).`, ...(actuel.fourni ? { fourni: true as const } : {}) });

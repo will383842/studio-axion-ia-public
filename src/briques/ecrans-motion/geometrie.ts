@@ -128,6 +128,8 @@ export type OptionsBoites = {
    * la hauteur de l'image. Posée seulement par Image → vidéo en 4:5 (1920 : la question garde sa taille du 9:16) ; absente :
    * comportement inchangé (cas concret, 9:16). */
   hauteurLigneRef?: number;
+  /** Étape ou objet : le titre trop large pour une ligne, même au plancher, s'écrit sur 2 lignes (mêmes mots). */
+  titreSurDeux?: boolean;
 };
 
 /** Cadre de l'écran au-delà de la zone utile : la zone de dessin (absente : les objets restent dans la zone utile). */
@@ -237,12 +239,12 @@ function gabarit(type: TypeEcran, o: OptionsBoites): Element[] {
     case "etape":
       return [
         ETIQUETTE(60),
-        AFFICHE("titre", "titre", 0),
+        AFFICHE("titre", "titre", 0, o.titreSurDeux ? { lignesMax: 2 } : {}),
         LIGNE("ligne", 40),
         { sorte: "objet", nom: "visuel", largeurRef: 470, hauteurRef: 920, ecart: 40, dessus: PUCES(borne(o.puces, 0, 2, 2)) },
       ];
     case "objet":
-      return [AFFICHE("titre", "titre", 100), LIGNE("ligne", 30), { sorte: "objet", nom: "visuel", largeurRef: 600, hauteurRef: 760, ecart: 60 }];
+      return [AFFICHE("titre", "titre", 100, o.titreSurDeux ? { lignesMax: 2 } : {}), LIGNE("ligne", 30), { sorte: "objet", nom: "visuel", largeurRef: 600, hauteurRef: 760, ecart: 60 }];
     case "preuve":
       return [
         ETIQUETTE(60),
