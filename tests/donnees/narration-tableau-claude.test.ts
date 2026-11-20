@@ -109,6 +109,12 @@ describe("a) interrupteur tableau.narrationClaude : allumé si true exact ou abs
   it("lecture en échec → éteint", async () => {
     expect(await narrationClaudeActive((async () => { throw new Error("base"); }) as never)).toBe(false);
   });
+  it("réglage absent → allumé : le défaut transmis à la lecture est true", async () => {
+    const lire = vi.fn(async (_id: string, defaut: unknown) => defaut);
+    expect(await narrationClaudeActive(lire as never)).toBe(true);
+    expect(lire).toHaveBeenCalledTimes(1);
+    expect(lire).toHaveBeenCalledWith(PARAM_NARRATION_CLAUDE, true);
+  });
 });
 
 describe("b) le port : un appel, rôle Sonnet, repli gratuit sinon", () => {
