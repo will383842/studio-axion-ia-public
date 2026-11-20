@@ -88,6 +88,41 @@ export function choisirVoixDeFabrication<V extends Pick<Voix, "id" | "statut">>(
 }
 
 /**
+ * T-EXT-SV : branchements du tutoriel d'outil en mode SANS VOIX : rendu et stockage seulement. Aucun personnage, aucune
+ * voix, aucun fournisseur de voix ni d'alignement résolu : zéro appel HeyGen, zéro crédit voix. Non exécuté par les tests.
+ */
+export async function branchementsReelsSansVoix(videoId: string, charger: typeof chargerModulesReels = chargerModulesReels): Promise<Pick<Branchements, "env" | "montage">> {
+  const env = process.env.NODE_ENV === "production" ? "prod" : "dev";
+  const m = await charger();
+  const { resoudreFournisseur } = m.fournisseurs;
+  const { obtenirServiceRendu, renduSimule } = m.client;
+  const { cleLisibleParLeRendu } = m.etalonnage;
+  if (renduSimule()) throw new Error("STUDIO_RENDU_URL est absente : le mode réel exige le serveur de rendu.");
+  const stockage = resoudreFournisseur("stockage");
+  if (stockage.mode === "simulation") throw new Error("Le stockage des fichiers n'est pas relié (R2).");
+  const rendu = obtenirServiceRendu();
+  const signerLecture = lectureSignee(stockage, cleLisibleParLeRendu);
+  const signerDepot = async (cle: string, mime: string) => {
+    if (!stockage.urlDepotDuree) throw new Error("Le stockage ne sait pas signer un dépôt.");
+    return stockage.urlDepotDuree(cle, 3600, mime);
+  };
+  const garde = { delaiMs: m.garde.delaiSansNouvelleMs() };
+  return {
+    env,
+    montage: {
+      rendu: () => rendu,
+      signer: async (lectures, depots) => ({
+        lectures: Object.fromEntries(await Promise.all(Object.entries(lectures).map(async ([n, c]) => [n, await signerLecture(c)] as const))),
+        depots: Object.fromEntries(await Promise.all(depots.map(async (x) => [x.cle, await signerDepot(x.cle, x.mime)] as const))),
+      }),
+      cle: (c, nom) => `studio/${env}/videos/${c.videoId}/${nom}`,
+      lisible: (cle) => entreeLisible(cle, stockage, cleLisibleParLeRendu),
+      garde,
+    },
+  };
+}
+
+/**
  * Branchements RÉELS (seulement avec `--reel`). Non exécuté par les tests (aucun vrai appel) : voir
  * `docs/formats/tableau-anime-essai.md`, « ce qui n'a pas pu être vérifié ».
  */
