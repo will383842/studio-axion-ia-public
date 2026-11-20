@@ -221,10 +221,14 @@ describe("L5-02 · envoyerVisuel : contenu envoyé", () => {
     expect(await total()).toBe(avant);
   });
 
-  it("premier commentaire sur Instagram (non transmis par le constructeur) : refus, 0 appel", async () => {
+  it("premier commentaire sur Instagram (transmis par Zernio) : plus refusé, le corps envoyé porte firstComment", async () => {
     const id = await creerVisuel();
-    await expect(envoyer(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2", textesAlternatifs: ["a", "b", "c"], premierCommentaire: "Voir le guide" }))).rejects.toMatchObject({ code: "PREMIER_COMMENTAIRE_NON_TRANSMIS" });
-    expect(appels).toHaveLength(0);
+    await envoyer(faux(), id, "instagram", DEMAIN, options({ cible: "compte-2", textesAlternatifs: ["a", "b", "c"], premierCommentaire: "Voir le guide" }));
+    expect(appels).toHaveLength(1);
+    const demande = appels[0] as unknown as DemandeZernio;
+    expect(demande.premierCommentaire).toBe("Voir le guide");
+    const corps = corpsPostZernio(demande, { maintenant: Date.now(), medias: mediasDemandes(demande), hotesPublics: new Set(["exemple.test"]), profilLinkedinProuve: true });
+    expect(JSON.stringify(corps)).toContain('"firstComment":"Voir le guide"');
   });
 
   it("date passée : refus, 0 appel", async () => {
@@ -441,13 +445,13 @@ describe("L5-02 · envoyerVisuel : VRAI constructeur de corps (zernio-corps.ts),
     expect(demandes.every((m) => m.type === "image")).toBe(true);
   });
 
-  it("premier commentaire : exactement un firstComment pour LinkedIn et pour Facebook, aucun pour Instagram (VRAI constructeur)", async () => {
+  it("premier commentaire : exactement un firstComment pour LinkedIn, Facebook et Instagram (VRAI constructeur)", async () => {
     const compte = async (reseau: "linkedin" | "instagram" | "facebook", cible: string, extra: Record<string, unknown>) => {
       appels = [];
       reinitialiserDepots();
       await ouvrirTout();
       const id = await creerVisuel();
-      // Instagram refuse le commentaire en amont : on l'ajoute à la main à la demande pour interroger le constructeur lui-même.
+      // Le commentaire est ajouté à la demande pour interroger le constructeur lui-même.
       await envoyer(faux(), id, reseau, DEMAIN, options({ cible, ...extra }));
       const demande = { ...(appels[0] as unknown as DemandeZernio), premierCommentaire: "Voir le guide" };
       return corpsPostZernio(demande, { maintenant: Date.now(), medias: mediasDemandes(demande), hotesPublics: new Set(["exemple.test"]), profilLinkedinProuve: true });
@@ -456,7 +460,7 @@ describe("L5-02 · envoyerVisuel : VRAI constructeur de corps (zernio-corps.ts),
     const compteFirst = (c: unknown) => (JSON.stringify(c).match(/firstComment/g) ?? []).length;
     expect(compteFirst(await compte("linkedin", CIBLE, {}))).toBe(1);
     expect(compteFirst(await compte("facebook", "compte-1:fb:page-1", alt))).toBe(1);
-    expect(compteFirst(await compte("instagram", "compte-2", alt))).toBe(0);
+    expect(compteFirst(await compte("instagram", "compte-2", alt))).toBe(1);
   });
 
   it("LinkedIn : le constructeur refuse des images à la place du document (un seul type de média)", async () => {
