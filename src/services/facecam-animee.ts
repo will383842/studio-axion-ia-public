@@ -340,7 +340,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           import("./extraits-maison-v4"),
           import("@/moteurs/montage-facecam-animee/images/production"),
         ]);
-        approvisionner = avecExtraitsMaisonV4(approvisionnerFenetresStudio as never, portsAxionV4({ videoId: dep.videoId, signerLecture, outils: preparation, extraitPour: extraitMaisonPourRecherche as never })) as unknown as DependancesVideosV4["approvisionner"];
+        approvisionner = avecExtraitsMaisonV4(approvisionnerFenetresStudio, portsAxionV4({ videoId: dep.videoId, signerLecture, outils: preparation, extraitPour: extraitMaisonPourRecherche })) as typeof approvisionnerFenetresStudio; // seul cast : le repli ne traite que le `Plan` du studio (le type générique `P` est ce même `Plan` ici)
       }
       return fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd, ...(approvisionner ? { approvisionner } : {}) }));
     },
