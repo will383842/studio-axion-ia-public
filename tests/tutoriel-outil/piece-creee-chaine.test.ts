@@ -120,6 +120,21 @@ describe("V2-08 : la chaîne depuis une phrase", () => {
     expect(d.appels[0]?.plafond).toBe(plafondTutorielParDefautUsd());
   });
 
+  it("une vidéo partie d'une idée (sans dépôt), les deux réglages à `true` : phraseOuverte false, TO_CAS_V2, 0 appel", async () => {
+    const d = double();
+    const idee = { origine: undefined, entrees: { tutorielOutil: { idee: PHRASE, fin: "aucune" } } } as unknown as Pick<CommandeFabrication, "origine" | "entrees">;
+    const port = await portsEquipeAvecPhrase(idee, "v1", { executer: d.executer, lire: lecteur(LES_DEUX) });
+    expect(port.phraseOuverte).toBe(false);
+    const r = await courir(neuf(), port);
+    expect(r.pause?.code).toBe("TO_CAS_V2");
+    expect(d.appels).toHaveLength(0);
+  });
+
+  it("un dossier, les deux réglages à `true` : phraseOuverte false (une seule condition pour l'appel et le plafond)", async () => {
+    const dossier = { origine: undefined, entrees: { tutorielOutil: { depot: { mode: "dossier", fichierId: "f1", attestationImages: true } } } } as unknown as Pick<CommandeFabrication, "origine" | "entrees">;
+    expect((await portsEquipeAvecPhrase(dossier, "v1", { lire: lecteur(LES_DEUX) })).phraseOuverte).toBe(false);
+  });
+
   it("« Réessayer » (le pas rejoué) : toujours 1 appel payé", async () => {
     const d = double();
     const port = await portsEquipeAvecPhrase(commande(), "v1", { executer: d.executer, lire: lecteur(LES_DEUX) });

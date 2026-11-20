@@ -180,10 +180,15 @@ async function fichiersParDefaut(fichierId: string, attestationImages: boolean):
   return extrait.ok ? extrait.fichiers : null;
 }
 
+/** V2-08 : UNE seule condition « vidéo partie d'une phrase » (dépôt « phrase », pas une idée) : elle ouvre la création payante ET choisit le plafond. */
+export function partiDUnePhrase(commande: Pick<CommandeFabrication, "entrees">): boolean {
+  return lireEntreesTutoriel(commande.entrees).depot?.mode === "phrase";
+}
+
 /** Les ports de l'équipe pour une vidéo : un appel de rôle gardé, la lecture du dossier. */
 export function portsEquipe(commande: Pick<CommandeFabrication, "origine" | "entrees">, videoId: Id, deps: DepsEquipe = {}): PortEquipe {
   // V2-08 : une vidéo partie d'une phrase prend le plafond de V2-07 (la création au pire comprise) ; un dossier garde celui d'aujourd'hui.
-  const depuisPhrase = lireEntreesTutoriel(commande.entrees).depot?.mode === "phrase";
+  const depuisPhrase = partiDUnePhrase(commande);
   const plafondUsd = deps.plafondUsd ?? (depuisPhrase ? plafondTutorielPhraseUsd : undefined);
   const depsPlafond = plafondUsd ? { plafondUsd } : {};
   return {
@@ -207,8 +212,8 @@ export function portsEquipe(commande: Pick<CommandeFabrication, "origine" | "ent
 
 /**
  * V2-08 : le port de l'équipe avec l'option « phrase ouverte » lue par le lecteur injectable. La chaîne la passe à `prochainPas`
- * (`{ phraseOuverte: port.phraseOuverte }`). Éteint (champ `false`) : rien ne change pour une phrase (pause « création pas ouverte »).
+ * (`{ phraseOuverte: port.phraseOuverte }`). Éteint, ou vidéo partie d'une idée / d'un dossier (champ `false`) : rien ne change (pause « création pas ouverte ») (pause « création pas ouverte »).
  */
 export async function portsEquipeAvecPhrase(commande: Pick<CommandeFabrication, "origine" | "entrees">, videoId: Id, deps: DepsEquipe = {}): Promise<PortEquipe & { phraseOuverte: boolean }> {
-  return { ...portsEquipe(commande, videoId, deps), phraseOuverte: await phraseOuverteTutoriel(deps.lire) };
+  return { ...portsEquipe(commande, videoId, deps), phraseOuverte: partiDUnePhrase(commande) && (await phraseOuverteTutoriel(deps.lire)) };
 }
