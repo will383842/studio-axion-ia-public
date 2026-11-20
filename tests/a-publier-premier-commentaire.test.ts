@@ -79,16 +79,15 @@ beforeEach(async () => {
 });
 
 describe("premier commentaire dans l'envoi réel", () => {
-  it("LinkedIn : le premier commentaire arrive dans la demande envoyée à Zernio ; Instagram : rien n'est transmis, à poser à la main", async () => {
+  it("LinkedIn : le premier commentaire arrive dans la demande envoyée à Zernio ; Instagram aussi (prouvé le 20/11/2026), rien à poser à la main", async () => {
     await cocherTout();
     const r = await pub.envoyerVersBuffer(VIDEO, ["linkedin"], DEMAIN, { premiersCommentaires: { linkedin: COMMENTAIRE } });
     expect(envoyer).toHaveBeenCalledTimes(1);
     expect(demande(0)).toMatchObject({ reseau: "linkedin", premierCommentaire: COMMENTAIRE });
     expect(r.commentairesALaMain).toBeUndefined();
     const ig = await pub.envoyerVersBuffer(VIDEO, ["instagram"], DEMAIN, { premiersCommentaires: { instagram: COMMENTAIRE } });
-    expect(demande(1)).toMatchObject({ reseau: "instagram" });
-    expect(demande(1)).not.toHaveProperty("premierCommentaire");
-    expect(ig.commentairesALaMain).toEqual(["instagram"]);
+    expect(demande(1)).toMatchObject({ reseau: "instagram", premierCommentaire: COMMENTAIRE });
+    expect(ig.commentairesALaMain).toBeUndefined();
   });
 
   it("rejeu du même envoi : aucun doublon chez l'outil (empreinte cleEnvoi), le commentaire n'est pas reposté", async () => {
