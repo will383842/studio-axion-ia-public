@@ -30,6 +30,14 @@ import { OBJET_SCHEMA_ETOILE, OBJET_ICONES_RELIEES, OBJET_AGENTS_GLOBE, EXEMPLES
 import { OBJET_GRILLE_POINTILLEE, OBJET_VIGNETTES_NUMEROTEES, EXEMPLES_GRILLE, EXEMPLES_VIGNETTES } from "../../motion/petits-objets/grille-vignettes";
 import { OBJET_FENETRE_APP, EXEMPLES_FENETRE_APP } from "../../motion/petits-objets/fenetre-app";
 import { OBJET_TERMINAL_COMMANDE, EXEMPLES_TERMINAL_COMMANDE } from "../../motion/petits-objets/terminal-commande";
+import { DEF_DOSSIER, DEF_CHRONO, DEF_BARRE_PROGRESSION, EXEMPLES_DOSSIER_CHRONO_BARRE } from "../../motion/petits-objets/dossier-chrono-barre";
+import { OBJET_ETAPE_SEGMENTS } from "../../motion/petits-objets/etapes";
+import { DEF_APPEL_ACTION, EXEMPLES_APPEL_ACTION } from "../../motion/petits-objets/appel-action";
+import { DEF_APPEL_MOT, EXEMPLES_APPEL_MOT } from "../../motion/petits-objets/appel-mot";
+import { DEF_APPEL_RDV, EXEMPLES_APPEL_RDV } from "../../motion/petits-objets/appel-rdv";
+import { OBJET_FRISE_MONTAGE, EXEMPLES_FRISE } from "../../motion/petits-objets/frise-montage";
+import { OBJET_PELLICULE, EXEMPLES_PELLICULE } from "../../motion/petits-objets/pellicule";
+import { OBJET_ONDE_MOTIF, EXEMPLES_ONDE } from "../../motion/petits-objets/onde";
 import { envelopperObjets } from "./objets";
 
 export const OBJETS_PLAN_SCENES = [
@@ -48,6 +56,8 @@ export const OBJETS_PLAN_SCENES = [
   DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON, OBJET_BULLE_PAROLE, OBJET_BULLE_PENSEE, OBJET_BULLE_NOTIFICATION, DEF_POST_IT,
   // C9-34-SCHEMAS-v20g (20/11/2026) : 6 schémas, fenêtre d'application, terminal (porte fermée)
   OBJET_SCHEMA_FLUX, OBJET_SCHEMA_ETOILE, OBJET_ICONES_RELIEES, OBJET_AGENTS_GLOBE, OBJET_GRILLE_POINTILLEE, OBJET_VIGNETTES_NUMEROTEES, OBJET_FENETRE_APP, OBJET_TERMINAL_COMMANDE,
+  // C9-34-FIN-v20h (20/11/2026) : 10 derniers petits objets (porte fermée)
+  DEF_DOSSIER, DEF_CHRONO, DEF_BARRE_PROGRESSION, OBJET_ETAPE_SEGMENTS, DEF_APPEL_ACTION, DEF_APPEL_MOT, DEF_APPEL_RDV, OBJET_FRISE_MONTAGE, OBJET_PELLICULE, OBJET_ONDE_MOTIF,
 ];
 
 /** Graine fixe et pure : somme des codes de caractères de l'identifiant. */
@@ -59,7 +69,7 @@ export function graineObjet(id: string): number {
 
 export const PIECES_OBJETS = envelopperObjets(OBJETS_PLAN_SCENES, graineObjet);
 
-const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it" | "objet-schema-flux" | "objet-schema-etoile" | "objet-icones-reliees" | "objet-agents-globe" | "objet-grille-pointillee" | "objet-vignettes-numerotees" | "objet-fenetre-app" | "objet-terminal-commande", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
+const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it" | "objet-schema-flux" | "objet-schema-etoile" | "objet-icones-reliees" | "objet-agents-globe" | "objet-grille-pointillee" | "objet-vignettes-numerotees" | "objet-fenetre-app" | "objet-terminal-commande" | "objet-dossier" | "objet-chrono" | "objet-barre-progression" | "objet-etape-segments" | "objet-appel-action" | "objet-appel-mot" | "objet-appel-rdv" | "objet-frise-montage" | "objet-pellicule" | "objet-onde-motif", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
   id,
   nom,
   description,
@@ -122,6 +132,17 @@ export const BRIQUES_OBJETS = {
   "objet-vignettes-numerotees": objet("objet-vignettes-numerotees", "Vignettes numérotées", "Une série de vignettes numérotées qui apparaissent dans l'ordre où on les cite.", OBJET_VIGNETTES_NUMEROTEES, EXEMPLES_VIGNETTES[0]),
   "objet-fenetre-app": objet("objet-fenetre-app", "Fenêtre d'application", "Une fenêtre d'application dessinée, pour montrer l'outil dont on parle.", OBJET_FENETRE_APP, EXEMPLES_FENETRE_APP[0]),
   "objet-terminal-commande": objet("objet-terminal-commande", "Terminal", "Un terminal où une commande s'écrit au moment où elle est dite.", OBJET_TERMINAL_COMMANDE, EXEMPLES_TERMINAL_COMMANDE[0]),
+  // C9-34-FIN-v20h
+  "objet-dossier": objet("objet-dossier", "Dossier", "Un dossier dont les feuilles se posent une à une quand on parle des pièces à fournir.", DEF_DOSSIER, EXEMPLES_DOSSIER_CHRONO_BARRE.dossier[0]),
+  "objet-chrono": objet("objet-chrono", "Chronomètre", "Un chronomètre qui affiche la durée dite à voix haute.", DEF_CHRONO, EXEMPLES_DOSSIER_CHRONO_BARRE.chrono[0]),
+  "objet-barre-progression": objet("objet-barre-progression", "Barre de progression", "Une barre qui se remplit jusqu'à l'avancement dont on parle.", DEF_BARRE_PROGRESSION, EXEMPLES_DOSSIER_CHRONO_BARRE.barre[0]),
+  "objet-etape-segments": objet("objet-etape-segments", "Étape en segments", "Une jauge en segments « Étape n sur N » posée quand l'étape est annoncée.", OBJET_ETAPE_SEGMENTS, EXEMPLES_ETAPES[0]),
+  "objet-appel-action": objet("objet-appel-action", "Appel à l'action", "Un appel à l'action (abonne-toi, lien en bio) dessiné au moment où il est dit.", DEF_APPEL_ACTION, EXEMPLES_APPEL_ACTION[0]),
+  "objet-appel-mot": objet("objet-appel-mot", "Appel par un mot", "Un appel « Tape / Commente + mot » dessiné au moment où le mot est dit.", DEF_APPEL_MOT, EXEMPLES_APPEL_MOT[0]),
+  "objet-appel-rdv": objet("objet-appel-rdv", "Prendre rendez-vous", "Un bouton « Prendre rendez-vous » cliqué au moment où on invite à réserver.", DEF_APPEL_RDV, EXEMPLES_APPEL_RDV[0]),
+  "objet-frise-montage": objet("objet-frise-montage", "Frise de montage", "Une frise de blocs de montage qui se pose au fil de ce qui est expliqué.", OBJET_FRISE_MONTAGE, EXEMPLES_FRISE[0]),
+  "objet-pellicule": objet("objet-pellicule", "Pellicule", "Une pellicule de cases qui défile au rythme de ce qui est dit.", OBJET_PELLICULE, EXEMPLES_PELLICULE[0]),
+  "objet-onde-motif": objet("objet-onde-motif", "Onde", "Une onde de barres qui bouge au rythme de la voix.", OBJET_ONDE_MOTIF, EXEMPLES_ONDE[0]),
 } as const;
 
 export const RENDUS_OBJETS = {
@@ -176,4 +197,15 @@ export const RENDUS_OBJETS = {
   "objet-vignettes-numerotees": PIECES_OBJETS["objet-vignettes-numerotees"].Rendu as RenduBrique,
   "objet-fenetre-app": PIECES_OBJETS["objet-fenetre-app"].Rendu as RenduBrique,
   "objet-terminal-commande": PIECES_OBJETS["objet-terminal-commande"].Rendu as RenduBrique,
+  // C9-34-FIN-v20h
+  "objet-dossier": PIECES_OBJETS["objet-dossier"].Rendu as RenduBrique,
+  "objet-chrono": PIECES_OBJETS["objet-chrono"].Rendu as RenduBrique,
+  "objet-barre-progression": PIECES_OBJETS["objet-barre-progression"].Rendu as RenduBrique,
+  "objet-etape-segments": PIECES_OBJETS["objet-etape-segments"].Rendu as RenduBrique,
+  "objet-appel-action": PIECES_OBJETS["objet-appel-action"].Rendu as RenduBrique,
+  "objet-appel-mot": PIECES_OBJETS["objet-appel-mot"].Rendu as RenduBrique,
+  "objet-appel-rdv": PIECES_OBJETS["objet-appel-rdv"].Rendu as RenduBrique,
+  "objet-frise-montage": PIECES_OBJETS["objet-frise-montage"].Rendu as RenduBrique,
+  "objet-pellicule": PIECES_OBJETS["objet-pellicule"].Rendu as RenduBrique,
+  "objet-onde-motif": PIECES_OBJETS["objet-onde-motif"].Rendu as RenduBrique,
 } as const;

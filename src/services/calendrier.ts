@@ -5,7 +5,7 @@
 import type { Depot } from "@/domaine/depots";
 import { fusionnerEntrees, lienMedia, type EntreeCalendrier, type FamilleEntree } from "@/domaine/calendrier";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
-import { sourceSure, type Publication, type Video } from "@/domaine/types";
+import { estRapatriee, sourceSure, type Publication, type Video } from "@/domaine/types";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import { cleJour } from "@/lib/dates";
 
@@ -23,6 +23,9 @@ interface Media {
   vignette: string | null;
 }
 
+/** RAP · Une publication rapatriée n'a ni vidéo ni visuel du Studio : on ne montre aucune adresse venue du diffuseur. */
+const MEDIA_DIFFUSEUR: Media = { famille: "carrousel", id: null, titre: "Programmé chez le diffuseur", vignette: null };
+
 async function chercherMedia(d: DepotsCalendrier, source: { videoId?: string; visuelId?: string }): Promise<Media> {
   if (source.visuelId) {
     const v = await d.visuels.obtenir(source.visuelId);
@@ -38,13 +41,13 @@ async function chercherMedia(d: DepotsCalendrier, source: { videoId?: string; vi
 /** Entrées du calendrier entre deux jours de Paris (AAAA-MM-JJ, bornes incluses). */
 export async function listerEntrees(d: DepotsCalendrier, du: string, au: string): Promise<EntreeCalendrier[]> {
   const pubs = await d.publications.lister((p) => {
-    if (!sourceSure(p)) return false;
+    if (!sourceSure(p) && !(estRapatriee(p) && !p.retireeLe)) return false;
     const j = cleJour(p.date);
     return j >= du && j <= au;
   });
   const creneaux = await d.creneaux.lister((c) => c.jourVise >= du && c.jourVise <= au && c.statut !== "archive");
   const dePublication = await Promise.all(pubs.map(async (p): Promise<EntreeCalendrier> => {
-    const m = await chercherMedia(d, p);
+    const m = estRapatriee(p) ? MEDIA_DIFFUSEUR : await chercherMedia(d, p);
     return { cle: `publication:${p.id}`, jour: cleJour(p.date), famille: m.famille, origine: "publication", titre: m.titre, vignette: m.vignette, lien: lienMedia(m.famille, m.id), reseaux: [p.reseau], mediaId: m.id, statut: p.statut };
   }));
   const deCreneau = await Promise.all(creneaux.map(async (c): Promise<EntreeCalendrier> => {
