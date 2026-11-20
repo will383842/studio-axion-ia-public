@@ -201,3 +201,36 @@ describe("RETOUR-PUBLISHED · la reprise ne touche pas un envoi hors « programm
     expect(await etat()).toEqual({ creneau: "programme", envoi: statutEnvoi, pub: "programmee", promotion: "a-verifier", verifier: "a-verifier" });
   });
 });
+
+describe("RETOUR-PUBLISHED · créneau à plusieurs réseaux (suite)", () => {
+  const facebook = (statut: string) => ({
+    id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", videoId: "vis_1", nature: "visuel", creneauId: "cre_1", cleDiffuseur: "c".repeat(64), reseau: "facebook", versionCreneau: 0,
+    jour: "2026-11-12", heure: "09:00", statut, valideeLe: iso(T0), valideePar: "fondateur", creeLe: iso(T0), modifieLe: iso(T0),
+  });
+  it("l'autre réseau annulé : le créneau passe publie", async () => {
+    await programmationManuelle("programme");
+    await depots().envoisPlanifies.enregistrer(facebook("annule") as never);
+    await passer("published");
+    expect((await etat()).creneau).toBe("publie");
+  });
+  it("l'autre réseau déjà envoye (dernier published) : le créneau passe publie", async () => {
+    await programmationManuelle("programme");
+    await depots().envoisPlanifies.enregistrer(facebook("envoye") as never);
+    await passer("published");
+    expect((await etat()).creneau).toBe("publie");
+  });
+  it("un envoi d'une version périmée du créneau (décalé) ne fait pas publier la version courante", async () => {
+    await programmationManuelle("programme");
+    await depots().creneauxEditoriaux.modifier("cre_1", { decalages: 1 } as never);
+    await passer("published");
+    expect((await etat()).creneau).toBe("programme");
+  });
+});
+
+describe("RETOUR-PUBLISHED · reprise après « envoye » (coupure entre deux écritures)", () => {
+  it("envoi déjà envoye mais créneau, pub_<clé> et marque pas à jour : le passage suivant termine le suivi", async () => {
+    await programmationManuelle("programme", { envoi: "envoye", pubZernio: "publiee" });
+    await passer("scheduled");
+    expect(await etat()).toEqual({ creneau: "publie", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+  });
+});

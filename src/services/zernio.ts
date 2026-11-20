@@ -264,8 +264,9 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
       const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
       const pub = await d.publications.obtenir(`pub_${e.cle}`);
       // Le créneau (statut final) ne passe « publie » que lorsque TOUS les envois vivants de sa version courante sont partis (jamais sur un seul réseau).
-      const freres = e.creneauId ? await d.envoisPlanifies.lister((x) => x.creneauId === e.creneauId && x.versionCreneau === e.versionCreneau && x.statut !== "annule") : [];
-      const tousPartis = freres.length > 0 && freres.every((x) => x.statut === "envoye");
+      const freres = e.creneauId ? await d.envoisPlanifies.lister((x) => x.creneauId === e.creneauId && x.versionCreneau === (creneau?.decalages ?? e.versionCreneau) && x.statut !== "annule") : [];
+      // Un envoi d'une version périmée du créneau (décalé depuis) ne fait jamais publier la version courante.
+      const tousPartis = freres.length > 0 && e.versionCreneau === (creneau?.decalages ?? e.versionCreneau) && freres.every((x) => x.statut === "envoye");
       const r = reconcilier({ diffuseur: "publie" }, {
         // Sans créneau réel, ou tant que des réseaux restent à partir : créneau fictif déjà « publie » (rien à changer de ce côté).
         creneau: creneau && tousPartis ? { id: creneau.id, statut: creneau.statut } : { id: "-", statut: "publie" },
@@ -292,7 +293,20 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
  */
 async function reprendreRetoursPublies(): Promise<void> {
   const d = depots();
-  const restes = await d.envoisPlanifies.lister((e) => e.statut === "programme");
+  // Envois restés « programme », ou déjà « envoye » dont le suivi (pub_<clé>, créneau, marques) n'est pas terminé : une coupure peut survenir entre deux écritures.
+  const candidats = await d.envoisPlanifies.lister((e) => e.statut === "programme" || e.statut === "envoye");
+  const restes: typeof candidats = [];
+  for (const e of candidats) {
+    if (e.statut === "programme") {
+      restes.push(e);
+      continue;
+    }
+    const pub = await d.publications.obtenir(`pub_${e.cle}`);
+    const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
+    const marque = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}promotion:${e.cle}`);
+    const verifier = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}a-verifier:${e.cle}`);
+    if ((pub && pub.statut === "programmee") || creneau?.statut === "programme" || marque?.valeur === "programme" || marque?.valeur === "a-verifier" || verifier?.valeur === "a-verifier") restes.push(e);
+  }
   if (!restes.length) return;
   const cles = new Set(restes.map((e) => e.cleDiffuseur ?? e.cle));
   const pubs = await d.publications.lister((p) => p.via === "zernio" && p.statut === "publiee" && !!p.cleEnvoi && cles.has(p.cleEnvoi));
