@@ -60,7 +60,7 @@ describe("couperReference", () => {
 
 describe("mettreEnPageReference", () => {
   it("met en page une fiche : pages non vides, éléments écrits, format vertical par défaut", () => {
-    const m = mettreEnPageReference(ficheAvantApres);
+    const m = mettreEnPageReference(copie(ficheAvantApres));
     const pagesFiche = new Set(ficheAvantApres.scenes.map((s) => s.page));
     expect(m.pages.map((p) => p.page)).toEqual([...pagesFiche].sort((a, b) => a - b));
     for (const p of m.pages) {
@@ -71,15 +71,16 @@ describe("mettreEnPageReference", () => {
     expect(m.styleReference?.style).toBe("reference/1");
   });
   it("est déterministe", () => {
-    expect(mettreEnPageReference(ficheAvantApres)).toEqual(mettreEnPageReference(ficheAvantApres));
+    expect(mettreEnPageReference(copie(ficheAvantApres))).toEqual(mettreEnPageReference(copie(ficheAvantApres)));
   });
   it("ne modifie pas la fiche reçue", () => {
+    const f = copie(ficheAvantApres);
     const avant = copie(ficheAvantApres);
-    mettreEnPageReference(ficheAvantApres);
-    expect(ficheAvantApres).toEqual(avant);
+    mettreEnPageReference(f);
+    expect(f).toEqual(avant);
   });
   it("chaque bloc écrit reste dans la zone sûre", () => {
-    const m = mettreEnPageReference(ficheAvantApres);
+    const m = mettreEnPageReference(copie(ficheAvantApres));
     const z = m.zoneSure.px;
     for (const p of m.pages)
       for (const e of p.elements) {
@@ -90,12 +91,12 @@ describe("mettreEnPageReference", () => {
       }
   });
   it("sortie horizontale : dimensions de la sortie demandée", () => {
-    const m = mettreEnPageReference(ficheAvantApres, { format: "horizontal" });
+    const m = mettreEnPageReference(copie(ficheAvantApres), { format: "horizontal" });
     expect(m.largeurPx).toBeGreaterThan(m.hauteurPx);
     expect(m.format).toBe("horizontal");
   });
   it("fin avec site : ajoute le bloc « ~site » en dernière page", () => {
-    const m = mettreEnPageReference(ficheAvantApres, { appel: { site: true, phrase: "Essayez maintenant" } as never });
+    const m = mettreEnPageReference(copie(ficheAvantApres), { appel: { site: true, phrase: "Essayez maintenant" } as never });
     expect(m.styleReference?.ajouts.some((id) => id.endsWith("~site"))).toBe(true);
     expect(m.styleReference?.pagesSansSignature).toHaveLength(1);
   });
@@ -104,6 +105,6 @@ describe("mettreEnPageReference", () => {
     const el = f.scenes.flatMap((s) => s.elements).find((e) => e.type === "ligne");
     if (!el || el.type !== "ligne") throw new Error("ligne absente");
     el.texte = "Anticonstitutionnellement".repeat(4);
-    expect(() => mettreEnPageReference(f)).toThrow(/ne tient pas/);
+    expect(() => mettreEnPageReference(f)).toThrow(/le mot « Anticonstitutionnellement/);
   });
 });
