@@ -87,7 +87,7 @@ describe("éteint : identique au chantier 3", () => {
       expect(el.nom).toBe(ref.nom);
       espion.mockRestore();
     }
-  });
+  }, 30_000); // FIX-INSCRIPTION-NOTE-v20i : 4 inscriptions complètes, > 5 s sous charge
 });
 
 describe("allumé", () => {
