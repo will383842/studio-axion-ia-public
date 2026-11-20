@@ -300,15 +300,20 @@ function fichiers(dir: string): string[] {
   });
 }
 
+/** Vrai si la clé en clair apparaît entre l'un des trois délimiteurs : guillemet double, guillemet simple ou accent grave. */
+function citeCle(src: string, cle: string): boolean {
+  return ['"', "'", "`"].some((q) => src.includes(q + cle + q));
+}
+
 describe("clé de la fin commune (26a)", () => {
   it("toute lecture de « tutoriel.finCommune » dans src (hors console) utilise exactement CLE_FIN_COMMUNE", () => {
-    const lecteurs = fichiers(join(process.cwd(), "src")).filter((f) => !f.endsWith("tutoriel-console.ts") && /lireParametre\s*(?:<[^>]*>)?\s*\(\s*"tutoriel\.finCommun/.test(readFileSync(f, "utf8")));
+    const lecteurs = fichiers(join(process.cwd(), "src")).filter((f) => !f.endsWith("tutoriel-console.ts") && /lireParametre\s*(?:<[^>]*>)?\s*\(\s*["'`]tutoriel\.finCommun/.test(readFileSync(f, "utf8")));
     expect(lecteurs.some((f) => f.endsWith("tutoriel-branchements.ts"))).toBe(true);
     const src = lire("src/services/tutoriel-branchements.ts");
-    const cles = [...src.matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*"(tutoriel\.finCommun[^"]*)"/g)].map((m) => m[1]);
+    const cles = [...src.matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*["'`](tutoriel\.finCommun[^"'`]*)["'`]/g)].map((m) => m[1]);
     expect(cles).toEqual([c.CLE_FIN_COMMUNE]);
     for (const f of lecteurs) {
-      const lues = [...readFileSync(f, "utf8").matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*"(tutoriel\.finCommun[^"]*)"/g)].map((m) => m[1]);
+      const lues = [...readFileSync(f, "utf8").matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*["'`](tutoriel\.finCommun[^"'`]*)["'`]/g)].map((m) => m[1]);
       expect(lues.every((k) => k === c.CLE_FIN_COMMUNE)).toBe(true);
     }
   });
@@ -323,13 +328,19 @@ describe("aucun allumage par le code", () => {
   const nomsConstantes = {
     test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
   };
-  const ECRITURE = /ecrireParametre\s*\(|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
+  const ECRITURE = /\becrireParametre\b|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
   it("la détection voit les constantes CLE_* / PARAM_* et parametres.enregistrer", () => {
     expect(constantes).toEqual(expect.arrayContaining(["CLE_FORMULAIRE", "CLE_FINITIONS", "CLE_MENTION_TUTORIEL"]));
     expect(ECRITURE.test(`await d.parametres.enregistrer({ id: CLE_FINITIONS })`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(PARAM_CLAUDE_TUTORIEL, true)`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(CLE_FORMULAIRE, true)`)).toBe(true);
     expect(nomsConstantes.test(`ecrireParametre(PARAM_ENTREE_ZIP, true)`)).toBe(true);
+    // Import aliasé, clé en guillemets simples ou en gabarit : vus aussi.
+    expect(ECRITURE.test(`import { ecrireParametre as ecrire } from "@/services/_commun"; ecrire(PARAM_ENTREE_ZIP, true)`)).toBe(true);
+    expect(cles.some((k) => citeCle(`ecrireParametre('tutoriel.claude', true)`, k))).toBe(true);
+    expect(cles.some((k) => citeCle("ecrireParametre(`tutoriel.claude`, true)", k))).toBe(true);
+    expect(cles.some((k) => citeCle(`ecrireParametre("tutoriel.claude", true)`, k))).toBe(true);
+    expect(cles.some((k) => citeCle(`ecrireParametre("tutoriel.claudeX", true)`, k))).toBe(false);
     // Homonyme local (autre sens) : pas une écriture de la clé du tutoriel.
     expect(nomsConstantes.test(`const CLE_FORMULAIRE = /^[a-z]+$/; ecrireParametre(x, true)`)).toBe(false);
   });
@@ -338,9 +349,34 @@ describe("aucun allumage par le code", () => {
       .filter((f) => !f.endsWith("tutoriel-console.ts") && !f.endsWith("scenes-tutoriel.ts"))
       .filter((f) => {
         const s = readFileSync(f, "utf8");
-        return ECRITURE.test(s) && (cles.some((k) => s.includes(`"${k}"`)) || nomsConstantes.test(s));
+        return ECRITURE.test(s) && (cles.some((k) => citeCle(s, k)) || nomsConstantes.test(s));
       });
     expect(coupables).toEqual([]);
+  });
+  it("les valeurs de départ (dépôt mémoire, migrations, tout src/donnees) ne contiennent aucune clé du panneau, sous aucune forme de guillemets", () => {
+    const racine = join(process.cwd(), "src");
+    const departs = [
+      ...fichiers(join(racine, "donnees")),
+      join(racine, "services", "migrations.ts"),
+      ...fichiers(join(racine, "services", "migrations")),
+    ];
+    expect(departs.some((f) => f.endsWith(join("memoire", "demo.ts")))).toBe(true);
+    const coupables = departs.filter((f) => {
+      const s = readFileSync(f, "utf8");
+      return cles.some((k) => citeCle(s, k)) || nomsConstantes.test(s);
+    });
+    expect(coupables).toEqual([]);
+    // La détection voit les trois formes de guillemets dans un amorçage `p(...)`.
+    for (const q of ['"', "'", "`"]) expect(cles.some((k) => citeCle(`p(${q}tutoriel.claude${q}, true)`, k))).toBe(true);
+  });
+  it("basculerReglage et les actions ne sont appelés que depuis le chemin d'un clic (actions.ts puis page.tsx)", () => {
+    const racine = join(process.cwd(), "src");
+    const ACTIONS = join("reglages", "tutoriel-outil", "actions.ts");
+    const PAGE = join("reglages", "tutoriel-outil", "page.tsx");
+    const tous = fichiers(racine).filter((f) => !f.endsWith("tutoriel-console.ts"));
+    const citent = (noms: string[]) => tous.filter((f) => { const s = readFileSync(f, "utf8"); return noms.some((n) => new RegExp(`\\b${n}\\b`).test(s)); });
+    expect(citent(["basculerReglage", "enregistrerTexteMention"]).every((f) => f.endsWith(ACTIONS))).toBe(true);
+    expect(citent(["basculerReglageTutoriel", "basculerReglageFormulaire", "enregistrerTexteMentionTutoriel", "enregistrerTexteFormulaire"]).every((f) => f.endsWith(ACTIONS) || f.endsWith(PAGE))).toBe(true);
   });
   it("scenes-tutoriel.ts (qui déclare la clé des scènes gardées) n'écrit que son index, jamais l'interrupteur", () => {
     const src = lire("src/services/scenes-tutoriel.ts");
