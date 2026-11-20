@@ -35,6 +35,7 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     avancer: avancerVideoLongue,
     resultat(commande, etat) {
       const duree = etat.voix?.dureeSec ?? 0;
+      const sansVoix = lireEntreesVideoLongue(commande).sansVoix;
       const sorties: SortieProduite[] = commande.ratios
         .filter((r) => etat.sorties[r])
         .map((ratio) => ({
@@ -44,7 +45,7 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
           resolution: "1920x1080",
           dureeSec: duree,
           taille: 0,
-          rapportQualite: { note: 80, verifie: { image: true, son: true, sousTitres: false, mentionIA: false, droits: false }, alertes: [], niveauSonoreLufs: -14 },
+          rapportQualite: { note: 80, verifie: { image: true, son: !sansVoix, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: [], niveauSonoreLufs: sansVoix ? -70 : -14 },
         }));
       const alertes = etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message }));
       const reprise: RepriseVideoLongue | undefined = etat.voix && etat.chapitres ? { voix: etat.voix, chapitres: etat.chapitres } : undefined;

@@ -38,6 +38,7 @@ import { lecturesVoixMax, ressemblanceDeLaCommande } from "@/briques/voix-maitre
 import { ErreurFabrication, ETAPES_FABRICATION, fabriquerTableau, type CompteRenduFabrication, type EtapeFabrication, type JournalFabrication, type OutilsFabrication, type SortieFaite } from "./fabriquer";
 import type { FicheTableau } from "./fiche";
 import type { ContexteTableau } from "./regles";
+import { piecesPermisesDesEntrees } from "@/briques/plan-scenes-objets/pieces-permises";
 import { apercuRetouche, estOperationRetouche, lireOperationRetouche, type ContexteRetouche, type OperationRetouche } from "./retouches";
 
 /* Contrat commun des moteurs (TYPES seulement, `src/moteurs/types.ts`), lu par `import()` de type : voir `etapes.ts`. */
@@ -404,6 +405,8 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsTableau
     voix: { ...reste.voix, ...(ressemblance ? { ressemblance } : {}) },
     // Réseaux cochés → formats de sortie (posés dans les entrées au lancement) ; des outils qui les fixent l'emportent.
     ...(!reste.sorties && entrees.sorties?.length ? { sorties: entrees.sorties } : {}),
+    // N-04e : pièces d'objets permises par le profil figé (aucun profil ne les permet encore : rien ne change).
+    ...((p) => (p.length ? { objetsPermis: p } : {}))(piecesPermisesDesEntrees(commande.entrees)),
     ...(!reste.traceScriptId && entrees.traceScriptId ? { traceScriptId: entrees.traceScriptId } : {}),
     // 17/10 : style des sous-titres résolu au lancement (choix de la vidéo, sinon défaut du format), figé dans la commande.
     ...(reste.styleSousTitres === undefined && commande.styles.sousTitres?.valeur?.type === "style-sous-titres" ? { styleSousTitres: commande.styles.sousTitres as StyleResolu<ValeurStyleSousTitres> } : {}),

@@ -238,6 +238,8 @@ describe("analyste : rôle", () => {
     const permis = [
       "src/moteurs/montage-tutoriel-outil/equipe/analyste.ts",
       "src/moteurs/montage-tutoriel-outil/maquette-creee.ts",
+      // AUTORISATION PERMANENTE (a) : V2-06 importe le schéma de la carte des zones (ajout d'un appelant, rien d'autre).
+      "src/moteurs/montage-tutoriel-outil/flux-cree.ts",
     ];
     expect(lignes.every((l) => permis.some((p) => l.startsWith(p)))).toBe(true);
   });
