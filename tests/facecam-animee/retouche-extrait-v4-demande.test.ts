@@ -58,11 +58,14 @@ describe("R4-03-d1 · demanderRetoucheExtraitV4", () => {
     expect(retoucheExtraitV4).toEqual({ action: "remplacer", rang: 0, recherche: "dirigeant devis", pourVersionId: "ver-3" });
   });
 
-  it("d) une ancienne retoucheExtraitV4 est remplacée, pas fusionnée", async () => {
+  it("d) une ancienne retoucheExtraitV4 est remplacée, pas fusionnée (aucune clé de l'ancienne ne survit)", async () => {
     const lancer = lancerOk();
-    await demanderRetoucheExtraitV4("v1", { action: "deplacer", rang: 1, debut: 2, fin: 4 }, { actif: async () => true, lancer, lireVideo });
+    const ancienne = { action: "remplacer", rang: 9, recherche: "vieux", sourceVideoId: "src-old" };
+    const versionAvecAncienne = { id: "ver-3", commande: { entrees: { ...ENTREES, retoucheExtraitV4: ancienne } } };
+    await demanderRetoucheExtraitV4("v1", { action: "retirer", rang: 0 }, { actif: async () => true, lancer, lireVideo: async () => versionAvecAncienne });
     const { entrees } = (lancer.mock.calls[0] as unknown as [string, string[], string, { entrees: Record<string, unknown> }])[3];
-    expect(entrees.retoucheExtraitV4).toEqual({ action: "deplacer", rang: 1, debut: 2, fin: 4, pourVersionId: "ver-3" });
+    expect(entrees.retoucheExtraitV4).toEqual({ action: "retirer", rang: 0, pourVersionId: "ver-3" });
+    expect(Object.keys(entrees.retoucheExtraitV4 as object).sort()).toEqual(["action", "pourVersionId", "rang"]);
   });
 
   it("version sans entrées : la demande part seule avec ses entrées vides", async () => {
