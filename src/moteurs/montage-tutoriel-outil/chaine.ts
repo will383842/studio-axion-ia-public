@@ -40,11 +40,16 @@ import { instantsTutoriel, textesPermisDuRegistre, verdictRegardTutoriel } from 
 import type { VerdictControleur } from "./equipe/controleur";
 import type { RegistreTextes } from "./equipe/registre-textes";
 import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
-import { estSansVoix, lireEntreesTutoriel } from "./entrees";
+import { ENTREE_TUTORIEL, estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
-import { payerUneFois, type RegistrePaye } from "./reprise";
-import { ecrireScript, MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
+import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
+import type { EntreeRole } from "@/generateur/roles/types";
+import { calerScenario } from "./calage-scenario";
+import { controlerApresCalage } from "./equipe/controleur";
+import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
+import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
+import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
 
 export const ETAPES_TUTORIEL = ["script", "voix", "calage", "plan", "montage", "exports"] as const;
 export type CleEtapeTutoriel = (typeof ETAPES_TUTORIEL)[number];
@@ -83,6 +88,11 @@ export interface OutilsTutoriel {
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
   sousTitres?: { style?: ValeurStyleSousTitres | null; base?: BaseSousTitres; intensite?: IntensiteSousTitres };
   /**
+   * T-EXT-55 : l'équipe de rôles (chef de projet, analyste, stratège, scénariste…) qui écrit le script depuis le dossier ou la
+   * phrase de Williams. Absent = éteint : script collé ou validé comme avant, une idée seule attend un script collé.
+   */
+  equipe?: PortEquipe;
+  /**
    * T-EXT-42 : devis et plafond par vidéo, EN QUANTITÉS, montrés avant toute dépense. Absent = comportement d'avant, inchangé.
    * Présent : le moteur s'arrête en pause claire (jamais en échec, sans aucun appel) tant que Williams n'a pas accepté CE devis.
    */
@@ -91,6 +101,26 @@ export interface OutilsTutoriel {
     accord: { empreinte: string; le: string } | null;
     /** Ce qui a déjà été dépensé pour ce travail (appels revenus, caractères lus, rendus demandés), lu dans son état. */
     consomme(etat: EtatTutoriel): Promise<{ appelsClaude: number; caracteresVoix: number; rendus: number }>;
+  };
+}
+
+/** Ports réels de l'équipe (T-EXT-55) : un double dans les tests. Le moteur n'importe aucun service. */
+export interface PortEquipe {
+  /** UN appel payant d'un rôle, par le chemin gardé de l'argent ; lève si l'appel n'a pas eu lieu (rien n'est alors compté). */
+  appelerRole(role: IdRole, entree: EntreeRole): Promise<unknown>;
+  /** Le dossier de Williams (zip déjà contrôlé) ; `null` : pas de dossier lisible. */
+  lireDossier(): Promise<DossierLu | null>;
+  /** Horloge (ISO) pour le registre des appels payés et le journal ; absente : l'heure du système. */
+  maintenant?: () => string;
+  /**
+   * Briques du tronc commun des scripts (chantier SC), si elles sont sur master : elles COMMENTENT, jamais ne réécrivent.
+   * Absent = rien (cas de master).
+   */
+  tronc?: {
+    /** Remarques sur les versions proposées (porte A sans IA, puis juge si son réglage l'allume). */
+    evaluer?: (versions: readonly { id: string; texte: string }[]) => Promise<string[]> | string[];
+    /** Une correction de Williams devient une règle durable : avant / après. */
+    noterCorrection?: (avant: string, apres: string) => Promise<void> | void;
   };
 }
 
@@ -180,6 +210,10 @@ export interface EtatTutoriel {
   script?: { texte: string; source: SourceScript; remarques: string[] };
   /** Script écrit depuis l'idée, en attente de la relecture de Williams. */
   proposition?: string;
+  /** T-EXT-55 : l'équipe de rôles (forme lue par l'écran de validation, T-EXT-24, et les actions de T-EXT-33). Absent = équipe éteinte. */
+  equipe?: EtatEquipe;
+  /** T-EXT-34 : journal des rôles (l'état de chaque rôle, jamais ses sorties). */
+  roles?: LigneJournal[];
   voix?: EtatVoixMaitre;
   audio?: AudioTutoriel;
   sonMixe?: SonMixeTutoriel;
@@ -211,7 +245,7 @@ export interface EtatTutoriel {
   navigationFilm?: NavigationFilmee;
   echecSimuleFait?: boolean;
   /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
-  appelsClaude?: { script: number; plan: number; regard?: number };
+  appelsClaude?: { plan: number; regard?: number; roles?: Record<string, number>; /** Hérité : plus écrit (T-EXT-55 retire l'écrivain hors équipe). */ script?: number };
   /** T-EXT-27b : ce que le regard a vu (une fois par version) ; absent tant que le pas n'a pas eu lieu. */
   regard?: { instants: number; relues: number; verdict: VerdictRegard };
   /** T-EXT-27b : grille de qualité chiffrée, seulement quand le verdict du contrôleur et celui du contrôle de l'image sont dans l'état. */
@@ -229,7 +263,10 @@ function compterAppels(appeler: AppelClaude, n: { v: number }): AppelClaude {
   };
 }
 
-const avecAppels = (etat: EtatTutoriel, cle: "script" | "plan" | "regard", n: number): EtatTutoriel => (n > 0 ? { ...etat, appelsClaude: { script: 0, plan: 0, ...etat.appelsClaude, [cle]: (etat.appelsClaude?.[cle] ?? 0) + n } } : etat);
+const avecAppels = (etat: EtatTutoriel, cle: "plan" | "regard", n: number): EtatTutoriel => (n > 0 ? { ...etat, appelsClaude: { plan: 0, ...etat.appelsClaude, [cle]: (etat.appelsClaude?.[cle] ?? 0) + n } } : etat);
+
+/** T-EXT-55 : un appel de rôle REVENU (un appel repris par `payerUneFois` n'est pas recompté). */
+const avecAppelRole = (etat: EtatTutoriel, role: IdRole): EtatTutoriel => ({ ...etat, appelsClaude: { plan: 0, ...etat.appelsClaude, roles: { ...etat.appelsClaude?.roles, [role]: (etat.appelsClaude?.roles?.[role] ?? 0) + 1 } } });
 
 /** T-EXT-45b : le registre ne garde que ce qui a été payé ET utilisable (appel revenu, résultat rendu) ; le reste reste refaisable. `faitLe` = date de la commande (l'état reste déterministe). */
 const avecPayes = (etat: EtatTutoriel, registre: RegistrePaye, paye: boolean): EtatTutoriel => (paye ? { ...etat, payes: registre } : etat);
@@ -273,19 +310,161 @@ export class ErreurTutoriel extends Error {
 const texteLu = (texte: string, prononciations: readonly { mot: string; prononciation: string }[]): string =>
   prononciations.reduce((t, p) => t.replace(new RegExp(`(?<![\\p{L}\\p{N}])${p.mot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, "giu"), p.prononciation), texte);
 
+/** Ce que Williams a donné, pour le chef de projet : sa phrase (ou son idée), la fin et le parcours choisis, les formats. */
+function demandeEquipe(commande: CommandeFabrication, e: ReturnType<typeof lireEntreesTutoriel>): EtatEquipe["demande"] {
+  const brut = commande.entrees?.[ENTREE_TUTORIEL];
+  const fin = brut && typeof brut === "object" ? (brut as { fin?: unknown }).fin : undefined;
+  const phrase = e.depot?.mode === "phrase" ? e.depot.phrase : e.idee;
+  return { ...(phrase ? { phrase } : {}), ...(fin === "prendre-rendez-vous" || fin === "aucune" ? { fin } : {}), ...(e.gabarit ? { gabaritImpose: e.gabarit } : {}), ratios: [...commande.ratios] };
+}
+
+/** Phrases d'un script de version, pour retrouver de quelle version vient une correction. */
+const phrasesDe = (v: { phrases: readonly { texte: string }[] }): Set<string> => new Set(v.phrases.map((p) => p.texte.replace(/\s+/g, " ").trim()));
+
+/** T-EXT-55 : la correction de Williams est notée au tronc (avant = la version dont elle reprend le plus de phrases), une seule fois, sans rien réécrire. */
+async function noterCorrection(etat: EtatTutoriel, outils: OutilsTutoriel): Promise<EtatTutoriel> {
+  const equipe = etat.equipe;
+  const noter1 = outils.equipe?.tronc?.noterCorrection;
+  if (!noter1 || !equipe?.scriptChoisi || equipe.scriptChoisi.source !== "corrige" || equipe.correctionNotee || !equipe.propositionScripts) return etat;
+  const gardes = new Set(equipe.scriptChoisi.phrases.map((p) => p.texte.replace(/\s+/g, " ").trim()));
+  const [a, b] = equipe.propositionScripts.versions;
+  const commun = (v: typeof a) => [...phrasesDe(v)].filter((t) => gardes.has(t)).length;
+  const avant = commun(b) > commun(a) ? b : a;
+  try {
+    await noter1(avant.phrases.map((p) => p.texte).join(" "), equipe.scriptChoisi.texte);
+  } catch {
+    // Le tronc ne bloque jamais.
+  }
+  return { ...etat, equipe: { ...equipe, correctionNotee: true } };
+}
+
 async function pasScript(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
-  if (etat.script) return { statut: "faite", etat };
-  const r = scriptRetenu(commande.script.texteComplet, lireEntreesTutoriel(commande.entrees));
+  if (etat.script) return { statut: "faite", etat: await noterCorrection(etat, outils) };
+  const entrees = lireEntreesTutoriel(commande.entrees);
+  const r = scriptRetenu(commande.script.texteComplet, entrees);
   if ("texte" in r) return { statut: "faite", etat: { ...etat, script: { texte: r.texte, source: r.source, remarques: remarquesScript(r.texte) } } };
+  // Équipe allumée : un dossier ou une phrase déposés, ou une idée, passent par l'équipe, un rôle par pas.
+  if (outils.equipe && (entrees.depot || "aEcrire" in r)) return pasEquipe(etat, commande, outils.equipe, entrees);
   if ("vide" in r) return { statut: "pause", etat, code: "TO_SCRIPT_ABSENT", message: "Aucun script ni idée : collez votre script ou donnez un titre. Rien n'a échoué." };
   if (etat.proposition) return { statut: "pause", etat, code: "TO_SCRIPT_A_VALIDER", message: "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite." };
-  const n = { v: 0 };
-  const empreinte = fnv1a64(jsonCanonique({ aEcrire: r.aEcrire }));
-  const payee = await payerUneFois(etat.payes, "script", empreinte, () => ecrireScript(r.aEcrire, compterAppels(outils.claude, n)), commande.construiteLe);
-  const proposition = payee.resultat;
-  etat = avecAppels(avecPayes(etat, payee.registre, n.v > 0 && !!proposition), "script", n.v);
-  if (!proposition) return { statut: "pause", etat, code: "TO_SCRIPT_NON_ECRIT", message: "Le script n'a pas pu être écrit pour l'instant : collez votre script, ou relancez plus tard. Rien n'a échoué." };
-  return { statut: "pause", etat: { ...etat, proposition }, code: "TO_SCRIPT_A_VALIDER", message: "Relisez le script, modifiez-le si besoin, puis validez : la vidéo se fabrique ensuite." };
+  // Équipe éteinte : plus d'écrivain hors équipe (T-EXT-55). L'idée attend un script collé, sans rien dépenser.
+  return { statut: "pause", etat, code: "TO_SCRIPT_NON_ECRIT", message: "L'écriture depuis une idée n'est pas encore ouverte : collez votre script. Rien n'a échoué." };
+}
+
+/**
+ * T-EXT-55 · Le prochain pas de l'étape script PAIERA-t-il un appel de rôle ? Lecture seule, 0 €, jamais un appel.
+ * Sert à la garde du devis : le « +1 appel à venir » ne se compte que si le pas suivant paie vraiment (un pas sans IA, la lecture
+ * d'une sortie déjà payée ou une pause ne dépensent rien). Doute (lecture en échec) : oui, c'est le sens prudent.
+ */
+export async function prochainPasPaye(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<boolean> {
+  const port = outils.equipe;
+  if (!port) return true;
+  try {
+    const entrees = lireEntreesTutoriel(commande.entrees);
+    const equipe: EtatEquipe = etat.equipe ?? { demande: demandeEquipe(commande, entrees), payes: {} };
+    let dossier: DossierLu | null = null;
+    if (entrees.depot?.mode === "dossier") {
+      try {
+        dossier = await port.lireDossier();
+      } catch {
+        return true; // lecture en échec : le pas réel peut la réussir et payer un rôle, donc on réserve (sens prudent)
+      }
+      if (dossier === null) return true; // idem : lecture sans résultat
+    }
+    const pas = prochainPas(equipe, { dossier });
+    if (!("faire" in pas) || !pas.payant) return false;
+    return dejaPaye(equipe.payes, `Tutoriel · ${pas.faire}`, pas.empreinteEntree) === null;
+  } catch {
+    return true;
+  }
+}
+
+const ROLES_LIBELLE: Partial<Record<IdRole, string>> = { "chef-de-projet": "le chef de projet", analyste: "l'analyste", maquettiste: "le maquettiste", stratege: "le stratège de valeur", scenariste: "le scénariste" };
+
+/** Note l'état d'un rôle au journal (jamais ses sorties). */
+const noter = (etat: EtatTutoriel, role: IdRole, e: LigneJournal["etat"], le: string, resume?: string): EtatTutoriel => noterRole(etat, { role, etat: e, le, ...(resume ? { resume } : {}) });
+
+/**
+ * T-EXT-55 · UN rôle par pas : jamais deux appels payants dans le même pas (une panne au second ferait repayer le premier).
+ * Un rôle payant passe par `payerUneFois` (même entrée = jamais repayé) ; le pas qui paie rend son état tout de suite, le
+ * traitement de la sortie se fait au pas suivant (règle de T-EXT-45a). Le texte de Williams n'est jamais repassé par un rôle.
+ */
+async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port: PortEquipe, entrees: ReturnType<typeof lireEntreesTutoriel>): Promise<PasTutoriel> {
+  const le = port.maintenant?.() ?? new Date().toISOString();
+  const equipe: EtatEquipe = etat.equipe ?? { demande: demandeEquipe(commande, entrees), payes: {} };
+  let dossier: DossierLu | null = null;
+  if (entrees.depot?.mode === "dossier") {
+    try {
+      dossier = await port.lireDossier();
+    } catch {
+      dossier = null;
+    }
+    // Lecture ratée : pause reprenable, SANS rien écrire dans etat.equipe (sinon un classement « phrase seule » resterait pour toujours).
+    if (dossier === null) return { statut: "pause", etat, code: "TO_DOSSIER_INCOMPLET", message: "Votre dossier n'a pas pu être lu pour l'instant : la vidéo reprend dès qu'il est lisible. Rien n'a échoué." };
+  }
+  const lecture = { dossier };
+  const pas = prochainPas(equipe, lecture);
+  if ("fini" in pas) return { statut: "faite", etat };
+  if ("pause" in pas) {
+    let suite: EtatTutoriel = { ...etat, equipe: pas.etat ?? equipe };
+    if (pas.pause.code === "TO_SCRIPT_A_VALIDER" && suite.roles?.findLast((l) => l.role === "scenariste")?.etat !== "attend-williams") suite = noter(suite, "scenariste", "attend-williams", le, "Deux versions attendent votre choix.");
+    return { statut: "pause", etat: suite, code: pas.pause.code, message: pas.pause.message };
+  }
+  if (!pas.payant) return { statut: "en-cours", etat: noter({ ...etat, equipe: pas.etat }, pas.faire, "fait", le, pas.resume) };
+
+  const etape = `Tutoriel · ${pas.faire}`;
+  const gardee = dejaPaye(equipe.payes, etape, pas.empreinteEntree);
+  if (gardee === null) {
+    let paye: Awaited<ReturnType<typeof payerUneFois<unknown>>>;
+    try {
+      paye = await payerUneFois<unknown>(equipe.payes, etape, pas.empreinteEntree, () => port.appelerRole(pas.faire, pas.entree), le);
+    } catch {
+      // Appel refusé ou en panne : rien n'est compté ; « Réessayer » reprend ce rôle, les rôles déjà faits ne sont pas rappelés.
+      throw new ErreurTutoriel("TO_EQUIPE_PANNE", `Une étape de préparation (${ROLES_LIBELLE[pas.faire] ?? "un rôle de l'équipe"}) s'est arrêtée : « Réessayer » la reprend, sans refaire ce qui est fait.`, true);
+    }
+    // Le résultat payé est rangé tout de suite ; sa lecture se fait au pas suivant.
+    const rendu = avecAppelRole({ ...etat, equipe: { ...equipe, payes: paye.registre } }, pas.faire);
+    return { statut: "en-cours", etat: noter(rendu, pas.faire, "en-cours", le) };
+  }
+  const a = await appliquerSortie(equipe, pas.faire, gardee, lecture);
+  if (!a.ok) {
+    const suite: EtatTutoriel = { ...etat, equipe: a.etat };
+    if (a.bloquee) return { statut: "pause", etat: noter(suite, pas.faire, "a-revoir", le), code: "TO_EQUIPE_BLOQUEE", message: "Une étape de préparation n'a pas abouti : réessayez ou collez votre script." };
+    return { statut: "en-cours", etat: noter(suite, pas.faire, "a-revoir", le, "Relecture : la réponse est refaite avec les remarques.") };
+  }
+  let suite: EtatTutoriel = noter({ ...etat, equipe: a.etat }, pas.faire, "fait", le, a.resume);
+  // Tronc commun (SC), facultatif : il commente les versions écrites, jamais ne les réécrit.
+  if (pas.faire === "scenariste" && port.tronc?.evaluer && a.etat.propositionScripts) {
+    try {
+      const versions = a.etat.propositionScripts.versions.map((v) => ({ id: v.id, texte: v.phrases.map((p) => p.texte).join(" ") }));
+      const remarques = (await port.tronc.evaluer(versions)).filter((m) => typeof m === "string" && m.trim());
+      if (remarques.length) suite = { ...suite, equipe: { ...a.etat, remarquesTronc: remarques } };
+    } catch {
+      // Le tronc ne bloque jamais.
+    }
+  }
+  return { statut: "en-cours", etat: suite };
+}
+
+/**
+ * T-EXT-55 · Après le calage (équipe allumée seulement) : le contrôleur relit les durées réelles (sans IA ; ses remarques
+ * deviennent des réserves, jamais un échec), puis la vidéo attend le film de navigation, fait sur le poste de capture.
+ */
+function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication): PasTutoriel {
+  const equipe = pas.etat.equipe;
+  // Décision sur l'ÉTAT de la vidéo, jamais sur le port : le port est recréé à chaque pas et peut manquer un tour (réglage lu en échec).
+  if (!equipe?.parcours || pas.statut !== "faite") return pas;
+  let etat = pas.etat;
+  const nav = lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  if (!equipe.verdictCalage && etat.audio && etat.script) {
+    const cal = calerScenario(equipe.parcours.scenario, etat.audio.mots, Math.round(etat.audio.dureeSec * 1000));
+    const phrases = equipe.scriptChoisi?.phrases ?? [{ texte: etat.script.texte, aRevoir: false }];
+    const verdict = controlerApresCalage({ script: { phrases }, parcours: equipe.parcours, etapes: cal.ok ? cal.etapes : [], dureeVoixMs: Math.round(etat.audio.dureeSec * 1000), dureeFinMs: DUREE_CARTE_FIN_MS, ...(nav ? { navigation: nav } : {}) });
+    const reserves = verdict.controles.filter((c) => c.etat === "echoue").flatMap((c) => c.details.map((d) => `À vérifier · ${d}`));
+    etat = { ...etat, equipe: { ...equipe, verdictCalage: verdict }, reserves: [...etat.reserves, ...reserves.filter((m) => !etat.reserves.includes(m))] };
+  }
+  if (!nav) return { statut: "pause", etat, code: "TO_FILM_A_CAPTURER", message: "Le film de navigation se fabrique sur le poste de capture : déposez-le, la vidéo reprend. Rien n'a échoué." };
+  return { statut: "faite", etat };
 }
 
 function audioDe(a: AudioMaitre): AudioTutoriel {
@@ -778,7 +957,7 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
       return pasVoix(etat, commande, outils);
     case "calage":
       // Sans étape « voix » (aucune distribution), le calage part de l'estimation du texte.
-      return pasCalage(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils);
+      return pasApresCalage(pasCalage(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils), commande);
     case "plan":
       return pasPlan(etat, commande, outils);
     case "montage":
