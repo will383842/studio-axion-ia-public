@@ -62,12 +62,13 @@ describe("constat C5-5.01 · partie 1 : FFmpeg ignore le plan de scènes", () =>
     expect(argumentsImageFfmpeg(avec, couleurs, fichiers, 2, "master.mov")).toEqual(argumentsImageFfmpeg(sans, couleurs, fichiers, 2, "master.mov"));
   });
 
-  it("aucun fichier de `studio-rendu/src/composition/` ne contient `planScenes`", () => {
+  it("EXACTEMENT `studio-rendu/src/composition/texte-instants.ts` contient `planScenes` (BR-DESSIN-FACECAM-b-v20a, 20/11 : plan dans l'empreinte du calque texte)", () => {
     const dossier = join(RACINE, "studio-rendu", "src", "composition");
     const lister = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? lister(join(d, n)) : [join(d, n)]));
     const fichiersTexte = lister(dossier).filter((f) => /\.(ts|tsx)$/.test(f));
     expect(fichiersTexte.length).toBeGreaterThan(0);
-    expect(fichiersTexte.filter((f) => /planScenes/.test(readFileSync(f, "utf8")))).toEqual([]);
+    // 20/11 (BR-DESSIN-FACECAM-b-v20a) : attente déplacée, pas retirée — un seul fichier est autorisé ; tout autre fichier qui contiendrait `planScenes` fait rougir.
+    expect(fichiersTexte.filter((f) => /planScenes/.test(readFileSync(f, "utf8"))).map((f) => f.slice(RACINE.length + 1).replaceAll("\\", "/"))).toEqual(["studio-rendu/src/composition/texte-instants.ts"]);
   });
 
   it("seuls `ImageComposee.tsx`, `cas-concret/Ecran.tsx` et `VideoAnimeeV4.tsx` montent `CalquePlanScenes` (navigateur)", () => {
