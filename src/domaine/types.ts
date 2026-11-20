@@ -1184,6 +1184,10 @@ export interface Publication extends EntiteBase {
   retireeLe?: DateIso;
   /** RAP · Média vu chez le diffuseur (type et nombre seulement : aucune adresse gardée). */
   mediaDiffuseur?: { type: "image" | "video" | "document" | "aucun"; nombre: number; /** RAP-3 · adresse https de l'image (ou de la vignette d'une vidéo) vue chez le diffuseur : jamais montrée telle quelle au navigateur, lue côté serveur (miniature-diffuseur). */ miniature?: string };
+  /** RAP-3 · rapatriée : première réponse « introuvable » du diffuseur (début du délai de 24 h avant un retrait groupé). Absent : jamais constaté. */
+  introuvableDepuis?: DateIso;
+  /** RAP-3 · rapatriée : nombre de réponses « introuvable » à des passages distincts (retrait groupé à partir de 2). Absent : 0. */
+  constatsIntrouvable?: number;
   /** Dernière lecture de l'état chez Buffer. */
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */

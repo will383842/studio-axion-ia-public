@@ -92,6 +92,11 @@ describe("garde d'isolement", () => {
     };
     parcourir("src");
     parcourir("studio-rendu");
-    expect(vus.map((v) => v.replace(/\\/g, "/"))).toEqual(["src/moteurs/montage-facecam-animee/chaine-v4.ts"]);
+    // MAJ 20/11 (FA-SERVICE-INV-v20h, voulue, à relire) : `src/services/facecam-animee.ts` cite le fichier pour lire le NOM du réglage
+    // (constante PARAM_ZOOM_GRATUIT_FA, défaut éteint) ; tout AUTRE fichier reste refusé.
+    expect(vus.map((v) => v.replace(/\\/g, "/"))).toEqual(["src/moteurs/montage-facecam-animee/chaine-v4.ts", "src/services/facecam-animee.ts"]);
+    const service = readFileSync("src/services/facecam-animee.ts", "utf8");
+    expect(service).toMatch(/import \{ PARAM_ZOOM_GRATUIT_FA \} from "@\/moteurs\/montage-facecam-animee\/zoom-gratuit-v4"/);
+    expect(service).toMatch(/lireParametre<unknown>\(PARAM_ZOOM_GRATUIT_FA, false\)\) === true/);
   });
 });

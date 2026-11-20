@@ -106,8 +106,13 @@ describe("garde statique", () => {
   it("aucun fichier de src/ n'importe extraits-maison-v4", () => {
     // MAJ 2026-11-18 (BR-TELEPHONE-b, voulue, à relire) : `src/services/telephone-extrait-v4.ts` est désormais le seul importeur permis
     // (le branchement du téléphone qui joue un extrait). Garde intacte : tout AUTRE fichier de src/ qui l'importe reste refusé.
+    // MAJ 20/11 (FA-SERVICE-INV-v20h, voulue, à relire) : `src/services/facecam-animee.ts` est le second importeur permis, en import
+    // dynamique derrière le réglage `facecamAnimee.extraitsMaison` (éteint par défaut, 0 €). Tout AUTRE fichier reste refusé.
     const importeurs = fichiers("src").filter((f) => !f.endsWith("extraits-maison-v4.ts") && !f.endsWith("telephone-extrait-v4.ts") && /extraits-maison-v4/.test(readFileSync(f, "utf8")));
-    expect(importeurs).toEqual([]);
+    expect(importeurs.map((f) => f.replace(/\\/g, "/"))).toEqual(["src/services/facecam-animee.ts"]);
+    const service = readFileSync("src/services/facecam-animee.ts", "utf8");
+    expect(service).not.toMatch(/^import .*extraits-maison-v4/m);
+    expect(service.indexOf("if (extraitsMaison)")).toBeLessThan(service.indexOf('import("./extraits-maison-v4")'));
   });
   it("le fichier n'importe ni fournisseurs, ni credits, ni couts, ni facecam-animee, ni reglages", () => {
     const src = readFileSync("src/services/extraits-maison-v4.ts", "utf8");
