@@ -18,7 +18,8 @@ import { ROLES_APPELES, type DossierLu, type InventaireDossier, type TexteMaquet
 import type { PortEquipe } from "@/moteurs/montage-tutoriel-outil/chaine";
 import { ErreurClaude } from "@/fournisseurs/claude/client";
 import type { executerRolePourVideo } from "./depense-claude-video";
-import { claudeTutorielActif, PREFIXE_ETAPE_TUTORIEL, plafondPropreTutoriel } from "./tutoriel-claude";
+import { entreePhraseActive, pieceCreeeClaudeActive } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { claudeTutorielActif, PREFIXE_ETAPE_TUTORIEL, plafondPropreTutoriel, plafondTutorielPhraseUsd } from "./tutoriel-claude";
 
 export const PARAM_EQUIPE_TUTORIEL = "tutoriel.equipe";
 
@@ -28,6 +29,19 @@ export async function equipeTutorielActive(lire?: <T>(id: string, defaut: T) => 
     const l = lire ?? (await import("./_commun")).lireParametre;
     if ((await l<unknown>(PARAM_EQUIPE_TUTORIEL, false)) !== true) return false;
     return await claudeTutorielActif(l);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * V2-08 : vrai SEULEMENT si `tutoriel.entreePhrase` ET `tutoriel.pieceCreeeClaude` valent exactement `true` (absent, `"true"`, `1`, lecture
+ * en échec : éteint). Lecteur injectable (jamais une clé écrite en dur dans ce fichier) ; ce fichier n'écrit jamais un réglage.
+ */
+export async function phraseOuverteTutoriel(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
+  try {
+    const l = lire ?? (await import("./_commun")).lireParametre;
+    return (await entreePhraseActive(l)) && (await pieceCreeeClaudeActive(l));
   } catch {
     return false;
   }
@@ -148,6 +162,8 @@ const SORTIE_ILLISIBLE = { illisible: true } as const;
 export interface DepsEquipe {
   executer?: typeof executerRolePourVideo;
   plafondUsd?: () => number;
+  /** V2-08 : lecteur de réglage injectable (tests) ; défaut : le réglage réel. */
+  lire?: <T>(id: string, defaut: T) => Promise<T>;
   /** Octets du dossier déposé (extraction contrôlée) ; défaut : le fichier envoyé, relu par `extraireZipSur`. */
   fichiersDuDossier?: (fichierId: string, attestationImages: boolean) => Promise<ReadonlyMap<string, Uint8Array> | null>;
 }
@@ -167,14 +183,23 @@ async function fichiersParDefaut(fichierId: string, attestationImages: boolean):
   return extrait.ok ? extrait.fichiers : null;
 }
 
+/** V2-08 : UNE seule condition « vidéo partie d'une phrase » (dépôt « phrase », pas une idée) : elle ouvre la création payante ET choisit le plafond. */
+export function partiDUnePhrase(commande: Pick<CommandeFabrication, "entrees">): boolean {
+  return lireEntreesTutoriel(commande.entrees).depot?.mode === "phrase";
+}
+
 /** Les ports de l'équipe pour une vidéo : un appel de rôle gardé, la lecture du dossier. */
 export function portsEquipe(commande: Pick<CommandeFabrication, "origine" | "entrees">, videoId: Id, deps: DepsEquipe = {}): PortEquipe {
+  // V2-08 : une vidéo partie d'une phrase prend le plafond de V2-07 (la création au pire comprise) ; un dossier garde celui d'aujourd'hui.
+  const depuisPhrase = partiDUnePhrase(commande);
+  const plafondUsd = deps.plafondUsd ?? (depuisPhrase ? plafondTutorielPhraseUsd : undefined);
+  const depsPlafond = plafondUsd ? { plafondUsd } : {};
   return {
     async appelerRole(role, entree: EntreeRole) {
       const def = ROLES_APPELES[role];
       if (!def) throw new ErreurClaude("requete", "Ce rôle ne passe pas par Claude.");
       const executer = deps.executer ?? (await import("./depense-claude-video")).executerRolePourVideo;
-      const r = await executer(videoId, def, entree, { etape: `${PREFIXE_ETAPE_TUTORIEL} ${role}`, plafondPropre: plafondPropreTutoriel(deps), origine: commande.origine });
+      const r = await executer(videoId, def, entree, { etape: `${PREFIXE_ETAPE_TUTORIEL} ${role}`, plafondPropre: plafondPropreTutoriel(depsPlafond), origine: commande.origine });
       if (!r.ok) throw new ErreurClaude("requete", PHRASE_ARRET[r.arret] ?? "Claude n'a pas été appelé : rien n'a été payé.");
       if (r.simule) throw new ErreurClaude("requete", "Claude n'est pas choisi pour les textes : l'équipe ne travaille pas.");
       // Réponse RÉELLE mais refusée par la garde du rôle (pas de `donnees`) : elle est déjà payée. Elle est rendue telle quelle
@@ -189,4 +214,12 @@ export function portsEquipe(commande: Pick<CommandeFabrication, "origine" | "ent
       return fichiers ? dossierDepuisFichiers(fichiers) : null;
     },
   };
+}
+
+/**
+ * V2-08 : le port de l'équipe avec l'option « phrase ouverte » lue par le lecteur injectable. La chaîne la passe à `prochainPas`
+ * (`{ phraseOuverte: port.phraseOuverte }`). Éteint, ou vidéo partie d'une idée / d'un dossier (champ `false`) : rien ne change (pause « création pas ouverte ») (pause « création pas ouverte »).
+ */
+export async function portsEquipeAvecPhrase(commande: Pick<CommandeFabrication, "origine" | "entrees">, videoId: Id, deps: DepsEquipe = {}): Promise<PortEquipe & { phraseOuverte: boolean }> {
+  return { ...portsEquipe(commande, videoId, deps), phraseOuverte: partiDUnePhrase(commande) && (await phraseOuverteTutoriel(deps.lire)) };
 }

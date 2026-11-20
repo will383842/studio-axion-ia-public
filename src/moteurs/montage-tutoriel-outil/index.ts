@@ -29,6 +29,7 @@ import { estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, prochainPasPaye, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel, sortieGardee } from "./chaine";
+import { etapeIdsDuFilm, lireReglagesFilm, REMARQUE_REGLAGES_ILLISIBLES } from "@/services/retouche-chat/tutoriel-retouche-film";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -152,8 +153,8 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Ce que la version d'avant offre (projet de montage) : son plan et sa voix, repris sans être refaits ni repayés. */
-export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | null {
-  const p = projetMontage?.tutoriel as (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | undefined;
+export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "reglagesFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | null {
+  const p = projetMontage?.tutoriel as (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "reglagesFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | undefined;
   return p && typeof p === "object" && p.plan?.plan ? p : null;
 }
 
@@ -234,6 +235,8 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
         sousTitres: etat.sousTitres,
         motsPlan: etat.motsPlan,
         plan: etat.plan,
+        // T-EXT-53c : réglages du film (retouche par chat), gardés pour la version suivante ; absents : comme avant.
+        ...(etat.reglagesFilm !== undefined ? { reglagesFilm: etat.reglagesFilm } : {}),
         // T-EXT-55 : l'équipe reste dans le projet (la retouche et le regardeur en ont besoin).
         ...(etat.equipe ? { equipe: etat.equipe } : {}),
         // T-EXT-52b : écrit seulement quand le réglage a calculé les empreintes (éteint : exactement comme avant).
@@ -429,7 +432,23 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
     // T-EXT-52b : rendus, empreintes de formats et film de la version d'avant (absents si elle n'en a pas écrit).
     const avant = p ? { ...(p.sortiesFormats ? { rendus: p.sortiesFormats } : {}), ...(p.empreintesFormats ? { empreintesFormats: p.empreintesFormats } : {}), ...(p.film ? { film: p.film } : {}), ...(p.navigationFilm ? { navigationFilm: p.navigationFilm } : {}) } : {};
-    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}), ...avant } } : {}) ,...(p?.equipe ? { equipe: p.equipe } : {}) };
+    const reglagesFilm = reglagesDeRetouche(p?.reglagesFilm, operations, etapeIdsDuFilm(commande.entrees), (m) => (e.reserves = [...e.reserves, m]));
+    return { ...e, ...(ratios ? { ratios } : {}), ...(reglagesFilm !== undefined ? { reglagesFilm } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}), ...avant } } : {}), ...(p?.equipe ? { equipe: p.equipe } : {}) };
+  }
+
+  /**
+   * T-EXT-53c : la dernière opération `reglagesFilm` remplace les réglages d'avant, relue STRICTEMENT (étape absente du film, cran
+   * inconnu ou champ en trop → refus). Illisible : réglages d'avant gardés, avec une réserve ; jamais d'exception.
+   */
+  function reglagesDeRetouche(avant: unknown, operations: OperationMontage[] | undefined, etapeIds: readonly string[], reserver: (m: string) => void): unknown {
+    const op = operations?.filter((o): o is Extract<OperationMontage, { type: "reglagesFilm" }> => o.type === "reglagesFilm").at(-1);
+    if (!op) return avant;
+    const lu = lireReglagesFilm(op.reglages, etapeIds);
+    if (!lu) {
+      reserver(REMARQUE_REGLAGES_ILLISIBLES);
+      return avant;
+    }
+    return lu;
   }
 
   /**
