@@ -11,6 +11,7 @@
  */
 import { ErreurClaude, extraireJson, type RequeteClaude, type ReponseClaude } from "@/fournisseurs/claude/client";
 import { CATALOGUE_BRIQUES, type DefinitionBrique } from "./catalogue";
+import { estGardee } from "./pieces-gardees";
 import { VERSION_PLAN_SCENES, type FormatPlan, type MotMinute, type PlanValide } from "./schema";
 import { planDeRepli, validerPlan, type Remarque } from "./validateur";
 import { POSITIONS, TRANSITIONS, ZONE_VISAGE } from "./zones";
@@ -48,7 +49,7 @@ export interface ResultatGenerateurPlan {
 /** Consigne figée (cache 1 h) : le catalogue, les règles de la charte et la forme JSON attendue. */
 export function consignePlan(objetsPermis: readonly string[] = []): string {
   const catalogue = (Object.values(CATALOGUE_BRIQUES) as DefinitionBrique[])
-    .filter((d) => d.famille !== "objet" || objetsPermis.includes(d.id))
+    .filter((d) => !estGardee(d) || objetsPermis.includes(d.id))
     .map((d) => `- ${d.id} (${d.nom}) : ${d.description}\n  paramètres (exemple) : ${JSON.stringify(d.exemple)}\n  schéma : ${JSON.stringify(z.toJSONSchema(d.schema))}`)
     .join("\n");
   return [

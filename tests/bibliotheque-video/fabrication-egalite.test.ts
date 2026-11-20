@@ -47,6 +47,8 @@ const sansDates = (c: unknown) => JSON.parse(JSON.stringify(c, (cle, v) => (cle 
 describe("C1-U9 · réglage éteint : commande identique à celle d'avant", () => {
   it.each(FORMATS)("%s : absent ou false → aucune clé bibliothequeVideo, commande égale à celle avec l'entrée simulée à {}", async (formatId) => {
     const id = await videoDuFormat(formatId);
+    // v20g : avocat est allumé par défaut quand la base est vide ; on écrit `false` pour rester « sans bibliothèque ».
+    if (formatId === "avocat") await ecrireParametre("bibliothequeVideo.avocat", false);
     const absent = await fabrication.construireCommande(id);
     expect(Object.keys(absent.entrees)).not.toContain("bibliothequeVideo");
     await ecrireParametre(`bibliothequeVideo.${formatId}`, false);

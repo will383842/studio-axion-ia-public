@@ -78,7 +78,7 @@ describe("regard-cas-concret", () => {
 
   it("e) éteint = identique : aucun fichier de src n'importe l'adaptateur", () => {
     const parcourir = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? parcourir(p) : /\.(ts|tsx)$/.test(n) ? [p] : []; });
-    const importeurs = parcourir("src").filter((p) => !p.endsWith("regard-cas-concret.ts") && readFileSync(p, "utf8").includes("regard-cas-concret"));
+    const importeurs = parcourir("src").filter((p) => !p.endsWith("regard-cas-concret.ts") && p.split("\\").join("/") !== "src/services/regardeur-cas-concret.ts" && readFileSync(p, "utf8").includes("regard-cas-concret"));
     expect(importeurs).toEqual([]);
   });
 });

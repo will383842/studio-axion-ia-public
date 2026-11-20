@@ -19,7 +19,7 @@ import { createHash } from "node:crypto";
 import { comptesPourReseau, DELAI_ABSENCE_MS, idsMemorises, MARGE_HORLOGE_MS, messageDeconnectes, nomService, retrouverEnvoi, serviceHistorique, type ComptesPourReseau, type CorrespondanceBuffer } from "@/domaine/buffer";
 import type { ComptesEnvoi } from "@/domaine/comptes-envoi";
 import { estChezUnOutil, outilDe, outilPour, type RoutagePublication } from "@/domaine/outil-publication";
-import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, memeSource, videoIdSure } from "@/domaine/types";
+import { type Id, type IdReseau, type ModeEnvoiPublication, type Publication, estRapatriee, memeSource, videoIdSure } from "@/domaine/types";
 import { fournisseurParId } from "@/fournisseurs";
 import type { CanalPublication, FournisseurPublication } from "@/fournisseurs/types";
 import { ErreurBuffer } from "@/fournisseurs/publication/buffer";
@@ -309,6 +309,9 @@ export async function reconcilierEnvoi(publicationId: Id, instant: number = Date
   const d = depots();
   const p = await d.publications.obtenir(publicationId);
   const outil = p ? outilDe(p) : null;
+  // RAP-2 : une rapatriée (née chez le diffuseur) n'a pas d'envoi du Studio à relire : sortie sans écriture, notification ni requête.
+  // La synchro du diffuseur la relit déjà par son `idExterne`.
+  if (p && estRapatriee(p)) return p;
   if (!p || !outil || (p.etatEnvoi !== "a-verifier" && p.etatEnvoi !== "en-cours") || !p.canalId || !p.envoiCommenceLe) return p;
   // Lot A1 : un envoi Buffer n'est plus relu (il reste « à vérifier » ; sortie manuelle `marquerEnvoiVerifie`). Zernio : inchangé.
   if (outil === "buffer" && (await bufferGele())) return p;
@@ -400,7 +403,7 @@ export async function synchroniserEtatsBuffer(options: { force?: boolean; instan
   const r = { lues: 0, changees: 0 };
   // 1. Envois interrompus ou à vérifier (de n'importe quel outil) : relire, jamais renvoyer. Chaque outil se relit lui-même.
   const relireEnvoisIncertains = async () => {
-    const aVerifier = await d.publications.lister((p) => estChezUnOutil(p) && (p.etatEnvoi === "a-verifier" || (p.etatEnvoi === "en-cours" && !!p.envoiCommenceLe && instant - new Date(p.envoiCommenceLe).getTime() > ENVOI_INTERROMPU_MS)));
+    const aVerifier = await d.publications.lister((p) => estChezUnOutil(p) && !estRapatriee(p) && (p.etatEnvoi === "a-verifier" || (p.etatEnvoi === "en-cours" && !!p.envoiCommenceLe && instant - new Date(p.envoiCommenceLe).getTime() > ENVOI_INTERROMPU_MS)));
     for (const p of aVerifier) {
       r.lues++;
       const apres = await reconcilierEnvoi(p.id, instant);

@@ -481,14 +481,17 @@ export async function outilsCasConcret(c: CommandeFabrication, travailId: Id, de
   const d = depots();
 
   // 1. La voix désignée, et elle seule.
+  // CC-SV · mode sans voix : aucune voix n'est désignée ni lue. La « voix » ci-dessous n'est qu'une pièce d'outillage inerte
+  // (fournisseur simulé, jamais appelé : la fabrication saute l'étape de voix) ; 0 appel HeyGen, 0 € de voix.
+  const sansVoix = lireEntreesCasConcret(c.entrees).sansVoix === true;
   const voixId = c.distribution[0]?.voixId;
-  const voix = voixId ? await d.voix.obtenir(voixId) : null;
+  const voix = sansVoix ? ({ id: "sans-voix", fournisseur: "simulation", statut: "pret", reglages: undefined } as unknown as NonNullable<Awaited<ReturnType<typeof d.voix.obtenir>>>) : voixId ? await d.voix.obtenir(voixId) : null;
   if (!voix || voix.statut !== "pret") throw new Error(VOIX_PAS_PRETE);
   // Toujours la voix HeyGen maître (la voix simulée seulement en essai, refusée en production plus bas) : contrôle juste après la ressource.
   const fournisseurVoix = resoudreFournisseur("voix", voix.fournisseur);
   const voixSimulee = fournisseurVoix.mode === "simulation";
   const voixLue: typeof fournisseurVoix = voixSimulee ? { ...fournisseurVoix, lire: (demande) => fournisseurVoix.lire({ ...demande, motsParSeconde: MOTS_PAR_SECONDE_VOIX_ESSAI }) } : fournisseurVoix;
-  const ressource = await ressourceActive(voix.id);
+  const ressource = sansVoix ? undefined : await ressourceActive(voix.id);
   // L1-05 : seule la voix maître HeyGen parle (autre fournisseur ou autre identifiant : refus, rien n'a été dépensé). La voix d'essai ne dépense rien.
   if (voix.fournisseur !== "simulation") exigerVoixMaitre(voix.fournisseur, ressource?.idExterne);
   if (!voixSimulee && !ressource?.idExterne) throw new Error(VOIX_NON_RELIEE);
@@ -501,9 +504,9 @@ export async function outilsCasConcret(c: CommandeFabrication, travailId: Id, de
   const claudeActif = await (dep.claudeActif ?? (async () => (await import("./depense-claude-video")).claudeTextesActif()))();
   const stockageSimule = stockage.mode === "simulation";
   const production = dep.production ?? process.env.NODE_ENV === "production";
-  if (production && (voixSimulee || stockageSimule || rendu.simule)) throw new Error(STUDIO_NON_RELIE);
+  if (production && ((voixSimulee && !sansVoix) || stockageSimule || rendu.simule)) throw new Error(STUDIO_NON_RELIE);
   /** Tout est simulé : seules les simulations reçoivent les pannes d'essai. */
-  const simulation = voixSimulee && stockageSimule && rendu.simule && !claudeActif;
+  const simulation = voixSimulee && !sansVoix && stockageSimule && rendu.simule && !claudeActif;
 
   const env = production ? "prod" : "dev";
   const entrees = lireEntreesCasConcret(c.entrees);

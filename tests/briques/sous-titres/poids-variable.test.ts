@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { graisseAuTemps, largeurReservee } from "../../../src/briques/sous-titres/poids-variable";
@@ -46,9 +46,33 @@ describe("poids-variable : graisse du mot dit", () => {
     expect(existsSync(join(d, "Manrope-Variable.ttf"))).toBe(true);
     expect(readFileSync(join(d, "OFL-Manrope.txt"), "utf8")).toMatch(/SIL OPEN FONT LICENSE/i);
   });
-  it("éteint : aucun fichier de production n'importe poids-variable", async () => {
-    const { execSync } = await import("node:child_process");
-    const out = execSync(`grep -rl "poids-variable" src studio-rendu --include=*.ts --include=*.tsx || true`, { cwd: join(__dirname, "../../..") }).toString();
-    expect(out.trim()).toBe("");
+  // FIX-GARDE-POIDS-VARIABLE-v19c 19/11 (voulue, seconde lecture du pilote) : liste fermée exacte des importeurs.
+  const IMPORTEURS_PREVUS = ["src/briques/sous-titres/scene.ts", "src/briques/sous-titres/paliers-graisse.ts"];
+  const estImporteur = (texte: string): boolean => /["'][^"'\n]*\/poids-variable(?:\.[cm]?[jt]sx?)?["']/.test(texte);
+  const listerSources = (dossier: string, racine: string): string[] => {
+    const sortie: string[] = [];
+    for (const e of readdirSync(join(racine, dossier), { withFileTypes: true })) {
+      const rel = `${dossier}/${e.name}`;
+      if (e.isDirectory()) { if (e.name !== "node_modules") sortie.push(...listerSources(rel, racine)); }
+      else if (/\.tsx?$/.test(e.name)) sortie.push(rel);
+    }
+    return sortie;
+  };
+  it("éteint : seuls les fichiers prévus importent poids-variable", () => {
+    const racine = join(__dirname, "../../..");
+    const importeurs = ["src", "studio-rendu"].flatMap((d) => (existsSync(join(racine, d)) ? listerSources(d, racine) : [])).filter((f) => estImporteur(readFileSync(join(racine, f), "utf8"))).sort();
+    for (const f of importeurs) expect(IMPORTEURS_PREVUS).toContain(f);
+    expect(importeurs).toContain("src/briques/sous-titres/scene.ts");
+    expect(importeurs.filter((f) => f.startsWith("studio-rendu/"))).toEqual([]);
+  });
+  it("contrôle négatif : un faux fichier qui importe poids-variable est reconnu, un nom de capacité non", () => {
+    expect(estImporteur('import { graisseAuTemps } from "../sous-titres/poids-variable";')).toBe(true);
+    expect(estImporteur('const m = await import("./poids-variable");')).toBe(true);
+    expect(estImporteur('import {\n  graisseAuTemps,\n  largeurReservee,\n} from "./poids-variable";')).toBe(true);
+    expect(estImporteur('export { graisseAuTemps } from "./poids-variable";')).toBe(true);
+    expect(estImporteur('export * from "../sous-titres/poids-variable";')).toBe(true);
+    expect(estImporteur('import { graisseAuTemps } from "./poids-variable.js";')).toBe(true);
+    expect(estImporteur('const m = require("./poids-variable");')).toBe(true);
+    expect(estImporteur('  textePoidsVariable: "texte.poids-variable",')).toBe(false);
   });
 });

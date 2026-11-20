@@ -75,15 +75,19 @@ describe("C10-13b-a gardes", () => {
     expect(texte).not.toContain("Prendre rendez-vous");
     expect(texte).not.toMatch(/\b(useState|useEffect|useRef|Date\.now)\b/);
   });
-  it("rien dans src/ ni studio-rendu/ n'importe appel-rdv (monté nulle part)", () => {
+  // C10-13-v19b (19/11) : le registre des objets est le SEUL importeur autorisé (liste blanche d'un chemin exact) ; rien dans studio-rendu/.
+  it("seuls le registre, objets-inscrits.ts (import) et les fichiers qui citent l'id (C9-34-FIN-v20h) mentionnent appel-rdv (et rien dans studio-rendu/)", () => {
     const visiter = (dir: string): string[] =>
       readdirSync(dir).flatMap((n) => {
         if (n === "node_modules") return [];
         const p = join(dir, n);
         return statSync(p).isDirectory() ? visiter(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
       });
-    const fautifs = [...visiter(join(process.cwd(), "src")), ...visiter(join(process.cwd(), "studio-rendu"))]
-      .filter((p) => !p.endsWith("appel-rdv.tsx") && /appel-rdv/.test(readFileSync(p, "utf8")));
-    expect(fautifs).toEqual([]);
+    const racine = process.cwd();
+    const fautifs = [...visiter(join(racine, "src")), ...visiter(join(racine, "studio-rendu"))]
+      .filter((p) => !p.endsWith("appel-rdv.tsx") && /appel-rdv/.test(readFileSync(p, "utf8")))
+      .map((p) => p.slice(racine.length + 1).split("\\").join("/"));
+    // toiles.ts et moments-ecran.ts ne citent que l'identifiant « objet-appel-rdv » (aucun import).
+    expect([...fautifs].sort()).toEqual(["src/briques/note-extraits/moments-ecran.ts", "src/briques/plan-scenes-objets/registre.ts", "src/briques/plan-scenes/briques/objets-inscrits.ts", "src/briques/plan-scenes/toiles.ts"]);
   });
 });

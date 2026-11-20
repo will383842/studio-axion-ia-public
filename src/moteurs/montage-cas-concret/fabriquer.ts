@@ -40,6 +40,7 @@
  * passe le journal par `relancerRendusCasConcret` : seuls les rendus restés en cours ou ratés repartent.
  */
 import { PALETTE } from "@/briques/charte/axion-2026";
+import { horodaterTexte } from "@/domaine/derivations";
 import { joindrePhrasesPourVoix, ponctuerPhrase } from "@/domaine/voix-phrases";
 import { siglesEcrits } from "./sigles-sous-titres";
 import { FIN_PROPRE_COMMUNE } from "@/briques/composition/fin-propre";
@@ -67,7 +68,8 @@ import { centimes, formaterMontant } from "@/lib/montants";
 import { ecritureDetachee, type AppelSuivi } from "./appels";
 import { figerMemoireCommune } from "./memoire-commune";
 import { poserBruitages } from "./bruitages";
-import { calerFiche, IMAGE_MS, type EvenementCale } from "./calage";
+import { IMAGE_MS, type EvenementCale } from "./calage";
+import { calageApproche, remettreMarque } from "./reparations-ecrans";
 import { appliquerCaptures, avancerCaptures, etatInitialCaptures, planCaptures, type EtatCaptures } from "./captures";
 import { clesImagesDuCas, imagesDuCas } from "./visuels-du-cas";
 import { REGLES_RECALAGE_CAS_CONCRET, controlerFinDeVoix, lireWav, recalerCoupesSurSilences, silencesMesures, type Silence, type Son } from "./fin-de-voix";
@@ -82,14 +84,14 @@ import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
 import { textesDePublication, type TextePublication } from "./publication";
-import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
+import { MARQUE, validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette, type PlanRaccordVoix } from "./recette-voix";
 import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";
 import type { DosageMotion } from "@/briques/dosage-motion/types";
 import { entreeHistorique, jeuDeLEcran, lireHistorique, lireMise, mettre, STRUCTURES, tirer, type Mise, type Structure, type Tirage } from "./variete";
 import { structureEffective } from "@/formats/cas-concret/recette";
-import { avancerVoixCasConcret, empreintePriseVoix, planSonEntier, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
+import { avancerVoixCasConcret, empreintePriseVoix, etatInitialVoixCasConcret, planSonEntier, rapportVoix, repriseVoixCasConcret, rouvrirApresArret, type EtatVoixCasConcret, type OutilsAvancerVoix, type PrisePayee, type PriseVoix, type SonAssemble } from "./voix";
 
 /** Version de la chaîne (entre dans chaque empreinte : une chaîne changée refait tout). */
 export const VERSION_FABRICATION_CAS_CONCRET = "fabrication-cas-concret/1";
@@ -218,6 +220,12 @@ export interface OptionsFabricationCasConcret {
   objetsPermis?: readonly string[];
   /** X3-07 : cran du dosage figé dans la commande (X3-03) ; absent : tirage inchangé. */
   dosage?: DosageMotion;
+  /**
+   * CC-SV · MODE SANS VOIX : aucune lecture (0 appel HeyGen, 0 € de voix), aucun son (ni voix, ni bruitage, ni musique). Les mots
+   * sont horodatés au rythme de LECTURE (`MOTS_PAR_SECONDE_LECTURE_CAS_CONCRET`) : chaque écran et chaque sous-titre restent le
+   * temps de lire le texte. Absent : avec voix (défaut).
+   */
+  sansVoix?: true;
   /** Prononciations substituées avant la voix (même liste au calage et aux sous-titres). */
   prononciations?: readonly { mot: string; prononciation: string }[];
   horloge?: () => number;
@@ -253,6 +261,8 @@ export interface CompteRenduCasConcret {
   coutCentimes: number;
   /** Voix de la vidéo, quel que soit le lancement qui l'a payée. */
   coutVoixCentimes: number;
+  /** CC-SV : vidéo fabriquée sans voix (silence total). */
+  sansVoix?: true;
   /** Chaque lecture payée, avec son coût. */
   prises: PrisePayee[];
   /**
@@ -290,6 +300,36 @@ export interface CompteRenduCasConcret {
 /* ------------------------------------------------------------------ */
 /* Réglages du format                                                    */
 /* ------------------------------------------------------------------ */
+
+/**
+ * CC-SV : rythme de lecture silencieuse des sous-titres, en mots par seconde (≈ 180 mots par minute, lecture confortable
+ * d'un texte court à l'écran). Remplace le débit de la voix : c'est lui qui fixe la durée de chaque écran et de chaque sous-titre.
+ */
+export const MOTS_PAR_SECONDE_LECTURE_CAS_CONCRET = 3;
+/** CC-SV : marge après le dernier mot, avant la fin du son (le calage ajoute ensuite la tenue de l'écran final). */
+export const MARGE_FIN_LECTURE_SEC = 0.3;
+/** CC-SV : identifiant et fournisseur affichés pour une vidéo sans voix (aucun appel n'est fait). */
+export const ID_VOIX_SANS_VOIX = "sans-voix";
+export const FOURNISSEUR_SANS_VOIX = "aucune";
+
+/**
+ * CC-SV : « voix » d'une vidéo sans voix : aucun fichier, aucun appel, aucun coût. Chaque fin porte les mots du corps puis ceux de
+ * sa phrase de fin, horodatés au rythme de lecture ; une fin vide (sans écran) ne porte que le corps.
+ */
+export function voixSilencieuse(texteCorps: string, textesFins: readonly { id: string; texte: string }[], toutesLesFins: readonly { id: string; ecrans: readonly unknown[] }[]) {
+  const corps = horodaterTexte(texteCorps, MOTS_PAR_SECONDE_LECTURE_CAS_CONCRET);
+  const finCorps = corps.at(-1)?.finSec ?? 0;
+  const arrondi = (x: number) => +x.toFixed(3);
+  const fins = toutesLesFins.map((f) => {
+    const texte = textesFins.find((t) => t.id === f.id)?.texte ?? "";
+    const debut = arrondi(finCorps + MARGE_FIN_LECTURE_SEC);
+    const fin = f.ecrans.length ? horodaterTexte(texte, MOTS_PAR_SECONDE_LECTURE_CAS_CONCRET).map((m) => ({ ...m, debutSec: arrondi(m.debutSec + debut), finSec: arrondi(m.finSec + debut) })) : [];
+    const mots = [...corps, ...fin];
+    return { id: f.id, cle: "", dureeSec: arrondi((mots.at(-1)?.finSec ?? 0) + MARGE_FIN_LECTURE_SEC), mots };
+  });
+  const etat = etatInitialVoixCasConcret({ corps: texteCorps, fins: textesFins });
+  return { texteCorps, reformule: false, reformulations: [] as { avant: string; apres: string }[], payees: [] as PrisePayee[], rapport: rapportVoix(etat), fins, reservesFin: [] as string[] };
+}
 
 /** Empreinte d'un ensemble d'entrées (version de la chaîne comprise). */
 export const empreinte = (...parts: unknown[]) => empreinteStable(VERSION_FABRICATION_CAS_CONCRET, ...parts);
@@ -687,6 +727,11 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const forme = validerSchemaFiche(brute);
     if (!forme.ok) throw refus(forme.problemes.map((p) => p.message));
     if (forme.fiche.casId !== cas.id) throw refus([`La fiche est écrite pour un autre cas (« ${forme.fiche.casId} »).`]);
+    // S-04a : la marque perdue est remise (R09 seulement) et dite en « À vérifier » ; tout autre refus reste un refus.
+    // Seule une variante de NOTRE marque (casse, « www. », « https:// », « axion ») est remise : une autre adresse (« autre-site.fr ») reste un refus R09.
+    const rm = remettreMarque(forme.fiche);
+    const absente = forme.fiche.ecrans.map((e) => e.marque.trim() !== MARQUE && /^(https?:\/\/)?(www\.)?axion([- ]ia)?(\.com)?\/?$/i.test(e.marque.trim()));
+    const marquee = { fiche: { ...rm.fiche, ecrans: rm.fiche.ecrans.map((e, i) => (absente[i] ? e : forme.fiche.ecrans[i])) as typeof rm.fiche.ecrans }, faits: forme.fiche.ecrans.filter((_, i) => absente[i]).map((e) => `Écran ${e.id} : marque remise.`) };
     // 08/11/2026 : le script de Will (validé, fourni ou modifié) fait foi : durée, accroche, tutoiement, mots à éviter… sont des
     // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
     const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
@@ -697,15 +742,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     }
     // GV2-30 : la retouche d'un texte du fondateur suit, comme lui, les règles tolérantes.
     if (script || o.texteFige) {
-      const t = validerFicheEcransTolerant(brute, ctxRegles, script ? script.fourni === true : true);
+      const t = validerFicheEcransTolerant(marquee.fiche, ctxRegles, script ? script.fourni === true : true);
       if (!t.ok) throw refus(t.problemes.map((p) => p.message));
-      return { fiche: t.fiche, remarquesScript: [...(script ? ecartsScriptValide(script, cas) : []), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
+      return { fiche: t.fiche, remarquesScript: [...(script ? ecartsScriptValide(script, cas) : []), ...marquee.faits, ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
     }
-    const v = validerFicheEcrans(brute, ctxRegles);
+    const v = validerFicheEcrans(marquee.fiche, ctxRegles);
     if (!v.ok) throw refus(v.problemes.map((p) => p.message));
     // V4-3 : un script écrit (ni validé, ni fourni) attend la validation de Will : aucune voix avant.
     if (ctx.exigerScriptValide && !script && !entrees.ficheCle) throw new ErreurFabricationCasConcret("fiche", [PHRASE_SCRIPT_A_VALIDER]);
-    return { fiche: v.fiche };
+    return { fiche: v.fiche, remarquesScript: marquee.faits };
   });
 
   // 3. Vrais écrans : une capture ratée prend son repli (jamais d'échec).
@@ -762,7 +807,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   // 17/11 (Williams) : une fin vide (aucune fin choisie) n'a ni texte ni prise : elle n'est pas lue.
   const textesFins = plan.fins.filter((f) => f.ecrans.length).map((f) => ({ id: f.id, texte: lire(joindrePhrasesPourVoix(f.ecrans.map((e) => e.texteDit))) }));
   const tarif = outils.budget.tarifCentimesParCaractere;
-  const estimation = estimerVoixCasConcret([texteCorps, ...textesFins.map((f) => f.texte)], tarif);
+  // CC-SV : sans voix, aucun caractère n'est lu : l'estimation de la voix est nulle.
+  const estimation = estimerVoixCasConcret(o.sansVoix ? [] : [texteCorps, ...textesFins.map((f) => f.texte)], tarif);
   const v = outils.voix;
   const cleVoix = empreinte("voix", texteCorps, textesFins, v.idVoix, v.reglages, v.fournisseurVoix, v.regles, TEMPO_VOIX, reglagesRecette());
   const payeesAvant = journal.voix?.empreinte === cleVoix ? journal.voix.etat.payees.length : 0;
@@ -783,7 +829,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       return outils.budget.verifierEtReserver(estimerVoixCasConcret([l.texte], tarif));
     },
   });
-  const voix = await etape("voix", cleVoix, async () => {
+  // CC-SV : sans voix, aucune lecture ni aucun contrôle de voix : les mots sont horodatés au rythme de lecture (0 appel, 0 €).
+  const voix = o.sansVoix
+    ? await etape("voix", empreinte("voix-sans-voix", texteCorps, textesFins, plan.fins.map((f) => [f.id, f.ecrans.length]), MOTS_PAR_SECONDE_LECTURE_CAS_CONCRET), async () => voixSilencieuse(texteCorps, textesFins, plan.fins))
+    : await etape("voix", cleVoix, async () => {
     // Entrées changées (une autre fin, X6) : le corps déjà retenu et les fins inchangées sont repris, jamais relus.
     // « Réessayer » après un arrêt : le contrôle de la prise gardée est refait avec les règles du moment (sans relecture).
     const depart =
@@ -939,12 +988,12 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const calage = await etape("calage", empreinte("calage", reportee, plan.fins, voix.fins, prononciations), async () => {
     const parFin = plan.fins.map((f) => {
       const son = voix.fins.find((x) => x.id === f.id)!;
-      const r = calerFiche(reportee, f, son.mots, { prononciations, finApresDernierMotSec: FIN_APRES_DERNIER_MOT_SEC });
+      const r = calageApproche(reportee, f, son.mots, { prononciations, finApresDernierMotSec: FIN_APRES_DERNIER_MOT_SEC });
       if (!r.ok) throw new ErreurFabricationCasConcret("calage", r.problemes.map((p) => (plan.fins.length > 1 ? `Fin pour ${nomsReseaux(f.reseaux)} · ${p}` : p)));
       return { r, f };
     });
     // 08/11/2026 : les mots lus autrement que le texte écrit ne jettent plus la vidéo : ils partent en réserves « À vérifier ».
-    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`)))];
+    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => [...r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`), ...(r.reserve ? [r.reserve] : [])]))];
     // 17/11 : sans écran de fin nulle part, le corps finit avec la voix ; une fin vide ne fixe pas l'instant commun.
     const avecEcrans = parFin.filter(({ f }) => f.ecrans.length);
     const premier = parFin[0].r;
@@ -1214,7 +1263,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const props = [...brouillon.corps.map((p, i) => ({ p, e: empreintesCorps[i] })), ...brouillon.fins[f.id].map((p, i) => ({ p, e: empreintesFins[f.id][i] }))];
     const scenes: ScenePosee[] = props.map(({ p, e }, i) => ({ id: i < brouillon.corps.length ? p.id : `${f.id}-${p.id}`, debutSec: p.debutMs / 1000, finSec: (i === brouillon.corps.length - 1 && f.ecrans.length ? commun : p.finMs) / 1000, cle: ecrans.cles[e] }));
     const dureeSec = +(cf.dureeMs / 1000).toFixed(3);
-    const bruitages = poserBruitages({ ecrans: [...calage.fiche.ecrans, ...f.ecrans], cales: [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales], mots: son.mots, dureeSec, valides: ctx.bruitagesValides, ...(mise && mise.tirage.bruitages.depart ? { graine: mise.tirage.bruitages.depart } : {}) });
+    const bruitages = o.sansVoix ? [] : poserBruitages({ ecrans: [...calage.fiche.ecrans, ...f.ecrans], cales: [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales], mots: son.mots, dureeSec, valides: ctx.bruitagesValides, ...(mise && mise.tirage.bruitages.depart ? { graine: mise.tirage.bruitages.depart } : {}) });
     bruitagesDe.set(f.id, bruitages);
     const texteScript = `${texteDuCorps(calage.fiche)} ${f.ecrans.map((e) => e.texteDit.trim()).join(" ")}`;
     // GV2-30 : les sous-titres reçoivent la ponctuation de fin d'écran de la voix (`ponctuerPhrase`) là où une phrase finit
@@ -1253,7 +1302,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         segments,
         dureeSec: x.dureeSec,
         mots: x.son.mots,
-        audioCle: x.son.cle,
+        // CC-SV : sans voix, aucune piste son (le rendu produit un silence) ; jamais de musique.
+        ...(o.sansVoix ? {} : { audioCle: x.son.cle }),
         // Jamais montée (les écrans couvrent toute la durée) : garde le chemin rapide du rendu.
         pistesDouble: { face: x.scenes[0].cle },
         supplements: { positionSousTitresPct: centre, ...(x.clairs.length ? { passagesClairs: x.clairs } : {}) },
@@ -1316,6 +1366,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       journalCaptures: captures.journal,
       planDesFins: planCale,
       bruitagesPoses: [...new Set([...bruitagesDe.values()].flat().map((b) => b.elementId))],
+      ...(o.sansVoix ? { sansVoix: true as const } : {}),
       zone: zonePleineImage(),
       finsGardeesMalgreRejet: voix.rapport.finsGardeesMalgreRejet,
     });
@@ -1344,7 +1395,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     liens,
     publication: textesDePublication(calage.fiche, planBrut, liens, entrees.avecMot && entrees.motSur.length ? { mot } : {}),
     journalCaptures: captures.journal,
-    voix: { ...voix.rapport, idVoix: v.idVoix, ...(v.fournisseurVoix ? { fournisseur: v.fournisseurVoix } : {}), ...(v.reglages ? { reglages: v.reglages } : {}) },
+    ...(o.sansVoix ? { sansVoix: true as const } : {}),
+    voix: o.sansVoix ? { ...voix.rapport, idVoix: ID_VOIX_SANS_VOIX, fournisseur: FOURNISSEUR_SANS_VOIX } : { ...voix.rapport, idVoix: v.idVoix, ...(v.fournisseurVoix ? { fournisseur: v.fournisseurVoix } : {}), ...(v.reglages ? { reglages: v.reglages } : {}) },
     rapport,
     pannesDEssai: { ...journal.pannesDEssai },
     bruitagesRetires: [...(ctx.bruitagesRetires ?? [])],
