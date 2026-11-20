@@ -8,6 +8,7 @@
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
 import { encadreVisible, incrustationsAuTemps, type ProprietesTexteComposition } from "../../../src/briques/composition/scene";
 import { CalqueSousTitres } from "../sous-titres";
+import { PlanSousTexte } from "./PlanSousTexte";
 import { chargerPoliceTitre, FAMILLE_TITRE } from "./polices";
 
 export function TexteCompose(p: ProprietesTexteComposition) {
@@ -74,6 +75,7 @@ export function TexteCompose(p: ProprietesTexteComposition) {
           </div>
         </div>
       )}
+      {p.planScenes && <PlanSousTexte plan={p.planScenes} t={t} largeur={p.largeur} hauteur={p.hauteur} />}
       {p.sousTitres && <CalqueSousTitres donnees={p.sousTitres} instantSec={t} />}
     </AbsoluteFill>
   );

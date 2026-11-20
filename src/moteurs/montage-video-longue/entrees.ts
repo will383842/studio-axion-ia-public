@@ -13,12 +13,14 @@ export interface ChapitreVideoLongue extends ChapitreScript {
 
 export interface EntreesVideoLongue {
   chapitres: ChapitreVideoLongue[];
+  /** Mode « Sans voix » : `sansVoix === true` EXACT. Même vidéo, silence total, sous-titres et texte à l'écran ; 0 appel HeyGen, 0 €. */
+  sansVoix: boolean;
 }
 
 const chaine = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v : undefined);
 
 export function lireEntreesVideoLongue(commande: CommandeFabrication): EntreesVideoLongue {
-  const brut = (commande.entrees as Record<string, unknown> | undefined)?.videoLongue as { chapitres?: unknown } | undefined;
+  const brut = (commande.entrees as Record<string, unknown> | undefined)?.videoLongue as { chapitres?: unknown; sansVoix?: unknown } | undefined;
   const liste = Array.isArray(brut?.chapitres) ? (brut!.chapitres as unknown[]) : [];
   const chapitres: ChapitreVideoLongue[] = [];
   liste.forEach((c, i) => {
@@ -27,5 +29,5 @@ export function lireEntreesVideoLongue(commande: CommandeFabrication): EntreesVi
     if (!texte) return;
     chapitres.push({ id: chaine(o.id) ?? `c${i + 1}`, titre: chaine(o.titre) ?? `Chapitre ${i + 1}`, texte });
   });
-  return { chapitres };
+  return { chapitres, sansVoix: brut?.sansVoix === true };
 }

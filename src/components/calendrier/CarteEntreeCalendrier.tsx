@@ -7,6 +7,7 @@ import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
 import { RESEAUX } from "@/reseaux";
 import { PictoReseau } from "./PictoReseau";
+import { VignetteDiffuseur } from "./VignetteDiffuseur";
 import { couleurReseau } from "./couleurs-reseaux";
 import { PastilleStatutPlan, etatDepuisStatut, statutConnu, libelleEtat, type EtatAffiche, type TableLibelles, type TableStatuts } from "./PastilleStatutPlan";
 
@@ -39,6 +40,10 @@ export interface EntreeCarte {
   signatureUsine?: string;
   /** Nom court du compte (« Page », « Profil »), seulement pour un réseau à plusieurs comptes (LinkedIn, Facebook). */
   compte?: string;
+  /** RAP-3 · publication reprise du diffuseur : la carte le dit et montre le début du texte. */
+  chezDiffuseur?: boolean;
+  /** RAP-3 · adresse DU STUDIO de la miniature (jamais celle du diffuseur) ; absente : carte texte, sans image. */
+  vignette?: string;
 }
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
@@ -231,7 +236,14 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
           </Pastille>
         )}
       </span>
-      {avecTitre && entree.titre && <span className="mt-1 block text-xs text-texte-doux">{entree.titre}</span>}
+      {entree.chezDiffuseur ? (
+        <span data-chez-diffuseur className="mt-1 flex items-start gap-1.5">
+          {entree.vignette && <VignetteDiffuseur src={entree.vignette} alt={`Image du post ${nomReseau(entree.reseau)} programmé chez le diffuseur`} taille={40} />}
+          {entree.titre && <span className="text-xs text-texte-doux">{entree.titre}</span>}
+        </span>
+      ) : (
+        avecTitre && entree.titre && <span className="mt-1 block text-xs text-texte-doux">{entree.titre}</span>
+      )}
     </>
   );
   if (href) {

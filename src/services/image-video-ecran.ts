@@ -60,6 +60,8 @@ import { exigerSession } from "./auth";
 export const PHRASES_IV = Object.freeze({
   pasRaccorde: "« Image → vidéo » n'est pas encore relié au studio : le dépôt ouvrira dès son raccordement. Rien n'a été créé.",
   sansVoix: "Ajoutez d'abord votre voix dans Personnages : la vidéo est dite avec elle.",
+  /** IV-SV : intitulé du choix visible dans l'écran du générateur. */
+  choixSansVoix: "Sans voix (sous-titres et texte à l'écran)",
   sansReseau: "Cochez au moins un réseau.",
   tiktokRetire: PHRASE_TIKTOK_RETIRE_IV,
   fichier: "L'image n'est pas arrivée. Déposez-la à nouveau.",
@@ -82,8 +84,9 @@ export const PARAM_RELIRE_SCRIPT_IV = "imageVideo.relireScript";
 // ─── Prix du dépôt ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Prix au pire de la vidéo, affiché sur le bouton du dépôt (même calcul que le moteur au lancement). PUR. */
-export function prixDuDepot(reseaux: readonly ReseauIV[], tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT, dureeCibleSec = 50): number {
-  const commande = { entrees: { imageVideo: { reseaux: [...reseaux] } }, tauxUsdEur, dureeCibleSec } as unknown as CommandeFabrication;
+export function prixDuDepot(reseaux: readonly ReseauIV[], tauxUsdEur = TAUX_USD_EUR_PAR_DEFAUT, dureeCibleSec = 50, sansVoix = false): number {
+  // IV-SV : sans voix, ni coût de voix ni coût d'écoute (le prix ne compte que les lectures et relectures de l'image).
+  const commande = { entrees: { imageVideo: { reseaux: [...reseaux], ...(sansVoix ? { sansVoix: true } : {}) } }, tauxUsdEur, dureeCibleSec } as unknown as CommandeFabrication;
   return estimerImageVideo(commande).total.centimes;
 }
 
@@ -100,10 +103,14 @@ export interface EtatDepotIV {
   voixPrete: boolean;
   /** Prix pour les quatre réseaux (centimes d'euro). */
   montantCentimes: number;
+  /** IV-SV : prix du mode « Sans voix » (aucune ligne de voix ni d'écoute). */
+  montantSansVoixCentimes: number;
   /** Taux dollar → euro du studio (le même pour tous les prix affichés). */
   tauxUsdEur: number;
   /** Phrase qui empêche le dépôt (avant tout clic) ; absente : rien ne s'y oppose. */
   blocage?: string;
+  /** IV-SV : phrase qui empêche le dépôt SANS VOIX (le format n'est pas relié) ; absente : le mode sans voix est possible, voix prête ou non. */
+  blocageSansVoix?: string;
 }
 
 export interface DemandeDepotIV {
@@ -115,6 +122,8 @@ export interface DemandeDepotIV {
   /** Montant affiché et confirmé (centimes d'euro). */
   accordCentimes?: AccordPrix;
   titre?: string;
+  /** IV-SV : « Sans voix (sous-titres et texte à l'écran) » : aucune voix, 0 appel HeyGen. Absent : avec voix. */
+  sansVoix?: boolean;
   /** « Refaire quand même » : le choix et le jeton du refus « image déjà traitée », renvoyés tels quels. */
   sujet?: { choix: "refaire" | "nouvel-angle"; jeton: string };
 }
@@ -208,7 +217,15 @@ export async function etatDepotImageVideo(dep: DependancesEcranIV = {}): Promise
     // Lecture impossible : le dépôt reste fermé, avec la phrase.
   }
   const blocage = !ouvert ? PHRASES_IV.pasRaccorde : !voixPrete ? PHRASES_IV.sansVoix : undefined;
-  return { ouvert, voixPrete, montantCentimes: prixDuDepot(RESEAUX_IV, taux), tauxUsdEur: taux, ...(blocage ? { blocage } : {}) };
+  return {
+    ouvert,
+    voixPrete,
+    montantCentimes: prixDuDepot(RESEAUX_IV, taux),
+    montantSansVoixCentimes: prixDuDepot(RESEAUX_IV, taux, 50, true),
+    tauxUsdEur: taux,
+    ...(blocage ? { blocage } : {}),
+    ...(!ouvert ? { blocageSansVoix: PHRASES_IV.pasRaccorde } : {}),
+  };
 }
 
 /** « Lancer » (écran 1) : voir l'en-tête. Rien n'est créé tant que l'accord manque ; lancement refusé : rien ne reste en brouillon. */
@@ -220,8 +237,10 @@ export async function deposerImageVideo(d: DemandeDepotIV, dep: DependancesEcran
   if (!reseaux.length) return { statut: "refusee", phrase: (d.reseaux as readonly string[]).includes("tiktok") ? PHRASES_IV.tiktokRetire : PHRASES_IV.sansReseau };
   const offre = OFFRES.includes(d.offre as Offre) ? (d.offre as Offre) : undefined;
   if (!(await (dep.formatOuvert ?? formatOuvertParDefaut)())) return { statut: "refusee", phrase: PHRASES_IV.pasRaccorde };
-  const voix = await (dep.voix ?? voixParDefaut)();
-  if (!voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
+  // IV-SV : sans voix, aucune voix n'est cherchée (ni exigée) ; rien ne part chez HeyGen.
+  const sansVoix = d.sansVoix === true;
+  const voix = sansVoix ? null : await (dep.voix ?? voixParDefaut)();
+  if (!sansVoix && !voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
   let fichier: Awaited<ReturnType<NonNullable<DependancesEcranIV["fichier"]>>>;
   try {
     fichier = await (dep.fichier ?? fichierParDefaut)(d.fichierId);
@@ -244,7 +263,7 @@ export async function deposerImageVideo(d: DemandeDepotIV, dep: DependancesEcran
       }
     }
   }
-  const montant = prixDuDepot(reseaux, await (dep.taux ?? tauxDuStudio)());
+  const montant = prixDuDepot(reseaux, await (dep.taux ?? tauxDuStudio)(), 50, sansVoix);
   return verrouDepotUnique<IssueDepotIV>(async () => {
     // Image déjà traitée (lot L6) : SEULEMENT pour un nouveau dépôt, AVANT le prix, le brouillon et toute dépense. Un refus
     // ne crée rien. Une vidéo en échec ne compte pas au registre : la relancer ou redéposer l'image reste libre.
@@ -281,9 +300,10 @@ export async function deposerImageVideo(d: DemandeDepotIV, dep: DependancesEcran
         // plus » affiché et confirmé, jamais un plafond fixe qui arrêterait la vidéo en cours de route.
         plafondCentimes: montant,
         accordEssaiReel: accordEssaiReel === true,
+        ...(sansVoix ? { sansVoix: true as const } : {}),
       },
     };
-    const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
+    const distribution: Distribution[] = voix ? [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }] : [];
     const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees });
     // Lancement refusé (ou prix redemandé) : le brouillon de ce dépôt est abandonné (archivé, jamais effacé) ; le
     // prochain dépôt en crée un neuf. Seul ce brouillon est touché.

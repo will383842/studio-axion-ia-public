@@ -126,7 +126,7 @@ describe("objets non acceptés", () => {
 });
 
 describe("garde statique", () => {
-  it("objets.ts n'a qu'un import de type ; rien dans src/** ni studio-rendu/** n'importe les deux pièces", () => {
+  it("objets.ts n'a qu'un import de type ; rien dans src/** ni studio-rendu/** n'importe les deux pièces (hors fabriquer.ts pour objets-tableau)", () => {
     const src = readFileSync("src/briques/tableau-scene/objets.ts", "utf8");
     expect(src.match(/^\s*import\b.*$/gm)).toEqual(['import type { RectPx } from "./types";']);
     const fichiers: string[] = [];
@@ -140,7 +140,23 @@ describe("garde statique", () => {
     };
     marche("src");
     marche("studio-rendu");
-    const lecteurs = fichiers.filter((f) => !/objets-tableau\.ts$|tableau-scene\/objets\.ts$/.test(f) && /objets-tableau|tableau-scene\/objets["']|\.\/objets["']/.test(readFileSync(f, "utf8")) && (/objets-tableau/.test(readFileSync(f, "utf8")) || /tableau-scene\/objets["']/.test(readFileSync(f, "utf8"))));
+    // Exemption RESSERRÉE (pilote, 20/11) : EXACTEMENT ObjetsTableau.tsx, et SEULEMENT pour un `import type` de tableau-scene/objets.
+    const EXEMPTE = "studio-rendu/compositions/tableau/ObjetsTableau.tsx";
+    const IMPORT_TYPE_OBJETS = /^\s*import\s+type\s+\{[^}]*\}\s*from\s+["'][^"']*tableau-scene\/objets["'];?\s*$/gm;
+    const lit = (f: string) => {
+      const t = readFileSync(f, "utf8");
+      return f === EXEMPTE ? t.replace(IMPORT_TYPE_OBJETS, "") : t;
+    };
+    // N-04e (20/11) : `fabriquer.ts` est le SEUL lecteur (valeur) de `objets-tableau` ; il ne lit jamais `tableau-scene/objets`. Aucun autre fichier exempté.
+    const FABRIQUER = "src/moteurs/montage-tableau/fabriquer.ts";
+    const norm = (f: string) => f.split("\\").join("/");
+    const lecteurs = fichiers.filter((f) => !/objets-tableau\.ts$|tableau-scene\/objets\.ts$/.test(f) && (/objets-tableau/.test(lit(f)) || /tableau-scene\/objets["']/.test(lit(f))) && !(norm(f) === FABRIQUER && !/tableau-scene\/objets["']/.test(lit(f))));
     expect(lecteurs).toEqual([]);
+    const fab = readFileSync(FABRIQUER, "utf8");
+    expect(fab.match(/^\s*import\b.*objets-tableau.*$/gm)).toEqual(['import { objetsDesScenes } from "./objets-tableau";']);
+    // Correction relecteurs 1 et 2 : la garde couvre aussi export * / export {…} from / import() dynamique / import multi-ligne.
+    expect(fab.match(/objets-tableau/g)).toHaveLength(1);
+    expect(fab.match(/^.*objets-tableau.*$/gm)).toEqual(['import { objetsDesScenes } from "./objets-tableau";']);
+    expect(fab).not.toMatch(/export\s*(\*|\{[^}]*objetsDesScenes)/);
   });
 });

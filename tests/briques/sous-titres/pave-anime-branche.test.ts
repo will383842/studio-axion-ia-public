@@ -202,15 +202,21 @@ async function entrees(reglage?: unknown) {
 beforeEach(() => { reinitialiserDepots(); });
 
 describe("(d) chemin réel de fabrication : éteint par défaut, rien ne remplit les champs ici", () => {
-  it("réglage absent, `true`, ou capacité `texte.pave` listée : aucune clé `paveAnime` ni `marques`, propriétés identiques", async () => {
+  it("réglage `false`, `true`, ou capacité `texte.pave` listée : aucune clé `paveAnime` ni `marques`, propriétés identiques", async () => {
     const eteint = composer(commande({}));
-    for (const reglage of [undefined, true, { capacites: ["texte.pave"] }, { capacites: ["texte.pave", "texte.escalier"] }]) {
+    for (const reglage of [false, true, { capacites: ["texte.pave"] }, { capacites: ["texte.pave", "texte.escalier"] }]) {
       reinitialiserDepots();
       const p = composer(commande(await entrees(reglage)));
       expect("paveAnime" in p.texte.sousTitres!).toBe(false);
       expect("marques" in p.texte.sousTitres!).toBe(false);
       expect(p.texte).toEqual(eteint.texte);
     }
+  });
+  it("réglage absent (avocat allumé par défaut, ALLUMER-BIBLIO-DEFAUTS-v20g) : toujours aucune clé `paveAnime` ni `marques`", async () => {
+    reinitialiserDepots();
+    const p = composer(commande(await entrees(undefined)));
+    expect("paveAnime" in p.texte.sousTitres!).toBe(false);
+    expect("marques" in p.texte.sousTitres!).toBe(false);
   });
   it("sur ces propriétés fabriquées : `paveAuTemps` null à chaque instant, instants rendus identiques à ceux d'une scène sans les champs", async () => {
     const p = composer(commande(await entrees({ capacites: ["texte.pave"] })));

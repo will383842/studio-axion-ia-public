@@ -146,6 +146,10 @@ export function phraseEtat(entree: Pick<EntreeFiche, "etat" | "jour" | "heure" |
       return entree.envoiAbsent ? "L'envoi n'est pas arrivé jusqu'au diffuseur. Rien n'est parti." : "Le réseau l'a refusée. Rien n'est parti.";
     case "en_cours":
       return "Un envoi est en cours. Attendez sa fin avant de modifier.";
+    case "programme_diffuseur":
+      return "Programmée chez le diffuseur : elle partira à l'heure prévue, sans passer par le Studio.";
+    case "retire_diffuseur":
+      return "Retirée du calendrier du Studio. Elle reste programmée chez le diffuseur.";
     case "brouillon_buffer":
       return "Brouillon déposé chez le diffuseur. Rien ne part tant que vous ne l'avez pas validé là-bas.";
     case "idee":

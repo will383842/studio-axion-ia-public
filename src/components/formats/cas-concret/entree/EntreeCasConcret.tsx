@@ -90,7 +90,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
   const estimer = useCallback(
     async (choix: ChoixVideo) => {
       if (!ouvert) return null;
-      const r = await estimerCasAction(ouvert.cas.id, choix.reseaux, choix.avecMot, { mot: choix.mot, essai: ouvert.essai, ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}), empreinteVue: ouvert.cas.empreinte, ...(choix.nouveauScript ? { nouveauScript: true } : {}), ...(choix.sujet ? { sujet: choix.sujet } : {}), ...(ouvert.cas.porteB ? { porteB: ouvert.cas.porteB.videoId } : {}) });
+      const r = await estimerCasAction(ouvert.cas.id, choix.reseaux, choix.avecMot, { mot: choix.mot, essai: ouvert.essai, ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}), ...(choix.sansVoix ? { sansVoix: true } : {}), empreinteVue: ouvert.cas.empreinte, ...(choix.nouveauScript ? { nouveauScript: true } : {}), ...(choix.sujet ? { sujet: choix.sujet } : {}), ...(ouvert.cas.porteB ? { porteB: ouvert.cas.porteB.videoId } : {}) });
       return r.ok ? { centimes: r.donnees.centimes, ...(r.donnees.refus ? { refus: r.donnees.refus } : {}), ...(r.donnees.dejaTraite ? { dejaTraite: r.donnees.dejaTraite } : {}), ...(r.donnees.avertissement ? { avertissement: r.donnees.avertissement } : {}) } : null;
     },
     [ouvert],
@@ -98,7 +98,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
 
   async function fabriquer(choix: ChoixVideo, accord: number) {
     if (!ouvert) return;
-    const r = await preparerEtLancerAction({ casId: ouvert.cas.id, reseaux: choix.reseaux, mot: choix.mot, avecMot: choix.avecMot, accordCentimes: accord, ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}), essai: ouvert.essai, empreinteVue: ouvert.cas.empreinte, ...(choix.nouveauScript ? { nouveauScript: true } : {}), ...(choix.sujet ? { sujet: choix.sujet } : {}), ...(ouvert.cas.porteB ? { porteB: ouvert.cas.porteB.videoId } : {}) });
+    const r = await preparerEtLancerAction({ casId: ouvert.cas.id, reseaux: choix.reseaux, mot: choix.mot, avecMot: choix.avecMot, accordCentimes: accord, ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}), ...(choix.sansVoix ? { sansVoix: true } : {}), essai: ouvert.essai, empreinteVue: ouvert.cas.empreinte, ...(choix.nouveauScript ? { nouveauScript: true } : {}), ...(choix.sujet ? { sujet: choix.sujet } : {}), ...(ouvert.cas.porteB ? { porteB: ouvert.cas.porteB.videoId } : {}) });
     if (!r.ok) return { phrase: r.message };
     if (r.donnees.statut === "refusee") return { phrase: r.donnees.phrase };
     // Lot L3 : le cas est devenu « déjà traité » (ou le jeton est périmé) : la feuille redonne les trois choix.
@@ -154,6 +154,7 @@ export function EntreeCasConcret({ valides, aValider, montants, refus, voix, mot
       mot: choix.mot,
       avecMot: choix.avecMot,
       ...(choix.finDemandee ? { finDemandee: choix.finDemandee } : {}),
+      ...(choix.sansVoix ? { sansVoix: true } : {}),
       ...(typeof accord === "number" ? { accordCentimes: accord } : {}),
       essai,
       empreinteVue: cas.empreinte,

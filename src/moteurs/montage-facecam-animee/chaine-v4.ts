@@ -138,7 +138,8 @@ export interface EtatChaineV4 {
 
 export interface OutilsChaineV4 {
   /** Lot R2 : plan de scènes pour les scènes d'interface, de chiffres et d'accents. Absent (par défaut) : rendu inchangé. `appeler` absent : pièces du stock seulement. */
-  planScenes?: { appeler?: AppelClaude };
+  /** C9-37-c (20/11) : `objetsPermis` rempli plus tard par le service (zone interdite) ; absent ou vide = identique. */
+  planScenes?: { appeler?: AppelClaude; objetsPermis?: readonly string[] };
   /** GV-MD-03 : calage des animations sur le début du mot dit. ÉTEINT par défaut (absent ou faux : plan d'Opus inchangé, rendu des vidéos existantes identique). */
   calageAuMot?: boolean;
   /** BR-TELEPHONE-a : le réalisateur peut proposer le téléphone qui joue un extrait. ÉTEINT par défaut (absent : message du réalisateur inchangé). */
@@ -683,7 +684,7 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       if (plaquettesSansVideo(etat.realisation.plan).length || telephonesSansMediaV4(etat.realisation.plan, { telephoneVideo: outils.telephoneVideo }).length) return { ...etat, etape: "videos" };
       // Lot R2 : le plan de scènes se compose (et se garde) AVANT le rendu : un pas à lui seul, jamais refait à la reprise.
       if (outils.planScenes && !etat.planScenes) {
-        const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler });
+        const memo = await planPourVideo({ generateur: "facecam-animee", mots: etat.coupes.mots.map((m) => ({ texte: m.w, debutSec: m.a, finSec: m.f })), dureeSec: etat.coupes.dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM_ANIMEE, appeler: outils.planScenes.appeler, ...(outils.planScenes.objetsPermis?.length ? { objetsPermis: outils.planScenes.objetsPermis } : {}) });
         return { ...etat, planScenes: memo };
       }
       const planRendu = etat.planScenes?.plan ? { ...etat.realisation.plan, planScenes: retirerPiecesSousV4(etat.planScenes.plan, intervallesV4(etat.realisation.plan)) } : etat.realisation.plan;

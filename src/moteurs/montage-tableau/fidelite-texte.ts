@@ -13,7 +13,7 @@
  *  - `decomptesRetires` : un DÉCOMPTE annoncé (« Trois réflexes… », « 3 étapes ») n'est pas un chiffre à sourcer : il
  *    reste écrit, jamais « Les réflexes… » (vidéo v-b2d772d28b97, 17/10/2026).
  */
-import { cleMot } from "./fiche";
+import { cleMot } from "./cle-mot";
 
 /** Nombres dits en lettres (« un » et « une » exclus : ce sont presque toujours des articles). */
 const NOMBRES: Readonly<Record<string, number>> = {
@@ -31,6 +31,7 @@ function motsDe(texte: string): { brut: string; cle: string; debut: number; fin:
 
 /** Valeur d'un mot nombre (« dix » → 10, « 10 » → 10) ; `undefined` sinon. */
 export function valeurNombre(mot: string): number | undefined {
+  if (/^\d+[,.]\d+$/.test(mot)) return Number(mot.replace(",", "."));
   const c = cleMot(mot);
   if (/^\d+$/.test(c)) return Number(c);
   return NOMBRES[c];

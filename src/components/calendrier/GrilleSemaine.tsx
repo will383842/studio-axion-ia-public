@@ -97,8 +97,9 @@ export interface CibleDepot {
 export type DecisionDepot = { ok: true; jour: string } | { ok: false; message?: string };
 
 /** Une publication future et non publiée se déplace ; une passée ou publiée reste en place. */
-export function peutGlisser(entree: Pick<EntreeCarte, "etat" | "jour">, aujourdhui: string): boolean {
-  return !estVerrouillee(entree, aujourdhui);
+export function peutGlisser(entree: Pick<EntreeCarte, "etat" | "jour"> & { chezDiffuseur?: boolean }, aujourdhui: string): boolean {
+  // RAP-3 : une publication reprise du diffuseur se déplace chez lui, jamais d'ici.
+  return !entree.chezDiffuseur && !estVerrouillee(entree, aujourdhui);
 }
 
 /** Même réseau, jour non passé, jour différent. Un autre réseau est refusé avec le message « Dupliquer ». */
