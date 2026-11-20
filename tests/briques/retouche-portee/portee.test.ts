@@ -15,7 +15,7 @@ describe("exhaustivité des catalogues", () => {
     for (const [type, d] of Object.entries(CATALOGUE_RETOUCHES)) expect(PORTEE_TABLEAU[type as keyof typeof PORTEE_TABLEAU]).toBe(attendu[d.refait]);
   });
   it("moteurs = liste écrite", () =>
-    expect(cles(PORTEE_MOTEURS)).toEqual(["ajusterRythme", "changerAngle", "changerCadrage", "corrigerMot", "deplacerIncrustation", "modifierTitre", "planScenes", "refaireSegmentVoix", "remplacerIllustration"]));
+    expect(cles(PORTEE_MOTEURS)).toEqual(["ajusterRythme", "changerAngle", "changerCadrage", "corrigerMot", "deplacerIncrustation", "modifierTitre", "planScenes", "refaireSegmentVoix", "reglagesFilm", "remplacerIllustration"]));
   it("cas concret = liste écrite", () =>
     expect(cles(PORTEE_CAS_CONCRET)).toEqual(["changer-chiffre", "changer-mot", "changer-phrase", "deplacer-etape", "retirer-etape", "sans-le-mot"]));
 });

@@ -8,6 +8,7 @@ import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/reto
 import { portsStudio } from "@/services/retouche-chat/studio";
 import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
 import { historiqueVersions, versionARetablir } from "@/services/retouche-chat/historique";
+import { apercevoirRetoucheTutoriel, appliquerRetoucheTutoriel, etapeIdsDuFilm, type PortsFilm } from "@/services/retouche-chat/tutoriel-retouche-film";
 import { depots, lireParametre } from "@/services/_commun";
 
 /**
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 const schemaCorps = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("apercu"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), demande: z.string().max(1000) }),
-  z.strictObject({ action: z.literal("appliquer"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), demande: z.string().max(1000), operations: z.array(z.unknown()).max(40) }),
+  z.strictObject({ action: z.literal("appliquer"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), demande: z.string().max(1000), operations: z.array(z.unknown()).max(40), reglagesFilm: z.unknown().optional() }),
   z.strictObject({ action: z.literal("revenir"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80), versionId: z.string().min(1).max(80) }),
   // G14-04 : liste des versions lue en base (lecture seule) et « rétablir » (refaire) ; rien n'est écrit ni effacé.
   z.strictObject({ action: z.literal("historique"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
@@ -61,6 +62,21 @@ export async function POST(requete: NextRequest) {
     if (cible === null) return NextResponse.json({ erreur: "Rien à rétablir." }, { status: 409 });
   }
   const ports = c.generateur !== undefined ? portsGenerateurStudio(c.generateur) : portsStudio();
+  // T-EXT-53c : le tutoriel passe par `tutoriel-retouche-film.ts` (plan + film, « plan-pret » rendu au navigateur) ; mêmes gardes que
+  // ci-dessus. Les autres générateurs : code d'aujourd'hui. // en attendant T-EXT-53b : règles seules, aucun lecteur ni appel Claude.
+  if (c.generateur === "tutoriel-outil" && (c.action === "apercu" || c.action === "appliquer")) {
+    const versionChoisie = async (videoId: string) => {
+      const video = await depots().videos.obtenir(videoId);
+      return video?.versionChoisieId ? await depots().versions.obtenir(video.versionChoisieId) : null;
+    };
+    const film: PortsFilm = {
+      // Les étapes du film sont les cibles de la navigation filmée de la version choisie (pas les scènes du plan).
+      etapesFilm: async (videoId) => etapeIdsDuFilm((await versionChoisie(videoId))?.commande?.entrees),
+      reglagesAvant: async (videoId) => ((await versionChoisie(videoId))?.projetMontage as { tutoriel?: { reglagesFilm?: unknown } } | undefined)?.tutoriel?.reglagesFilm,
+    };
+    if (c.action === "apercu") return NextResponse.json(await apercevoirRetoucheTutoriel(c.videoId, c.demande, ports, film));
+    return NextResponse.json(await appliquerRetoucheTutoriel(c.videoId, { demande: c.demande, operations: c.operations, ...(c.reglagesFilm !== undefined ? { reglagesFilm: c.reglagesFilm } : {}) }, ports, film));
+  }
   if (c.action === "apercu") return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, ports));
   if (c.action === "appliquer") return NextResponse.json(await appliquerRetouche(c.videoId, { demande: c.demande, operations: c.operations }, ports));
   if (c.action === "retablir" && cible !== null) {

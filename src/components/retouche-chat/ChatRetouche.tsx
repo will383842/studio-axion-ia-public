@@ -24,6 +24,9 @@ interface Apercu {
   operations: unknown[];
   impact: { phrase: string; scenes: string[]; total?: number };
   remarques: string[];
+  /** T-EXT-53c (tutoriel) : ce qui change dans le film, étape par étape (« Étape 3 : zoom normal → plus serré »). */
+  changements?: { etape: number; avant: string; apres: string }[];
+  reglagesFilm?: unknown;
 }
 
 interface Message {
@@ -50,7 +53,7 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
     setSaisie("");
     try {
       const a = (await envoyer({ action: "apercu", videoId, demande, ...(generateur ? { generateur } : {}) })) as unknown as Apercu;
-      setApercu(a.operations?.length ? a : null);
+      setApercu(a.operations?.length || a.changements?.length ? a : null);
       dire({ auteur: "studio", texte: [a.impact?.phrase, ...(a.remarques ?? [])].filter(Boolean).join(" ") });
     } catch {
       dire({ auteur: "studio", texte: "Je n'ai pas pu lire votre demande. Réessayez dans un instant." });
@@ -63,7 +66,7 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
     if (!apercu || occupe) return;
     setOccupe(true);
     try {
-      const r = await envoyer({ action: "appliquer", videoId, demande: apercu.demande, operations: apercu.operations, ...(generateur ? { generateur } : {}) });
+      const r = await envoyer({ action: "appliquer", videoId, demande: apercu.demande, operations: apercu.operations, ...(apercu.reglagesFilm ? { reglagesFilm: apercu.reglagesFilm } : {}), ...(generateur ? { generateur } : {}) });
       const remarques = Array.isArray(r.remarques) ? (r.remarques as string[]) : [];
       if (r.statut === "rendue" && typeof r.versionId === "string") {
         setVersions((v) => [...v, r.versionId as string]);
@@ -120,6 +123,18 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
       {apercu ? (
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm text-texte-doux">{apercu.impact.phrase}</p>
+          {apercu.changements?.length ? (
+            <div className="w-full">
+              <ul aria-label="Ce qui change" className="list-disc pl-5 text-sm">
+                {apercu.changements.map((c, i) => (
+                  <li key={i}>
+                    {c.etape > 0 ? `Étape ${c.etape}` : "Toute la vidéo"} : {c.avant} → {c.apres}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm text-texte-doux">Rien n&apos;est appliqué tant que vous n&apos;avez pas cliqué « Appliquer ».</p>
+            </div>
+          ) : null}
           {generateur ? <ApercuFamille generateur={generateur} operations={apercu.operations as OperationRetouche[]} impact={{ scenes: apercu.impact.scenes ?? [], total: apercu.impact.total ?? 0 }} /> : null}
           <Bouton onClick={appliquer} chargement={occupe}>
             Appliquer

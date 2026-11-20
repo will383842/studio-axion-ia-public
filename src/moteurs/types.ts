@@ -123,7 +123,9 @@ export type OperationMontage =
   | { type: "refaireSegmentVoix"; segmentId: string; texte?: string }
   | { type: "ajusterRythme"; sens: "plus-rapide" | "plus-lent"; depuisSec?: number; jusquaSec?: number }
   // D4-F2 : plan de scènes retouché par le chat (démo facecam) ; ignoré par les autres moteurs.
-  | { type: "planScenes"; plan: unknown };
+  | { type: "planScenes"; plan: unknown }
+  // T-EXT-53c : réglages du film de navigation (crans par étape), relus par le moteur du tutoriel ; ignorée par les autres moteurs.
+  | { type: "reglagesFilm"; reglages: unknown };
 
 /** Ce qui est déjà payé, fourni par le service à partir de VersionVideo et Piste (le moteur ne lit pas les dépôts). */
 export interface ParentRetouche {
