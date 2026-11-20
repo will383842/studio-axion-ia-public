@@ -19,6 +19,7 @@ import {
   extensionDe,
   lireRepertoireZip,
   masquerDonneesPersonnelles,
+  motifRefusDetection,
   refuserScriptAvecDonnees,
   trierImages,
   verifierEntreesZip,
@@ -186,8 +187,11 @@ export async function extraireZipSur(
       }
       if (EXT_MAQUETTE.has(ext)) textes.push({ chemin, texte });
       const trouvees = detecterDonneesPersonnelles(texte, { chemin, nomsNeutres: options.nomsNeutres });
-      if (trouvees.some((d) => d.type === "detection-echouee")) {
-        refus.push(`« ${court(chemin)} » : la recherche de données de personnes a échoué, le fichier est refusé.`);
+      // Refus du fichier entier (recherche échouée, guillemet non refermé, caractère de contrôle, JSON illisible, fins de ligne
+      // mélangées) : le motif et la ligne seulement, jamais la valeur.
+      const refusee = trouvees.find((d) => motifRefusDetection(d) !== undefined);
+      if (refusee) {
+        refus.push(`« ${court(chemin)} » : ${motifRefusDetection(refusee)}.`);
         continue;
       }
       if (trouvees.length === 0) {

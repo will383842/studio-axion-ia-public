@@ -29,7 +29,11 @@ const TRAITS_C9_34 = ["objet-soulignement-vague", "objet-soulignement-double", "
 const CADRES_C9_34 = ["objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle"];
 // C9-34-ETIQUETTES-v20f : les 8 étiquettes et bulles inscrites ensuite sont exclues de la même façon (sha non recalculé).
 const ETIQUETTES_C9_34 = ["objet-pastille-icone", "objet-etiquette-icone", "objet-badge", "objet-tampon", "objet-bulle-parole", "objet-bulle-pensee", "objet-bulle-notification", "objet-post-it"];
-const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id) && !CADRES_C9_34.includes(d.id) && !ETIQUETTES_C9_34.includes(d.id)).map((d) => d.id);
+// C9-34-SCHEMAS-v20g : les 8 schémas, fenêtre et terminal inscrits ensuite sont exclus de la même façon (sha figé gardé).
+const SCHEMAS_C9_34 = ["objet-schema-flux", "objet-schema-etoile", "objet-icones-reliees", "objet-agents-globe", "objet-grille-pointillee", "objet-vignettes-numerotees", "objet-fenetre-app", "objet-terminal-commande"];
+// C9-34-FIN-v20h : les 10 derniers petits objets inscrits sont exclus de la même façon (sha figé gardé).
+const FIN_C9_34 = ["objet-dossier", "objet-chrono", "objet-barre-progression", "objet-etape-segments", "objet-appel-action", "objet-appel-mot", "objet-appel-rdv", "objet-frise-montage", "objet-pellicule", "objet-onde-motif"];
+const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id) && !CADRES_C9_34.includes(d.id) && !ETIQUETTES_C9_34.includes(d.id) && !SCHEMAS_C9_34.includes(d.id) && !FIN_C9_34.includes(d.id)).map((d) => d.id);
 
 describe("G4-11-PORTE-a : éteint = identique à master", () => {
   it("la liste ne contient que les 3 pièces 16:9 de VL-10 et estGardee ≡ famille objet ou liste", () => {
