@@ -43,6 +43,7 @@ describe("recollage-plages : paramètres (purs)", () => {
     expect(() => lireParametresRecollage({ ...base, segments: [] })).toThrow(/Aucun segment/);
   });
   it("tous les refus sont des ErreurRendu « refuse » non réessayables", () => {
+    expect.assertions(1);
     try { lireParametresRecollage({ ...base, segments: [] }); } catch (e) {
       expect(e).toMatchObject({ name: "ErreurRendu", erreur: { code: "refuse", reessayable: false } });
     }
@@ -94,5 +95,7 @@ describe.skipIf(!ffmpeg)("recollage-plages : vrai recollage (ffmpeg présent)", 
     const f = deposes.at(-1)!;
     const n = execFileSync("ffprobe", ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", f]).toString().trim();
     expect(Number(n)).toBe(150);
+    const flux = execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", f]).toString().trim().split(/\s+/);
+    expect(flux).toEqual(["video", "audio"]);
   }, 60000);
 });
