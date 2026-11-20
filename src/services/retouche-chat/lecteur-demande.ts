@@ -50,7 +50,7 @@ export interface LectureDemande<T = never> {
   appels: 0 | 1;
 }
 
-const rien = <T>(phrase: string): LectureDemande<T> => ({ operations: [], supplementaires: [], remarques: [phrase], source: "rien", appels: 0 });
+const rien = <T>(phrase: string, appels: 0 | 1 = 0): LectureDemande<T> => ({ operations: [], supplementaires: [], remarques: [phrase], source: "rien", appels });
 
 async function sur(f: (() => Promise<boolean>) | undefined): Promise<boolean> {
   try {
@@ -89,12 +89,16 @@ export async function lireDemande<T = never>(e: { phrase: string; plan: PlanVali
   if (!(await sur(ports.claudeAllume))) return rien(PHRASE_LECTEUR_NON_COMPRIS);
   if (!(await lecturesPermises(ports))) return rien(PHRASE_LECTEUR_EPUISE);
 
+  // `appels` = appels RÉPONDUS (donc payés) : 1 dès que `ports.appeler` a rendu une réponse, même si elle est illisible ;
+  // 0 si `ports.appeler` lui-même lève (plafond refusé, panne : rien n'a été facturé par ce lecteur).
+  let repondu: 0 | 1 = 0;
   try {
     const base = construireRequeteRetouche(phrase, e.plan);
     const dernier = base.messages[base.messages.length - 1];
     const ajout = e.supplement ? `\n\n${e.supplement.bloc}\n${LIGNE_SUPPLEMENT}` : "";
     const requete = { ...base, maxTokens: MAX_JETONS_LECTEUR, messages: [...base.messages.slice(0, -1), { ...dernier, contenu: `${dernier.contenu}${ajout}` }] };
     const r = await ports.appeler(requete); // l'UNIQUE appel de cette demande
+    repondu = 1;
     const valeur: unknown = JSON.parse(extraireJson(r.texte));
     const objet = valeur && typeof valeur === "object" ? (valeur as { operations?: unknown; supplementaires?: unknown }) : {};
     const remarques: string[] = [];
@@ -116,7 +120,7 @@ export async function lireDemande<T = never>(e: { phrase: string; plan: PlanVali
     return { operations, supplementaires, remarques, source: "claude", appels: 1 };
   } catch {
     // Panne, plafond refusé, JSON illisible : « rien », jamais de second appel.
-    return rien(PHRASE_LECTEUR_NON_COMPRIS);
+    return rien(PHRASE_LECTEUR_NON_COMPRIS, repondu);
   }
 }
 

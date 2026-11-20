@@ -118,8 +118,20 @@ describe("T-EXT-53b : exactement un appel", () => {
     const avec = await lireDemande({ phrase: "modifie le script, mets robot à la place d'assistant", plan }, ports(double(rep).appeler));
     expect(avec.operations).toHaveLength(1);
   });
+  it("réponse reçue mais illisible → rien, appels: 1 (l'appel a eu lieu et été payé)", async () => {
+    const d = double("pas du JSON");
+    const r = await lireDemande({ phrase: INCOMPRIS, plan, supplement }, ports(d.appeler));
+    expect(r).toMatchObject({ source: "rien", appels: 1, remarques: [PHRASE_LECTEUR_NON_COMPRIS] });
+    expect(d.appels).toHaveLength(1);
+  });
+  it("relecture qui lève après une réponse reçue → rien, appels: 1", async () => {
+    const d = double(JSON.stringify({ operations: [], supplementaires: [{ type: "ajuster-demo", etape: 1 }] }));
+    const r = await lireDemande({ phrase: INCOMPRIS, plan, supplement: { ...supplement, relire: () => { throw new Error("boum"); } } }, ports((q) => d.appeler(q)));
+    expect(d.appels).toHaveLength(1);
+    expect(r).toMatchObject({ source: "rien", appels: 1 });
+  });
+  // Un port qui LÈVE (plafond refusé, panne) n'a rendu aucune réponse : rien n'est facturé par ce lecteur, donc appels: 0 (documenté dans lecteur-demande.ts).
   it.each([
-    ["illisible", "pas du JSON"],
     ["ErreurClaude", new ErreurClaude("requete", "La limite de cette vidéo est atteinte : rien n'a été payé.")],
     ["exception quelconque", new Error("boum 12 €")],
   ])("%s → rien, au plus 1 appel, aucune exception", async (_n, rep) => {
