@@ -155,14 +155,6 @@ describe("chemin réel : `preparerEtLancer` lit le réglage et fige les entrées
     await ecrireParametre("habillage.transitionsPlanScenes", true);
     expect(await prix()).toBe(avant);
   });
-  async function beforeEachRelance() {
-    reinitialiserRequete();
-    await auth.seConnecter(MDP, false);
-    const d = depots();
-    const base = (await d.voix.obtenir("voix-will"))!;
-    await d.voix.enregistrer({ ...base, id: "voix-avocat-test", nom: "Voix avocat", statut: "pret" });
-    await d.personnages.modifier("p-will", { voixParDefautId: "voix-will", voixParFormat: { avocat: "voix-avocat-test" } });
-  }
 });
 
 // Chemin calculé : tsc (projet racine, qui exclut studio-rendu) ne suit pas cet import et ne cherche pas `remotion` hors de studio-rendu.

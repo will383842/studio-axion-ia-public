@@ -1,6 +1,6 @@
 /**
- * C6-H4a : réglages de l'habillage commun, lus par une fonction injectée. ÉTEINTS : seul le booléen `true` exact
- * allume ; toute autre valeur, une absence ou une lecture en échec = éteint. Appelé par `services/cas-concret.ts` ;
+ * C6-H4a : réglages de l'habillage commun, lus par une fonction injectée. Éteints sauf `transitionsPlanScenes` : seul le booléen `true` exact
+ * allume les autres ; toute autre valeur, une absence ou une lecture en échec = éteint. Appelé par `services/cas-concret.ts` ;
  * ALLUMER-TRANSITIONS-CC-v20g · Williams 20/11 : `transitionsPlanScenes` allumé par défaut, seul `false` l'éteint. Aucun réglage de son (décision du 17/11). PUR, aucun import.
  */
 export const CLES_REGLAGE_HABILLAGE = Object.freeze({
