@@ -183,6 +183,36 @@ describe("plafond dur", () => {
     await lireCaptureTableau("v1", image(882, 1568), "studio", pas.deps);
     expect(pas.appels).toHaveLength(0);
   });
+  it("total : la part déjà engagée de la lecture compte (part 22 ≤ 25, autres + demande 121 ≤ 125, total 132 > 125) : 0 appel", async () => {
+    const f = fabrique(undefined, { tblec: 11, dmpln: 100, tbnar: 10 }, 1);
+    const r = await lireCaptureTableau("v1", image(882, 1568), "studio", f.deps);
+    expect(r).toMatchObject({ ok: false, repli: "saisie-manuelle" });
+    expect(f.appels).toHaveLength(0);
+  });
+  it("frontière exacte du plafond propre (image 882×1568, demande 11 c$) : la dernière valeur passe, la suivante est refusée", async () => {
+    const cas: Array<[number, number, number]> = [
+      // [taux, tblec engagé, appels attendus]
+      [1, 14, 1],
+      [1, 15, 0],
+      [0.9, 16, 1],
+      [0.9, 17, 0],
+      [1.1, 11, 1],
+      [1.1, 12, 0],
+    ];
+    for (const [taux, tblec, attendu] of cas) {
+      const f = fabrique(undefined, { tblec }, taux);
+      await lireCaptureTableau("v1", image(882, 1568), "studio", f.deps);
+      expect(f.appels, `taux ${taux}, tblec ${tblec}`).toHaveLength(attendu);
+    }
+  });
+  it("frontière exacte du total 1,25 € (taux 1, dmpln 100, tblec 0, demande 11 c$) : tbnar 14 passe, tbnar 15 refusé", async () => {
+    const ok = fabrique(undefined, { dmpln: 100, tbnar: 14, tblec: 0 }, 1);
+    await lireCaptureTableau("v1", image(882, 1568), "studio", ok.deps);
+    expect(ok.appels).toHaveLength(1);
+    const pas = fabrique(undefined, { dmpln: 100, tbnar: 15, tblec: 0 }, 1);
+    await lireCaptureTableau("v1", image(882, 1568), "studio", pas.deps);
+    expect(pas.appels).toHaveLength(0);
+  });
   it("montant engagé invalide (NaN, négatif, infini) : 0 appel et repli gratuit", async () => {
     const cas: Array<Record<string, number>> = [
       { tblec: Number.NaN },
