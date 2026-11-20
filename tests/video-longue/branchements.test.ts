@@ -333,3 +333,39 @@ describe("VL-07 — le chargement relit vraiment le réglage à chaque import", 
     expect(n.lu).toBe(2);
   });
 });
+
+describe("VL-SV — mode sans voix : 0 appel HeyGen, 0 €", () => {
+  const sansVoix = (): CommandeFabrication => {
+    const c = commande({ accord: null });
+    (c.entrees as { videoLongue: Record<string, unknown> }).videoLongue.sansVoix = true;
+    return c;
+  };
+  it("aucune lecture de voix : refus « sans-voix », aucun port payant touché", async () => {
+    const f = faux();
+    const c = sansVoix();
+    const d = creerDependancesVideoLongue(c, f.ports);
+    await expect(d.voix.lire(morceau(c))).rejects.toMatchObject({ motif: "sans-voix" });
+    expect(f.appelsVoix.length + f.reservations.length + f.appelsAligneur).toBe(0);
+    expect(f.base.size).toBe(0);
+  });
+  it("le montage n'exige aucun accord de voix et ne réserve aucun crédit", async () => {
+    const f = faux();
+    const d = creerDependancesVideoLongue(sansVoix(), f.ports);
+    await d.monter("16:9", ctxMontage);
+    expect(f.appelsMontage).toBe(1);
+    expect(f.reservations).toEqual([]);
+    expect(f.appelsVoix).toEqual([]);
+  });
+  it("réglage éteint : rien ne part, même sans voix", async () => {
+    const f = faux({ actif: false });
+    const d = creerDependancesVideoLongue(sansVoix(), f.ports);
+    await expect(d.monter("16:9", ctxMontage)).rejects.toMatchObject({ motif: "eteint" });
+    expect(f.appelsMontage).toBe(0);
+  });
+  it("avec voix, inchangé : sans accord, refus", async () => {
+    const f = faux();
+    const c = commande({ accord: null });
+    const d = creerDependancesVideoLongue(c, f.ports);
+    await expect(d.voix.lire(morceau(c))).rejects.toMatchObject({ motif: "sans-accord" });
+  });
+});

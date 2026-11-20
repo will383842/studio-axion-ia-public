@@ -14,6 +14,7 @@ export function AvantDeLancer({
   dureeSec,
   chapitres,
   courts,
+  sansVoix = false,
   peutLancer,
   onLancer,
   onRetour,
@@ -22,6 +23,8 @@ export function AvantDeLancer({
   chapitres: number;
   /** Nombre de vidéos courtes en plus ; 0 = case décochée, rien n'est affiché. */
   courts: number;
+  /** Mode « Sans voix » : pas de voix, aucun crédit voix, coût 0 €. */
+  sansVoix?: boolean;
   peutLancer: boolean;
   onLancer: () => void;
   onRetour: () => void;
@@ -29,14 +32,16 @@ export function AvantDeLancer({
   return (
     <section className="space-y-5" aria-label="Avant de lancer">
       <Carte className="space-y-3">
-        <h3 className="text-base font-semibold text-texte">Cette vidéo utilise vos crédits</h3>
+        <h3 className="text-base font-semibold text-texte">{sansVoix ? "Cette vidéo n'utilise aucun crédit de voix" : "Cette vidéo utilise vos crédits"}</h3>
         <ul className="space-y-1.5 text-sm text-texte">
-          <li>Voix de votre double : environ {formaterDuree(dureeSec)}</li>
+          {sansVoix ? <li>Sans voix : sous-titres et texte à l&apos;écran, environ {formaterDuree(dureeSec)}, coût 0 €</li> : <li>Voix de votre double : environ {formaterDuree(dureeSec)}</li>}
           <li>{chapitres} chapitre{chapitres > 1 ? "s" : ""}</li>
           <li>Format large</li>
           {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus</li>}
         </ul>
-        <p className="text-sm text-texte-doux">Rien n&apos;est payé avant votre accord. Si le prix du jour change, le Studio s&apos;arrête et vous redemande.</p>
+        <p className="text-sm text-texte-doux">
+          {sansVoix ? "Aucune voix, aucune musique : rien n'est payé." : "Rien n'est payé avant votre accord. Si le prix du jour change, le Studio s'arrête et vous redemande."}
+        </p>
       </Carte>
       <div className="flex flex-wrap items-center gap-3">
         {peutLancer ? (

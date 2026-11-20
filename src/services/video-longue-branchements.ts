@@ -42,7 +42,7 @@ export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
 export type LectureGardee = LectureMorceau & { fichierCle?: string; copieEnAttente?: { adresse: string; idDemande: string; idExterne?: string } };
 
 /** Pourquoi rien n'est parti. */
-export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur";
+export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix";
 
 export class ErreurVideoLongue extends Error {
   constructor(readonly motif: MotifRefusVideoLongue, message: string) {
@@ -107,6 +107,7 @@ const PHRASES: Record<MotifRefusVideoLongue, string> = {
   "accord-depasse": "Le script dépasse les quantités que vous avez acceptées : rien n'est parti, rien n'est payé. Relancez en confirmant les nouvelles quantités.",
   plafond: "Le plafond prévu pour cette vidéo serait dépassé : la fabrication s'arrête ici. Ce qui est déjà lu est gardé, rien de plus n'est payé.",
   "montage-non-relie": "Le montage de la vidéo longue n'est pas encore relié : aucune voix n'est lue, rien n'est payé.",
+  "sans-voix": "Mode sans voix : aucune voix n'est lue, rien n'est payé pour la voix.",
   fournisseur: "La voix n'a pas pu être lue : vous pouvez réessayer, ce qui est déjà fait est conservé.",
 };
 const refus = (m: MotifRefusVideoLongue): ErreurVideoLongue => new ErreurVideoLongue(m, PHRASES[m]);
@@ -123,6 +124,8 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
   /** Contrôles communs à tout appel payant (voix, aligneur, montage). */
   const garder = async (): Promise<AccordVideoLongue> => {
     if ((await ports.actif()) !== true) throw refus("eteint");
+    // Sans voix : rien à accorder (aucune quantité de voix, 0 €) ; seul le réglage « allumé » compte.
+    if (entrees.sansVoix) return { donne: true, videoId, caracteres: 0, morceaux: 0 };
     if (!accord) throw refus("sans-accord");
     return accord;
   };
@@ -130,6 +133,8 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
   return {
     voix: {
       async lire(morceau: MorceauVoix): Promise<LectureMorceau> {
+        // Mode sans voix : AUCUN appel HeyGen, aucun port touché, aucune réservation (le moteur n'appelle d'ailleurs pas ce port).
+        if (entrees.sansVoix) throw refus("sans-voix");
         const a = await garder();
         const tous = decouperScript(entrees.chapitres);
         if (tous.length > a.morceaux || tous.reduce((s, m) => s + m.texte.length, 0) > a.caracteres) throw refus("accord-depasse");
@@ -251,7 +256,8 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
   rafraichirActif();
   if (!etatActif.vu) return null;
   // Pause (jamais un échec) tant que le montage réel n'est pas relié, et tant que l'accord de CETTE vidéo manque.
-  if (!MONTAGE_VIDEO_LONGUE_RELIE || !lireAccordVideoLongue(commande)) return null;
+  if (!MONTAGE_VIDEO_LONGUE_RELIE) return null;
+  if (!lireEntreesVideoLongue(commande).sansVoix && !lireAccordVideoLongue(commande)) return null;
   let ports: Promise<PortsVideoLongue> | undefined;
   const p = (): Promise<PortsVideoLongue> => (ports ??= portsReels(commande, travailId));
   const paresseux: PortsVideoLongue = {

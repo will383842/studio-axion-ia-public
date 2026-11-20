@@ -31,7 +31,8 @@ export const formatVideoLongue: DefinitionFormat = {
   ratioMaitre: "16:9",
   miseEnPage: "plein-ecran",
   miseEnPageParRatio: { "16:9": "plein-ecran" },
-  personnages: { min: 1, max: 1, roles: ["voix"], sources: ["double"] },
+  /** min 0 : le mode « Sans voix » (20/11) n'a aucun personnage. Avec voix, une seule voix (le double) reste exigée par l'écran et par les branchements. */
+  personnages: { min: 0, max: 1, roles: ["voix"], sources: ["double"] },
   entrees: [],
   etapes: ["express", "fabrication"],
   reglages: { schema: z.object({}), champs: [] },
