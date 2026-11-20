@@ -34,9 +34,11 @@ export function TutorielOutil(p: ProprietesTutorielOutil) {
         {p.sousTitres ? <CalqueSousTitres donnees={p.sousTitres} /> : null}
         {p.audio ? <Audio src={p.audio} /> : null}
       </Sequence>
-      <Sequence from={imagesPlan}>
-        <PlanDeScenes plan={planCarteFin(p)} />
-      </Sequence>
+      {p.finMs > 0 ? (
+        <Sequence from={imagesPlan}>
+          <PlanDeScenes plan={planCarteFin(p)} />
+        </Sequence>
+      ) : null}
     </AbsoluteFill>
   );
 }
