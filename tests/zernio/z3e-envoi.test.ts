@@ -97,9 +97,9 @@ describe("Z3-E · écran", () => {
     expect(h).toMatch(new RegExp(`id="${id}"[^>]*>Cochez l&#x27;accord TikTok ci-dessus pour valider\\.`));
     expect(h).toContain('data-format="9:16"');
   });
-  it("Instagram : premier commentaire posé automatiquement, mention IA visible, pas de case TikTok", () => {
+  it("Instagram : premier commentaire transmis (à confirmer), mention IA visible, pas de case TikTok", () => {
     const t = texte(rendre([ligne("instagram")], { "v-1:instagram": comp({ etat: "brouillon", creeLe: new Date().toISOString() }) }));
-    expect(t).toContain("Premier commentaire à poser à la main");
+    expect(t).toContain("Premier commentaire transmis, à confirmer");
     expect(t).toContain("Brouillon dans Zernio");
     expect(t).toContain("Voir le lien en bio");
     expect(t).toContain("Mention « contenu généré par IA »");
