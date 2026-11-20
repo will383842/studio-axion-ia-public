@@ -365,8 +365,9 @@ export async function prochainPasPaye(etat: EtatTutoriel, commande: CommandeFabr
       try {
         dossier = await port.lireDossier();
       } catch {
-        dossier = null;
+        return true; // lecture en échec : le pas réel peut la réussir et payer un rôle, donc on réserve (sens prudent)
       }
+      if (dossier === null) return true; // idem : lecture sans résultat
     }
     const pas = prochainPas(equipe, { dossier });
     if (!("faire" in pas) || !pas.payant) return false;

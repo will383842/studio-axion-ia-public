@@ -315,6 +315,41 @@ describe("T-EXT-42 : allumé", () => {
     rien(j);
   });
 
+  it.each<[string, () => null]>([["rend null", () => null], ["lève", () => { throw new Error("stockage"); }]])("lecture du dossier ratée (%s) au seul pas de la garde : 0 appel de plus, TO_DEVIS_ATTEINT (jamais au-delà du devis)", async (_nom, rate) => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const vraie: PortEquipe["lireDossier"] = eq.port.lireDossier.bind(eq.port);
+    // Lectures impaires (celle de la garde) ratées, paires (celle du pas d'équipe) réussies : le pire cas d'une double lecture.
+    let lectures = 0;
+    eq.port.lireDossier = async () => (++lectures % 2 === 1 ? rate() : vraie());
+    const c0 = commandeDossier(FILM);
+    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }, { id: "plan", essaisMax: 2 }];
+    const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, appelsClaude: { plan: 0, roles: { stratege: 1, scenariste: 1 } } } } };
+    const t = await mener(moteur, () => c, depart);
+    expect(pause(t)?.code).toBe("TO_DEVIS_ATTEINT");
+    expect(eq.appels).toHaveLength(0);
+    rien(j);
+  });
+
+  it("travail d'avant la PR (proposition de l'ancien écrivain encore là) + équipe + dossier : la garde s'applique, TO_DEVIS_A_ACCEPTER, 0 appel", async () => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const c = commandeDossier(FILM);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, ROLES_EQUIPE, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    const heritage = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, proposition: "Ancien script proposé." } } };
+    const t = await mener(moteur, () => c, heritage);
+    expect(pause(t)?.code).toBe("TO_DEVIS_A_ACCEPTER");
+    expect(eq.appels).toHaveLength(0);
+    rien(j);
+  });
+
   it("la garde n'appelle jamais rien d'elle-même (espions)", async () => {
     const j = journalVide();
     const c = commandeTutoriel();

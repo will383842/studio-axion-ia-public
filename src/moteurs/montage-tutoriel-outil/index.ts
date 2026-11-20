@@ -316,7 +316,10 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
   const port = outils.devis;
   if (!port) return null;
   const entrees = lireEntreesTutoriel(commande.entrees);
-  const idee = !etat.script && !etat.proposition && ("aEcrire" in scriptRetenu(commande.script.texteComplet, entrees) || (!!outils.equipe && !!entrees.depot));
+  const aEcrire = "aEcrire" in scriptRetenu(commande.script.texteComplet, entrees);
+  // Équipe allumée : un dossier, une phrase ou une idée passent par l'équipe (payante) MÊME si un travail d'avant la PR garde une
+  // proposition de l'ancien écrivain (chaine.ts : pasScript va dans pasEquipe avant de regarder `etat.proposition`). La garde suit le même chemin.
+  const idee = !etat.script && (!!outils.equipe ? (!!entrees.depot || aEcrire) : (!etat.proposition && aEcrire));
   const depense = cle === "script" ? idee : cle === "voix" || cle === "plan" || cle === "montage" || cle === "exports";
   if (!depense) return null;
   return (async () => {
@@ -361,6 +364,12 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
   })();
 }
 
+/** Une lecture partagée : le premier appel lit, les suivants rendent le même résultat (ou la même erreur). */
+function lectureUnique<T>(lire: () => Promise<T>): () => Promise<T> {
+  let promesse: Promise<T> | undefined;
+  return () => (promesse ??= lire());
+}
+
 export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): MoteurVideo {
   const fabriqueOutils = (): FabriqueOutilsTutoriel | undefined => deps.outils ?? servicesTutoriel().outils;
 
@@ -368,7 +377,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     if (["termine", "echec", "annule"].includes(travail.statut)) return { travail };
     const iso = new Date(maintenant).toISOString();
     const fabrique = fabriqueOutils();
-    const outils = fabrique ? await fabrique(commande, travail.id) : null;
+    const outilsBruts = fabrique ? await fabrique(commande, travail.id) : null;
+    // Le dossier est lu UNE SEULE fois par pas : la garde du devis et le pas d'équipe décident sur la même lecture.
+    const outils = outilsBruts?.equipe ? { ...outilsBruts, equipe: { ...outilsBruts.equipe, lireDossier: lectureUnique(outilsBruts.equipe.lireDossier.bind(outilsBruts.equipe)) } } : outilsBruts;
     if (!outils) return { travail: { ...travail, statut: "en_file", modifieLe: iso, parametres: { ...travail.parametres, pause: { code: CODE_OUTILS_NON_RELIES, message: PHRASE_OUTILS_NON_RELIES } } } };
 
     let etat = lireEtat(travail);
