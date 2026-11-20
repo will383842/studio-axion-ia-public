@@ -62,6 +62,25 @@ function octetsIpv4(ip: string): number[] | null {
   return m ? m.slice(1).map(Number) : null;
 }
 
+/** Les 8 groupes de 16 bits d'une IPv6 (« :: » et queue pointée développés), ou null si illisible. */
+function groupesIpv6(x: string): number[] | null {
+  let t = x;
+  const q = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(t);
+  if (q) {
+    const o = q.slice(1).map(Number);
+    if (o.some((n) => n > 255)) return null;
+    t = t.slice(0, q.index) + ((o[0] << 8) | o[1]).toString(16) + ":" + ((o[2] << 8) | o[3]).toString(16);
+  }
+  const [tete, queue, ...reste] = t.split("::");
+  if (reste.length) return null;
+  const a = tete ? tete.split(":") : [];
+  const b = queue === undefined ? [] : queue ? queue.split(":") : [];
+  if (queue === undefined ? a.length !== 8 : a.length + b.length > 7) return null;
+  const tous = queue === undefined ? a : [...a, ...Array(8 - a.length - b.length).fill("0"), ...b];
+  const n = tous.map((h) => (/^[0-9a-f]{1,4}$/.test(h) ? parseInt(h, 16) : NaN));
+  return n.length === 8 && n.every((v) => !Number.isNaN(v)) ? n : null;
+}
+
 /**
  * Adresse IP NON publique : privée, boucle locale, lien local, partagée (CGNAT), multidiffusion, réservée, non
  * spécifiée — en IPv4 comme en IPv6 (y compris IPv4 transposée en IPv6). PUR, testé. Illisible : non publique.
@@ -80,6 +99,11 @@ export function ipNonPublique(ip: string): boolean {
     if (transposee) return ipNonPublique(transposee[1]);
     if (/^::ffff:[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(x)) return true; // IPv4 transposée écrite en hexadécimal : refusée.
     if (x === "::" || x === "::1") return true;
+    const g = groupesIpv6(x);
+    if (!g) return true;
+    if (g.slice(0, 6).every((n) => n === 0)) return true; // ::a.b.c.d (IPv4 « compatible », abandonnée) : refusée.
+    if (g[0] === 0x64 && g[1] === 0xff9b) return true; // 64:ff9b::/96 (NAT64) : refusée, elle traduit vers de l'IPv4 interne.
+    if (g[0] === 0x2002) return true; // 2002::/16 (6to4) : l'IPv4 y est encodée, refusée.
     const premier = parseInt(x.split(":")[0] || "0", 16);
     // fc00::/7 (privées), fe80::/10 (lien local), ff00::/8 (multidiffusion), 2001:db8::/32 (documentation).
     return (premier & 0xfe00) === 0xfc00 || (premier & 0xffc0) === 0xfe80 || (premier & 0xff00) === 0xff00 || x.startsWith("2001:db8:");

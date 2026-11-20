@@ -4,6 +4,9 @@ import "server-only";
  * le site et R2 seulement) : il demande `/api/calendrier/miniature/<id>` et c'est le SERVEUR qui lit l'image, sans identifiant, sans suivre
  * de redirection, avec un délai et un poids bornés, et seulement si c'est une vraie image (pas de SVG). Lecture seule, aucune écriture.
  */
+import { request as requeteHttps } from "node:https";
+import { lookup as lookupDns, type LookupOptions } from "node:dns";
+import { Readable } from "node:stream";
 import { resoudreDns, ipNonPublique, type Resoudre } from "@/fournisseurs/heygen/telechargement";
 import { estRapatriee } from "@/domaine/types";
 import { depots } from "@/services/_commun";
@@ -56,12 +59,45 @@ async function lireBorne(r: Response): Promise<Uint8Array | null> {
   return sortie;
 }
 
-/** Toutes les adresses du nom doivent être publiques (boucle locale, privée, lien local, IPv6 locale, métadonnées : refusées). Limite : un DNS qui change entre ici et la connexion (rebinding). */
+/** Toutes les adresses du nom doivent être publiques (boucle locale, privée, lien local, IPv6 locale, métadonnées : refusées). La connexion refait cette vérification sur l'adresse réellement utilisée (`creerLookupSur`). */
 async function hotePublic(adresse: string, resoudre: Resoudre): Promise<boolean> {
   const hote = new URL(adresse).hostname.toLowerCase().replace(/\.+$/, "");
   const ips = await resoudre(hote);
   return ips.length > 0 && ips.every((ip) => !ipNonPublique(ip));
 }
+
+type LookupBrut = (hote: string, options: LookupOptions, rappel: (err: NodeJS.ErrnoException | null, a?: unknown, f?: number) => void) => void;
+type AdresseLue = { address: string; family: number };
+
+/**
+ * Résolution FAITE PAR LA CONNEXION elle-même : l'adresse vérifiée est celle qui sert à se connecter (plus de fenêtre entre la
+ * vérification et la connexion). Une seule adresse non publique suffit au refus. Le nom reste celui du certificat (TLS).
+ */
+export function creerLookupSur(brut: LookupBrut = lookupDns as never) {
+  return (hote: string, options: LookupOptions, rappel: (err: Error | null, a?: unknown, f?: number) => void): void => {
+    brut(hote, { ...options, all: true }, (err, liste) => {
+      const adresses = (liste ?? []) as AdresseLue[];
+      if (err) return rappel(err);
+      if (!adresses.length || adresses.some((a) => ipNonPublique(a.address))) return rappel(new Error("adresse non publique"));
+      if (options.all) return rappel(null, adresses);
+      return rappel(null, adresses[0].address, adresses[0].family);
+    });
+  };
+}
+
+/** `fetch` restreint à ce besoin : https, GET, sans redirection suivie, connexion à l'adresse vérifiée à l'instant de la connexion. */
+export const fetchMiniatureSur: typeof fetch = (entree, init) =>
+  new Promise<Response>((ok, ko) => {
+    const u = new URL(String(entree));
+    const req = requeteHttps(u, { method: "GET", agent: false, headers: init?.headers as Record<string, string>, lookup: creerLookupSur() as never, signal: init?.signal ?? undefined }, (res) => {
+      const entetes = new Headers();
+      for (const [k, v] of Object.entries(res.headers)) if (typeof v === "string") entetes.set(k, v);
+      const sansCorps = res.statusCode === 204 || res.statusCode === 304;
+      ok(new Response(sansCorps ? null : (Readable.toWeb(res) as ReadableStream<Uint8Array>), { status: res.statusCode ?? 502, headers: entetes }));
+    });
+    req.on("error", ko);
+    req.end();
+  });
 
 /** L'image de la publication rapatriée, ou `null` (jamais d'erreur levée : l'écran montre alors une carte texte). */
 export async function lireMiniatureDiffuseur(publicationId: string, deps: { fetch?: typeof fetch; resoudre?: Resoudre } = {}): Promise<MiniatureLue | null> {
@@ -70,7 +106,7 @@ export async function lireMiniatureDiffuseur(publicationId: string, deps: { fetc
     const adresse = p && estRapatriee(p) && !p.retireeLe ? p.mediaDiffuseur?.miniature : undefined;
     if (!adresse || !adresseMiniatureSure(adresse)) return null;
     if (!(await hotePublic(adresse, deps.resoudre ?? resoudreDns))) return null;
-    const r = await (deps.fetch ?? fetch)(adresse, { method: "GET", redirect: "manual", credentials: "omit", headers: { Accept: "image/*" }, signal: AbortSignal.timeout(DELAI_MS) });
+    const r = await (deps.fetch ?? fetchMiniatureSur)(adresse, { method: "GET", redirect: "manual", credentials: "omit", headers: { Accept: "image/*" }, signal: AbortSignal.timeout(DELAI_MS) });
     const type = (r.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
     if (r.status !== 200 || !TYPES_IMAGE.has(type)) return null;
     const octets = await lireBorne(r);
