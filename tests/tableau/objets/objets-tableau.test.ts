@@ -140,7 +140,14 @@ describe("garde statique", () => {
     };
     marche("src");
     marche("studio-rendu");
-    const lecteurs = fichiers.filter((f) => !/objets-tableau\.ts$|tableau-scene\/objets\.ts$/.test(f) && /objets-tableau|tableau-scene\/objets["']|\.\/objets["']/.test(readFileSync(f, "utf8")) && (/objets-tableau/.test(readFileSync(f, "utf8")) || /tableau-scene\/objets["']/.test(readFileSync(f, "utf8"))));
+    // Exemption RESSERRÉE (pilote, 20/11) : EXACTEMENT ObjetsTableau.tsx, et SEULEMENT pour un `import type` de tableau-scene/objets.
+    const EXEMPTE = "studio-rendu/compositions/tableau/ObjetsTableau.tsx";
+    const IMPORT_TYPE_OBJETS = /^\s*import\s+type\s+\{[^}]*\}\s*from\s+["'][^"']*tableau-scene\/objets["'];?\s*$/gm;
+    const lit = (f: string) => {
+      const t = readFileSync(f, "utf8");
+      return f === EXEMPTE ? t.replace(IMPORT_TYPE_OBJETS, "") : t;
+    };
+    const lecteurs = fichiers.filter((f) => !/objets-tableau\.ts$|tableau-scene\/objets\.ts$/.test(f) && (/objets-tableau/.test(lit(f)) || /tableau-scene\/objets["']/.test(lit(f))));
     expect(lecteurs).toEqual([]);
   });
 });
