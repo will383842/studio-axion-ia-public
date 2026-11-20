@@ -4,7 +4,7 @@
  * Entrées construites à la main, aucun réseau, aucune horloge.
  */
 import { describe, expect, it } from "vitest";
-import type { SegmentSousTitres } from "@/domaine/types";
+import type { ChoixBruitagePlan, SegmentSousTitres } from "@/domaine/types";
 import type { PlanProduit } from "@/moteurs/types";
 import type { DecisionEffet } from "@/briques/intensite/types";
 import { allegerStructure, appliquerAuxPlans, appliquerAuxSousTitres, avecChoixBruitages, declencheursVus } from "@/briques/intensite/montage";
@@ -45,6 +45,12 @@ describe("appliquerAuxPlans", () => {
   it("sans décision : plans inchangés (mêmes valeurs)", () => {
     const plans = [plan(1, 0, 4, { cadrage: { pointInteret: { x: 0.5, y: 0.5 }, zoom: 1, zoomFin: 1.06 }, incrustation: { type: "montant", texte: "100 €" } })];
     expect(appliquerAuxPlans(plans, new Map())).toEqual(plans);
+  });
+
+  it("zoom-lent gardé : le zoomFin du plan est conservé", () => {
+    const plans = [plan(1, 0, 4, { cadrage: { pointInteret: { x: 0.5, y: 0.5 }, zoom: 1, zoomFin: 1.06 } })];
+    const r = appliquerAuxPlans(plans, new Map([dec("plan-1:zoom-lent", "garde", 0, 4)]));
+    expect(r[0].cadrage.zoomFin).toBe(1.06);
   });
 
   it("zoom-lent sauté : seul le plan visé redevient fixe", () => {
@@ -194,8 +200,8 @@ describe("allegerStructure", () => {
 });
 
 describe("avecChoixBruitages", () => {
-  const retirer = { mode: "retire" } as never;
-  const ajouter = { mode: "ajoute", elementId: "son-existant" } as never;
+  const retirer: ChoixBruitagePlan = { mode: "retire" };
+  const ajouter: ChoixBruitagePlan = { mode: "ajoute", declencheur: "impact", elementId: "bruit-impact-1" };
   type P = { ordre: number; segmentId?: string; bruitage?: PlanProduit["bruitage"] };
   const p = (ordre: number, segmentId: string): P => ({ ordre, segmentId });
 
