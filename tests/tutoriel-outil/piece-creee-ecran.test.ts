@@ -377,10 +377,12 @@ describe("corrections du verdict Opus", () => {
 
     it("listes passées par l'appelant avec interdits vides : refus aussi, jamais « tout permis »", async () => {
       const m = monde(avecApercu(etatInitial()));
-      const dep: DependancesPiece = { ...m.dep, interdits: [], nomsPermis: [], noms: async () => ({ interdits: [], permis: [] }) };
+      // Sans injecter `noms` : c'est le lecteur par défaut (charte) qui doit refuser, pas un lecteur vide.
+      const dep: DependancesPiece = { ...m.dep, interdits: [], nomsPermis: [] };
       const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Velora du jour" }, dep);
       expect(r.ok).toBe(false);
       expect(m.compteurs.ecritures).toBe(0);
+      expect(m.etat().statut).toBe("a-valider");
     });
   });
 });

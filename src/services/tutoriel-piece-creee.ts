@@ -247,7 +247,9 @@ async function avecNoms(d: DependancesPiece): Promise<DependancesPiece | null> {
   try {
     const n = await (d.noms ?? nomsParDefaut)();
     if (!n.interdits.length) return null;
-    return { ...d, interdits: d.interdits ?? n.interdits, nomsPermis: d.nomsPermis ?? n.permis };
+    // Une liste `interdits` vide donnée par l'appelant ne vaut jamais « tout permis » : on retombe sur la charte.
+    const interditsAppelant = d.interdits?.length ? d.interdits : undefined;
+    return { ...d, interdits: interditsAppelant ?? n.interdits, nomsPermis: interditsAppelant ? (d.nomsPermis ?? n.permis) : n.permis };
   } catch {
     return null;
   }
