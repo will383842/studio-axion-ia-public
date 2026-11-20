@@ -7,7 +7,11 @@
  */
 import { createHash } from "node:crypto";
 import { consommerJetonNonOpposee, type JetonNonOpposee } from "@/domaine/guide-reseau/jeton-non-opposee";
-import { enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
+import { RETRY_AFTER_MAX_MS, enteteIdempotenceInbox, type ClientZernio } from "./publication/zernio-client";
+import {
+  LIBELLE_MISE_A_JOUR_DIFFEREE, RESEAUX_LISTE_COMMENTAIRES, commentaireLuDe,
+  type CommentaireLu, type EvenementCommentaireRange, type ReseauListeCommentaires,
+} from "./publication/zernio-inbox-corps";
 import { CODES_CLIENT_CONNUS, CODES_MOTIF_REFUS, CODES_ZERNIO_CONNUS, SOURCES_MOTIF, estRaisonRefus, type RaisonRefus } from "@/domaine/guide-reseau/raison-refus";
 import { estErreurZernio } from "./publication/zernio-erreurs";
 
@@ -315,6 +319,125 @@ export function creerPortInboxZernio(options: { client: ClientZernio; comptesPer
         return { ...vide, introuvable: true };
       } catch {
         return { ...vide, panne: true };
+      }
+    },
+  };
+}
+
+/** Une page d'événements rangés. `curseurSuivant` null = fin de la liste. */
+export interface PageEvenementsCommentaires {
+  evenements: readonly EvenementCommentaireRange[];
+  curseurSuivant: string | null;
+}
+
+/** Source des événements `comment.received` déjà rangés (dépôt du Studio, branché par une fiche suivante). */
+export type SourceCommentairesRecus = (p: {
+  idCompte: string;
+  reseau: Exclude<ReseauListeCommentaires, "youtube">;
+  curseur?: string;
+  limite: number;
+}) => Promise<PageEvenementsCommentaires>;
+
+export type CodePanneListeCommentaires =
+  | "compte-non-permis"
+  | "reseau-inconnu"
+  | "source-illisible"
+  | "liste-incomplete"
+  | "debit-persistant"
+  | "indisponible"
+  | "erreur-inconnue";
+
+export type ListeCommentaires =
+  | { statut: "ok"; reseau: Exclude<ReseauListeCommentaires, "youtube">; commentaires: CommentaireLu[]; pagesLues: number; illisibles: number }
+  | { statut: "differe"; reseau: "youtube"; libelle: typeof LIBELLE_MISE_A_JOUR_DIFFEREE }
+  | { statut: "panne"; code: CodePanneListeCommentaires; pagesLues: number; reessayerApresSec?: number };
+
+export interface LecteurCommentaires {
+  lireCommentaires(p: { idCompte: string; reseau: ReseauListeCommentaires }): Promise<ListeCommentaires>;
+}
+
+const PAGES_MAX_COMMENTAIRES = 10;
+const ESSAIS_429_MAX = 3;
+const ATTENTE_429_DEFAUT_MS = 60_000;
+const CURSEUR_COMMENTAIRES = /^[A-Za-z0-9_=.+/-]{1,512}$/;
+
+export function creerLecteurCommentaires(options: {
+  source: SourceCommentairesRecus;
+  comptesLecture: readonly string[];
+  attendre?: (ms: number) => Promise<void>;
+  pagesMax?: number;
+  limite?: number;
+  essais429Max?: number;
+}): LecteurCommentaires {
+  const comptes = [...options.comptesLecture];
+  const source = options.source;
+  const attendre = options.attendre ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const pagesMax = options.pagesMax ?? PAGES_MAX_COMMENTAIRES;
+  const limite = Math.min(100, Math.max(1, options.limite ?? 100));
+  const essais429Max = options.essais429Max ?? ESSAIS_429_MAX;
+  const panne = (code: CodePanneListeCommentaires, pagesLues: number, reessayerApresSec?: number): ListeCommentaires =>
+    reessayerApresSec === undefined ? { statut: "panne", code, pagesLues } : { statut: "panne", code, pagesLues, reessayerApresSec };
+
+  return {
+    async lireCommentaires(p) {
+      try {
+        if (p.reseau === "youtube") return { statut: "differe", reseau: "youtube", libelle: LIBELLE_MISE_A_JOUR_DIFFEREE };
+        if (!RESEAUX_LISTE_COMMENTAIRES.includes(p.reseau)) return panne("reseau-inconnu", 0);
+        if (!comptes.includes(p.idCompte)) return panne("compte-non-permis", 0);
+        const { idCompte, reseau } = p;
+        const gardes = new Map<string, CommentaireLu>();
+        const vus = new Set<string>();
+        let illisibles = 0;
+        let pagesLues = 0;
+        let curseur: string | undefined;
+        let fini = false;
+        for (let page = 0; page < pagesMax && !fini; page++) {
+          let rep: unknown;
+          for (let attentes = 0; ; ) {
+            try {
+              rep = await source({ idCompte, reseau, limite, ...(curseur ? { curseur } : {}) });
+              break;
+            } catch (e) {
+              if (!estErreurZernio(e)) return panne("erreur-inconnue", pagesLues);
+              if (e.code === "debit" || e.statut === 429) {
+                const attente = e.attenteMs ?? (e.reessayerApresSec !== undefined ? e.reessayerApresSec * 1000 : ATTENTE_429_DEFAUT_MS);
+                if (attente > RETRY_AFTER_MAX_MS || attentes >= essais429Max) return panne("debit-persistant", pagesLues, Math.ceil(attente / 1000));
+                attentes++;
+                await attendre(attente);
+                continue;
+              }
+              if (e.code === "indisponible" || e.code === "a-verifier" || (e.statut ?? 0) >= 500) return panne("indisponible", pagesLues);
+              return panne("erreur-inconnue", pagesLues);
+            }
+          }
+          const r = rep as { evenements?: unknown; curseurSuivant?: unknown } | null;
+          if (typeof r !== "object" || r === null || !Array.isArray(r.evenements)) return panne("source-illisible", pagesLues);
+          const suivant = r.curseurSuivant;
+          if (suivant !== null && typeof suivant !== "string") return panne("source-illisible", pagesLues);
+          pagesLues++;
+          for (const ev of r.evenements) {
+            const c = commentaireLuDe(ev);
+            if (c === null) {
+              const charge = (ev as { charge?: { proprio?: unknown } } | null)?.charge;
+              if (charge?.proprio !== true) illisibles++;
+              continue;
+            }
+            if (c.idCompte !== idCompte || c.reseau !== reseau || gardes.has(c.idCommentaire)) continue;
+            gardes.set(c.idCommentaire, c);
+          }
+          if (suivant === null) {
+            fini = true;
+          } else {
+            if (!CURSEUR_COMMENTAIRES.test(suivant) || vus.has(suivant)) return panne("liste-incomplete", pagesLues);
+            vus.add(suivant);
+            curseur = suivant;
+          }
+        }
+        if (!fini) return panne("liste-incomplete", pagesLues);
+        const commentaires = [...gardes.values()].sort((a, b) => (a.recuLe === b.recuLe ? a.idCommentaire.localeCompare(b.idCommentaire) : a.recuLe < b.recuLe ? 1 : -1));
+        return { statut: "ok", reseau: reseau as Exclude<ReseauListeCommentaires, "youtube">, commentaires, pagesLues, illisibles };
+      } catch {
+        return panne("erreur-inconnue", 0);
       }
     },
   };

@@ -181,3 +181,79 @@ export function verifierCorpsInbox(
       return;
   }
 }
+
+/** Types d'événements rangés par le crochet (mêmes valeurs que parcours-mot.ts et TYPE_COMMENTAIRE_MANUEL_CROCHET). */
+export const TYPE_EVENEMENT_COMMENTAIRE_AUTO = "zernio.commentaire";
+export const TYPE_EVENEMENT_COMMENTAIRE_MANUEL = "zernio.commentaire_manuel";
+
+/** Réseaux dont on peut demander la liste. YouTube : jamais lu ici (pas d'événement) → « mise à jour différée ». */
+export const RESEAUX_LISTE_COMMENTAIRES = ["instagram", "facebook", "linkedin_page", "tiktok", "youtube"] as const;
+export type ReseauListeCommentaires = (typeof RESEAUX_LISTE_COMMENTAIRES)[number];
+export type ReseauCommentaireLu = Exclude<ReseauListeCommentaires, "youtube">;
+
+/** Libellé affiché pour YouTube. Texte EXACT. */
+export const LIBELLE_MISE_A_JOUR_DIFFEREE = "mise à jour différée";
+
+/** Commentaire lu dans la liste. AUCUN texte de commentaire, AUCUN identifiant d'auteur. */
+export interface CommentaireLu {
+  idCommentaire: string;
+  idCompte: string;
+  reseau: ReseauCommentaireLu;
+  repere: string | null;
+  lienPost: string | null;
+  motSeul: string | null;
+  doute: boolean;
+  estReponse: boolean;
+  recuLe: string;
+  /** "manuel" pour linkedin_page et tiktok, TOUJOURS ; dérivé du réseau, jamais de la charge. */
+  traitement: "automatique" | "manuel";
+}
+
+/** Événement rangé, vu par le lecteur. */
+export interface EvenementCommentaireRange {
+  type: string;
+  recuLe: string;
+  charge: Record<string, unknown>;
+}
+
+const RESEAUX_AUTO: readonly string[] = ["instagram", "facebook"];
+const RESEAUX_MANUEL: readonly string[] = ["linkedin_page", "tiktok"];
+
+/** Normalise UN événement rangé. PUR, ne lève jamais. Ne lit jamais texte ni auteur. */
+export function commentaireLuDe(e: unknown): CommentaireLu | null {
+  try {
+    if (typeof e !== "object" || e === null) return null;
+    const ev = e as Record<string, unknown>;
+    const auto = ev.type === TYPE_EVENEMENT_COMMENTAIRE_AUTO;
+    if (!auto && ev.type !== TYPE_EVENEMENT_COMMENTAIRE_MANUEL) return null;
+    const c = ev.charge;
+    if (typeof c !== "object" || c === null || Array.isArray(c)) return null;
+    const ch = c as Record<string, unknown>;
+    if (ch.proprio === true) return null;
+    const segment = new RegExp(`^${SEGMENT_ID}$`);
+    const { idCommentaire, idCompte, reseau } = ch;
+    if (typeof idCommentaire !== "string" || !segment.test(idCommentaire)) return null;
+    if (typeof idCompte !== "string" || !segment.test(idCompte)) return null;
+    if (typeof reseau !== "string" || !(auto ? RESEAUX_AUTO : RESEAUX_MANUEL).includes(reseau)) return null;
+    if (typeof ev.recuLe !== "string") return null;
+    const t = Date.parse(ev.recuLe);
+    if (Number.isNaN(t)) return null;
+    const brut = auto ? ch.idPostPlateforme : ch.repere;
+    const repere = typeof brut === "string" && (auto ? segment : /^[A-Za-z0-9_-]{1,128}$/).test(brut) ? brut : null;
+    const lien = ch.lienPost;
+    return {
+      idCommentaire,
+      idCompte,
+      reseau: reseau as ReseauCommentaireLu,
+      repere,
+      lienPost: !auto && typeof lien === "string" && lien.startsWith("https://") && lien.length <= 500 ? lien : null,
+      motSeul: typeof ch.motSeul === "string" && ch.motSeul.length <= 30 ? ch.motSeul : null,
+      doute: ch.doute === true,
+      estReponse: ch.estReponse === true,
+      recuLe: new Date(t).toISOString(),
+      traitement: auto ? "automatique" : "manuel",
+    };
+  } catch {
+    return null;
+  }
+}
