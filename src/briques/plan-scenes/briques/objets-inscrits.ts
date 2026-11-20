@@ -25,6 +25,11 @@ import { DEF_CERCLE, DEF_OVALE, DEF_DOUBLE_BOUCLE, EXEMPLES_ENTOURAGES } from ".
 import { DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON, EXEMPLES_ETIQUETTES } from "../../motion/petits-objets/etiquettes";
 import { OBJET_BULLE_PAROLE, OBJET_BULLE_PENSEE, OBJET_BULLE_NOTIFICATION, EXEMPLES_BULLES } from "../../motion/petits-objets/bulles";
 import { DEF_POST_IT, EXEMPLES_POST_IT } from "../../motion/petits-objets/post-it";
+import { OBJET_SCHEMA_FLUX, EXEMPLES_FLUX } from "../../motion/petits-objets/schema-flux";
+import { OBJET_SCHEMA_ETOILE, OBJET_ICONES_RELIEES, OBJET_AGENTS_GLOBE, EXEMPLES_SCHEMAS } from "../../motion/petits-objets/schemas-relies";
+import { OBJET_GRILLE_POINTILLEE, OBJET_VIGNETTES_NUMEROTEES, EXEMPLES_GRILLE, EXEMPLES_VIGNETTES } from "../../motion/petits-objets/grille-vignettes";
+import { OBJET_FENETRE_APP, EXEMPLES_FENETRE_APP } from "../../motion/petits-objets/fenetre-app";
+import { OBJET_TERMINAL_COMMANDE, EXEMPLES_TERMINAL_COMMANDE } from "../../motion/petits-objets/terminal-commande";
 import { envelopperObjets } from "./objets";
 
 export const OBJETS_PLAN_SCENES = [
@@ -41,6 +46,8 @@ export const OBJETS_PLAN_SCENES = [
   DEF_CADRE_RECTANGLE, DEF_CADRE_COINS, DEF_CADRE_PASSAGE, DEF_CERCLE, DEF_OVALE, DEF_DOUBLE_BOUCLE,
   // C9-34-ETIQUETTES-v20f (20/11/2026) : pastille, étiquette, badge, tampon, 3 bulles, post-it (porte fermée)
   DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON, OBJET_BULLE_PAROLE, OBJET_BULLE_PENSEE, OBJET_BULLE_NOTIFICATION, DEF_POST_IT,
+  // C9-34-SCHEMAS-v20g (20/11/2026) : 6 schémas, fenêtre d'application, terminal (porte fermée)
+  OBJET_SCHEMA_FLUX, OBJET_SCHEMA_ETOILE, OBJET_ICONES_RELIEES, OBJET_AGENTS_GLOBE, OBJET_GRILLE_POINTILLEE, OBJET_VIGNETTES_NUMEROTEES, OBJET_FENETRE_APP, OBJET_TERMINAL_COMMANDE,
 ];
 
 /** Graine fixe et pure : somme des codes de caractères de l'identifiant. */
@@ -52,7 +59,7 @@ export function graineObjet(id: string): number {
 
 export const PIECES_OBJETS = envelopperObjets(OBJETS_PLAN_SCENES, graineObjet);
 
-const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
+const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle" | "objet-pastille-icone" | "objet-etiquette-icone" | "objet-badge" | "objet-tampon" | "objet-bulle-parole" | "objet-bulle-pensee" | "objet-bulle-notification" | "objet-post-it" | "objet-schema-flux" | "objet-schema-etoile" | "objet-icones-reliees" | "objet-agents-globe" | "objet-grille-pointillee" | "objet-vignettes-numerotees" | "objet-fenetre-app" | "objet-terminal-commande", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
   id,
   nom,
   description,
@@ -106,6 +113,15 @@ export const BRIQUES_OBJETS = {
   "objet-bulle-pensee": objet("objet-bulle-pensee", "Bulle de pensée", "Une bulle de pensée qui reprend quelques mots pensés à voix haute.", OBJET_BULLE_PENSEE, EXEMPLES_BULLES[1]),
   "objet-bulle-notification": objet("objet-bulle-notification", "Bulle de notification", "Une bulle de notification qui reprend le message dont on parle.", OBJET_BULLE_NOTIFICATION, EXEMPLES_BULLES[2]),
   "objet-post-it": objet("objet-post-it", "Post-it", "Un post-it dont les mots apparaissent au fil de ce qui est dit.", DEF_POST_IT, EXEMPLES_POST_IT[0]),
+  // C9-34-SCHEMAS-v20g
+  "objet-schema-flux": objet("objet-schema-flux", "Schéma de flux", "Un schéma en étapes reliées qui se construit au fil de ce qui est expliqué.", OBJET_SCHEMA_FLUX, EXEMPLES_FLUX[0]),
+  "objet-schema-etoile": objet("objet-schema-etoile", "Schéma en étoile", "Un schéma avec un élément au centre et des satellites qui apparaissent un à un.", OBJET_SCHEMA_ETOILE, EXEMPLES_SCHEMAS.etoile[0]),
+  "objet-icones-reliees": objet("objet-icones-reliees", "Icônes reliées", "Une rangée d'icônes reliées entre elles, tracée au rythme de la parole.", OBJET_ICONES_RELIEES, EXEMPLES_SCHEMAS.icones[0]),
+  "objet-agents-globe": objet("objet-agents-globe", "Agents reliés au globe", "Une rangée d'agents reliés à un globe, pour montrer plusieurs relais d'un même réseau.", OBJET_AGENTS_GLOBE, EXEMPLES_SCHEMAS.agents[0]),
+  "objet-grille-pointillee": objet("objet-grille-pointillee", "Grille pointillée", "Une grille en pointillés qui se dessine derrière ce dont on parle.", OBJET_GRILLE_POINTILLEE, EXEMPLES_GRILLE[0]),
+  "objet-vignettes-numerotees": objet("objet-vignettes-numerotees", "Vignettes numérotées", "Une série de vignettes numérotées qui apparaissent dans l'ordre où on les cite.", OBJET_VIGNETTES_NUMEROTEES, EXEMPLES_VIGNETTES[0]),
+  "objet-fenetre-app": objet("objet-fenetre-app", "Fenêtre d'application", "Une fenêtre d'application dessinée, pour montrer l'outil dont on parle.", OBJET_FENETRE_APP, EXEMPLES_FENETRE_APP[0]),
+  "objet-terminal-commande": objet("objet-terminal-commande", "Terminal", "Un terminal où une commande s'écrit au moment où elle est dite.", OBJET_TERMINAL_COMMANDE, EXEMPLES_TERMINAL_COMMANDE[0]),
 } as const;
 
 export const RENDUS_OBJETS = {
@@ -151,4 +167,13 @@ export const RENDUS_OBJETS = {
   "objet-bulle-pensee": PIECES_OBJETS["objet-bulle-pensee"].Rendu as RenduBrique,
   "objet-bulle-notification": PIECES_OBJETS["objet-bulle-notification"].Rendu as RenduBrique,
   "objet-post-it": PIECES_OBJETS["objet-post-it"].Rendu as RenduBrique,
+  // C9-34-SCHEMAS-v20g
+  "objet-schema-flux": PIECES_OBJETS["objet-schema-flux"].Rendu as RenduBrique,
+  "objet-schema-etoile": PIECES_OBJETS["objet-schema-etoile"].Rendu as RenduBrique,
+  "objet-icones-reliees": PIECES_OBJETS["objet-icones-reliees"].Rendu as RenduBrique,
+  "objet-agents-globe": PIECES_OBJETS["objet-agents-globe"].Rendu as RenduBrique,
+  "objet-grille-pointillee": PIECES_OBJETS["objet-grille-pointillee"].Rendu as RenduBrique,
+  "objet-vignettes-numerotees": PIECES_OBJETS["objet-vignettes-numerotees"].Rendu as RenduBrique,
+  "objet-fenetre-app": PIECES_OBJETS["objet-fenetre-app"].Rendu as RenduBrique,
+  "objet-terminal-commande": PIECES_OBJETS["objet-terminal-commande"].Rendu as RenduBrique,
 } as const;
