@@ -12,7 +12,7 @@ import { type Publication, type StatutPublication, videoIdSure } from "@/domaine
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 import { transitionPermise, type StatutVisuel } from "@/domaine/visuels/statuts";
 import { reconcilier } from "./reconciliation-calendrier";
-import { peutTransiter, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
+import { constateParLeDiffuseur, peutTransiter, type EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { transiterEnvoi } from "./envois-planifies";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
@@ -277,6 +277,15 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
       // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon, confirmé…) reste tel quel.
       let envoi = await d.envoisPlanifies.obtenir(e.id);
       if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) envoi = await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
+      // RETOUR-PUBLISHED-2 (REC-V1) : seul cas où « valide » passe « envoye » : marque « a-verifier » ET Publication zernio de même clé relue « publiee » dans le dépôt.
+      else if (envoi?.statut === "valide") {
+        const confirmee = (await d.publications.lister((x) => x.via === "zernio" && x.statut === "publiee" && x.cleEnvoi === p.cleEnvoi)).length > 0;
+        const promotion = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}promotion:${e.cle}`);
+        const verifier = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}a-verifier:${e.cle}`);
+        if (constateParLeDiffuseur(envoi, { promotion: promotion?.valeur, aVerifier: verifier?.valeur }, confirmee)) {
+          envoi = await d.envoisPlanifies.modifier(envoi.id, { statut: "envoye", envoyeLe: maintenant(), modifieLe: maintenant() });
+        }
+      }
       // Tout autre état (annulé, valide, confirmé…) : rien n'est écrit, ni créneau, ni pub_<clé>, ni marques (même règle que la reprise).
       if (envoi?.statut !== "envoye") return;
       const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
@@ -307,11 +316,18 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
 async function reprendreRetoursPublies(): Promise<void> {
   const d = depots();
   // Envois restés « programme », ou déjà « envoye » dont le suivi (pub_<clé>, créneau, marques) n'est pas terminé : une coupure peut survenir entre deux écritures.
-  const candidats = await d.envoisPlanifies.lister((e) => e.statut === "programme" || e.statut === "envoye");
+  const candidats = await d.envoisPlanifies.lister((e) => e.statut === "programme" || e.statut === "envoye" || e.statut === "valide");
   const restes: typeof candidats = [];
   for (const e of candidats) {
     if (e.statut === "programme") {
       restes.push(e);
+      continue;
+    }
+    if (e.statut === "valide") {
+      // RETOUR-PUBLISHED-2 : « valide » n'est un reste que s'il porte la marque « a-verifier » ; la Publication publiee est ensuite exigée par le suivi.
+      const promotion = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}promotion:${e.cle}`);
+      const verifier = await d.parametres.obtenir(`${PREFIXE_MARQUES_CALENDRIER}a-verifier:${e.cle}`);
+      if (promotion?.valeur === "a-verifier" || verifier?.valeur === "a-verifier") restes.push(e);
       continue;
     }
     const pub = await d.publications.obtenir(`pub_${e.cle}`);

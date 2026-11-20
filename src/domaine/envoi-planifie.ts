@@ -59,3 +59,12 @@ export function cleEnvoiCreneau(videoId: Id, reseau: ReseauDeclinaison, versionC
 export function peutTransiter(de: StatutEnvoi, vers: StatutEnvoi): boolean {
   return TRANSITIONS_ENVOI[de].includes(vers);
 }
+
+/**
+ * RETOUR-PUBLISHED-2 · garde STRICTE de « constaté par le diffuseur » pour un envoi resté « valide » (cas REC-V1 : l'envoi est parti chez
+ * Zernio mais la réponse a été ambiguë, la marque est restée « a-verifier »). `valide → envoye` n'est PAS une transition ouverte
+ * (`TRANSITIONS_ENVOI`) : seule cette garde, appelée par le suivi du « published » confirmé, l'autorise. Les trois conditions sont requises.
+ */
+export function constateParLeDiffuseur(envoi: Pick<EnvoiPlanifie, "statut">, marques: { promotion?: unknown; aVerifier?: unknown }, publicationZernioPubliee: boolean): boolean {
+  return envoi.statut === "valide" && publicationZernioPubliee && (marques.promotion === "a-verifier" || marques.aVerifier === "a-verifier");
+}
