@@ -8,7 +8,7 @@ import { ErreurClaude, type RequeteClaude } from "@/fournisseurs/claude/client";
 import { creerMoteurTutorielOutil, validerScriptTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import type { OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import type { Travail } from "@/domaine/types";
-import { appelClaudeTutoriel, claudeTutorielActif, entreeDepuisRequete, ETAPE_REGARD_TUTORIEL, IMAGES_REGARD_TUTORIEL, PARAM_REGARD_TUTORIEL, detailPlafondTutorielUsd, plafondPropreTutoriel, plafondTutorielParDefautUsd, regardTutorielActif, roleDepuisRequete } from "@/services/tutoriel-claude";
+import { appelClaudeTutoriel, appelLecteurTutoriel, claudeTutorielActif, ETAPE_LECTURE_RETOUCHE_TUTORIEL, lecteurClaudeTutorielActif, PARAM_LECTEUR_CLAUDE_RETOUCHE, entreeDepuisRequete, ETAPE_REGARD_TUTORIEL, IMAGES_REGARD_TUTORIEL, PARAM_REGARD_TUTORIEL, detailPlafondTutorielUsd, plafondPropreTutoriel, plafondTutorielParDefautUsd, regardTutorielActif, roleDepuisRequete } from "@/services/tutoriel-claude";
 import { coutPireRegardUsd, IMAGES_REGARD_MAX } from "@/briques/regardeur";
 import { construireRequetePlan, MAX_JETONS_PLAN_SCENES } from "@/briques/plan-scenes/generateur";
 import type { MotMinute } from "@/briques/plan-scenes/schema";
@@ -283,5 +283,68 @@ describe("T-EXT-27b : réglage du regard, plafond propre et plafond par défaut"
     // Plus grand que l'ancien plafond (plan + regard + un script) : les rôles de l'équipe s'ajoutent, `requeteScript` sort du calcul.
     expect(plafondTutorielParDefautUsd()).toBeGreaterThan(arrondi(plan + regard));
     console.info(`T-EXT-55 plafond par défaut : avant (sans les rôles) ${arrondi(plan + regard)} USD, après ${plafondTutorielParDefautUsd()} USD ; détail USD : plan ${d.plan.toFixed(4)}, regard ${d.regard.toFixed(4)}, rôles ${JSON.stringify(Object.fromEntries(Object.entries(d.roles).map(([k, v]) => [k, +v.toFixed(4)])))}`);
+  });
+});
+
+describe("T-EXT-53b : port d'appel du lecteur de retouche (aucun appel réel)", () => {
+  const lecteur = (valeurs: Record<string, unknown>) => (async (id: string, defaut: unknown) => (id in valeurs ? valeurs[id] : defaut)) as <T>(id: string, defaut: T) => Promise<T>;
+  const REQ_LECTURE: RequeteClaude = { ...REQ_PLAN, maxTokens: 1500 };
+
+  it("sans `etape` : mêmes étapes qu'avant (plan et script)", async () => {
+    const vues: string[] = [];
+    const executer = (async (_v: unknown, role: { id: string }, _e: unknown, o: { etape: string }) => (vues.push(`${role.id}|${o.etape}`), OK)) as never;
+    await appelClaudeTutoriel("v", "usine", { executer, plafondUsd: () => 1 })(REQ_PLAN);
+    await appelClaudeTutoriel("v", "usine", { executer, plafondUsd: () => 1 })(REQ_SANS_JSON);
+    expect(vues).toEqual(["tutoriel-plan|Tutoriel · plan de scènes", "tutoriel-script|Tutoriel · script"]);
+  });
+
+  it("avec `etape` : l'exécuteur reçoit l'étape de lecture, le plafond `tuto` et l'origine, même pour une requête JSON", async () => {
+    expect(ETAPE_LECTURE_RETOUCHE_TUTORIEL).toBe("Tutoriel · lecture de retouche");
+    const recu: unknown[][] = [];
+    const executer = (async (...a: unknown[]) => (recu.push(a), OK)) as never;
+    await appelClaudeTutoriel("v-to", "usine", { executer, plafondUsd: () => 1, etape: ETAPE_LECTURE_RETOUCHE_TUTORIEL, id: "tutoriel-retouche" })(REQ_LECTURE);
+    expect(recu).toHaveLength(1);
+    const [videoId, role, , options] = recu[0] as [string, { id: string }, unknown, { etape: string; origine?: string; plafondPropre: { id: string } }];
+    expect(videoId).toBe("v-to");
+    expect(role.id).toBe("tutoriel-retouche");
+    expect(options).toMatchObject({ etape: ETAPE_LECTURE_RETOUCHE_TUTORIEL, origine: "usine" });
+    expect(options.plafondPropre.id).toBe("tuto");
+  });
+
+  it("`lecteurClaudeTutorielActif` : absent, \"true\", 1, lecture en échec → éteint ; `tutoriel.claude` éteint → éteint ; les deux à true → allumé", async () => {
+    expect(PARAM_LECTEUR_CLAUDE_RETOUCHE).toBe("retoucheChat.tutorielLecteurClaude");
+    expect(await lecteurClaudeTutorielActif(lecteur({ "tutoriel.claude": true }))).toBe(false);
+    expect(await lecteurClaudeTutorielActif(lecteur({ [PARAM_LECTEUR_CLAUDE_RETOUCHE]: "true", "tutoriel.claude": true }))).toBe(false);
+    expect(await lecteurClaudeTutorielActif(lecteur({ [PARAM_LECTEUR_CLAUDE_RETOUCHE]: 1, "tutoriel.claude": true }))).toBe(false);
+    expect(await lecteurClaudeTutorielActif((async () => { throw new Error("lecture en échec"); }) as never)).toBe(false);
+    expect(await lecteurClaudeTutorielActif(lecteur({ [PARAM_LECTEUR_CLAUDE_RETOUCHE]: true }))).toBe(false);
+    expect(await lecteurClaudeTutorielActif(lecteur({ [PARAM_LECTEUR_CLAUDE_RETOUCHE]: true, "tutoriel.claude": "true" }))).toBe(false);
+    expect(await lecteurClaudeTutorielActif(lecteur({ [PARAM_LECTEUR_CLAUDE_RETOUCHE]: true, "tutoriel.claude": true }))).toBe(true);
+  });
+
+  it("`appelLecteurTutoriel` : version introuvable ou lecture en échec → lève, l'exécuteur n'est jamais appelé", async () => {
+    let appels = 0;
+    const executer = (async () => (appels++, OK)) as never;
+    for (const origine of [async () => null, async () => { throw new Error("base"); }]) {
+      const appeler = await appelLecteurTutoriel("v", { origine, executer });
+      await expect(appeler(REQ_LECTURE)).rejects.toBeInstanceOf(ErreurClaude);
+      await expect(appeler(REQ_LECTURE)).rejects.not.toThrow(/\d|€|\$/);
+    }
+    expect(appels).toBe(0);
+  });
+
+  it("`appelLecteurTutoriel` : version trouvée → un appel gardé, étape de lecture, origine de la commande de la version", async () => {
+    const recu: unknown[][] = [];
+    const executer = (async (...a: unknown[]) => (recu.push(a), OK)) as never;
+    const appeler = await appelLecteurTutoriel("v-to", { origine: async () => "studio", executer, plafondUsd: () => 1 });
+    expect((await appeler(REQ_LECTURE)).texte).toBe("{}");
+    expect(recu).toHaveLength(1);
+    expect(recu[0][3]).toMatchObject({ etape: ETAPE_LECTURE_RETOUCHE_TUTORIEL, origine: "studio" });
+  });
+
+  it("aucun plafond propre : le plafond par défaut est celui d'avant (recalculé par les mêmes fonctions)", () => {
+    const d = detailPlafondTutorielUsd();
+    expect(Object.keys(d).sort()).toEqual(["plan", "regard", "roles", "total"]);
+    expect(plafondTutorielParDefautUsd()).toBeGreaterThanOrEqual(d.total);
   });
 });

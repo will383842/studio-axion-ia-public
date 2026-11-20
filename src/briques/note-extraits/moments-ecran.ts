@@ -105,6 +105,8 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-frise-montage": "interface",
   "objet-pellicule": "interface",
   "objet-onde-motif": "demarche",
+  // N-05-VOLET-d-v20j : voisins écran (fenêtre d'application, pellicule)
+  "objet-volet-avant-apres": "interface",
 };
 
 const DUREE_MAX_SEC = 6;

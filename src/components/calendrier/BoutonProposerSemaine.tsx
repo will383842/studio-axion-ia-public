@@ -16,7 +16,7 @@ export interface PropsBoutonProposerSemaine {
   /** Fournie par l'hôte (action serveur). Jamais un appel direct depuis le navigateur. */
   proposer: (debutSemaine: string) => Promise<Resultat<SemaineProposee>>;
   /** Écran « À valider » de l'usine : l'unique lieu de validation. */
-  lienAValider: string;
+  lienAValider?: string;
 }
 
 const BOUTON = "inline-flex min-h-[44px] items-center justify-center rounded-lg border border-trait-fort bg-surface-1 px-4 text-sm font-bold text-texte hover:bg-surface-2 disabled:opacity-60";
@@ -42,7 +42,9 @@ export function BoutonProposerSemaine({ debutSemaine, proposer, lienAValider }: 
         return;
       }
       setSemaine(r.donnees);
-      setMessage(r.donnees.propositions.length ? "Voici la semaine proposée. Rien n'est programmé : validez ce qui vous convient dans « À valider »." : "Aucune proposition pour cette semaine. Vous pouvez ajouter vos contenus à la main.");
+      const phrase = r.donnees.propositions.length ? (lienAValider ? "Voici la semaine proposée. Rien n'est programmé : validez ce qui vous convient dans « À valider »." : "Voici la semaine proposée. Rien n'est programmé.") : "Aucune proposition pour cette semaine. Vous pouvez ajouter vos contenus à la main.";
+      // La phrase de l'Usine (réponse partielle) vient en premier, telle quelle.
+      setMessage(r.donnees.message ? `${r.donnees.message} ${phrase}` : phrase);
     } catch {
       setMessage(PHRASE_PANNE_SEMAINE);
     } finally {
@@ -67,7 +69,7 @@ export function BoutonProposerSemaine({ debutSemaine, proposer, lienAValider }: 
         <ul className="grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
           {semaine.propositions.map((p) => (
             <li key={p.cle} className="min-w-0">
-              <CarteProposition entree={p} lienAValider={lienAValider} {...(p.pourquoi ? { pourquoi: p.pourquoi } : {})} {...(p.ressembleA ? { ressembleA: p.ressembleA } : {})} />
+              <CarteProposition entree={p} debut={debutSemaine} {...(lienAValider ? { lienAValider } : {})} {...(p.sujet ? { sujet: p.sujet } : {})} {...(p.pourquoi ? { pourquoi: p.pourquoi } : {})} {...(p.ressembleA ? { ressembleA: p.ressembleA } : {})} />
             </li>
           ))}
         </ul>

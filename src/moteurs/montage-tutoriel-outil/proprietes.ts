@@ -26,6 +26,8 @@ export const HABILLAGE_TUTORIEL: HabillagePlan = { fond: "ivoire", accent: "terr
 
 export const DUREE_CARTE_FIN_MS = 2500;
 export const CARTE_FIN_AXION = { titre: "Axion IA", sousTitre: "axion-ia.com" } as const;
+/** T-EXT-26a : carte « Prendre rendez-vous », seulement si l'utilisateur la choisit. Titre = `LIBELLE_APPEL_RDV` (src/briques/motion/habillage-commun/sequence-appel.ts), recopié : ce fichier n'a pas d'alias « @/ » et reste lu par le rendu. */
+export const CARTE_FIN_RENDEZ_VOUS = { titre: "Prendre rendez-vous", sousTitre: "axion-ia.com" } as const;
 
 /** Un bloc du schéma animé du flux (T-EXT-50) : heures en secondes depuis le début du schéma. */
 export type BlocFlux = { id: string; libelle: string; humain: boolean; motSec: number; allumageSec: number; traceSec?: number };
@@ -49,7 +51,9 @@ export type ProprietesTutorielOutil = {
   audio?: string;
   /** Calque des sous-titres (brique coupée : absent). */
   sousTitres?: DonneesCalque;
-  fin: { titre: string; sousTitre: string };
+  /** Absente quand `finMs` vaut 0 (T-EXT-26a : « Aucune »). */
+  fin?: { titre: string; sousTitre: string };
+  /** 0 = pas de carte de fin. */
   finMs: number;
   /** Adresse signée du film de navigation (entrée « filmNavigation » de la demande de rendu) ; absente : pas de film. */
   filmNavigation?: string;
@@ -61,6 +65,7 @@ export type ProprietesTutorielOutil = {
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */
 export function planCarteFin(p: Pick<ProprietesTutorielOutil, "plan" | "fin" | "finMs">): PlanValide {
+  const fin = p.fin ?? CARTE_FIN_AXION;
   return {
     version: p.plan.version,
     format: p.plan.format,
@@ -80,7 +85,7 @@ export function planCarteFin(p: Pick<ProprietesTutorielOutil, "plan" | "fin" | "
         position: "centre",
         transition: { entree: "fondu", sortie: "fondu", dureeMs: 400 },
         piece: "legende",
-        parametres: { texte: p.fin.titre, sousTexte: p.fin.sousTitre, style: "titre" },
+        parametres: { texte: fin.titre, sousTexte: fin.sousTitre, style: "titre" },
       },
     ],
   };
@@ -90,7 +95,7 @@ export function imagesDe(ms: number, fps: number): number {
   return Math.max(1, Math.ceil((ms * fps) / 1000));
 }
 
-/** Durée totale en images : le plan, puis la carte de fin. */
+/** Durée totale en images : le plan, puis la carte de fin (aucune image quand `finMs` vaut 0). */
 export function dureeImagesTutoriel(p: Pick<ProprietesTutorielOutil, "plan" | "finMs">): number {
-  return imagesDe(p.plan.dureeMs, p.plan.format.fps) + imagesDe(p.finMs, p.plan.format.fps);
+  return imagesDe(p.plan.dureeMs, p.plan.format.fps) + (p.finMs > 0 ? imagesDe(p.finMs, p.plan.format.fps) : 0);
 }
