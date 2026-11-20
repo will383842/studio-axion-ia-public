@@ -94,10 +94,10 @@ describe("a) interrupteur tableau.narrationClaude : seul true exact allume", () 
   it.each([
     [true, true],
     [false, false],
-    ["true", false],
-    [1, false],
-    [undefined, false],
-    [null, false],
+    ["true", true],
+    [1, true],
+    [undefined, true],
+    [null, true],
   ])("valeur %j → %s", async (valeur, attendu) => {
     expect(await narrationClaudeActive((async () => valeur) as never)).toBe(attendu);
   });
@@ -107,8 +107,8 @@ describe("a) interrupteur tableau.narrationClaude : seul true exact allume", () 
 });
 
 describe("b) le port : un appel, rôle Sonnet, repli gratuit sinon", () => {
-  it("éteint (absent, false, \"true\", 1, échec de lecture) : null et 0 appel", async () => {
-    for (const valeur of [undefined, false, "true", 1]) {
+  it("éteint (false exact, échec de lecture) : null et 0 appel", async () => {
+    for (const valeur of [false]) {
       const d = doubles({ lire: (id) => (id === PARAM_NARRATION_CLAUDE ? valeur : undefined) });
       expect(await portNarrationClaude("v1", origine, d)(donnee())).toBeNull();
       expect(d.executer).toHaveBeenCalledTimes(0);
@@ -118,6 +118,12 @@ describe("b) le port : un appel, rôle Sonnet, repli gratuit sinon", () => {
     const casse = { ...d, lire: (async () => { throw new Error("base"); }) as never };
     expect(await portNarrationClaude("v1", origine, casse)(donnee())).toBeNull();
     expect(d.executer).toHaveBeenCalledTimes(0);
+  });
+
+  it("réglage absent → allumé : 1 appel", async () => {
+    const d = doubles({ lire: () => undefined });
+    expect(await portNarrationClaude("v1", origine, d)(donnee())).not.toBeNull();
+    expect(d.executer).toHaveBeenCalledTimes(1);
   });
 
   it("allumé : 1 appel, rôle claude-sonnet-5-5, maxTokens 4000, étape et origine", async () => {

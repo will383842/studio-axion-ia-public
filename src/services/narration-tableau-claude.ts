@@ -2,8 +2,9 @@
  * NARRATION DU TABLEAU DE BORD ÉCRITE PAR CLAUDE (G4-06-b-v20e, décision D4 de Williams du 20/11 : 1,25 € au plus par vidéo
  * pour tous les usages de Claude, dont 0,15 € pour ce texte lu).
  *
- *  - ÉTEINT PAR DÉFAUT : sans le réglage `tableau.narrationClaude` à exactement `true`, le port rend `null` sans aucun appel
- *    et la chaîne garde la narration gratuite à phrases à trous. Le réglage n'est jamais écrit par ce fichier.
+ *  - ALLUMÉ PAR DÉFAUT depuis le 20/11, Williams : réglage `tableau.narrationClaude` absent → allumé ; à exactement `false`
+ *    → éteint (le port rend `null` sans aucun appel et la chaîne garde la narration gratuite à phrases à trous) ;
+ *    lecture en échec → éteint (prudence). Le réglage n'est jamais écrit par ce fichier.
  *  - Seul chemin payant : `executerRolePourVideo` (injecté), jamais le client Claude en direct, jamais `fetch`.
  *  - Modèle forcé : `claude-sonnet-5-5`, quel que soit celui de la requête de la brique.
  *  - PLAFOND DUR codé ici, contrôlé AVANT l'appel, indépendant du mode budget indicatif, de `quotaSeul` et du réglage
@@ -41,11 +42,11 @@ const MARGE = 1.2;
 
 const plafondPropreDe = (id: IdUsage): PlafondPropre => ({ id, parametre: PARAMETRES_PLAFOND[id], defautUsd: PLAFONDS_CLAUDE_VIDEO_EUR[id], prefixeEtape: PREFIXES_ETAPE_CLAUDE_VIDEO[id] }) as unknown as PlafondPropre;
 
-/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+/** Faux SEULEMENT si la valeur lue est exactement `false` ou si la lecture échoue ; absente : allumé. */
 export async function narrationClaudeActive(lire?: Lire): Promise<boolean> {
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
-    return (await l<unknown>(PARAM_NARRATION_CLAUDE, false)) === true;
+    return (await l<unknown>(PARAM_NARRATION_CLAUDE, true)) !== false;
   } catch {
     return false;
   }
