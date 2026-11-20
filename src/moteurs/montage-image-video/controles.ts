@@ -510,7 +510,14 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
 
   // IV-SV : sans voix, les lignes de la voix n'ont pas d'objet (rien n'est lu, rien n'est écouté).
   const sansObjet: ReadonlySet<CodeControleIV> = new Set(["Q16", "Q17", "Q18", "Q19", "Q28"]);
-  const retenues = ctx.sansVoix ? lignes.map((l) => (sansObjet.has(l.code) ? ligneIV(l.code, v, [], { phraseOk: "mode sans voix : sans objet." }) : l)) : lignes;
+  const retenues = ctx.sansVoix
+    ? lignes.map((l) => {
+        if (!sansObjet.has(l.code)) return l;
+        // Q19 : seule la partie « écoute » est sans objet ; le contrôle de scène (la fin laisse le temps de lire) reste.
+        if (l.code === "Q19" && q19Ligne.length) return ligneIV("Q19", v, q19Ligne);
+        return ligneIV(l.code, v, [], { phraseOk: "mode sans voix : sans objet." });
+      })
+    : lignes;
   // Ordre du rapport.
   return CODES_CONTROLE_IV.flatMap((c) => retenues.filter((l) => l.code === c));
 }

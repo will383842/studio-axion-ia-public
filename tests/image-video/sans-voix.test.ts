@@ -109,3 +109,23 @@ describe("IV-SV · fabrication simulée sans voix", () => {
     expect(e.voix).toBeDefined();
   });
 });
+
+describe("IV-SV · prix de « Valider et fabriquer » (prixSuiteIV)", () => {
+  it("sans voix : ni voix ni transcription dans l'accord du script ; avec voix : inchangé", async () => {
+    const prixDuScript = async (sansVoix: boolean) => {
+      const carte = carteFixe("A");
+      const o: OutilsFabricationIV = { ...outilsSimules(carte, monde()), secoursAutomatique: false };
+      let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, sansVoix ? { sansVoix: true } : {})), o);
+      for (let i = 0; i < 5 && attendWillIV(e) !== "script"; i++) {
+        e = attendWillIV(e) === "carte" ? await avancerJusquAArretIV(validerCarteIV(e, { proposition: e.propositionCarte!.empreinte, le: "2026-10-15T08:00:00.000Z" }), o) : e;
+      }
+      expect(attendWillIV(e)).toBe("script");
+      return e.propositionScript!.prix;
+    };
+    const avec = await prixDuScript(false);
+    const sans = await prixDuScript(true);
+    expect(avec.habituelCentimes).toBeGreaterThan(0);
+    expect(sans.habituelCentimes).toBeLessThan(avec.habituelCentimes);
+    expect(sans.auPlusCentimes).toBeLessThan(avec.auPlusCentimes);
+  });
+});

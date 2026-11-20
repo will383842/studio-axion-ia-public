@@ -992,14 +992,16 @@ const optionsVoixDe = (voix: Pick<EtatVoixIV, "version" | "segments"> | undefine
 
 /** Prix de la suite après la validation du script : voix (au caractère), écoute et relecture de chaque version. */
 export function prixSuiteIV(etat: Pick<EtatFabricationIV, "demande" | "caisse" | "voix">, fiche: FicheImage, plan: PlanDesFinsIV, tarifVoixCentimesParCaractere: number): PrixIV {
+  const sansVoix = etat.demande.sansVoix === true;
   const segments = segmentsVoixIV(fiche, plan, optionsVoixDe(etat.voix));
   const taux = etat.demande.tauxUsdEur;
-  const voix = (n: number, k: number) => Math.ceil(n * k * tarifVoixCentimesParCaractere - 1e-9);
+  const voix = (n: number, k: number) => (sansVoix ? 0 : Math.ceil(n * k * tarifVoixCentimesParCaractere - 1e-9));
   const caracteresFins = segments.fins.reduce((s, f) => s + f.texte.length, 0);
   // Une transcription par piste (le 4:5 reprend celle de sa piste), une relecture d'images par FICHIER (Facebook : deux).
   const pistes = segments.versions.length;
   const fichiers = segments.versions.reduce((n, v) => n + reseauxParFormatIV(v.reseaux, etat.demande).length, 0);
-  const controles = (relecture: number) => pistes * centimesEurDeUsd(TRANSCRIPTION_USD_PAR_VERSION, taux) + fichiers * centimesEurDeUsd(relecture, taux);
+  // IV-SV : sans voix, ni transcription (rien n'est écouté) ; la relecture d'images reste (appel Claude réel).
+  const controles = (relecture: number) => (sansVoix ? 0 : pistes * centimesEurDeUsd(TRANSCRIPTION_USD_PAR_VERSION, taux)) + fichiers * centimesEurDeUsd(relecture, taux);
   return {
     engageCentimes: engageCentimes(etat),
     habituelCentimes: voix(segments.corps.length, 1) + voix(caracteresFins, 1) + controles(RELECTURE_USD_PAR_VERSION.habituel),

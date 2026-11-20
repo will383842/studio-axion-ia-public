@@ -116,7 +116,7 @@ async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptCo
   const sansVoix = d.sansVoix === true;
   const voix = sansVoix ? null : await (dep.voix ?? voixParDefaut)();
   if (!sansVoix && !voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
-  const montant = prixDuDepot(reseaux, await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))(), scriptColle ? Math.max(50, dureeCibleDuScript(nombreDeMotsDuScript(d.texte))) : 50);
+  const montant = prixDuDepot(reseaux, await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))(), scriptColle ? Math.max(50, dureeCibleDuScript(nombreDeMotsDuScript(d.texte))) : 50, sansVoix);
   return verrouDepotTexte<IssueDepotTexteIV>(async () => {
     // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord ; sinon l'accord reçu, tel quel.
     const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
