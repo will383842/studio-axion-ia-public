@@ -92,6 +92,12 @@ describe("avecExtraitsMaisonV4", () => {
       return statSync(c).isDirectory() ? parcourir(c) : /\.(ts|tsx)$/.test(n) && !c.endsWith("extraits-maison/approvisionner.ts") ? [c] : [];
     });
     const importeurs = parcourir("src").filter((c) => /extraits-maison\/approvisionner/.test(readFileSync(c, "utf8")));
-    expect(importeurs).toEqual([]);
+    // MAJ 20/11 (FA-SERVICE-INV-v20h, voulue, à relire) : le service de la face caméra animée est le seul importeur permis, en import
+    // dynamique derrière le réglage `facecamAnimee.extraitsMaison` (éteint par défaut). Tout AUTRE fichier de src/ qui l'importe reste refusé.
+    expect(importeurs).toEqual(["src/services/facecam-animee.ts"]);
+    const service = readFileSync("src/services/facecam-animee.ts", "utf8");
+    expect(service).not.toMatch(/^import .*extraits-maison\/approvisionner/m);
+    expect(service.indexOf("if (extraitsMaison)")).toBeGreaterThan(-1);
+    expect(service.indexOf("if (extraitsMaison)")).toBeLessThan(service.indexOf('import("@/moteurs/montage-facecam-animee/extraits-maison/approvisionner")'));
   });
 });

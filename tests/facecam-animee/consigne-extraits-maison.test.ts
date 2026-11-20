@@ -78,7 +78,15 @@ describe("éteint = identique, rien n'est branché", () => {
       }
     };
     parcourir(racine);
-    expect(cites).toEqual(["src/moteurs/montage-facecam-animee/realisateur/index.ts"]);
+    // MAJ 20/11 (FA-SERVICE-INV-v20h, voulue, à relire) : `src/services/facecam-animee.ts` cite le fichier SEULEMENT pour lire le nom du
+    // réglage (constante, défaut éteint) : même garde qu'avant pour tout autre fichier de src/.
+    expect(cites).toEqual(["src/moteurs/montage-facecam-animee/realisateur/index.ts", "src/services/facecam-animee.ts"]);
+  });
+
+  it("le service ne lit le réglage qu'avec le défaut false et ne cite que son nom (éteint = identique)", () => {
+    const service = readFileSync(join(process.cwd(), "src/services/facecam-animee.ts"), "utf8");
+    expect(service).toMatch(/import \{ PARAM_EXTRAITS_MAISON_FA \} from "@\/moteurs\/montage-facecam-animee\/realisateur\/consigne-extraits-maison"/);
+    expect(service).toMatch(/lireParametre<unknown>\(PARAM_EXTRAITS_MAISON_FA, false\)\) === true/);
   });
 
   it("garde statique du fichier neuf", () => {
