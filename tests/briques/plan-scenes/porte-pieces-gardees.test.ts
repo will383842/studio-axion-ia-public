@@ -21,7 +21,9 @@ const catalogue = CATALOGUE_BRIQUES as unknown as Record<string, any>;
 const toiles = TOILES as unknown as Record<string, unknown>;
 const copie = () => structuredClone(PLAN_DEMO) as unknown as Record<string, any>;
 const gardees = PIECES_GARDEES as unknown as string[];
-const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet").map((d) => d.id);
+// C9-34-TRAITS-v19c : les 6 traits inscrits ensuite ne font pas partie des 18 objets d'avant ; on les exclut pour garder SHA_PLAN_TOUS_OBJETS figé (sha non recalculé).
+const TRAITS_C9_34 = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
+const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id)).map((d) => d.id);
 
 describe("G4-11-PORTE-a : éteint = identique à master", () => {
   it("la liste est vide et estGardee ≡ famille objet", () => {
