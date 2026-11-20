@@ -801,18 +801,26 @@ function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined):
   return mots.length > 0 && mots.every((m) => lower.has(minuscule(m)));
 }
 
-/** Nom de colonne normalisé : trim, une paire de guillemets englobante retirée, trim, minuscules. */
+/** Retire les caractères de format invisibles (U+200B, U+200D, U+2060, U+FEFF, U+00AD…) : « no​m » doit rester « nom ». */
+function sansInvisibles(s: string): string {
+  return s.replace(/\p{Cf}/gu, "");
+}
+
+/** Nom de colonne normalisé : invisibles retirés, trim, une paire de guillemets englobante retirée, trim, NFKC, minuscules. */
 function nomColonne(valeur: string): string {
-  let v = valeur.trim();
-  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1).trim();
+  let v = sansInvisibles(valeur).trim();
+  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = sansInvisibles(v.slice(1, -1)).trim();
   return v.normalize("NFKC").toLowerCase();
 }
 
+/** Nombre de lignes du début d'un CSV où l'on cherche l'en-tête (ligne `sep=;`, titre d'export…). */
+const LIGNES_ENTETE_MAX = 10;
+
 function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
-  // « CSV (Macintosh) » : fin de ligne `\r` seule. Remplacée par `\n` (même longueur, positions inchangées) pour la lecture ;
-  // `\r\n` reste une seule fin de ligne.
-  const texte = ext === "json" ? texteBrut : texteBrut.replace(/\r(?!\n)/g, "\n");
+  // « CSV (Macintosh) » : fin de ligne `\r` seule ; fins de ligne Unicode U+2028, U+2029 et U+0085 (NEL). Chacune est remplacée
+  // par `\n` (un caractère pour un caractère, positions inchangées) pour la lecture ; `\r\n` reste une seule fin de ligne.
+  const texte = ext === "json" ? texteBrut : texteBrut.replace(/\r(?!\n)|[\u2028\u2029\u0085]/g, "\n");
   if (ext === "json") {
     const ESPACE = /\s/;
     /**
@@ -877,27 +885,44 @@ function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<s
     let traite = 0;
     for (const m of texte.matchAll(/"((?:[^"\\]|\\.)*)"\s*:\s*/g)) {
       const debutValeur = (m.index ?? 0) + m[0].length;
-      if (debutValeur <= traite || !COLONNES_PERSONNE.has(m[1]!.normalize("NFKC").toLowerCase())) continue;
+      if (debutValeur <= traite || !COLONNES_PERSONNE.has(nomColonne(m[1]!))) continue;
       traite = collecter(debutValeur);
     }
     return trouves;
   }
-  const finEntete = texte.indexOf("\n");
-  const entete = (finEntete === -1 ? texte : texte.slice(0, finEntete)).replace(/\r$/, "");
-  // Séparateur le plus fréquent de l'en-tête (égalité : « , » puis « ; » puis tabulation).
+  const finPremiere = texte.indexOf("\n");
+  const premiere = (finPremiere === -1 ? texte : texte.slice(0, finPremiere)).replace(/\r$/, "");
+  // Ligne `sep=X` d'Excel : X est le séparateur ; sinon séparateur le plus fréquent de la 1re ligne
+  // (égalité : « , » puis « ; » puis tabulation), puis les deux autres en repli.
+  const declare = /^\p{Cf}*sep=(.)\s*$/iu.exec(premiere)?.[1];
   let sep = ",";
-  let meilleur = entete.split(",").length;
+  let meilleur = premiere.split(",").length;
   for (const candidat of [";", "\t"]) {
-    const nombre = entete.split(candidat).length;
+    const nombre = premiere.split(candidat).length;
     if (nombre > meilleur) {
       sep = candidat;
       meilleur = nombre;
     }
   }
-  const lignes = lireCsv(texte, sep);
-  const colonnes = new Set((lignes[0] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : [])));
+  const candidats = declare ? [declare] : [sep, ...[",", ";", "\t"].filter((x) => x !== sep)];
+  // L'en-tête n'est pas forcément la 1re ligne : on prend, parmi les premières lignes, la 1re qui porte un nom de colonne de personne.
+  let lignes: ReturnType<typeof lireCsv> = [];
+  let colonnes = new Set<number>();
+  let indiceEntete = 0;
+  for (const candidat of candidats) {
+    lignes = lireCsv(texte, candidat);
+    for (let l = 0; l < Math.min(lignes.length, LIGNES_ENTETE_MAX); l++) {
+      const trouvees = (lignes[l] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : []));
+      if (trouvees.length > 0) {
+        colonnes = new Set(trouvees);
+        indiceEntete = l;
+        break;
+      }
+    }
+    if (colonnes.size > 0) break;
+  }
   if (colonnes.size === 0) return trouves;
-  for (let l = 1; l < lignes.length; l++) {
+  for (let l = indiceEntete + 1; l < lignes.length; l++) {
     const valeurs = lignes[l]!;
     for (const c of colonnes) {
       const v = valeurs[c];

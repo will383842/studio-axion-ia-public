@@ -196,6 +196,20 @@ describe("éteint par défaut (R-9)", () => {
       expect(new TextDecoder().decode(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont|Paul|Martin/);
     }
   });
+  it("de bout en bout (allumé) : ligne `sep=;`, ligne de titre, invisible dans l'en-tête, fin de ligne U+2028 → aucune trace en clair", async () => {
+    ALLUME();
+    const r = await entree([
+      { nom: "sep.csv", donnees: u8("sep=;\nnom;ville\nJean Dupont;Paris\n") },
+      { nom: "titre.csv", donnees: u8("Export clients\nid,nom\n1,Jean Dupont\n") },
+      { nom: "zw.csv", donnees: u8("id,no\u200bm\n1,Jean Dupont\n") },
+      { nom: "ls.csv", donnees: u8("nom,ville\u2028Jean Dupont,Paris") },
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const nom of ["sep.csv", "titre.csv", "zw.csv", "ls.csv"]) {
+      expect(new TextDecoder().decode(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont/);
+    }
+  });
   it("même une archive piégée n'est pas lue quand c'est éteint", async () => {
     const r = await entree([{ nom: "../x.js", donnees: u8("x") }]);
     expect(r.rapport.refus).toEqual([MESSAGE_ZIP_FERME]);

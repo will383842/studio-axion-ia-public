@@ -540,6 +540,36 @@ describe("masquage", () => {
     const mix = masquerDonneesPersonnelles("id,nom\r\n1,Jean\r\n2,Paul\r\n", { chemin: "c.csv" }).texte;
     expect(mix).toBe("id,nom\r\n1,Personne exemple 1\r\n2,Personne exemple 2\r\n");
   });
+  it("en-tête pas sur la 1re ligne : ligne `sep=;` d'Excel, ligne de titre → la colonne est masquée", () => {
+    for (const [t, secret] of [
+      ["sep=;\nnom;ville\nJean Dupont;Paris\n", "Jean"],
+      ["Export clients\nid,nom\n1,Jean Dupont\n", "Jean"],
+      ["\ufeffsep=;\r\nid;nom\r\n1;Jean Dupont\r\n", "Dupont"],
+      ["sep=\t\nnom\tville\nJean Dupont\tParis\n", "Jean"],
+      ["Export\nGénéré le 20/11\n\nid;nom\n1;Jean Dupont\n", "Dupont"],
+    ] as const) {
+      const m = masquerDonneesPersonnelles(t, { chemin: "c.csv" }).texte;
+      expect(m, t).not.toContain(secret);
+      expect(m, t).toContain("Personne exemple 1");
+    }
+    // la ligne de titre et l'en-tête eux-mêmes restent intacts
+    expect(masquerDonneesPersonnelles("Export clients\nid,nom\n1,Jean\n", { chemin: "c.csv" }).texte).toBe("Export clients\nid,nom\n1,Personne exemple 1\n");
+  });
+  it("caractères invisibles dans l'en-tête (U+200B, U+200D, U+2060, U+FEFF, U+00AD) : la colonne est masquée (CSV et JSON)", () => {
+    for (const inv of ["\u200b", "\u200d", "\u2060", "\ufeff", "\u00ad"]) {
+      expect(masquerDonneesPersonnelles(`id,no${inv}m\n1,Jean Dupont\n`, { chemin: "c.csv" }).texte).not.toMatch(/Jean|Dupont/);
+      expect(masquerDonneesPersonnelles(`id,"no${inv}m"\n1,Jean Dupont\n`, { chemin: "c.csv" }).texte).not.toMatch(/Jean|Dupont/);
+      expect(masquerDonneesPersonnelles(`{"no${inv}m":"Jean"}`, { chemin: "d.json" }).texte).not.toContain("Jean");
+    }
+  });
+  it("fins de ligne Unicode (U+2028, U+2029, U+0085) : lues comme fins de ligne, la colonne est masquée", () => {
+    for (const fin of ["\u2028", "\u2029", "\u0085"]) {
+      const m = masquerDonneesPersonnelles(`nom,ville${fin}Jean Dupont,Paris${fin}Paul Martin,Lyon`, { chemin: "c.csv" }).texte;
+      expect(m).not.toMatch(/Jean|Dupont|Paul|Martin/);
+      expect(m).toContain(",Paris");
+      expect(m).toContain(",Lyon");
+    }
+  });
   it("colonnes json : le json reste valide", () => {
     const m = masquerDonneesPersonnelles('{"nom":"Martin","autre":"Martin"}', { chemin: "d.json" });
     expect(JSON.parse(m.texte)).toEqual({ nom: "Personne exemple 1", autre: "Martin" });
