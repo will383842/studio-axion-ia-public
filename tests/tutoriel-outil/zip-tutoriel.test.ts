@@ -220,6 +220,62 @@ describe("éteint par défaut (R-9)", () => {
       expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
     }
   });
+  it("de bout en bout (allumé) : clés JSON, HTML échappé en 2 Mo, et nom toujours masqué (verdict b3cbe685 a)", async () => {
+    ALLUME();
+    const t0 = performance.now();
+    const r = await entree([...SAINE, { nom: "gros.json", donnees: u8('{"html":"' + '<a class=\\"x\\">'.repeat(130_000) + '"}') }, { nom: "p.json", donnees: u8('{"nom":"Jean Dupont"}') }]);
+    expect(performance.now() - t0).toBeLessThan(3000);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(texte(r.fichiers.get("p.json"))).not.toMatch(/Jean|Dupont/);
+  });
+  it("de bout en bout (allumé) : caractère ESC et encodage ISO-2022-JP déclaré → archive entière refusée (verdict b3cbe685 b)", async () => {
+    ALLUME();
+    const ESC = "\u001b";
+    const pieges: [string, string][] = [
+      ["index.html", `<meta charset="iso-2022-jp"><ifr${ESC}(Bame src="x.html"></iframe><img src="ht${ESC}(Btps://exemple.invalid/a.png"><script>fe${ESC}(Btch("ht${ESC}(Btps://exemple.invalid/x")</script>`],
+      ["s.css", `@charset "iso-2022-jp"; p{background:url(ht${ESC}(Btps://exemple.invalid/a.png)}`],
+      ["a.js", `fe${ESC}(Btch("x")`],
+      ["b.html", '<meta charset="iso-2022-jp"><p>x</p>'],
+      ["c.html", '<meta http-equiv="content-type" content="text/html; charset=iso-2022-jp"><p>x</p>'],
+      ["d.html", '<script charset="shift_jis" src="a.js"></script>'],
+      ["e.css", '@charset "windows-1252"; p{}'],
+    ];
+    for (const [nom, contenu] of pieges) {
+      const r = await entree([...SAINE.filter((x) => x.nom !== nom), { nom, donnees: u8(contenu) }]);
+      expect(r.ok, nom).toBe(false);
+      expect(r.rapport.refus.join(" "), nom).toMatch(/maquette|contrôle|encodage/i);
+    }
+    const sain = await entree([...SAINE.filter((x) => x.nom !== "index.html"), { nom: "index.html", donnees: u8('<!doctype html><meta charset="utf-8"><p>é</p>') }]);
+    expect(sain.ok).toBe(true);
+  });
+  it("de bout en bout (allumé) : BOM UTF-16/UTF-32, octets non UTF-8, caractère nul → archive entière refusée", async () => {
+    ALLUME();
+    const u16le = (s: string) => new Uint8Array([0xff, 0xfe, ...[...s].flatMap((c) => [c.charCodeAt(0), 0])]);
+    const u16be = (s: string) => new Uint8Array([0xfe, 0xff, ...[...s].flatMap((c) => [0, c.charCodeAt(0)])]);
+    const u32le = (s: string) => new Uint8Array([0xff, 0xfe, 0, 0, ...[...s].flatMap((c) => [c.charCodeAt(0), 0, 0, 0])]);
+    const u32be = (s: string) => new Uint8Array([0, 0, 0xfe, 0xff, ...[...s].flatMap((c) => [0, 0, 0, c.charCodeAt(0)])]);
+    const pieges: [string, Uint8Array][] = [
+      ["utf16le.html", u16le("<p>x</p>")],
+      ["utf16be.html", u16be("<p>x</p>")],
+      ["utf32le.html", u32le("<p>x</p>")],
+      ["utf32be.html", u32be("<p>x</p>")],
+      ["utf16.css", u16le("p{}")],
+      ["utf16.js", u16le("var a;")],
+      ["latin1.html", new Uint8Array([0x3c, 0x70, 0x3e, 0xe9, 0x3c, 0x2f, 0x70, 0x3e])],
+      ["isojp.html", new Uint8Array([0x3c, 0x70, 0x3e, 0x1b, 0x24, 0x42, 0x24, 0x22, 0x1b, 0x28, 0x42, 0x3c, 0x2f, 0x70, 0x3e, 0xff])],
+      ["surrogate.js", new Uint8Array([0xed, 0xa0, 0x80])],
+      ["long.css", new Uint8Array([0xc0, 0xaf])],
+      ["nul-sans-bom.html", u8("<html></html>".split("").join("\u0000"))],
+      ["nul.js", u8("var a;\u0000fetch(1)")],
+    ];
+    for (const [nom, contenu] of pieges) {
+      const r = await entree([...SAINE.filter((x) => x.nom !== nom), { nom, donnees: contenu }]);
+      expect(r.ok, nom).toBe(false);
+    }
+    const bomUtf8 = await entree([...SAINE.filter((x) => x.nom !== "index.html"), { nom: "index.html", donnees: new Uint8Array([0xef, 0xbb, 0xbf, ...u8("<!doctype html><p>é</p>")]) }]);
+    expect(bomUtf8.ok).toBe(true);
+  });
   it("même une archive piégée n'est pas lue quand c'est éteint", async () => {
     const r = await entree([{ nom: "../x.js", donnees: u8("x") }]);
     expect(r.rapport.refus).toEqual([MESSAGE_ZIP_FERME]);

@@ -15,6 +15,8 @@ import {
   RATIO_COMPRESSION_MAX,
   TAILLE_ZIP_MAX,
   TOTAL_DECOMPRESSE_MAX,
+  decoderEchappementsCss,
+  decoderEchappementsJs,
   detecterDonneesPersonnelles,
   estFichierScript,
   lireRepertoireZip,
@@ -911,5 +913,175 @@ describe("verdict Opus : temps de la détection (dédoublonnage linéaire)", () 
     expect(nb(d, "courriel")).toBe(1);
     const c = d.filter((x) => x.type === "colonne-personne");
     for (const x of c) for (const y of d.filter((z) => z.type === "courriel")) expect(x.debut < y.fin && x.fin > y.debut).toBe(false);
+  });
+});
+
+describe("verdict Opus b3cbe685 (a) : clés JSON lues en un seul passage (temps linéaire)", () => {
+  const chrono = <T,>(f: () => T): { r: T; ms: number } => {
+    const t0 = performance.now();
+    const r = f();
+    return { r, ms: performance.now() - t0 };
+  };
+  it("HTML échappé dans une chaîne, motif répété 25 000 fois : moins d'une seconde", () => {
+    const { ms } = chrono(() => detecterDonneesPersonnelles('{"html":"' + '<a class=\\"x\\">'.repeat(25_000) + '"}', { chemin: "a.json" }));
+    expect(ms).toBeLessThan(1000);
+  });
+  it("`\"\\` répété 400 000 fois : moins d'une seconde", () => {
+    const { ms } = chrono(() => detecterDonneesPersonnelles('"\\'.repeat(400_000), { chemin: "a.json" }));
+    expect(ms).toBeLessThan(1000);
+  });
+  it("chaîne jamais refermée, `\\\"` répété 400 000 fois : moins d'une seconde", () => {
+    const { ms } = chrono(() => detecterDonneesPersonnelles('{"a":"' + '\\"'.repeat(400_000), { chemin: "a.json" }));
+    expect(ms).toBeLessThan(1000);
+  });
+  it("le même HTML échappé, 2 Mo, et un `\"` isolé en tête : moins d'une seconde", () => {
+    const { ms } = chrono(() => detecterDonneesPersonnelles('"' + '{"html":"' + '<a class=\\"x\\">'.repeat(130_000) + '"}', { chemin: "a.json" }));
+    expect(ms).toBeLessThan(1000);
+  });
+  it("{\"nom\":\"Jean Dupont\"} reste masqué, avec un espace avant les deux-points et après", () => {
+    for (const j of ['{"nom":"Jean Dupont"}', '{ "nom" : "Jean Dupont" }', '{"html":"<a class=\\"x\\">","nom":"Jean Dupont"}', '[{"ville":"Paris"},{"prénom":"Jean"}]']) {
+      const m = masquerDonneesPersonnelles(j, { chemin: "a.json" });
+      expect(m.texte).not.toMatch(/Jean|Dupont/);
+      expect(m.texte).toContain("Personne exemple 1");
+    }
+  });
+  it("une clé qui suit un HTML échappé est toujours trouvée", () => {
+    const m = masquerDonneesPersonnelles('{"a":"x\\"nom\\": y","nom":"Jean Dupont"}', { chemin: "a.json" });
+    expect(m.texte).not.toMatch(/Jean|Dupont/);
+  });
+});
+
+describe("verdict Opus b3cbe685 (b) : caractères de contrôle et encodage déclaré (ISO-2022-JP)", () => {
+  const ESC = "\u001b";
+  const refus = (chemin: string, texte: string) => verifierMaquette([{ chemin, texte }]);
+  it("HTML : `<ifr␛(Bame` et `ht␛(Btps` refusés (caractère de contrôle, avec la ligne)", () => {
+    const r = refus("index.html", `<meta charset="iso-2022-jp">\n<ifr${ESC}(Bame src="x.html"></iframe>\n<img src="ht${ESC}(Btps://exemple.invalid/a.png">\n<script>fe${ESC}(Btch("ht${ESC}(Btps://exemple.invalid/x")</script>`);
+    expect(r.ok).toBe(false);
+    const c = r.refus.find((x) => x.motif === "caractère de contrôle");
+    expect(c?.ligne).toBe(2);
+  });
+  it("CSS : `@charset \"iso-2022-jp\"` + `url(ht␛(Btps://…)` refusés", () => {
+    const r = refus("s.css", `@charset "iso-2022-jp"; p{background:url(ht${ESC}(Btps://exemple.invalid/a.png)}`);
+    expect(r.ok).toBe(false);
+    expect(r.refus.map((x) => x.motif)).toEqual(expect.arrayContaining(["caractère de contrôle", expect.stringContaining("@charset")]));
+  });
+  it("JS : `fe␛(Btch` refusé", () => {
+    expect(refus("a.js", `fe${ESC}(Btch("x")`).refus.some((x) => x.motif === "caractère de contrôle")).toBe(true);
+  });
+  it.each([["html"], ["htm"], ["css"], ["js"]])("un seul caractère de contrôle C0 dans un .%s : refus (nul, U+0001, U+0008, U+000B, U+000E, U+001F)", (ext) => {
+    for (const c of ["\u0000", "\u0001", "\u0008", "\u000b", "\u000e", "\u001f", ESC]) {
+      expect(refus(`a.${ext}`, `a${c}b`).ok).toBe(false);
+    }
+  });
+  it.each([["html"], ["htm"], ["css"], ["js"]])("tabulation, \\n, \\r et saut de page permis dans un .%s", (ext) => {
+    expect(refus(`a.${ext}`, "a\tb\nc\r\nd\re\u000cf").ok).toBe(true);
+  });
+  it("un fichier texte hors maquette (.txt, .csv) n'est pas concerné par ce contrôle", () => {
+    expect(refus("a.txt", `a${ESC}b`).ok).toBe(true);
+  });
+  it.each([
+    ['<meta charset="iso-2022-jp">'],
+    ["<meta charset=iso-2022-jp>"],
+    ["<META CHARSET='Shift_JIS'>"],
+    ['<meta charset="&#105;so-2022-jp">'],
+    ['<meta charset="">'],
+    ['<meta charset="windows-1252">'],
+    ['<meta charset="utf-16">'],
+    ['<meta http-equiv="content-type" content="text/html; charset=iso-2022-jp">'],
+    ['<meta http-equiv="Content-Type" content="text/html;charset = \'iso-2022-jp\'">'],
+    ['<meta http-equiv="content-type" content="text/html; charset=utf-8; charset=iso-2022-jp">'],
+    ['<script charset="iso-2022-jp" src="a.js"></script>'],
+    ['<link rel="stylesheet" href="a.css" charset="iso-2022-jp">'],
+  ])("HTML : déclaration d'encodage refusée : %s", (balise) => {
+    const r = refus("index.html", `<!doctype html><head>${balise}</head>`);
+    expect(r.ok).toBe(false);
+    expect(r.refus.some((x) => x.motif.startsWith("encodage déclaré autre que utf-8"))).toBe(true);
+  });
+  it.each([
+    ['@charset "iso-2022-jp"; p{color:red}'],
+    ["@charset 'Shift_JIS'; p{color:red}"],
+    ['@CHARSET "windows-1252"; p{}'],
+    ["@charset iso-2022-jp; p{}"],
+    ['p{}\n@charset "utf-16";'],
+    ['@charset "utf-8; p{}'],
+  ])("CSS : @charset autre que utf-8 (ou illisible) refusé : %s", (css) => {
+    expect(refus("s.css", css).ok).toBe(false);
+  });
+  it("@charset dans un <style> de HTML : refusé aussi", () => {
+    expect(refus("index.html", '<style>@charset "iso-2022-jp"; p{}</style>').ok).toBe(false);
+  });
+  it("utf-8 reste accepté (toutes casses, meta charset, content-type, script, @charset)", () => {
+    const ok = [
+      ['<!doctype html><meta charset="utf-8"><p>é</p>', "index.html"],
+      ['<meta charset="UTF-8">', "index.html"],
+      ["<meta charset=utf-8>", "index.html"],
+      ['<meta http-equiv="content-type" content="text/html; charset=utf-8">', "index.html"],
+      ['<meta name="viewport" content="width=device-width">', "index.html"],
+      ['<script charset="utf-8" src="a.js"></script>', "index.html"],
+      ['@charset "utf-8";\np{color:red}', "s.css"],
+      ["@charset 'UTF-8'; p{}", "s.css"],
+    ] as const;
+    for (const [texte, chemin] of ok) expect(refus(chemin, texte).ok).toBe(true);
+  });
+  it("une maquette saine reste acceptée", () => {
+    expect(refus("index.html", '<!doctype html>\n<html><head><meta charset="utf-8"><link rel="stylesheet" href="styles.css"></head><body><p>Bonjour</p></body></html>').ok).toBe(true);
+  });
+});
+
+describe("verdict Opus b3cbe685 : temps des nouveaux contrôles (2 Mo piégés)", () => {
+  const ms = (chemin: string, texte: string): number => {
+    const t0 = performance.now();
+    verifierMaquette([{ chemin, texte }]);
+    return performance.now() - t0;
+  };
+  it.each([
+    ["@charset répété", "a.css", () => "@charset ".repeat(200_000)],
+    ["@charset\" répété", "a.css", () => '@charset "'.repeat(200_000)],
+    ["@charset ' et \" alternés", "a.css", () => "@charset '@charset \"".repeat(100_000)],
+    ["@charset puis 2 Mo d'espaces", "a.css", () => "@charset" + " ".repeat(2_000_000)],
+    ["charset= répété dans un content de meta", "index.html", () => '<meta content="' + "charset=".repeat(200_000) + '">'],
+    ["charset puis 2 Mo d'espaces dans un content de meta", "index.html", () => '<meta content="charset' + " ".repeat(2_000_000) + '">'],
+    ["charset=\" répété", "index.html", () => '<meta content="' + 'charset="'.repeat(1) + "charset= ".repeat(200_000) + '">'],
+    ["2 Mo de caractères de contrôle", "a.js", () => "\u0001".repeat(2_000_000)],
+    ["2 Mo de tabulations et sauts de page", "index.html", () => "\t\f".repeat(1_000_000)],
+    ["attributs charset répétés", "index.html", () => "<script charset=x>".repeat(100_000)],
+  ])("%s : moins d'une seconde", (_n, chemin, fabrique) => {
+    expect(ms(chemin, fabrique())).toBeLessThan(1000);
+  });
+});
+
+describe("verdict Opus b3cbe685 : tout ce qui change le texte vu par le navigateur est refusé avant les contrôles (octets)", () => {
+  // Les octets passent par le décodeur UTF-8 strict de `extraireZipSur` ; ici les cas de texte restants.
+  it("U+FEFF (BOM) au milieu d'un .js n'est pas un caractère de contrôle C0 : accepté comme texte ordinaire", () => {
+    expect(verifierMaquette([{ chemin: "a.js", texte: "var a = 1;﻿" }]).ok).toBe(true);
+  });
+  it("un caractère nul (texte UTF-16 sans BOM relu en UTF-8) dans un .html : refusé", () => {
+    const utf16 = "<html></html>".split("").join("\u0000");
+    expect(verifierMaquette([{ chemin: "index.html", texte: utf16 }]).ok).toBe(false);
+  });
+});
+
+describe("verdict Opus b3cbe685 : chasse à la même famille (2 Mo piégés, une seconde au plus)", () => {
+  const N = 2_000_000;
+  const rep = (m: string): string => m.repeat(Math.ceil(N / m.length)).slice(0, N);
+  const chrono = (f: () => unknown): number => {
+    const t0 = performance.now();
+    f();
+    return performance.now() - t0;
+  };
+  it.each([["\n"], [" "], ["\r"], [","], ['"'], ['""'], ['\\"'], [";"], ["\t"]])("CSV : en-tête « nom » puis 2 Mo de %j", (m) => {
+    expect(chrono(() => detecterDonneesPersonnelles("nom,x\n" + rep(m), { chemin: "a.csv" }))).toBeLessThan(1000);
+  });
+  it.each([["\n"], [" "], ["\r"], [","], ['"'], ['"\n'], ["sep=;\n"]])("CSV sans colonne de personne : 2 Mo de %j (3 séparateurs essayés)", (m) => {
+    expect(chrono(() => detecterDonneesPersonnelles(rep(m), { chemin: "a.csv" }))).toBeLessThan(1000);
+  });
+  it.each([["\\"], ["\\u"], ["\\x"], ["\\u{"], ["\\0"], ["\\\n"]])("échappements JS et CSS : 2 Mo de %j", (m) => {
+    expect(chrono(() => decoderEchappementsJs(rep(m)))).toBeLessThan(1000);
+    expect(chrono(() => decoderEchappementsCss(rep(m)))).toBeLessThan(1000);
+    expect(chrono(() => verifierMaquette([{ chemin: "a.html", texte: "<script>" + rep(m) }]))).toBeLessThan(1000);
+  });
+  it("les décodeurs lus à la main donnent les mêmes valeurs que les règles décrites", () => {
+    expect(decoderEchappementsJs("\\u0066etch \\u{66}\\x66\\146 a\\\nb \\U{66} \\u{110000} \\q \\N \\")).toBe("fetch fff ab f \\u{110000} q \n \\");
+    expect(decoderEchappementsCss("\\75 rl(\\000075rl \\\nx \\z \\0 \\110000 \\")).toBe("url(url x z \uFFFD\uFFFD\\");
   });
 });
