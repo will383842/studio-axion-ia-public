@@ -10,6 +10,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { PLAN_DEMO } from "@/briques/plan-scenes/demo";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { PHRASE_RENDU_NON_BRANCHE } from "@/services/retouche-chat/service";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
 
 type Lancement = { videoId: string; planIds: string[]; consigne: string; options: { operations?: { type: string; plan?: unknown }[] } };
@@ -51,7 +52,7 @@ const { appliquerOperations } = await import("@/services/retouche-chat/appliquer
 const { CLES_REGLAGE_RETOUCHE } = await import("@/services/retouche-chat/generateurs");
 const { FABRIQUER_PAR_GENERATEUR, fabriquerVersionTutoriel } = await import("@/services/retouche-chat/tutoriel-fabriquer");
 const { POST } = await import("@/app/api/retouche-chat/route");
-const { ZoneFabriquer, versionAFabriquer } = await import("@/components/retouche-chat/ChatRetouche");
+const { ZoneFabriquer, versionAFabriquer, remarquesAffichees } = await import("@/components/retouche-chat/ChatRetouche");
 
 type Deps = NonNullable<Parameters<typeof fabriquerVersionTutoriel>[3]>;
 type VersionLue = NonNullable<Awaited<ReturnType<Deps["lireVersionChoisie"]>>>;
@@ -168,6 +169,25 @@ describe("46b · fabriquerVersionTutoriel : chaque refus tombe AVANT toute rése
     expect(lancer).not.toHaveBeenCalled();
   });
 
+  it("réglages du film illisibles (étape inconnue, champ en trop, texte) : refus « reglages » AVANT le lancement", async () => {
+    for (const mauvais of [{ parEtape: { inconnue: { zoom: "plus" } } }, { parEtape: {}, extra: 1 }, "zoom", 3, [], { parEtape: { e1: { zoom: "enorme" } } }]) {
+      const { lancer, dep } = doubles({ etapeIds: ["e1"] });
+      const r = await fabriquerVersionTutoriel("v", retouche, DEMANDE, dep, mauvais);
+      expect(r).toMatchObject({ statut: "refusee", motif: "reglages" });
+      expect(lancer).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rien de changé (plan identique, réglages absents, nuls ou identiques à ceux d'avant) : refus « identique », rien lancé", async () => {
+    const avant = { parEtape: { e1: { zoom: "plus" } } };
+    for (const [reglages, deja] of [[undefined, undefined], [null, undefined], [{ parEtape: {} }, undefined], [avant, avant]] as [unknown, unknown][]) {
+      const { lancer, dep } = doubles({ etapeIds: ["e1"], reglagesAvant: deja });
+      const r = await fabriquerVersionTutoriel("v", structuredClone(plan), DEMANDE, dep, reglages);
+      expect(r).toMatchObject({ statut: "refusee", motif: "identique" });
+      expect(lancer).not.toHaveBeenCalled();
+    }
+  });
+
   it("aucune phrase de refus ne porte un montant", async () => {
     const cas: [unknown, Partial<VersionLue> | null, unknown][] = [
       [retouche, {}, false],
@@ -194,6 +214,30 @@ describe("46b · fabriquerVersionTutoriel : cas valide", () => {
     const r = await fabriquerVersionTutoriel("v", retouche, `  ${DEMANDE}  `, dep);
     expect(r).toEqual({ statut: "lancee", travailId: "trav-1" });
     expect(lancer).toHaveBeenCalledTimes(1);
+    expect(lancer).toHaveBeenCalledWith("v", [], DEMANDE, { operations: [{ type: "planScenes", plan: retouche }] });
+  });
+
+  it("plan ET film changés : les deux opérations, UN seul lancement", async () => {
+    const reglages = { parEtape: { e1: { zoom: "plus" } } };
+    const { lancer, dep } = doubles({ etapeIds: ["e1"] });
+    const r = await fabriquerVersionTutoriel("v", retouche, DEMANDE, dep, reglages);
+    expect(r).toEqual({ statut: "lancee", travailId: "trav-1" });
+    expect(lancer).toHaveBeenCalledTimes(1);
+    expect(lancer).toHaveBeenCalledWith("v", [], DEMANDE, { operations: [{ type: "planScenes", plan: retouche }, { type: "reglagesFilm", reglages: reglages }] });
+  });
+
+  it("film seul changé (plan identique) : lancé avec la seule opération `reglagesFilm`", async () => {
+    const reglages = { parEtape: { e1: { zoom: "plus" } } };
+    const { lancer, dep } = doubles({ etapeIds: ["e1"], reglagesAvant: { parEtape: { e1: { zoom: "normal" } } } });
+    const r = await fabriquerVersionTutoriel("v", structuredClone(plan), DEMANDE, dep, reglages);
+    expect(r.statut).toBe("lancee");
+    expect(lancer).toHaveBeenCalledTimes(1);
+    expect(lancer).toHaveBeenCalledWith("v", [], DEMANDE, { operations: [{ type: "reglagesFilm", reglages }] });
+  });
+
+  it("plan changé sans réglages : toujours la seule opération `planScenes` (comme avant)", async () => {
+    const { lancer, dep } = doubles({ etapeIds: ["e1"] });
+    await fabriquerVersionTutoriel("v", retouche, DEMANDE, dep, null);
     expect(lancer).toHaveBeenCalledWith("v", [], DEMANDE, { operations: [{ type: "planScenes", plan: retouche }] });
   });
 
@@ -315,6 +359,13 @@ describe("46b · route `fabriquer` (dépôts en mémoire, `lancerRetouche` doubl
     expect(etat.lancements).toEqual([]);
   });
 
+  it("réglages du film : la route les emporte ; illisibles : 400 avant tout lancement", async () => {
+    await depots().versions.enregistrer({ ...(await depots().versions.obtenir("tuto-v1"))!, commande: { formatId: ID, entrees: {} } } as never);
+    const r = await POST(requete(corps("tuto", { reglagesFilm: { parEtape: { inconnue: { zoom: "plus" } } } })));
+    expect(r.status).toBe(400);
+    expect(etat.lancements).toEqual([]);
+  });
+
   it("champ en trop (accord de prix glissé) : 400, rien lancé", async () => {
     expect((await POST(requete(corps("tuto", { confirme: { jeton: "x" } })))).status).toBe(400);
     expect(etat.lancements).toEqual([]);
@@ -373,6 +424,19 @@ describe("46b · écran : bouton « Fabriquer cette version »", () => {
     expect(versionAFabriquer(ID, DEMANDE, { statut: "rendue", versionId: "x" })).toBeNull();
     expect(versionAFabriquer(ID, DEMANDE, { statut: "plan-pret" })).toBeNull();
     expect(versionAFabriquer(ID, DEMANDE, { statut: "plan-pret", plan: "x" })).toBeNull();
+  });
+
+  it("phrase « son rendu se branchera » : retirée quand le bouton est là, gardée sinon ; aucune phrase nouvelle", () => {
+    const remarques = ["Autre remarque.", PHRASE_RENDU_NON_BRANCHE];
+    expect(remarquesAffichees(remarques, true)).toEqual(["Autre remarque."]);
+    expect(remarquesAffichees(remarques, false)).toEqual(remarques);
+    expect(remarquesAffichees([PHRASE_RENDU_NON_BRANCHE], true)).toEqual([]);
+  });
+
+  it("`versionAFabriquer` emporte les réglages du film non vides, et seulement eux", () => {
+    const reglagesFilm = { parEtape: { e1: { zoom: "plus" } } };
+    expect(versionAFabriquer(ID, DEMANDE, { statut: "plan-pret", plan: retouche, reglagesFilm })).toEqual({ demande: DEMANDE, plan: retouche, reglagesFilm });
+    expect(versionAFabriquer(ID, DEMANDE, { statut: "plan-pret", plan: retouche, reglagesFilm: null })).toEqual({ demande: DEMANDE, plan: retouche });
   });
 
   const zone = (p: { pret: boolean; lancee: boolean }) => renderToStaticMarkup(createElement(ZoneFabriquer, { videoId: "tuto", ...p, occupe: false, onFabriquer: () => undefined }));

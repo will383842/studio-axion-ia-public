@@ -1,7 +1,7 @@
 /**
  * « FABRIQUER CETTE VERSION » DU TUTORIEL DEPUIS LE CHAT DE RETOUCHE (T-EXT-46b) — SENSIBLE ARGENT.
  * Le plan retouché (« plan-pret ») part au moteur du tutoriel par `lancerRetouche` (réservation comme un lancement,
- * garde du double envoi) avec la seule opération `planScenes`. Le moteur reprend la voix et le script de la version
+ * garde du double envoi) avec l'opération `planScenes` (si le plan change) et l'opération `reglagesFilm` (si les réglages du film changent). Le moteur reprend la voix et le script de la version
  * d'avant : rien n'est réécrit, Claude n'est pas rappelé.
  * TOUS LES REFUS TOMBENT AVANT `lancerRetouche`, donc avant toute réservation :
  *  - réglage `retoucheChat.tutorielOutil` pas exactement `true` (absent, autre valeur, lecture en échec) ;
@@ -19,6 +19,7 @@ import type { OperationMontage } from "@/moteurs/types";
 import { depots } from "../_commun";
 import type { IdGenerateurRetouche } from "./generateurs";
 import { retoucheChatActifServeur } from "./generateurs-studio";
+import { etapeIdsDuFilm, lireReglagesFilm, operationsDeFabrication } from "./tutoriel-retouche-film";
 
 const GENERATEUR: IdGenerateurRetouche = "tutoriel-outil";
 
@@ -30,6 +31,10 @@ export interface VersionTutorielLue {
   plan: unknown;
   /** La version d'avant porte une voix à reprendre (sinon la retouche la referait). */
   voixGardee: boolean;
+  /** Étapes du film de la version choisie (`etapeIdsDuFilm`) : les réglages du film sont relus sur elles. */
+  etapeIds?: readonly string[];
+  /** Réglages du film de la version choisie (brut), pour ne lancer que ce qui change. */
+  reglagesAvant?: unknown;
 }
 
 export interface DepsFabriquerTutoriel {
@@ -39,7 +44,7 @@ export interface DepsFabriquerTutoriel {
   retoucheChatActif: () => Promise<boolean>;
 }
 
-export type MotifRefusFabriquer = "reglage" | "introuvable" | "generateur" | "diffusion" | "sans-plan" | "voix" | "demande" | "plan-illisible" | "mots" | "format" | "identique" | "echec";
+export type MotifRefusFabriquer = "reglage" | "introuvable" | "generateur" | "diffusion" | "sans-plan" | "voix" | "demande" | "plan-illisible" | "reglages" | "mots" | "format" | "identique" | "echec";
 
 export type IssueFabriquer = { statut: "lancee"; travailId: string } | { statut: "refusee"; motif: MotifRefusFabriquer; raison: string };
 
@@ -53,6 +58,7 @@ export const RAISONS_REFUS_FABRIQUER: Record<MotifRefusFabriquer, string> = {
   voix: "La voix de la version choisie ne peut pas être reprise : rien n'est lancé.",
   demande: "Écrivez d'abord ce que vous voulez changer.",
   "plan-illisible": "Le plan retouché est illisible : rien n'est lancé. Refaites votre demande.",
+  reglages: "Les réglages du film sont illisibles : rien n'est lancé. Refaites votre demande.",
   mots: "Le texte lu de ce plan n'est pas celui de la version choisie : rien n'est lancé. Refaites votre demande sur la version choisie.",
   format: "Le format de ce plan n'est pas celui de la version choisie : rien n'est lancé. Refaites votre demande sur la version choisie.",
   identique: "Ce plan est le même que celui de la version choisie : il n'y a rien à fabriquer.",
@@ -81,7 +87,7 @@ function planRetenu(plan: unknown, avant: PlanBrut) {
 /** Scènes sans leur empreinte ni leur version (recalculées à chaque validation). */
 const scenesNues = (scenes: readonly unknown[]): string => jsonCanonique(scenes.map((s) => (s && typeof s === "object" ? { ...(s as Record<string, unknown>), empreinte: undefined, version: undefined } : s)));
 
-export async function fabriquerVersionTutoriel(videoId: string, plan: unknown, demande: string, dep: DepsFabriquerTutoriel = depsFabriquerStudio()): Promise<IssueFabriquer> {
+export async function fabriquerVersionTutoriel(videoId: string, plan: unknown, demande: string, dep: DepsFabriquerTutoriel = depsFabriquerStudio(), reglagesFilm?: unknown): Promise<IssueFabriquer> {
   // 1. Réglage : éteint tant que la valeur n'est pas `true` exactement ; rien d'autre n'est lu avant.
   let actif: unknown = false;
   try {
@@ -123,11 +129,22 @@ export async function fabriquerVersionTutoriel(videoId: string, plan: unknown, d
   if (!retenu) return refus("plan-illisible");
   const dAvant = planRetenu(avant, avant);
   if (!dAvant) return refus("sans-plan");
-  if (scenesNues(retenu.scenes) === scenesNues(dAvant.scenes) && jsonCanonique(retenu.habillage) === jsonCanonique(dAvant.habillage)) return refus("identique");
+  const planIdentique = scenesNues(retenu.scenes) === scenesNues(dAvant.scenes) && jsonCanonique(retenu.habillage) === jsonCanonique(dAvant.habillage);
+
+  // Les réglages du film demandés : relus sur les étapes du film de la version choisie ; illisibles → refus AVANT le lancement.
+  const etapeIds = lue.etapeIds ?? [];
+  let operationsFilm: OperationMontage[] = [];
+  if (reglagesFilm !== undefined && reglagesFilm !== null) {
+    const recu = lireReglagesFilm(reglagesFilm, etapeIds);
+    if (!recu) return refus("reglages");
+    const avantFilm = (lue.reglagesAvant === undefined || lue.reglagesAvant === null ? null : lireReglagesFilm(lue.reglagesAvant, etapeIds)) ?? { parEtape: {} };
+    if (jsonCanonique(recu) !== jsonCanonique(avantFilm)) operationsFilm = operationsDeFabrication(recu, etapeIds);
+  }
+  if (planIdentique && !operationsFilm.length) return refus("identique");
 
   // 4. Lancement : la réservation et la garde du double envoi sont celles de `lancerRetouche`.
   try {
-    const r = await dep.lancerRetouche(videoId, [], consigne, { operations: [{ type: "planScenes", plan }] });
+    const r = await dep.lancerRetouche(videoId, [], consigne, { operations: [...(planIdentique ? [] : [{ type: "planScenes" as const, plan }]), ...operationsFilm] });
     if (!r || typeof r.travailId !== "string" || !r.travailId) return refus("echec");
     return { statut: "lancee", travailId: r.travailId };
   } catch {
@@ -146,26 +163,28 @@ export function depsFabriquerStudio(): DepsFabriquerTutoriel {
       const video = await d.videos.obtenir(videoId);
       const version = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
       if (!video || !version || version.videoId !== videoId) return null;
-      const tutoriel = (version.projetMontage as { tutoriel?: { plan?: { plan?: unknown }; audio?: unknown } } | undefined)?.tutoriel;
+      const tutoriel = (version.projetMontage as { tutoriel?: { plan?: { plan?: unknown }; audio?: unknown; reglagesFilm?: unknown } } | undefined)?.tutoriel;
       return {
         versionId: version.id,
         formatId: version.commande?.formatId,
         ...(video.etapeEditoriale ? { etapeEditoriale: video.etapeEditoriale } : {}),
         plan: tutoriel?.plan?.plan ?? null,
         voixGardee: !!tutoriel?.audio && typeof tutoriel.audio === "object",
+        etapeIds: etapeIdsDuFilm(version.commande?.entrees),
+        reglagesAvant: tutoriel?.reglagesFilm,
       };
     },
   };
 }
 
-export type Fabricant = (videoId: string, plan: unknown, demande: string) => Promise<IssueFabriquer>;
+export type Fabricant = (videoId: string, plan: unknown, demande: string, reglagesFilm?: unknown) => Promise<IssueFabriquer>;
 
 /**
  * TABLE FERMÉE des générateurs qui savent fabriquer une version depuis le chat : le tutoriel SEUL. Les autres
  * générateurs ne sont pas branchés par ce chantier (décision du fondateur, après le gel du couloir vidéo).
  */
 export const FABRIQUER_PAR_GENERATEUR: Readonly<Partial<Record<IdGenerateurRetouche, Fabricant>>> = Object.freeze({
-  "tutoriel-outil": (videoId: string, plan: unknown, demande: string) => fabriquerVersionTutoriel(videoId, plan, demande),
+  "tutoriel-outil": (videoId: string, plan: unknown, demande: string, reglagesFilm?: unknown) => fabriquerVersionTutoriel(videoId, plan, demande, undefined, reglagesFilm),
 });
 
 /** Statut HTTP de chaque refus, pour la route commune. */
@@ -178,6 +197,7 @@ export const STATUT_REFUS_FABRIQUER: Record<MotifRefusFabriquer, number> = {
   voix: 409,
   demande: 400,
   "plan-illisible": 400,
+  reglages: 400,
   mots: 409,
   format: 409,
   identique: 409,

@@ -11,6 +11,7 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { OperationRetouche } from "@/briques/operations";
 import { ApercuFamille } from "./ApercuFamille";
 import { CollerOperations } from "./CollerOperations";
+import { PHRASE_RENDU_NON_BRANCHE } from "@/services/retouche-chat/service";
 
 export type EnvoiRetouche = (corps: Record<string, unknown>) => Promise<Record<string, unknown>>;
 
@@ -67,12 +68,13 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
     setOccupe(true);
     try {
       const r = await envoyer({ action: "appliquer", videoId, demande: apercu.demande, operations: apercu.operations, ...(apercu.reglagesFilm ? { reglagesFilm: apercu.reglagesFilm } : {}), ...(generateur ? { generateur } : {}) });
-      const remarques = Array.isArray(r.remarques) ? (r.remarques as string[]) : [];
+      const afabriquer = versionAFabriquer(generateur, apercu.demande, r);
+      const remarques = remarquesAffichees(Array.isArray(r.remarques) ? (r.remarques as string[]) : [], afabriquer !== null);
       if (r.statut === "rendue" && typeof r.versionId === "string") {
         setVersions((v) => [...v, r.versionId as string]);
         dire({ auteur: "studio", texte: ["C'est fait : nouvelle version.", ...remarques].join(" ") });
       } else dire({ auteur: "studio", texte: remarques.join(" ") || "Rien n'a changé." });
-      setAFabriquer(versionAFabriquer(generateur, apercu.demande, r));
+      setAFabriquer(afabriquer);
       setApercu(null);
     } catch {
       dire({ auteur: "studio", texte: "La retouche n'est pas partie. Réessayez dans un instant." });
@@ -99,7 +101,7 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
     if (!aFabriquer || occupe) return;
     setOccupe(true);
     try {
-      const r = await envoyer({ action: "fabriquer", generateur: GENERATEUR_FABRICABLE, videoId, demande: aFabriquer.demande, plan: aFabriquer.plan });
+      const r = await envoyer({ action: "fabriquer", generateur: GENERATEUR_FABRICABLE, videoId, demande: aFabriquer.demande, plan: aFabriquer.plan, ...(aFabriquer.reglagesFilm !== undefined ? { reglagesFilm: aFabriquer.reglagesFilm } : {}) });
       if (r.statut === "lancee") {
         setFabricationLancee(true);
         setAFabriquer(null);
@@ -173,13 +175,21 @@ const GENERATEUR_FABRICABLE = "tutoriel-outil";
 export interface VersionAFabriquer {
   demande: string;
   plan: unknown;
+  /** Réglages du film demandés (non vides), à envoyer avec la fabrication. */
+  reglagesFilm?: unknown;
 }
 
 /** T-EXT-46b : le plan à fabriquer, seulement pour une issue « plan-pret » du tutoriel qui porte son plan ; sinon `null`. */
 export function versionAFabriquer(generateur: string | undefined, demande: string, reponse: Record<string, unknown>): VersionAFabriquer | null {
   if (generateur !== GENERATEUR_FABRICABLE || reponse.statut !== "plan-pret") return null;
   const plan = reponse.plan;
-  return plan && typeof plan === "object" ? { demande, plan } : null;
+  if (!plan || typeof plan !== "object") return null;
+  return reponse.reglagesFilm ? { demande, plan, reglagesFilm: reponse.reglagesFilm } : { demande, plan };
+}
+
+/** T-EXT-46b : quand le bouton de fabrication est là, la phrase « son rendu se branchera… » serait contradictoire : elle n'est pas affichée (aucune phrase nouvelle). */
+export function remarquesAffichees(remarques: readonly string[], fabricable: boolean): string[] {
+  return remarques.filter((m) => !(fabricable && m === PHRASE_RENDU_NON_BRANCHE));
 }
 
 /** T-EXT-46b : bouton « Fabriquer cette version », puis la phrase et le lien de suivi. Aucun montant. Rien si rien à fabriquer. */

@@ -26,7 +26,7 @@ const schemaCorps = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("historique"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
   z.strictObject({ action: z.literal("retablir"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
   // T-EXT-46b : « fabriquer » la version du plan retouché ; `generateur` OBLIGATOIRE, aucun accord de prix ni autre champ.
-  z.strictObject({ action: z.literal("fabriquer"), generateur: z.string().max(40), videoId: z.string().min(1).max(80), demande: z.string().max(1000), plan: z.unknown() }),
+  z.strictObject({ action: z.literal("fabriquer"), generateur: z.string().max(40), videoId: z.string().min(1).max(80), demande: z.string().max(1000), plan: z.unknown(), reglagesFilm: z.unknown().optional() }),
 ]);
 
 export async function POST(requete: NextRequest) {
@@ -48,7 +48,7 @@ export async function POST(requete: NextRequest) {
   if (c.action === "fabriquer") {
     const fabricant = Object.hasOwn(FABRIQUER_PAR_GENERATEUR, c.generateur) ? FABRIQUER_PAR_GENERATEUR[c.generateur] : undefined;
     if (!fabricant) return NextResponse.json({ erreur: "La fabrication depuis le chat n'est pas encore branchée pour ce générateur." }, { status: 409 });
-    const issue = await fabricant(c.videoId, c.plan, c.demande);
+    const issue = await fabricant(c.videoId, c.plan, c.demande, c.reglagesFilm);
     if (issue.statut === "refusee") return NextResponse.json({ erreur: issue.raison }, { status: STATUT_REFUS_FABRIQUER[issue.motif] });
     return NextResponse.json({ statut: "lancee", travailId: issue.travailId });
   }
