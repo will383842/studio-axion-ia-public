@@ -504,12 +504,16 @@ describe("colonnes de personnes : valeur entière masquée (verdict Opus 05e6ac9
     expect(detecterDonneesPersonnelles('id,ville,nom\n1,"Paris\nLyon",Martin\n', { chemin: "a.csv" }).map((x) => x.type)).toEqual(["colonne-personne"]);
     expect(detecterDonneesPersonnelles('id,ville\n1,"Paris"\n', { chemin: "a.csv" })).toEqual([]);
   });
-  it("2f. JSON : chaîne jamais refermée dans une clé qui n'est pas de personne → la colonne de personne suivante reste masquée", () => {
-    const sortie = m('{"ville":"Paris, "nom":"Jean Dupont"}', "d.json");
-    expect(sortie).not.toContain("Jean");
-    expect(sortie).not.toContain("Dupont");
-    const fin = m('{"nom":"Jean Dupont', "d.json");
-    expect(fin).not.toContain("Dupont");
+  it("2f. JSON : chaîne jamais refermée dans une clé qui n'est pas de personne → fichier REFUSÉ (verdict e00ce935 : plus strict qu'un masquage de JSON invalide ; les `not.toContain` sont gardés)", () => {
+    for (const t of ['{"ville":"Paris, "nom":"Jean Dupont"}', '{"nom":"Jean Dupont']) {
+      const d = detecterDonneesPersonnelles(t, { chemin: "d.json" });
+      expect(d.map((x) => x.type)).toEqual(["json-illisible"]);
+      const sortie = m(t, "d.json");
+      expect(sortie).toBe("");
+      expect(sortie).not.toContain("Jean");
+      expect(sortie).not.toContain("Dupont");
+      expect(JSON.stringify(d)).not.toMatch(/Jean|Dupont/);
+    }
   });
   it("3. CSV séparé par des tabulations : le nom est masqué", () => {
     const sortie = m("nom\temail\nJean Dupont\tjean@orange.fr\n", "a.csv");
@@ -1332,7 +1336,9 @@ describe("verdict Opus cdbfbcda : JSON, aucune valeur sous une clé de personne 
   });
   it("témoins : littéral seul ou tableau de texte neutre sous une clé de personne : rien à signaler", () => {
     expect(detecterDonneesPersonnelles('{"nom": ["Entreprise exemple"], "telephone": null}', { chemin: "a.json" })).toEqual([]);
-    expect(detecterDonneesPersonnelles('{"nom":{"a":true,"b":null}}', { chemin: "a.json" })).toEqual([]);
+    // verdict e00ce935 : une clé sous une clé de personne est une donnée (`{"nom":{"Jean Dupont":true}}`) ; seul un nom de colonne de
+    // personne reste tel quel. Le témoin utilise donc des clés qui sont des noms de colonne (même attente : rien à signaler).
+    expect(detecterDonneesPersonnelles('{"adresse":{"nom":true,"telephone":null}}', { chemin: "a.json" })).toEqual([]);
   });
   it("JSON invalide sous une clé de personne : mot nu, caractère inattendu, fermant manquant : rien en clair", () => {
     for (const t of ['{"nom":{"a":Jean Dupont,"b":"Paul Martin"}}', '{"nom":{"a":true x,"b":"Jean Dupont"}}', '{"nom":{"a":],"b":"Jean Dupont"}}', '{"nom":{"a":"x" "b":"Jean Dupont"', '{"nom":{"a":,"b":Jean}}']) {
@@ -1503,5 +1509,355 @@ describe("verdict Opus cdbfbcda : nom d'attribut recopié dans le motif de refus
     const motifs = r.refus.map((x) => x.motif).join(" ");
     expect(motifs).toContain("adresse externe");
     expect(motifs).not.toContain("x".repeat(40));
+  });
+});
+
+describe("verdict Opus e00ce935 (1) : caractère de contrôle C0 / « UTF-8 valide mais pas du texte » → refus pour TOUS les fichiers texte", () => {
+  const SEPS = [",", ";", "\t", "|"] as const;
+  const FINS = ["\n", "\r\n", "\r"] as const;
+  const MOTIF = /Jean|Dupont|orange|06 12|Martin/;
+  /** UTF-16 sans BOM lu comme UTF-8 : un U+0000 entre chaque caractère (LE : après ; BE : avant). */
+  const u16 = (t: string, be = false): string => [...t].map((c) => (be ? `\u0000${c}` : `${c}\u0000`)).join("");
+  const csvDe = (S: string, E: string): string => (S === "|" ? `sep=|${E}` : "") + `id${S}nom${E}1${S}Jean Dupont${E}`;
+  const EXTENSIONS = ["a.csv", "a.json", "notes.txt", "notes.md", "script.txt", "voix-off.txt"] as const;
+
+  it("les 9 entrées du verdict : refusées, sous chaque extension texte, sans recopier la valeur", () => {
+    const entrees = [
+      u16("id,nom\n1,Jean Dupont\n"),
+      u16("id,nom\n1,Jean Dupont\n", true),
+      u16('{"nom":"Jean Dupont"}'),
+      u16("jean.dupont@orange.fr"),
+      u16("06 12 34 56 78"),
+      u16("Appelez le 06 12 34 56 78"),
+      "id,nom\u000b1,Jean Dupont\u000b",
+      "id,nom\u000c1,Jean Dupont\u000c",
+      "id,n\u0000om\n1,Jean Dupont\n",
+    ];
+    for (const e of entrees) {
+      for (const chemin of EXTENSIONS) {
+        const d = detecterDonneesPersonnelles(e, { chemin });
+        expect(d.map((x) => x.type), `${chemin} ${JSON.stringify(e)}`).toEqual(["caractere-controle"]);
+        expect(JSON.stringify(d)).not.toMatch(MOTIF);
+        const sortie = masquerDonneesPersonnelles(e, { chemin });
+        expect(sortie.texte).toBe("");
+        expect(sortie.remplacements).toEqual([{ type: "caractere-controle", nombre: 1 }]);
+      }
+    }
+  });
+  it("le script (sans chemin, comme refuserScriptAvecDonnees) : refus « caractère de contrôle » avant toute détection, ligne sans la valeur", () => {
+    const r = refuserScriptAvecDonnees("script-final.txt", `Bonjour\n${u16("Appelez le 06 12 34 56 78")}`);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toContain("caractère de contrôle");
+    expect(r[0]).toContain("ligne 2");
+    expect(r[0]).not.toMatch(MOTIF);
+    // un script sain n'est pas refusé
+    expect(refuserScriptAvecDonnees("script.txt", "Bienvenue chez Entreprise exemple.\tOK\r\n")).toEqual([]);
+  });
+  it.each(SEPS.flatMap((S) => FINS.map((E) => [JSON.stringify(S), JSON.stringify(E), S, E] as const)))("séparateur %s, fin de ligne %s : CSV en UTF-16 (LE et BE) et avec U+000B / U+000C / U+0000 → refusé", (_s, _e, S, E) => {
+    const base = csvDe(S, E);
+    for (const t of [u16(base), u16(base, true), base.replaceAll(E, "\u000b"), base.replaceAll(E, "\u000c"), base.replace("nom", "n\u0000om")]) {
+      const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+      expect(d.map((x) => x.type), JSON.stringify(t)).toEqual(["caractere-controle"]);
+      expect(masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte).toBe("");
+    }
+  });
+  it("chaque C0 sauf tabulation, \\n et \\r est refusé (csv, json, txt, md) ; le saut de page reste permis dans les maquettes seulement", () => {
+    for (let c = 0; c < 32; c++) {
+      const car = String.fromCharCode(c);
+      for (const chemin of ["a.csv", "a.json", "n.txt", "n.md"]) {
+        const t = chemin.endsWith(".json") ? `{"ville":"Paris${car}"}` : `ville${car}Paris`;
+        const types = detecterDonneesPersonnelles(t, { chemin }).map((x) => x.type);
+        if (c === 9 || c === 10 || c === 13) expect(types, `${chemin} U+${c}`).not.toContain("caractere-controle");
+        else expect(types, `${chemin} U+${c}`).toEqual(["caractere-controle"]);
+      }
+      // maquettes : le saut de page (U+000C) est permis ici (verifierMaquette garde son propre contrôle)
+      const maq = detecterDonneesPersonnelles(`a${car}b`, { chemin: "a.html" }).map((x) => x.type);
+      if (c === 9 || c === 10 || c === 12 || c === 13) expect(maq, `html U+${c}`).not.toContain("caractere-controle");
+      else expect(maq, `html U+${c}`).toEqual(["caractere-controle"]);
+    }
+  });
+  it("témoins : tabulation, \\r\\n, \\r et BOM UTF-8 restent acceptés, noms masqués", () => {
+    for (const t of ["id,nom\r\n1,Jean Dupont\r\n", "id,nom\r1,Jean Dupont\r", "﻿id,nom\n1,Jean Dupont\n", "id\tnom\n1\tJean Dupont\n"]) {
+      const types = detecterDonneesPersonnelles(t, { chemin: "a.csv" }).map((x) => x.type);
+      expect(types, JSON.stringify(t)).toEqual(["colonne-personne"]);
+      expect(masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte).not.toMatch(/Jean|Dupont/);
+    }
+    expect(detecterDonneesPersonnelles("Bonjour\tà tous\r\nFin", { chemin: "notes.txt" })).toEqual([]);
+    expect(detecterDonneesPersonnelles('{"ville":\t"Paris"}\r\n', { chemin: "a.json" })).toEqual([]);
+  });
+});
+
+describe("verdict Opus e00ce935 (2a) : tout .json que JSON.parse rejette est refusé avant toute détection", () => {
+  const INVALIDES = [
+    '{"nom": Jean Dupont}',
+    "{\"nom\": 'Jean Dupont'}",
+    "{'nom':'Jean Dupont'}",
+    '{"ville":"Paris","nom" "Jean Dupont"}',
+    '{"nom"::"Jean Dupont"}',
+    '{"nom": /* x */ "Jean Dupont"}',
+    '{"nom":{a:"Jean Dupont"}}',
+    '{"ville":"Paris, "nom":"Jean Dupont"}',
+    '{"nom":{"a":Jean Dupont,"b":"Paul Martin"}}',
+    '{"nom":{"a":true x,"b":"Jean Dupont"}}',
+    '{"nom":{"a":],"b":"Jean Dupont"}}',
+    '{"nom":{"a":"x" "b":"Jean Dupont"',
+    '{"nom":{"a":,"b":Jean}}',
+    '{"nom":"Jean Dupont',
+    '{"nom":"Jean"}{"nom":"Paul Martin"}', // objets collés
+    '{"nom":"Jean"}\n{"nom":"Paul Martin"}\n', // NDJSON
+    '{"nom":"Jean Dupont",}', // virgule finale
+    '[{"nom":"Jean Dupont"},]',
+    '{"nom":​"Jean Dupont"}',
+    "",
+  ];
+  it.each(INVALIDES.map((t) => [JSON.stringify(t), t] as const))("%s : refusé, ligne seulement", (_n, t) => {
+    const d = detecterDonneesPersonnelles(t, { chemin: "a.json" });
+    expect(d.map((x) => x.type)).toEqual(["json-illisible"]);
+    expect(d[0]!.ligne).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(d)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    expect(masquerDonneesPersonnelles(t, { chemin: "a.json" }).texte).toBe("");
+  });
+  it("la ligne du refus est celle de l'erreur (ligne 3 ici)", () => {
+    const d = detecterDonneesPersonnelles('{\n"ville":"Paris",\n"nom" "Jean Dupont"\n}', { chemin: "a.json" });
+    expect(d[0]!.type).toBe("json-illisible");
+    expect(d[0]!.ligne).toBeGreaterThanOrEqual(1);
+  });
+  it("témoins : JSON strictement valide (indentations 0, 1, 2, tabulation, \\r\\n) reste masqué, jamais refusé", () => {
+    const doc = { ville: "Paris", nom: "Jean Dupont", liste: [{ adresse: "12 rue des Lilas" }] };
+    for (const ind of [0, 1, 2, "\t"]) {
+      for (const fin of ["\n", "\r\n"]) {
+        const t = JSON.stringify(doc, null, ind).replaceAll("\n", fin);
+        const d = detecterDonneesPersonnelles(t, { chemin: "a.json" });
+        expect(d.map((x) => x.type), JSON.stringify(t)).toEqual(["colonne-personne", "colonne-personne"]);
+        expect(() => JSON.parse(masquerDonneesPersonnelles(t, { chemin: "a.json" }).texte)).not.toThrow();
+      }
+    }
+    expect(detecterDonneesPersonnelles('{"ville":"Paris"}', { chemin: "a.json" })).toEqual([]);
+  });
+  it("temps linéaire : 300 000 niveaux valides et 5 Mo piégés restent sous 2 s", () => {
+    for (const t of [`{"nom":${"[".repeat(200_000)}"Jean Dupont"${"]".repeat(200_000)}}`, `{"nom":{${'"a":null,'.repeat(150_000)}"b":"Jean Dupont"}}`, `{"nom": ${"x".repeat(5_000_000)}}`]) {
+      const t0 = performance.now();
+      const r = masquerDonneesPersonnelles(t, { chemin: "a.json" }).texte;
+      expect(performance.now() - t0).toBeLessThan(2000);
+      expect(r).not.toMatch(/Jean|Dupont/);
+    }
+  });
+});
+
+describe("verdict Opus e00ce935 (2b) : clé JSON écrite avec des échappements, et clé qui est une donnée", () => {
+  const NOMS2 = /Jean|Dupont|Paul|Martin|Lilas/;
+  const masque = (t: string): string => masquerDonneesPersonnelles(t, { chemin: "a.json" }).texte;
+  it.each([
+    ['{"pr\\u00e9nom": "Jean", "ville": "Paris"}'],
+    ['{"n\\u006fm":"Jean Dupont"}'],
+    ['{"\\u006eom":"Jean Dupont"}'],
+    ['{"t\\u00e9l\\u00e9phone":"06 12 34 56 78"}'],
+    ['{"\\u0065mail":"Paul Martin"}'],
+    ['{"ville":"Paris","n\\u006fm":{"a":"Jean Dupont"}}'],
+    ['{"\\u0061dresse":["12 rue des Lilas"]}'],
+    ['{"n\\\\om":"x","nom":"Jean Dupont"}'],
+  ])("clé échappée %s : valeur masquée, JSON rendu valide", (t) => {
+    const s = masque(t);
+    expect(s).not.toMatch(NOMS2);
+    expect(s).not.toMatch(/06 12/);
+    expect(() => JSON.parse(s)).not.toThrow();
+  });
+  it("la sortie par défaut de json.dumps (ensure_ascii) pour prénom et téléphone est masquée", () => {
+    const t = JSON.stringify({ prénom: "Jean", téléphone: "0612345678", ville: "Paris" }).replace(/[^\x00-\x7f]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+    expect(t).toContain("\\u00e9");
+    const s = masque(t);
+    expect(s).not.toMatch(/Jean|0612345678/);
+    expect(s).toContain("Paris");
+    expect(() => JSON.parse(s)).not.toThrow();
+  });
+  it.each([
+    ['{"nom":{"Jean Dupont":true}}'],
+    ['{"nom":{"Jean Dupont":{"Paul Martin":null}}}'],
+    ['{"adresse":{"12 rue des Lilas":1}}'],
+    ['{"nom":{"Jean\\u0020Dupont":true}}'],
+    ['{"clients":[{"adresse":{"12 rue des Lilas":null,"ville":"Paris"}}]}'],
+    ['{"nom":[{"Jean Dupont":"x"},{"Paul Martin":"y"}]}'],
+  ])("clé qui est une donnée sous une clé de personne %s : masquée, JSON rendu valide", (t) => {
+    const s = masque(t);
+    expect(s).not.toMatch(NOMS2);
+    expect(() => JSON.parse(s)).not.toThrow();
+  });
+  it("une clé qui est un nom de colonne de personne reste (structure sans donnée) ; sa valeur est masquée", () => {
+    const s = masque('{"adresse":{"nom":"Jean Dupont"}}');
+    expect(s).toContain('"nom"');
+    expect(s).not.toMatch(NOMS2);
+  });
+  it("hors d'une clé de personne, les clés ne sont pas touchées", () => {
+    expect(detecterDonneesPersonnelles('{"Jean Dupont":{"ville":"Paris"}}', { chemin: "a.json" })).toEqual([]);
+  });
+});
+
+describe("verdict Opus e00ce935 (3) : CSV aux fins de ligne mélangées (hors guillemets) avec une colonne de personne → refusé", () => {
+  const SEPS = [",", ";", "\t", "|"] as const;
+  const FINS = ["\n", "\r\n", "\r", " ", " ", "\u0085"] as const;
+  const sepl = (S: string, E: string): string => (S === "|" ? `sep=|${E}` : "");
+  it.each(SEPS.map((S) => [JSON.stringify(S), S] as const))("séparateur %s : toute paire de fins de ligne différentes → refusé, aucun nom recopié", (_s, S) => {
+    for (const E1 of FINS) {
+      for (const E2 of FINS) {
+        if (E1 === E2) continue;
+        const t = `${sepl(S, E1)}id${S}nom${E1}1${S}Jean Dupont${E2}2${S}Paul Martin${E1}`;
+        const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+        expect(d.map((x) => x.type), JSON.stringify(t)).toEqual(["fins-de-ligne-melangees"]);
+        expect(JSON.stringify(d)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+        expect(masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte).toBe("");
+      }
+    }
+  });
+  it("l'entrée du verdict : un \\r isolé dans le nom d'un CSV en \\r\\n", () => {
+    for (const t of ["id,nom\r\n1,Jean\rDupont,x\r\n", "id,nom\n1,Jean Dupont,x\n"]) {
+      expect(detecterDonneesPersonnelles(t, { chemin: "a.csv" }).map((x) => x.type)).toEqual(["fins-de-ligne-melangees"]);
+    }
+  });
+  it("témoins : une seule sorte de fin de ligne (6 sortes, 4 séparateurs), \\n dans une cellule entre guillemets sous \\r\\n, dernière ligne sans fin, et fichier SANS colonne de personne : acceptés", () => {
+    for (const S of SEPS) {
+      for (const E of FINS) {
+        const t = `${sepl(S, E)}id${S}nom${E}1${S}Jean Dupont${E}2${S}Paul Martin`;
+        expect(detecterDonneesPersonnelles(t, { chemin: "a.csv" }).map((x) => x.type), JSON.stringify(t)).toEqual(["colonne-personne", "colonne-personne"]);
+      }
+    }
+    expect(detecterDonneesPersonnelles('id,ville,nom\r\n1,"Paris\nCentre",Jean Dupont\r\n', { chemin: "a.csv" }).map((x) => x.type)).toEqual(["colonne-personne"]);
+    expect(detecterDonneesPersonnelles("id,ville\r\n1,Paris\n2,Lyon\r", { chemin: "a.csv" })).toEqual([]);
+  });
+});
+
+describe("verdict Opus e00ce935 : propriétés à graine fixe (nouvelles familles)", () => {
+  const MARQUEUR = /Zorg\d+qx/;
+  const C0_REFUSES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
+  it("CSV (4 séparateurs, 3 fins de ligne, UTF-16 sans BOM ou C0 glissé) : jamais de nom en clair en sortie, refus si un C0 est présent", () => {
+    const hasard = graine(41_5001);
+    const choix = <T,>(l: readonly T[]): T => l[Math.floor(hasard() * l.length)]!;
+    let refuses = 0;
+    let acceptes = 0;
+    for (let essai = 0; essai < 3000; essai++) {
+      const S = choix([",", ";", "\t", "|"]);
+      const E = choix(["\n", "\r\n", "\r"]);
+      const lignes = [`id${S}nom${S}ville`];
+      for (let i = 0; i < 1 + Math.floor(hasard() * 4); i++) lignes.push(`${i}${S}Zorg${essai}x${i}qx${S}Paris`);
+      let t = (S === "|" ? `sep=|${E}` : "") + lignes.join(E) + E;
+      const mode = hasard();
+      let avecC0 = false;
+      if (mode < 0.3) {
+        t = [...t].map((c) => c + "\u0000").join("");
+        avecC0 = true;
+      } else if (mode < 0.6) {
+        const p = Math.floor(hasard() * t.length);
+        t = t.slice(0, p) + String.fromCharCode(choix(C0_REFUSES)) + t.slice(p);
+        avecC0 = true;
+      }
+      const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+      const s = masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte;
+      if (avecC0) {
+        expect(d.map((x) => x.type), JSON.stringify(t)).toEqual(["caractere-controle"]);
+        expect(s).toBe("");
+        refuses++;
+      } else {
+        expect(s, JSON.stringify(t)).not.toMatch(MARQUEUR);
+        acceptes++;
+      }
+    }
+    expect(refuses).toBeGreaterThan(1000);
+    expect(acceptes).toBeGreaterThan(1000);
+  });
+  it("JSON : valide = valeurs ET clés de données masquées (clés échappées en \\uXXXX comprises, JSON rendu valide) ; invalide (texte corrompu) = refusé", () => {
+    const hasard = graine(41_5002);
+    const choix = <T,>(l: readonly T[]): T => l[Math.floor(hasard() * l.length)]!;
+    let compteur = 0;
+    const marqueurs: string[] = [];
+    const PERSONNE = ["nom", "prénom", "adresse", "email", "téléphone", "iban"];
+    const AUTRES = ["ville", "id", "a", "b", "actif"];
+    const gen = (prof: number, sous: boolean): unknown => {
+      const t = hasard();
+      if (prof <= 0 || t < 0.4) {
+        if (hasard() < 0.5) {
+          const m = `Zorg${++compteur}qx`;
+          if (sous) marqueurs.push(m);
+          return m;
+        }
+        return choix([true, false, null, 3]);
+      }
+      if (t < 0.65) return Array.from({ length: Math.floor(hasard() * 4) }, () => gen(prof - 1, sous));
+      const o: Record<string, unknown> = {};
+      const n = Math.floor(hasard() * 5);
+      for (let i = 0; i < n; i++) {
+        const p = hasard() < 0.4;
+        let c = p ? choix(PERSONNE) : choix(AUTRES);
+        if (sous && hasard() < 0.4) {
+          c = `Zorg${++compteur}qx`; // clé qui est une donnée sous une clé de personne
+          marqueurs.push(c);
+        }
+        o[c] = gen(prof - 1, sous || (p && PERSONNE.includes(c)));
+      }
+      return o;
+    };
+    // échappe en \uXXXX tout caractère non ASCII, et au hasard des lettres des clés
+    const echappe = (j: string): string => j.replace(/"((?:[^"\\]|\\.)*)"(?=\s*:)/g, (_m, cle: string) => `"${[...cle].map((c) => (c.charCodeAt(0) > 127 || (hasard() < 0.4 && /[a-z]/.test(c)) ? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}` : c)).join("")}"`);
+    let avecMarqueur = 0;
+    let refuses = 0;
+    for (let essai = 0; essai < 4000; essai++) {
+      marqueurs.length = 0;
+      const doc = gen(2 + Math.floor(hasard() * 5), false);
+      let t = echappe(JSON.stringify(doc, null, choix([0, 1, 2])));
+      if (marqueurs.length > 0) avecMarqueur++;
+      const corrompu = hasard() < 0.3;
+      if (corrompu && t.length > 2) {
+        const p = Math.floor(hasard() * t.length);
+        t = t.slice(0, p) + choix(['"', "'", ",", ":", "{", "}", "[", "]", "x", " Jean ", "/*", "\\"]) + t.slice(p + (hasard() < 0.5 ? 1 : 0));
+      }
+      let valide = true;
+      try {
+        JSON.parse(t);
+      } catch {
+        valide = false;
+      }
+      const d = detecterDonneesPersonnelles(t, { chemin: "a.json" });
+      const s = masquerDonneesPersonnelles(t, { chemin: "a.json" }).texte;
+      if (!valide) {
+        expect(d.map((x) => x.type), t).toEqual(["json-illisible"]);
+        expect(s).toBe("");
+        refuses++;
+      } else {
+        // un texte corrompu mais encore valide peut avoir changé un nom de clé de personne : seul le JSON valide intact garantit les marqueurs
+        if (!corrompu) for (const m of marqueurs) expect(s.includes(m), `${m} dans ${t}`).toBe(false);
+        expect(() => JSON.parse(s), t).not.toThrow();
+      }
+    }
+    expect(avecMarqueur).toBeGreaterThan(500);
+    expect(refuses).toBeGreaterThan(300);
+  });
+  it("CSV à fins de ligne tirées au hasard par ligne : une seule sorte = masqué sans nom ; plusieurs sortes = refusé", () => {
+    const hasard = graine(41_5003);
+    const choix = <T,>(l: readonly T[]): T => l[Math.floor(hasard() * l.length)]!;
+    const FINS = ["\n", "\r\n", "\r", " ", " ", "\u0085"];
+    let mixtes = 0;
+    let uniques = 0;
+    for (let essai = 0; essai < 3000; essai++) {
+      const S = choix([",", ";", "\t"]);
+      const nb = 2 + Math.floor(hasard() * 4);
+      const pool = hasard() < 0.5 ? [choix(FINS)] : FINS;
+      let t = "";
+      const vues = new Set<string>();
+      for (let i = 0; i < nb; i++) {
+        const E = choix(pool);
+        vues.add(E);
+        t += (i === 0 ? `id${S}nom${S}ville` : `${i}${S}Zorg${essai}x${i}qx${S}Paris`) + E;
+      }
+      const d = detecterDonneesPersonnelles(t, { chemin: "a.csv" });
+      const s = masquerDonneesPersonnelles(t, { chemin: "a.csv" }).texte;
+      if (vues.size > 1) {
+        expect(d.map((x) => x.type), JSON.stringify(t)).toEqual(["fins-de-ligne-melangees"]);
+        expect(s).toBe("");
+        mixtes++;
+      } else {
+        expect(s, JSON.stringify(t)).not.toMatch(MARQUEUR);
+        uniques++;
+      }
+    }
+    expect(mixtes).toBeGreaterThan(500);
+    expect(uniques).toBeGreaterThan(500);
   });
 });

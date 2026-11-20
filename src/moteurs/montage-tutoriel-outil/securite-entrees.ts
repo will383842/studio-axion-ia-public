@@ -722,6 +722,8 @@ function verifierCss(chemin: string, brut: string, base: number, source: string,
 
 /** Un caractère de contrôle C0 permis seulement : tabulation (9), \n (10), saut de page (12), \r (13). */
 const CONTROLE_C0 = /[\u0000-\u0008\u000b\u000e-\u001f]/;
+/** Fichiers texte hors maquette : tout C0 sauf tabulation, \n et \r (le saut de page U+000C est refusé aussi). */
+const CONTROLE_TEXTE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/;
 
 /** Vérifie les fichiers html, css et js de la maquette. Les autres types ne sont pas lus ici. */
 export function verifierMaquette(fichiers: readonly { chemin: string; texte: string }[]): { ok: boolean; refus: RefusMaquette[] } {
@@ -845,7 +847,31 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
 // ───────────────────────── Données de personnes ─────────────────────────
 
 /** "detection-echouee" : la détection elle-même a échoué ; on ne sait pas, donc on refuse (jamais « aucune donnée »). */
-export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne" | "detection-echouee" | "guillemet-non-ferme";
+export type TypeDonnee =
+  | "courriel"
+  | "telephone"
+  | "iban"
+  | "carte"
+  | "nir"
+  | "colonne-personne"
+  | "detection-echouee"
+  | "guillemet-non-ferme"
+  | "caractere-controle"
+  | "json-illisible"
+  | "fins-de-ligne-melangees";
+/** Types qui ne sont pas une donnée mais un REFUS du fichier entier (jamais rendu, jamais masqué). */
+type TypeRefus = "detection-echouee" | "guillemet-non-ferme" | "caractere-controle" | "json-illisible" | "fins-de-ligne-melangees";
+const MOTIFS_REFUS: Record<TypeRefus, string> = {
+  "detection-echouee": "la recherche de données de personnes a échoué, le fichier est refusé",
+  "guillemet-non-ferme": "guillemet jamais refermé dans le CSV, le fichier est refusé",
+  "caractere-controle": "caractère de contrôle dans le texte (UTF-16 sans BOM, ou fichier qui n'est pas du texte), le fichier est refusé",
+  "json-illisible": "JSON illisible (JSON.parse le rejette), le fichier est refusé",
+  "fins-de-ligne-melangees": "fins de ligne mélangées dans un CSV qui a une colonne de personne, le fichier est refusé",
+};
+/** Motif de refus d'une détection de refus (jamais la valeur trouvée), ou `undefined` si c'est une vraie donnée. */
+export function motifRefusDetection(d: Detection): string | undefined {
+  return (MOTIFS_REFUS as Record<string, string | undefined>)[d.type];
+}
 export interface Detection {
   type: TypeDonnee;
   ligne: number;
@@ -864,7 +890,7 @@ export interface OptionsDonnees {
 
 const DOMAINES_EXEMPLE = new Set(["exemple.fr", "exemple.com", "example.com", "example.org"]);
 const COLONNES_PERSONNE = new Set(["nom", "prenom", "prénom", "email", "courriel", "telephone", "téléphone", "adresse", "date_naissance", "iban"]);
-const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | "detection-echouee" | "guillemet-non-ferme">, string> = {
+const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | TypeRefus>, string> = {
   courriel: "contact@exemple.fr",
   telephone: "01 00 00 00 00",
   iban: "FR00 0000 0000 0000 0000 0000 000",
@@ -930,11 +956,22 @@ function estInvisible(c: number): boolean {
  * Chaque cellule quotée dont la lecture est ambiguë (texte après le guillemet fermant, ou fin de ligne ET séparateur dedans)
  * porte `ambigu` : `detecterColonnes` refuse le fichier si elle n'est pas dans une colonne de personne.
  */
+interface EtatCsv {
+  nonFerme: boolean;
+  pos: number;
+  /** Types de fin de ligne vus HORS guillemets au dernier parcours (bits : 1 `\n`, 2 `\r\n`, 4 `\r`, 8 U+2028, 16 U+2029, 32 U+0085). */
+  fins: number;
+  /** Position de la 1re fin de ligne d'un autre type que la 1re, ou -1. */
+  diff: number;
+}
+const BIT_FIN: Record<string, number> = { "\n": 1, "\r": 4, "\u2028": 8, "\u2029": 16, "\u0085": 32 };
+
 function lireCsv(
   texte: string,
   separateur: string,
-  etat: { nonFerme: boolean; pos: number },
+  etat: EtatCsv,
   garder = Infinity,
+  brut?: string,
 ): { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[][] {
   const lignes: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[][] = [];
   const vide: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[] = [];
@@ -943,6 +980,8 @@ function lireCsv(
   let ligne: { valeur: string; debut: number; fin: number; nu?: boolean; ambigu?: boolean }[] = garder > 0 ? [] : vide;
   let toutVide = true; // la ligne en cours ne contient que des cellules vides non quotées
   const n = texte.length;
+  etat.fins = 0;
+  etat.diff = -1;
   let i = 0;
   for (;;) {
     let delimiteur: string | undefined;
@@ -1005,6 +1044,13 @@ function lireCsv(
     }
     toutVide = true;
     if (i >= n) break;
+    if (brut !== undefined) {
+      // Fin de ligne HORS guillemets (la cellule est finie) : son type d'origine, avant la normalisation en `\n`.
+      const o = brut[i]!;
+      const bit = o === "\n" ? (i > 0 && brut[i - 1] === "\r" ? 2 : 1) : (BIT_FIN[o] ?? 1);
+      if (etat.fins !== 0 && (etat.fins & bit) === 0 && etat.diff < 0) etat.diff = i;
+      etat.fins |= bit;
+    }
     i += 1;
     if (i >= n) break;
   }
@@ -1034,6 +1080,21 @@ function nomColonne(valeur: string): string {
   return v.normalize("NFKC").toLowerCase();
 }
 
+/**
+ * Texte d'une clé JSON de `texte[i]` (guillemet ouvrant) à `texte[k]` (fermant), échappements décodés (`pr\u00e9nom` vaut
+ * `prénom`, la sortie par défaut de `json.dumps` de Python). Chemin rapide sans barre oblique inverse ; temps linéaire.
+ */
+function texteCle(texte: string, i: number, k: number): string {
+  const brut = texte.slice(i + 1, k);
+  if (!brut.includes("\\")) return brut;
+  try {
+    const decode: unknown = JSON.parse(texte.slice(i, k + 1));
+    return typeof decode === "string" ? decode : brut;
+  } catch {
+    return brut;
+  }
+}
+
 /** Nombre de lignes du début d'un CSV où l'on cherche l'en-tête (ligne `sep=;`, titre d'export…). */
 const LIGNES_ENTETE_MAX = 10;
 
@@ -1041,7 +1102,7 @@ function detecterColonnes(
   texteBrut: string,
   ext: string,
   neutres: ReadonlySet<string> | undefined,
-  etat: { nonFerme: boolean; pos: number },
+  etat: EtatCsv & { melange?: boolean },
 ): { debut: number; fin: number; nu?: boolean }[] {
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
   // « CSV (Macintosh) » : fin de ligne `\r` seule ; fins de ligne Unicode U+2028, U+2029 et U+0085 (NEL). Chacune est remplacée
@@ -1102,8 +1163,15 @@ function detecterColonnes(
         }
         if (fermant === "}" && texte[j] === '"') {
           // clé : on la saute, puis la valeur
+          const debutCle = j + 1;
           j++;
           while (j < texte.length && texte[j] !== '"') j += texte[j] === "\\" ? 2 : 1;
+          // Une clé sous une clé de personne est elle-même une donnée (`{"nom":{"Jean Dupont":true}}`) : masquée comme une valeur.
+          // Le JSON est strictement valide ici (JSON.parse l'a accepté) : le texte masqué reste une chaîne valide.
+          // Seule exception : une clé qui est elle-même un nom de colonne de personne (`{"adresse":{"nom":"x"}}`), structure sans donnée.
+          if (!valeurNeutre(texte.slice(debutCle, j), neutres) && !COLONNES_PERSONNE.has(nomColonne(texteCle(texte, debutCle - 1, j)))) {
+            trouves.push({ debut: debutCle, fin: j });
+          }
           j++;
           while (j < texte.length && (ESPACE.test(texte[j]!) || texte[j] === ":")) j++;
         }
@@ -1129,7 +1197,7 @@ function detecterColonnes(
       if (texte[j] === ":") {
         j++;
         while (j < n && ESPACE.test(texte[j]!)) j++;
-        if (j > traite && COLONNES_PERSONNE.has(nomColonne(texte.slice(i + 1, k)))) traite = collecter(j);
+        if (j > traite && COLONNES_PERSONNE.has(nomColonne(texteCle(texte, i, k)))) traite = collecter(j);
         i = texte.indexOf('"', k + 1);
       } else if (j < n && texte[j] !== "," && texte[j] !== "}" && texte[j] !== "]") {
         i = k; // JSON invalide : le fermant ouvre la chaîne suivante
@@ -1162,7 +1230,7 @@ function detecterColonnes(
   // de personne n'est trouvée, un guillemet égaré a pu avaler l'en-tête, donc le fichier entier est refusé.
   let ambigueEntete = -1;
   for (const candidat of candidats) {
-    lignes = lireCsv(texte, candidat, etat, LIGNES_ENTETE_MAX); // seules les premières lignes sont gardées : l'en-tête est là
+    lignes = lireCsv(texte, candidat, etat, LIGNES_ENTETE_MAX, texteBrut); // seules les premières lignes sont gardées : l'en-tête est là
     if (ambigueEntete < 0) {
       for (const valeurs of lignes) {
         const a = valeurs.find((v) => v.ambigu);
@@ -1181,7 +1249,7 @@ function detecterColonnes(
       }
     }
     if (colonnes.size > 0) {
-      if (!etat.nonFerme) lignes = lireCsv(texte, candidat, etat); // en-tête trouvé : une seule lecture complète, avec ce séparateur
+      if (!etat.nonFerme) lignes = lireCsv(texte, candidat, etat, Infinity, texteBrut); // en-tête trouvé : une seule lecture complète, avec ce séparateur
       break;
     }
   }
@@ -1192,6 +1260,14 @@ function detecterColonnes(
       etat.nonFerme = true;
       etat.pos = ambigueEntete;
     }
+    return trouves;
+  }
+  // Fins de ligne mélangées (HORS guillemets : `\r\n` des lignes, `\n` dans une cellule entre guillemets reste permis) dans un fichier
+  // qui a une colonne de personne : un lecteur qui coupe sur un autre type de fin de ligne lit les cellules autrement, et un nom
+  // pourrait sortir de sa colonne. Refus du fichier entier.
+  if ((etat.fins & (etat.fins - 1)) !== 0) {
+    etat.melange = true;
+    etat.pos = Math.max(0, etat.diff);
     return trouves;
   }
   // Cellule ambiguë AVANT ou DANS la ligne d'en-tête (titre d'export, en-tête lui-même), quelle que soit sa colonne : le masquage
@@ -1242,6 +1318,23 @@ function detecterColonnes(
 export function detecterDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): Detection[] {
   const bruts: { type: TypeDonnee; debut: number; fin: number; nu?: boolean }[] = [];
   try {
+    // AVANT toute détection, pour tout fichier texte lu (.csv, .json, .txt, .md, script) : un caractère de contrôle C0 (hors tabulation,
+    // \n, \r) fait que ce n'est pas du texte. UTF-16 sans BOM est de l'UTF-8 « valide » avec un U+0000 entre les lettres : aucune
+    // détection ne le verrait ; U+000B et U+000C sont des fins de ligne pour d'autres lecteurs. Le saut de page reste permis dans les
+    // maquettes (html, css, js), qui ont leur propre contrôle dans `verifierMaquette`. Jamais la valeur dans le refus.
+    const extFichier = options.chemin ? extensionDe(options.chemin) : "";
+    const c0 = (extFichier === "html" || extFichier === "htm" || extFichier === "css" || extFichier === "js" ? CONTROLE_C0 : CONTROLE_TEXTE).exec(texte);
+    if (c0) return [{ type: "caractere-controle", ligne: ligneDe(texte, c0.index), debut: c0.index, fin: c0.index + 1 }];
+    // Un .json que JSON.parse rejette n'est lu « au mieux » par personne : refusé (pas de masquage par positions sur du JSON invalide).
+    if (extFichier === "json") {
+      try {
+        JSON.parse(texte.charCodeAt(0) === 0xfeff ? texte.slice(1) : texte);
+      } catch (e) {
+        const p = /position (\d+)/.exec(e instanceof Error ? e.message : "");
+        const pos = p ? Math.min(Number(p[1]), texte.length) : 0;
+        return [{ type: "json-illisible", ligne: ligneDe(texte, pos), debut: pos, fin: texte.length }];
+      }
+    }
     for (const m of texte.matchAll(/(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@([\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*\.\p{L}{2,})/gu)) {
       if (!DOMAINES_EXEMPLE.has(m[1]!.toLowerCase())) bruts.push({ type: "courriel", debut: m.index ?? 0, fin: (m.index ?? 0) + m[0].length });
     }
@@ -1263,8 +1356,9 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
     }
     const ext = options.chemin ? extensionDe(options.chemin) : "";
     if (ext === "csv" || ext === "json") {
-      const etat = { nonFerme: false, pos: 0 };
+      const etat: EtatCsv & { melange?: boolean } = { nonFerme: false, pos: 0, fins: 0, diff: -1 };
       const colonnes = detecterColonnes(texte, ext, options.nomsNeutres, etat);
+      if (etat.melange) return [{ type: "fins-de-ligne-melangees", ligne: ligneDe(texte, etat.pos), debut: etat.pos, fin: texte.length }];
       // Un guillemet jamais refermé fait de tout le reste du fichier une seule cellule : si ce n'est pas une colonne de
       // personne, rien ne serait masqué. On ne rend jamais le fichier : refus, sans recopier la valeur.
       if (etat.nonFerme) return [{ type: "guillemet-non-ferme", ligne: ligneDe(texte, etat.pos), debut: etat.pos, fin: texte.length }];
@@ -1313,10 +1407,12 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
 export function masquerDonneesPersonnelles(texte: string, options: OptionsDonnees = {}): { texte: string; remplacements: { type: TypeDonnee; nombre: number }[] } {
   const trouvees = detecterDonneesPersonnelles(texte, options);
   // Détection impossible : on ne rend jamais le texte d'origine comme s'il était propre.
-  if (trouvees.some((d) => d.type === "detection-echouee")) return { texte: "", remplacements: [{ type: "detection-echouee", nombre: 1 }] };
-  if (trouvees.some((d) => d.type === "guillemet-non-ferme")) return { texte: "", remplacements: [{ type: "guillemet-non-ferme", nombre: 1 }] };
+  // Tout refus du fichier entier (recherche échouée, guillemet non refermé, caractère de contrôle, JSON illisible, fins de ligne
+  // mélangées) : jamais de texte rendu.
+  const refusee = trouvees.find((d) => motifRefusDetection(d) !== undefined);
+  if (refusee) return { texte: "", remplacements: [{ type: refusee.type, nombre: 1 }] };
   let numero = 0;
-  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | "detection-echouee" | "guillemet-non-ferme">] }));
+  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | TypeRefus>] }));
   let sortie = "";
   let curseur = 0;
   for (const { d, par } of remplaces) {
@@ -1337,8 +1433,10 @@ export function estFichierScript(chemin: string): boolean {
 
 /** Refus du script qui contient une donnée de personne : type et ligne seulement, jamais la valeur. */
 export function refuserScriptAvecDonnees(chemin: string, texte: string): string[] {
-  return detecterDonneesPersonnelles(texte).map(
-    (d) => `Votre script contient une donnée personnelle (${d.type}, ligne ${d.ligne}) dans « ${nomCourt(chemin)} » : corrigez-le puis renvoyez le dossier.`,
+  return detecterDonneesPersonnelles(texte).map((d) =>
+    d.type === "caractere-controle"
+      ? `Votre script contient un caractère de contrôle (ligne ${d.ligne}) dans « ${nomCourt(chemin)} » : enregistrez-le en UTF-8 puis renvoyez le dossier.`
+      : `Votre script contient une donnée personnelle (${d.type}, ligne ${d.ligne}) dans « ${nomCourt(chemin)} » : corrigez-le puis renvoyez le dossier.`,
   );
 }
 

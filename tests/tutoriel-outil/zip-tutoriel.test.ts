@@ -586,3 +586,181 @@ describe("rapport.ignores : noms courts, rien avant le verdict", () => {
     expect(JSON.stringify(r)).not.toContain("b".repeat(70));
   });
 });
+
+describe("verdict Opus e00ce935 : de bout en bout (allumé), archive saine à côté", () => {
+  const SEPS = [",", ";", "\t", "|"] as const;
+  const FINS = ["\n", "\r\n", "\r"] as const;
+  const MOTIF = /Jean|Dupont|orange|06 12|Martin|Paul/;
+  const le = (t: string): Uint8Array => new Uint8Array(Buffer.from(t, "utf16le"));
+  const be = (t: string): Uint8Array => {
+    const o = le(t);
+    for (let i = 0; i + 1 < o.length; i += 2) [o[i], o[i + 1]] = [o[i + 1]!, o[i]!];
+    return o;
+  };
+  const rien = (r: { rapport: unknown }): void => {
+    expect(JSON.stringify(r.rapport)).not.toMatch(MOTIF);
+    expect(journal.join(" ")).not.toMatch(MOTIF);
+  };
+  const refuse = async (nom: string, donnees: Uint8Array, motif?: string | RegExp): Promise<void> => {
+    ALLUME();
+    journal.length = 0;
+    const r = await entree([...SAINE.filter((e) => e.nom !== nom), { nom, donnees }]);
+    expect(r.ok, `${nom} ${JSON.stringify(Array.from(donnees.slice(0, 40)))}`).toBe(false);
+    if (motif) expect(r.rapport.refus.join(" ")).toMatch(motif);
+    rien(r);
+  };
+
+  it("point 1 : les 9 entrées du verdict (UTF-16 LE/BE sans BOM, U+000B, U+000C, U+0000) → archive entière refusée, valeur absente du rapport et du journal", async () => {
+    const entrees: [string, Uint8Array][] = [
+      ["a.csv", le("id,nom\n1,Jean Dupont\n")],
+      ["a.csv", be("id,nom\n1,Jean Dupont\n")],
+      ["a.json", le('{"nom":"Jean Dupont"}')],
+      ["notes.txt", le("jean.dupont@orange.fr")],
+      ["notes.md", le("06 12 34 56 78")],
+      ["script.txt", le("Appelez le 06 12 34 56 78")],
+      ["a.csv", u8("id,nom\u000b1,Jean Dupont\u000b")],
+      ["a.csv", u8("id,nom\u000c1,Jean Dupont\u000c")],
+      ["a.csv", u8("id,n\u0000om\n1,Jean Dupont\n")],
+    ];
+    for (const [nom, d] of entrees) await refuse(nom, d, /caractère de contrôle/);
+  });
+  it("point 1 : le script refuse avec le type « caractère de contrôle » et la ligne, jamais la valeur", async () => {
+    ALLUME();
+    const r = await entree([...SAINE.filter((e) => e.nom !== "script.txt"), { nom: "Script-final.txt", donnees: le("Bonjour\nAppelez le 06 12 34 56 78") }]);
+    expect(r.ok).toBe(false);
+    expect(r.rapport.refus.join(" ")).toMatch(/caractère de contrôle \(ligne \d+\)/);
+    rien(r);
+  });
+  it.each(SEPS.flatMap((S) => FINS.map((E) => [JSON.stringify(S), JSON.stringify(E), S, E] as const)))("point 1 : séparateur %s, fin de ligne %s : CSV en UTF-16 LE/BE sans BOM, U+000B, U+000C, U+0000 → refusé", async (_s, _e, S, E) => {
+    const base = (S === "|" ? `sep=|${E}` : "") + `id${S}nom${E}1${S}Jean Dupont${E}`;
+    for (const d of [le(base), be(base), u8(base.replaceAll(E, "\u000b")), u8(base.replaceAll(E, "\u000c")), u8(base.replace("nom", "n\u0000om"))]) await refuse("demo-data.csv", d, /caractère de contrôle/);
+  });
+  it("point 1 : témoins (tabulation, \\r\\n, \\r, BOM UTF-8, saut de page dans une maquette) → acceptés", async () => {
+    ALLUME();
+    for (const [nom, t] of [
+      ["demo-data.csv", "id\tnom\r\n1\tJean Dupont\r\n"],
+      ["demo-data.csv", "id,nom\r1,Jean Dupont\r"],
+      ["demo-data.csv", "﻿id,nom\n1,Jean Dupont\n"],
+      ["notes.txt", "Bonjour\tà tous\r\nFin"],
+      ["notes.md", "# Titre\r\ntexte"],
+    ] as const) {
+      const r = await entree([...SAINE, { nom, donnees: u8(t) }]);
+      expect(r.ok, JSON.stringify(t)).toBe(true);
+      if (r.ok) expect(texte(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont/);
+    }
+    const bom = await entree([...SAINE, { nom: "demo-data.csv", donnees: new Uint8Array([0xef, 0xbb, 0xbf, ...u8("id,nom\n1,Jean Dupont\n")]) }]);
+    expect(bom.ok).toBe(true);
+    const ff = await entree([...SAINE.filter((e) => e.nom !== "styles.css"), { nom: "styles.css", donnees: u8("body{color:#111}\u000c") }]);
+    expect(ff.ok).toBe(true);
+  });
+
+  it.each([
+    '{"nom": Jean Dupont}',
+    "{\"nom\": 'Jean Dupont'}",
+    "{'nom':'Jean Dupont'}",
+    '{"ville":"Paris","nom" "Jean Dupont"}',
+    '{"nom"::"Jean Dupont"}',
+    '{"nom": /* x */ "Jean Dupont"}',
+    '{"nom":{a:"Jean Dupont"}}',
+    '{"nom":"Jean"}{"nom":"Paul Martin"}',
+    '{"nom":"Jean"}\n{"nom":"Paul Martin"}\n',
+    '{"ville":"Paris, "nom":"Jean Dupont"}',
+    '{"nom":{"a":true"Jean"}}',
+  ])("point 2a : JSON que JSON.parse rejette, %s → archive entière refusée (« JSON illisible »)", async (json) => {
+    await refuse("demo-data.json", u8(json), /JSON illisible/);
+  });
+  it.each([
+    ['{"pr\\u00e9nom": "Jean", "ville": "Paris"}'],
+    ['{"n\\u006fm":"Jean Dupont"}'],
+    ['{"t\\u00e9l\\u00e9phone":"06 12 34 56 78"}'],
+    ['{"nom":{"Jean Dupont":true}}'],
+    ['{"adresse":{"12 rue des Lilas":1}}'],
+    ['{"nom":{"Jean\\u0020Dupont":true}}'],
+  ])("point 2b : clé échappée ou clé qui est une donnée, %s → accepté, noms masqués, JSON valide", async (json) => {
+    ALLUME();
+    const r = await entree([...SAINE, { nom: "demo-data.json", donnees: u8(json) }]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const sortie = texte(r.fichiers.get("demo-data.json"));
+    expect(sortie).not.toMatch(/Jean|Dupont|Lilas|06 12/);
+    expect(() => JSON.parse(sortie)).not.toThrow();
+    rien(r);
+  });
+  it("point 2 : témoin JSON valide sans donnée → accepté tel quel", async () => {
+    ALLUME();
+    const r = await entree([...SAINE, { nom: "demo-data.json", donnees: u8('{"ville":"Paris","liste":[1,2,{"a":null}]}\r\n') }]);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(texte(r.fichiers.get("demo-data.json"))).toBe('{"ville":"Paris","liste":[1,2,{"a":null}]}\r\n');
+  });
+
+  it.each(SEPS.map((S) => [JSON.stringify(S), S] as const))("point 3 : séparateur %s, fins de ligne mélangées avec une colonne de personne → archive entière refusée", async (_s, S) => {
+    const E = ["\n", "\r\n", "\r", " ", " ", "\u0085"];
+    for (const [i, E1] of E.entries()) {
+      const E2 = E[(i + 1) % E.length]!;
+      const csv = `${S === "|" ? `sep=|${E1}` : ""}id${S}nom${E1}1${S}Jean Dupont${E2}2${S}Paul Martin${E1}`;
+      await refuse("demo-data.csv", u8(csv), /fins de ligne mélangées/);
+    }
+    await refuse("demo-data.csv", u8(`${S === "|" ? "sep=|\r\n" : ""}id${S}nom\r\n1${S}Jean\rDupont${S}x\r\n`), /fins de ligne mélangées/);
+  });
+  it("point 3 : témoins (une seule sorte de fin de ligne, \\n dans une cellule quotée sous \\r\\n, mélange sans colonne de personne) → acceptés", async () => {
+    ALLUME();
+    for (const csv of ["id,nom\r\n1,Jean Dupont\r\n", "id,nom\r1,Jean Dupont\r", "id,nom 1,Jean Dupont ", 'id,ville,nom\r\n1,"Paris\nCentre",Jean Dupont\r\n', "id,ville\r\n1,Paris\n2,Lyon\r"]) {
+      const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8(csv) }]);
+      expect(r.ok, JSON.stringify(csv)).toBe(true);
+      if (r.ok) expect(texte(r.fichiers.get("demo-data.csv"))).not.toMatch(/Jean|Dupont/);
+    }
+  });
+
+  it("propriété (graine fixe, 600 archives) : un fichier texte accepté ne contient jamais le marqueur ; un C0, un JSON invalide ou des fins de ligne mélangées refusent l'archive", async () => {
+    ALLUME();
+    let a = 41_6001 >>> 0;
+    const hasard = (): number => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const choix = <T,>(l: readonly T[]): T => l[Math.floor(hasard() * l.length)]!;
+    let refus = 0;
+    let acceptes = 0;
+    for (let essai = 0; essai < 600; essai++) {
+      const m = `Zorg${essai}qx`;
+      const genre = choix(["csv", "json", "mixte", "c0", "utf16"]);
+      let nom = "demo-data.csv";
+      let donnees: Uint8Array;
+      let doitRefuser = true;
+      if (genre === "json") {
+        nom = "demo-data.json";
+        const esc = hasard() < 0.5 ? "pr\\u00e9nom" : "n\\u006fm";
+        const cle = hasard() < 0.5 ? `"${m}"` : '"x"';
+        const j = `{"${esc}":{${cle}:"${m}b"},"ville":"Paris"}`;
+        const casse = hasard() < 0.4;
+        donnees = u8(casse ? j.slice(0, -1) : j);
+        doitRefuser = casse;
+      } else if (genre === "mixte") {
+        const [E1, E2] = [choix(["\n", "\r\n", "\r"]), choix(["\n", "\r\n", "\r"])];
+        donnees = u8(`id,nom${E1}1,${m}${E2}2,${m}b${E1}`);
+        doitRefuser = E1 !== E2;
+      } else if (genre === "c0") {
+        const p = Math.floor(hasard() * 12);
+        const t = `id,nom\n1,${m}\n`;
+        donnees = u8(t.slice(0, p) + String.fromCharCode(choix([0, 1, 7, 8, 11, 12, 14, 27, 31])) + t.slice(p));
+      } else if (genre === "utf16") {
+        donnees = hasard() < 0.5 ? le(`id,nom\n1,${m}\n`) : be(`id,nom\n1,${m}\n`);
+      } else {
+        donnees = u8(`id,nom\r\n1,${m}\r\n`);
+        doitRefuser = false;
+      }
+      const r = await entree([...SAINE, { nom, donnees }]);
+      expect(r.ok, `${genre} ${nom} ${JSON.stringify(Array.from(donnees))}`).toBe(!doitRefuser);
+      expect(JSON.stringify(r.rapport)).not.toContain(m);
+      if (r.ok) {
+        acceptes++;
+        expect(texte(r.fichiers.get(nom))).not.toContain(m);
+      } else refus++;
+    }
+    expect(refus).toBeGreaterThan(200);
+    expect(acceptes).toBeGreaterThan(100);
+  });
+});
