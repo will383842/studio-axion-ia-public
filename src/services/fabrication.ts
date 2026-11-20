@@ -360,7 +360,9 @@ async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: st
   if (!reglages.ok) throw new ErreurStudio("REGLAGES_INVALIDES", "Un réglage n'est pas valable.");
 
   const distribution = await resoudreDistributionCommande(video, format, reglages.reglages);
-  if (distribution.length < format.personnages.min) throw new ErreurStudio("DISTRIBUTION_INCOMPLETE", "Choisissez qui parle.");
+  // IV-SV : « Image → vidéo » sans voix n'a personne qui parle (le dépôt a posé `sansVoix`) ; tout autre cas garde sa règle.
+  const sansVoixIV = format.id === "image-video" && (video.entrees as { imageVideo?: { sansVoix?: unknown } } | undefined)?.imageVideo?.sansVoix === true;
+  if (!sansVoixIV && distribution.length < format.personnages.min) throw new ErreurStudio("DISTRIBUTION_INCOMPLETE", "Choisissez qui parle.");
 
   const briques = briquesEffectives(format, video.briquesCoupees, video.briquesAllumees);
   const plans = (options.sansPlans ? [] : await plansApercu(videoId)).map((p) => ({

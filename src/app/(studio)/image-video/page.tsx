@@ -19,14 +19,18 @@ export const dynamic = "force-dynamic";
 export default async function PageImageVideo() {
   const [etat, dernieres, lots] = await Promise.all([etatDepotImageVideo(), dernieresImageVideo(), dernieresLotsImageVideo()]);
   const montants: Record<number, number> = {};
-  for (let n = 1; n <= RESEAUX_IV.length; n++) montants[n] = prixDuDepot(RESEAUX_IV.slice(0, n), etat.tauxUsdEur);
+  const montantsSansVoix: Record<number, number> = {};
+  for (let n = 1; n <= RESEAUX_IV.length; n++) {
+    montants[n] = prixDuDepot(RESEAUX_IV.slice(0, n), etat.tauxUsdEur);
+    montantsSansVoix[n] = prixDuDepot(RESEAUX_IV.slice(0, n), etat.tauxUsdEur, 50, true);
+  }
   return (
     <GabaritCreation
       entete={{ titre: "Image → vidéo", sousTitre: "Votre idée prend vie." }}
       etapes={etapesImageVideo("depot")}
       recents={<RecentsGenerateur groupes={versRecentsImageVideo(lots, dernieres)} deuxColonnes vide={{ titre: "Aucune vidéo pour le moment", phrase: PHRASE_ECRAN_VIDE }} />}
     >
-      <Depot montants={montants} blocage={etat.blocage} />
+      <Depot montants={montants} blocage={etat.blocage} montantsSansVoix={montantsSansVoix} blocageSansVoix={etat.blocageSansVoix} />
       <p className="mt-6 text-center text-[15px]">
         <Link href="/image-video/reserve" className="underline">
           Ma réserve
