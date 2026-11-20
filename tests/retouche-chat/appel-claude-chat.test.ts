@@ -59,6 +59,8 @@ function brancherClaude() {
 
 const plan = validerPlan(PLAN_DEMO, { mots: PLAN_DEMO.mots, format: PLAN_DEMO.format, facecam: PLAN_DEMO.facecam, dureeMs: PLAN_DEMO.dureeMs }).plan;
 const requete = () => construireRequeteRetouche("fais quelque chose de joli pour moi", plan);
+/** Plan de 12 scènes (pire cas réaliste du lecteur), écrit ici : les 3 scènes de démonstration répétées sous des identifiants s1 à s12. */
+const plan12 = { ...plan, scenes: Array.from({ length: 12 }, (_, i) => ({ ...plan.scenes[i % plan.scenes.length], id: `s${i + 1}` })) } as typeof plan;
 const SANS_MONTANT = /\d|€|\$/;
 
 describe("S2-07 · appel Claude du chat de retouche", () => {
@@ -84,7 +86,7 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
     expect(depenses[0].lignes.some((l) => l.fournisseur === "anthropic")).toBe(true);
     const reservations = await depots().reservations.lister((x) => x.videoId === "v-04" && !!x.travailId?.startsWith(m.PREFIXE_APPEL_CHAT));
     expect(reservations.length).toBeGreaterThan(0);
-    expect(reservations.every((x) => x.statut !== "active")).toBe(true);
+    expect(reservations.every((x) => x.statut === "consommee")).toBe(true);
   });
 
   it("c) plafond 0,01 $ et origine « usine » → refus plafond, le double n'est jamais appelé, phrase sans montant", async () => {
@@ -126,8 +128,18 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
     }
   });
 
-  it("e) pire cas = pireCasRequete (égalité exacte) et ≤ 0,09 $ sur le plan de démonstration", () => {
-    const r = requete();
+  it("d ter) texte vide ou blanc rendu par executerRolePourVideo (hors simulation) → l'appel lève, un seul appel de executer", async () => {
+    for (const texte of ["", "   "]) {
+      const executer = vi.fn(async () => ({ ok: true as const, simule: false, texte }));
+      const appel = await m.appelClaudeChat("v-04", { origine: async () => undefined, executer: executer as never });
+      await expect(appel(requete())).rejects.toThrow();
+      expect(executer).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("e) pire cas = pireCasRequete (égalité exacte) et ≤ 0,09 $ pour la requête du lecteur (1 500 jetons) sur un plan de 12 scènes", () => {
+    const r = { ...construireRequeteRetouche("fais quelque chose de joli pour moi", plan12), maxTokens: 1500 };
+    expect(r.messages[0].contenu.split("\n").filter((l) => /^s\d+ · niveau/.test(l))).toHaveLength(12);
     const pire = m.pireCasLectureUsd(r);
     expect(pire).toBe(pireCasRequete(m.roleLectureChat(r), m.entreeLectureChat(r)));
     expect(pire).toBeGreaterThan(0);
