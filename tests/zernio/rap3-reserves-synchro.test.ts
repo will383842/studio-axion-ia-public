@@ -11,7 +11,6 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: (
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
-const { ecrireParametre } = await import("@/services/_commun");
 const MDP = "essai-rap3r-123";
 
 beforeAll(async () => {
@@ -20,11 +19,10 @@ beforeAll(async () => {
   process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
 });
 
-const { injecterClientZernio, synchroniserEtatsZernio, BUDGET_REQUETES_PAR_PASSAGE } = await import("@/services/zernio");
+const { injecterClientZernio, synchroniserEtatsZernio } = await import("@/services/zernio");
 
 const T0 = Date.parse("2026-11-20T08:00:00Z");
 const iso = (ms: number) => new Date(ms).toISOString();
-const ECART = "zernio.ecart_calendrier";
 
 const fabrique = (n: number, status: string, extra: Partial<PostZernio> = {}): PostZernio => ({
   _id: `p-${status}-${n}`,
@@ -35,8 +33,6 @@ const fabrique = (n: number, status: string, extra: Partial<PostZernio> = {}): P
   metadata: { origine: "import-buffer", studioCle: `imp-${status}-${n}` },
   ...extra,
 });
-const lot = (n: number, status: string) => Array.from({ length: n }, (_, i) => fabrique(i, status));
-
 interface Faux {
   client: ClientZernio;
   posts: PostZernio[];
@@ -84,9 +80,6 @@ function faux(posts: PostZernio[]): Faux {
   }) as unknown as ClientZernio;
   return f;
 }
-
-const rapatriees = async () => depots().publications.lister((p) => !!p.rapatrieeLe);
-const ecart = async () => (await depots().parametres.obtenir(ECART))?.valeur as { verifie: boolean; absents: number; chezDiffuseur: number; exemples: unknown[]; luLe: string } | undefined;
 
 beforeEach(async () => {
   reinitialiserDepots();

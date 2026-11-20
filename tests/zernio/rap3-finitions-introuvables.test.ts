@@ -57,7 +57,7 @@ describe("RAP-3 finitions · introuvables", () => {
     expect(retirees).toEqual(["zr_a", "zr_b", "zr_deja"]);
     expect(toutes.find((p) => p.id === "zr_a")).toMatchObject({ statut: "programmee", texte: "Texte fictif", etatEnvoi: "a-verifier" });
     expect(toutes.find((p) => p.id === "zr_deja")?.retireeLe).toBe("2026-11-20T11:00:00.000Z"); // inchangée
-    expect(((await lireEcartCalendrier()) as { introuvables?: number } | null)?.retirables?.length ?? 0).toBe(0);
+    expect(((await lireEcartCalendrier()) as { retirables?: string[] } | null)?.retirables?.length ?? 0).toBe(0);
   });
   it("sans session : refus, rien n'est écrit", async () => {
     exiger.mockRejectedValueOnce(new Error("NON_CONNECTE"));

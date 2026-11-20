@@ -236,6 +236,9 @@ export function etatDepuisPost(post: PostZernio, p: Pick<Publication, "canalId">
 const cleSynchro = Symbol.for("studio-axion-ia.synchro-zernio");
 type AvecSynchro = typeof globalThis & { [cleSynchro]?: number };
 
+/** Rapatriée « à vérifier » dont les deux constats « introuvable » ne sont pas encore faits (lecture unitaire permise, en dernier). */
+const attendConstat = (p: Publication): boolean => estRapatriee(p) && p.etatEnvoi === "a-verifier" && (p.constatsIntrouvable ?? 0) < CONSTATS_INTROUVABLE_REQUIS;
+
 async function ecrireSiInchange(p: Publication, modif: Partial<Publication>): Promise<boolean> {
   return sousVerrou(async () => {
     const actuelle = await depots().publications.obtenir(p.id);
@@ -567,7 +570,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     requetes += BUDGET_RAPATRIEMENT_PAR_PASSAGE - budgetRap.restant;
   }
   let suivies = (await d.publications.lister((p) => p.via === "zernio" && !!p.idExterne && !p.retireeLe && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || p.etatEnvoi === "a-verifier")))
-    .sort((a, b) => (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""));
+    // Les rapatriées « à vérifier » qui attendent encore un constat « introuvable » passent APRÈS toutes les autres : elles ne prennent que le reste du budget.
+    .sort((a, b) => Number(attendConstat(a)) - Number(attendConstat(b)) || (a.etatLuLe ?? "").localeCompare(b.etatLuLe ?? ""));
   // L5-06 · liste complète (lecture seule) : un échec de lecture laisse le passage incrémental habituel.
   // Au-delà de 50 publications suivies (ou sur demande), le passage est complet : la boucle de fond en profite sans option.
   let dejaLus: Map<string, PostZernio> | null = null;
