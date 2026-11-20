@@ -14,6 +14,8 @@ const OBJETS_INSCRITS_C = ["objet-soulignement-droit", "objet-croix", "objet-mot
 const OBJETS_INSCRITS_2027B = ["objet-croquis", "objet-feutre-entourage", "objet-feutre-soulignement"];
 // N-05-v19b : 5 objets de plus (carton magazine, icône qui tourne, particules, panneau de réglages, anneau de données).
 const OBJETS_INSCRITS_N05 = ["objet-carton-magazine", "objet-tourne", "objet-particules", "objet-panneau-reglages", "objet-anneau-donnees"];
+// VL-10 : 3 pièces 16:9 de la vidéo longue (gardées par PIECES_GARDEES, porte fermée).
+const PIECES_VL10 = ["intercalaire-chapitre", "flux-ramifie", "cadre-capture"];
 const HEX_CHARTE = new Set(Object.values(CHARTE_AXION).map((c) => c.toLowerCase()));
 
 function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" | "noir" = "ivoire"): string {
@@ -23,8 +25,8 @@ function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" |
 }
 
 describe("catalogue de briques (fausse interface logicielle)", () => {
-  it("contient les 36 briques (18 demandées + 4 + 6 + 3 + 5 objets inscrits), chacune avec un rendu", () => {
-    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05].sort());
+  it("contient les 39 briques (18 demandées + 4 + 6 + 3 + 5 objets inscrits + 3 pièces 16:9), chacune avec un rendu", () => {
+    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...PIECES_VL10].sort());
     for (const id of IDS_PIECES) expect(RENDUS_BRIQUES[id]).toBeTypeOf("function");
   });
 

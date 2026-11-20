@@ -21,12 +21,14 @@ const catalogue = CATALOGUE_BRIQUES as unknown as Record<string, any>;
 const toiles = TOILES as unknown as Record<string, unknown>;
 const copie = () => structuredClone(PLAN_DEMO) as unknown as Record<string, any>;
 const gardees = PIECES_GARDEES as unknown as string[];
+// VL-10 : la liste d'origine (les 3 pièces 16:9), restaurée après chaque test qui y pose une pièce factice.
+const GARDEES_DE_ORIGINE = [...PIECES_GARDEES];
 const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet").map((d) => d.id);
 
 describe("G4-11-PORTE-a : éteint = identique à master", () => {
-  it("la liste est vide et estGardee ≡ famille objet", () => {
-    expect(PIECES_GARDEES).toEqual([]);
-    for (const d of Object.values(CATALOGUE_BRIQUES) as any[]) expect(estGardee(d)).toBe(d.famille === "objet");
+  it("la liste ne contient que les 3 pièces 16:9 de VL-10 et estGardee ≡ famille objet ou liste", () => {
+    expect(PIECES_GARDEES).toEqual(["intercalaire-chapitre", "flux-ramifie", "cadre-capture"]);
+    for (const d of Object.values(CATALOGUE_BRIQUES) as any[]) expect(estGardee(d)).toBe(d.famille === "objet" || GARDEES_DE_ORIGINE.includes(d.id));
   });
   it("test 1 : consignePlan identique (sans argument, liste vide, tous les objets)", () => {
     expect(consignePlan()).toBe(AVANT);
@@ -47,7 +49,7 @@ describe("G4-11-PORTE-a : pièce de données factice gardée", () => {
   afterEach(() => {
     delete catalogue["donnee-test"];
     delete toiles["donnee-test"];
-    gardees.length = 0;
+    gardees.splice(0, gardees.length, ...GARDEES_DE_ORIGINE);
   });
 
   it("test 2 : consigne du plan, pièce la plus proche, validation", () => {

@@ -11,6 +11,7 @@ import { z } from "zod";
 import { TOILES } from "./toiles";
 import { BRIQUES_OBJETS } from "./briques/objets-inscrits";
 import { estGardee } from "./pieces-gardees";
+import { EXEMPLES_LONGUES, NOMS_LONGUES, TOILES_LONGUES, schemaCadreCapture, schemaFluxRamifie, schemaIntercalaireChapitre } from "./pieces-longues";
 
 const texteCourt = (max: number) => z.string().trim().min(1).max(max);
 const point = z.strictObject({ x: z.number().min(0).max(100), y: z.number().min(0).max(100) });
@@ -406,6 +407,10 @@ export const CATALOGUE_BRIQUES = {
     exemple: { genre: "lieu", texte: "Lyon", surMot: 0, aMs: 300 },
   }),
   ...BRIQUES_OBJETS,
+  // VL-10 : 3 pièces 16:9 de la vidéo longue, gardées par `PIECES_GARDEES` donc porte fermée (`objetsPermis`)
+  "intercalaire-chapitre": brique({ id: "intercalaire-chapitre", ...NOMS_LONGUES["intercalaire-chapitre"], famille: "texte", alias: ["chapitre", "intercalaire"], toile: TOILES_LONGUES["intercalaire-chapitre"], schema: schemaIntercalaireChapitre, exemple: EXEMPLES_LONGUES["intercalaire-chapitre"] }),
+  "flux-ramifie": brique({ id: "flux-ramifie", ...NOMS_LONGUES["flux-ramifie"], famille: "donnee", alias: ["ramification", "branches"], toile: TOILES_LONGUES["flux-ramifie"], schema: schemaFluxRamifie, exemple: EXEMPLES_LONGUES["flux-ramifie"] }),
+  "cadre-capture": brique({ id: "cadre-capture", ...NOMS_LONGUES["cadre-capture"], famille: "interface", alias: ["capture", "cadre de capture"], toile: TOILES_LONGUES["cadre-capture"], schema: schemaCadreCapture, exemple: EXEMPLES_LONGUES["cadre-capture"] }),
 } as const;
 
 export type IdPiece = keyof typeof CATALOGUE_BRIQUES;
@@ -436,6 +441,8 @@ export function poserInstantsSurMot<T>(piece: IdPiece, parametres: T, mots: read
     case "jauge":
     case "citation":
     case "repere":
+    case "intercalaire-chapitre":
+    case "cadre-capture":
       return poser(p as unknown as AvecMot) as unknown as T;
     case "avant-apres":
       p.avant = poser(p.avant as AvecMot);
@@ -447,6 +454,9 @@ export function poserInstantsSurMot<T>(piece: IdPiece, parametres: T, mots: read
     case "etapes":
     case "liste-au-mot":
       p.elements = (p.elements as AvecMot[]).map(poser);
+      return p as T;
+    case "flux-ramifie":
+      p.noeuds = (p.noeuds as AvecMot[]).map(poser);
       return p as T;
     default:
       return parametres;

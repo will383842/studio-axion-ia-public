@@ -37,4 +37,8 @@ export const TOILES = {
   "objet-particules": { largeur: 1000, hauteur: 1000 },
   "objet-panneau-reglages": { largeur: 1000, hauteur: 1000 },
   "objet-anneau-donnees": { largeur: 1000, hauteur: 1000 },
+  // VL-10 : pièces 16:9 de la vidéo longue
+  "intercalaire-chapitre": { largeur: 1600, hauteur: 900 },
+  "flux-ramifie": { largeur: 1600, hauteur: 900 },
+  "cadre-capture": { largeur: 1480, hauteur: 914 },
 } as const;

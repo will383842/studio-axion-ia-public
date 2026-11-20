@@ -58,6 +58,10 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-particules": "geste",
   "objet-panneau-reglages": "interface",
   "objet-anneau-donnees": "chiffre",
+  // VL-10 : pièces 16:9 de la vidéo longue (porte fermée).
+  "intercalaire-chapitre": "texte",
+  "flux-ramifie": "demarche",
+  "cadre-capture": "interface",
 };
 
 const DUREE_MAX_SEC = 6;
