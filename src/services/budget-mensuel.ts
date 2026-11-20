@@ -195,13 +195,14 @@ async function alerterRefus(motif: MotifRefus): Promise<void> {
   await alerterUneFoisParJour(motif, ALERTES[motif]);
 }
 
+const LIBELLES_MOTIF_INDICATIF: Readonly<Record<string, string>> = { mois: "mois", video: "vidéo", "plafond-illisible": "plafond illisible", "claude-mois": "Claude du mois", "plafond-sujet": "sujet", "serie-seuil": "série", "idees-mois": "idées du mois" };
 /**
  * MODE INDICATIF : un seuil dépassé ne refuse plus, il PRÉVIENT. Journal à chaque dépassement ; cloche une seule fois par
  * jour et par motif, ou par vidéo/sujet si `sujet` est donné (clé `budget.refus.<jour>.<motif>[-<sujet>]`). Une panne de l'alerte ne change jamais la suite : la fabrication continue.
  */
 export async function signalerDepassementIndicatif(motif: string, titre: string, message: string, sujet?: string): Promise<void> {
   try {
-    await journaliser("budget", `Budget indicatif dépassé (${motif}) : ${message}`);
+    await journaliser("budget", `Budget indicatif dépassé (${LIBELLES_MOTIF_INDICATIF[motif] ?? "repère"}) : ${message}`);
   } catch {
     /* le journal ne bloque jamais */
   }

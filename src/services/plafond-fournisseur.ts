@@ -31,6 +31,8 @@ export const QUOTAS_PAR_DEFAUT: readonly QuotaUsine[] = [
   { periode: "jour", reseau: "fal", type: "clip", limite: 10 },
 ];
 
+const LIBELLES_TYPE_QUOTA: Readonly<Record<string, string>> = { image: "images", clip: "clips vidéo" };
+
 /* --- Origine de l'appel --------------------------------------------------- */
 
 const contexte = new AsyncLocalStorage<OrigineFournisseur>();
@@ -102,7 +104,7 @@ export async function reserverQuota(reseau: string, type: string, cleIdempotence
     if (cles.length >= q.limite) {
       const message = "La limite de fabrication automatique est atteinte pour cette période : la fabrication automatique s'arrête, vos essais à la main ne sont pas concernés.";
       await ecrireParametre(CLE_MESSAGE_COCKPIT, { message, le: maintenant(), reseau, type });
-      await journaliser("budget", `Quota de quantité atteint (${reseau}, ${type}, par ${q.periode}) : fabrication automatique arrêtée.`);
+      await journaliser("budget", `Quota de quantité atteint (${reseau}, ${LIBELLES_TYPE_QUOTA[type] ?? "autres contenus"}, par ${q.periode}) : fabrication automatique arrêtée.`);
       await alerterUneFoisParJour(`quota-${reseau}-${type}`, "Fabrication automatique arrêtée : limite atteinte", message);
       return null;
     }
