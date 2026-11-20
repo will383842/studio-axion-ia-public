@@ -20,6 +20,7 @@ export type OperationRendu =
   | "extrait"
   | "visuel-page"
   | "assemblage-pdf"
+  | "recollage-plages" // file longue : tronçons du fichier d'avant recollés sans réencoder + morceaux muets neufs, voix posée (52c)
   | "toile-continue"; // file courte : toile large rendue puis découpée
 
 export interface ErreurFournisseur {
