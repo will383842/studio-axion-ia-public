@@ -14,8 +14,12 @@ const OBJETS_INSCRITS_C = ["objet-soulignement-droit", "objet-croix", "objet-mot
 const OBJETS_INSCRITS_2027B = ["objet-croquis", "objet-feutre-entourage", "objet-feutre-soulignement"];
 // N-05-v19b : 5 objets de plus (carton magazine, icône qui tourne, particules, panneau de réglages, anneau de données).
 const OBJETS_INSCRITS_N05 = ["objet-carton-magazine", "objet-tourne", "objet-particules", "objet-panneau-reglages", "objet-anneau-donnees"];
+// VL-10 : 3 pièces 16:9 de la vidéo longue (gardées par PIECES_GARDEES, porte fermée).
+const PIECES_VL10 = ["intercalaire-chapitre", "flux-ramifie", "cadre-capture"];
 // C9-34-TRAITS-v19c : 6 objets de plus (2 soulignements, surligneur, 3 flèches).
 const OBJETS_INSCRITS_TRAITS = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
+// C9-34-CADRES-v20b : 6 objets de plus (3 cadres, cercle, ovale, double boucle).
+const OBJETS_INSCRITS_CADRES = ["objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle"];
 const HEX_CHARTE = new Set(Object.values(CHARTE_AXION).map((c) => c.toLowerCase()));
 
 function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" | "noir" = "ivoire"): string {
@@ -25,8 +29,8 @@ function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" |
 }
 
 describe("catalogue de briques (fausse interface logicielle)", () => {
-  it("contient les 42 briques (18 demandées + 4 + 6 + 3 + 5 + 6 objets inscrits), chacune avec un rendu", () => {
-    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS].sort());
+  it("contient les 51 briques (18 demandées + 4 + 6 + 3 + 5 + 6 + 6 objets inscrits + 3 pièces 16:9), chacune avec un rendu", () => {
+    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS, ...OBJETS_INSCRITS_CADRES, ...PIECES_VL10].sort());
     for (const id of IDS_PIECES) expect(RENDUS_BRIQUES[id]).toBeTypeOf("function");
   });
 
