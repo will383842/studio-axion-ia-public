@@ -91,6 +91,7 @@ describe("regles.ts · silences", () => {
 describe("regles.ts · mots, cadrage, enchaînement", () => {
   it("racinesDe : ne garde que les mots porteurs, sans pluriel, 6 lettres au plus ; texte vide = []", () => {
     expect(racinesDe("Relances à la main")).toEqual(["relanc", "main"]);
+    expect(racinesDe("Mains propres")).toEqual(["main", "propre"]);
     expect(racinesDe("")).toEqual([]);
   });
 
