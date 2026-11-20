@@ -13,10 +13,7 @@ describe("ditsAutour", () => {
     expect(ditsAutour([], 0, 1)).toEqual([]);
   });
   it("garde seulement les mots de la fenêtre élargie et les simplifie", () => {
-    const r = ditsAutour(mots, 10, 11);
-    expect(r).toContain("robinet");
-    expect(r).not.toContain("bonjour");
-    expect(r).not.toContain("demain");
+    expect(ditsAutour(mots, 10, 11)).toEqual(["la", "fuite", "robinet"]);
   });
   it("n'inclut aucun mot si la fenêtre est loin de tous", () => {
     expect(ditsAutour(mots, 100, 101)).toEqual([]);
