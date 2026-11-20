@@ -26,6 +26,9 @@ describe("relevé de l'essai parti d'une phrase", () => {
     expect(r.releve.appelsMaquettiste).toBe(2);
     expect(r.releve.sousLePlafond).toBe(false);
     expect(r.releve.ecart).toBeLessThan(0);
+    // seul le plafond de la vidéo est dépassé (création 0,20 $ sous 1 $) : arret doit quand même être vrai
+    expect(r.releve.sousLePlafondCreation).toBe(true);
+    expect(r.releve.arret).toBe(true);
   });
 
   it("2 appels maquettiste sous le plafond : permis et sous le plafond (le seuil de 2 est bien « au plus »)", () => {
