@@ -77,11 +77,25 @@ describe("placement dans la place libre", () => {
 });
 
 describe("styles exclus", () => {
-  it("blocs/2 (v2 posé) et reference/3 → {} même avec permis", () => {
-    for (const proprietes of [blocs2, reference3]) {
-      const s = proprietes[2]!;
-      expect(objetsDesScenes({ proprietes, mots: dit(s.scene.debutMs + 100, "on a gagné 3 clients"), permis: GROS })).toEqual({});
-    }
+  // Scène témoin qui PLACE un objet sans style (prouvé), puis on lui pose v2 / reference/3 : seule l'exclusion peut la vider.
+  const mots = dit(13000, "on a gagné 3 clients");
+  const nu = { ...demiVide, v2: undefined, styleReference: undefined } as ProprietesTableauScene;
+  it("témoin : sans v2 ni style de référence, l'objet est placé", () => {
+    expect(objetsDesScenes({ proprietes: [nu], mots, permis: GROS })[demiVide.scene.id]).toHaveLength(1);
+  });
+  it("v2 posé (blocs/2) → {} même avec permis", () => {
+    const v2 = blocs2.find((p) => p.v2)!.v2;
+    expect(v2).toBeTruthy();
+    expect(objetsDesScenes({ proprietes: [{ ...nu, v2 }], mots, permis: GROS })).toEqual({});
+  });
+  it("styleReference reference/3 ou reference/2 posé → {} ; reference/1 reste accepté", () => {
+    const sr = reference3.find((p) => p.styleReference)!.styleReference!;
+    expect(sr.style).toBe("reference/3");
+    expect(objetsDesScenes({ proprietes: [{ ...nu, styleReference: sr }], mots, permis: GROS })).toEqual({});
+    expect(objetsDesScenes({ proprietes: [{ ...nu, styleReference: { ...sr, style: "reference/2" } }], mots, permis: GROS })).toEqual({});
+    expect(objetsDesScenes({ proprietes: [{ ...nu, styleReference: { ...sr, style: "reference/1" } }], mots, permis: GROS })[demiVide.scene.id]).toHaveLength(1);
+  });
+  it("les trois jeux de propriétés réels portent bien leur style", () => {
     expect(blocs2.every((p) => p.v2)).toBe(true);
     expect(reference3.every((p) => p.styleReference?.style === "reference/3")).toBe(true);
   });
