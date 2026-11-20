@@ -236,6 +236,15 @@ export interface OutilsDecoupage {
   budget: { reserver: (demande: DemandeReservation) => Promise<{ ok: true } | { ok: false; message: string }> };
   /** Bilan des refus, rendu UNE fois à chaque issue. Un rappel qui lève ne change rien à l'issue. */
   noterBilan?: (bilan: BilanDecoupage) => void;
+  /** « Reprendre » un découpage refusé : le PREMIER appel est une relance (fiche d'avant, ses refus restants), pas la consigne vierge. */
+  depart?: DepartDecoupage;
+}
+
+/** La fiche gardée (déjà réparée sans IA) et ses refus restants, d'où repart « Reprendre ». */
+export interface DepartDecoupage {
+  fiche: FicheTableau;
+  refus: string[];
+  reparations?: ReparationForme[];
 }
 
 /** `refusee` : fiche lisible refusée par les règles ; `tronquee` : réponse coupée ; `illisible` : réponse vide ou hors JSON. */
@@ -653,6 +662,20 @@ export function ficheACorriger(rendue: FicheTableau, e: EntreeDecoupage): FicheT
 }
 
 /**
+ * « Reprendre » (FIX-DECOUPAGE-REPRENDRE-d) : la fiche gardée « à corriger » reçoit les MÊMES réparations sans IA que le découpage
+ * (allègement, réparation de forme), avec le même juge et les mêmes intouchables (texte dit, textes des lignes, rôles, numéros).
+ * PURE ; n'appelle jamais Claude. `ok` : la fiche passe les règles. Sinon : ses refus restants et la fiche réparée en partie.
+ */
+export function reparerFicheGardee(fiche: FicheTableau, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; reparations: ReparationForme[]; retraits: RetraitAllegement[] } | { ok: false; refus: string[]; fiche: FicheTableau; reparations: ReparationForme[] } {
+  // La fiche gardée porte la fin choisie dans `appelId` (posée à l'enregistrement) : le juge du découpage la veut à `null`, elle est rendue ensuite.
+  const j = jugerFiche({ ...fiche, appelId: null } as FicheTableau, e);
+  const avecFin = (f: FicheTableau): FicheTableau => ({ ...f, appelId: fiche.appelId });
+  if (j.ok) return { ok: true, fiche: avecFin(j.fiche), reparations: j.reparations ?? [], retraits: j.retraits };
+  // Sans fiche rendue (allègement qui aurait retiré du contenu), les réparations ne sont pas dans la fiche gardée : elles ne sont pas annoncées.
+  return { ok: false, refus: j.refus, fiche: avecFin(j.fiche ?? fiche), reparations: j.fiche ? (j.reparations ?? []) : [] };
+}
+
+/**
  * « reference/3 » : le style du tableau de la série est posé pour la VALIDATION (la page « tient-elle ? »), comme à la
  * fabrication (`pagesDuStyle`) : la page est jugée dans le style où elle sera dessinée, pas dans la page « ivoire » que la
  * vidéo n'utilise jamais (brouillon v-365dd2ae67ee, 18/10/2026). Il est posé AVANT les remises en forme : la page de plus
@@ -664,7 +687,7 @@ export function avecStyleDeLaSerie<T>(brute: T, e: Pick<EntreeDecoupage, "habill
 }
 
 /** Juge une réponse lue : contrôles du découpage, puis validation complète de la fiche. */
-export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[]; reparations?: ReparationForme[]; clesAvant?: string[] } | { ok: false; refus: string[]; cles: string[]; reparations?: ReparationForme[]; clesAvant?: string[] } {
+export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fiche: FicheTableau; retraits: RetraitAllegement[]; reparations?: ReparationForme[]; clesAvant?: string[] } | { ok: false; refus: string[]; cles: string[]; reparations?: ReparationForme[]; clesAvant?: string[]; fiche?: FicheTableau } {
   // Remises en forme déterministes : mots forts et importants, formes (ancres bornées…), puis rythme.
   // Les parties du script (quand le générateur les rend) fixent la partie de chaque page et les numéros d'étape.
   const lue = appliquerParties(rendue, e.parties);
@@ -705,7 +728,10 @@ export function jugerFiche(rendue: unknown, e: EntreeDecoupage): { ok: true; fic
   }
   const { v, refus, cles } = jugement;
   const avecReparations = reparations.length ? { reparations, ...(clesAvant ? { clesAvant } : {}) } : {};
-  if (refus.length || !v.ok) return { ok: false, refus, cles, ...avecReparations };
+  // Refusée mais réparée en partie : la fiche réparée est rendue (gardée « à corriger », renvoyée à la relance).
+  // Jamais en silence : si l'allègement a retiré du contenu (`retraits`), la fiche allégée n'est PAS rendue (gardée « à corriger » ni envoyée
+  // à la relance) ; l'appelant garde alors la fiche rendue, non allégée, comme avant.
+  if (refus.length || !v.ok) return { ok: false, refus, cles, ...avecReparations, ...(reparations.length && !retraits.length ? { fiche: brute as FicheTableau } : {}) };
   // Style tiré ou imposé : il reste dans la fiche (la fabrication le relit via `styleTableauDe`, sinon elle retomberait sur
   // le style de la série). Sinon le style de la série n'a servi qu'à juger : la fabrication le pose à son tour.
   if (jugee === lue || e.tirage || estStyleTableau(e.styleImpose)) return { ok: true, fiche: v.fiche, retraits, ...avecReparations };
@@ -775,7 +801,8 @@ const memesRefus = (a: readonly string[], b: readonly string[]) => a.length > 0 
 export async function decouperEnScenes(entree: EntreeDecoupage, outils: OutilsDecoupage): Promise<ResultatDecoupage> {
   const role = roleDecoupageTableau;
   const base = variableDecoupage(entree);
-  let variable = base;
+  const depart = outils.depart;
+  let variable = depart ? variableRelance(base, JSON.stringify(depart.fiche), depart.refus, depart.reparations) : base;
   let refus: string[] = [];
   let appels = 0;
   /** Dernière fiche lisible refusée par les règles (gardée « à corriger »), et si la dernière réponse était illisible. */
@@ -841,7 +868,7 @@ export async function decouperEnScenes(entree: EntreeDecoupage, outils: OutilsDe
     const avant = "clesAvant" in jugement && jugement.clesAvant ? compterCles(jugement.clesAvant) : restes;
     essais.push({ essai, refusAvant: avant, reparesSansIA: reparesDe(avant, restes), restes });
     illisible = !lecture.ok;
-    if (lecture.ok && ficheLisible(lecture.brute)) aCorriger = ficheACorriger(lecture.brute, entree);
+    if (lecture.ok && ficheLisible(lecture.brute)) aCorriger = ficheACorriger("fiche" in jugement && jugement.fiche ? jugement.fiche : lecture.brute, entree);
     const refusPrecedent = refus;
     refus = jugement.refus;
     // Arrêt sans progrès : exactement les mêmes refus qu'à l'essai d'avant, un nouvel essai paierait pour rien.

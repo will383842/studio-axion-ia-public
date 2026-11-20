@@ -39,7 +39,7 @@ import { TAUX_USD_EUR_PAR_DEFAUT } from "@/lib/montants";
 import { ENTREE_TABLEAU, fichiersDuTravail, lireEntreesTableau, voixPayeeDuTravail, type VoixPayee } from "@/moteurs/montage-tableau";
 import { ancreParlee, couperScene } from "@/moteurs/montage-tableau/rythme";
 import { consignerBilanDecoupage } from "./tableau-bilan-decoupage";
-import { coutPireDecoupageUsd, decouperEnScenes, ETAPE_DECOUPAGE, PARTIES_MAX, partiesDuDecoupage, remettreEnForme, type EntreeDecoupage, type OutilsDecoupage, type PreuveProposee, type ReponseAppelDecoupage, type ResultatDecoupage } from "@/moteurs/montage-tableau/decoupage";
+import { coutPireDecoupageUsd, decouperEnScenes, ETAPE_DECOUPAGE, PARTIES_MAX, partiesDuDecoupage, remettreEnForme, reparerFicheGardee, type EntreeDecoupage, type OutilsDecoupage, type PreuveProposee, type ReponseAppelDecoupage, type ResultatDecoupage } from "@/moteurs/montage-tableau/decoupage";
 import type { CaseDejaVu } from "@/moteurs/montage-tableau/controles";
 import { estimerFabrication } from "@/moteurs/montage-tableau/fabriquer";
 import { lecturesVoixMaxDuReglage } from "./voix-ressemblance";
@@ -887,7 +887,7 @@ async function executerDecoupage(videoId: Id, tache: TacheTableau, dependances: 
   const appeler = appelerRejoue(videoId, tache.id, dependances.appeler ?? appelStudio(videoId, tache.depuis, pireUsd), tache.journal);
   // Le chemin de dépense réserve lui-même chaque appel (plafond de la vidéo, limite du mois, pré-vol) : rien à réserver
   // en plus ici, sinon le même appel serait compté deux fois.
-  const r = await decouperEnScenes(entree, { appeler, budget: { reserver: async () => ({ ok: true }) }, noterBilan: (b) => void consignerBilanDecoupage(b, { tacheId: tache.id, estDemo: video.estDemo === true }) });
+  const r = await decouperEnScenes(entree, { appeler, budget: { reserver: async () => ({ ok: true }) }, noterBilan: (b) => void consignerBilanDecoupage(b, { tacheId: tache.id, estDemo: video.estDemo === true }), depart: tache.depart });
   if (await supprimeePendantLAppel(videoId)) return;
   if (!r.ok) {
     // Arrêt avant l'appel (plafond, crédit) ou Claude indisponible : on peut réessayer (rien de repayé) ; refus des
@@ -1092,7 +1092,10 @@ async function ficheCorrigee(
   if (!donnees.motsDouleur) delete donnees.motsDouleur;
   // Texte corrigé : les parties nommées ne tiennent que si elles le redonnent encore mot pour mot.
   if (donnees.parties && !partiesAccordees(donnees.parties, texte)) delete donnees.parties;
-  const r = validerFicheTableau(corrigee, { ...avecMotsDouleur(await contexteRegles(aujourdhui ?? aujourdhuiIso()), donnees), texteScript: texte });
+  const gardee = brouillon.versions.at(-1)?.origine === "decoupage-a-corriger" ? reparerFicheGardee(corrigee, entreeDecoupage(donnees, corrigee.videoId, corrigee.versionId, await contexteRegles(aujourdhui ?? aujourdhuiIso()), await preuvesProposees(aujourdhui ?? aujourdhuiIso()))) : undefined; // mêmes réparations sans IA que le découpage
+  // À la main : réparation de forme SEULE. Si la fiche ne tient qu'en retirant du contenu (allègement du découpage), refus : rien n'est retiré en silence.
+  if (gardee?.ok && gardee.retraits.length) return { ok: false, phrase: `Cette fiche ne tient qu'en retirant du contenu (${gardee.retraits.map((x) => `${x.sceneId}/${x.elementId}`).join(", ")}) : rien n'a été enregistré. Allégez-la vous-même.`, problemes: [] };
+  const r = validerFicheTableau(gardee?.ok ? gardee.fiche : corrigee, { ...avecMotsDouleur(await contexteRegles(aujourdhui ?? aujourdhuiIso()), donnees), texteScript: texte });
   if (!r.ok) return { ok: false, phrase: "Ces corrections ne passent pas les règles : rien n'a été enregistré.", problemes: r.problemes };
   return { ok: true, fiche: r.fiche, donnees };
 }
@@ -1826,10 +1829,19 @@ export async function reprendreTacheTableau(videoId: Id, accordBrut?: AccordPrix
   const t = brouillon.tache;
   const decoupageRefuse = t?.type === "decoupage" && t.statut === "refusee";
   if (!t || (t.statut !== "erreur" && t.statut !== "interrompue" && !decoupageRefuse)) return { statut: "refusee", phrase: tacheActive(t) ? "Le travail est déjà en cours." : "Rien à reprendre pour ce brouillon." };
+  // Étape 0, GRATUITE : la fiche gardée reçoit les réparations sans IA ; si elle passe les règles, aucun prix ni appel.
+  const v = brouillon.versions.at(-1);
+  const rep = decoupageRefuse && v?.origine === "decoupage-a-corriger" ? reparerFicheGardee(v.fiche, entreeDecoupage(brouillon.donnees, videoId, v.fiche.versionId, await contexteRegles(aujourdhuiIso()), await preuvesProposees(aujourdhuiIso()))) : undefined;
+  if (rep?.ok) {
+    console.warn(`[tableau] reprise ${videoId} : réparé sans IA : ${rep.reparations.map((r) => r.quoi).join(" ; ") || "remise en forme"}${rep.retraits.length ? ` ; retraits ${rep.retraits.map((x) => `${x.sceneId}/${x.elementId} (${x.type}, page ${x.page})`).join(", ")}` : ""}`);
+    await ajouterVersion(videoId, { ...rep.fiche, appelId: brouillon.donnees.finId }, "decoupage", brouillon.donnees);
+    await modifierTache(videoId, t.id, (x) => x && { ...x, statut: "terminee", enVol: undefined, message: "Scènes prêtes (réparées sans IA).", motifs: undefined });
+    return { statut: "en-cours", videoId, tacheId: t.id };
+  }
   const prix = t.type === "ecriture" ? await prixEcriture(t.methode ?? METHODE_ANCIENNES_TACHES) : await prixDecoupage(brouillon.donnees, aujourdhuiIso());
   const accord = accordPropre(accordBrut);
   if (typeof accord !== "number" || accord < prix.montant) return { statut: "accord-requis", centimes: prix.montant, phrase: prix.phrase };
-  const neuf = decoupageRefuse ? { journal: [], aujourdhui: aujourdhuiIso(), versionId: `b${brouillon.versions.length + 1}` } : {};
+  const neuf = decoupageRefuse ? { journal: [], aujourdhui: aujourdhuiIso(), versionId: `b${brouillon.versions.length + 1}`, depart: rep && !rep.ok ? { fiche: rep.fiche, refus: rep.refus, reparations: rep.reparations } : undefined } : {};
   const reprise = await modifierTache(videoId, t.id, (x) => x && { ...x, ...neuf, statut: "en-attente", enVol: undefined, message: undefined, motifs: undefined, depuis: maintenant(), pireUsd: prix.pireUsd });
   if (t.traceId) await depots().tracesScriptsTableau.modifier(t.traceId, { issue: "en-cours", erreur: undefined }).catch(() => undefined);
   await journaliser("video", `Tableau animé : ${t.type === "ecriture" ? "écriture" : "découpage"} repris (les appels déjà faits sont gardés)`, { type: "video", id: videoId });

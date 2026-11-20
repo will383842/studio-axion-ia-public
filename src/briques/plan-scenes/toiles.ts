@@ -41,4 +41,11 @@ export const TOILES = {
   "intercalaire-chapitre": { largeur: 1600, hauteur: 900 },
   "flux-ramifie": { largeur: 1600, hauteur: 900 },
   "cadre-capture": { largeur: 1480, hauteur: 914 },
+  // C9-34-TRAITS-v19c
+  "objet-soulignement-vague": { largeur: 1000, hauteur: 1000 },
+  "objet-soulignement-double": { largeur: 1000, hauteur: 1000 },
+  "objet-surligneur": { largeur: 1000, hauteur: 1000 },
+  "objet-fleche-droite": { largeur: 1000, hauteur: 1000 },
+  "objet-fleche-courbe": { largeur: 1000, hauteur: 1000 },
+  "objet-fleche-pointillee": { largeur: 1000, hauteur: 1000 },
 } as const;
