@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/voix-epinglee";
 import { schemaPlanStrict, type PlanValide } from "@/briques/plan-scenes/schema";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
-import { creerMoteurTutorielOutil, validerScriptTutoriel, CODE_OUTILS_NON_RELIES } from "@/moteurs/montage-tutoriel-outil";
+import { creerMoteurTutorielOutil, CODE_OUTILS_NON_RELIES } from "@/moteurs/montage-tutoriel-outil";
 import type { ResultatFabrication } from "@/moteurs/types";
 import { commandeTutoriel, outilsDoubles, SCRIPT, une, type Journal } from "./doubles";
 
@@ -70,7 +70,10 @@ describe("tutoriel d'outil : de bout en bout, avec doubles", () => {
     expect(resultat!.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
   });
 
-  it("titre ou idée : le script écrit attend Williams (pause, pas d'échec), puis la validation lance la suite", async () => {
+  // T-EXT-55 : l'ancien écrivain hors équipe est retiré. Les garanties d'avant (pause sans échec, aucun appel en double au second
+  // tour, la validation lance la suite, le texte validé fait foi) sont REPRISES par tests/tutoriel-outil/equipe-integree.test.ts,
+  // avec l'équipe allumée ; ici, équipe éteinte : l'idée attend un script collé, sans appel ni voix, puis le script collé fabrique.
+  it("titre ou idée, équipe éteinte : pause TO_SCRIPT_NON_ECRIT (pas d'échec, 0 appel, 0 voix) ; avec un script collé, la vidéo se termine", async () => {
     const j = journalVide();
     const moteur = creerMoteurTutorielOutil({ outils: une(outilsDoubles(j)) });
     const c = commandeTutoriel({ script: { blocs: [], texteComplet: "" }, entrees: { tutorielOutil: { idee: "Créer un tableau de bord" } } });
@@ -78,18 +81,19 @@ describe("tutoriel d'outil : de bout en bout, avec doubles", () => {
     const arret = await mener(moteur, c, t0);
     expect(arret.travail.statut).toBe("en_file");
     expect(arret.travail.erreur).toBeUndefined();
-    expect(arret.travail.parametres?.pause).toMatchObject({ code: "TO_SCRIPT_A_VALIDER", script: SCRIPT });
+    expect(arret.travail.parametres?.pause).toMatchObject({ code: "TO_SCRIPT_NON_ECRIT" });
     expect(j.voix).toEqual([]);
-    // Un second tour ne réécrit pas le script (aucun nouvel appel).
+    expect(j.claude).toHaveLength(0);
+    // Un second tour ne rappelle rien.
     const encore = await moteur.avancer(arret.travail, c, T0 + 5000);
-    expect(j.claude).toHaveLength(1);
-    expect(encore.travail.parametres?.pause).toMatchObject({ code: "TO_SCRIPT_A_VALIDER" });
+    expect(j.claude).toHaveLength(0);
+    expect(encore.travail.parametres?.pause).toMatchObject({ code: "TO_SCRIPT_NON_ECRIT" });
 
-    const modifie = `${SCRIPT} Essayez dès aujourd'hui.`;
-    const fin = await mener(moteur, c, validerScriptTutoriel(encore.travail, modifie));
+    // Même commande avec un script collé : la vidéo se termine, le texte de Williams fait foi.
+    const colle = commandeTutoriel();
+    const fin = await mener(moteur, colle, await moteur.lancer(colle, { travailId: "t-colle", versionId: "ver-1", titre: "Tuto", maintenant: T0 }));
     expect(fin.travail.statut).toBe("termine");
-    expect(j.claude[1].messages[0].contenu).toContain("Essayez dès aujourd'hui.");
-    expect((fin.resultat!.projetMontage.tutoriel as { script: { texte: string; source: string } }).script).toMatchObject({ texte: modifie, source: "valide" });
+    expect((fin.resultat!.projetMontage.tutoriel as { script: { texte: string; source: string } }).script).toMatchObject({ texte: SCRIPT, source: "colle" });
   });
 
   it("Claude en panne : plan de repli, vidéo livrée avec une réserve « À vérifier », jamais un échec", async () => {
