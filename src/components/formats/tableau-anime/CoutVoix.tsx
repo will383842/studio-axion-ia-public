@@ -11,7 +11,8 @@ import { Icone } from "@/components/ui/Icone";
  * `voix` : après une fabrication arrêtée dont la voix est payée, l'écran l'annonce AVANT : « la voix déjà payée sera
  * réutilisée » (même texte dit) ou « la voix sera relue » (le texte dit a changé).
  */
-export function CoutVoixTableau({ onLancer, chargement, essai, voix = "neuve" }: { /** Reçu du serveur, jamais affiché. */ centimes?: number; onLancer?: () => void; chargement?: boolean; essai?: boolean; voix?: "neuve" | "reutilisee" | "relue" }) {
+export function CoutVoixTableau({ onLancer, chargement, essai, voix = "neuve", sansVoix }: { /** Sans voix (TA-SV) : silence total, aucune voix, 0 €. */ sansVoix?: boolean; /** Reçu du serveur, jamais affiché. */ centimes?: number; onLancer?: () => void; chargement?: boolean; essai?: boolean; voix?: "neuve" | "reutilisee" | "relue" }) {
+  if (sansVoix) return <section aria-label="Avant de lancer" className="rounded-2xl border border-trait bg-surface-1 px-4 py-3"><p className="text-[15px] font-semibold text-texte">Aucune voix : silence total</p><p className="text-sm text-texte-doux">Les sous-titres et le texte à l&apos;écran portent le sens. Rien n&apos;est payé.</p></section>;
   const titre = voix === "reutilisee" ? "La voix déjà payée sera réutilisée" : voix === "relue" ? "La voix sera relue" : "La voix sera lue";
   const detail = voix === "reutilisee" ? "Le texte dit n'a pas changé : rien n'est repayé." : voix === "relue" ? "Le texte dit a changé depuis la voix déjà payée. Rien n'est payé avant votre accord." : essai ? "En essai, rien n'est payé." : "Rien n'est payé avant votre accord.";
   return (
