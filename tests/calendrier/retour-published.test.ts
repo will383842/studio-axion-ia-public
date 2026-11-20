@@ -23,7 +23,7 @@ beforeAll(async () => {
   process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
 });
 
-const { injecterClientZernio, synchroniserEtatsZernio } = await import("@/services/zernio");
+const { injecterClientZernio, synchroniserEtatsZernio, PREFIXE_MARQUES_CALENDRIER } = await import("@/services/zernio");
 const { creerFauxClientZernio, postExemple } = await import("../zernio/aides/faux-zernio");
 type AppelEnregistre = import("../zernio/aides/faux-zernio").AppelEnregistre;
 
@@ -131,7 +131,7 @@ describe("RETOUR-PUBLISHED · échec ou ambigu : rien n'est levé (CAL-23)", () 
 });
 
 describe("RETOUR-PUBLISHED · marques levées seulement si l'envoi est « envoye »", () => {
-  it.each(["valide", "annule", "confirme"] as const)("envoi « %s » : marques et envoi restent tels quels, le créneau publie", async (statutEnvoi) => {
+  it.each(["valide", "annule", "confirme"] as const)("envoi « %s » : marques et envoi restent tels quels", async (statutEnvoi) => {
     await programmationManuelle("a-verifier", { envoi: statutEnvoi });
     await passer("published");
     const e = await etat();
@@ -165,6 +165,7 @@ describe("RETOUR-PUBLISHED · marques levées seulement si l'envoi est « envoye
 
   it("le préfixe des marques est celui du calendrier", async () => {
     const { PREFIXE_ETATS_ENVOI_CALENDRIER } = await import("@/services/branchement-envoi-calendrier");
+    expect(PREFIXE_MARQUES_CALENDRIER).toBe(PREFIXE_ETATS_ENVOI_CALENDRIER);
     expect(PREFIXE).toBe(PREFIXE_ETATS_ENVOI_CALENDRIER);
   }, 60_000);
 });
@@ -177,5 +178,26 @@ describe("RETOUR-PUBLISHED · reprise après un passage interrompu", () => {
     const avant = [await depots().envoisPlanifies.obtenir(CLE_ENVOI), await depots().creneauxEditoriaux.obtenir("cre_1"), await depots().publications.obtenir(`pub_${CLE_ENVOI}`)];
     await passer("scheduled", 2);
     expect([await depots().envoisPlanifies.obtenir(CLE_ENVOI), await depots().creneauxEditoriaux.obtenir("cre_1"), await depots().publications.obtenir(`pub_${CLE_ENVOI}`)]).toEqual(avant);
+  });
+});
+
+describe("RETOUR-PUBLISHED · créneau à plusieurs réseaux", () => {
+  it("un seul réseau parti : le créneau reste « programme » (statut final), l'envoi et sa pub_<clé> suivent", async () => {
+    await programmationManuelle("programme");
+    await depots().envoisPlanifies.enregistrer({
+      id: "envoi:vis_1:facebook:v0", cle: "envoi:vis_1:facebook:v0", videoId: "vis_1", nature: "visuel", creneauId: "cre_1", cleDiffuseur: "c".repeat(64), reseau: "facebook", versionCreneau: 0,
+      jour: "2026-11-12", heure: "09:00", statut: "programme", valideeLe: iso(T0), valideePar: "fondateur", creeLe: iso(T0), modifieLe: iso(T0),
+    } as never);
+    await passer("published");
+    expect(await etat()).toEqual({ creneau: "programme", envoi: "envoye", pub: "publiee", promotion: "parti", verifier: undefined });
+    expect((await depots().envoisPlanifies.obtenir("envoi:vis_1:facebook:v0"))?.statut).toBe("programme");
+  });
+});
+
+describe("RETOUR-PUBLISHED · la reprise ne touche pas un envoi hors « programme »", () => {
+  it.each(["confirme", "annule"] as const)("Publication publiee + envoi « %s » : rien ne change", async (statutEnvoi) => {
+    await programmationManuelle("a-verifier", { envoi: statutEnvoi, pubZernio: "publiee" });
+    await passer("scheduled");
+    expect(await etat()).toEqual({ creneau: "programme", envoi: statutEnvoi, pub: "programmee", promotion: "a-verifier", verifier: "a-verifier" });
   });
 });

@@ -258,18 +258,21 @@ async function suivrePublicationConfirmee(p: Publication): Promise<void> {
   const envois = await d.envoisPlanifies.lister((e) => (e.cleDiffuseur ?? e.cle) === p.cleEnvoi);
   for (const e of envois) {
     await sousVerrou(async () => {
+      // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon, confirmé…) reste tel quel.
+      let envoi = await d.envoisPlanifies.obtenir(e.id);
+      if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) envoi = await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
       const creneau = e.creneauId ? await d.creneauxEditoriaux.obtenir(e.creneauId) : undefined;
       const pub = await d.publications.obtenir(`pub_${e.cle}`);
+      // Le créneau (statut final) ne passe « publie » que lorsque TOUS les envois vivants de sa version courante sont partis (jamais sur un seul réseau).
+      const freres = e.creneauId ? await d.envoisPlanifies.lister((x) => x.creneauId === e.creneauId && x.versionCreneau === e.versionCreneau && x.statut !== "annule") : [];
+      const tousPartis = freres.length > 0 && freres.every((x) => x.statut === "envoye");
       const r = reconcilier({ diffuseur: "publie" }, {
-        // Sans créneau réel : un créneau fictif déjà « publie » (rien à changer de ce côté).
-        creneau: creneau ? { id: creneau.id, statut: creneau.statut } : { id: "-", statut: "publie" },
+        // Sans créneau réel, ou tant que des réseaux restent à partir : créneau fictif déjà « publie » (rien à changer de ce côté).
+        creneau: creneau && tousPartis ? { id: creneau.id, statut: creneau.statut } : { id: "-", statut: "publie" },
         publication: { id: pub?.id ?? "-", statut: pub?.statut ?? "publiee" },
       });
       if (creneau && r.creneau) await d.creneauxEditoriaux.modifier(creneau.id, { statut: r.creneau.statut });
       if (pub && r.publication) await d.publications.modifier(pub.id, { statut: r.publication.statut, modifieLe: maintenant() });
-      // Une seule transition ouverte : « programme » → « envoye » ; tout autre état (annulé, brouillon, confirmé…) reste tel quel.
-      let envoi = await d.envoisPlanifies.obtenir(e.id);
-      if (envoi && envoi.statut !== "envoye" && peutTransiter(envoi.statut, "envoye")) envoi = await transiterEnvoi(d.envoisPlanifies, envoi.id, "envoye", maintenant());
       // Les marques ne sont levées que si l'envoi est bien « envoye » : sinon elles gardent leur rôle de garde (reprise à la main).
       if (envoi?.statut !== "envoye") return;
       // Seules les marques qui disent « programmé » ou « à vérifier » sont levées ; « en-cours » (tentative en vol) et « libre » restent.
@@ -293,6 +296,7 @@ async function reprendreRetoursPublies(): Promise<void> {
   if (!restes.length) return;
   const cles = new Set(restes.map((e) => e.cleDiffuseur ?? e.cle));
   const pubs = await d.publications.lister((p) => p.via === "zernio" && p.statut === "publiee" && !!p.cleEnvoi && cles.has(p.cleEnvoi));
+  pubs.sort((x, y) => (x.etatLuLe ?? "").localeCompare(y.etatLuLe ?? "") || x.id.localeCompare(y.id));
   for (const p of pubs.slice(0, RATTRAPAGE_PAR_PASSAGE)) {
     try {
       await suivrePublicationConfirmee(p);
