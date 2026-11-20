@@ -22,6 +22,8 @@ import { carteParRegles, entreeAnalyste, GESTES_ZONE, lireCarteZones, roleAnalys
 import { classerParRegles, etablirCahier, lireDecisionChef, roleChefDeProjet, type CahierVideo, type DecisionChef, type DemandeTutoriel, type InventaireDossier } from "./chef-de-projet";
 import { controlerAvantValidation, resumePourWilliams, type VerdictControleur } from "./controleur";
 import { PHRASE_FIN_RENDEZ_VOUS } from "./dossier-validation";
+import { appliquerPieceGardee, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
+import { lireFluxAutomatisation } from "../gabarit-flux";
 import { completerManque, entreeMaquettiste, MANQUES_MAQUETTISTE, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste, type PropositionMaquettiste } from "./maquettiste";
 import { realiser, type ParcoursTutoriel } from "./realisateur";
 import { etablirRegistre, type RegistreTextes } from "./registre-textes";
@@ -103,7 +105,7 @@ export interface DossierLu {
   contexteMaquettiste?: ContexteMaquettiste;
 }
 
-export interface EtatEquipe {
+export interface EtatEquipe extends EtatPiece {
   demande: DemandeTutoriel;
   decision?: DecisionChef;
   cahier?: CahierVideo;
@@ -135,6 +137,8 @@ export interface EtatEquipe {
 
 export interface EntreesEquipe {
   dossier: DossierLu | null;
+  /** V2 : la vidéo part d'une phrase ET les deux réglages sont allumés (lus par le service, jamais écrits ici) ; seul `true` exact compte. */
+  phraseOuverte?: boolean;
   /** Williams a demandé d'ajuster un script fourni : seul `true` exact compte. */
   ajusterDemande?: true;
 }
@@ -192,22 +196,60 @@ const dureeFin = (e: EtatEquipe): number => e.dureeFinSec ?? 0;
 /* Prochain pas                                                         */
 /* ------------------------------------------------------------------ */
 
+/** V2-08 : option du pas « pièce créée ». Absente (ou différente de `true`) : toutes les sorties d'avant, inchangées. */
+export interface OptionsPas {
+  phraseOuverte?: boolean;
+}
+
 /** Le prochain pas de l'équipe. Même état et mêmes entrées : même pas (déterministe). Ne lève jamais. */
-export function prochainPas(e: EtatEquipe, entrees: EntreesEquipe): PasEquipe {
+export function prochainPas(e: EtatEquipe, entrees: EntreesEquipe, options: OptionsPas = {}): PasEquipe {
   try {
-    return pas(e, entrees);
+    return pas(e, entrees, (options.phraseOuverte ?? entrees.phraseOuverte) === true);
   } catch {
     return bloquee();
   }
 }
 
-function pas(e: EtatEquipe, entrees: EntreesEquipe): PasEquipe {
-  const dossier = entrees.dossier;
+/** Le manque que crée une phrase : une maquette (cas 2) ou un flux (cas 3). */
+const manquePiece = (c: CahierVideo): "maquette" | "flux-automatisation" | undefined => (c.entree !== "C" ? undefined : c.manques.includes("flux-automatisation") ? "flux-automatisation" : c.manques.includes("maquette") ? "maquette" : undefined);
+
+/** Contexte du maquettiste pour une phrase : la phrase est une DONNÉE ; aucune carte, aucune pièce de l'utilisateur. */
+const contextePiece = (e: EtatEquipe, proposition: 1 | 2): ContexteMaquettiste => ({ metier: "selon la demande", carteZones: [], interdits: [], demande: e.demande.phrase ?? "", proposition });
+
+/** Ce que les étapes suivantes lisent d'une pièce gardée (à la place d'un dossier) : les mêmes formes, déduites sans Claude. */
+function dossierDePiece(e: EtatEquipe): DossierLu {
+  const flux = e.pieceCreee?.genre === "flux";
+  return {
+    inventaire: { maquette: true, maquetteVivante: true, tableauDeBord: !flux, captures: 0, donnees: e.donnees !== undefined, scripts: [], flux, conversation: false },
+    fichiers: [],
+    ...(e.donnees ? { donnees: e.donnees } : {}),
+    textesMaquette: e.textesMaquette ?? [],
+    couleurs: [],
+    polices: [],
+    noms: [],
+  };
+}
+
+/** Efface la carte, les données, les textes de la maquette et tout ce qui en découle (la pièce, les appels et les paiements restent). */
+function sansDeductionDePiece(e: EtatEquipe): EtatEquipe {
+  const { carte: _c, donnees: _d, textesMaquette: _t, carteEmpreinte: _o, fiche: _f, propositionScripts: _p, scriptChoisi: _s, parcours: _pa, verdict: _v, registre: _r, verdictCalage: _vc, remarquesTronc: _rt, correctionNotee: _cn, ...reste } = e;
+  void [_c, _d, _t, _o, _f, _p, _s, _pa, _v, _r, _vc, _rt, _cn];
+  return reste;
+}
+
+function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): PasEquipe {
+  let dossier = entrees.dossier;
   const demande: DemandeTutoriel = dossier ? { ...e.demande, dossier: dossier.inventaire } : e.demande;
 
   /* 1. Chef de projet : les règles classent ; « à trancher » seulement, un appel d'Opus. */
   if (!e.cahier) {
     const regles = classerParRegles(demande);
+    // V2 : une phrase seule, réglages allumés. Aucun appel du chef (les règles classent, 0 €) ; les cas 4 et 5 restent en pause.
+    if (phraseOuverte && regles.entree === "C" && !dossier && !e.decision) {
+      const c = etablirCahier(demande, regles, { phraseOuverte: true });
+      if (!c.ok) return { pause: { code: c.attente.code, message: c.attente.message }, etat: { ...e, decision: regles } };
+      return local("chef-de-projet", { ...e, decision: regles, cahier: c.cahier, remarques: sans(e.remarques, "chef-de-projet") }, "La demande est classée : une maquette sera proposée, vous la verrez avant tout.");
+    }
     // Phrase seule (entrée C) : le cahier attend de toute façon (V2), quel que soit l'avis du chef : rien n'est payé pour rien.
     if (regles.entree === "C" && !e.decision) {
       const c = etablirCahier(demande, regles);
@@ -217,15 +259,38 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe): PasEquipe {
       return appel(e, "chef-de-projet", { contexte: {}, variable: JSON.stringify(demande) });
     }
     const decision = e.decision ?? regles;
-    const c = etablirCahier(demande, decision);
+    const c = etablirCahier(demande, decision, phraseOuverte ? { phraseOuverte: true } : {});
     if (!c.ok) return { pause: { code: c.attente.code, message: c.attente.message }, etat: { ...e, decision } };
     return local("chef-de-projet", { ...e, decision, cahier: c.cahier, remarques: sans(e.remarques, "chef-de-projet") }, "Le dossier est classé : le cas et le parcours sont choisis.");
   }
   const cahier = e.cahier;
 
+  /* 2a. V2 : la pièce créée depuis une phrase : proposer, faire contrôler, construire, faire garder, puis la chaîne d'avant. */
+  const piece = phraseOuverte && !dossier ? manquePiece(cahier) : undefined;
+  if (piece) {
+    const p = e.pieceCreee;
+    if (!p) {
+      // Une seule proposition à la fois ; un refus déjà noté ne se rejoue pas tout seul (aucune reprise automatique).
+      if (appelsFaits(e, "maquettiste") >= 1 && (e.remarques?.maquettiste?.length ?? 0) > 0) return bloquee();
+      // en attendant T-EXT-25b : le manque « flux-automatisation » n'existe pas encore dans MANQUES_MAQUETTISTE.
+      const entree = entreeMaquettiste(piece as ManqueMaquettiste, contextePiece(e, 1));
+      return { faire: "maquettiste", payant: true, entree: avecRemarques(e, "maquettiste", entree), empreinteEntree: empreinteDe("maquettiste", avecRemarques(e, "maquettiste", entree)) };
+    }
+    const r = pasPieceCreee(p);
+    // La pièce quitte « gardée » : tout ce qui vient de l'ancienne pièce est effacé (rien n'est repris d'un texte que Williams ne voit plus).
+    if ("pause" in r) return { pause: r.pause, ...(r.etat ? { etat: { ...sansDeductionDePiece(e), pieceCreee: r.etat } } : {}) };
+    if (e.carteEmpreinte !== p.gardee?.empreinte) {
+      const gardee = appliquerPieceGardee(sansDeductionDePiece(e));
+      // en attendant qu'un gabarit serve le cas 2 (G-Decision et G-Journee ne servent que 1, 4, 5) : une maquette gardée est, pour la suite, un tableau de bord existant (cas 1).
+      const g = gardee.cahier?.cas === 2 ? { ...gardee, cahier: { ...gardee.cahier, cas: 1 as const } } : gardee;
+      return local("maquettiste", g, g.carteEmpreinte !== undefined ? "Votre maquette est gardée : ses zones, ses chiffres et ses textes sont relevés." : "La maquette gardée n'a pas pu être relue : elle est à revoir.");
+    }
+    dossier = dossierDePiece(e);
+  }
+
   /* 2. Maquettiste, seulement si une pièce qu'il sait compléter manque. */
-  const manque = manquesMaquettiste(cahier).find((m) => !e.pieces?.some((p) => p.manque === m));
-  const sansReponse = manqueSansReponse(cahier);
+  const manque = piece ? undefined : manquesMaquettiste(cahier).find((m) => !e.pieces?.some((p) => p.manque === m));
+  const sansReponse = piece ? undefined : manqueSansReponse(cahier);
   if (sansReponse) return { pause: { code: CODE_DOSSIER_INCOMPLET, message: `Il manque « ${sansReponse} » : ajoutez-le à votre dossier. Rien n'a échoué.` } };
   if (manque) {
     if (!dossier?.contexteMaquettiste) return { pause: { code: CODE_DOSSIER_INCOMPLET, message: `Il manque « ${manque} » : ajoutez-le à votre dossier. Rien n'a échoué.` } };
@@ -302,6 +367,28 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe): PasEquipe {
   return { pause: { code: CODE_A_VALIDER, message: MESSAGE_A_VALIDER } };
 }
 
+/** V2-08 : la sortie du maquettiste pour une phrase devient une pièce proposée, relue par les contrôles des textes créés. Ne lève jamais. */
+async function appliquerPropositionPiece(
+  e: EtatEquipe,
+  faits: EtatEquipe,
+  genre: "maquette" | "flux-automatisation",
+  sortie: unknown,
+  refus: (erreurs: string[]) => Appliquee,
+  accepte: (etat: EtatEquipe, resume: string) => Appliquee,
+): Promise<Appliquee> {
+  const numero = e.pieceCreee?.proposition ?? 1;
+  if (genre === "maquette") {
+    const p = await completerManque({ manque: "maquette", contexte: contextePiece(e, numero), appeler: async () => sortie });
+    if (p.statut !== "proposition" || p.manque !== "maquette") return refus(p.statut === "a-revoir" ? p.erreurs : ["pièce à compléter inconnue"]);
+    return accepte(recevoirProposition(faits, { genre: "maquette", proposition: numero, contenu: p.description }), "Une maquette est proposée : vous la verrez avant tout.");
+  }
+  // en attendant T-EXT-25b : le maquettiste ne sait pas encore rendre un flux ; la sortie est relue ici par le lecteur du flux (T-EXT-50).
+  const contenu = sortie && typeof sortie === "object" ? (sortie as { contenu?: unknown }).contenu : undefined;
+  const lu = lireFluxAutomatisation(contenu);
+  if (!lu.ok) return refus(lu.erreurs);
+  return accepte(recevoirProposition(faits, { genre: "flux", proposition: numero, contenu: lu.flux }), "Une automatisation est proposée : vous la verrez avant tout.");
+}
+
 function sans<T extends object>(o: T | undefined, cle: keyof T): T | undefined {
   if (!o) return o;
   const { [cle]: _x, ...reste } = o;
@@ -336,6 +423,8 @@ export async function appliquerSortie(e: EtatEquipe, role: IdRole, sortie: unkno
         return accepte({ ...faits, decision }, "La demande est tranchée.");
       }
       case "maquettiste": {
+        const genrePiece = !dossier && e.cahier ? manquePiece(e.cahier) : undefined;
+        if (genrePiece) return await appliquerPropositionPiece(e, faits, genrePiece, sortie, refus, accepte);
         const manque = e.cahier ? manquesMaquettiste(e.cahier).find((m) => !e.pieces?.some((p) => p.manque === m)) : undefined;
         if (!manque || !dossier?.contexteMaquettiste) return refus(["pièce à compléter inconnue"]);
         const p = await completerManque({ manque, contexte: dossier.contexteMaquettiste, appeler: async () => sortie });

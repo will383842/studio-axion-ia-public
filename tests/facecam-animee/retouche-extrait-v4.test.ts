@@ -183,7 +183,7 @@ describe("R4-03-b1 · gardes statiques", () => {
     };
     parcourir(join(racine, "src"));
     const autorise = join(racine, "src/services/retouche-extrait-v4-demande.ts");
-    const importeurs = fichiers.filter((f) => f !== chemin && /retouche-extrait-v4["']/.test(readFileSync(f, "utf8")));
+    const importeurs = fichiers.filter((f) => f !== chemin && /(?<!sources-)retouche-extrait-v4["']/.test(readFileSync(f, "utf8")));
     expect(importeurs).toEqual([autorise]);
   });
 });

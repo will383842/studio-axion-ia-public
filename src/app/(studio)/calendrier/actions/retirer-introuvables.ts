@@ -8,8 +8,20 @@ import { revalidatePath } from "next/cache";
 import { depots, essayer, ErreurStudio, maintenant, sousVerrou, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { mesureVerifieeRecente } from "@/services/constantes-introuvable";
-import { MESSAGE_LISTE_CHANGEE, retirerLesRapatrieesIntrouvables, retraitGroupeSur } from "@/services/retirer-rapatriee";
-import { PARAM_ECART_CALENDRIER, type EcartCalendrier } from "@/services/zernio";
+import { MESSAGE_LISTE_CHANGEE, retirerLesRapatrieesApresRelecture, retraitGroupeSur, type VerdictRelecture } from "@/services/retirer-rapatriee";
+import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { clientZernio, PARAM_ECART_CALENDRIER, type EcartCalendrier } from "@/services/zernio";
+
+/** Lecture SEULE d'un post chez le diffuseur : il répond (« present »), n'existe plus (404 : « introuvable »), ou la réponse n'est pas claire (« incertain »). Ne lève jamais. */
+async function relire(idExterne: string | undefined): Promise<VerdictRelecture> {
+  if (!idExterne) return "incertain";
+  try {
+    await clientZernio().lirePost(idExterne);
+    return "present";
+  } catch (e) {
+    return estErreurZernio(e) && e.code === "introuvable" ? "introuvable" : "incertain";
+  }
+}
 
 export async function retirerIntrouvablesAction(ids: string[]): Promise<Resultat<{ retirees: number; message: string }>> {
   await exigerSession();
@@ -24,10 +36,11 @@ export async function retirerIntrouvablesAction(ids: string[]): Promise<Resultat
       const toutes = await d.publications.lister(() => true);
       const sur = retraitGroupeSur(mesure, toutes);
       if (!sur.sur) throw new ErreurStudio("RETRAIT_NON_SUR", sur.message);
-      const r = await retirerLesRapatrieesIntrouvables({ lister: async () => toutes, ecrire: async (id, modif) => void (await d.publications.modifier(id, modif)), maintenant }, ids);
+      // Au clic, chaque publication à retirer est relue SEULE chez le diffuseur (lecture seule, 10 au plus) : celle qui répond n'est pas retirée.
+      const r = await retirerLesRapatrieesApresRelecture({ lister: async () => toutes, ecrire: async (id, modif) => void (await d.publications.modifier(id, modif)), maintenant, relire: (p) => relire(p.idExterne) }, ids, mesure?.espaceRetrouveLe);
       if (!r.ok) throw new ErreurStudio("LISTE_CHANGEE", r.message);
       revalidatePath("/calendrier");
-      return { retirees: r.retirees, message: `C'est fait : ${r.retirees} publication${r.retirees > 1 ? "s" : ""} retirée${r.retirees > 1 ? "s" : ""} du calendrier. Rien n'est supprimé ni changé chez le diffuseur.` };
+      return { retirees: r.retirees, message: r.message };
     }),
   );
 }
