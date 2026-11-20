@@ -751,7 +751,7 @@ function lireCsv(texte: string, separateur: string): { valeur: string; debut: nu
     let delimiteur: string | undefined;
     // Blancs avant un guillemet ouvrant (`1, "Dupont, Jean"`) : la valeur est lue comme entre guillemets.
     let k0 = i;
-    while (k0 < n && (texte[k0] === " " || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
+    while (k0 < n && (/\p{Zs}/u.test(texte[k0]!) || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
     if (texte[k0] === '"') {
       i = k0;
       let j = i + 1;
@@ -805,11 +805,14 @@ function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined):
 function nomColonne(valeur: string): string {
   let v = valeur.trim();
   if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1).trim();
-  return v.toLowerCase();
+  return v.normalize("NFKC").toLowerCase();
 }
 
-function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
+function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
+  // « CSV (Macintosh) » : fin de ligne `\r` seule. Remplacée par `\n` (même longueur, positions inchangées) pour la lecture ;
+  // `\r\n` reste une seule fin de ligne.
+  const texte = ext === "json" ? texteBrut : texteBrut.replace(/\r(?!\n)/g, "\n");
   if (ext === "json") {
     const ESPACE = /\s/;
     /**
@@ -874,7 +877,7 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
     let traite = 0;
     for (const m of texte.matchAll(/"((?:[^"\\]|\\.)*)"\s*:\s*/g)) {
       const debutValeur = (m.index ?? 0) + m[0].length;
-      if (debutValeur <= traite || !COLONNES_PERSONNE.has(m[1]!.toLowerCase())) continue;
+      if (debutValeur <= traite || !COLONNES_PERSONNE.has(m[1]!.normalize("NFKC").toLowerCase())) continue;
       traite = collecter(debutValeur);
     }
     return trouves;

@@ -513,6 +513,33 @@ describe("masquage", () => {
     expect(m.remplacements).toEqual([{ type: "colonne-personne", nombre: 2 }]);
     expect(detecterDonneesPersonnelles(m.texte, { chemin: "c.csv" })).toEqual([]);
   });
+  it("en-têtes à accent décomposé (NFD) ou pleine chasse : la colonne est masquée (CSV et JSON)", () => {
+    const nfd = (t: string): string => t.normalize("NFD");
+    for (const [t, chemin, secret] of [
+      [`${nfd("Prénom")},ville\nJean,Paris\n`, "c.csv", "Jean"],
+      [`${nfd("téléphone")},ville\n0612345678,Paris\n`, "c.csv", "0612345678"],
+      [`${nfd('{"prénom":"Jean"}')}`, "d.json", "Jean"],
+      ["ＮＯＭ,ville\nJean,Paris\n", "c.csv", "Jean"],
+      ['{"ＮＯＭ":"Jean"}', "d.json", "Jean"],
+    ] as const) {
+      expect(masquerDonneesPersonnelles(t, { chemin }).texte, t).not.toContain(secret);
+    }
+  });
+  it("espace Unicode (U+00A0, U+202F, U+2003) avant un guillemet ouvrant : valeur avec séparateur masquée, colonnes suivantes intactes", () => {
+    for (const esp of ["\u00a0", "\u202f", "\u2003", " "]) {
+      const m = masquerDonneesPersonnelles(`id,nom,ville\n1,${esp}"Dupont, Jean",Paris\n`, { chemin: "c.csv" }).texte;
+      expect(m).not.toMatch(/Jean|Dupont/);
+      expect(m.split("\n")[1]!.endsWith(",Paris")).toBe(true);
+      expect(m.split("\n")[1]!.split(",")).toHaveLength(3);
+    }
+  });
+  it("CSV à fins de ligne \\r seules (Excel Mac) : toute la colonne est masquée, \\r\\n inchangé", () => {
+    const m = masquerDonneesPersonnelles("id,nom\r1,Jean Dupont\r2,Paul Martin", { chemin: "c.csv" }).texte;
+    expect(m).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    expect(m.split("\r")).toHaveLength(3);
+    const mix = masquerDonneesPersonnelles("id,nom\r\n1,Jean\r\n2,Paul\r\n", { chemin: "c.csv" }).texte;
+    expect(mix).toBe("id,nom\r\n1,Personne exemple 1\r\n2,Personne exemple 2\r\n");
+  });
   it("colonnes json : le json reste valide", () => {
     const m = masquerDonneesPersonnelles('{"nom":"Martin","autre":"Martin"}', { chemin: "d.json" });
     expect(JSON.parse(m.texte)).toEqual({ nom: "Personne exemple 1", autre: "Martin" });

@@ -182,6 +182,20 @@ describe("éteint par défaut (R-9)", () => {
       expect(sortie).not.toMatch(/Jean|Dupont|Lilas|75011|Martin|orange/);
     }
   });
+  it("de bout en bout (allumé) : en-tête NFD, espace insécable avant guillemet, fins de ligne \\r seules → aucune trace en clair", async () => {
+    ALLUME();
+    const r = await entree([
+      { nom: "nfd.csv", donnees: u8("Pre\u0301nom,ville\nJean,Paris\n") },
+      { nom: "nbsp.csv", donnees: u8('id,nom,ville\n1,\u00a0"Dupont, Jean",Paris\n') },
+      { nom: "mac.csv", donnees: u8("id,nom\r1,Jean Dupont\r2,Paul Martin") },
+      { nom: "nfd.json", donnees: u8('{"pre\u0301nom":"Jean"}') },
+    ]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const nom of ["nfd.csv", "nbsp.csv", "mac.csv", "nfd.json"]) {
+      expect(new TextDecoder().decode(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
   it("même une archive piégée n'est pas lue quand c'est éteint", async () => {
     const r = await entree([{ nom: "../x.js", donnees: u8("x") }]);
     expect(r.rapport.refus).toEqual([MESSAGE_ZIP_FERME]);
