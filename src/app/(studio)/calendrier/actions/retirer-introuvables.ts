@@ -7,17 +7,23 @@
 import { revalidatePath } from "next/cache";
 import { depots, essayer, ErreurStudio, maintenant, sousVerrou, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
-import { retirerLesRapatrieesIntrouvables } from "@/services/retirer-rapatriee";
+import { mesureVerifieeRecente } from "@/services/constantes-introuvable";
+import { MESSAGE_LISTE_CHANGEE, retirerLesRapatrieesIntrouvables } from "@/services/retirer-rapatriee";
+import { PARAM_ECART_CALENDRIER, type EcartCalendrier } from "@/services/zernio";
 
-export async function retirerIntrouvablesAction(): Promise<Resultat<{ retirees: number; message: string }>> {
+export async function retirerIntrouvablesAction(ids: string[]): Promise<Resultat<{ retirees: number; message: string }>> {
   await exigerSession();
   return essayer(() =>
     sousVerrou(async () => {
+      if (!Array.isArray(ids) || ids.some((x) => typeof x !== "string")) throw new ErreurStudio("LISTE_CHANGEE", MESSAGE_LISTE_CHANGEE);
       const d = depots();
-      const { retirees } = await retirerLesRapatrieesIntrouvables({ lister: () => d.publications.lister(() => true), ecrire: async (id, modif) => void (await d.publications.modifier(id, modif)), maintenant });
-      if (retirees === 0) throw new ErreurStudio("RIEN_A_RETIRER", "Aucune publication introuvable à retirer. Rechargez la page.");
+      // Le serveur ne se fie pas à l'écran : la mesure doit être VÉRIFIÉE, de moins d'une heure (jamais « non vérifié » ni « jamais mesuré »).
+      const mesure = (await d.parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as EcartCalendrier | undefined;
+      if (!mesureVerifieeRecente(mesure, Date.now())) throw new ErreurStudio("MESURE_NON_VERIFIEE", "L'écart avec le diffuseur n'est pas vérifié à l'instant : relisez le diffuseur, puis réessayez.");
+      const r = await retirerLesRapatrieesIntrouvables({ lister: () => d.publications.lister(() => true), ecrire: async (id, modif) => void (await d.publications.modifier(id, modif)), maintenant }, ids);
+      if (!r.ok) throw new ErreurStudio("LISTE_CHANGEE", r.message);
       revalidatePath("/calendrier");
-      return { retirees, message: `C'est fait : ${retirees} publication${retirees > 1 ? "s" : ""} retirée${retirees > 1 ? "s" : ""} du calendrier. Rien n'est supprimé ni changé chez le diffuseur.` };
+      return { retirees: r.retirees, message: `C'est fait : ${r.retirees} publication${r.retirees > 1 ? "s" : ""} retirée${r.retirees > 1 ? "s" : ""} du calendrier. Rien n'est supprimé ni changé chez le diffuseur.` };
     }),
   );
 }

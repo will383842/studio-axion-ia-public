@@ -20,6 +20,7 @@ import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { phraseLisible } from "@/lib/erreur-lisible";
 import { obtenirReseau } from "@/reseaux";
+import { CONSTATS_INTROUVABLE_REQUIS } from "./constantes-introuvable";
 import { depsRapatriementServeur, rapatrierPostsZernio, type ResultatRapatriement } from "./rapatriement-zernio";
 import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou, creerVerrou } from "./_commun";
 import { exigerSession } from "./auth";
@@ -600,7 +601,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       const deListe = dejaLus?.get(p.idExterne!) ?? deRapatriement.get(p.idExterne!);
       if (deListe) post = deListe;
       // Une rapatriée déjà « à vérifier » (supprimée chez le diffuseur) se contente des listes : aucune lecture unitaire, pour ne pas affamer les publications du Studio.
-      else if (rapatriee && p.etatEnvoi === "a-verifier") continue;
+      // Sauf tant que les deux constats « introuvable » (passages distincts) ne sont pas faits : une lecture unitaire par passage, sous le plafond.
+      else if (rapatriee && p.etatEnvoi === "a-verifier" && (p.constatsIntrouvable ?? 0) >= CONSTATS_INTROUVABLE_REQUIS) continue;
       else if (lecturesUnitaires >= plafondUnitaires || requetes >= BUDGET_REQUETES_PAR_PASSAGE) continue;
       else {
         lecturesUnitaires++;
@@ -611,9 +613,11 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       if (estErreurZernio(e) && e.code === "introuvable") {
         const depuis = Date.parse(p.envoiCommenceLe ?? p.creeLe);
         if (p.etatEnvoi === "a-verifier") {
-          // Déjà « à vérifier » : on date seulement la lecture, pour qu'elle tourne dans la file au lieu de rester en tête des lectures unitaires.
-          await ecrireSiInchange(p, { etatLuLe: lu });
-        } else if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
+          // Déjà « à vérifier » : on date la lecture, pour qu'elle tourne dans la file au lieu de rester en tête des lectures unitaires.
+          // Une rapatriée compte en plus ce constat (un seul par passage) : base du retrait groupé (2 constats et 24 h).
+          const constat: Partial<Publication> = rapatriee && p.etatLuLe !== lu ? { constatsIntrouvable: (p.constatsIntrouvable ?? 0) + 1, introuvableDepuis: p.introuvableDepuis ?? lu } : {};
+          await ecrireSiInchange(p, { etatLuLe: lu, ...constat });
+        } else if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", ...(rapatriee ? { constatsIntrouvable: 1, introuvableDepuis: lu } : {}), erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
           await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
           await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo }, optionsNotif);
@@ -629,6 +633,13 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     }
     r.lues++;
     const changement: Partial<Publication> = { etatLuLe: lu };
+    // Une rapatriée « à vérifier » relue chez le diffuseur (liste ou lecture unitaire) redevient normale : plus introuvable, plus retirable.
+    if (rapatriee && p.etatEnvoi === "a-verifier") {
+      changement.etatEnvoi = undefined;
+      changement.erreur = undefined;
+      changement.introuvableDepuis = undefined;
+      changement.constatsIntrouvable = undefined;
+    }
     if (etat.statut !== p.statut) changement.statut = etat.statut;
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
     if (etat.statut === "echec") changement.erreur = etat.erreur;

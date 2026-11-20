@@ -3,13 +3,14 @@
  * n'a pas pu être vérifié (ou date de plus d'une heure). Lecture de la mesure locale : aucun appel au diffuseur depuis un écran.
  */
 import type { EcartCalendrier } from "@/services/zernio";
+import { mesureVerifieeRecente } from "@/services/constantes-introuvable";
 import { BoutonRetirerIntrouvables } from "./BoutonRetirerIntrouvables";
 import { BoutonRelireDiffuseur } from "./BoutonRelireDiffuseur";
 
 const UNE_HEURE_MS = 3_600_000;
 
 export type EtatBandeauEcart = "aucun" | "absents" | "non-verifie" | "introuvables";
-type MesureBandeau = Pick<EcartCalendrier, "luLe" | "verifie" | "absents"> & { introuvables?: number };
+type MesureBandeau = Pick<EcartCalendrier, "luLe" | "verifie" | "absents"> & { introuvables?: number; jamaisMesuree?: boolean };
 
 /** Mesure absente : rien à dire (le diffuseur n'est pas relié ou rien n'a encore été lu). */
 export function etatBandeauEcart(ecart: MesureBandeau | null | undefined, maintenant: number): EtatBandeauEcart {
@@ -22,24 +23,28 @@ export function etatBandeauEcart(ecart: MesureBandeau | null | undefined, mainte
 
 const HEURE_PARIS = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
-export function BandeauEcartDiffuseur({ ecart, maintenant }: { ecart: (EcartCalendrier & { introuvables?: number }) | null | undefined; maintenant: number }) {
+export function BandeauEcartDiffuseur({ ecart, maintenant }: { ecart: (EcartCalendrier & { introuvables?: number; retirables?: string[]; jamaisMesuree?: boolean }) | null | undefined; maintenant: number }) {
   const etat = etatBandeauEcart(ecart, maintenant);
   if (etat === "aucun" || !ecart) return null;
   const n = ecart.absents;
   const introuvables = ecart.introuvables ?? 0;
+  // Le bouton exige l'état « introuvables » ET une mesure vérifiée de moins d'une heure (jamais « non vérifié » ni « jamais mesuré »).
+  const retirables = etat === "introuvables" && mesureVerifieeRecente(ecart, maintenant) ? (ecart.retirables ?? []) : [];
   const phraseEcart =
     etat === "introuvables"
       ? null
       : etat === "absents"
       ? `${n} publication${n > 1 ? "s" : ""} du diffuseur ${n > 1 ? "ne sont" : "n'est"} pas encore au calendrier.`
+      : ecart.jamaisMesuree
+      ? "L'écart avec le diffuseur n'a encore jamais été mesuré."
       : `L'écart avec le diffuseur n'a pas pu être vérifié${Number.isFinite(Date.parse(ecart.luLe)) ? ` (dernière lecture à ${HEURE_PARIS.format(new Date(ecart.luLe))}, heure de Paris)` : ""}.${n > 0 ? ` Au moins ${n} publication${n > 1 ? "s" : ""} manque${n > 1 ? "nt" : ""}.` : ""}`;
-  const phraseIntrouvables = introuvables > 0 ? `${introuvables} publication${introuvables > 1 ? "s" : ""} du calendrier introuvable${introuvables > 1 ? "s" : ""} chez le diffuseur.` : null;
+  const phraseIntrouvables = introuvables > 0 ? `${introuvables} publication${introuvables > 1 ? "s" : ""} du calendrier introuvable${introuvables > 1 ? "s" : ""} chez le diffuseur${retirables.length > 0 ? `, dont ${retirables.length} retirable${retirables.length > 1 ? "s" : ""}` : ""}.` : null;
   const phrase = [phraseEcart, phraseIntrouvables].filter(Boolean).join(" ");
   return (
     <div role="status" data-bandeau-ecart={etat} className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-trait-fort bg-surface-2 px-4 py-3 text-sm text-texte">
       <p className="min-w-0 flex-1 font-bold">{phrase}</p>
       <BoutonRelireDiffuseur />
-      {introuvables > 0 && <BoutonRetirerIntrouvables nombre={introuvables} />}
+      {retirables.length > 0 && <BoutonRetirerIntrouvables ids={retirables} />}
     </div>
   );
 }

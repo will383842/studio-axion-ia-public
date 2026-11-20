@@ -4,6 +4,7 @@ import "server-only";
  * son statut restent, et RIEN n'est demandé au diffuseur (le post reste programmé chez lui). Aucune dépendance au client du diffuseur.
  */
 import { estRapatriee, type Publication } from "@/domaine/types";
+import { CONSTATS_INTROUVABLE_REQUIS, DELAI_RETRAIT_INTROUVABLE_MS } from "@/services/constantes-introuvable";
 
 export type ResultatRetraitRapatriee = { ok: true; message: string } | { ok: false; etat: "introuvable" | "pas-rapatriee" | "deja-fait" | "publiee"; message: string };
 
@@ -29,16 +30,35 @@ export async function retirerRapatrieeDuCalendrier(d: DepsRetraitRapatriee, id: 
 /** RAP-3 finitions · rapatriée INTROUVABLE chez le diffuseur : « à vérifier », encore au calendrier, ni retirée ni publiée. */
 export const estRapatrieeIntrouvable = (p: Publication): boolean => estRapatriee(p) && !p.retireeLe && p.etatEnvoi === "a-verifier" && p.statut !== "publiee";
 
+/**
+ * Retirable EN GROUPE : introuvable depuis au moins 24 h ET après au moins deux réponses « introuvable » à des passages distincts.
+ * Sans les champs de constat (publication d'avant), jamais retirable tant que les deux constats ne sont pas faits.
+ */
+export const estRapatrieeRetirable = (p: Publication, instantMs: number): boolean => {
+  if (!estRapatrieeIntrouvable(p)) return false;
+  const depuis = p.introuvableDepuis ? Date.parse(p.introuvableDepuis) : NaN;
+  return (p.constatsIntrouvable ?? 0) >= CONSTATS_INTROUVABLE_REQUIS && Number.isFinite(depuis) && instantMs - depuis >= DELAI_RETRAIT_INTROUVABLE_MS;
+};
+
 export interface DepsRetraitIntrouvables {
   lister(): Promise<Publication[]>;
   ecrire(id: string, modif: Partial<Publication>): Promise<void>;
   maintenant(): string;
 }
 
-/** Geste LOCAL groupé : pose `retireeLe` sur les seules rapatriées introuvables. N'efface rien, ne demande rien au diffuseur. */
-export async function retirerLesRapatrieesIntrouvables(d: DepsRetraitIntrouvables): Promise<{ retirees: number }> {
-  const cibles = (await d.lister()).filter(estRapatrieeIntrouvable);
+export type ResultatRetraitGroupe = { ok: true; retirees: number } | { ok: false; message: string };
+export const MESSAGE_LISTE_CHANGEE = "La liste a changé : rechargez la page.";
+
+/**
+ * Geste LOCAL groupé : pose `retireeLe` sur les seules rapatriées dont l'identifiant a été AFFICHÉ, après revérification de chacune
+ * au moment du clic. Si l'ensemble retirable a changé (en plus ou en moins), rien n'est écrit. N'efface rien, ne demande rien au diffuseur.
+ */
+export async function retirerLesRapatrieesIntrouvables(d: DepsRetraitIntrouvables, ids: readonly string[]): Promise<ResultatRetraitGroupe> {
   const m = d.maintenant();
-  for (const p of cibles) await d.ecrire(p.id, { retireeLe: m, modifieLe: m });
-  return { retirees: cibles.length };
+  const demandes = new Set(ids);
+  if (demandes.size === 0 || demandes.size !== ids.length) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
+  const retirables = (await d.lister()).filter((p) => estRapatrieeRetirable(p, Date.parse(m)));
+  if (retirables.length !== demandes.size || !retirables.every((p) => demandes.has(p.id))) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
+  for (const p of retirables) await d.ecrire(p.id, { retireeLe: m, modifieLe: m });
+  return { ok: true, retirees: retirables.length };
 }

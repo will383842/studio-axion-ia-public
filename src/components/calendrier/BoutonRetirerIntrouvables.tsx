@@ -15,9 +15,10 @@ function useRouteurOuNul() {
   }
 }
 
-export const libelleRetirerIntrouvables = (n: number) => (n > 1 ? `Retirer du calendrier les ${n} introuvables` : "Retirer du calendrier l'introuvable");
+export const libelleRetirerIntrouvables = (n: number) => (n > 1 ? `Retirer du calendrier les ${n} retirables` : "Retirer du calendrier la retirable");
 
-export function BoutonRetirerIntrouvables({ nombre }: { nombre: number }) {
+export function BoutonRetirerIntrouvables({ ids }: { ids: string[] }) {
+  const nombre = ids.length;
   const routeur = useRouteurOuNul();
   const [etape, setEtape] = useState<"repos" | "confirmation">("repos");
   const [enCours, setEnCours] = useState(false);
@@ -27,7 +28,7 @@ export function BoutonRetirerIntrouvables({ nombre }: { nombre: number }) {
     setEnCours(true);
     setRetour(null);
     try {
-      const r = await retirerIntrouvablesAction();
+      const r = await retirerIntrouvablesAction(ids);
       if (r.ok) {
         if (routeur) routeur.refresh();
         else window.location.reload();
