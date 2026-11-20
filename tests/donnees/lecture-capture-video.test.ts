@@ -192,6 +192,9 @@ describe("plafond dur", () => {
       { tblec: -1000 },
       { tbnar: -1000 },
       { dmpln: Number.NEGATIVE_INFINITY },
+      // Un engagé négatif ne doit pas compenser l'autre (total réel 200 c$ > 125, somme brute 0).
+      { dmpln: -200, tbnar: 200 },
+      { dmpln: 200, tbnar: -200 },
     ];
     for (const engages of cas) {
       const f = fabrique(undefined, engages, 1);

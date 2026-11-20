@@ -113,9 +113,11 @@ export async function lireCaptureTableau(videoId: Id, image: ImageCapture, origi
     const valide = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0;
     const mien = plafondDe("tblec", PARAM_PLAFOND_LECTURE_CAPTURE);
     const engageMien = await engage(videoId, mien);
-    const autres = (await engage(videoId, plafondDe("dmpln", PARAM_PLAFOND_PLAN))) + (await engage(videoId, plafondDe("tbnar", PARAM_PLAFOND_NARRATION)));
-    // Un montant invalide ne doit jamais laisser passer l'appel payant.
-    if (!valide(demande) || !valide(engageMien) || !valide(autres)) return repli(`La limite de Claude pour cette vidéo ne peut pas être vérifiée : rien n'a été payé. ${SAISIE}`);
+    const engagePlan = await engage(videoId, plafondDe("dmpln", PARAM_PLAFOND_PLAN));
+    const engageNarration = await engage(videoId, plafondDe("tbnar", PARAM_PLAFOND_NARRATION));
+    // Un montant invalide ne doit jamais laisser passer l'appel payant (chacun validé AVANT toute somme : un négatif ne compense pas l'autre).
+    if (!valide(demande) || !valide(engageMien) || !valide(engagePlan) || !valide(engageNarration)) return repli(`La limite de Claude pour cette vidéo ne peut pas être vérifiée : rien n'a été payé. ${SAISIE}`);
+    const autres = engagePlan + engageNarration;
     if (engageMien + demande > enCentimes(PLAFONDS_CLAUDE_VIDEO_EUR.tblec)) return repli(`La limite de lecture des captures pour cette vidéo est atteinte : rien n'a été payé. ${SAISIE}`);
     if (autres + engageMien + demande > enCentimes(PLAFOND_TOTAL_CLAUDE_VIDEO_EUR)) return repli(`La limite de Claude pour cette vidéo est atteinte : rien n'a été payé. ${SAISIE}`);
 
