@@ -88,6 +88,8 @@ describe("adaptateurMonteurAvocat", () => {
   it("motion: true ajoute carte et titre ; motion: false ou autre valeur non vraie les retire", () => {
     expect(adaptateurMonteurAvocat({ motion: true }).typesSupportes).toEqual(["multicamera", "zoom", "ajouterCarte", "titre"]);
     expect(adaptateurMonteurAvocat({ motion: false }).typesSupportes).toEqual(["multicamera", "zoom"]);
+    expect(adaptateurMonteurAvocat({ motion: "oui" as unknown as boolean }).typesSupportes).toEqual(["multicamera", "zoom"]);
+    expect(adaptateurMonteurAvocat({ motion: 1 as unknown as boolean }).typesSupportes).toEqual(["multicamera", "zoom"]);
   });
   it("exemples : dans l'ordre du catalogue, bornés par max", () => {
     const a = adaptateurMonteurAvocat({ motion: true });
