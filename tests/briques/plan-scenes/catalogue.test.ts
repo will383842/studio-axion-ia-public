@@ -18,8 +18,12 @@ const OBJETS_INSCRITS_N05 = ["objet-carton-magazine", "objet-tourne", "objet-par
 const PIECES_VL10 = ["intercalaire-chapitre", "flux-ramifie", "cadre-capture"];
 // C9-34-TRAITS-v19c : 6 objets de plus (2 soulignements, surligneur, 3 flèches).
 const OBJETS_INSCRITS_TRAITS = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
+// C9-34-ETIQUETTES-v20f : 8 objets de plus (pastille, étiquette, badge, tampon, 3 bulles, post-it).
+const OBJETS_INSCRITS_ETIQUETTES = ["objet-pastille-icone", "objet-etiquette-icone", "objet-badge", "objet-tampon", "objet-bulle-parole", "objet-bulle-notification", "objet-bulle-pensee", "objet-post-it"];
 // C9-34-CADRES-v20b : 6 objets de plus (3 cadres, cercle, ovale, double boucle).
 const OBJETS_INSCRITS_CADRES = ["objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle"];
+// C9-34-SCHEMAS-v20g : 8 objets de plus (6 schémas, fenêtre d'application, terminal).
+const OBJETS_INSCRITS_SCHEMAS = ["objet-schema-flux", "objet-schema-etoile", "objet-icones-reliees", "objet-agents-globe", "objet-grille-pointillee", "objet-vignettes-numerotees", "objet-fenetre-app", "objet-terminal-commande"];
 const HEX_CHARTE = new Set(Object.values(CHARTE_AXION).map((c) => c.toLowerCase()));
 
 function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" | "noir" = "ivoire"): string {
@@ -29,8 +33,8 @@ function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" |
 }
 
 describe("catalogue de briques (fausse interface logicielle)", () => {
-  it("contient les 51 briques (18 demandées + 4 + 6 + 3 + 5 + 6 + 6 objets inscrits + 3 pièces 16:9), chacune avec un rendu", () => {
-    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS, ...OBJETS_INSCRITS_CADRES, ...PIECES_VL10].sort());
+  it("contient les 67 briques (18 demandées + 4 + 6 + 3 + 5 + 6 + 6 + 8 + 8 objets inscrits + 3 pièces 16:9), chacune avec un rendu", () => {
+    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS, ...OBJETS_INSCRITS_CADRES, ...OBJETS_INSCRITS_ETIQUETTES, ...OBJETS_INSCRITS_SCHEMAS, ...PIECES_VL10].sort());
     for (const id of IDS_PIECES) expect(RENDUS_BRIQUES[id]).toBeTypeOf("function");
   });
 

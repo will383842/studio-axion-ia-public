@@ -64,7 +64,7 @@ describe("C9-34a enveloppe des objets", () => {
     expect(Object.keys(envelopperObjets([mauvaise], graineDe))).toHaveLength(0);
   });
 
-  it("garde : seuls les 30 objets inscrits (4 + 6 + 3 + 5 + 6 + 6) sont au catalogue (porte fermée)", () => {
+  it("garde : seuls les 46 objets inscrits (4 + 6 + 3 + 5 + 6 + 6 + 8 + 8) sont au catalogue (porte fermée)", () => {
     // 17/11/2026 BR-OBJETS-a (C9-34b) : référence changée volontairement, « aucun objet » devient « exactement ces 4 ».
     // 18/11/2026 BR-OBJETS-c (amendement n°1 du pilote) : « exactement ces 4 » devient « exactement ces 10 » (4 + 6).
     const dix = ["objet-cartes-coche", "objet-carton-definition", "objet-coche", "objet-compteur-rouleau", "objet-croix", "objet-etape", "objet-fleche-main-levee", "objet-gros-chiffre", "objet-mot-barre", "objet-soulignement-droit"];
@@ -76,6 +76,10 @@ describe("C9-34a enveloppe des objets", () => {
     dix.push("objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee");
     // C9-34-CADRES-v20b : + 6 (3 cadres, cercle, ovale, double boucle) → 30.
     dix.push("objet-cadre-rectangle", "objet-cadre-coins", "objet-cadre-passage", "objet-cercle", "objet-ovale", "objet-double-boucle");
+    // C9-34-ETIQUETTES-v20f : + 8 (pastille, étiquette, badge, tampon, 3 bulles, post-it) → 38.
+    dix.push("objet-pastille-icone", "objet-etiquette-icone", "objet-badge", "objet-tampon", "objet-bulle-parole", "objet-bulle-pensee", "objet-bulle-notification", "objet-post-it");
+    // C9-34-SCHEMAS-v20g : + 8 (6 schémas, fenêtre d'application, terminal) → 46.
+    dix.push("objet-schema-flux", "objet-schema-etoile", "objet-icones-reliees", "objet-agents-globe", "objet-grille-pointillee", "objet-vignettes-numerotees", "objet-fenetre-app", "objet-terminal-commande");
     dix.sort();
     expect(IDS_PIECES.filter((i) => i.startsWith("objet-")).sort()).toEqual(dix);
     expect(Object.keys(CATALOGUE_BRIQUES).filter((i) => i.startsWith("objet-")).sort()).toEqual(dix);

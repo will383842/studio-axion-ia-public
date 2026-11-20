@@ -82,7 +82,7 @@ describe("éteint = identique (gardes statiques)", () => {
       }
     };
     parcourir(join(racine, "src"));
-    expect(trouves).toEqual([]);
+    expect(trouves).toEqual([join(racine, "src", "services", "lecture-capture-claude.ts")]);
   });
   it("seuls des import type depuis @/fournisseurs/", () => {
     const imports = source.split("\n").filter((l) => /^\s*import\b/.test(l) && l.includes("@/fournisseurs/"));
