@@ -749,7 +749,11 @@ function lireCsv(texte: string, separateur: string): { valeur: string; debut: nu
   let i = 0;
   for (;;) {
     let delimiteur: string | undefined;
-    if (texte[i] === '"') {
+    // Blancs avant un guillemet ouvrant (`1, "Dupont, Jean"`) : la valeur est lue comme entre guillemets.
+    let k0 = i;
+    while (k0 < n && (texte[k0] === " " || (texte[k0] === "\t" && separateur !== "\t"))) k0++;
+    if (texte[k0] === '"') {
+      i = k0;
       let j = i + 1;
       while (j < n && !(texte[j] === '"' && texte[j + 1] !== '"')) j += texte[j] === '"' ? 2 : 1;
       const ouvrant = i;
@@ -758,7 +762,7 @@ function lireCsv(texte: string, separateur: string): { valeur: string; debut: nu
       while (i < n && texte[i] !== separateur && texte[i] !== "\n") i++;
       delimiteur = texte[i];
       const finReste = (delimiteur === "\n" || i >= n) && i > j + 1 && texte[i - 1] === "\r" ? i - 1 : i;
-      if (finReste > j + 1) {
+      if (finReste > j + 1 && texte.slice(j + 1, finReste).trim() !== "") {
         // Texte entre le guillemet fermant et le séparateur (« "Jean" Dupont ») : la plage va jusqu'au séparateur,
         // guillemets compris (remplacement entre guillemets), pour que ce reste ne reste jamais en clair.
         ligne.push({ valeur: texte.slice(ouvrant + 1, finReste), debut: ouvrant, fin: finReste, nu: true });
@@ -795,6 +799,13 @@ function valeurNeutre(valeur: string, neutres: ReadonlySet<string> | undefined):
   const mots = v.split(/[\s,;]+/).filter(Boolean);
   const lower = new Set([...neutres].map(minuscule));
   return mots.length > 0 && mots.every((m) => lower.has(minuscule(m)));
+}
+
+/** Nom de colonne normalisé : trim, une paire de guillemets englobante retirée, trim, minuscules. */
+function nomColonne(valeur: string): string {
+  let v = valeur.trim();
+  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1).trim();
+  return v.toLowerCase();
 }
 
 function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
@@ -881,7 +892,7 @@ function detecterColonnes(texte: string, ext: string, neutres: ReadonlySet<strin
     }
   }
   const lignes = lireCsv(texte, sep);
-  const colonnes = new Set((lignes[0] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(c.valeur.trim().toLowerCase()) ? [i] : [])));
+  const colonnes = new Set((lignes[0] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : [])));
   if (colonnes.size === 0) return trouves;
   for (let l = 1; l < lignes.length; l++) {
     const valeurs = lignes[l]!;

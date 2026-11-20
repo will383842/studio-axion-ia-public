@@ -456,6 +456,21 @@ describe("colonnes de personnes : valeur entière masquée (verdict Opus 05e6ac9
     expect(crlf).toBe('id,nom,ville\r\n1,"Personne exemple 1",Paris\r\n');
     expect(m('id,nom\n1,"Jean" Dupont', "a.csv")).toBe('id,nom\n1,"Personne exemple 1"');
   });
+  it("2c. CSV : en-tête entre guillemets avec espaces, valeurs à virgule entre guillemets précédées d'une espace → masqués", () => {
+    const a = m('"id", "nom", "ville"\n1, "Jean Dupont", "Paris"\n', "a.csv");
+    expect(a).not.toContain("Jean");
+    expect(a).not.toContain("Dupont");
+    expect(a).toContain("Paris");
+    const b = m('"id"; "nom"\n1; Jean Dupont\n', "a.csv");
+    expect(b).not.toContain("Dupont");
+    const c = m('"nom" ,ville\nJean Dupont,Paris\n', "a.csv");
+    expect(c).not.toContain("Dupont");
+    expect(c).toContain("Paris");
+    const d = m('id,nom,ville\n1, "Dupont, Jean", Paris\n', "a.csv");
+    expect(d).not.toContain("Dupont");
+    expect(d).not.toContain("Jean");
+    expect(d).toContain("Paris");
+  });
   it("2b. CSV : guillemet jamais refermé → tout le reste est masqué", () => {
     const sortie = m('id,nom\n1,"Martin\n2,Durand\n', "a.csv");
     expect(sortie).not.toContain("Martin");
