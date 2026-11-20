@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 // `polices.ts` importe « remotion », absent hors studio-rendu : doublure minimale.
 vi.mock("remotion", () => ({ delayRender: () => 0, continueRender: () => undefined, cancelRender: () => undefined }));
+import { couleursSur } from "@/briques/jetons-motion";
 import { RATIOS_COUVERTURE } from "@/briques/motion/titres-couverture/etapes";
 
 type RatioC = (typeof RATIOS_COUVERTURE)[number];
@@ -72,6 +73,16 @@ describe("C11-T6b-p planche des titres de couverture", () => {
           const c = caseDe(h, id);
           expect(c, id).toContain('data-decor="floute"');
           expect(c, id).toContain("feGaussianBlur");
+          // Le flou est vraiment APPLIQUÉ : le groupe porte le filtre de sa case, d'écart-type > 0.
+          const fid = `flou-${ratio}-${fond}-${id}`;
+          expect(c, id).toContain(`<g filter="url(#${fid})"`);
+          const ecart = new RegExp(`<filter id="${fid}"[^>]*><feGaussianBlur stdDeviation="([0-9.]+)"`).exec(c);
+          expect(ecart, id).not.toBeNull();
+          expect(Number(ecart![1]), id).toBeGreaterThan(0);
+          // Le voile (assombrissement) est présent : div de la couleur du texte, opacité > 0.
+          const voile = new RegExp(`background:${couleursSur(fond).texte.replace(/[()]/g, "\\$&")};opacity:([0-9.]+)`).exec(c);
+          expect(voile, id).not.toBeNull();
+          expect(Number(voile![1]), id).toBeGreaterThan(0);
         }
         expect(caseDe(h, "pastille")).not.toContain("data-decor");
       }
