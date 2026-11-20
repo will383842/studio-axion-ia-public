@@ -5,6 +5,7 @@
  *    (`scriptValide`), comme Image → vidéo (lot F). Cette pause n'est ni un échec ni un prix.
  * Lecture tolérante : un champ mal formé est ignoré, jamais une erreur.
  */
+import { lireModeVoix, MODE_SANS_VOIX } from "../../formats/tutoriel-outil/mode-sans-voix";
 import { lireNavigationFilmee, type NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 
 export const ENTREE_TUTORIEL = "tutorielOutil";
@@ -18,7 +19,12 @@ export interface EntreesTutoriel {
   scriptValide?: string;
   /** Film de la navigation dans la maquette (T-EXT-38) : absent ou illisible = pas de film, rien ne change. */
   navigationFilmee?: NavigationFilmee;
+  /** T-EXT-SV : `true` = mode « sans voix » choisi par l'utilisateur (silence total, 0 appel HeyGen, 0 €). Absent = avec voix (défaut). */
+  sansVoix?: true;
 }
+
+/** Le mode sans voix est-il choisi pour cette commande ? */
+export const estSansVoix = (entrees: Record<string, unknown> | undefined): boolean => lireModeVoix(entrees?.[ENTREE_TUTORIEL]) === MODE_SANS_VOIX;
 
 const texte = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 
@@ -29,5 +35,5 @@ export function lireEntreesTutoriel(entrees: Record<string, unknown> | undefined
   const idee = texte(o.idee);
   const scriptValide = texte(o.scriptValide);
   const film = o.navigationFilmee === undefined ? null : lireNavigationFilmee(o.navigationFilmee);
-  return { ...(idee ? { idee } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}) };
+  return { ...(idee ? { idee } : {}), ...(lireModeVoix(o) === MODE_SANS_VOIX ? { sansVoix: true as const } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}) };
 }

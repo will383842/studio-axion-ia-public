@@ -55,4 +55,13 @@ export const TOILES = {
   "objet-cercle": { largeur: 1080, hauteur: 1920 },
   "objet-ovale": { largeur: 1080, hauteur: 1920 },
   "objet-double-boucle": { largeur: 1080, hauteur: 1920 },
+  // C9-34-ETIQUETTES-v20f : recopiées de def.toile (etiquettes.tsx:36, bulles.tsx:26, post-it.tsx:15)
+  "objet-pastille-icone": { largeur: 1000, hauteur: 1000 },
+  "objet-etiquette-icone": { largeur: 1000, hauteur: 1000 },
+  "objet-badge": { largeur: 1000, hauteur: 1000 },
+  "objet-tampon": { largeur: 1000, hauteur: 1000 },
+  "objet-bulle-parole": { largeur: 1000, hauteur: 560 },
+  "objet-bulle-pensee": { largeur: 1000, hauteur: 560 },
+  "objet-bulle-notification": { largeur: 1000, hauteur: 560 },
+  "objet-post-it": { largeur: 600, hauteur: 600 },
 } as const;
