@@ -43,7 +43,7 @@ async function fabriquer(fiche: typeof ficheDemonstration, plus: Partial<OutilsF
 
 const entree = (permis: boolean): EntreeBibliotheque => ({
   version: VERSION_BIBLIOTHEQUE,
-  profil: { ...PROFIL_TABLEAU_ANIME, capacites: { ...PROFIL_TABLEAU_ANIME.capacites, [ID.objetChiffre]: { permis, maxParVideo: 1, decision: "test" } } },
+  profil: { ...PROFIL_TABLEAU_ANIME, capacites: { ...PROFIL_TABLEAU_ANIME.capacites, ...Object.fromEntries([ID.objetChiffre, ID.objetEtape, ID.objetMarque].map((id) => [id, { permis, maxParVideo: 1, decision: "test" }])) } },
   recents: [],
   graine: "G",
   figeeLe: "2026-11-20",
@@ -67,6 +67,7 @@ describe("éteint = identique (empreintes de master 41fc7e4f)", () => {
   });
 });
 
+// ALLUMER-OBJETS-TABLEAU-v20g : le profil tableau-anime permet désormais les 3 objets ; `entree(false)` les ferme tous (même rigueur, attente déplacée).
 describe("avec permis (profil de test objet.chiffre permis)", () => {
   it("un nombre dit : `objets` sur la bonne scène seulement, jamais un champ vide, empreinte de cette scène changée", async () => {
     const permis = [...piecesPermisesDesEntrees({ bibliothequeVideo: entree(true) })];

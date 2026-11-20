@@ -159,8 +159,8 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 ### `tableau-anime`
 
 - Profil : `tableau-anime/1`, version 1.
-- Permis : aucune.
-- Refusé : `objet.chiffre` (au plus 1 par vidéo), `objet.etape` (au plus 1 par vidéo), `objet.marque` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
+- Permis : `objet.chiffre`, `objet.etape`, `objet.marque`.
+- Refusé : `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 
