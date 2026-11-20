@@ -22,10 +22,23 @@ const lire = (f: string) => readFileSync(new URL(`../../${f}`, import.meta.url),
 
 describe("L5-11 gardes", () => {
   it("T-G1 aucun appel réseau", async () => {
-    const { faux } = creerFauxClientZernio(fetchInterdit().fetch as never);
-    const r = await lecteur([ev("a", "linkedin_page")]).lireCommentaires({ idCompte: "exemple-c1", reseau: "linkedin_page" });
+    const interdit = fetchInterdit();
+    const { faux } = creerFauxClientZernio([], { fetch: interdit.fetch });
+    let appelsSource = 0;
+    const l = creerLecteurCommentaires({
+      source: async () => {
+        appelsSource++;
+        return { evenements: [ev("a", "linkedin_page")] as never, curseurSuivant: null };
+      },
+      comptesLecture: ["exemple-c1"],
+    });
+    const r = await l.lireCommentaires({ idCompte: "exemple-c1", reseau: "linkedin_page" });
+    // Le lecteur a bien lu via sa source, sans jamais toucher ni le fetch global ni le faux fetch du client.
     expect(r.statut).toBe("ok");
+    expect(appelsSource).toBe(1);
     expect(faux.appels.length).toBe(0);
+    expect(interdit.appels.length).toBe(0);
+    expect(espionFetch).not.toHaveBeenCalled();
   });
   it("T-G2 aucune porte d'écriture", () => {
     expect(Object.keys(lecteur([]))).toEqual(["lireCommentaires"]);

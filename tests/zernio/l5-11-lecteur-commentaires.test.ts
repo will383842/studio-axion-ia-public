@@ -69,6 +69,7 @@ describe("L5-11 lecteur de commentaires", () => {
     expect(r).toMatchObject({ statut: "ok", pagesLues: 2 });
     expect(m.horloge.attentes).toEqual([7000]);
     expect(m.appels).toHaveLength(3);
+    expect(m.appels[0].curseur).toBeUndefined();
     expect(m.appels[1].curseur).toBe("c2");
     expect(m.appels[2].curseur).toBe("c2");
   });
@@ -141,6 +142,52 @@ describe("L5-11 lecteur de commentaires", () => {
     if (r.statut !== "ok") throw new Error();
     expect(r.illisibles).toBe(1);
     expect(r.commentaires.map((c) => c.idCommentaire)).toEqual(["b", "a"]);
+  });
+  it("T-L19 commentaire proprio ignoré sans compter dans illisibles", async () => {
+    const proprio = { type: "zernio.commentaire_manuel", recuLe: "2026-11-10T10:00:00Z", charge: { idCommentaire: "p", idCompte: "exemple-li-page-1", reseau: "linkedin_page", repere: "exemple-repere", proprio: true } };
+    const r = await lire(mk([page([proprio, ev("a")], null)]).lecteur);
+    if (r.statut !== "ok") throw new Error();
+    expect(r.illisibles).toBe(0);
+    expect(r.commentaires.map((c) => c.idCommentaire)).toEqual(["a"]);
+  });
+  it("T-L20 options bornées : NaN, Infinity, hors plage => défauts ou plafonds", async () => {
+    const appelsDe = async (o: { pagesMax?: number; limite?: number; essais429Max?: number }, script: Issue[]) => {
+      const s = sourceFactice(script);
+      const l = creerLecteurCommentaires({ source: s.source, comptesLecture: ["exemple-li-page-1"], attendre: horlogeFictive().attendre, ...o });
+      const r = await l.lireCommentaires({ idCompte: "exemple-li-page-1", reseau: "linkedin_page" });
+      return { r, appels: s.appels };
+    };
+    const infinie = Array.from({ length: 50 }, (_, i) => page([], "c" + i));
+    for (const pagesMax of [Infinity, NaN, 1000]) {
+      const { r, appels } = await appelsDe({ pagesMax }, infinie);
+      expect(r).toMatchObject({ statut: "panne", code: "liste-incomplete" });
+      expect(appels).toHaveLength(10);
+    }
+    for (const limite of [NaN, Infinity, 0.5]) {
+      expect((await appelsDe({ limite }, [page([], null)])).appels[0].limite).toBe(100);
+    }
+    expect((await appelsDe({ limite: 1000 }, [page([], null)])).appels[0].limite).toBe(100);
+    expect((await appelsDe({ limite: -5 }, [page([], null)])).appels[0].limite).toBe(1);
+    for (const essais429Max of [Infinity, NaN, 99]) {
+      const h = horlogeFictive();
+      const s = sourceFactice(Array.from({ length: 20 }, () => e429()));
+      const l = creerLecteurCommentaires({ source: s.source, comptesLecture: ["exemple-li-page-1"], attendre: h.attendre, essais429Max });
+      expect(await l.lireCommentaires({ idCompte: "exemple-li-page-1", reseau: "linkedin_page" })).toMatchObject({ statut: "panne", code: "debit-persistant" });
+      expect(h.attentes).toHaveLength(3);
+    }
+  });
+  it("T-L21 le catch extérieur rend les vraies pages lues", async () => {
+    const s = sourceFactice([page([ev("a")], "c2"), e429(), page([], null)]);
+    const l = creerLecteurCommentaires({
+      source: s.source,
+      comptesLecture: ["exemple-li-page-1"],
+      attendre: async () => {
+        throw new Error("exemple-attente-en-panne");
+      },
+    });
+    const r = await l.lireCommentaires({ idCompte: "exemple-li-page-1", reseau: "linkedin_page" });
+    expect(r).toMatchObject({ statut: "panne", code: "erreur-inconnue", pagesLues: 1 });
+    expect("commentaires" in r).toBe(false);
   });
   it("T-L18 ne lève jamais", async () => {
     const l = mk([{ erreur: "x" }]).lecteur;

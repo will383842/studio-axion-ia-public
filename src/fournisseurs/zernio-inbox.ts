@@ -372,14 +372,17 @@ export function creerLecteurCommentaires(options: {
   const comptes = [...options.comptesLecture];
   const source = options.source;
   const attendre = options.attendre ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const pagesMax = options.pagesMax ?? PAGES_MAX_COMMENTAIRES;
-  const limite = Math.min(100, Math.max(1, options.limite ?? 100));
-  const essais429Max = options.essais429Max ?? ESSAIS_429_MAX;
+  const borne = (v: number | undefined, defaut: number, min: number, max: number): number =>
+    typeof v === "number" && Number.isInteger(v) ? Math.min(max, Math.max(min, v)) : defaut;
+  const pagesMax = borne(options.pagesMax, PAGES_MAX_COMMENTAIRES, 1, PAGES_MAX_COMMENTAIRES);
+  const limite = borne(options.limite, 100, 1, 100);
+  const essais429Max = borne(options.essais429Max, ESSAIS_429_MAX, 0, ESSAIS_429_MAX);
   const panne = (code: CodePanneListeCommentaires, pagesLues: number, reessayerApresSec?: number): ListeCommentaires =>
     reessayerApresSec === undefined ? { statut: "panne", code, pagesLues } : { statut: "panne", code, pagesLues, reessayerApresSec };
 
   return {
     async lireCommentaires(p) {
+      let pagesLues = 0;
       try {
         if (p.reseau === "youtube") return { statut: "differe", reseau: "youtube", libelle: LIBELLE_MISE_A_JOUR_DIFFEREE };
         if (!RESEAUX_LISTE_COMMENTAIRES.includes(p.reseau)) return panne("reseau-inconnu", 0);
@@ -388,7 +391,6 @@ export function creerLecteurCommentaires(options: {
         const gardes = new Map<string, CommentaireLu>();
         const vus = new Set<string>();
         let illisibles = 0;
-        let pagesLues = 0;
         let curseur: string | undefined;
         let fini = false;
         for (let page = 0; page < pagesMax && !fini; page++) {
@@ -437,7 +439,7 @@ export function creerLecteurCommentaires(options: {
         const commentaires = [...gardes.values()].sort((a, b) => (a.recuLe === b.recuLe ? a.idCommentaire.localeCompare(b.idCommentaire) : a.recuLe < b.recuLe ? 1 : -1));
         return { statut: "ok", reseau: reseau as Exclude<ReseauListeCommentaires, "youtube">, commentaires, pagesLues, illisibles };
       } catch {
-        return panne("erreur-inconnue", 0);
+        return panne("erreur-inconnue", pagesLues);
       }
     },
   };
