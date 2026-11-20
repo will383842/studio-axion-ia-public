@@ -4,7 +4,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommandeFabrication, MotHorodate } from "@/domaine/types";
 import type { DemandeFacecam, FournisseurFacecam } from "@/fournisseurs/facecam";
 import { creerServiceRenduSimule } from "@/fournisseurs/simulation/rendu";
@@ -28,6 +28,13 @@ import {
   entreeDepuisRequetePlanDemo,
 } from "@/services/demo-facecam-claude";
 import { dependancesDemoParDefaut } from "@/moteurs/montage-demo-facecam/dependances";
+
+/** Doubles du raccord de production : le réglage est lu « absent » (défaut), l'exécuteur payant est un espion. */
+const espion = vi.hoisted(() => ({ executer: vi.fn(), reglage: undefined as unknown }));
+vi.mock("server-only", () => ({}));
+vi.mock("@/services/_commun", () => ({ lireParametre: async (_id: string, defaut: unknown) => (espion.reglage === undefined ? defaut : espion.reglage) }));
+vi.mock("@/services/depense-claude-video", () => ({ executerRolePourVideo: espion.executer, engagePlafondPropreCentimes: async () => 0 }));
+vi.mock("@/services/generation-claude", () => ({ taux: async () => 1 }));
 
 const racine = process.cwd();
 const lireSource = (...p: string[]) => readFileSync(join(racine, ...p), "utf8");
@@ -191,6 +198,59 @@ describe("c) raccord de la chaîne : éteint = identique à aujourd'hui", () => 
   });
 });
 
+describe("c) R2 : dependancesDemoParDefaut recopie `planClaudeActif` (réel demandé, env réelle)", () => {
+  const env = { STUDIO_ALIGNEUR_URL: "https://aligneur.exemple", STUDIO_RENDU_URL: "https://rendu.exemple", STUDIO_RENDU_CLE: "cle-test" };
+  const c = { videoId: "v1", origine: "studio", entrees: { facecamAligneurReel: true } } as unknown as CommandeFabrication;
+  const plan = (() => undefined) as never;
+  const actif = async () => true;
+  beforeEach(async () => {
+    const { brancherServicesDemoFacecam } = await import("@/moteurs/montage-demo-facecam/dependances");
+    brancherServicesDemoFacecam({ appelerPlan: undefined, planClaudeActif: undefined });
+  });
+
+  it("appelerPlan + planClaudeActif branchés → les deux sont dans les dépendances, planClaudeActif est LE MÊME", async () => {
+    const { brancherServicesDemoFacecam } = await import("@/moteurs/montage-demo-facecam/dependances");
+    const appelerPlan = async () => ({}) as never;
+    brancherServicesDemoFacecam({ appelerPlan: () => appelerPlan, planClaudeActif: actif });
+    const d = dependancesDemoParDefaut(c, env, "t1");
+    expect(d).not.toBeNull();
+    expect(d?.appelerPlan).toBe(appelerPlan);
+    expect(d?.planClaudeActif).toBe(actif);
+  });
+  it("planClaudeActif sans appelerPlan → ni l'un ni l'autre dans les dépendances", async () => {
+    const { brancherServicesDemoFacecam } = await import("@/moteurs/montage-demo-facecam/dependances");
+    brancherServicesDemoFacecam({ planClaudeActif: actif });
+    const d = dependancesDemoParDefaut(c, env, "t1");
+    expect(d).not.toBeNull();
+    expect(d).not.toHaveProperty("appelerPlan");
+    expect(d).not.toHaveProperty("planClaudeActif");
+  });
+  it("appelerPlan sans planClaudeActif → pas de champ planClaudeActif (comportement d'avant)", async () => {
+    const { brancherServicesDemoFacecam } = await import("@/moteurs/montage-demo-facecam/dependances");
+    brancherServicesDemoFacecam({ appelerPlan: () => plan });
+    const d = dependancesDemoParDefaut(c, env, "t1");
+    expect(d?.appelerPlan).toBe(plan);
+    expect(d).not.toHaveProperty("planClaudeActif");
+  });
+});
+
+describe("c) R2 : branchement de production (demo-facecam-branchements)", () => {
+  beforeEach(() => { espion.executer.mockReset(); espion.reglage = undefined; });
+
+  it("l'import branche `planClaudeActif` et `appelerPlan` ; réglage absent → planClaudeActif rend false, puis true seulement pour `true`", async () => {
+    await import("@/services/demo-facecam-branchements");
+    const { servicesDemoFacecam } = await import("@/moteurs/montage-demo-facecam/dependances");
+    const s = servicesDemoFacecam();
+    expect(typeof s.appelerPlan).toBe("function");
+    expect(typeof s.planClaudeActif).toBe("function");
+    expect(await s.planClaudeActif?.()).toBe(false);
+    espion.reglage = "true";
+    expect(await s.planClaudeActif?.()).toBe(false);
+    espion.reglage = true;
+    expect(await s.planClaudeActif?.()).toBe(true);
+  });
+});
+
 describe("c) chaîne de démo : planClaudeActif", () => {
   const PHRASE = "Bonjour je vous montre comment on crée un devis dans Axion en trois clics puis je choisis le client et voilà le devis est prêt.";
   const mots: MotHorodate[] = PHRASE.split(/\s+/).map((mot, i) => ({ mot, debutSec: +(i * 0.4).toFixed(3), finSec: +(i * 0.4 + 0.33).toFixed(3) }));
@@ -253,6 +313,25 @@ describe("c) chaîne de démo : planClaudeActif", () => {
     const e = await lancerChaine({ appelerPlan: f, planClaudeActif: async () => true });
     expect(f.appels).toBe(2);
     expect(e.remarques.some((r) => r.code === "PLAN_SIMPLE")).toBe(false);
+  });
+  it("R2 de bout en bout : branchement de production + dependancesDemoParDefaut, réglage absent → plan simple, 0 appel du faux exécuteur ; réglage `true` → appelé", async () => {
+    await import("@/services/demo-facecam-branchements");
+    const { dependancesDemoParDefaut: parDefaut } = await import("@/moteurs/montage-demo-facecam/dependances");
+    const env = { STUDIO_ALIGNEUR_URL: "https://aligneur.exemple", STUDIO_RENDU_URL: "https://rendu.exemple", STUDIO_RENDU_CLE: "cle-test" };
+    const cmd = { videoId: "v1", origine: "studio", entrees: { facecamAligneurReel: true } } as unknown as CommandeFabrication;
+    const prod = parDefaut(cmd, env, "t1");
+    expect(prod?.appelerPlan).toBeDefined();
+    espion.executer.mockReset();
+    espion.executer.mockResolvedValue({ ok: false });
+    espion.reglage = undefined;
+    const sans = await lancerChaine({});
+    const eteint = await lancerChaine({ appelerPlan: prod?.appelerPlan, planClaudeActif: prod?.planClaudeActif });
+    expect(espion.executer).toHaveBeenCalledTimes(0);
+    expect(eteint.sourcePlan).toBe(sans.sourcePlan);
+    expect(eteint.remarques.some((r) => r.code === "PLAN_SIMPLE")).toBe(true);
+    espion.reglage = true;
+    await lancerChaine({ appelerPlan: prod?.appelerPlan, planClaudeActif: prod?.planClaudeActif });
+    expect(espion.executer.mock.calls.length).toBeGreaterThan(0);
   });
   it("sans planClaudeActif (tests existants qui injectent appelerPlan) : comportement d'aujourd'hui", async () => {
     const f = llm();
