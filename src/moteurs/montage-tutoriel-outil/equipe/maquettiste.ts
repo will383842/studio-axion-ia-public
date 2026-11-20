@@ -82,7 +82,7 @@ export function entreeMaquettiste(manque: ManqueMaquettiste, contexte: ContexteM
   const zones = contexte.carteZones.map((z) => `<zone id="${z.id}" libelle="${z.libelle.replace(/"/g, "'")}"/>`).join("\n");
   const maquette = contexte.maquette ? `\n<maquette>${contexte.maquette}</maquette>` : "";
   // V2-05 : la phrase est échappée (aucune balise ne peut en sortir) et va dans `variable`, jamais dans la consigne en cache.
-  const demande = contexte.demande === undefined ? "" : `\n<demande>${echapper(contexte.demande)}</demande>\n<proposition>${contexte.proposition ?? 1}</proposition>`;
+  const demande = contexte.demande === undefined ? "" : `\n<demande>${echapper(contexte.demande.trim())}</demande>\n<proposition>${contexte.proposition ?? 1}</proposition>`;
   return { contexte: {}, variable: `<manque>${manque}</manque>\n<metier>${contexte.metier}</metier>${maquette}\n<carte_zones>\n${zones}\n</carte_zones>${demande}` };
 }
 
@@ -229,7 +229,7 @@ export async function completerManque(args: { manque: string; contexte: Contexte
   // V2-05 : la demande (10 à 300 caractères après trim) et le numéro de proposition (1 ou 2) sont contrôlés AVANT l'appel payant :
   // une demande trop longue ferait grossir l'entrée du rôle sans borne.
   if (contexte.demande !== undefined) {
-    const longueur = contexte.demande.trim().length;
+    const longueur = typeof contexte.demande === "string" ? contexte.demande.trim().length : 0;
     if (typeof contexte.demande !== "string" || longueur < 10 || longueur > 300) return aRevoir(manque, ["La demande doit faire de 10 à 300 caractères : aucune proposition."]);
   }
   if (contexte.proposition !== undefined && (contexte.proposition as number) !== 1 && (contexte.proposition as number) !== 2) {

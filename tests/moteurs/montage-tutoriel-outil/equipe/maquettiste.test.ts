@@ -273,4 +273,30 @@ describe("V2-05 : entrée « demande » (une phrase, traitée comme une donnée)
       expect(journal.claude).toHaveLength(1);
     }
   });
+  it("29 caractères suivis de 100 000 espaces : l'entrée envoyée porte la demande nettoyée (moins de 300 caractères)", async () => {
+    const phrase = "Gérer mes stocks au quotidien";
+    const journal = journalVide();
+    let envoyee = "";
+    const appel = appelDouble(journal);
+    await completerManque({
+      manque: "maquette",
+      contexte: { ...sansCarte, demande: phrase + " ".repeat(100_000) },
+      appeler: (entree) => {
+        envoyee = entree.variable;
+        return appel(entree);
+      },
+    });
+    const m = /<demande>([\s\S]*)<\/demande>/.exec(envoyee);
+    expect(m).not.toBeNull();
+    expect(m?.[1]).toBe(phrase);
+    expect(envoyee.length).toBeLessThan(2000);
+  });
+  it("demande qui n'est pas du texte (nombre, objet, null) : « à revoir », 0 appel, aucune exception", async () => {
+    for (const d of [42, {}, null, ["abc"]]) {
+      const journal = journalVide();
+      const r = await completerManque({ manque: "maquette", contexte: { ...sansCarte, demande: d as unknown as string }, appeler: appelDouble(journal) });
+      expect(r.statut).toBe("a-revoir");
+      expect(journal.claude).toHaveLength(0);
+    }
+  });
 });
