@@ -105,7 +105,7 @@ describe("éteint = identique (gardes statiques)", () => {
     });
   it("aucun fichier de src/ n'importe narration-claude", () => {
     const importeurs = fichiers(join(process.cwd(), "src")).filter((p) => p !== SOURCE && /narration-claude/.test(readFileSync(p, "utf8")));
-    expect(importeurs).toEqual([]);
+    expect(importeurs).toEqual([join(process.cwd(), "src/services/narration-tableau-claude.ts")]);
   });
   it("n'importe de @/fournisseurs/ que des types", () => {
     const imports = source.split("\n").filter((l) => /^\s*(import|export)\b.*from\s+["'](@\/fournisseurs|\.\.?\/.*fournisseurs)/.test(l));

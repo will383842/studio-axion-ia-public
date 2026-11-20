@@ -7,6 +7,7 @@
 import type { EcranPlace, EtapeBarre, GeometrieV2, MiseEnPageV2, MotDitV2 } from "./v2/types";
 import type { DecorGabarit, MiseEnPageReference, ProprietesReference } from "./reference/types";
 import type { ElementTableauPlace } from "./trois-styles/types";
+import type { ObjetScene } from "./objets";
 
 /* ------------------------------------------------------------------ */
 /* Recopiés de la fiche (`fiche.ts`)                                     */
@@ -199,6 +200,8 @@ export type ProprietesTableauScene = {
   v2?: ProprietesV2;
   /** Style « reference/1 » : la page blanche écrite au crayon (absent : un autre style). */
   styleReference?: ProprietesReference;
+  /** N-04e (20/11/2026) : petits objets posés par le moteur (jamais un tableau vide ; absent = aucun, rendu pas encore monté : N-04d-b). */
+  objets?: readonly ObjetScene[];
 };
 
 /** Ce qu'une scène du style « blocs/2 » reçoit en plus. */
