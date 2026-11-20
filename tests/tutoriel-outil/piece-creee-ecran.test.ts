@@ -4,7 +4,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NOMS_ECRANS_OUTILS, NOMS_NEUTRES } from "@/services/tutoriel-piece-creee-noms";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
 import { empreinteDescription, tableauDepuisDescription, textesDeLaMaquette, VERSION_APERCU } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PieceCreee, type GestesPiece } from "@/components/tutoriel-outil/PieceCreee";
@@ -15,6 +14,8 @@ import {
   enregistrerApercu,
   garderPiece,
   MESSAGE_FERME,
+  NOMS_ECRANS_OUTILS,
+  NOMS_NEUTRES,
   vuePieceCreee,
   type DependancesPiece,
   type DepotPiece,
@@ -353,6 +354,8 @@ describe("corrections du verdict Opus", () => {
       expect(vue.textes.length).toBeGreaterThan(0);
       const html = renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue, gestes: {} as GestesPiece }));
       expect(decode(html)).toContain("Commandes du jour");
+      // « Garder » grisé quand les noms sont illisibles (le serveur refuse aussi).
+      expect(/<button[^>]*disabled[^>]*>\s*Garder/.test(html)).toBe(true);
       const e = etatInitial();
       const rs = [
         await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Commandes prêtes" }, dep),
@@ -367,6 +370,14 @@ describe("corrections du verdict Opus", () => {
     it("lecteur de noms qui rend des listes vides : même refus (jamais « tout permis »)", async () => {
       const m = monde(avecApercu(etatInitial()));
       const dep: DependancesPiece = { ...m.dep, noms: async () => ({ interdits: [], permis: [] }) };
+      const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Velora du jour" }, dep);
+      expect(r.ok).toBe(false);
+      expect(m.compteurs.ecritures).toBe(0);
+    });
+
+    it("listes passées par l'appelant avec interdits vides : refus aussi, jamais « tout permis »", async () => {
+      const m = monde(avecApercu(etatInitial()));
+      const dep: DependancesPiece = { ...m.dep, interdits: [], nomsPermis: [], noms: async () => ({ interdits: [], permis: [] }) };
       const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Velora du jour" }, dep);
       expect(r.ok).toBe(false);
       expect(m.compteurs.ecritures).toBe(0);

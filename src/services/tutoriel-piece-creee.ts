@@ -129,11 +129,104 @@ export async function creationDepuisPhraseOuverte(lire?: LecteurReglage): Promis
   }
 }
 
-/* Noms de la charte : copie sous `src/` (les fichiers d'`outils/` n'entrent pas dans l'image). Illisibles = refus (jamais « tout permis »). */
+/*
+ * Copie des noms de la charte pour l'image du studio : Dockerfile.dockerignore exclut le dossier d'outils, ces deux fichiers n'y
+ * existent donc pas à l'exécution. Jamais un import d'un dossier exclu (image-autonome). Le test piece-creee-ecran.test.ts compare
+ * ces deux constantes aux fichiers d'origine : toute différence le fait échouer.
+ *  - outils/maquettes-tableaux-de-bord/charte/noms-neutres.json
+ *  - outils/maquettes-tableaux-de-bord/ecrans-outils/noms.json
+ */
+export interface NomsMaquette {
+  produit?: string;
+  organisation?: string;
+  vues?: Record<string, string>;
+}
+export interface FichierNoms {
+  interdits: string[];
+  maquettes: Record<string, NomsMaquette>;
+}
+
+export const NOMS_NEUTRES: FichierNoms = {
+  "interdits": [
+    "velora",
+    "calyra",
+    "sylva",
+    "relayo",
+    "noveria",
+    "blueflow",
+    "ordiva",
+    "boreal",
+    "maison alba",
+    "feuille.",
+    "orbis",
+    "rivage"
+  ],
+  "maquettes": {
+    "01-courriels": {
+      "produit": "Espace démo · Courriels",
+      "organisation": "Entreprise exemple"
+    },
+    "02-projets": {
+      "produit": "Espace démo · Projets",
+      "organisation": "Entreprise exemple"
+    },
+    "03-accueil-24h": {
+      "produit": "Espace démo · Accueil 24 h",
+      "organisation": "Entreprise exemple"
+    },
+    "04-clients": {
+      "produit": "Espace démo · Clients",
+      "organisation": "Entreprise exemple"
+    },
+    "05-stocks": {
+      "produit": "Espace démo · Stocks",
+      "organisation": "Entreprise exemple"
+    },
+    "06-equipe": {
+      "produit": "Espace démo · Équipe",
+      "organisation": "Entreprise exemple"
+    },
+    "07-taches": {
+      "produit": "Espace démo · Connaissances",
+      "organisation": "Entreprise exemple"
+    }
+  }
+};
+
+export const NOMS_ECRANS_OUTILS: FichierNoms = {
+  "interdits": [
+    "velora",
+    "calyra",
+    "sylva",
+    "relayo",
+    "noveria",
+    "blueflow",
+    "ordiva",
+    "boreal",
+    "maison alba",
+    "feuille.",
+    "orbis",
+    "rivage"
+  ],
+  "maquettes": {
+    "ecrans-outils": {
+      "produit": "Espace démo · Boîte de réception",
+      "organisation": "Entreprise exemple",
+      "vues": {
+        "boite": "Espace démo · Boîte de réception",
+        "agenda": "Espace démo · Agenda",
+        "tableur": "Espace démo · Tableur",
+        "crm": "Espace démo · Clients",
+        "messagerie": "Espace démo · Messages"
+      }
+    }
+  }
+};
+
+/* Noms de la charte : copie ci-dessus (les fichiers d'`outils/` n'entrent pas dans l'image). Illisibles = refus (jamais « tout permis »). */
 type NomsCharte = { interdits: string[]; permis: string[] };
 
 async function nomsParDefaut(): Promise<NomsCharte> {
-  const { NOMS_NEUTRES, NOMS_ECRANS_OUTILS } = await import("./tutoriel-piece-creee-noms");
   const interdits = new Set<string>();
   const permis = new Set<string>();
   for (const j of [NOMS_NEUTRES, NOMS_ECRANS_OUTILS]) {
@@ -150,7 +243,7 @@ export const MESSAGE_NOMS = "Les noms neutres de la charte ne sont pas lisibles 
 
 /** Les listes données par l'appelant font foi ; sinon celles de la charte. `null` si elles sont illisibles. */
 async function avecNoms(d: DependancesPiece): Promise<DependancesPiece | null> {
-  if (d.interdits && d.nomsPermis) return d;
+  if (d.interdits?.length && d.nomsPermis) return d;
   try {
     const n = await (d.noms ?? nomsParDefaut)();
     if (!n.interdits.length) return null;
