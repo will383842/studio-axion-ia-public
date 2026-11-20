@@ -50,6 +50,8 @@ export interface EntreesTableau {
    * recettes, rangées par empreinte), reprise au lancement. Rien n'est relu si l'empreinte de la voix n'a pas changé.
    */
   voixPayee?: VoixPayee;
+  /** TA-SV (20/11) : mode « sans voix » (silence total, sous-titres et texte à l'écran) ; absent : avec voix, comme avant. */
+  sansVoix?: true;
 }
 
 /** Part « voix » du journal d'une fabrication arrêtée (forme du journal de `fabriquer.ts`, gardée telle quelle). */
@@ -84,6 +86,7 @@ export function lireEntreesTableau(entrees: CommandeFabrication["entrees"] | und
     ...(typeof b.traceScriptId === "string" && b.traceScriptId ? { traceScriptId: b.traceScriptId } : {}),
     ...(lireDejaVu(b.dejaVu) ? { dejaVu: lireDejaVu(b.dejaVu)! } : {}),
     ...(lireVoixPayee(b.voixPayee) ? { voixPayee: lireVoixPayee(b.voixPayee)! } : {}),
+    ...(b.sansVoix === true ? { sansVoix: true as const } : {}),
   };
 }
 
@@ -133,7 +136,7 @@ export function etapesTableau(commande: Pick<CommandeFabrication, "entrees" | "d
   const e: DefinitionEtapeMoteur[] = [];
   if (!ficheFournie(commande) && !options.ficheConnue) e.push({ cle: "decoupage", nom: "Le découpage", icone: "ciseaux", dependDe: [], dureeEstimeeSec: 30 });
   e.push({ cle: "fiche", nom: "La relecture de la fiche", icone: "liste", dependDe: e.length ? ["decoupage"] : [], dureeEstimeeSec: 2 });
-  const avecVoix = commande.distribution.length > 0;
+  const avecVoix = commande.distribution.length > 0 && !lireEntreesTableau(commande.entrees).sansVoix;
   if (avecVoix) e.push({ cle: "voix", nom: "La voix", icone: "micro", dependDe: ["fiche"], dureeEstimeeSec: 20 });
   e.push({ cle: "calage", nom: "Le calage sur la voix", icone: "horloge", dependDe: [avecVoix ? "voix" : "fiche"], dureeEstimeeSec: 2 });
   e.push({ cle: "pages", nom: "Les pages", icone: "page", dependDe: ["calage"], dureeEstimeeSec: 2 });

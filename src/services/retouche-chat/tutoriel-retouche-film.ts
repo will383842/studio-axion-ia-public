@@ -244,7 +244,7 @@ export interface ApercuRetoucheTutoriel {
   remarques: string[];
 }
 
-export const PHRASE_RIEN_FABRIQUE = "Rien n'est fabriqué tant que vous n'avez pas cliqué « Fabriquer cette version ».";
+export const PHRASE_RIEN_FABRIQUE = "Rien n'est appliqué tant que vous n'avez pas cliqué « Appliquer ».";
 
 function lireAvant(brut: unknown, etapes: readonly EtapeFilm[]): ReglagesFilm | undefined {
   return brut === undefined || brut === null ? undefined : (lireReglagesFilm(brut, etapes.map((e) => e.etapeId)) ?? undefined);

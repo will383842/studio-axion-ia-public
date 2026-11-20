@@ -2,6 +2,7 @@
  * T-EXT-53c — retouche du film du tutoriel par le chat : aperçu (plan-pret, rien d'écrit, rien de rendu), application, moteur
  * (réglages repris, même voix, même film). Doubles seulement : 0 €, aucun appel réel.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { PLAN_DEMO } from "@/briques/plan-scenes/demo";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
@@ -22,6 +23,7 @@ import {
   lireOperationsFilm,
   lireReglagesFilm,
   operationsDeFabrication,
+  PHRASE_RIEN_FABRIQUE,
 } from "@/services/retouche-chat/tutoriel-retouche-film";
 import { commandeTutoriel, outilsDoubles, une, type Journal } from "../tutoriel-outil/doubles";
 
@@ -306,5 +308,16 @@ describe("53c · moteur", () => {
     const sansR = proprietesTutoriel({ ...etat, reglagesFilm: undefined }, "4:5", false, outils, nav);
     expect("reglagesFilm" in sansR).toBe(false);
     expect("reglagesFilm" in (sansR.navigation ?? {})).toBe(false);
+  });
+});
+
+describe("53c : la phrase de l'aperçu nomme le bouton qui existe vraiment", () => {
+  it("« Appliquer » (jamais « Fabriquer cette version », bouton absent de ce chat) dans la phrase et dans le composant", () => {
+    expect(PHRASE_RIEN_FABRIQUE).toContain("« Appliquer »");
+    expect(PHRASE_RIEN_FABRIQUE).not.toContain("Fabriquer cette version");
+    const composant = readFileSync(new URL("../../src/components/retouche-chat/ChatRetouche.tsx", import.meta.url), "utf8");
+    expect(composant).not.toContain("Fabriquer cette version");
+    expect(composant.replace(/&apos;/g, "'")).toContain(PHRASE_RIEN_FABRIQUE);
+    expect(composant).toMatch(/<Bouton[^>]*>\s*Appliquer\s*<\/Bouton>/);
   });
 });

@@ -111,7 +111,7 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
                   </li>
                 ))}
               </ul>
-              <p className="text-sm text-texte-doux">Rien n&apos;est fabriqué tant que vous n&apos;avez pas cliqué « Fabriquer cette version ».</p>
+              <p className="text-sm text-texte-doux">Rien n&apos;est appliqué tant que vous n&apos;avez pas cliqué « Appliquer ».</p>
             </div>
           ) : null}
           {generateur ? <ApercuFamille generateur={generateur} operations={apercu.operations as OperationRetouche[]} impact={{ scenes: apercu.impact.scenes ?? [], total: apercu.impact.total ?? 0 }} /> : null}
