@@ -33,7 +33,7 @@ export const FORMAT_TUTORIEL = "tutoriel-outil";
 export const CLE_MENTION_TUTORIEL = cleInterrupteurMentionIA("tutoriel-outil");
 export const CLE_TEXTE_MENTION_TUTORIEL = cleTexteMentionIA("tutoriel-outil");
 
-// Importées des modules créateurs (T-EXT-41 et T-EXT-33 fusionnées). CLE_FIN_COMMUNE reste recopiée : ATTEND #1406 (26a).
+// Importées des modules créateurs (T-EXT-41 et T-EXT-33 fusionnées). CLE_FIN_COMMUNE reste écrite ici (26a, fusionnée, ne l'exporte pas) : le test de la console lit le texte de tutoriel-branchements.ts et rougit si la clé diffère.
 export const CLE_FORMULAIRE = PARAM_FORMULAIRE;
 export const CLE_ENTREE_ZIP = PARAM_ENTREE_ZIP;
 export const CLE_ENTREE_PHRASE = PARAM_ENTREE_PHRASE; // importée : la maquette est fusionnée

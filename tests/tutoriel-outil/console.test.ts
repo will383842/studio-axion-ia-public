@@ -300,11 +300,25 @@ function fichiers(dir: string): string[] {
   });
 }
 
+describe("clé de la fin commune (26a)", () => {
+  it("toute lecture de « tutoriel.finCommune » dans src (hors console) utilise exactement CLE_FIN_COMMUNE", () => {
+    const lecteurs = fichiers(join(process.cwd(), "src")).filter((f) => !f.endsWith("tutoriel-console.ts") && /lireParametre\s*(?:<[^>]*>)?\s*\(\s*"tutoriel\.finCommun/.test(readFileSync(f, "utf8")));
+    expect(lecteurs.some((f) => f.endsWith("tutoriel-branchements.ts"))).toBe(true);
+    const src = lire("src/services/tutoriel-branchements.ts");
+    const cles = [...src.matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*"(tutoriel\.finCommun[^"]*)"/g)].map((m) => m[1]);
+    expect(cles).toEqual([c.CLE_FIN_COMMUNE]);
+    for (const f of lecteurs) {
+      const lues = [...readFileSync(f, "utf8").matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*"(tutoriel\.finCommun[^"]*)"/g)].map((m) => m[1]);
+      expect(lues.every((k) => k === c.CLE_FIN_COMMUNE)).toBe(true);
+    }
+  });
+});
+
 describe("aucun allumage par le code", () => {
   const cles = c.REGLAGES_TUTORIEL.map((r) => r.cle);
   // Noms des constantes qui portent ces clés (CLE_*, PARAM_*), détectés dans les exports du service et de tutoriel-claude.
   const constantes = Object.entries(c).filter(([, v]) => typeof v === "string" && cles.includes(v)).map(([n]) => n);
-  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA"])];
+  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA", "CLE_FIN_COMMUNE"])];
   // Un nom compte seulement s'il vient d'ailleurs : une constante locale homonyme (ex. un `CLE_FORMULAIRE` d'une autre action) n'est pas la clé.
   const nomsConstantes = {
     test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
