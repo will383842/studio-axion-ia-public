@@ -29,14 +29,14 @@ export interface EntreesTutoriel {
   scriptValide?: string;
   /** Film de la navigation dans la maquette (T-EXT-38) : absent ou illisible = pas de film, rien ne change. */
   navigationFilmee?: NavigationFilmee;
+  /** T-EXT-SV : `true` = mode « sans voix » choisi par l'utilisateur (silence total, 0 appel HeyGen, 0 €). Absent = avec voix (défaut). */
+  sansVoix?: true;
   /** T-EXT-33 : dossier ou phrase déposé. Absent ou mal formé : ignoré. */
   depot?: DepotTutoriel;
   /** T-EXT-33 : parcours choisi. Absent ou inconnu : choisi par le chef de projet. */
   gabarit?: IdGabarit;
   /** T-EXT-26a : fin choisie dans le formulaire (« prendre-rendez-vous », valeur déjà lue par l'équipe, est lue comme « rendez-vous »). Toute autre valeur est ignorée : jamais une phrase inventée. */
   fin?: "aucune" | "rendez-vous";
-  /** T-EXT-SV : `true` = mode « sans voix » choisi par l'utilisateur (silence total, 0 appel HeyGen, 0 €). Absent = avec voix (défaut). */
-  sansVoix?: true;
 }
 
 const gabaritConnu = (v: unknown): IdGabarit | undefined => GABARITS_CONNUS.find((g) => g === v);

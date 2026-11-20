@@ -146,7 +146,7 @@ describe("garde statique", () => {
     }
   });
 
-  it("rien dans src/ ne l'importe hors RelectureChiffres.tsx", () => {
+  it("rien dans src/ ne l'importe hors RelectureChiffres.tsx et services/tableau-de-bord-relecture.ts", () => {
     const trouves: string[] = [];
     const parcourir = (dossier: string) => {
       for (const nom of readdirSync(dossier)) {
@@ -156,6 +156,7 @@ describe("garde statique", () => {
       }
     };
     parcourir(SRC);
-    expect(trouves).toEqual(["components/formats/tableau-de-bord/RelectureChiffres.tsx"]);
+    // G4-08-b1-v20j : + le service de relecture du tableau de bord, liste blanche +1 exacte (triée).
+    expect(trouves.sort()).toEqual(["components/formats/tableau-de-bord/RelectureChiffres.tsx", "services/tableau-de-bord-relecture.ts"]);
   });
 });

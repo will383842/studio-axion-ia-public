@@ -18,6 +18,7 @@ import { DEF_APPEL_ACTION, EXEMPLES_APPEL_ACTION } from "../../../../src/briques
 import { DEF_APPEL_MOT, EXEMPLES_APPEL_MOT } from "../../../../src/briques/motion/petits-objets/appel-mot";
 import { EXEMPLES_CARTON_MAGAZINE, OBJET_CARTON_MAGAZINE } from "../../../../src/briques/motion/petits-objets/carton-magazine";
 import { EXEMPLES_ANNEAU, OBJET_ANNEAU_DONNEES } from "../../../../src/briques/motion/petits-objets/anneau-donnees";
+import { FOND_FLOU_DEFAUT } from "../../../../src/briques/motion/habillage-commun/fond-flou-carte";
 import { colonnesPlanche, DIMENSIONS_PLANCHE, FPS_PLANCHE, IMAGE_PLANCHE, seChevauchent, type FormatPlanche } from "./PlancheTraits";
 
 export { seChevauchent };
@@ -80,6 +81,18 @@ export function PlancheDeFamille({ nom, entrees, fond, format, image = IMAGE_PLA
   );
 }
 
+/** C10-04b : la 1re case du carton magazine est posée sur un décor déjà adouci (dégradés, sans filtre) et voilé comme le rendu : « carton sur image floutée ». Même id, même nombre de cases. */
+const DEF_CARTON_SUR_FLOU: DefinitionObjet<unknown> = {
+  ...(OBJET_CARTON_MAGAZINE as DefinitionObjet<unknown>),
+  Rendu: (p) => (
+    <div style={{ position: "absolute", inset: 0 }}>
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 30% 40%, #b8a58c 0%, #6f7a85 55%, #3d4650 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: `rgba(0,0,0,${FOND_FLOU_DEFAUT.assombrir})` }} />
+      {OBJET_CARTON_MAGAZINE.Rendu(p as never)}
+    </div>
+  ),
+};
+
 /** Toutes les entrées de la planche, dans l'ordre d'affichage. */
 export const ENTREES_ETIQUETTES: readonly EntreeFamille[] = [
   ...listerFamille([DEF_PASTILLE_ICONE], EXEMPLES_ETIQUETTES.pastille),
@@ -96,7 +109,7 @@ export const ENTREES_ETIQUETTES: readonly EntreeFamille[] = [
   ...listerFamille([OBJET_SCHEMA_FLUX], EXEMPLES_FLUX),
   ...listerFamille([DEF_APPEL_ACTION], EXEMPLES_APPEL_ACTION),
   ...listerFamille([DEF_APPEL_MOT], EXEMPLES_APPEL_MOT.map((e) => DEF_APPEL_MOT.valider(e))),
-  ...listerFamille([OBJET_CARTON_MAGAZINE], EXEMPLES_CARTON_MAGAZINE),
+  ...listerFamille([OBJET_CARTON_MAGAZINE], EXEMPLES_CARTON_MAGAZINE).map((e, i) => (i === 0 ? { ...e, def: DEF_CARTON_SUR_FLOU } : e)),
   ...listerFamille([OBJET_ANNEAU_DONNEES], EXEMPLES_ANNEAU),
 ];
 

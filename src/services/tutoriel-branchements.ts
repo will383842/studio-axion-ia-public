@@ -18,9 +18,22 @@ import { equipeTutorielActive, portsEquipe } from "./tutoriel-equipe";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
-import { ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import { estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
+import { ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
+
+/** T-EXT-52b : retouche sans tout refaire. ÉTEINT par défaut. */
+export const PARAM_RETOUCHE_PARTIELLE_TUTORIEL = "tutoriel.retouchePartielle";
+
+/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+export async function retouchePartielleActive(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
+  try {
+    const l = lire ?? (await import("./_commun")).lireParametre;
+    return (await l<unknown>(PARAM_RETOUCHE_PARTIELLE_TUTORIEL, false)) === true;
+  } catch {
+    return false;
+  }
+}
 
 brancherServicesTutoriel({
   outils: async (c, travailId): Promise<OutilsTutoriel | null> => {
@@ -59,9 +72,9 @@ brancherServicesTutoriel({
     };
     // T-EXT-27b : le regard de Claude sur les images-clés. Éteint (champ absent) sans `tutoriel.regardeur` ET `tutoriel.claude` à `true`.
     const regarder = (await regardTutorielActif()) ? creerRegardTutoriel({ videoId: c.videoId, origine: c.origine, rendu }) : undefined;
+    const voixReelle = sansVoix ? undefined : b.voix;
     // T-EXT-55 : l'équipe de rôles. Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
     const equipe = (await equipeTutorielActive()) ? portsEquipe(c, c.videoId) : undefined;
-    const voixReelle = sansVoix ? undefined : b.voix;
     return {
       ...(devis
         ? {
@@ -78,6 +91,7 @@ brancherServicesTutoriel({
           }
         : {}),
       ...(finitions ? { finitions: { actif: true as const } } : {}),
+      ...((await retouchePartielleActive()) ? { retouchePartielle: true } : {}),
       ...(finCommune ? { fin: { actif: true } } : {}),
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       ...(voixReelle ? { voix: {

@@ -4,7 +4,7 @@
  */
 import { occupeBuffer } from "@/domaine/buffer";
 import { outilDe } from "@/domaine/outil-publication";
-import type { IdReseau, Publication } from "@/domaine/types";
+import { estRapatriee, type IdReseau, type Publication } from "@/domaine/types";
 
 /** Libellés visibles (les noms de fichiers et de statuts internes ne changent pas). */
 export const LIBELLE_A_CORRIGER = "À corriger";
@@ -26,7 +26,7 @@ export interface LigneACorriger {
   phrase: string;
 }
 
-type PubFile = Pick<Publication, "id" | "videoId" | "visuelId" | "canalId" | "reseau" | "via" | "statut" | "etatEnvoi" | "date" | "cleEnvoi" | "modifieLe">;
+type PubFile = Pick<Publication, "id" | "videoId" | "visuelId" | "canalId" | "reseau" | "via" | "statut" | "etatEnvoi" | "date" | "cleEnvoi" | "modifieLe"> & Partial<Pick<Publication, "rapatrieeLe">>;
 
 /** Combien de fois cet envoi (même clé) a déjà été tenté, toutes issues confondues. */
 export function nombreEssais(publications: readonly Pick<Publication, "cleEnvoi">[], cleEnvoi: string | undefined): number {
@@ -37,6 +37,8 @@ export function construireFileACorriger(publications: readonly PubFile[]): Ligne
   const groupes = new Map<string, PubFile[]>();
   for (const p of publications) {
     if (outilDe(p) !== "zernio") continue;
+    // RAP-3 : une publication reprise du diffuseur n'a rien à renvoyer ni à reprogrammer depuis le Studio.
+    if (estRapatriee(p)) continue;
     const cle = p.cleEnvoi ?? `sans-cle:${p.id}`;
     groupes.set(cle, [...(groupes.get(cle) ?? []), p]);
   }

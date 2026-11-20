@@ -28,7 +28,7 @@ import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe
 import { estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
-import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
+import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, prochainPasPaye, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel, sortieGardee } from "./chaine";
 
 export { ENTREE_TUTORIEL, lireEntreesTutoriel, type EntreesTutoriel } from "./entrees";
 export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine";
@@ -152,8 +152,8 @@ function nouveauTravail(defs: DefinitionEtapeMoteur[], ctx: ContexteLancement, c
 }
 
 /** Ce que la version d'avant offre (projet de montage) : son plan et sa voix, repris sans être refaits ni repayés. */
-export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "equipe"> | null {
-  const p = projetMontage?.tutoriel as Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "equipe"> | undefined;
+export function lireProjetTutoriel(projetMontage: Record<string, unknown> | undefined): (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | null {
+  const p = projetMontage?.tutoriel as (Pick<EtatTutoriel, "script" | "audio" | "sousTitres" | "motsPlan" | "plan" | "empreintesFormats" | "film" | "navigationFilm" | "equipe"> & { sortiesFormats?: Partial<Record<Ratio, SortieFormatTutoriel>> }) | undefined;
   return p && typeof p === "object" && p.plan?.plan ? p : null;
 }
 
@@ -228,8 +228,25 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {
       moteur: ID_MOTEUR_TUTORIEL_OUTIL,
-      // T-EXT-55 : l'équipe reste dans le projet (la retouche et le regardeur en ont besoin).
-      tutoriel: { script: etat.script, audio: etat.audio, sousTitres: etat.sousTitres, motsPlan: etat.motsPlan, plan: etat.plan, ...(etat.equipe ? { equipe: etat.equipe } : {}) },
+      tutoriel: {
+        script: etat.script,
+        audio: etat.audio,
+        sousTitres: etat.sousTitres,
+        motsPlan: etat.motsPlan,
+        plan: etat.plan,
+        // T-EXT-55 : l'équipe reste dans le projet (la retouche et le regardeur en ont besoin).
+        ...(etat.equipe ? { equipe: etat.equipe } : {}),
+        // T-EXT-52b : écrit seulement quand le réglage a calculé les empreintes (éteint : exactement comme avant).
+        ...(etat.empreintesFormats
+          ? {
+              empreintesFormats: etat.empreintesFormats,
+              sortiesFormats: Object.fromEntries(etat.rendus.filter((r) => r.sortie).map((r) => [r.ratio, sortieGardee(r)])),
+              origineFormats: Object.fromEntries(etat.rendus.filter((r) => r.sortie).map((r) => [r.ratio, r.reprise ? "reprise" : "rendu"])),
+              ...(etat.film ? { film: etat.film } : {}),
+              ...(etat.navigationFilm ? { navigationFilm: etat.navigationFilm } : {}),
+            }
+          : {}),
+      },
     },
   };
 }
@@ -299,7 +316,10 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
   const port = outils.devis;
   if (!port) return null;
   const entrees = lireEntreesTutoriel(commande.entrees);
-  const idee = !etat.script && !etat.proposition && ("aEcrire" in scriptRetenu(commande.script.texteComplet, entrees) || (!!outils.equipe && !!entrees.depot));
+  const aEcrire = "aEcrire" in scriptRetenu(commande.script.texteComplet, entrees);
+  // Équipe allumée : un dossier, une phrase ou une idée passent par l'équipe (payante) MÊME si un travail d'avant la PR garde une
+  // proposition de l'ancien écrivain (chaine.ts : pasScript va dans pasEquipe avant de regarder `etat.proposition`). La garde suit le même chemin.
+  const idee = !etat.script && (!!outils.equipe ? (!!entrees.depot || aEcrire) : (!etat.proposition && aEcrire));
   const depense = cle === "script" ? idee : cle === "voix" || cle === "plan" || cle === "montage" || cle === "exports";
   if (!depense) return null;
   return (async () => {
@@ -325,12 +345,29 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
     const aVenir: Partial<Consommation> = {};
     // Le script : « script » (ancien écrivain) et, équipe allumée, chaque rôle de l'équipe (tout sauf le plan de scènes).
-    if (cle === "script") aVenir.appelsClaude = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
+    // Équipe : seuls les essais RESTANTS (essais permis moins appels déjà faits) comptent, car `consomme` contient déjà ceux des rôles passés.
+    // Le « +1 » (un rôle qui va être appelé coûte au moins un appel, même si tous les essais du devis sont faits : l'orchestre peut
+    // permettre un essai de plus, qui ne passe que si « consommé + 1 » tient dans le devis) ne se compte QUE si le prochain pas paie
+    // vraiment. Un pas gratuit (lecture d'une sortie déjà payée, réalisateur, contrôleur, registre, pause « à valider ») ne réserve rien :
+    // sinon la vidéo s'arrêterait APRÈS son dernier appel payé et n'atteindrait jamais l'écran de validation.
+    // Le plan de scènes, pas encore fait, reste RÉSERVÉ dans le devis : le total du devis le compte, donc un rôle ne peut pas
+    // prendre ses appels (un essai de plus que ceux que le devis lui donne). Rôles + plan : « consommé + restants + plan » ≤ total.
+    if (cle === "script") {
+      const restants = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0);
+      const paie = await prochainPasPaye(etat, commande, outils);
+      aVenir.appelsClaude = (paie ? Math.max(1, restants) : restants) + (etat.plan ? 0 : essais("plan"));
+    }
     else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
     else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
     const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);
     return reste.ok ? null : { code: CODE_DEVIS_ATTEINT, message: reste.message };
   })();
+}
+
+/** Une lecture partagée : le premier appel lit, les suivants rendent le même résultat (ou la même erreur). */
+function lectureUnique<T>(lire: () => Promise<T>): () => Promise<T> {
+  let promesse: Promise<T> | undefined;
+  return () => (promesse ??= lire());
 }
 
 export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): MoteurVideo {
@@ -340,7 +377,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     if (["termine", "echec", "annule"].includes(travail.statut)) return { travail };
     const iso = new Date(maintenant).toISOString();
     const fabrique = fabriqueOutils();
-    const outils = fabrique ? await fabrique(commande, travail.id) : null;
+    const outilsBruts = fabrique ? await fabrique(commande, travail.id) : null;
+    // Le dossier est lu UNE SEULE fois par pas : la garde du devis et le pas d'équipe décident sur la même lecture.
+    const outils = outilsBruts?.equipe ? { ...outilsBruts, equipe: { ...outilsBruts.equipe, lireDossier: lectureUnique(outilsBruts.equipe.lireDossier.bind(outilsBruts.equipe)) } } : outilsBruts;
     if (!outils) return { travail: { ...travail, statut: "en_file", modifieLe: iso, parametres: { ...travail.parametres, pause: { code: CODE_OUTILS_NON_RELIES, message: PHRASE_OUTILS_NON_RELIES } } } };
 
     let etat = lireEtat(travail);
@@ -388,7 +427,9 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const p = lireProjetTutoriel(parent?.projetMontage);
     const e = etatInitial(commande);
     const plan = p?.plan?.plan ? planRetouche(p.plan.plan, operations) : p?.plan?.plan;
-    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}) } } : {}), ...(p?.equipe ? { equipe: p.equipe } : {}) };
+    // T-EXT-52b : rendus, empreintes de formats et film de la version d'avant (absents si elle n'en a pas écrit).
+    const avant = p ? { ...(p.sortiesFormats ? { rendus: p.sortiesFormats } : {}), ...(p.empreintesFormats ? { empreintesFormats: p.empreintesFormats } : {}), ...(p.film ? { film: p.film } : {}), ...(p.navigationFilm ? { navigationFilm: p.navigationFilm } : {}) } : {};
+    return { ...e, ...(ratios ? { ratios } : {}), ...(p ? { parent: { plan, ...(p.audio ? { audio: p.audio } : {}), ...avant } } : {}) ,...(p?.equipe ? { equipe: p.equipe } : {}) };
   }
 
   /**

@@ -69,7 +69,9 @@ describe("mesurerRythme (C10-02)", () => {
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const c = join(d, n); statSync(c).isDirectory() ? parcourir(c) : /\.tsx?$/.test(n) && fichiers.push(c); } };
     parcourir(racine);
     const propre = join(racine, "briques/composition/rythme-mesure.ts");
-    for (const f of fichiers) if (f !== propre) expect(readFileSync(f, "utf8"), f).not.toMatch(/rythme-mesure/);
+    const adaptateur = join(racine, "briques/plan-scenes-generateurs/adaptateur.ts"); // C10-15-b2 : seul appelant autorisé
+    for (const f of fichiers) if (f !== propre && f !== adaptateur) expect(readFileSync(f, "utf8"), f).not.toMatch(/rythme-mesure/);
+    expect(fichiers.filter((f) => f !== propre && /rythme-mesure/.test(readFileSync(f, "utf8")))).toEqual([adaptateur]);
     expect(readFileSync(propre, "utf8")).not.toMatch(/@\/services/);
   });
 });

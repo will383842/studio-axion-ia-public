@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 // `polices.ts` importe « remotion », absent hors studio-rendu : doublure minimale.
 vi.mock("remotion", () => ({ delayRender: () => 0, continueRender: () => undefined, cancelRender: () => undefined }));
+import { couleursSur } from "@/briques/jetons-motion";
 import { RATIOS_COUVERTURE } from "@/briques/motion/titres-couverture/etapes";
 
 type RatioC = (typeof RATIOS_COUVERTURE)[number];
@@ -47,7 +48,7 @@ describe("C11-T6b-p planche des titres de couverture", () => {
   });
   for (const ratio of RATIOS_COUVERTURE) {
     for (const fond of FONDS) {
-      it(`${ratio} ${fond} : 4 cases dans l'ordre, textes exacts, sans prise floutée`, () => {
+      it(`${ratio} ${fond} : 4 cases dans l'ordre, textes exacts, avec prise floutée`, () => {
         const h = rendre(ratio, fond);
         const ids = [...h.matchAll(/data-case="([^"]+)"/g)].map((m) => m[1]);
         expect(ids).toEqual(ORDRE);
@@ -55,7 +56,7 @@ describe("C11-T6b-p planche des titres de couverture", () => {
         expect(tenue).toContain("Étape 3");
         expect(tenue).toContain("Le bon réflexe");
         expect(caseDe(h, "pastille")).toContain("Cas concret");
-        expect(h).toContain("sans prise floutée (C11-T6b-c)");
+        expect(h).toContain("avec prise floutée (C11-T6b-c)");
         expect(h).toContain("Manrope");
         expect(h).not.toMatch(/<img|<image|href=|filter:blur/);
       });
@@ -64,6 +65,29 @@ describe("C11-T6b-p planche des titres de couverture", () => {
       });
     }
   }
+  it("C11-T6b-c : décor flouté sous les 3 cases étape, pas sous la pastille", () => {
+    for (const ratio of RATIOS_COUVERTURE) {
+      for (const fond of FONDS) {
+        const h = rendre(ratio, fond);
+        for (const id of ["etape-entree", "etape-tenue", "etape-sortie"]) {
+          const c = caseDe(h, id);
+          expect(c, id).toContain('data-decor="floute"');
+          expect(c, id).toContain("feGaussianBlur");
+          // Le flou est vraiment APPLIQUÉ : le groupe porte le filtre de sa case, d'écart-type > 0.
+          const fid = `flou-${ratio}-${fond}-${id}`;
+          expect(c, id).toContain(`<g filter="url(#${fid})"`);
+          const ecart = new RegExp(`<filter id="${fid}"[^>]*><feGaussianBlur stdDeviation="([0-9.]+)"`).exec(c);
+          expect(ecart, id).not.toBeNull();
+          expect(Number(ecart![1]), id).toBeGreaterThan(0);
+          // Le voile (assombrissement) est présent : div de la couleur du texte, opacité > 0.
+          const voile = new RegExp(`background:${couleursSur(fond).texte.replace(/[()]/g, "\\$&")};opacity:([0-9.]+)`).exec(c);
+          expect(voile, id).not.toBeNull();
+          expect(Number(voile![1]), id).toBeGreaterThan(0);
+        }
+        expect(caseDe(h, "pastille")).not.toContain("data-decor");
+      }
+    }
+  });
   it("gardes statiques sur les deux fichiers de l'outil", () => {
     for (const f of ["outils/planche-titres-couverture/PlancheTitresCouverture.tsx", "outils/planche-titres-couverture/planche.mts"]) {
       expect(lire(f), f).not.toMatch(/@\/services|src\/services|fournisseurs|compositions\/Racine|useCurrentFrame/);

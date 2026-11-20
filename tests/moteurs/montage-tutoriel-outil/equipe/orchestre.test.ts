@@ -167,3 +167,26 @@ describe("appliquerSortie : refus, essais, blocage", () => {
     expect((await appliquerSortie(neuf(), "realisateur", {}, entreesCompletes())).ok).toBe(false);
   });
 });
+
+describe("après TO_EQUIPE_BLOQUEE : pas de nouvel essai payant (T-EXT-55, garde d'argent)", () => {
+  it("deux refus du scénariste aux erreurs DIFFÉRENTES, puis « Réessayer » (même état rejoué) : aucun 3e appel payé", async () => {
+    const sortie = (role: IdRole, entree: EntreeRole, n: number, etat: EtatEquipe): unknown => {
+      if (role !== "scenariste") return parDefaut(role, entree, n, etat);
+      return n === 1 ? { version: "scripts-tutoriel.v1", versions: [] } : { version: "autre", versions: [{ id: "A" }] };
+    };
+    const r = await courir(neuf(), entreesCompletes(), sortie);
+    expect(r.pause?.code).toBe("TO_EQUIPE_BLOQUEE");
+    expect(r.appels.filter((x) => x === "scenariste")).toHaveLength(2);
+    // Les deux refus n'ont pas les mêmes remarques : l'empreinte d'entrée d'un 3e appel serait NEUVE (rien ne la masquerait).
+    expect(r.e.remarques?.scenariste?.length).toBeGreaterThan(0);
+    // « Réessayer » : la chaîne rejoue `prochainPas` sur le même état. Jamais un rôle payant à faire.
+    for (let i = 0; i < 3; i++) {
+      const p = prochainPas(r.e, entreesCompletes());
+      expect("faire" in p).toBe(false);
+      expect(p).toMatchObject({ pause: { code: "TO_EQUIPE_BLOQUEE" } });
+    }
+    const encore = await courir(r.e, entreesCompletes(), sortie);
+    expect(encore.appels).toHaveLength(0);
+    expect(encore.pause?.code).toBe("TO_EQUIPE_BLOQUEE");
+  });
+});

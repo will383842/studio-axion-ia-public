@@ -48,6 +48,7 @@ import "./avocat-branchements";
 import "./tableau-branchements";
 import "./cas-concret-branchements";
 import "./tutoriel-branchements";
+import "./demo-facecam-branchements";
 import "./video-longue-branchements";
 import "./image-video";
 import "./facecam-animee";

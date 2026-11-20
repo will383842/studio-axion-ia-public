@@ -20,6 +20,8 @@ const DUREE_DEPOT_SEC = 6 * 3600;
 export interface ServicesDemoFacecam {
   /** Fournisseur Claude du plan de scènes, passé par `executerRole` (pré-vol et réservation des crédits). */
   appelerPlan?: (c: CommandeFabrication, travailId: string) => AppelClaude | undefined;
+  /** G3-10-v20e : le plan par Claude n'est appelé que si ceci rend `true` (réglage éteint par défaut) ; absent : comme avant. */
+  planClaudeActif?: () => Promise<boolean>;
 }
 
 const cleServices = Symbol.for("studio-axion-ia.demo-facecam-services");
@@ -44,6 +46,7 @@ export function dependancesDemoParDefaut(c: CommandeFabrication, env: Record<str
     alignement: resoudreFournisseur("alignement", "studio-aligneur"),
     rendu: obtenirServiceRendu(env),
     ...(appelerPlan ? { appelerPlan } : {}),
+    ...(appelerPlan && servicesDemoFacecam().planClaudeActif ? { planClaudeActif: servicesDemoFacecam().planClaudeActif } : {}),
     urlLecture: async (cle) => (stockage.urlLectureDuree ? stockage.urlLectureDuree(cle, DUREE_LECTURE_SEC) : stockage.urlLecture(cle)),
     urlDepot: async (cle, mime) => {
       if (!stockage.urlDepotDuree) throw new Error("Stockage sans dépôt signé : la démo facecam exige R2.");
