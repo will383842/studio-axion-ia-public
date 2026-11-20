@@ -12,12 +12,12 @@ import type { LireReglage } from "./reglage";
 
 export const CLE_REGLAGE_DESSIN_FACECAM = "planScenes.facecamDessin";
 
-/** Seul `true` exact allume ; rejet, exception ou toute autre valeur : `false`. */
+/** ALLUMÉ par défaut (décision Williams 20/11) : seul `false` exact éteint ; absence, rejet, exception ou autre valeur : `true`. */
 export async function dessinFacecamReglage(lire: LireReglage): Promise<boolean> {
   try {
-    return (await lire(CLE_REGLAGE_DESSIN_FACECAM, false)) === true;
+    return (await lire(CLE_REGLAGE_DESSIN_FACECAM, true)) !== false;
   } catch {
-    return false;
+    return true;
   }
 }
 
