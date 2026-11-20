@@ -14,6 +14,8 @@
  * V2-08 remplacera `depotParDefaut` par `EtatEquipe.pieceCreee` ; les gestes ci-dessous ne changent pas.
  */
 import "server-only";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { appliquerRelecture, chiffresARelire, type ChiffreARelire, type DecisionChiffre } from "@/briques/donnees-video/relecture-chiffres";
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { nombresAffirmes } from "@/domaine/nombres-fr";
@@ -100,6 +102,8 @@ export interface VuePieceCreee {
   defauts: string[];
   propositionsRestantes: 0 | 1;
   statut: StatutPiece;
+  /** Une autre proposition est demandée et pas encore arrivée : corriger et déposer sont fermés. */
+  autreEnAttente: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +122,56 @@ export async function creationDepuisPhraseOuverte(lire?: LecteurReglage): Promis
     return false;
   }
 }
+
+/* Noms de la charte : lus une fois dans les deux fichiers du dépôt, puis gardés. Illisibles = refus (jamais « tout permis »). */
+const DOSSIER_NOMS = ["outils", "maquettes-tableaux-de-bord"];
+const FICHIERS_NOMS = [join(...DOSSIER_NOMS, "charte", "noms-neutres.json"), join(...DOSSIER_NOMS, "ecrans-outils", "noms.json")];
+let nomsEnMemoire: Promise<{ interdits: string[]; permis: string[] }> | null = null;
+
+async function lireNomsDeLaCharte(): Promise<{ interdits: string[]; permis: string[] }> {
+  const interdits = new Set<string>();
+  const permis = new Set<string>();
+  for (const f of FICHIERS_NOMS) {
+    const j = JSON.parse(await readFile(join(process.cwd(), f), "utf8")) as { interdits?: unknown; maquettes?: Record<string, { produit?: unknown; organisation?: unknown; vues?: Record<string, unknown> }> };
+    for (const m of Array.isArray(j.interdits) ? j.interdits : []) if (typeof m === "string" && m.trim()) interdits.add(m);
+    for (const m of Object.values(j.maquettes ?? {})) {
+      for (const v of [m.produit, m.organisation, ...Object.values(m.vues ?? {})]) if (typeof v === "string" && v.trim()) permis.add(v);
+    }
+  }
+  if (interdits.size === 0) throw new Error("noms-neutres vides");
+  return { interdits: [...interdits], permis: [...permis] };
+}
+
+/** Les listes données par l'appelant font foi ; sinon celles de la charte (les deux fichiers du dépôt). */
+async function avecNoms(d: DependancesPiece): Promise<DependancesPiece> {
+  if (d.interdits && d.nomsPermis) return d;
+  nomsEnMemoire ??= lireNomsDeLaCharte();
+  let n: { interdits: string[]; permis: string[] };
+  try {
+    n = await nomsEnMemoire;
+  } catch (e) {
+    nomsEnMemoire = null;
+    throw new Error("Les noms neutres de la charte ne sont pas lisibles : rien n'est écrit.", { cause: e });
+  }
+  return { ...d, interdits: d.interdits ?? n.interdits, nomsPermis: d.nomsPermis ?? n.permis };
+}
+
+/** Un seul geste à la fois par vidéo (dans ce processus) : lecture, contrôle puis écriture ne se mélangent pas. */
+const verrous = new Map<string, Promise<unknown>>();
+async function enFile<T>(videoId: string, f: () => Promise<T>): Promise<T> {
+  const avant = verrous.get(videoId) ?? Promise.resolve();
+  const courant = avant.then(f, f);
+  const fin = courant.catch(() => undefined);
+  verrous.set(videoId, fin);
+  try {
+    return await courant;
+  } finally {
+    if (verrous.get(videoId) === fin) verrous.delete(videoId);
+  }
+}
+
+const AUTRE_EN_ATTENTE = "Une autre proposition se prépare : attendez-la.";
+const autreEnAttente = (e: EtatPieceCreee) => e.aRelancer === true && e.proposition >= 2 && e.statut === "a-construire";
 
 async function depotParDefaut(): Promise<DepotPiece> {
   const { depots } = await import("./_commun");
@@ -178,6 +232,7 @@ function avecDescription(etat: EtatPieceCreee, description: DescriptionMaquette)
 /** Ce que l'écran montre, ou `null` (« Rien à voir pour l'instant »). Session exigée ; lecture seule, rien n'est écrit. */
 export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): Promise<VuePieceCreee | null> {
   await sessionOk(d);
+  d = await avecNoms(d);
   const etat = await (await deposDe(d)).lire(videoId);
   if (!etat) return null;
   const description = descriptionDe(etat, d);
@@ -197,6 +252,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     defauts: [...new Set(defauts)],
     propositionsRestantes: etat.proposition >= PROPOSITIONS_PIECE_MAX ? 0 : 1,
     statut: etat.statut,
+    autreEnAttente: autreEnAttente(etat),
   };
 }
 
@@ -207,13 +263,19 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
 const nomDeFichier = (cle: string) => cle.split(/[\\/]/).pop() ?? cle;
 
 /** Dépôt de l'aperçu fabriqué sur le poste : `apercu-piece.json` + les images. Refus si l'empreinte n'est pas celle de la pièce. */
-export async function enregistrerApercu(videoId: string, ids: unknown, d: DependancesPiece = {}): Promise<IssuePiece> {
+export function enregistrerApercu(videoId: string, ids: unknown, d: DependancesPiece = {}): Promise<IssuePiece> {
+  return enFile(videoId, () => enregistrerApercuSeul(videoId, ids, d));
+}
+
+async function enregistrerApercuSeul(videoId: string, ids: unknown, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
+  d = await avecNoms(d);
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
   if (etat.statut !== "a-construire") return refus("Aucun aperçu n'est attendu pour cette maquette.");
+  if (autreEnAttente(etat)) return refus(AUTRE_EN_ATTENTE);
   if (!Array.isArray(ids) || ids.length === 0) return refus("Choisissez au moins un fichier.");
   if (ids.length > FICHIERS_APERCU_MAX) return refus(`Trop de fichiers : ${IMAGES_APERCU_MAX} images et l'aperçu au plus.`);
   const lesFichiers = d.fichiers ?? (async (liste: unknown, id: string) => (await import("./fichiers")).fichiersEnvoyes(liste, "entree", id, FICHIERS_APERCU_MAX));
@@ -307,9 +369,14 @@ export interface DemandeGarder {
 }
 
 /** « Garder cette maquette » : fige l'empreinte et les textes. Si un chiffre change, la description change : nouvel aperçu (0 €). */
-export async function garderPiece(videoId: string, demande: DemandeGarder, d: DependancesPiece = {}): Promise<IssuePiece> {
+export function garderPiece(videoId: string, demande: DemandeGarder, d: DependancesPiece = {}): Promise<IssuePiece> {
+  return enFile(videoId, () => garderPieceSeul(videoId, demande, d));
+}
+
+async function garderPieceSeul(videoId: string, demande: DemandeGarder, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
+  d = await avecNoms(d);
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
@@ -367,13 +434,19 @@ function remplacerTexte(d: DescriptionMaquette, avant: string, apres: string): {
 }
 
 /** « Corriger un texte » : le texte de Williams fait foi, mis tel quel (jamais repassé par Claude). 0 € : seulement un nouvel aperçu. */
-export async function corrigerTexte(videoId: string, demande: DemandeCorrection, d: DependancesPiece = {}): Promise<IssuePiece> {
+export function corrigerTexte(videoId: string, demande: DemandeCorrection, d: DependancesPiece = {}): Promise<IssuePiece> {
+  return enFile(videoId, () => corrigerTexteSeul(videoId, demande, d));
+}
+
+async function corrigerTexteSeul(videoId: string, demande: DemandeCorrection, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
+  d = await avecNoms(d);
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
   if (etat.statut === "gardee" || etat.statut === "refusee") return refus("Cette maquette n'est plus modifiable.");
+  if (autreEnAttente(etat)) return refus(AUTRE_EN_ATTENTE);
   const avant = unSeulBlocDeTexte(demande?.avant);
   const apres = unSeulBlocDeTexte(demande?.apres);
   if (!avant || !apres) return refus("Écrivez le texte à mettre à la place.");
@@ -397,7 +470,11 @@ export async function corrigerTexte(videoId: string, demande: DemandeCorrection,
 /* ------------------------------------------------------------------ */
 
 /** « En proposer une autre » : une seule fois par vidéo. Ne fait que noter la demande et relancer le travail : cette fonction n'appelle jamais Claude. */
-export async function autreProposition(videoId: string, d: DependancesPiece = {}): Promise<IssuePiece> {
+export function autreProposition(videoId: string, d: DependancesPiece = {}): Promise<IssuePiece> {
+  return enFile(videoId, () => autrePropositionSeul(videoId, d));
+}
+
+async function autrePropositionSeul(videoId: string, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
   const depot = await deposDe(d);
@@ -411,12 +488,17 @@ export async function autreProposition(videoId: string, d: DependancesPiece = {}
 }
 
 /** « Arrêter » : la maquette est refusée, rien n'est fabriqué. */
-export async function arreter(videoId: string, d: DependancesPiece = {}): Promise<IssuePiece> {
+export function arreter(videoId: string, d: DependancesPiece = {}): Promise<IssuePiece> {
+  return enFile(videoId, () => arreterSeul(videoId, d));
+}
+
+async function arreterSeul(videoId: string, d: DependancesPiece): Promise<IssuePiece> {
   const ferme = await ouvrir(d);
   if (ferme) return ferme;
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
+  if (etat.statut === "gardee") return refus("Cette maquette est déjà gardée.");
   await depot.ecrire(videoId, { ...etat, statut: "refusee", aRelancer: false });
   return { ok: true, message: "C'est arrêté. Rien n'a été fabriqué. Reformulez votre phrase pour recommencer.", statut: "refusee" };
 }

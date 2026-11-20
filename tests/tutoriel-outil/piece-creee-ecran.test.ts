@@ -261,3 +261,69 @@ describe("autre proposition et arrêt", () => {
     expect(m.etat().statut).toBe("refusee");
   });
 });
+
+describe("corrections du verdict Opus", () => {
+  it("autre proposition en attente : corriger un texte est refusé, rien n'est écrit, l'état reste à relancer", async () => {
+    const m = monde(avecApercu(etatInitial()));
+    await autreProposition(VIDEO, m.dep);
+    const ecritures = m.compteurs.ecritures;
+    const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Commandes prêtes" }, m.dep);
+    expect(r).toEqual({ ok: false, message: "Une autre proposition se prépare : attendez-la." });
+    expect(m.compteurs.ecritures).toBe(ecritures);
+    expect(m.etat()).toMatchObject({ proposition: 2, aRelancer: true });
+    expect((await vuePieceCreee(VIDEO, m.dep))?.autreEnAttente).toBe(true);
+  });
+
+  it("autre proposition en attente : le dépôt de l'aperçu de l'ancienne description est refusé", async () => {
+    const m = monde(avecApercu(etatInitial()));
+    await autreProposition(VIDEO, m.dep);
+    const ancienne = m.etat().empreinte;
+    const dep: DependancesPiece = {
+      ...m.dep,
+      fichiers: async () => [fichier("f-j", "apercu-piece.json"), fichier("f-a", "avant.png"), fichier("f-b", "apres.png")],
+      lireJson: async () => ({ version: VERSION_APERCU, empreinteDescription: ancienne, images: [{ ecranId: "accueil", etat: "avant", cle: "a/avant.png" }, { ecranId: "accueil", etat: "maintenant", cle: "a/apres.png" }], controle: { ok: true, defauts: [] } }),
+    };
+    const ecritures = m.compteurs.ecritures;
+    const r = await enregistrerApercu(VIDEO, ["f-j", "f-a", "f-b"], dep);
+    expect(r).toEqual({ ok: false, message: "Une autre proposition se prépare : attendez-la." });
+    expect(m.compteurs.ecritures).toBe(ecritures);
+    expect(m.etat().statut).toBe("a-construire");
+  });
+
+  it("arrêter une maquette gardée : refus, rien n'est écrit ; le bouton est grisé", async () => {
+    const e = avecApercu(etatInitial());
+    const m = monde(e);
+    await garderPiece(VIDEO, { empreinte: e.empreinte }, m.dep);
+    const ecritures = m.compteurs.ecritures;
+    expect(await arreter(VIDEO, m.dep)).toEqual({ ok: false, message: "Cette maquette est déjà gardée." });
+    expect(m.compteurs.ecritures).toBe(ecritures);
+    expect(m.etat().statut).toBe("gardee");
+    const vue = (await vuePieceCreee(VIDEO, m.dep))!;
+    const html = renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue, gestes: {} as GestesPiece }));
+    expect(/<button[^>]*disabled[^>]*>\s*Arrêter/.test(html)).toBe(true);
+  });
+
+  it("noms non neutres : sans listes fournies, celles de la charte sont lues et « Velora du jour » est refusé", async () => {
+    const m = monde(avecApercu(etatInitial()));
+    const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Velora du jour" }, m.dep);
+    expect(r.ok).toBe(false);
+    expect(m.compteurs.ecritures).toBe(0);
+  });
+
+  it("noms non neutres : une marque inventée hors liste est refusée, un nom permis reste accepté", async () => {
+    const m = monde(avecApercu(etatInitial()));
+    const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Commandes Zorbix" }, m.dep);
+    expect(r.ok).toBe(false);
+    expect(m.compteurs.ecritures).toBe(0);
+    const ok = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Commandes prêtes" }, m.dep);
+    expect(ok.ok).toBe(true);
+  });
+
+  it("deux « En proposer une autre » simultanés : une seule relance, un seul refus", async () => {
+    const m = monde(avecApercu(etatInitial()));
+    const [a, b] = await Promise.all([autreProposition(VIDEO, m.dep), autreProposition(VIDEO, m.dep)]);
+    expect([a.ok, b.ok].sort()).toEqual([false, true]);
+    expect(m.compteurs.relances).toBe(1);
+    expect(m.compteurs.ecritures).toBe(1);
+  });
+});

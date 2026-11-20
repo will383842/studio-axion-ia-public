@@ -42,7 +42,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
       setMessage({ ok: r.ok, texte: r.message });
     });
 
-  const touchable = vue.statut === "a-valider" || vue.statut === "a-construire";
+  const touchable = (vue.statut === "a-valider" || vue.statut === "a-construire") && !vue.autreEnAttente;
   const peutGarder = vue.statut === "a-valider" && vue.defauts.length === 0;
   const tousLesTextes = vue.textes.flatMap((e) => e.textes.map((t) => ({ ecranId: e.ecranId, titre: e.titre, texte: t })));
   const choisi = tousLesTextes.find((t) => `${t.ecranId}|${t.texte}` === cible);
@@ -189,10 +189,11 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
         <Bouton variante="secondaire" disabled={attente || !touchable || vue.propositionsRestantes === 0} onClick={() => lance(() => gestes.autre(videoId))}>
           En proposer une autre
         </Bouton>
-        <Bouton variante="danger" disabled={attente || vue.statut === "refusee"} onClick={() => lance(() => gestes.arreter(videoId))}>
+        <Bouton variante="danger" disabled={attente || vue.statut === "refusee" || vue.statut === "gardee"} onClick={() => lance(() => gestes.arreter(videoId))}>
           Arrêter
         </Bouton>
       </div>
+      {vue.autreEnAttente && <p className="text-sm text-texte-doux">Une autre proposition se prépare : attendez-la.</p>}
       <p className="text-sm text-texte-doux">{vue.propositionsRestantes === 1 ? "Il vous reste 1 autre proposition." : "Vous avez déjà demandé une autre proposition."}</p>
     </div>
   );
