@@ -125,7 +125,8 @@ describe("L5-06 · synchronisation complète", () => {
     injecterClientZernio(client);
     const r = await synchroniserEtatsZernio({ force: true, instant: T0 });
     expect(r.lues).toBe(40);
-    expect(appels.filter((a) => new URL(a.url).pathname.endsWith("/v1/posts"))).toHaveLength(0);
+    // RAP-2 : le rapatriement lit les posts « à venir » par statut ; la liste complète de L5-06 (sans statut) reste absente de ce passage.
+    expect(appels.filter((a) => { const u = new URL(a.url); return u.pathname.endsWith("/v1/posts") && !u.searchParams.has("status"); })).toHaveLength(0);
   });
 });
 
@@ -187,8 +188,9 @@ describe("L5-06 · cas limites", () => {
     const { client, appels } = diffuseur(60, new Set(), true);
     injecterClientZernio(client);
     const r = await synchroniserEtatsZernio({ force: true, instant: T0, complet: true });
-    expect(r.lues).toBe(49);
-    expect(unitaires(appels)).toHaveLength(49);
+    // RAP-2 : la lecture du rapatriement (en échec elle aussi) compte pour 1 dans le budget : une lecture unitaire de moins, toujours 51 au total.
+    expect(r.lues).toBe(48);
+    expect(unitaires(appels)).toHaveLength(48);
     expect(appels).toHaveLength(51);
     expect(ecritures(appels)).toHaveLength(0);
   });

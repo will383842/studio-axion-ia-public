@@ -816,6 +816,6 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
   });
 
   it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche, + videoLongue.actif, + tutoriel.devisAvantDepense)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(40);
+    expect(Object.keys(LITTERALES)).toHaveLength(41);
   });
 });

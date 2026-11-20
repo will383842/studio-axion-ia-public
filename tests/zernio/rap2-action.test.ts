@@ -35,14 +35,14 @@ beforeEach(() => {
 
 describe("RAP-2 · relireDiffuseurAction", () => {
   it("sans session : refus (redirection), rien n'est lu ni créé", async () => {
-    const { relireDiffuseurAction } = await import("@/app/(studio)/calendrier/actions");
+    const { relireDiffuseurAction } = await import("@/app/(studio)/calendrier/actions/relire-diffuseur");
     await expect(relireDiffuseurAction()).rejects.toBeDefined();
     expect(await depots().publications.compter((p) => !!p.rapatrieeLe)).toBe(0);
   });
 
   it("avec session : un passage forcé et complet rapatrie, sans aucune écriture chez le diffuseur", async () => {
     await auth.seConnecter(MDP, false);
-    const { relireDiffuseurAction } = await import("@/app/(studio)/calendrier/actions");
+    const { relireDiffuseurAction } = await import("@/app/(studio)/calendrier/actions/relire-diffuseur");
     const r = await relireDiffuseurAction();
     expect(r.ok).toBe(true);
     expect(await depots().publications.compter((p) => !!p.rapatrieeLe)).toBe(1);

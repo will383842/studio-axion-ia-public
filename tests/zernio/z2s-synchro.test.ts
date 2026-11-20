@@ -103,8 +103,8 @@ describe("z2s · synchronisation", () => {
     const { client, faux } = creerFauxClientZernio(() => reponse({ post: postExemple() }));
     injecterClientZernio(client);
     expect((await synchroniserEtatsZernio({ force: true, instant: T0 })).lues).toBe(0);
-    // Seule la lecture des comptes (alertes jetons, STU-JETONS) est permise : jamais la lecture d'un post.
-    expect(faux.appels.filter((a: { url: string }) => !/\/v1\/accounts$/.test(a.url))).toHaveLength(0);
+    // Permis : la lecture des comptes (alertes jetons, STU-JETONS) et les listes « à venir » du rapatriement (RAP-2) ; jamais la lecture d'un post seul.
+    expect(faux.appels.filter((a: { url: string }) => !/\/v1\/(accounts|posts)(\?|$)/.test(a.url))).toHaveLength(0);
   });
 
   it("tester les comptes : lecture, copie en base, sans clé dans le journal", async () => {

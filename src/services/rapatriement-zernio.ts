@@ -4,9 +4,10 @@
  * par son type : aucune écriture chez le diffuseur n'est possible d'ici. Cette PR ne branche aucune boucle (c'est RAP-2).
  */
 import "server-only";
-import { deciderRapatriement, STATUTS_RAPATRIES, type ConnusLocaux, type PublicationARapatrier, type RaisonEcart } from "@/domaine/rapatriement-zernio";
+import { deciderRapatriement, reseauDepuisPlateforme, STATUTS_RAPATRIES, type ConnusLocaux, type PublicationARapatrier, type RaisonEcart } from "@/domaine/rapatriement-zernio";
 import type { Publication } from "@/domaine/types";
 import type { ClientZernio, PostZernio } from "@/fournisseurs/publication/zernio-client";
+import { cleJour } from "@/lib/dates";
 import { depots, horodatage, maintenant, sousVerrou } from "./_commun";
 import { clientZernio, comptesZernioEnregistres, listerToutesLesPagesZernio } from "./zernio";
 
@@ -24,13 +25,34 @@ export interface DepsRapatriement {
   budget: { restant: number };
 }
 
+/** Un post du diffuseur qui n'est pas (ou pas encore) au calendrier : jamais de texte, jamais d'adresse. */
+export interface PostAbsent {
+  postId: string;
+  raison: RaisonEcart;
+  /** Réseau du Studio, sinon le nom de plateforme du diffuseur (« threads »…). */
+  reseau: string;
+  /** Jour de Paris (AAAA-MM-JJ), ou « sans date ». */
+  jour: string;
+}
+
 export interface ResultatRapatriement {
   lus: number;
   crees: number;
   existaient: number;
   ecarts: { postId: string; raison: RaisonEcart }[];
+  /** RAP-2 · posts du diffuseur absents du calendrier APRÈS ce passage (à blanc : ceux qui seraient créés, plus les écarts impossibles). */
+  absents: PostAbsent[];
   lectureComplete: boolean;
+  /** RAP-2 · vrai si rien n'a été créé parce que la lecture était incomplète (jamais de création sur une lecture partielle). */
+  creationsSuspendues: boolean;
   posts: PostZernio[];
+}
+
+function absentDe(post: PostZernio, raison: RaisonEcart): PostAbsent {
+  const pf = Array.isArray(post.platforms) ? post.platforms[0] : undefined;
+  const nom = String(pf?.platform ?? "inconnu");
+  const date = typeof post.scheduledFor === "string" ? Date.parse(post.scheduledFor) : NaN;
+  return { postId: post._id, raison, reseau: reseauDepuisPlateforme(nom) ?? nom, jour: Number.isFinite(date) ? cleJour(new Date(date)) : "sans date" };
 }
 
 /**
@@ -75,21 +97,30 @@ async function connusLocaux(d: DepsRapatriement): Promise<ConnusLocaux> {
   };
 }
 
-/** `aBlanc` (vrai par défaut) : on lit, on décide et on compte, sans aucune écriture locale. */
+/**
+ * `aBlanc` (vrai par défaut) : on lit, on décide et on compte, sans aucune écriture locale.
+ * RAP-2 : une lecture INCOMPLÈTE (budget épuisé, erreur) ne crée jamais rien, même hors « à blanc » : on ne bâtit pas le calendrier
+ * sur une vue partielle du diffuseur ; l'écart est alors « non vérifié ».
+ */
 export async function rapatrierPostsZernio(d: DepsRapatriement, o: { aBlanc?: boolean } = {}): Promise<ResultatRapatriement> {
-  const aBlanc = o.aBlanc !== false;
   const { posts, complete } = await lirePostsAVenirZernio(d.client, d.budget);
+  const aBlanc = o.aBlanc !== false || !complete;
   const connus = await connusLocaux(d);
   const decision = deciderRapatriement(posts, connus, { instant: d.instant(), nomsComptes: await d.nomsComptes() });
   let crees = 0;
   let existaient = 0;
-  if (!aBlanc) {
+  const parId = new Map(posts.map((p) => [p._id, p] as const));
+  const absents: PostAbsent[] = decision.ecarts.map((e) => absentDe(parId.get(e.postId)!, e.raison));
+  if (aBlanc) {
+    // Rien n'est créé : ces posts restent absents du calendrier. Un post à plusieurs plateformes compte pour un seul.
+    for (const id of new Set(decision.aCreer.map((p) => p.idExterne!))) absents.push(absentDe(parId.get(id)!, "absent"));
+  } else {
     for (const p of decision.aCreer) {
       if ((await d.creerSiAbsente(p)) === "creee") crees++;
       else existaient++;
     }
   }
-  return { lus: posts.length, crees, existaient, ecarts: decision.ecarts, lectureComplete: complete, posts };
+  return { lus: posts.length, crees, existaient, ecarts: decision.ecarts, absents, lectureComplete: complete, creationsSuspendues: o.aBlanc === false && !complete, posts };
 }
 
 /** Dépendances du serveur : dépôts du processus, comptes enregistrés, client du diffuseur (restreint à la lecture). */
