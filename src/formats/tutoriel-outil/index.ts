@@ -23,6 +23,9 @@ export const formatTutorielOutil: DefinitionFormat = {
   icone: "baguette",
   adresseCreation: "/tutoriel-outil",
   statut: "masque",
+  // T-EXT-29 (écrite en avance, 20/11/2026) : carte « Tutoriel d'outil » dans Nouvelle vidéo, en essai ; le statut reste « masque » (modèle image-video).
+  // À ne fusionner qu'avec le oui écrit de Williams (date et session au journal) et le pilote 05 validé.
+  ouvertDansLaNavigation: true,
   famille: "motion",
   codeClassement: CODE_FORMAT_TUTORIEL_OUTIL,
   declinaison: "aucune",
