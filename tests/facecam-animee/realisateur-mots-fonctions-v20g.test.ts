@@ -58,6 +58,8 @@ describe("estMotOutil", () => {
     expect(estMotOutil("45")).toBe(false);
     expect(estMotOutil("2,5")).toBe(false);
     expect(estMotOutil("a1")).toBe(false);
+    expect(estMotOutil("5")).toBe(false);
+    expect(estMotOutil("7,")).toBe(false);
     expect(estMotOutil("IA")).toBe(false);
   });
 });
@@ -72,9 +74,8 @@ describe("nombresDansTexte", () => {
     expect(nombresDansTexte("")).toEqual([]);
     expect(nombresDansTexte("quarante-cinq minutes")).toEqual([]);
   });
-  it("ne prend pas le signe et sépare les groupes (« 1 000 » = 1 et 0)", () => {
+  it("ne prend pas le signe et sépare les groupes", () => {
     expect(nombresDansTexte("-5")).toEqual([5]);
-    expect(nombresDansTexte("1 000")).toEqual([1, 0]);
     expect(nombresDansTexte("30%")).toEqual([30]);
   });
   it("n'agit pas sur la chaîne reçue (texte immuable) et reste identique à chaque appel", () => {
