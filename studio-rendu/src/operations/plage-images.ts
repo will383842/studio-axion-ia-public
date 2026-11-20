@@ -48,6 +48,25 @@ export function optionsPlage(parametres: Record<string, unknown>, choisie?: { du
   return { ok: true, options: { compositionId: id, proprietes, frameRange: [d, f], codec: "h264", crf } };
 }
 
+/**
+ * Réglages x264 passés EN PLUS à `renderMedia` (pure). Éteint : exactement ce que master passait (`crf` + BT.709 si `crf`, sinon rien).
+ * `parametres.recollable === true` (seul `true` allume, T-EXT-52c-e) : BT.709 même sans `crf`, et, à l'assemblage, GOP fermé de 2 s,
+ * profil High 4.1 (mêmes valeurs que `reglagesVideo`, `composition/ffmpeg.ts`), pour qu'un morceau se recolle à un tronçon de l'export.
+ */
+export function optionsRenduPlage(parametres: Record<string, unknown>, choisie: { fps: number; durationInFrames: number }): Record<string, unknown> {
+  const o = optionsPlage(parametres, choisie);
+  const crf = o.ok && o.options.crf !== undefined ? { crf: o.options.crf, colorSpace: "bt709" as const } : {};
+  if (parametres.recollable !== true) return crf;
+  const gop = String(Math.round(choisie.fps) * 2);
+  const ajout = ["-g", gop, "-keyint_min", gop, "-sc_threshold", "0", "-flags", "+cgop", "-profile:v", "high", "-level:v", "4.1"];
+  return {
+    ...crf,
+    colorSpace: "bt709" as const,
+    ffmpegOverride: ({ type, args }: { type: string; args: readonly string[] }): string[] =>
+      type === "stitcher" ? [...args.slice(0, -1), ...ajout, ...args.slice(-1)] : [...args],
+  };
+}
+
 function refuser(message: string): never {
   throw new ErreurRendu({ code: "refuse", reessayable: false, message });
 }
@@ -69,7 +88,7 @@ export async function compositionPlage(demande: DemandeRendu, contexte: Contexte
   const { cancelSignal, cancel } = makeCancelSignal();
   contexte.signal.addEventListener("abort", () => cancel());
   const sortie = join(contexte.dossier, "video.mp4");
-  const crf = controle.options.crf === undefined ? {} : { crf: controle.options.crf, colorSpace: "bt709" as const };
+  const crf = optionsRenduPlage(demande.parametres, choisie);
   await renderMedia({ ...REGLAGES_RENDU, composition: choisie, serveUrl, codec: controle.options.codec, ...crf, frameRange: controle.options.frameRange, outputLocation: sortie, inputProps: proprietes, cancelSignal, onProgress: ({ progress }: { progress: number }) => contexte.progression(progress * 95) });
   await deposer(demande.sortie.urlDepot, sortie, "video/mp4", contexte.signal);
   const [debut, fin] = controle.options.frameRange;
