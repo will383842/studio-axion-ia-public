@@ -64,6 +64,12 @@ function tousLesTextes(flux: FluxAutomatisation): Texte[] {
     ajoute({ lieu: `Étape « ${e.id} » (libellé du schéma)`, etapeId: e.id, genre: "libelle", valeur: e.libelleSchema.trim() });
     for (const v of textesDeVue(flux, e.vue)) ajoute({ lieu: `Étape « ${e.id} » (vue ${e.vue})`, etapeId: e.id, genre: "contenu", valeur: v });
   }
+  // Les écrans filmés « avant », « declencheur » et « resultat » : leurs vues sont lues aussi (un texte déjà vu dans une étape n'est pas repris).
+  for (const [id, ecran] of [["avant", flux.avant], ["declencheur", flux.declencheur], ["resultat", flux.resultat]] as const) {
+    const vue = (ecran as { vue?: unknown } | undefined)?.vue;
+    if (typeof vue !== "string") continue;
+    for (const v of textesDeVue(flux, vue)) ajoute({ lieu: `Écran « ${id} » (vue ${vue})`, etapeId: id, genre: "contenu", valeur: v });
+  }
   return sortie;
 }
 
@@ -178,8 +184,11 @@ export function textesDuFlux(f: FluxAutomatisation): { etapeId: string; textes: 
     const lu = lireLeFlux(f);
     if (!lu.ok) return [];
     const parEtape = new Map<string, string[]>(lu.flux.etapes.map((e) => [e.id, []]));
-    for (const t of tousLesTextes(lu.flux)) parEtape.get(t.etapeId)?.push(t.valeur);
-    return lu.flux.etapes.map((e) => ({ etapeId: e.id, textes: parEtape.get(e.id) ?? [] }));
+    const parEcran = new Map<string, string[]>([["avant", []], ["declencheur", []], ["resultat", []]]);
+    for (const t of tousLesTextes(lu.flux)) (parEtape.get(t.etapeId) ?? parEcran.get(t.etapeId))?.push(t.valeur);
+    // Les écrans filmés hors étapes ne s'ajoutent que s'ils portent un texte propre : le résultat d'avant reste identique sinon.
+    const hors = ["avant", "declencheur", "resultat"].flatMap((id) => ((parEcran.get(id) ?? []).length > 0 ? [{ etapeId: id, textes: parEcran.get(id) ?? [] }] : []));
+    return [...lu.flux.etapes.map((e) => ({ etapeId: e.id, textes: parEtape.get(e.id) ?? [] })), ...hors];
   } catch {
     return [];
   }

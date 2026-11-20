@@ -124,6 +124,35 @@ describe("controlerFluxCree (V2-06)", () => {
   });
 });
 
+describe("écrans filmés avant / declencheur / resultat contrôlés (verdict Opus e8fa3a68)", () => {
+  const ecrans = (): Libre => {
+    const b = brut();
+    b.etapes = b.etapes.map((e: Libre) => (e.vue === "boite" ? e : { ...e, vue: "boite", etat: "etiquete" }));
+    b.avant = { vue: "messagerie", etat: "fil", surMot: "déborde" };
+    b.resultat = { vue: "crm", etat: "fiche-remplie", surMot: "résultat" };
+    return b;
+  };
+  it("sans modification : aucun défaut", () => {
+    expect(defauts(ecrans())).toBe("");
+  });
+  it("un texte d'une vue filmée seulement en « avant » : étiquette, tutoiement et nombre refusés", () => {
+    const b = ecrans();
+    b.contenus.messagerie.fil[0].texte = "Douleur : ton équipe perd 37 heures";
+    const d = defauts(b);
+    expect(d).toContain("37");
+    expect(d).toContain("Écran « avant »");
+    expect(d).toMatch(/Douleur|tutoi|vous/i);
+  });
+  it("un texte d'une vue filmée seulement en « resultat » : étiquette et nombre refusés", () => {
+    const b = ecrans();
+    b.contenus.crm.fiche = { ...(b.contenus.crm.fiche ?? {}), note: "Solution : ton tri de 42 messages" };
+    b.contenus.crm.__test = "Solution : ton tri de 42 messages";
+    const d = defauts(b);
+    expect(d).toContain("42");
+    expect(d).toContain("Écran « resultat »");
+  });
+});
+
 describe("textesDuFlux (V2-06)", () => {
   it("dans l'ordre des étapes, libellé du schéma d'abord, sans doublon", () => {
     const t = textesDuFlux(flux());
@@ -134,6 +163,18 @@ describe("textesDuFlux (V2-06)", () => {
     // la boîte est la vue de 3 étapes : ses textes ne sont listés qu'à la première
     expect(t[1]!.textes).toEqual(["Brouillon de réponse"]);
     expect(t[0]!.textes).toContain("Demande de devis pour un chantier");
+  });
+
+  it("les écrans filmés « avant » et « resultat » (vues hors des étapes) sont listés aussi", () => {
+    const b = brut();
+    b.etapes = b.etapes.map((e: Libre) => (e.vue === "boite" ? e : { ...e, vue: "boite", etat: "etiquete" }));
+    b.avant = { vue: "messagerie", etat: "fil", surMot: "déborde" };
+    const t = textesDuFlux(flux(b));
+    expect(t.slice(0, 5).map((x) => x.etapeId)).toEqual(["classement", "brouillon", "validation", "equipe", "fiche"]);
+    const hors = t.slice(5);
+    expect(hors.map((x) => x.etapeId)).toEqual(["avant", "resultat"]);
+    expect(hors[0]!.textes).toContain(b.contenus.messagerie.fil[0].texte);
+    expect(hors[1]!.textes.length).toBeGreaterThan(0);
   });
 
   it("un flux illisible donne une liste vide", () => {
