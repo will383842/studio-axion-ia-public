@@ -326,7 +326,9 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     // Équipe : seuls les essais RESTANTS (essais permis moins appels déjà faits) comptent, car `consomme` contient déjà ceux des rôles passés.
     // Jamais moins de 1 : le rôle qui va être appelé coûte au moins un appel, même si tous les essais du devis sont déjà faits
     // (l'orchestre peut permettre un essai de plus : il ne passe que si « consommé + 1 » tient encore dans le devis).
-    if (cle === "script") aVenir.appelsClaude = Math.max(1, port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0));
+    // Le plan de scènes, pas encore fait, reste RÉSERVÉ dans le devis : le total du devis le compte, donc un rôle ne peut pas
+    // prendre ses appels (un essai de plus que ceux que le devis lui donne). Rôles + plan : « consommé + restants + plan » ≤ total.
+    if (cle === "script") aVenir.appelsClaude = Math.max(1, port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0)) + (etat.plan ? 0 : essais("plan"));
     else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
     else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
     const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);

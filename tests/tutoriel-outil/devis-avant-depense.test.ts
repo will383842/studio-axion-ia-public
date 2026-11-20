@@ -215,7 +215,8 @@ describe("T-EXT-42 : allumé", () => {
     const j = journalVide();
     const eq = fauxPort({ illisible: "scenariste" });
     const c0 = commandeDossier(FILM);
-    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }];
+    // Comme en production (tutoriel-branchements.ts) : le plan ×2 est toujours dans le devis ; il ne doit pas servir de marge aux rôles.
+    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }, { id: "plan", essaisMax: 2 }];
     const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
     const c = avecAccord(c0, devis1.empreinte);
     const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
