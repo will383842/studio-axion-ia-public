@@ -20,6 +20,8 @@ import { OBJET_TOURNE, EXEMPLES_OBJET_TOURNE } from "../../motion/petits-objets/
 import { OBJET_PARTICULES, EXEMPLES_PARTICULES } from "../../motion/petits-objets/particules";
 import { OBJET_PANNEAU_REGLAGES, EXEMPLES_PANNEAU_REGLAGES } from "../../motion/petits-objets/panneau-reglages";
 import { OBJET_ANNEAU_DONNEES, EXEMPLES_ANNEAU } from "../../motion/petits-objets/anneau-donnees";
+import { DEF_CADRE_RECTANGLE, DEF_CADRE_COINS, DEF_CADRE_PASSAGE, EXEMPLES_CADRES } from "../../motion/petits-objets/cadres";
+import { DEF_CERCLE, DEF_OVALE, DEF_DOUBLE_BOUCLE, EXEMPLES_ENTOURAGES } from "../../motion/petits-objets/entourages";
 import { envelopperObjets } from "./objets";
 
 export const OBJETS_PLAN_SCENES = [
@@ -32,6 +34,8 @@ export const OBJETS_PLAN_SCENES = [
   OBJET_CARTON_MAGAZINE, OBJET_TOURNE, OBJET_PARTICULES, OBJET_PANNEAU_REGLAGES, OBJET_ANNEAU_DONNEES,
   // C9-34-TRAITS-v19c : 2 soulignements, surligneur, 3 flèches (porte fermée)
   OBJET_SOULIGNEMENT_VAGUE, OBJET_SOULIGNEMENT_DOUBLE, OBJET_SURLIGNEUR, OBJET_FLECHE_DROITE, OBJET_FLECHE_COURBE, OBJET_FLECHE_POINTILLEE,
+  // C9-34-CADRES-v20b : 3 cadres, cercle, ovale, double boucle (porte fermée)
+  DEF_CADRE_RECTANGLE, DEF_CADRE_COINS, DEF_CADRE_PASSAGE, DEF_CERCLE, DEF_OVALE, DEF_DOUBLE_BOUCLE,
 ];
 
 /** Graine fixe et pure : somme des codes de caractères de l'identifiant. */
@@ -43,7 +47,7 @@ export function graineObjet(id: string): number {
 
 export const PIECES_OBJETS = envelopperObjets(OBJETS_PLAN_SCENES, graineObjet);
 
-const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
+const objet = (id: "objet-gros-chiffre" | "objet-etape" | "objet-cartes-coche" | "objet-coche" | "objet-soulignement-droit" | "objet-croix" | "objet-mot-barre" | "objet-compteur-rouleau" | "objet-carton-definition" | "objet-fleche-main-levee" | "objet-croquis" | "objet-feutre-entourage" | "objet-feutre-soulignement" | "objet-carton-magazine" | "objet-tourne" | "objet-particules" | "objet-panneau-reglages" | "objet-anneau-donnees" | "objet-soulignement-vague" | "objet-soulignement-double" | "objet-surligneur" | "objet-fleche-droite" | "objet-fleche-courbe" | "objet-fleche-pointillee" | "objet-cadre-rectangle" | "objet-cadre-coins" | "objet-cadre-passage" | "objet-cercle" | "objet-ovale" | "objet-double-boucle", nom: string, description: string, def: { toile: { largeur: number; hauteur: number } }, exemple: unknown): DefinitionBrique => ({
   id,
   nom,
   description,
@@ -81,6 +85,13 @@ export const BRIQUES_OBJETS = {
   "objet-fleche-droite": objet("objet-fleche-droite", "Flèche droite", "Une flèche droite qui désigne ce dont on parle.", OBJET_FLECHE_DROITE, EXEMPLES_FLECHES[0]),
   "objet-fleche-courbe": objet("objet-fleche-courbe", "Flèche courbe", "Une flèche courbe qui désigne ce dont on parle.", OBJET_FLECHE_COURBE, EXEMPLES_FLECHES[1]),
   "objet-fleche-pointillee": objet("objet-fleche-pointillee", "Flèche en pointillés", "Une flèche en pointillés qui désigne ce dont on parle.", OBJET_FLECHE_POINTILLEE, EXEMPLES_FLECHES[2]),
+  // C9-34-CADRES-v20b
+  "objet-cadre-rectangle": objet("objet-cadre-rectangle", "Cadre", "Un cadre tracé autour de ce dont on parle au moment où on le dit.", DEF_CADRE_RECTANGLE, EXEMPLES_CADRES.rectangle[0]),
+  "objet-cadre-coins": objet("objet-cadre-coins", "Cadre en coins", "Quatre coins tracés autour de ce dont on parle au moment où on le dit.", DEF_CADRE_COINS, EXEMPLES_CADRES.coins[0]),
+  "objet-cadre-passage": objet("objet-cadre-passage", "Cadre qui passe", "Un cadre tracé autour d'un premier élément, puis qui glisse vers le suivant.", DEF_CADRE_PASSAGE, EXEMPLES_CADRES.passage[0]),
+  "objet-cercle": objet("objet-cercle", "Cercle", "Un cercle tracé autour du mot important au moment où il est dit.", DEF_CERCLE, EXEMPLES_ENTOURAGES.cercle[0]),
+  "objet-ovale": objet("objet-ovale", "Ovale", "Un ovale tracé autour du mot important au moment où il est dit.", DEF_OVALE, EXEMPLES_ENTOURAGES.ovale[0]),
+  "objet-double-boucle": objet("objet-double-boucle", "Double boucle", "Une double boucle tracée autour du mot important au moment où il est dit.", DEF_DOUBLE_BOUCLE, EXEMPLES_ENTOURAGES.doubleBoucle[0]),
 } as const;
 
 export const RENDUS_OBJETS = {
@@ -110,4 +121,11 @@ export const RENDUS_OBJETS = {
   "objet-fleche-droite": PIECES_OBJETS["objet-fleche-droite"].Rendu as RenduBrique,
   "objet-fleche-courbe": PIECES_OBJETS["objet-fleche-courbe"].Rendu as RenduBrique,
   "objet-fleche-pointillee": PIECES_OBJETS["objet-fleche-pointillee"].Rendu as RenduBrique,
+  // C9-34-CADRES-v20b
+  "objet-cadre-rectangle": PIECES_OBJETS["objet-cadre-rectangle"].Rendu as RenduBrique,
+  "objet-cadre-coins": PIECES_OBJETS["objet-cadre-coins"].Rendu as RenduBrique,
+  "objet-cadre-passage": PIECES_OBJETS["objet-cadre-passage"].Rendu as RenduBrique,
+  "objet-cercle": PIECES_OBJETS["objet-cercle"].Rendu as RenduBrique,
+  "objet-ovale": PIECES_OBJETS["objet-ovale"].Rendu as RenduBrique,
+  "objet-double-boucle": PIECES_OBJETS["objet-double-boucle"].Rendu as RenduBrique,
 } as const;
