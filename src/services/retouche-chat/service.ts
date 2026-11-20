@@ -43,6 +43,8 @@ export interface PortsRetoucheChat {
   choisirVersion: (videoId: string, versionId: string) => Promise<void>;
   /** Lot R3 : filtre propre au générateur (liste des retouches permises, voix jamais touchée sans demande explicite). Absent : aucun filtre. */
   filtrerOperations?: (operations: OperationRetouche[], demande: string) => { operations: OperationRetouche[]; remarques: string[] };
+  /** T-EXT-53b : lecteur de demande COMMUN (règles d'abord, au plus un appel). Absent : `comprendreDemande`, comme aujourd'hui. Seul `apercevoirRetouche` le lit. */
+  lecteur?: (demande: string, plan: PlanValide) => Promise<{ operations: OperationRetouche[]; supplementaires?: unknown[]; remarques: string[]; source: string }>;
 }
 
 export interface ApercuRetouche {
@@ -50,6 +52,8 @@ export interface ApercuRetouche {
   operations: OperationRetouche[];
   impact: ImpactRetouche;
   remarques: string[];
+  /** T-EXT-53b : opérations propres au générateur, rendues par son lecteur (absent sans lecteur). */
+  supplementaires?: unknown[];
 }
 
 export type IssueRetoucheChat =
@@ -66,10 +70,10 @@ export async function apercevoirRetouche(videoId: string, demande: string, ports
   const courante = await ports.lireVersionChoisie(videoId);
   const vide: ImpactRetouche = { scenes: [], total: 0, voixTouchee: false, phrase: "Aucune scène ne change, la voix ne change pas." };
   if (!courante) return { demande, operations: [], impact: vide, remarques: [PHRASE_SANS_PLAN] };
-  const c = await comprendreDemande({ phrase: demande, plan: courante.plan }, ports.appeler);
+  const c = ports.lecteur ? await ports.lecteur(demande, courante.plan) : await comprendreDemande({ phrase: demande, plan: courante.plan }, ports.appeler);
   const f = ports.filtrerOperations?.(c.operations, demande) ?? { operations: c.operations, remarques: [] };
   const a = appliquerOperations(courante.plan, f.operations, courante.objetsPermis?.length ? { objetsPermis: courante.objetsPermis } : {});
-  return { demande, operations: a.operations, impact: impactRetouche(courante.plan, a.plan, a.operations), remarques: [...c.remarques, ...f.remarques, ...texteRemarques(a.remarques)] };
+  return { demande, operations: a.operations, impact: impactRetouche(courante.plan, a.plan, a.operations), remarques: [...c.remarques, ...f.remarques, ...texteRemarques(a.remarques)], ...("supplementaires" in c && c.supplementaires ? { supplementaires: c.supplementaires } : {}) };
 }
 
 export async function appliquerRetouche(videoId: string, e: { demande: string; operations: unknown }, ports: PortsRetoucheChat): Promise<IssueRetoucheChat> {

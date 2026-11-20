@@ -17,7 +17,8 @@ const { injecterClientZernio } = await import("@/services/zernio");
 const NOW_ISO = new Date().toISOString();
 const ANCIEN = new Date(Date.now() - 30 * 3600_000).toISOString();
 const base = { reseau: "instagram", statut: "programmee", via: "zernio", etatEnvoi: "envoye", date: "2026-12-25T08:30:00.000Z", texte: "Texte fictif", creeLe: "2026-11-20T10:00:00.000Z", modifieLe: "2026-11-20T10:00:00.000Z", rapatrieeLe: "2026-11-20T10:00:00.000Z", origineDiffuseur: "import-buffer", mediaDiffuseur: { type: "aucun", nombre: 0 } };
-const retirable = { etatEnvoi: "a-verifier", introuvableDepuis: ANCIEN, constatsIntrouvable: 2 };
+const RECENT = new Date(Date.now() - 10 * 60_000).toISOString();
+const retirable = { etatEnvoi: "a-verifier", introuvableDepuis: ANCIEN, dernierConstatIntrouvable: RECENT, constatsIntrouvable: 2 };
 const pub = (id: string, o: object = {}) => depots().publications.enregistrer({ ...base, id, idExterne: id, ...o } as never);
 let appels: string[];
 
@@ -27,11 +28,11 @@ beforeEach(async () => {
   appels = [];
   const faux = creerFauxClientZernio() as unknown as Record<string, unknown>;
   injecterClientZernio(new Proxy(faux, { get: (c, p) => (typeof c[p as string] === "function" ? () => { appels.push(String(p)); throw new Error("appel interdit"); } : c[p as string]) }) as never);
-  await depots().parametres.enregistrer({ id: "zernio.ecart_calendrier", valeur: { luLe: NOW_ISO, verifie: true, chezDiffuseur: 5, absents: 0, exemples: [] }, creeLe: NOW_ISO, modifieLe: NOW_ISO } as never);
+  await depots().parametres.enregistrer({ id: "zernio.ecart_calendrier", valeur: { luLe: NOW_ISO, verifie: true, chezDiffuseur: 5, absents: 0, exemples: [], suivies: 7, connusFiables: 1 }, creeLe: NOW_ISO, modifieLe: NOW_ISO } as never);
   await pub("zr_a", retirable);
   await pub("zr_b", { ...retirable, statut: "brouillon" });
-  await pub("zr_un_constat", { etatEnvoi: "a-verifier", introuvableDepuis: ANCIEN, constatsIntrouvable: 1 });
-  await pub("zr_recent", { etatEnvoi: "a-verifier", introuvableDepuis: NOW_ISO, constatsIntrouvable: 3 });
+  await pub("zr_un_constat", { etatEnvoi: "a-verifier", introuvableDepuis: ANCIEN, dernierConstatIntrouvable: RECENT, constatsIntrouvable: 1 });
+  await pub("zr_recent", { etatEnvoi: "a-verifier", introuvableDepuis: NOW_ISO, dernierConstatIntrouvable: NOW_ISO, constatsIntrouvable: 3 });
   await pub("zr_ancienne", { etatEnvoi: "a-verifier" }); // d'avant : sans champs de constat
   await pub("zr_ok", { etatEnvoi: "envoye" });
   await pub("zr_deja", { etatEnvoi: "a-verifier", retireeLe: "2026-11-20T11:00:00.000Z" });
