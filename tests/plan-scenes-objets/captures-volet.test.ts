@@ -20,6 +20,8 @@ describe("capturesDuVolet", () => {
   it("d) éléments mal formés ignorés", () => {
     expect(capturesDuVolet([{ cle: 3 }, { cle: "a" }, { cle: "  " }, null, { cle: " b " }])).toEqual({ avant: "a", apres: "b" });
     expect(capturesDuVolet([{ cle: 3 }, { cle: "a" }, null])).toBeNull();
+    expect(capturesDuVolet([{ cle: "a" }, { cle: "  " }])).toBeNull();
+    expect(capturesDuVolet([{ cle: "  " }, { cle: "a" }, { cle: "b" }])).toEqual({ avant: "a", apres: "b" });
   });
 
   it("e) l'entrée n'est pas modifiée", () => {
