@@ -4,7 +4,7 @@ import "server-only";
  * son statut restent, et RIEN n'est demandé au diffuseur (le post reste programmé chez lui). Aucune dépendance au client du diffuseur.
  */
 import { estRapatriee, type Publication } from "@/domaine/types";
-import { CONSTATS_INTROUVABLE_REQUIS, DELAI_RETRAIT_INTROUVABLE_MS } from "@/services/constantes-introuvable";
+import { CONSTATS_INTROUVABLE_REQUIS, DELAI_RETRAIT_INTROUVABLE_MS, FRAICHEUR_CONSTAT_INTROUVABLE_MS, MESSAGE_AUCUN_POST_RETROUVE, mesureAttesteEspaceConnu, type MesureEcartMinimale } from "@/services/constantes-introuvable";
 
 export type ResultatRetraitRapatriee = { ok: true; message: string } | { ok: false; etat: "introuvable" | "pas-rapatriee" | "deja-fait" | "publiee"; message: string };
 
@@ -31,14 +31,35 @@ export async function retirerRapatrieeDuCalendrier(d: DepsRetraitRapatriee, id: 
 export const estRapatrieeIntrouvable = (p: Publication): boolean => estRapatriee(p) && !p.retireeLe && p.etatEnvoi === "a-verifier" && p.statut !== "publiee";
 
 /**
- * Retirable EN GROUPE : introuvable depuis au moins 24 h ET après au moins deux réponses « introuvable » à des passages distincts.
- * Sans les champs de constat (publication d'avant), jamais retirable tant que les deux constats ne sont pas faits.
+ * Retirable EN GROUPE : au moins deux réponses « introuvable » à des passages distincts, le DERNIER constat datant de moins d'une heure
+ * ET séparé du premier d'au moins 24 h. Sans ces champs (publication d'avant), jamais retirable.
  */
 export const estRapatrieeRetirable = (p: Publication, instantMs: number): boolean => {
   if (!estRapatrieeIntrouvable(p)) return false;
-  const depuis = p.introuvableDepuis ? Date.parse(p.introuvableDepuis) : NaN;
-  return (p.constatsIntrouvable ?? 0) >= CONSTATS_INTROUVABLE_REQUIS && Number.isFinite(depuis) && instantMs - depuis >= DELAI_RETRAIT_INTROUVABLE_MS;
+  const premier = p.introuvableDepuis ? Date.parse(p.introuvableDepuis) : NaN;
+  const dernier = p.dernierConstatIntrouvable ? Date.parse(p.dernierConstatIntrouvable) : NaN;
+  return (
+    (p.constatsIntrouvable ?? 0) >= CONSTATS_INTROUVABLE_REQUIS &&
+    Number.isFinite(premier) &&
+    Number.isFinite(dernier) &&
+    dernier - premier >= DELAI_RETRAIT_INTROUVABLE_MS &&
+    instantMs - dernier <= FRAICHEUR_CONSTAT_INTROUVABLE_MS
+  );
 };
+
+/** Rapatriée encore attendue chez le diffuseur (saine ou « à vérifier »), ni retirée ni publiée. */
+export const estRapatrieeSuivie = (p: Publication): boolean => estRapatriee(p) && !p.retireeLe && p.statut !== "publiee" && (p.statut === "brouillon" || p.statut === "programmee");
+
+/**
+ * Le retrait groupé est-il SÛR ? Refus (message clair) si la mesure laisse penser que la clé relie un autre espace (aucune publication suivie
+ * retrouvée dans la liste vérifiée), ou si TOUTES les rapatriées suivies sont introuvables en même temps (retrait de masse).
+ */
+export function retraitGroupeSur(mesure: MesureEcartMinimale | null | undefined, publications: readonly Publication[]): { sur: true } | { sur: false; message: string } {
+  if (!mesureAttesteEspaceConnu(mesure)) return { sur: false, message: MESSAGE_AUCUN_POST_RETROUVE };
+  const suivies = publications.filter(estRapatrieeSuivie);
+  if (suivies.length > 0 && suivies.every(estRapatrieeIntrouvable)) return { sur: false, message: MESSAGE_AUCUN_POST_RETROUVE };
+  return { sur: true };
+}
 
 export interface DepsRetraitIntrouvables {
   lister(): Promise<Publication[]>;

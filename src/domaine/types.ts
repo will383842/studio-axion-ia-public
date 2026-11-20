@@ -1188,6 +1188,8 @@ export interface Publication extends EntiteBase {
   introuvableDepuis?: DateIso;
   /** RAP-3 · rapatriée : nombre de réponses « introuvable » à des passages distincts (retrait groupé à partir de 2). Absent : 0. */
   constatsIntrouvable?: number;
+  /** RAP-3 · rapatriée : DERNIÈRE réponse « introuvable » (un retrait groupé exige qu'elle date de moins d'une heure et soit à 24 h du premier constat). */
+  dernierConstatIntrouvable?: DateIso;
   /** Dernière lecture de l'état chez Buffer. */
   etatLuLe?: DateIso;
   /** Équipe 7 : vidéo « Votre marque » envoyée sur TikTok — à déclarer dans TikTok (Buffer ne sait pas le faire). */
