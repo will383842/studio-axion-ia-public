@@ -136,14 +136,9 @@ describe("chemin réel : `preparerEtLancer` lit le réglage et fige les entrées
     const [v] = await depots().videos.lister((x) => x.formatId === "cas-concret");
     return (v!.entrees as { casConcret: Record<string, unknown> }).casConcret;
   };
-  it("réglage absent, \"true\" ou 1 : aucune clé", { timeout: 60_000 }, async () => {
+  it("réglage à false exact : aucune clé (éteint ; absent = allumé depuis ALLUMER-TRANSITIONS-CC-v20g)", { timeout: 60_000 }, async () => {
+    await ecrireParametre("habillage.transitionsPlanScenes", false);
     expect(Object.keys(await entreesEcrites())).not.toContain("habillageTransitions");
-    for (const v of ["true", 1, false]) {
-      reinitialiserDepots();
-      await beforeEachRelance();
-      await ecrireParametre("habillage.transitionsPlanScenes", v);
-      expect(Object.keys(await entreesEcrites())).not.toContain("habillageTransitions");
-    }
   });
   it("réglage à true exact : l'entrée `habillageTransitions` part avec la vidéo, relue par le moteur, puis allume le plan", async () => {
     await ecrireParametre("habillage.transitionsPlanScenes", true);
@@ -160,14 +155,6 @@ describe("chemin réel : `preparerEtLancer` lit le réglage et fige les entrées
     await ecrireParametre("habillage.transitionsPlanScenes", true);
     expect(await prix()).toBe(avant);
   });
-  async function beforeEachRelance() {
-    reinitialiserRequete();
-    await auth.seConnecter(MDP, false);
-    const d = depots();
-    const base = (await d.voix.obtenir("voix-will"))!;
-    await d.voix.enregistrer({ ...base, id: "voix-avocat-test", nom: "Voix avocat", statut: "pret" });
-    await d.personnages.modifier("p-will", { voixParDefautId: "voix-will", voixParFormat: { avocat: "voix-avocat-test" } });
-  }
 });
 
 // Chemin calculé : tsc (projet racine, qui exclut studio-rendu) ne suit pas cet import et ne cherche pas `remotion` hors de studio-rendu.
