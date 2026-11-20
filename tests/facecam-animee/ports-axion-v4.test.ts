@@ -131,6 +131,11 @@ describe("gardes statiques", () => {
       }
     };
     marcher("src");
-    expect(vus).toEqual([]);
+    // MAJ 20/11 (FA-SERVICE-INV-v20h, voulue, à relire) : seul `src/services/facecam-animee.ts` l'importe, en import dynamique derrière
+    // le réglage `facecamAnimee.extraitsMaison` (éteint par défaut, 0 €). Tout AUTRE fichier de src/ reste refusé.
+    expect(vus.map((v) => v.replace(/\\/g, "/"))).toEqual(["src/services/facecam-animee.ts"]);
+    const service = readFileSync("src/services/facecam-animee.ts", "utf8");
+    expect(service).not.toMatch(/^import .*ports-axion-v4/m);
+    expect(service.indexOf("if (extraitsMaison)")).toBeLessThan(service.indexOf('import("./ports-axion-v4")'));
   });
 });
