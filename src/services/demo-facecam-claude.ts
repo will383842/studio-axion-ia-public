@@ -34,11 +34,12 @@ const JETONS_VIDES: ReponseClaude["jetons"] = { entree: 0, cacheLu: 0, cacheEcri
 
 const plafondPropre = (id: IdUsage): PlafondPropre => ({ id, parametre: PARAMETRES[id], defautUsd: PLAFONDS_CLAUDE_VIDEO_EUR[id], prefixeEtape: PREFIXES_ETAPE_CLAUDE_VIDEO[id] }) as unknown as PlafondPropre;
 
-/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+/** ALLUMÉ par défaut (prix accepté) : vrai seulement si la valeur lue est exactement `true` ou absente (undefined/null) ; tout le reste et une lecture en échec : éteint. */
 export async function planClaudeDemoActif(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
-    return (await l<unknown>(PARAM_PLAN_CLAUDE_DEMO, false)) === true;
+    const v = await l<unknown>(PARAM_PLAN_CLAUDE_DEMO, true);
+    return v === true || v === undefined || v === null;
   } catch {
     return false;
   }
