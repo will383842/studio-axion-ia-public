@@ -239,11 +239,11 @@ describe("e2e-2 · premier commentaire, images[], texte alternatif, document Lin
     expect(spec(faux).platforms[0].platformSpecificData).toMatchObject({ organizationUrn: "urn:li:organization:42", firstComment: "Suite en commentaire" });
   });
 
-  it("Instagram : le premier commentaire n'est PAS dans le payload ; il reste « à la main »", async () => {
+  it("Instagram : le premier commentaire est dans le payload (prouvé le 20/11/2026) et transmis", async () => {
     const { f, faux } = monter();
     const r = await f.envoyer(demande({ premierCommentaire: "À poser à la main" }));
-    expect(r.premierCommentaire).toBe("a-la-main");
-    expect(creations(faux)[0].corps).not.toContain("À poser à la main");
+    expect(r.premierCommentaire).toBe("transmis");
+    expect(creations(faux)[0].corps).toContain("À poser à la main");
   });
 
   it("images[] : mediaItems de type image, dans l'ordre, avec texte alternatif, adresses issues du téléversement Zernio", async () => {
