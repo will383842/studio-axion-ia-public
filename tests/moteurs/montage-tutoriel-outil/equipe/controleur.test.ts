@@ -23,6 +23,11 @@ import type { ParcoursTutoriel } from "@/moteurs/montage-tutoriel-outil/equipe/r
 import type { PhraseScript, PropositionScripts, VersionScript } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import type { FicheValeur } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
 import { MOTS_PAR_SECONDE } from "@/moteurs/montage-tutoriel-outil/script";
+import { mesuresPourControle, noterZones, type ZoneMesure } from "@/briques/controle-image/mesures-video";
+import { controlerVideoFinie } from "@/briques/controle-image/video-finie";
+import { controlerMarque } from "@/moteurs/montage-tutoriel-outil/equipe/controle-marque";
+import { etablirVerdict } from "@/moteurs/montage-tutoriel-outil/equipe/controleur";
+import { controlerNettete, rapportNetteteTutoriel, type RapportNettete } from "@/moteurs/montage-tutoriel-outil/nettete";
 
 /* ---------- Entrées fictives cohérentes avec T-EXT-18 à 22 ---------- */
 const cahier: CahierVideo = {
@@ -299,6 +304,142 @@ describe("sur la vidéo d'essai", () => {
   it("couleur bleue rendue → bloqué ; texte rendu avec argent → bloqué", () => {
     expect(controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, couleursRendues: ["#1E6FD9"] })).verdict).toBe("bloque");
     expect(controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, textesRendus: [{ texte: "Dès 49 $ par mois", origine: "sous-titres" }] })).verdict).toBe("bloque");
+  });
+});
+
+/* ---------- T-EXT-54c : netteté et mesures de la vidéo finie ---------- */
+const CODES_NETTETE = ["TUT-NETTETE", "TUT-AGRANDISSEMENT", "TUT-TEXTE-APRES-ZOOM"];
+/** Mesures telles que le rendu les donne aujourd'hui : l'image figée n'y est pas (elle vient de la mesure sur tout le fichier). */
+const MESURES_SANS_FIGE = { lufs: -14, creteVraieDbtp: -2, imageNoireTete: 0, dureeSec: 48, vmaf: 95, vmafSeuil: 93 };
+const zoneMesure = (id: string, o: Partial<ZoneMesure> = {}): ZoneMesure => ({
+  id,
+  tSourceSec: 1,
+  tVideoSec: 1,
+  rectSource: { x: 0, y: 0, largeur: 400, hauteur: 200 },
+  rectVideo: { x: 0, y: 0, largeur: 320, hauteur: 160 },
+  echelleSource: 0.8,
+  policeSourcePx: 60,
+  minimumPx: 41,
+  ...o,
+});
+const ZONES = [zoneMesure("e1#q1"), zoneMesure("e1#q2"), zoneMesure("e2#q1")];
+/** Rapport bâti par les pièces fusionnées (54a puis 54d) : aucune règle recopiée ici. */
+function rapportNettete(ssims: Record<string, number | null> = {}, zones: ZoneMesure[] = ZONES): RapportNettete {
+  return rapportNetteteTutoriel(noterZones(zones, { "e1#q1": 0.95, "e1#q2": 0.96, "e2#q1": 0.97, ...ssims }), zones);
+}
+/** Le verdict d'avant T-EXT-54c, recomposé depuis les pièces que le contrôleur appelait déjà (T-EXT-23). */
+function verdictDAvant(e: EntreeVideoEssai): VerdictControleur {
+  const finie = controlerVideoFinie({ mesures: e.mesures, miseEnPage: e.miseEnPage, ratio: e.ratio, reseaux: e.reseaux, couleursRendues: e.couleursRendues, policesRendues: e.policesRendues });
+  const marque = controlerMarque({ textes: e.textesRendus, couleurs: [], polices: [], noms: e.noms ?? [], chiffresAffiches: e.chiffresAffiches ?? false, mentionExemple: e.mentionExemple ?? false });
+  return etablirVerdict([
+    ...finie.image.controles.map((c) => ({ id: `IMAGE-${c.id}`, libelle: c.libelle, etat: c.etat, bloquant: c.bloquant, details: [c.raison] })),
+    ...finie.charte.map((c) => ({ id: `IMAGE-${c.id}`, libelle: c.libelle, etat: c.etat, bloquant: c.bloquant, details: c.details.length ? c.details : [c.raison] })),
+    ...marque.filter((c) => c.id !== "MARQUE-COULEURS" && c.id !== "MARQUE-POLICE"),
+  ]);
+}
+
+describe("sur la vidéo d'essai : netteté et mesures de la vidéo finie (T-EXT-54c)", () => {
+  it("sans `nettete` → exactement le verdict d'avant, aucun contrôle de netteté ajouté", () => {
+    const entrees = [essai(), essai({ mesures: MESURES, miseEnPage: PAGE }), essai({ mesures: MESURES_SANS_FIGE, miseEnPage: PAGE }), essai({ mesures: { ...MESURES, imagesFigeesHorsFin: 3 }, miseEnPage: PAGE, couleursRendues: ["#1E6FD9"] })];
+    for (const e of entrees) {
+      const v = controlerVideoEssai(e);
+      expect(v).toEqual(verdictDAvant(e));
+      expect(controlerVideoEssai({ ...e, nettete: undefined })).toEqual(verdictDAvant(e));
+      expect(v.controles.filter((c) => c.id.startsWith("TUT-"))).toEqual([]);
+    }
+    /* Sans la mesure sur tout le fichier, l'image figée reste « non fait » : jamais un succès. */
+    const sansFige = controlerVideoEssai(essai({ mesures: MESURES_SANS_FIGE, miseEnPage: PAGE }));
+    expect(ctl(sansFige, "IMAGE-image-figee").etat).toBe("non-fait");
+    expect(publiable(sansFige)).toBe(false);
+  });
+  it("sans rapport, les trois contrôles de netteté sont « non fait », listés, jamais publiables", () => {
+    const trois = controlerNettete(undefined);
+    expect(trois.map((c) => c.id)).toEqual(CODES_NETTETE);
+    const v = fusionnerVerdicts(controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE })), etablirVerdict(trois));
+    for (const id of CODES_NETTETE) {
+      expect(ctl(v, id).etat).toBe("non-fait");
+      expect(v.nonFaits).toContain(ctl(v, id).libelle);
+    }
+    expect(publiable(v)).toBe(false);
+  });
+  it("rapport conforme et mesures du fichier → tout réussi, image figée mesurée, publiable", () => {
+    const v = controlerVideoEssai(essai({ mesures: MESURES_SANS_FIGE, miseEnPage: PAGE, nettete: { rapport: rapportNettete(), mesures: mesuresPourControle({ imagesFigeesHorsFin: 0, imageNoireTete: 0, imagesNoiresHorsFin: 0 }) } }));
+    for (const id of CODES_NETTETE) expect(ctl(v, id)).toMatchObject({ etat: "reussi", bloquant: true });
+    expect(ctl(v, "IMAGE-image-figee").etat).toBe("reussi");
+    expect(ctl(v, "IMAGE-image-figee").details).toEqual(["Aucune image figée avant la fin."]);
+    expect(ctl(v, "IMAGE-image-noire").details).toEqual(["Aucune image noire avant la fin."]);
+    expect(v.controles.filter((c) => c.bloquant && c.etat !== "reussi").map((c) => c.id)).toEqual([]);
+    expect(v.nonFaits).toEqual([]);
+    expect(v.verdict).toBe("ok");
+    expect(publiable(v)).toBe(true);
+    /* Les contrôles d'avant restent en tête, dans le même ordre ; les trois de netteté viennent après. */
+    const avantNettete = verdictDAvant(essai({ mesures: { ...MESURES_SANS_FIGE, imagesFigeesHorsFin: 0, imagesNoiresHorsFin: 0 }, miseEnPage: PAGE }));
+    expect(v.controles.slice(0, avantNettete.controles.length)).toEqual(avantNettete.controles);
+    expect(v.controles.slice(avantNettete.controles.length).map((c) => c.id)).toEqual(CODES_NETTETE);
+  });
+  it("score de netteté 0,84 sur un quart → bloqué, raison citée, sans mot technique", () => {
+    const v = controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, nettete: { rapport: rapportNettete({ "e1#q2": 0.84 }), mesures: {} } }));
+    expect(ctl(v, "TUT-NETTETE").etat).toBe("echoue");
+    expect(ctl(v, "TUT-NETTETE").details).toEqual(["Étape 1 : le texte perd en netteté (score 0,84)."]);
+    expect(ctl(v, "TUT-AGRANDISSEMENT").etat).toBe("reussi");
+    expect(ctl(v, "TUT-TEXTE-APRES-ZOOM").etat).toBe("reussi");
+    expect(v.verdict).toBe("bloque");
+    expect(publiable(v)).toBe(false);
+    const t = resumePourWilliams(v);
+    expect(t).toContain("Étape 1 : le texte perd en netteté (score 0,84).");
+    expect(t).not.toMatch(/SSIM|TUT-|IMAGE-|[$€]/i);
+  });
+  it("zoom au-delà de la finesse ou texte trop petit après zoom → bloqué, chacun sous son contrôle", () => {
+    const zoom = [zoneMesure("e1#q1", { echelleSource: 1.25 })];
+    const a = controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, nettete: { rapport: rapportNettete({}, zoom), mesures: {} } }));
+    expect(ctl(a, "TUT-AGRANDISSEMENT").etat).toBe("echoue");
+    expect(ctl(a, "TUT-NETTETE").etat).toBe("reussi");
+    expect(a.verdict).toBe("bloque");
+    const petit = [zoneMesure("e1#q1", { policeSourcePx: 26, echelleSource: 0.5 })];
+    const b = controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, nettete: { rapport: rapportNettete({}, petit), mesures: {} } }));
+    expect(ctl(b, "TUT-TEXTE-APRES-ZOOM").etat).toBe("echoue");
+    expect(ctl(b, "TUT-TEXTE-APRES-ZOOM").details).toEqual(["Étape 1 : le plus petit texte montré fait 13 px, il en faut 41."]);
+    expect(b.verdict).toBe("bloque");
+  });
+  it("`imagesFigeesHorsFin: 1` mesuré sur tout le fichier → image figée échouée, bloqué (même si le rendu disait 0)", () => {
+    for (const mesures of [MESURES, MESURES_SANS_FIGE]) {
+      const v = controlerVideoEssai(essai({ mesures, miseEnPage: PAGE, nettete: { rapport: rapportNettete(), mesures: { imagesFigeesHorsFin: 1 } } }));
+      expect(ctl(v, "IMAGE-image-figee").etat).toBe("echoue");
+      expect(ctl(v, "IMAGE-image-figee").details).toEqual(["1 passage figé avant la fin."]);
+      expect(v.verdict).toBe("bloque");
+    }
+    const noir = controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, nettete: { rapport: rapportNettete(), mesures: { imagesNoiresHorsFin: 2 } } }));
+    expect(ctl(noir, "IMAGE-image-noire").etat).toBe("echoue");
+    expect(noir.verdict).toBe("bloque");
+  });
+  it("un « non mesuré » n'est jamais un succès : quart non mesuré, rapport vide, mesures vides", () => {
+    const quart = controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, nettete: { rapport: rapportNettete({ "e2#q1": null }), mesures: {} } }));
+    expect(ctl(quart, "TUT-NETTETE").etat).toBe("non-fait");
+    expect(quart.nonFaits).toContain(ctl(quart, "TUT-NETTETE").libelle);
+    expect(quart.verdict).toBe("ok");
+    expect(publiable(quart)).toBe(false);
+
+    const vide = controlerVideoEssai(essai({ mesures: MESURES, miseEnPage: PAGE, nettete: { rapport: { etapes: [] }, mesures: {} } }));
+    for (const id of CODES_NETTETE) expect(ctl(vide, id).etat).toBe("non-fait");
+    expect(vide.nonFaits).toEqual(CODES_NETTETE.map((id) => ctl(vide, id).libelle));
+    expect(publiable(vide)).toBe(false);
+
+    /* Mesures du fichier vides (sortie illisible) : l'image figée reste « non fait », le reste du rendu est gardé. */
+    const illisible = controlerVideoEssai(essai({ mesures: MESURES_SANS_FIGE, miseEnPage: PAGE, nettete: { rapport: rapportNettete(), mesures: mesuresPourControle({}) } }));
+    expect(ctl(illisible, "IMAGE-image-figee").etat).toBe("non-fait");
+    expect(ctl(illisible, "IMAGE-volume").etat).toBe("reussi");
+    expect(publiable(illisible)).toBe(false);
+
+    /* Sans aucune mesure du rendu, celles du fichier ne font pas réussir le son ni la durée. */
+    const seules = controlerVideoEssai(essai({ miseEnPage: PAGE, nettete: { rapport: rapportNettete(), mesures: { imagesFigeesHorsFin: 0, imageNoireTete: 0 } } }));
+    expect(ctl(seules, "IMAGE-image-figee").etat).toBe("reussi");
+    expect(ctl(seules, "IMAGE-volume").etat).toBe("non-fait");
+    expect(publiable(seules)).toBe(false);
+  });
+  it("le contrôleur importe la netteté du tutoriel et ne réécrit aucune règle de mesure", () => {
+    const t = readFileSync("src/moteurs/montage-tutoriel-outil/equipe/controleur.ts", "utf8");
+    expect(t).toContain("controlerNettete");
+    for (const interdit of ["ssim", "SEUIL_SSIM_ZONE", "freezedetect", "blackdetect", "ffmpeg", "mesures-video"]) expect(t.toLowerCase()).not.toContain(interdit.toLowerCase());
   });
 });
 
