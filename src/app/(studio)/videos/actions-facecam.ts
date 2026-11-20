@@ -7,11 +7,13 @@
  */
 import { revalidatePath } from "next/cache";
 import type { ImageFacecam } from "@/domaine/facecam";
+import type { ModeleCarte } from "@/moteurs/montage-facecam/monteur/operations";
 import { ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import {
   ajouterHabitude,
   annulerConsigneMonteur,
   basculerCoupe,
+  changerAnimationCarte,
   changerTexteCarte,
   deplacerCarte,
   discuterAvecMonteur,
@@ -136,6 +138,12 @@ export async function deplacerCarteAction(videoId: string, origine: "auto" | "mo
 
 export async function changerTexteCarteAction(videoId: string, origine: "auto" | "monteur", id: string, textes: string[]): Promise<Resultat<{ travailId: string }>> {
   const r = await essayer(() => changerTexteCarte(videoId, origine, id, textes));
+  rafraichir(videoId);
+  return r;
+}
+
+export async function changerAnimationCarteAction(videoId: string, id: string, modele: ModeleCarte): Promise<Resultat<{ travailId: string }>> {
+  const r = await essayer(() => changerAnimationCarte(videoId, id, modele));
   rafraichir(videoId);
   return r;
 }
