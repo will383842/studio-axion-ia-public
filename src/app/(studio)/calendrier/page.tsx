@@ -22,7 +22,8 @@ import { libellePeriode } from "@/components/calendrier/BarreVue";
 import { EnTeteCalendrier } from "@/components/calendrier/EnTeteCalendrier";
 import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFaire";
 import { ReserveAPlacer } from "@/components/calendrier/ReserveAPlacer";
-import { VueJour, debutDeTexte } from "@/components/calendrier/VueJour";
+import { debutDeTexte } from "@/components/calendrier/VueJour";
+import { VueJourAvecFiche, RapatrieesDuMois } from "@/components/calendrier/FicheRapatriees";
 import type { IdReseau } from "@/domaine/types";
 import { entreeDepuisPublication, etatAffiche } from "@/components/calendrier/apercu-reseau";
 import { cleJour } from "@/lib/dates";
@@ -268,7 +269,7 @@ function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes, eca
       <Link href={adresse("semaine", jour)} className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-texte-doux underline underline-offset-4">
         ← Retour à la semaine
       </Link>
-      <VueJour jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} lienEntree={(e) => liens.get(e.cle) ?? null} />
+      <VueJourAvecFiche jour={jour} aujourdhui={aujourdhui} entrees={entrees} reseaux={reseauxActifs} liens={Object.fromEntries(liens)} />
       {jour >= aujourdhui && <AjouterDuJour jour={jour} aujourdhui={aujourdhui} reseaux={reseauxActifs} comptes={comptes} />}
       <PlanDuJour creneaux={plan} aujourdhui={aujourdhui} />
     </div>
@@ -288,6 +289,9 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres, eca
   const gardees = filtrerParTexte(toutes, textesMois, filtres);
   const entrees: EntreeCarte[] = gardees.filter((e) => !e.essai);
   const total = entrees.filter((e) => e.jour.startsWith(plage.mois)).length;
+  // Publications reprises du diffuseur : listées sous la grille, chacune ouvre sa fiche (lecture seule).
+  const gardeesCles = new Set(entrees.map((e) => e.cle));
+  const reprises = plage.jours.flatMap((j) => (parJour.get(j) ?? []).filter((p) => p.via === "zernio" && !!p.rapatrieeLe && typeof p.date === "string").map(entreeDepuisPublication)).filter((e) => e.chezDiffuseur && e.jour.startsWith(plage.mois) && gardeesCles.has(e.cle));
   const essais = gardees.length - entrees.length;
   const lienMois = (delta: number) => `/calendrier?vue=mois&date=${moisVoisin(plage.mois, delta)}${suite}`;
   return (
@@ -314,6 +318,7 @@ function VueMois({ plage, repere, calendrier, suite, reseauxActifs, filtres, eca
       <p className="mb-5 text-center text-xs tabular-nums text-texte-faible">{total} publication{total > 1 ? "s" : ""}</p>
       {/* CAL-05 : chaque jour (même vide, même d'un mois voisin) mène à la vue Jour ; un repère par réseau (picto, nom, nombre). Les essais ne sont pas des publications. */}
       <GrilleMois mois={plage.mois} aujourdhui={aujourdhui} entrees={entrees} lienJour={(j) => adresseVueJour(j, suite)} />
+      <RapatrieesDuMois aujourdhui={aujourdhui} entrees={reprises} />
       {essais > 0 && (
         <p className="mt-2 text-center text-xs tabular-nums text-texte-faible">
           {essais} essai{essais > 1 ? "s" : ""} sur cette période (rien n&apos;a été envoyé)
