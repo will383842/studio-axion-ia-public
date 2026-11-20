@@ -26,7 +26,7 @@ export function BoutonRelireDiffuseur() {
       if (r.ok) {
         if (routeur) routeur.refresh();
         else window.location.reload();
-      } else setRetour("La relecture n'a pas pu être faite. Réessayez dans un moment.");
+      } else setRetour(r.message || "La relecture n'a pas pu être faite. Réessayez dans un moment.");
     } catch {
       setRetour("La relecture n'a pas pu être faite. Réessayez dans un moment.");
     } finally {
