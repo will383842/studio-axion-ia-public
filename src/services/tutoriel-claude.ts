@@ -19,6 +19,9 @@ import { IMAGES_REGARD_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/
 import { formatDuRatio } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 import { entreesPireCasEquipe, ROLES_APPELES, ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
+import { entreeMaquettiste, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
+import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { PHRASE_DEPOT_MAX } from "@/moteurs/montage-tutoriel-outil/entrees";
 import type { CommandeFabrication, Id } from "@/domaine/types";
 import type { executerRolePourVideo } from "./depense-claude-video";
 
@@ -37,6 +40,9 @@ export const PARAM_REGARD_TUTORIEL = "tutoriel.regardeur";
 export const ETAPE_REGARD_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} Regardeur`;
 /** Nombre d'images-clés du regard : celui de l'adaptateur du regardeur (`instantsTutoriel`), jamais plus que le plafond commun. */
 export { IMAGES_REGARD_TUTORIEL };
+
+/** V2-07 : l'étape de la création d'une maquette ou d'un flux depuis une phrase (même libellé que la ligne « Tutoriel · <rôle> » de l'équipe). */
+export const ETAPE_PIECE_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} maquettiste`;
 
 /** Le plafond est arrondi au 0,05 $ supérieur. */
 const PAS_PLAFOND_USD = 0.05;
@@ -132,6 +138,41 @@ export function detailPlafondTutorielUsd(): { plan: number; roles: Record<string
 export function plafondTutorielParDefautUsd(): number {
   const pas = Math.ceil(Math.round(detailPlafondTutorielUsd().total * 1e6) / 1e6 / PAS_PLAFOND_USD);
   return Math.round(pas * 5) / 100;
+}
+
+/**
+ * V2-07 : pire cas, en dollars, de la création d'une maquette ou d'un flux depuis une phrase : au plus `PROPOSITIONS_PIECE_MAX`
+ * propositions (la première, puis une seule « autre proposition » demandée ; aucune reprise automatique), chacune au pire des
+ * deux genres, pour la demande la plus longue du formulaire. Aucun prix recopié : tout vient de `pireCasRequete`.
+ */
+export function coutPirePieceCreeeUsd(): number {
+  const contexte: ContexteMaquettiste = { metier: "x".repeat(40), carteZones: [], interdits: [], demande: "x".repeat(PHRASE_DEPOT_MAX), proposition: 2 };
+  const role = roleMaquettiste as unknown as DefinitionRole;
+  const maquette = pireCasRequete(role, entreeMaquettiste("maquette", contexte));
+  // en attendant T-EXT-25b : le manque « flux-automatisation » n'existe pas encore dans `MANQUES_MAQUETTISTE` ; même entrée, même plafond de réponse.
+  const flux = pireCasRequete(role, entreeMaquettiste("flux-automatisation" as ManqueMaquettiste, contexte));
+  return PROPOSITIONS_PIECE_MAX * Math.max(maquette, flux);
+}
+
+let plafondPhraseJournalise = false;
+
+/**
+ * V2-07 : plafond par défaut d'une vidéo partie d'UNE PHRASE, en dollars : le plafond d'un dossier, sans la part du maquettiste
+ * déjà comptée une fois par `detailPlafondTutorielUsd` (jamais deux fois), plus la création au pire. Arrondi au 0,05 $ supérieur.
+ * `plafondTutorielParDefautUsd` (un dossier) reste inchangée. Le réglage `tutoriel.plafondClaudeUsd` remplace toujours le plafond.
+ * Le détail est écrit une fois au journal technique, jamais à l'écran.
+ */
+export function plafondTutorielPhraseUsd(): number {
+  const detail = detailPlafondTutorielUsd();
+  const defaut = plafondTutorielParDefautUsd();
+  const creation = coutPirePieceCreeeUsd();
+  const pas = Math.ceil(Math.round((detail.total - (detail.roles.maquettiste ?? 0) + creation) * 1e6) / 1e6 / PAS_PLAFOND_USD);
+  const total = Math.round(pas * 5) / 100;
+  if (!plafondPhraseJournalise) {
+    plafondPhraseJournalise = true;
+    console.info(`Plafond tutoriel depuis une phrase : défaut ${defaut} $, création ${creation.toFixed(4)} $ (${PROPOSITIONS_PIECE_MAX} propositions au pire), total ${total} $`);
+  }
+  return total;
 }
 
 /** Plafond propre `tuto` d'une vidéo du tutoriel : le même objet pour les textes et pour le regard (même forme que les plafonds du tableau animé, conversion de `cas-concret-branchements.ts`). */
