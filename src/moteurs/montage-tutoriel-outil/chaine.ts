@@ -588,7 +588,15 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
   };
   for (const ratio of ratios) {
     if (faitRatio(ratio)) continue;
-    e = e.rendus.find((r) => r.ratio === ratio)?.sortie ? await pasFinitions(e, ratio, outils, travailId) : await pasRendu(e, ratio, commande, outils, travailId);
+    if (e.rendus.find((r) => r.ratio === ratio)?.sortie) {
+      e = await pasFinitions(e, ratio, outils, travailId);
+      continue;
+    }
+    const avant = e.rendus.find((r) => r.ratio === ratio)?.demande;
+    e = await pasRendu(e, ratio, commande, outils, travailId);
+    // T-EXT-45b : un pas qui paie rend son état dès que le résultat payé est là. Une demande neuve vient d'être soumise : si un format
+    // plus loin levait dans ce même pas, `avancer` jetterait l'état et la série suivante repayerait ce format sous un autre identifiant.
+    if (e.rendus.find((r) => r.ratio === ratio)?.demande !== avant) return { statut: "en-cours", etat: e };
   }
   return { statut: ratios.every(faitRatio) ? "faite" : "en-cours", etat: e };
 }
