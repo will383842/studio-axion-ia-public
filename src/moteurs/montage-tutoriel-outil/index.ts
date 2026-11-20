@@ -24,6 +24,7 @@ import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
 import { lireEntreesTutoriel } from "./entrees";
+import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel } from "./chaine";
 
@@ -170,7 +171,10 @@ function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
 }
 
 function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): ResultatFabrication {
+  // T-EXT-27 : la grille chiffrée n'est rangée dans l'état que par le pas « regarder » (27b). Absente : exactement comme avant.
+  const grille = (etat as EtatTutoriel & AvecGrille).grille;
   const alertesCommunes = alertesDe(etat);
+  if (grille) for (const a of alertesDeGrille(grille)) alertesCommunes.push({ code: "defaut-visuel", gravite: a.bloquant ? "attention" : "info", message: a.message });
   if (commande.briques["mention-ia"] === true) alertesCommunes.push({ code: "defaut-visuel", gravite: "info", message: "Mention IA demandée : pas encore posée par le tutoriel" });
   const cible = cibleSon(commande);
   const toutesAlertes: AlerteQualite[] = [...alertesCommunes];
@@ -203,7 +207,7 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
       resolution: `${largeur}x${hauteur}`,
       dureeSec: r.sortie!.dureeSec,
       taille: r.sortie!.taille,
-      rapportQualite: { note: Math.max(50, 100 - 10 * attention), verifie: { image: true, son: son.sonVerifie, sousTitres: commande.briques["sous-titres"] !== false, mentionIA: false, droits: false }, alertes, niveauSonoreLufs: son.niveauSonoreLufs },
+      rapportQualite: { note: grille ? grille.note : Math.max(50, 100 - 10 * attention), verifie: { image: true, son: son.sonVerifie, sousTitres: commande.briques["sous-titres"] !== false, mentionIA: false, droits: grille ? marqueReussie(grille) : false }, alertes, niveauSonoreLufs: son.niveauSonoreLufs },
       ...(servis.length ? { reseaux: servis } : {}),
     };
   });
@@ -214,7 +218,7 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   lignesReelles.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "reel"));
   return {
     sorties,
-    noteQualite: { globale: Math.max(50, 100 - 10 * toutesAlertes.filter((a) => a.gravite === "attention").length), alertes: toutesAlertes },
+    noteQualite: { globale: grille ? grille.note : Math.max(50, 100 - 10 * toutesAlertes.filter((a) => a.gravite === "attention").length), alertes: toutesAlertes },
     lignesReelles,
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {
