@@ -73,4 +73,15 @@ export const TOILES = {
   "objet-vignettes-numerotees": { largeur: 1000, hauteur: 1000 },
   "objet-fenetre-app": { largeur: 1000, hauteur: 1000 },
   "objet-terminal-commande": { largeur: 1000, hauteur: 1000 },
+  // C9-34-FIN-v20h : recopiées de def.toile de chaque fichier de motion/petits-objets
+  "objet-dossier": { largeur: 1080, hauteur: 1920 },
+  "objet-chrono": { largeur: 1080, hauteur: 1920 },
+  "objet-barre-progression": { largeur: 1080, hauteur: 1920 },
+  "objet-etape-segments": { largeur: 1000, hauteur: 220 },
+  "objet-appel-action": { largeur: 1000, hauteur: 1000 },
+  "objet-appel-mot": { largeur: 1000, hauteur: 1000 },
+  "objet-appel-rdv": { largeur: 1000, hauteur: 1000 },
+  "objet-frise-montage": { largeur: 1000, hauteur: 1000 },
+  "objet-pellicule": { largeur: 1000, hauteur: 1000 },
+  "objet-onde-motif": { largeur: 1000, hauteur: 300 },
 } as const;

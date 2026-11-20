@@ -94,6 +94,17 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-vignettes-numerotees": "demarche",
   "objet-fenetre-app": "interface",
   "objet-terminal-commande": "interface",
+  // C9-34-FIN-v20h (20/11/2026) : voisins existants (étape = démarche, chiffres, étiquettes = texte)
+  "objet-dossier": "demarche",
+  "objet-chrono": "chiffre",
+  "objet-barre-progression": "chiffre",
+  "objet-etape-segments": "demarche",
+  "objet-appel-action": "texte",
+  "objet-appel-mot": "texte",
+  "objet-appel-rdv": "texte",
+  "objet-frise-montage": "interface",
+  "objet-pellicule": "interface",
+  "objet-onde-motif": "demarche",
 };
 
 const DUREE_MAX_SEC = 6;
