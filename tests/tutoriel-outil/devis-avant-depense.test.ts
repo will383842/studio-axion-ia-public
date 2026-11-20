@@ -191,7 +191,7 @@ describe("T-EXT-42 : allumé", () => {
     t = await mener(moteur, () => c, t);
     expect(pause(t)).toBeNull();
     expect(t.statut).toBe("termine");
-    expect(j.voix.length).toBeGreaterThan(0);
+    expect(j.voix).toHaveLength(1);
   });
 
   it("une prononciation qui allonge le texte lu, accord bon : la vidéo va au bout, 1 voix (le devis compte le texte réellement lu)", async () => {
@@ -222,9 +222,10 @@ describe("T-EXT-42 : allumé", () => {
     let t = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
     for (let i = 0; i < 6 && pause(t)?.code !== "TO_DEVIS_ATTEINT"; i++) {
       t = await mener(moteur, () => c, { ...t, statut: "en_file", erreur: undefined, parametres: { ...t.parametres, pause: undefined } });
-      expect(eq.appels.length).toBeLessThanOrEqual(3);
+      expect(eq.appels.length).toBeLessThanOrEqual(2);
     }
-    expect(eq.appels.length).toBeLessThanOrEqual(3);
+    // Le devis permet 2 appels (stratège ×1 + scénariste ×1) : le scénariste illisible ne repart pas pour un 2e essai.
+    expect(eq.appels).toEqual(["stratege", "scenariste"]);
     expect(pause(t)?.code).toBe("TO_DEVIS_ATTEINT");
     expect(j.claude).toHaveLength(0);
     expect(j.voix).toHaveLength(0);
