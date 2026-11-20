@@ -63,6 +63,8 @@ describe("G6-07-a : écritures d'une version née du chat", () => {
   it("g) budget surveillé pour une vraie vidéo, pas pour une démo", () => {
     expect(ecrituresVersionChat(base()).surveillerBudget).toBe(true);
     expect(ecrituresVersionChat(base({ video: { id: "vid-1", estDemo: true } })).surveillerBudget).toBe(false);
+    expect(ecrituresVersionChat(base()).depense.estDemo).toBe(false);
+    expect(ecrituresVersionChat(base({ video: { id: "vid-1", estDemo: true } })).depense.estDemo).toBe(true);
   });
   it("h) parité de forme avec travaux.ts : mêmes clés de Sortie", () => {
     const cles = ["id", "videoId", "versionId", "ratio", "resolution", "fichierId", "vignetteFichierId", "dureeSec", "taille", "rapportQualite", "creeLe", "modifieLe"].sort();
