@@ -18,6 +18,7 @@ import { moteurMontageImageVideo } from "./montage-image-video";
 import { moteurMontageTutorielOutil } from "./montage-tutoriel-outil";
 import { moteurMontageDemoFacecam } from "./montage-demo-facecam";
 import { moteurMontageVideoLongue } from "./montage-video-longue";
+import { moteurMontageDonnees } from "./montage-donnees";
 import { moteurSimulation } from "./simulation";
 import type { MoteurVideo } from "./types";
 import { idMoteurDeCommande, moteurExiste, type IdMoteur } from "./ids";
@@ -43,6 +44,8 @@ const MOTEURS: Record<IdMoteur, MoteurVideo> = {
   "montage-demo-facecam": moteurMontageDemoFacecam,
   // Vidéo longue (VL-04) : moteur mince, éteint ; sans dépendances reliées, pause sans dépense.
   "montage-video-longue": moteurMontageVideoLongue,
+  // Tableau de bord (G4-09b) : moteur mince, masqué ; sans dépendances reliées, pause sans dépense.
+  "montage-donnees": moteurMontageDonnees,
 };
 
 export function obtenirMoteur(id: string): MoteurVideo {
