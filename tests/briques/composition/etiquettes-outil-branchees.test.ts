@@ -89,7 +89,7 @@ describe("porte : la capacité est connue du profil avocat mais éteinte", () =>
 
 describe("(a) éteint : réglage absent = composition identique, aucune clé neuve", () => {
   it("pas d'entrée bibliothèque", async () => {
-    const entrees = await entreesDuLancement();
+    const entrees = await entreesDuLancement(false); // v20g : avocat allumé par défaut, `false` écrit en base
     expect(entrees).toEqual({});
     const p = composer(commande(entrees));
     expect(p.texte.sousTitres).toBeDefined();
