@@ -30,8 +30,11 @@ export function BoutonRetirerIntrouvables({ ids }: { ids: string[] }) {
     try {
       const r = await retirerIntrouvablesAction(ids);
       if (r.ok) {
-        if (routeur) routeur.refresh();
-        else window.location.reload();
+        // Le message (publications restées en place, remises à la normale, au-delà de 10) est montré avant de recharger.
+        if (routeur) {
+          setRetour(r.donnees.message);
+          routeur.refresh();
+        } else window.location.reload();
       } else setRetour(r.message || "Le retrait n'a pas pu être fait. Réessayez.");
     } catch {
       setRetour("Le retrait n'a pas pu être fait. Réessayez.");

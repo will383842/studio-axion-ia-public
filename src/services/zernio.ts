@@ -20,7 +20,8 @@ import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs
 import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { phraseLisible } from "@/lib/erreur-lisible";
 import { obtenirReseau } from "@/reseaux";
-import { CONSTATS_INTROUVABLE_REQUIS, RELECTURE_INTROUVABLE_MIN_MS, RELECTURES_INTROUVABLES_PAR_PASSAGE } from "./constantes-introuvable";
+import { CONSTATS_INTROUVABLE_REQUIS, MESSAGE_AUCUN_POST_RETROUVE, RELECTURE_INTROUVABLE_MIN_MS, RELECTURES_INTROUVABLES_PAR_PASSAGE } from "./constantes-introuvable";
+import { remiseANormale } from "./retirer-rapatriee";
 import { depsRapatriementServeur, rapatrierPostsZernio, type ResultatRapatriement } from "./rapatriement-zernio";
 import { depots, ecrireParametre, ErreurStudio, journaliser, lireParametre, maintenant, sousVerrou, creerVerrou } from "./_commun";
 import { exigerSession } from "./auth";
@@ -384,6 +385,8 @@ export interface EcartCalendrier {
   connusFiables?: number;
   /** RAP-3 · collant : premier passage où la liste ne contenait aucun post connu alors que des publications étaient suivies (autre espace probable). */
   espaceSuspectLe?: string;
+  /** RAP-3 · passage où la marque est tombée : seuls les constats « introuvable » postérieurs comptent pour un retrait groupé. */
+  espaceRetrouveLe?: string;
 }
 
 /** RAP-3 · publication attendue chez le diffuseur : née au Studio saine, ou rapatriée (saine ou « à vérifier »). Une née au Studio « à vérifier » n'atteste rien. */
@@ -394,13 +397,20 @@ const attendueChezDiffuseur = (p: Publication): boolean =>
  * RAP-3 · la clé relie-t-elle un autre espace ? Sur une lecture COMPLÈTE seulement. Les publications importées après le soupçon (`rapatrieeLe` ≥ marque)
  * ne comptent jamais comme « connues » : sinon l'import des posts d'un espace étranger rendrait la mesure crédible au passage suivant.
  */
-function espaceDepuis(avant: Publication[], posts: readonly PostZernio[], precedente: EcartCalendrier | undefined, luLe: string): Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe"> {
+function espaceDepuis(avant: Publication[], posts: readonly PostZernio[], precedente: EcartCalendrier | undefined, luLe: string): Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe" | "espaceRetrouveLe"> {
   const suivies = avant.filter(attendueChezDiffuseur).length;
   const marque = precedente?.espaceSuspectLe;
   const dansListe = new Set(posts.map((x) => x._id));
-  const connusFiables = avant.filter((p) => !!p.idExterne && dansListe.has(p.idExterne) && !(marque && p.rapatrieeLe && p.rapatrieeLe >= marque)).length;
-  const suspect = suivies > 0 && connusFiables === 0 ? marque ?? luLe : undefined;
-  return { suivies, connusFiables, ...(suspect ? { espaceSuspectLe: suspect } : {}) };
+  // La marque ne dépend pas de la réussite d'UNE écriture : une rapatriée importée APRÈS la dernière mesure écrite n'atteste jamais l'espace
+  // (si l'écriture de la mesure a échoué à un passage suspect, ses imports ne comptent pas au passage suivant). Une née au Studio, elle, le peut.
+  const mesureLe = precedente?.luLe;
+  const tropRecente = (p: Publication): boolean => !!p.rapatrieeLe && ((!!marque && p.rapatrieeLe >= marque) || !mesureLe || p.rapatrieeLe > mesureLe);
+  const dansLaListe = avant.filter((p) => !!p.idExterne && dansListe.has(p.idExterne));
+  const connusFiables = dansLaListe.filter((p) => !tropRecente(p)).length;
+  const suspect = suivies > 0 && connusFiables === 0 ? marque ?? [luLe, ...dansLaListe.filter(tropRecente).map((p) => p.rapatrieeLe!)].sort()[0] : undefined;
+  // Marque tombée à ce passage : seuls les constats postérieurs rendent un retrait groupé possible.
+  const retrouve = marque && !suspect ? luLe : precedente?.espaceRetrouveLe;
+  return { suivies, connusFiables, ...(suspect ? { espaceSuspectLe: suspect } : {}), ...(retrouve ? { espaceRetrouveLe: retrouve } : {}) };
 }
 
 /** RAP-2 · écrit la mesure sous le verrou, seulement si elle change (ou si elle est devenue trop ancienne). Jamais bloquant. */
@@ -416,7 +426,7 @@ async function ecrireEcartCalendrier(valeur: EcartCalendrier): Promise<void> {
   });
 }
 
-const ecartDepuis = (r: ResultatRapatriement, luLe: string, espace: Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe">): EcartCalendrier => ({
+const ecartDepuis = (r: ResultatRapatriement, luLe: string, espace: Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe" | "espaceRetrouveLe">): EcartCalendrier => ({
   ...espace,
   luLe,
   verifie: r.lectureComplete,
@@ -573,6 +583,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   // RAP-2 · rapatriement des posts du diffuseur absents du calendrier : lecture seule chez le diffuseur (6 requêtes au plus, décomptées du budget),
   // écriture seulement dans le Studio. Son échec n'arrête jamais la synchro ; les posts lus servent aux lectures du passage (jamais relus seuls).
   const deRapatriement = new Map<string, PostZernio>();
+  let espaceSuspect = false; // la clé relie probablement un autre espace : une seule notification groupée, pas une par publication
   {
     const budgetRap = { restant: BUDGET_RAPATRIEMENT_PAR_PASSAGE };
     const luLe = new Date(instant).toISOString();
@@ -585,7 +596,12 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       const resultat = await rapatrierPostsZernio({ ...deps, client: { listerPosts: (q) => client.listerPosts(q) }, instant: () => luLe, budget: budgetRap }, { aBlanc: !actif });
       for (const x of resultat.posts) if (postDeListeComplet(x)) deRapatriement.set(x._id, x);
       // Lecture incomplète : l'espace n'est pas rejugé, on garde ce qui était connu.
-      const espace = resultat.lectureComplete ? espaceDepuis(avantLocal, resultat.posts, precedente, luLe) : { suivies: precedente?.suivies, connusFiables: precedente?.connusFiables, espaceSuspectLe: precedente?.espaceSuspectLe };
+      // Fenêtre au retour de la bonne clé : nos rapatriées « à vérifier » retrouvées dans les listes sont remises à la normale AVANT l'écriture de la mesure.
+      for (const p of avantLocal) {
+        if (estRapatriee(p) && p.etatEnvoi === "a-verifier" && !p.retireeLe && p.idExterne && deRapatriement.has(p.idExterne)) await ecrireSiInchange(p, remiseANormale());
+      }
+      const espace = resultat.lectureComplete ? espaceDepuis(avantLocal, resultat.posts, precedente, luLe) : { suivies: precedente?.suivies, connusFiables: precedente?.connusFiables, espaceSuspectLe: precedente?.espaceSuspectLe, espaceRetrouveLe: precedente?.espaceRetrouveLe };
+      espaceSuspect = !!espace.espaceSuspectLe;
       await ecrireEcartCalendrier(ecartDepuis(resultat, luLe, espace));
     } catch {
       // Lecture ou écriture locale impossible : la mesure est « non vérifiée », la synchro continue.
@@ -623,6 +639,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   const lu = new Date(instant).toISOString();
   // L5-06 · l'étape des visuels est calculée UNE fois, après la boucle, sur l'état final du passage (jamais sur un état intermédiaire).
   const visuelsTouches = new Set<string>();
+  let rapatrieesAVerifier = 0; // passées « à vérifier » à ce passage, notifiées en UNE fois quand l'espace est suspect
   for (const p of suivies) {
     const rapatriee = estRapatriee(p);
     const vid = rapatriee ? undefined : videoIdSure(p);
@@ -657,7 +674,8 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
         } else if (instant - depuis >= DELAI_ABSENCE_MS && (await ecrireSiInchange(p, { etatEnvoi: "a-verifier", ...(rapatriee ? { constatsIntrouvable: 1, introuvableDepuis: lu, dernierConstatIntrouvable: lu } : {}), erreur: "Introuvable chez Zernio : vérifiez dans Zernio avant de renvoyer.", etatLuLe: lu }))) {
           r.changees++;
           await journaliser("publication", `Zernio : envoi à vérifier (${obtenirReseau(p.reseau).nom})`, entite);
-          await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo }, optionsNotif);
+          if (rapatriee && espaceSuspect) rapatrieesAVerifier++;
+          else await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${obtenirReseau(p.reseau).nom} : Zernio ne retrouve pas la publication. Vérifiez dans Zernio avant de renvoyer.`, lien, estDemo: p.estDemo }, optionsNotif);
         }
       }
       continue; // muet, 5xx, débit : on relira plus tard, jamais de renvoi
@@ -672,11 +690,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
     const changement: Partial<Publication> = { etatLuLe: lu };
     // Une rapatriée « à vérifier » relue chez le diffuseur (liste ou lecture unitaire) redevient normale : plus introuvable, plus retirable.
     if (rapatriee && p.etatEnvoi === "a-verifier") {
-      changement.etatEnvoi = undefined;
-      changement.erreur = undefined;
-      changement.introuvableDepuis = undefined;
-      changement.constatsIntrouvable = undefined;
-      changement.dernierConstatIntrouvable = undefined;
+      Object.assign(changement, remiseANormale());
     }
     if (etat.statut !== p.statut) changement.statut = etat.statut;
     if (etat.lien && etat.lien !== p.urlPubliee) changement.urlPubliee = etat.lien;
@@ -734,6 +748,9 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       if (p.visuelId) visuelsTouches.add(p.visuelId);
       await creerNotification({ type: "echec", titre: "Zernio n'a pas pu publier", message: phrase, lien, estDemo: p.estDemo }, optionsNotif);
     }
+  }
+  if (rapatrieesAVerifier > 0) {
+    await creerNotification({ type: "echec", titre: "Envoi vers Zernio à vérifier", message: `${MESSAGE_AUCUN_POST_RETROUVE} ${rapatrieesAVerifier} publication${rapatrieesAVerifier > 1 ? "s sont passées" : " est passée"} « à vérifier ».`, lien: "/calendrier" }, { cloche: true });
   }
   try {
     await reprendreRetoursPublies();

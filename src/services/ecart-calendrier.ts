@@ -16,7 +16,7 @@ async function lireIntrouvables(mesure: Partial<EcartCalendrier> | undefined): P
     const toutes = await depots().publications.lister(() => true);
     const liste = toutes.filter(estRapatrieeIntrouvable);
     const maintenant = Date.now();
-    const retirables = liste.filter((p) => estRapatrieeRetirable(p, maintenant)).map((p) => p.id);
+    const retirables = liste.filter((p) => estRapatrieeRetirable(p, maintenant, mesure?.espaceRetrouveLe)).map((p) => p.id);
     if (retirables.length === 0) return { introuvables: liste.length, retirables };
     const sur = retraitGroupeSur(mesure as EcartCalendrier | undefined, toutes);
     return sur.sur ? { introuvables: liste.length, retirables } : { introuvables: liste.length, retirables: [], retraitRefuse: sur.message };
@@ -33,7 +33,7 @@ export async function lireEcartCalendrier(): Promise<EcartAffiche | null> {
       // Mesure absente : rien à dire sur l'écart ; les introuvables se voient quand même, mais la mesure est « jamais mesurée » (non vérifiée).
       return introuvables > 0 ? { luLe: "", verifie: false, jamaisMesuree: true, chezDiffuseur: 0, absents: 0, exemples: [], introuvables, retirables } : null;
     }
-    return { luLe: v.luLe, verifie: v.verifie, chezDiffuseur: Number(v.chezDiffuseur) || 0, absents: v.absents, exemples: Array.isArray(v.exemples) ? v.exemples : [], introuvables, retirables, ...(retraitRefuse ? { retraitRefuse } : {}), ...(typeof v.suivies === "number" ? { suivies: v.suivies } : {}), ...(typeof v.connusFiables === "number" ? { connusFiables: v.connusFiables } : {}), ...(v.espaceSuspectLe ? { espaceSuspectLe: v.espaceSuspectLe } : {}) };
+    return { luLe: v.luLe, verifie: v.verifie, chezDiffuseur: Number(v.chezDiffuseur) || 0, absents: v.absents, exemples: Array.isArray(v.exemples) ? v.exemples : [], introuvables, retirables, ...(retraitRefuse ? { retraitRefuse } : {}), ...(typeof v.suivies === "number" ? { suivies: v.suivies } : {}), ...(typeof v.connusFiables === "number" ? { connusFiables: v.connusFiables } : {}), ...(v.espaceSuspectLe ? { espaceSuspectLe: v.espaceSuspectLe } : {}), ...(v.espaceRetrouveLe ? { espaceRetrouveLe: v.espaceRetrouveLe } : {}) };
   } catch {
     return null;
   }
