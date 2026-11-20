@@ -41,7 +41,8 @@ import type { RegistreTextes } from "./equipe/registre-textes";
 import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
 import { ENTREE_TUTORIEL, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
-import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
+import { finDuTutoriel, type FinDuTutoriel } from "./fin";
+import { COMPOSITION_TUTORIEL, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
@@ -82,6 +83,8 @@ export interface OutilsTutoriel {
   regarder?: (x: { demandeMaitre: DemandeRendu; instants: InstantRegard[] }) => Promise<LectureRegard | null>;
   /** T-EXT-31 : mixage de la voix, mesure du son et vignette. Absent = éteint (chemin d'avant, inchangé). */
   finitions?: { actif: true };
+  /** T-EXT-26a : fin commune (« Aucune » par défaut, « Prendre rendez-vous » si choisie). Absent = carte « Axion IA » d'aujourd'hui. */
+  fin?: { actif: boolean };
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
   sousTitres?: { style?: ValeurStyleSousTitres | null; base?: BaseSousTitres; intensite?: IntensiteSousTitres };
   /**
@@ -197,7 +200,9 @@ export interface EtatTutoriel {
   rendus: RenduTutoriel[];
   reserves: string[];
   /** Version d'avant (retouche, réexport) : ce qui peut être repris sans être refait ni repayé. */
-  parent?: { plan?: PlanValide; audio?: AudioTutoriel };
+  parent?: { plan?: PlanValide; audio?: AudioTutoriel; /** T-EXT-26a : fin de la version d'avant, reprise telle quelle. */ fin?: FinDuTutoriel };
+  /** T-EXT-26a : fin retenue, gardée pour que la retouche et le réexport gardent la même fin (aucun nouveau tirage). */
+  fin?: FinDuTutoriel;
   echecSimuleFait?: boolean;
   /** Appels Claude REVENUS sans lever (un appel refusé ou en panne n'est pas compté). Absent tant qu'aucun n'est revenu. */
   appelsClaude?: { plan: number; regard?: number; roles?: Record<string, number>; /** Hérité : plus écrit (T-EXT-55 retire l'écrivain hors équipe). */ script?: number };
@@ -378,7 +383,7 @@ function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication, outils:
   if (!equipe.verdictCalage && etat.audio && etat.script) {
     const cal = calerScenario(equipe.parcours.scenario, etat.audio.mots, Math.round(etat.audio.dureeSec * 1000));
     const phrases = equipe.scriptChoisi?.phrases ?? [{ texte: etat.script.texte, aRevoir: false }];
-    const verdict = controlerApresCalage({ script: { phrases }, parcours: equipe.parcours, etapes: cal.ok ? cal.etapes : [], dureeVoixMs: Math.round(etat.audio.dureeSec * 1000), dureeFinMs: DUREE_CARTE_FIN_MS, ...(nav ? { navigation: nav } : {}) });
+    const verdict = controlerApresCalage({ script: { phrases }, parcours: equipe.parcours, etapes: cal.ok ? cal.etapes : [], dureeVoixMs: Math.round(etat.audio.dureeSec * 1000), dureeFinMs: finRetenue(etat, commande, outils).finMs, ...(nav ? { navigation: nav } : {}) });
     const reserves = verdict.controles.filter((c) => c.etat === "echoue").flatMap((c) => c.details.map((d) => `À vérifier · ${d}`));
     etat = { ...etat, equipe: { ...equipe, verdictCalage: verdict }, reserves: [...etat.reserves, ...reserves.filter((m) => !etat.reserves.includes(m))] };
   }
@@ -529,17 +534,23 @@ export function planPourRatio(plan: PlanValide, ratio: Ratio): PlanValide {
   return validerPlan({ ...plan, format }, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs }).plan;
 }
 
+/** T-EXT-26a : la fin retenue (état d'abord : une fois choisie, elle ne change plus ; puis celle du parent ; puis l'entrée et l'interrupteur). */
+function finRetenue(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees">, outils: Pick<OutilsTutoriel, "fin">): FinDuTutoriel {
+  return etat.fin ?? etat.parent?.fin ?? finDuTutoriel(lireEntreesTutoriel(commande.entrees).fin, outils.fin?.actif === true);
+}
+
 /** Propriétés de la composition pour un ratio (l'adresse de la voix arrive par l'entrée « audio »). */
-export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTitres: boolean, outils: Pick<OutilsTutoriel, "sousTitres">, navigation?: NavigationFilmee): Omit<ProprietesTutorielOutil, "audio" | "filmNavigation"> {
+export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTitres: boolean, outils: Pick<OutilsTutoriel, "sousTitres" | "fin">, navigation?: NavigationFilmee, commande?: Pick<CommandeFabrication, "entrees">): Omit<ProprietesTutorielOutil, "audio" | "filmNavigation"> {
   const st = outils.sousTitres;
   const sousTitres =
     avecSousTitres && etat.sousTitres?.length ? donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) }) : undefined;
+  const laFin = commande ? finRetenue(etat, commande, outils) : (etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true));
   const { videoCle: _cle, ...sansFilm } = navigation ?? ({} as NavigationFilmee);
   void _cle;
   // T-EXT-44 : la caméra garde la zone visée au-dessus de la bande des sous-titres (lue dans les sous-titres déjà calculés).
   const haut = sousTitres ? hautBandeSousTitresPct(sousTitres.positions.basPct) : undefined;
   const navigationFinale = navigation ? { ...sansFilm, ...(haut !== undefined ? { hautSousTitresPct: haut } : {}) } : undefined;
-  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), fin: { ...CARTE_FIN_AXION }, finMs: DUREE_CARTE_FIN_MS, ...(navigationFinale ? { navigation: navigationFinale } : {}) };
+  return { plan: planPourRatio(etat.plan!.plan, ratio), ...(sousTitres ? { sousTitres } : {}), ...(laFin.fin ? { fin: { ...laFin.fin } } : {}), finMs: laFin.finMs, ...(navigationFinale ? { navigation: navigationFinale } : {}) };
 }
 
 const nomRatio = (r: Ratio) => r.replace(":", "x");
@@ -558,13 +569,15 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
     file: "longue",
     entrees: signe.lectures,
     sortie: { urlDepot: signe.urlDepot, cle },
-    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav) },
+    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav, commande) },
   };
 }
 
 /** Un pas de rendu d'un ratio : soumettre, suivre, ressoumettre après un échec passager. */
 async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<EtatTutoriel> {
   const service = outils.rendu.service();
+  // T-EXT-26a : la fin est fixée une fois pour toutes au premier rendu et gardée dans l'état.
+  if (!etat.fin) etat = { ...etat, fin: finRetenue(etat, commande, outils) };
   const courant = etat.rendus.find((r) => r.ratio === ratio);
   const remplacer = (r: RenduTutoriel) => ({ ...etat, rendus: [...etat.rendus.filter((x) => x.ratio !== ratio), r] });
   if (!courant) {
@@ -582,7 +595,7 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai });
   }
   if (e.statut !== "termine") return etat;
-  const dureeAttendue = (etat.plan!.plan.dureeMs + DUREE_CARTE_FIN_MS) / 1000;
+  const dureeAttendue = (etat.plan!.plan.dureeMs + finRetenue(etat, commande, outils).finMs) / 1000;
   const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : dureeAttendue;
   return remplacer({ ...courant, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
 }
@@ -720,11 +733,11 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
 }
 
 /** Textes permis à l'écran pour le regard : le registre des textes choisis quand l'état le porte ; sinon le script validé, les textes du plan et la carte de fin. */
-function textesPermisDuRegard(etat: EtatTutoriel): string[] {
+function textesPermisDuRegard(etat: EtatTutoriel, laFin: FinDuTutoriel): string[] {
   const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
   if (registre?.entrees) return textesPermisDuRegistre(registre);
   const dansPlan = (v: unknown): string[] => (typeof v === "string" ? [v] : Array.isArray(v) ? v.flatMap(dansPlan) : v && typeof v === "object" ? Object.values(v).flatMap(dansPlan) : []);
-  return [etat.script?.texte ?? "", ...(etat.plan ? dansPlan(etat.plan.plan.scenes.map((sc) => [sc.parametres, sc.calques])) : []), CARTE_FIN_AXION.titre, CARTE_FIN_AXION.sousTitre];
+  return [etat.script?.texte ?? "", ...(etat.plan ? dansPlan(etat.plan.plan.scenes.map((sc) => [sc.parametres, sc.calques])) : []), ...(laFin.fin ? [laFin.fin.titre, laFin.fin.sousTitre] : [])];
 }
 
 /** T-EXT-27b : UN regard par version fabriquée, sur le format maître. Ne fait jamais échouer ni attendre : il range un verdict. */
@@ -733,14 +746,15 @@ async function pasRegarder(pas: PasTutoriel, outils: OutilsTutoriel): Promise<Pa
   const maitre = etat.rendus.find((r) => r.ratio === etat.ratios[0]);
   if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie) return pas;
   const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
-  const instants = instantsTutoriel(etat.plan.plan, { finMs: DUREE_CARTE_FIN_MS, ...(registre?.entrees ? { registre } : {}) });
+  const laFin = etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true);
+  const instants = instantsTutoriel(etat.plan.plan, { finMs: laFin.finMs, ...(registre?.entrees ? { registre } : {}) });
   let lecture: LectureRegard | null = null;
   try {
     lecture = await outils.regarder({ demandeMaitre: maitre.demande, instants });
   } catch {
     lecture = null;
   }
-  const verdict = verdictRegardTutoriel(instants, lecture, { textesPermis: textesPermisDuRegard(etat), fin: { texte: `${CARTE_FIN_AXION.titre} ${CARTE_FIN_AXION.sousTitre}`, motCle: CARTE_FIN_AXION.titre } });
+  const verdict = verdictRegardTutoriel(instants, lecture, { textesPermis: textesPermisDuRegard(etat, laFin), ...(laFin.fin ? { fin: { texte: `${laFin.fin.titre} ${laFin.fin.sousTitre}`, motCle: laFin.fin.titre } } : {}) });
   let suite: EtatTutoriel = { ...(lecture ? avecAppels(etat, "regard", 1) : etat), regard: { instants: instants.length, relues: verdict.relues, verdict } };
   if (!lecture) suite = { ...suite, reserves: [...suite.reserves, "À vérifier · Les images n'ont pas pu être relues."] };
   // Grille chiffrée : seulement si le contrôle de l'image et le verdict du contrôleur sont déjà dans l'état ; sinon pas de grille (rapport de master).

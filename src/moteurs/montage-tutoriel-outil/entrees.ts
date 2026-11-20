@@ -32,6 +32,8 @@ export interface EntreesTutoriel {
   depot?: DepotTutoriel;
   /** T-EXT-33 : parcours choisi. Absent ou inconnu : choisi par le chef de projet. */
   gabarit?: IdGabarit;
+  /** T-EXT-26a : fin choisie dans le formulaire (« prendre-rendez-vous », valeur déjà lue par l'équipe, est lue comme « rendez-vous »). Toute autre valeur est ignorée : jamais une phrase inventée. */
+  fin?: "aucune" | "rendez-vous";
 }
 
 const gabaritConnu = (v: unknown): IdGabarit | undefined => GABARITS_CONNUS.find((g) => g === v);
@@ -61,5 +63,5 @@ export function lireEntreesTutoriel(entrees: Record<string, unknown> | undefined
   const film = o.navigationFilmee === undefined ? null : lireNavigationFilmee(o.navigationFilmee);
   const depot = lireDepot(o.depot);
   const gabarit = gabaritConnu(o.gabarit);
-  return { ...(depot ? { depot } : {}), ...(gabarit ? { gabarit } : {}), ...(idee ? { idee } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}) };
+  return { ...(depot ? { depot } : {}), ...(gabarit ? { gabarit } : {}), ...(idee ? { idee } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}), ...(o.fin === "aucune" ? { fin: "aucune" as const } : o.fin === "rendez-vous" || o.fin === "prendre-rendez-vous" ? { fin: "rendez-vous" as const } : {}) };
 }
