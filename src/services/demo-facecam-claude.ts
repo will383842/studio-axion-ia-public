@@ -2,7 +2,7 @@
  * CLAUDE DU PLAN DE SCÈNES DE LA DÉMO FACE CAMÉRA (G3-10-v20e, décision D4 de Williams du 20/11) : relie un vrai Claude (Sonnet)
  * à `genererPlan`, UNIQUEMENT par le chemin gardé de l'argent (`executerRolePourVideo`, reçu par injection). Aucun appel direct.
  *
- *  - ÉTEINT PAR DÉFAUT : sans le réglage `demoFacecam.planClaude` à exactement `true`, la chaîne garde le plan simple d'aujourd'hui.
+ *  - ALLUMÉ PAR DÉFAUT depuis le 20/11 (ALLUMER-PLAN-DEMO-CLAUDE, décision D4) : absent = allumé ; le réglage `demoFacecam.planClaude` à `false` remet le plan simple.
  *  - PLAFOND DUR EN CODE : 0,85 € au plus pour ce plan, 1,25 € au plus pour tous les usages de Claude d'une vidéo ; refusé AVANT
  *    l'appel, quels que soient le mode du budget, le quota seul ou le réglage de plafond (qui ne peut que baisser la limite).
  *  - Refus, échec, simulation, texte vide : `ErreurClaude` sans montant ; `genererPlan` sort alors son plan simple. Jamais d'autre exception.
