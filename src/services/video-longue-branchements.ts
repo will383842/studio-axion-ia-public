@@ -42,7 +42,7 @@ export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
 export type LectureGardee = LectureMorceau & { fichierCle?: string; copieEnAttente?: { adresse: string; idDemande: string; idExterne?: string } };
 
 /** Pourquoi rien n'est parti. */
-export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix";
+export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix" | "sans-personnage";
 
 export class ErreurVideoLongue extends Error {
   constructor(readonly motif: MotifRefusVideoLongue, message: string) {
@@ -108,6 +108,7 @@ const PHRASES: Record<MotifRefusVideoLongue, string> = {
   plafond: "Le plafond prévu pour cette vidéo serait dépassé : la fabrication s'arrête ici. Ce qui est déjà lu est gardé, rien de plus n'est payé.",
   "montage-non-relie": "Le montage de la vidéo longue n'est pas encore relié : aucune voix n'est lue, rien n'est payé.",
   "sans-voix": "Mode sans voix : aucune voix n'est lue, rien n'est payé pour la voix.",
+  "sans-personnage": "Choisissez qui parle : rien n'est parti, rien n'est payé.",
   fournisseur: "La voix n'a pas pu être lue : vous pouvez réessayer, ce qui est déjà fait est conservé.",
 };
 const refus = (m: MotifRefusVideoLongue): ErreurVideoLongue => new ErreurVideoLongue(m, PHRASES[m]);
@@ -135,6 +136,8 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
       async lire(morceau: MorceauVoix): Promise<LectureMorceau> {
         // Mode sans voix : AUCUN appel HeyGen, aucun port touché, aucune réservation (le moteur n'appelle d'ailleurs pas ce port).
         if (entrees.sansVoix) throw refus("sans-voix");
+        // Avec voix : sans personnage choisi, refus clair avant tout port (la distribution n'est plus exigée par le format).
+        if (!commande.distribution?.[0]?.personnageId) throw refus("sans-personnage");
         const a = await garder();
         const tous = decouperScript(entrees.chapitres);
         if (tous.length > a.morceaux || tous.reduce((s, m) => s + m.texte.length, 0) > a.caracteres) throw refus("accord-depasse");
@@ -199,7 +202,7 @@ async function portsReels(commande: CommandeFabrication, travailId: string): Pro
   let branches: ReturnType<(typeof import("./tableau-outils"))["branchementsReels"]> | undefined;
   const branchements = () => {
     const personnageId = commande.distribution[0]?.personnageId;
-    if (!personnageId) throw refus("montage-non-relie");
+    if (!personnageId) throw refus("sans-personnage");
     return (branches ??= import("./tableau-outils").then((m) => m.branchementsReels(personnageId, commande.videoId)));
   };
   return {

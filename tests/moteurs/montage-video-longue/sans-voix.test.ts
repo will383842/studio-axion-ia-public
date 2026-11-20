@@ -4,6 +4,7 @@ import type { CommandeFabrication } from "@/domaine/types";
 import { estimerMotsSansVoix, MOTS_PAR_SECONDE_LECTURE, avancerVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 import { lireEntreesVideoLongue } from "@/moteurs/montage-video-longue/entrees";
 import { definitionVideoLongue } from "@/moteurs/montage-video-longue";
+import { MOTS_PAR_SECONDE } from "@/components/formats/video-longue/PlanChapitres";
 import { formatVideoLongue } from "@/formats/video-longue";
 
 const chapitres = [
@@ -51,5 +52,11 @@ describe("VL-SV chaîne", () => {
     expect(r.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
     expect(r.lignesReelles.some((l) => /voix/i.test(l.etape) || l.fournisseur === "heygen")).toBe(false);
     expect(r.sorties[0].rapportQualite.verifie).toMatchObject({ son: false, sousTitres: true });
+  });
+});
+
+describe("VL-SV cadence de lecture", () => {
+  it("le moteur et l'écran comptent le même nombre de mots par seconde", () => {
+    expect(MOTS_PAR_SECONDE_LECTURE).toBe(MOTS_PAR_SECONDE);
   });
 });
