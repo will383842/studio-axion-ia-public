@@ -35,7 +35,7 @@ import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
 type Etat = "allume" | "eteint" | "valeur" | "env";
 
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42). */
+/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42 ; 41 avec `zernio.rapatriement_actif`, RAP-2). */
 const LITTERALES: Record<string, Etat> = {
   "accueil.bilan_semaine": "eteint",
   afficherExemples: "allume",
@@ -76,6 +76,7 @@ const LITTERALES: Record<string, Etat> = {
   "videoLongue.actif": "eteint",
   "veille.derniereLecture": "valeur",
   "veille.resumeSemaine": "valeur",
+  "zernio.rapatriement_actif": "allume",
   "zernio.synchro_etape_visuels": "eteint",
 };
 
