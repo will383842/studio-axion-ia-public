@@ -154,5 +154,9 @@ describe("garde statique", () => {
     expect(lecteurs).toEqual([]);
     const fab = readFileSync(FABRIQUER, "utf8");
     expect(fab.match(/^\s*import\b.*objets-tableau.*$/gm)).toEqual(['import { objetsDesScenes } from "./objets-tableau";']);
+    // Correction relecteurs 1 et 2 : la garde couvre aussi export * / export {…} from / import() dynamique / import multi-ligne.
+    expect(fab.match(/objets-tableau/g)).toHaveLength(1);
+    expect(fab.match(/^.*objets-tableau.*$/gm)).toEqual(['import { objetsDesScenes } from "./objets-tableau";']);
+    expect(fab).not.toMatch(/export\s*(\*|\{[^}]*objetsDesScenes)/);
   });
 });
