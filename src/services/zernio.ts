@@ -387,30 +387,38 @@ export interface EcartCalendrier {
   espaceSuspectLe?: string;
   /** RAP-3 · passage où la marque est tombée : seuls les constats « introuvable » postérieurs comptent pour un retrait groupé. */
   espaceRetrouveLe?: string;
+  /** RAP-3 · dernier passage où l'espace a été VRAIMENT jugé (lecture complète). Seul repère des imports « trop récents » : jamais avancé par une écriture de repli. */
+  espaceJugeLe?: string;
 }
 
 /** RAP-3 · publication attendue chez le diffuseur : née au Studio saine, ou rapatriée (saine ou « à vérifier »). Une née au Studio « à vérifier » n'atteste rien. */
 const attendueChezDiffuseur = (p: Publication): boolean =>
   p.via === "zernio" && !!p.idExterne && !p.retireeLe && (p.statut === "brouillon" || p.statut === "programmee") && (p.etatEnvoi === undefined || p.etatEnvoi === "envoye" || (estRapatriee(p) && p.etatEnvoi === "a-verifier"));
 
+/** RAP-3 · dernier jugement de l'espace : `espaceJugeLe`, ou (mesure d'avant ce champ) `luLe` d'une mesure vérifiée ; sinon aucun. */
+const repereJugement = (e: EcartCalendrier | undefined): string | undefined => e?.espaceJugeLe ?? (e?.verifie ? e.luLe : undefined);
+
 /**
  * RAP-3 · la clé relie-t-elle un autre espace ? Sur une lecture COMPLÈTE seulement. Les publications importées après le soupçon (`rapatrieeLe` ≥ marque)
  * ne comptent jamais comme « connues » : sinon l'import des posts d'un espace étranger rendrait la mesure crédible au passage suivant.
  */
-function espaceDepuis(avant: Publication[], posts: readonly PostZernio[], precedente: EcartCalendrier | undefined, luLe: string): Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe" | "espaceRetrouveLe"> {
+function espaceDepuis(avant: Publication[], posts: readonly PostZernio[], precedente: EcartCalendrier | undefined, luLe: string): Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe" | "espaceRetrouveLe" | "espaceJugeLe"> {
   const suivies = avant.filter(attendueChezDiffuseur).length;
   const marque = precedente?.espaceSuspectLe;
   const dansListe = new Set(posts.map((x) => x._id));
-  // La marque ne dépend pas de la réussite d'UNE écriture : une rapatriée importée APRÈS la dernière mesure écrite n'atteste jamais l'espace
-  // (si l'écriture de la mesure a échoué à un passage suspect, ses imports ne comptent pas au passage suivant). Une née au Studio, elle, le peut.
-  const mesureLe = precedente?.luLe;
-  const tropRecente = (p: Publication): boolean => !!p.rapatrieeLe && ((!!marque && p.rapatrieeLe >= marque) || !mesureLe || p.rapatrieeLe > mesureLe);
+  // La marque ne dépend pas de la réussite d'UNE écriture : une rapatriée importée APRÈS le dernier jugement de l'espace n'atteste jamais l'espace
+  // (si l'écriture de la mesure a échoué à un passage suspect, ses imports ne comptent pas au passage suivant, même si l'écriture de repli a réussi).
+  // Une née au Studio, elle, le peut. Repère : `espaceJugeLe` (mesures d'avant : `luLe` d'une mesure vérifiée).
+  const jugeLe = repereJugement(precedente);
+  const tropRecente = (p: Publication): boolean => !!p.rapatrieeLe && ((!!marque && p.rapatrieeLe >= marque) || !jugeLe || p.rapatrieeLe > jugeLe);
   const dansLaListe = avant.filter((p) => !!p.idExterne && dansListe.has(p.idExterne));
   const connusFiables = dansLaListe.filter((p) => !tropRecente(p)).length;
-  const suspect = suivies > 0 && connusFiables === 0 ? marque ?? [luLe, ...dansLaListe.filter(tropRecente).map((p) => p.rapatrieeLe!)].sort()[0] : undefined;
+  // Une marque NOUVELLE exige qu'une publication suivie déjà connue (non « trop récente ») manque à la liste : sur un calendrier neuf, tout est « trop récent » et rien n'est soupçonné.
+  const aConnueManquante = avant.some((p) => attendueChezDiffuseur(p) && !tropRecente(p));
+  const suspect = suivies > 0 && connusFiables === 0 && (!!marque || aConnueManquante) ? marque ?? [luLe, ...dansLaListe.filter(tropRecente).map((p) => p.rapatrieeLe!)].sort()[0] : undefined;
   // Marque tombée à ce passage : seuls les constats postérieurs rendent un retrait groupé possible.
   const retrouve = marque && !suspect ? luLe : precedente?.espaceRetrouveLe;
-  return { suivies, connusFiables, ...(suspect ? { espaceSuspectLe: suspect } : {}), ...(retrouve ? { espaceRetrouveLe: retrouve } : {}) };
+  return { suivies, connusFiables, espaceJugeLe: luLe, ...(suspect ? { espaceSuspectLe: suspect } : {}), ...(retrouve ? { espaceRetrouveLe: retrouve } : {}) };
 }
 
 /** RAP-2 · écrit la mesure sous le verrou, seulement si elle change (ou si elle est devenue trop ancienne). Jamais bloquant. */
@@ -426,7 +434,7 @@ async function ecrireEcartCalendrier(valeur: EcartCalendrier): Promise<void> {
   });
 }
 
-const ecartDepuis = (r: ResultatRapatriement, luLe: string, espace: Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe" | "espaceRetrouveLe">): EcartCalendrier => ({
+const ecartDepuis = (r: ResultatRapatriement, luLe: string, espace: Pick<EcartCalendrier, "suivies" | "connusFiables" | "espaceSuspectLe" | "espaceRetrouveLe" | "espaceJugeLe">): EcartCalendrier => ({
   ...espace,
   luLe,
   verifie: r.lectureComplete,
@@ -600,14 +608,15 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       for (const p of avantLocal) {
         if (estRapatriee(p) && p.etatEnvoi === "a-verifier" && !p.retireeLe && p.idExterne && deRapatriement.has(p.idExterne)) await ecrireSiInchange(p, remiseANormale());
       }
-      const espace = resultat.lectureComplete ? espaceDepuis(avantLocal, resultat.posts, precedente, luLe) : { suivies: precedente?.suivies, connusFiables: precedente?.connusFiables, espaceSuspectLe: precedente?.espaceSuspectLe, espaceRetrouveLe: precedente?.espaceRetrouveLe };
+      const espace = resultat.lectureComplete ? espaceDepuis(avantLocal, resultat.posts, precedente, luLe) : { suivies: precedente?.suivies, connusFiables: precedente?.connusFiables, espaceSuspectLe: precedente?.espaceSuspectLe, espaceRetrouveLe: precedente?.espaceRetrouveLe, espaceJugeLe: repereJugement(precedente) };
       espaceSuspect = !!espace.espaceSuspectLe;
       await ecrireEcartCalendrier(ecartDepuis(resultat, luLe, espace));
     } catch {
       // Lecture ou écriture locale impossible : la mesure est « non vérifiée », la synchro continue.
       try {
         const avant = (await d.parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as EcartCalendrier | undefined;
-        await ecrireEcartCalendrier({ chezDiffuseur: 0, absents: 0, exemples: [], ...avant, luLe, verifie: false });
+        // Le repli recopie la mesure telle quelle (dont `espaceJugeLe`, qui ne bouge pas : l'espace n'a pas été rejugé).
+        await ecrireEcartCalendrier({ chezDiffuseur: 0, absents: 0, exemples: [], ...avant, ...(avant && repereJugement(avant) ? { espaceJugeLe: repereJugement(avant) } : {}), luLe, verifie: false });
       } catch {
         /* rien de plus à faire : on réessaiera au prochain passage */
       }
