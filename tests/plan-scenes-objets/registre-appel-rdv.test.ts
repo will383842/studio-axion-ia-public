@@ -62,8 +62,8 @@ describe("C10-13-v19b · registre : objet-appel-rdv", () => {
     // C9-34-FIN-v20h : attente ÉLARGIE (aucune garde retirée) : l'objet est inscrit, donc la consigne le liste quand il est permis ;
     // la garde « porte fermée » reste : sans permis (liste vide ou absente) la consigne est identique et ne cite pas l'objet.
     expect(avec).toContain(RDV);
-    expect(await consigne([])).toBe(await consigne(sans.filter(() => false)));
+    expect(await consigne(sans)).not.toContain(RDV);
     expect(await consigne([])).not.toContain(RDV);
-    expect(sans).not.toContain(RDV);
+    expect(await consigne(sans)).not.toBe(avec);
   });
 });
