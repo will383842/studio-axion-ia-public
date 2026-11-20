@@ -3,7 +3,7 @@
  * (`requeteLectureCapture`, `lireLectureCapture`) sur le chemin gardé de l'argent (`executerRolePourVideo`, reçu par
  * injection). Aucun appel direct à Claude ici : ni `client.ts` en valeur, ni `fetch`.
  *
- *  - ÉTEINT PAR DÉFAUT : sans le réglage `tableau.lectureCaptureClaude` à exactement `true`, aucun appel : repli.
+ *  - ALLUMÉ PAR DÉFAUT : appel seulement si le réglage `tableau.lectureCaptureClaude` vaut exactement `true` ou est absent ; toute autre valeur ou lecture en échec : aucun appel, repli.
  *  - UN SEUL modèle : `claude-sonnet-5-5`, même si la requête de la brique en porte un autre.
  *  - PLAFOND DUR en code : 0,25 € pour cet usage et 1,25 € pour les trois usages de Claude d'une même vidéo, contrôlés
  *    AVANT l'appel, quel que soit le mode du budget (indicatif ou non) et quel que soit le réglage de plafond.
