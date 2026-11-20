@@ -58,6 +58,10 @@ export const MONTRE_PAR_PIECE: Record<IdPiece, Montre> = {
   "objet-particules": "geste",
   "objet-panneau-reglages": "interface",
   "objet-anneau-donnees": "chiffre",
+  // VL-10 : pièces 16:9 de la vidéo longue (porte fermée).
+  "intercalaire-chapitre": "texte",
+  "flux-ramifie": "demarche",
+  "cadre-capture": "interface",
   // C9-34-TRAITS-v19c (19/11/2026) : soulignements et surligneur = texte (voisin : soulignement droit), flèches = geste (voisin : flèche à main levée).
   "objet-soulignement-vague": "texte",
   "objet-soulignement-double": "texte",
