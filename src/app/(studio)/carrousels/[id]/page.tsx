@@ -7,15 +7,19 @@ import { EnTetePage } from "@/components/ui/EnTetePage";
 import { BandeauGenerateurEteint } from "@/components/visuels/BandeauGenerateurEteint";
 import { BoutonProgrammerVisuel, jourParDefautParis } from "@/components/visuels/BoutonProgrammerVisuel";
 import { BarreValidation, type ActionsCarrousel } from "@/components/visuels/BarreValidation";
+import { LegendeReseaux, type LegendeStockee } from "@/components/visuels/LegendeReseaux";
 import { MessagesFiche } from "@/components/visuels/MessagesFiche";
 import { RangeePages } from "@/components/visuels/RangeePages";
 import { Voyant, Voyants } from "@/components/visuels/Voyants";
+import { depots } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
+import { phraseDuCodeReport, reseauxACompleter } from "@/services/legende-vers-creneau";
+import type { DepotsPasserelle } from "@/services/plan-vers-publication";
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { dependancesCarrousels, phraseDuCode } from "@/visuels/services/production";
 import { ficheCarrousel } from "@/visuels/services/vues";
 import { libellePages } from "@/domaine/visuels/statuts";
-import { corbeilleAction, preparerReseauxAction, programmerAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, retirerDuCalendrierAction, validerAction } from "./actions";
+import { corbeilleAction, enregistrerLegendeAction, preparerReseauxAction, programmerAction, refaireAction, refuserAction, relancerRenduAction, restaurerAction, retirerDuCalendrierAction, validerAction } from "./actions";
 
 export const metadata: Metadata = { title: "Carrousel" };
 export const dynamic = "force-dynamic";
@@ -30,7 +34,7 @@ const ACTIONS: ActionsCarrousel = {
 };
 
 /** Fiche d'un carrousel = écran de validation : pages, contrôles, pourquoi page par page, PDF, actions. */
-export default async function PageFicheCarrousel({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erreur?: string }> }) {
+export default async function PageFicheCarrousel({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erreur?: string; completer?: string; report?: string }> }) {
   await exigerSession();
   const { id } = await params;
   const sp = await searchParams;
@@ -42,6 +46,20 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
     throw e;
   }
   const erreur = phraseDuCode(sp.erreur);
+  // Légendes enregistrées par réseau (lecture seule) ; le bloc ne se montre que pour un carrousel validé ou programmé.
+  const legendes: Partial<Record<"linkedin" | "instagram" | "facebook", LegendeStockee>> = {};
+  const reseauxPrepares = (fiche.reseaux ?? []).filter((r): r is "linkedin" | "instagram" | "facebook" => r === "linkedin" || r === "instagram" || r === "facebook");
+  if (fiche.statut === "valide" || fiche.statut === "programme") {
+    const deps = dependancesCarrousels();
+    for (const r of reseauxPrepares) {
+      const l = await deps.lireParametre<{ texte?: unknown; simulation?: unknown } | null>(`visuels.legende.${id}.${r}`, null);
+      if (l && typeof l.texte === "string") legendes[r] = { texte: l.texte, ...(l.simulation === true ? { simulation: true } : {}) };
+    }
+  }
+  const dansLUrl = (sp.completer ?? "").split(",").filter(Boolean);
+  const dCreneau = fiche.statut === "valide" || fiche.statut === "programme" ? await reseauxACompleter(depots().creneauxEditoriaux as unknown as DepotsPasserelle["creneaux"], id, reseauxPrepares, legendes) : [];
+  const aCompleter = [...new Set([...dansLUrl, ...dCreneau])];
+  const refus = phraseDuCodeReport(sp.report);
   // Cases cochées : les réseaux déjà préparés ; sans choix enregistré, le comportement habituel.
   const coche = (r: "linkedin" | "instagram" | "facebook"): boolean => (fiche.reseaux ? fiche.reseaux.includes(r) : r !== "facebook");
   return (
@@ -79,6 +97,9 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
           <label className="flex min-h-11 items-center gap-2 text-sm text-texte"><input type="checkbox" name="reseau" value="facebook" defaultChecked={coche("facebook")} className="accent-accent" /> <PastilleReseau reseau="facebook" /> (images JPEG)</label>
           <Bouton type="submit" variante="secondaire" className="self-start">Préparer pour les réseaux</Bouton>
         </form>
+      )}
+      {(fiche.statut === "valide" || fiche.statut === "programme") && (
+        <LegendeReseaux id={fiche.id} reseaux={reseauxPrepares} legendes={legendes} statut={fiche.statut} aCompleter={aCompleter} {...(refus ? { refus } : {})} enregistrer={enregistrerLegendeAction} />
       )}
       {fiche.statut === "valide" && <BoutonProgrammerVisuel id={fiche.id} action={programmerAction} jourParDefaut={jourParDefautParis(new Date().toISOString())} />}
       {fiche.statut === "programme" && (

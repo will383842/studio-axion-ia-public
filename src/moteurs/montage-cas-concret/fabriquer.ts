@@ -1203,9 +1203,9 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     ? [{ styleSousTitres: choisi.id, valeur: style.valeur, base: baseSousTitres }]
     : [variationSousTitresCasConcret(mise?.tirage.sousTitres, variante), surlignageCasConcret(mise?.tirage.sousTitres, variante, marqueurNeuf)].filter((x) => Object.keys(x).length);
   // GV2-30 : le bandeau est dessiné à 65 % de la hauteur, hors de la ligne des sous-titres (85 %) : il n'est plus jamais posé,
-  // avec ou sans style choisi. Les autres accents de la variation du tirage restent.
+  // avec ou sans style choisi. D2 (un seul style) : ni Impact ni souligné, même avec une variation tirée.
   const variationTirage = choisi ? undefined : variationSousTitresCasConcret(mise?.tirage.sousTitres, variante).variation;
-  const variationSansBandeau = { variation: { ...variationTirage, reglages: { ...variationTirage?.reglages, bandeauToutesLesSec: null } } };
+  const variationSansBandeau = { variation: { ...variationTirage, reglages: { ...variationTirage?.reglages, bandeauToutesLesSec: null, impactEcartSec: null, souligneUnSur: null } } };
   const emphase = [...new Set(calage.fiche.ecrans.flatMap(motsOrange))];
   const bruitagesDe = new Map<string, BruitagePlace[]>();
   const preparees = calage.fins.map((cf) => {
@@ -1224,10 +1224,10 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const texteSousTitres = textesEcrans.map((t, i) => (i + 1 < textesEcrans.length && /^\p{Ll}/u.test(textesEcrans[i + 1]) ? t : ponctuerPhrase(t))).join(" ");
     // Essai réel du 14/10 : sous-titres clairs illisibles sur l'ivoire ; la v4 les écrit en #15100c sur l'ivoire.
     const clairs = [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales].filter((e) => e.fond === "ivoire").map((e) => ({ debutSec: e.debutMs / 1000, finSec: e.finMs / 1000, texte: ENCRE_SOUS_TITRES_IVOIRE }));
-    const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage, "sous-titres-gv2-30", baseSousTitres, texteSousTitres);
+    const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage, "sous-titres-gv2-30", "sous-titres-un-style-17-11", baseSousTitres, texteSousTitres);
     return { f, son, scenes, dureeSec, bruitages, texteScript, texteSousTitres, cle, clairs };
   });
-  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ texte: x.texteSousTitres, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...variationSansBandeau });
+  const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ intensite: "sobre", texte: x.texteSousTitres, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...variationSansBandeau });
   const montage = await etape("montage", empreinte("montage", preparees.map((x) => x.cle)), async () => {
     const faites: { id: string; sortieCle: string; masterCle?: string; vignetteCle: string; mesures: Record<string, number> }[] = [];
     for (const x of preparees) {
@@ -1246,7 +1246,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       });
       const sons: Record<string, MediaCommande> = Object.fromEntries(ctx.bruitagesValides.filter((b) => x.bruitages.some((p) => p.elementId === b.elementId)).map((b) => [b.elementId, { cle: b.cle, mime: b.mime, dureeSec: b.dureeSec }]));
       // GV2-30 : la base choisie (Karaoké…) est celle de la commande, comme celle des groupes (`commande.ts` force « minimal »).
-      const commande = { ...c, medias: { ...c.medias, ...sons }, sousTitres: { intensite: "equilibre" as const, ...c.sousTitres, base: baseSousTitres } };
+      const commande = { ...c, medias: { ...c.medias, ...sons }, sousTitres: { ...c.sousTitres, intensite: "sobre" as const, base: baseSousTitres } };
       const segments = sousTitresDe(x);
       const base: BaseComposition = {
         plans: plansDesScenes(x.scenes),

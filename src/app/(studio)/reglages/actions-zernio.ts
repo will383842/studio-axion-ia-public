@@ -20,7 +20,8 @@ import { depots, ecrireParametre, ErreurStudio, essayer, journaliser, lireParame
 import { DUREE_MAX_ESSAI_MS, lireEssai, PARAM_ESSAI_BROUILLON, raisonNonEligible } from "@/services/essai-zernio";
 import { exigerSession } from "@/services/auth";
 import { aUnPostPossible } from "@/services/retirer-programmation";
-import { PREFIXE_ETATS_ENVOI_CALENDRIER } from "@/services/branchement-envoi-calendrier";
+import { etatEnvoiDuCreneau, PREFIXE_ETATS_ENVOI_CALENDRIER } from "@/services/branchement-envoi-calendrier";
+import { RAISON_A_COMPLETER } from "@/services/envoi-depuis-creneau";
 import { outilPour } from "@/domaine/outil-publication";
 
 const PARAM_MODES = "zernio.mode_envoi";
@@ -246,12 +247,17 @@ export interface EssaiVue {
   expireLe: string;
   /** Vrai quand l'heure d'expiration est passée : seul le retrait reste possible (fenêtre de nettoyage). */
   expire: boolean;
+  /** Dernière raison de refus gardée pour la version courante du créneau (lecture seule). */
+  dernierRefus?: { raison: string; le: string };
+  /** Phrase « légende à écrire » quand le créneau de l'essai n'a pas de texte sur ce réseau. */
+  aCompleter?: string;
 }
 export interface EligibleEssai {
   id: string;
   reseau: string;
   jour: string;
   titre: string;
+  aCompleter?: string;
 }
 export interface EtatEssaiZernio {
   essai: EssaiVue | null;
@@ -268,11 +274,14 @@ export async function lireEssaiZernioAction(): Promise<Resultat<EtatEssaiZernio>
       .filter((c) => raisonNonEligible(c, maintenantMs) === null)
       .map((c) => {
         const reseau = Object.keys(c.heuresParReseau)[0] ?? "";
-        return { id: c.id, reseau, jour: c.jourVise, titre: c.textes?.[reseau as IdReseau]?.texte?.slice(0, 80) ?? c.id };
+        const texte = c.textes?.[reseau as IdReseau]?.texte;
+        return { id: c.id, reseau, jour: c.jourVise, titre: texte?.slice(0, 80) ?? c.id, ...(texte?.trim() ? {} : { aCompleter: RAISON_A_COMPLETER }) };
       })
       .sort((a, b) => a.jour.localeCompare(b.jour) || a.id.localeCompare(b.id));
     const creneau = lu ? plan.find((c) => c.id === lu.creneauId) : undefined;
-    return { essai: lu ? { creneauId: lu.creneauId, reseau: lu.reseau, jour: creneau?.jourVise ?? null, expireLe: lu.expireLe, expire: maintenantMs >= Date.parse(lu.expireLe) } : null, eligibles };
+    // Raison du refus : lecture seule, une erreur ne donne aucun message et ne bloque jamais l'écran.
+    const envoi = lu && creneau ? await etatEnvoiDuCreneau(creneau, lu.reseau as never).catch(() => ({})) : {};
+    return { essai: lu ? { creneauId: lu.creneauId, reseau: lu.reseau, jour: creneau?.jourVise ?? null, expireLe: lu.expireLe, expire: maintenantMs >= Date.parse(lu.expireLe), ...envoi } : null, eligibles };
   });
 }
 

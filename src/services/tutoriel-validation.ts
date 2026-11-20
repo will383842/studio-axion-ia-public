@@ -19,6 +19,7 @@ import { ENTREE_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { choisirProposition, etablirRegistre, figerRegistre, type RegistreTextes } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
 import { figerScriptChoisi, type PropositionScripts, type ScriptChoisi } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { validerScriptTutoriel } from "@/moteurs/montage-tutoriel-outil/index";
+import { CODE_SCRIPT_A_VALIDER } from "@/moteurs/montage-tutoriel-outil/script";
 import { depots, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 
@@ -84,13 +85,21 @@ function registreDe(equipe: EtatEquipeLu, script: ScriptChoisi, fin: "aucune" | 
   return { ...neuf, entrees: neuf.entrees.map((e) => (e.origine === "proposition-studio" && gardes.has(e.id) ? { ...e, choisi: gardes.get(e.id) === true } : e)) };
 }
 
+/** Seule pause où les gestes agissent (liste fermée) : le script attend la validation de Williams. */
+const CODES_PAUSE_VALIDATION: readonly string[] = [CODE_SCRIPT_A_VALIDER];
+function enPauseDeValidation(travail: Travail): boolean {
+  const pause = travail.parametres?.pause;
+  const code = objet(pause) ? pause.code : undefined;
+  return travail.statut === "en_file" && typeof code === "string" && CODES_PAUSE_VALIDATION.includes(code);
+}
+
 /** Gestes communs : session, travail, équipe lue ; sinon « Rien à valider », rien n'est écrit. */
 async function contexte(videoId: Id): Promise<{ travail: Travail; equipe: EtatEquipeLu } | IssueValidation> {
   await exigerSession();
   if (typeof videoId !== "string" || !videoId) return refus(PHRASE_RIEN_A_VALIDER);
   const travail = await derniereFabrication(videoId);
   const equipe = equipeDe(travail);
-  return travail && equipe ? { travail, equipe } : refus(PHRASE_RIEN_A_VALIDER);
+  return travail && equipe && enPauseDeValidation(travail) ? { travail, equipe } : refus(PHRASE_RIEN_A_VALIDER);
 }
 const estIssue = (c: Awaited<ReturnType<typeof contexte>>): c is IssueValidation => "statut" in c && !("travail" in c);
 

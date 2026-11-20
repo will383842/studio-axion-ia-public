@@ -579,6 +579,22 @@ describe("verdict Opus : temps de calcul de verifierMaquette (ReDoS, lignes)", (
     ["un nom d'attribut de 1 Mo sans « = »", () => "<a " + "b".repeat(1_000_000) + ">"],
     ["500 000 noms d'attribut sans « = »", () => "<a " + "b ".repeat(500_000) + ">"],
     ["20 000 balises avant un guillemet sans fermant, puis 10 Mo", () => "<a".repeat(20_000) + '"' + "x".repeat(10_000_000)],
+    ["« <script␠ » répété (balise de script sans fin)", () => "<script ".repeat(100_000)],
+    ["« <script> » répété sans fermant", () => "<script>".repeat(100_000)],
+    ["« <meta␠ » répété", () => "<meta ".repeat(100_000)],
+    ["« <form␠ » répété", () => "<form ".repeat(100_000)],
+    ["« url( » répété sans parenthèse fermante", () => "url(".repeat(200_000)],
+    ["« url(\" » répété sans parenthèse fermante", () => 'url("'.repeat(200_000)],
+    ["« @import url(\" » répété", () => '@import url("'.repeat(100_000)],
+    ["« <style>url( » répété", () => "<style>url(".repeat(100_000)],
+    ["« <script>url( » répété", () => "<script>url(".repeat(100_000)],
+    ["« import␠ » répété dans un script", () => "<script>" + "import ".repeat(200_000)],
+    ["« import/* » répété dans un script", () => "<script>" + "import/*".repeat(200_000)],
+    ["« import// » répété dans un script", () => "<script>" + "import//".repeat(200_000)],
+    ["« import x from␠ » répété dans un script", () => "<script>" + "import x from ".repeat(100_000)],
+    ["« <a b= » répété puis un guillemet sans fermant et 10 Mo", () => "<a b=".repeat(20_000) + '"' + "x".repeat(10_000_000)],
+    ["« <a b=␠ » répété puis un guillemet sans fermant", () => "<a b= ".repeat(100_000) + '"'],
+    ["« <a=\"␠ » répété (guillemet dans le nom de balise)", () => '<a=" '.repeat(100_000)],
   ])("%s : moins d'une seconde", (_nom, fabrique) => {
     const { ms } = duree(fabrique());
     expect(ms).toBeLessThan(1000);
@@ -592,5 +608,63 @@ describe("verdict Opus : temps de calcul de verifierMaquette (ReDoS, lignes)", (
   it("attribut externe dans une balise précédée d'un « < » sans fin : toujours refusé", () => {
     const r = verifierMaquette([{ chemin: "index.html", texte: '<b <p>\n<img data-x="//exemple.invalid/a.png">' }]);
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("verdict Opus : un guillemet n'ouvre une valeur que juste après « = » (balisesDe)", () => {
+  it.each([
+    ["set avec un guillemet isolé dans le nom", '<svg><image><set " attributeName=href to=https://exemple.invalid/a.png></image></svg>'],
+    ["animate avec une apostrophe isolée", "<svg><image><animate ' attributeName=href values=https://exemple.invalid/a.png></image></svg>"],
+    ["guillemet isolé, un autre guillemet plus loin dans le fichier", '<svg><set " attributeName=href to=https://exemple.invalid/a.png></set></svg><p title="x">y</p>'],
+    ["guillemet dans le nom de la balise", '<set" attributeName=href to=https://exemple.invalid/a.png>'],
+    ["guillemet dans une valeur sans guillemets", '<a data-x=b"c to=https://exemple.invalid/a.png>'],
+  ])("refusée : %s", (_nom, texte) => {
+    const r = verifierMaquette([{ chemin: "index.html", texte }]);
+    expect(r.ok).toBe(false);
+    expect(r.refus.some((x) => x.motif.includes("adresse externe"))).toBe(true);
+  });
+  it("témoin : la même balise sans le guillemet est refusée", () => {
+    expect(verifierMaquette([{ chemin: "index.html", texte: "<svg><set attributeName=href to=https://exemple.invalid/a.png></set></svg>" }]).ok).toBe(false);
+  });
+  it("une valeur entre guillemets qui contient « > » reste une seule valeur ; le cas permis reste accepté", () => {
+    expect(verifierMaquette([{ chemin: "ok.html", texte: '<img alt="a > b" src="a.png"><p title=\'x\'>y</p><link rel="stylesheet" href="styles.css">' }]).ok).toBe(true);
+    expect(verifierMaquette([{ chemin: "index.html", texte: '<img alt=">" onerror="fetch(\'https://exemple.invalid\')" src="a.png">' }]).ok).toBe(false);
+  });
+});
+
+describe("verdict Opus : lectures à la main, mêmes refus qu'avant", () => {
+  it("script sans fermant : le reste du fichier est vérifié comme du JS", () => {
+    expect(verifierMaquette([{ chemin: "index.html", texte: '<p>a</p><script>fetch("https://exemple.invalid")' }]).ok).toBe(false);
+  });
+  it("script fermé : refus avec la ligne, et le HTML après le script reste permis", () => {
+    const r = verifierMaquette([{ chemin: "index.html", texte: '<p>a</p>\n<script>\nfetch("x")\n</script >\n<p>b</p>' }]);
+    expect(r.ok).toBe(false);
+    expect(r.refus.some((x) => x.ligne === 3)).toBe(true);
+    expect(verifierMaquette([{ chemin: "index.html", texte: '<script src="app.js"></script><script>var a = 1;</script><p>b</p>' }]).ok).toBe(true);
+  });
+  it("script src, meta refresh, form action : toujours refusés", () => {
+    expect(verifierMaquette([{ chemin: "index.html", texte: '<script src="app.txt"></script>' }]).ok).toBe(false);
+    expect(verifierMaquette([{ chemin: "index.html", texte: '<meta http-equiv="&#114;efresh" content="0;url=a.html">' }]).ok).toBe(false);
+    expect(verifierMaquette([{ chemin: "index.html", texte: '<form method="post" action="a.html"></form>' }]).ok).toBe(false);
+  });
+  it.each([
+    ["url( externe", "a{background:url(https://exemple.invalid/a.png)}"],
+    ["url( entre guillemets, blancs", "a{background:url( \"//exemple.invalid/a.png\" )}"],
+    ["url( après une url( sans fin", "a{b:url(\"x\" y) } c{background:url('https://exemple.invalid/a.png')}"],
+    ["url( avec barre oblique inverse", "a{background:url(ht\\74 tps://exemple.invalid/a.png)}"],
+  ])("CSS : %s", (_nom, texte) => {
+    expect(verifierMaquette([{ chemin: "a.css", texte }]).ok).toBe(false);
+  });
+  it.each([
+    ["import dynamique", "import('https://exemple.invalid/a.js')"],
+    ["import dynamique après un commentaire", "import /* x */ ('a.js')"],
+    ["import dynamique après un commentaire de ligne", "import // x\n ('a.js')"],
+    ["import depuis une adresse externe", "import x from 'https://exemple.invalid/a.js'"],
+    ["import depuis une adresse externe (//)", 'import { a } from\n "//exemple.invalid/a.js";'],
+  ])("JS : %s", (_nom, texte) => {
+    expect(verifierMaquette([{ chemin: "a.js", texte }]).ok).toBe(false);
+  });
+  it("JS : un import relatif reste permis", () => {
+    expect(verifierMaquette([{ chemin: "a.js", texte: "import x from './b.js'; var important = 1;" }]).ok).toBe(true);
   });
 });

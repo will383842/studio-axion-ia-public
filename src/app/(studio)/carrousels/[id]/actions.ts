@@ -13,6 +13,7 @@ import { texteDeterministeVisuel } from "@/generateur/roles/publication-visuel";
 import { depots, journaliser, maintenant, sousVerrou } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { appliquerLot } from "@/donnees/memoire";
+import { legendesEnregistrees, modifierTexteSansRetrait, reporterLegendeSurCreneau } from "@/services/legende-vers-creneau";
 import { retirerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 import { ErreurVisuel, lancerRendu, lireVisuel, preparerPourReseaux, PHRASE_GENERATEUR_ETEINT, refaire, refuser, valider, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { mettreALaCorbeille, restaurer } from "@/visuels/services/corbeille";
@@ -25,8 +26,10 @@ async function agir(donnees: FormData, f: (id: string, deps: DependancesCarrouse
   const id = lireIdFormulaire(donnees);
   if (!id) redirect("/carrousels");
   let erreur: string | undefined;
+  let completer = "";
   try {
-    await f(id, dependancesCarrousels());
+    const res = (await f(id, dependancesCarrousels())) as { aCompleter?: string[] } | undefined;
+    if (res && Array.isArray(res.aCompleter) && res.aCompleter.length > 0) completer = res.aCompleter.join(",");
   } catch (e) {
     erreur = codeErreur(e);
   }
@@ -40,7 +43,7 @@ async function agir(donnees: FormData, f: (id: string, deps: DependancesCarrouse
     });
   }
   revalidatePath(`/carrousels/${id}`);
-  redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : ""}`);
+  redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : completer ? `?completer=${completer}` : ""}`);
 }
 
 export async function validerAction(donnees: FormData): Promise<void> {
@@ -102,7 +105,7 @@ export async function preparerReseauxAction(donnees: FormData): Promise<void> {
 export async function programmerAction(donnees: FormData): Promise<void> {
   await exigerSession();
   const jour = donnees.get("jour");
-  await agir(donnees, async (id) => {
+  return agir(donnees, async (id, deps) => {
     const d = depots();
     const passerelle: DepotsPasserelle = {
       creneaux: d.creneauxEditoriaux as unknown as DepotsPasserelle["creneaux"],
@@ -111,7 +114,10 @@ export async function programmerAction(donnees: FormData): Promise<void> {
       visuels: d.visuels,
     };
     try {
-      await programmerEnUnClic(passerelle, id, typeof jour === "string" ? jour : "", maintenant());
+      // Seules les légendes relues et enregistrées par la personne partent sur le créneau ; le texte automatique reste de côté.
+      const reseaux = (await d.visuels.obtenir(id))?.reseaux ?? [];
+      const textes = await legendesEnregistrees(reseaux, (r) => deps.lireParametre<unknown>(cleLegende(id, r as ReseauLegende), null));
+      return await programmerEnUnClic(passerelle, id, typeof jour === "string" ? jour : "", maintenant(), textes);
     } catch (e) {
       if (e instanceof ErreurVisuel) throw e;
       throw new ErreurVisuel("PROGRAMMER_REFUSE", e instanceof Error ? e.message : "Programmation refusée");
@@ -152,6 +158,7 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
   const verdict = verifierLegende(texte, reseau);
   if (!verdict.ok) redirect(`/carrousels/${encodeURIComponent(id)}?legende=${verdict.code}&reseau=${reseau}`);
   let erreur: string | undefined;
+  let reportRefuse = false;
   try {
     const deps = dependancesCarrousels();
     await lireVisuel(id, deps);
@@ -163,11 +170,23 @@ export async function enregistrerLegendeAction(donnees: FormData): Promise<void>
       await deps.ecrireParametre(cleLegende(id, reseau), { texte, le: deps.maintenant() });
     });
     await journaliser("legende", `Texte relu et enregistré pour ${reseau}.`, { type: "visuel", id });
+    // Visuel déjà programmé : le texte relu est reporté sur son créneau (garde de l'envoi relue, rien n'est changé si elle refuse).
+    const d = depots();
+    const passerelle: DepotsPasserelle = {
+      creneaux: d.creneauxEditoriaux as unknown as DepotsPasserelle["creneaux"],
+      journal: d.journalDecalages,
+      publications: d.publications,
+      visuels: d.visuels,
+    };
+    const report = await sousVerrou(async () =>
+      reporterLegendeSurCreneau({ passerelle, modifierTexte: modifierTexteSansRetrait }, id, reseau, texte, maintenant()),
+    );
+    if (!report.ok) reportRefuse = true;
   } catch (e) {
     erreur = codeErreur(e);
   }
   revalidatePath(`/carrousels/${id}`);
-  redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : ""}`);
+  redirect(`/carrousels/${encodeURIComponent(id)}${erreur ? `?erreur=${erreur}` : reportRefuse ? `?report=refus` : ""}`);
 }
 
 /**

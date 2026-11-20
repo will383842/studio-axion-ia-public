@@ -4,6 +4,7 @@ import { entreeDepuisPublication, type EntreeApercu, type PublicationApercu } fr
 import { LIMITE_PAGES } from "@/services/pdf-pages";
 import { DUREE_LECTURE_SEC } from "@/services/medias-deposes";
 import { depots, fournisseur } from "@/services/_commun";
+import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 
 /** Seules les adresses https ou les chemins du Studio (jamais « // », jamais « javascript: ») sont gardées. */
 const ADRESSE_SURE = /^(?:https:\/\/|\/(?!\/))/;
@@ -24,6 +25,38 @@ async function pagesDuVisuel(visuelId: string): Promise<MediaVisuel> {
   // Une page illisible n'empêche pas les autres.
   const signees = await Promise.all(cles.map((cle) => signer(cle).catch(() => "")));
   return { type, pages: signees.filter((a) => typeof a === "string" && ADRESSE_SURE.test(a)) };
+}
+
+const dateParis = (iso: string): string => {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "";
+  const f = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }).formatToParts(d);
+  const v = (t: string) => f.find((x) => x.type === t)?.value ?? "";
+  return `le ${v("day")}/${v("month")} à ${v("hour")}:${v("minute")}`;
+};
+
+interface MessageEnvoi {
+  message?: string;
+  aCompleter?: boolean;
+}
+
+/** Message d'envoi du créneau vivant d'un visuel sur un réseau : « à compléter » d'abord, sinon le dernier refus. Ne lève jamais. */
+async function messageDuCreneau(lirePlan: () => Promise<CreneauEditorial[]>, visuelId: string, reseau: string): Promise<MessageEnvoi> {
+  try {
+    const plan = await lirePlan();
+    const c = plan.find((x) => x.visuelId === visuelId && (x.statut === "valide" || x.statut === "programme") && !x.retireLe && !x.refuseLe && !!(x.heuresParReseau as Record<string, string | undefined>)[reseau]);
+    if (!c) return {};
+    const { etatEnvoiDuCreneau } = await import("@/services/branchement-envoi-calendrier");
+    const e = await etatEnvoiDuCreneau(c, reseau as never);
+    if (e.aCompleter) return { message: e.aCompleter, aCompleter: true };
+    if (e.dernierRefus) {
+      const quand = dateParis(e.dernierRefus.le);
+      return { message: `Dernier envoi refusé${quand ? ` ${quand}` : ""} : ${e.dernierRefus.raison}` };
+    }
+    return {};
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -47,6 +80,9 @@ async function avecDuree(base: EntreeApercu, videoId: string): Promise<EntreeApe
  */
 export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<EntreeApercu[]> {
   const memo = new Map<string, Promise<MediaVisuel>>();
+  let planLu: Promise<CreneauEditorial[]> | undefined;
+  const lirePlan = () => (planLu ??= depots().creneauxEditoriaux.lister());
+  const messages = new Map<string, Promise<MessageEnvoi>>();
   // Pastille « Essai » : la seule entrée du créneau couvert par l'essai borné (lecture seule, ne lève jamais).
   // Import différé et protégé : lecture seule, jamais bloquant pour l'affichage.
   const essaiLu = await import("@/services/essai-zernio").then((m) => m.lireEssai()).then((e) => (e ? { id: e.creneauId, expire: Date.now() >= Date.parse(e.expireLe) } : undefined), () => undefined);
@@ -63,10 +99,18 @@ export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<E
         attente = pagesDuVisuel(p.visuelId);
         memo.set(p.visuelId, attente);
       }
-      const { type, pages } = await attente;
+      const cleMsg = `${p.visuelId}|${p.reseau}`;
+      let msg = messages.get(cleMsg);
+      if (!msg) {
+        msg = messageDuCreneau(lirePlan, p.visuelId, p.reseau);
+        messages.set(cleMsg, msg);
+      }
+      const [{ type, pages }, envoi] = await Promise.all([attente, msg]);
       const premiere = pages[0] ?? null;
       return {
         ...base,
+        ...(envoi.message ? { message: envoi.message } : {}),
+        ...(envoi.aCompleter ? { texte: "" } : {}),
         type,
         media: type === "infographie" ? { genre: "image", url: premiere, pages } : { genre: "image", url: null, pages },
       };
