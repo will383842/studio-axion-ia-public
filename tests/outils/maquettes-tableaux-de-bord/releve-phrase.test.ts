@@ -115,7 +115,102 @@ describe("relevé de l'essai parti d'une phrase", () => {
 
   it("export illisible refusé", () => {
     expect(relevePhrase("pas du json").ok).toBe(false);
-    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: 1, lignes: [{ role: "x", coutUsd: -1 }] })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: 1, lignes: [{ role: "maquettiste", coutUsd: -1 }] })).ok).toBe(false);
+  });
+
+  it("une ligne à coût négatif ne cache pas un dépassement : export refusé « export illisible »", () => {
+    // 0,2 + 1,5 - 1 = 0,7 $ serait sous le plafond vidéo de 1 $ : sans la garde, le dépassement (1,7 $) serait caché.
+    const r = relevePhrase(
+      JSON.stringify({
+        plafondUsd: 1,
+        plafondCreationUsd: 0.26,
+        lignes: [{ role: "maquettiste", coutUsd: 0.2 }, { role: "tutoriel-voix", coutUsd: 1.5 }, { role: "tutoriel-plan", coutUsd: -1 }],
+      }),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.raison).toContain("export illisible");
+  });
+
+  it("dépense égale au plafond de la vidéo : sous le plafond, écart nul, pas d'arrêt", () => {
+    const r = relevePhrase(
+      JSON.stringify({ plafondUsd: 0.5, plafondCreationUsd: 0.26, lignes: [{ role: "maquettiste", coutUsd: 0.2 }, { role: "tutoriel-plan", coutUsd: 0.3 }] }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.releve.depenseUsd).toBe(0.5);
+    expect(r.releve.sousLePlafond).toBe(true);
+    expect(r.releve.ecart).toBe(0);
+    expect(r.releve.arret).toBe(false);
+  });
+
+  it("dépense égale au plafond de création : sous le plafond de création, écart nul, pas d'arrêt", () => {
+    const r = relevePhrase(
+      JSON.stringify({ plafondUsd: 1, plafondCreationUsd: 0.26, lignes: [{ role: "maquettiste", coutUsd: 0.13 }, { role: "maquettiste", coutUsd: 0.13 }] }),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.releve.sousLePlafondCreation).toBe(true);
+    expect(r.releve.ecartCreation).toBe(0);
+    expect(r.releve.arret).toBe(false);
+  });
+
+  it("un centime au-dessus de chaque plafond : arrêt, pour la vidéo comme pour la création", () => {
+    const video = relevePhrase(JSON.stringify({ plafondUsd: 0.5, plafondCreationUsd: 1, lignes: [{ role: "maquettiste", coutUsd: 0.2 }, { role: "tutoriel-plan", coutUsd: 0.31 }] }));
+    expect(video.ok && video.releve.sousLePlafond).toBe(false);
+    expect(video.ok && video.releve.arret).toBe(true);
+    const creation = relevePhrase(JSON.stringify({ plafondUsd: 5, plafondCreationUsd: 0.26, lignes: [{ role: "maquettiste", coutUsd: 0.27 }] }));
+    expect(creation.ok && creation.releve.sousLePlafondCreation).toBe(false);
+    expect(creation.ok && creation.releve.arret).toBe(true);
+  });
+
+  it("plafond de la vidéo absent, négatif, non numérique ou nul (null) : export refusé ; zéro permis comme plafond mais tout coût le dépasse", () => {
+    const lignes = [{ role: "maquettiste", coutUsd: 0.1 }];
+    const base = { plafondCreationUsd: 1, lignes };
+    expect(relevePhrase(JSON.stringify(base)).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ ...base, plafondUsd: -1 })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ ...base, plafondUsd: "1" })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ ...base, plafondUsd: null })).ok).toBe(false);
+    const zero = relevePhrase(JSON.stringify({ ...base, plafondUsd: 0 }));
+    expect(zero.ok && zero.releve.sousLePlafond).toBe(false);
+    expect(zero.ok && zero.releve.arret).toBe(true);
+  });
+
+  it("plafond de création non numérique ou null : export refusé", () => {
+    const lignes = [{ role: "maquettiste", coutUsd: 0.1 }];
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: "1", lignes })).ok).toBe(false);
+    expect(relevePhrase(JSON.stringify({ plafondUsd: 1, plafondCreationUsd: null, lignes })).ok).toBe(false);
+  });
+
+  it("lignes mal formées : export refusé (pas un tableau, ligne non objet, rôle vide ou absent, coût absent, texte ou null)", () => {
+    const base = { plafondUsd: 1, plafondCreationUsd: 1 };
+    const bon = { role: "maquettiste", coutUsd: 0.1 };
+    const refuse = (lignes: unknown) => relevePhrase(JSON.stringify({ ...base, lignes })).ok;
+    expect(refuse(undefined)).toBe(false);
+    expect(refuse("maquettiste")).toBe(false);
+    expect(refuse({ 0: bon })).toBe(false);
+    expect(refuse([bon, null])).toBe(false);
+    expect(refuse([bon, 3])).toBe(false);
+    expect(refuse([bon, { role: "", coutUsd: 0.1 }])).toBe(false);
+    expect(refuse([bon, { coutUsd: 0.1 }])).toBe(false);
+    expect(refuse([bon, { role: 5, coutUsd: 0.1 }])).toBe(false);
+    expect(refuse([bon, { role: "tutoriel-plan" }])).toBe(false);
+    expect(refuse([bon, { role: "tutoriel-plan", coutUsd: "0.1" }])).toBe(false);
+    expect(refuse([bon, { role: "tutoriel-plan", coutUsd: null }])).toBe(false);
+    expect(refuse([bon])).toBe(true);
+  });
+
+  it("export qui n'est pas un objet (null, tableau, nombre) ou coût non fini (1e999 lu comme Infinity) : refusé", () => {
+    expect(relevePhrase("null").ok).toBe(false);
+    expect(relevePhrase("[]").ok).toBe(false);
+    expect(relevePhrase("3").ok).toBe(false);
+    expect(relevePhrase('{"plafondUsd":1,"plafondCreationUsd":1,"lignes":[{"role":"maquettiste","coutUsd":1e999}]}').ok).toBe(false);
+    expect(relevePhrase('{"plafondUsd":1e999,"plafondCreationUsd":1,"lignes":[{"role":"maquettiste","coutUsd":0.1}]}').ok).toBe(false);
+    expect(relevePhrase('{"plafondUsd":1,"plafondCreationUsd":1e999,"lignes":[{"role":"maquettiste","coutUsd":0.1}]}').ok).toBe(false);
+  });
+
+  it("un seul appel du maquettiste (limite basse) et exactement 2 (limite haute) sont permis ; 0 et 3 refusés", () => {
+    for (const n of [1, 2]) expect(relevePhrase(exporter(Array(n).fill("maquettiste"))).ok).toBe(true);
+    for (const n of [0, 3]) expect(relevePhrase(exporter(["tutoriel-plan", ...Array(n).fill("maquettiste")])).ok).toBe(false);
   });
 
   it("aucune lecture réseau", () => {
