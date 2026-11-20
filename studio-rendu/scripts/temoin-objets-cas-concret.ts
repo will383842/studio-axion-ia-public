@@ -1,13 +1,15 @@
 /**
  * TÉMOIN EN IMAGES DES PETITS OBJETS DU CAS CONCRET (C9-41-b-v20h). Outil local, lancé à la main, jamais en CI : 0 €,
- * aucun appel à Claude (plans par règles fixes, voir `outils/temoin-objets-plan/temoin.ts`), rien n'est allumé.
+ * aucun appel à Claude (plans par règles fixes : `adapterPlan` sans `appeler`), rien n'est allumé.
  * Rend 3 textes de cas concret SANS puis AVEC la liste des petits objets, une image fixe à mi-parcours de chaque scène.
  * Usage (depuis `studio-rendu/`) : `STUDIO_RENDU_NAVIGATEUR=/chemin/chrome npx tsx scripts/temoin-objets-cas-concret.ts <dossier-de-sortie>`
  * La partie pure (instants, paires sans/avec, objets montrés) est exportée ; le rendu (Remotion) n'est chargé que dans `lancer`.
  */
 import { resolve } from "node:path";
-import { OBJETS_TEMOIN, planTemoin } from "../../outils/temoin-objets-plan/temoin";
-import type { PlanValide } from "../../src/briques/plan-scenes/schema";
+import { adapterPlan } from "../../src/briques/plan-scenes-generateurs/adaptateur";
+import { enMillisecondes, segmenterEnPhrases } from "../../src/briques/plan-scenes-generateurs/video";
+import type { MotMinute, PlanValide } from "../../src/briques/plan-scenes/schema";
+import { FORMAT_PLAN_CAS_CONCRET } from "../../src/moteurs/montage-cas-concret/plan-scenes";
 
 export const FPS = 25;
 
@@ -20,6 +22,35 @@ export const TEXTES_TEMOIN: readonly string[] = [
   "Bonjour à tous. Je voudrais vous parler de notre façon de travailler avec les artisans de la région. Première étape. Nous écoutons chaque client avec attention avant de proposer quoi que ce soit. Le chantier est terminé, c'est fait.",
   "Bonjour à tous. Voilà ce que nous faisons pour vous : d'abord écouter, puis ensuite proposer, enfin livrer. Le chantier est terminé, c'est fait. Merci.",
 ];
+
+/** Les 4 petits objets permis (réglage du cas concret). */
+export const OBJETS_TEMOIN = ["objet-gros-chiffre", "objet-etape", "objet-cartes-coche", "objet-coche"] as const;
+
+const MS_PAR_MOT = 400;
+
+/** Les mots du texte, 400 ms chacun, calés bout à bout (aucune horloge, aucune voix). */
+export function motsDuTexte(texte: string): MotMinute[] {
+  return enMillisecondes(
+    texte
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((t, i) => ({ texte: t, debutSec: (i * MS_PAR_MOT) / 1000, finSec: ((i + 1) * MS_PAR_MOT) / 1000 })),
+  );
+}
+
+/** Plan du cas concret pour un texte, par les règles fixes seulement (jamais d'`appeler`) ; `objets` vide = sans réglage. */
+export async function planTemoin(texte: string, objets: readonly string[]): Promise<PlanValide | null> {
+  const mots = motsDuTexte(texte);
+  const r = await adapterPlan({
+    generateur: "cas-concret",
+    script: texte,
+    segments: segmenterEnPhrases(mots),
+    format: FORMAT_PLAN_CAS_CONCRET,
+    facecam: false,
+    ...(objets.length ? { objetsPermis: objets } : {}),
+  });
+  return r.plan;
+}
 
 export interface ImageATemoin {
   /** Nom de fichier PNG, sans dossier. */
