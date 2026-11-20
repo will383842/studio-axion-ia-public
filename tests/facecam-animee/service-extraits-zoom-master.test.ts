@@ -4,7 +4,8 @@
  * Chacun à `true` : seul son effet apparaît. Aucun appel réel, aucun fournisseur.
  */
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,6 +16,9 @@ vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => undefined) 
 const fournir = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ plan: {}, fichiers: [], manques: [], depenseUsd: 0 })));
 vi.mock("@/moteurs/montage-facecam-animee/videos-v4-studio", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/moteurs/montage-facecam-animee/videos-v4-studio")>()), fournirVideosV4: fournir }));
 vi.mock("@/services/depense-claude-video", async (importOriginal) => ({ ...(await importOriginal<typeof import("@/services/depense-claude-video")>()), plafondRestantVideosFa: vi.fn(async () => 1) }));
+
+const portsDonnes = vi.hoisted(() => ({ params: [] as Array<{ outils: { deposer(fichier: string, cle: string): Promise<string> } }> }));
+vi.mock("@/services/ports-axion-v4", () => ({ portsAxionV4: (p: (typeof portsDonnes.params)[number]) => (portsDonnes.params.push(p), { trouver: async () => null, preparer: async () => null }) }));
 
 import { resultatV4 } from "@/moteurs/montage-facecam-animee";
 import { approvisionnerFenetresStudio } from "@/moteurs/montage-facecam-animee/images/production";
@@ -121,6 +125,31 @@ describe("FA-SERVICE-INV-v20h : 3 réglages éteints", () => {
       expect(enveloppe).not.toBe(approvisionnerFenetresStudio);
     } finally {
       vi.unstubAllEnvs();
+    }
+  });
+
+  it("d bis) extraits maison : le clip est déposé sous le préfixe de la vidéo (cleFA) et la clé rendue est celle que la chaîne compare", async () => {
+    vi.stubEnv("PEXELS_API_KEY", "cle-factice");
+    const dossier = mkdtempSync(join(tmpdir(), "fa-extrait-"));
+    try {
+      reglages({ [CLES.extraitsMaison]: true });
+      portsDonnes.params.length = 0;
+      const deposes: string[] = [];
+      const outils = await outilsFacecamAnimee({ videoId: "v-1", travailId: "t-1", production: false, planScenes: null, signer: { lecture: async (c: string) => c, depot: async (c: string) => (deposes.push(c), `https://depot.test/${c}`) }, rendu: { soumettre: vi.fn(), etat: vi.fn() } } as never);
+      await outils.videos({ plan: PLAN, mots: [] } as never);
+      expect(portsDonnes.params).toHaveLength(1);
+      const fichier = join(dossier, "extrait.mp4");
+      writeFileSync(fichier, "x");
+      vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 })));
+      const cle = await portsDonnes.params[0]!.outils.deposer(fichier, "v4-0-0.mp4");
+      const attendue = deposes.find((c) => c.endsWith("/v-1/videos/v4-0-0.mp4"));
+      expect(attendue, `déposé sous ${deposes.join(",")}`).toMatch(/^studio\/.+\/facecam-animee\/v-1\/videos\/v4-0-0\.mp4$/);
+      expect(cle).toBe(attendue);
+      expect(deposes).not.toContain("v4-0-0.mp4");
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+      rmSync(dossier, { recursive: true, force: true });
     }
   });
 
