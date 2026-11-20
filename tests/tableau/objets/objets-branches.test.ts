@@ -85,9 +85,10 @@ describe("avec permis (profil de test objet.chiffre permis)", () => {
 });
 
 describe("gardes statiques", () => {
-  it("le rendu `TableauScene.tsx` ne lit pas encore `objets` (N-04d-b)", () => {
+  it("le rendu `TableauScene.tsx` lit `objets` (N-04d-b), livré éteint : rien tant qu'aucun objet", () => {
     const src = readFileSync(join(__dirname, "..", "..", "..", "studio-rendu", "compositions", "tableau", "TableauScene.tsx"), "utf8");
-    expect(src).not.toMatch(/\.objets\b|\bobjets\b/);
+    expect(src).toContain("p.objets?.length");
+    expect(src.match(/from "\.\/ObjetsTableau"/g)).toHaveLength(1);
   });
   it("index.ts ne branche les pièces permises que si la liste est non vide", () => {
     const src = readFileSync(join(__dirname, "..", "..", "..", "src", "moteurs", "montage-tableau", "index.ts"), "utf8");

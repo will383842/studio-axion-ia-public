@@ -43,8 +43,8 @@ describe("C10-13-v19b · registre : objet-appel-rdv", () => {
     expect(piecesPermisesDesEntrees({ bibliothequeVideo: reel })).toEqual([]);
   });
 
-  it("(c) absent du catalogue du plan ; la consigne envoyée à Claude ne change pas d'un caractère", async () => {
-    expect(IDS_PIECES as readonly string[]).not.toContain(RDV);
+  it("(c) inscrit au catalogue du plan (C9-34-FIN-v20h), porte fermée : sans permis la consigne ne change pas d'un caractère ; permise seulement, elle apparaît", async () => {
+    expect(IDS_PIECES as readonly string[]).toContain(RDV);
     const permis = piecesPermisesDesEntrees(entrees({ [ID.objetAppel]: { permis: true } }));
     expect(permis).toContain(RDV);
     const sans = permis.filter((id) => id !== RDV);
@@ -59,7 +59,11 @@ describe("C10-13-v19b · registre : objet-appel-rdv", () => {
     };
     const avec = await consigne(permis);
     expect(avec.length).toBeGreaterThan(2);
-    expect(avec).toBe(await consigne(sans));
-    expect(avec).not.toContain(RDV);
+    // C9-34-FIN-v20h : attente ÉLARGIE (aucune garde retirée) : l'objet est inscrit, donc la consigne le liste quand il est permis ;
+    // la garde « porte fermée » reste : sans permis (liste vide ou absente) la consigne est identique et ne cite pas l'objet.
+    expect(avec).toContain(RDV);
+    expect(await consigne(sans)).not.toContain(RDV);
+    expect(await consigne([])).not.toContain(RDV);
+    expect(await consigne(sans)).not.toBe(avec);
   });
 });
