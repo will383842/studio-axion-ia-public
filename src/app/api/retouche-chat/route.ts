@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sessionApi } from "@/services/auth";
 import { apercevoirRetouche, appliquerRetouche, revenirAVersion } from "@/services/retouche-chat/service";
 import { estGenerateurRetouche } from "@/services/retouche-chat/generateurs";
+import { FABRIQUER_PAR_GENERATEUR, STATUT_REFUS_FABRIQUER } from "@/services/retouche-chat/tutoriel-fabriquer";
 import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
 import { portsStudio } from "@/services/retouche-chat/studio";
 import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
@@ -23,6 +24,8 @@ const schemaCorps = z.discriminatedUnion("action", [
   // G14-04 : liste des versions lue en base (lecture seule) et « rétablir » (refaire) ; rien n'est écrit ni effacé.
   z.strictObject({ action: z.literal("historique"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
   z.strictObject({ action: z.literal("retablir"), generateur: z.string().max(40).optional(), videoId: z.string().min(1).max(80) }),
+  // T-EXT-46b : « fabriquer » la version du plan retouché ; `generateur` OBLIGATOIRE, aucun accord de prix ni autre champ.
+  z.strictObject({ action: z.literal("fabriquer"), generateur: z.string().max(40), videoId: z.string().min(1).max(80), demande: z.string().max(1000), plan: z.unknown() }),
 ]);
 
 export async function POST(requete: NextRequest) {
@@ -38,7 +41,16 @@ export async function POST(requete: NextRequest) {
   // C7-02 : `revenir` ne vise qu'une version de la même vidéo (avant tout port).
   if (c.action === "revenir" && !(await versionDeLaVideo(c.videoId, c.versionId, (id) => depots().versions.obtenir(id)))) return NextResponse.json({ erreur: "Cette version n'appartient pas à cette vidéo." }, { status: 404 });
   // N-22 : une vidéo programmée ou publiée ne se retouche pas (`appliquer`, `revenir`, `retablir`) ; `apercu` et `historique` n'écrivent rien.
-  if ((c.action === "revenir" || c.action === "appliquer" || c.action === "retablir") && (await videoEnDiffusion(c.videoId, (id) => depots().videos.obtenir(id)))) return NextResponse.json({ erreur: "Cette vidéo est programmée ou publiée : elle ne se retouche pas ici." }, { status: 409 });
+  if ((c.action === "revenir" || c.action === "appliquer" || c.action === "retablir" || c.action === "fabriquer") && (await videoEnDiffusion(c.videoId, (id) => depots().videos.obtenir(id)))) return NextResponse.json({ erreur: "Cette vidéo est programmée ou publiée : elle ne se retouche pas ici." }, { status: 409 });
+  // T-EXT-46b (SENSIBLE ARGENT) : action COMMUNE, table FERMÉE par générateur (le tutoriel seul) ; mêmes gardes que `appliquer`
+  // ci-dessus (session, réglage du générateur, N-22). Les refus du fabricant tombent avant toute réservation.
+  if (c.action === "fabriquer") {
+    const fabricant = Object.hasOwn(FABRIQUER_PAR_GENERATEUR, c.generateur) ? FABRIQUER_PAR_GENERATEUR[c.generateur] : undefined;
+    if (!fabricant) return NextResponse.json({ erreur: "La fabrication depuis le chat n'est pas encore branchée pour ce générateur." }, { status: 409 });
+    const issue = await fabricant(c.videoId, c.plan, c.demande);
+    if (issue.statut === "refusee") return NextResponse.json({ erreur: issue.raison }, { status: STATUT_REFUS_FABRIQUER[issue.motif] });
+    return NextResponse.json({ statut: "lancee", travailId: issue.travailId });
+  }
   // G14-04 : `historique` lit les seules versions de cette vidéo ; `retablir` en calcule la cible sur ces mêmes versions (C7-02 tenu).
   let cible: string | null = null;
   if (c.action === "historique" || c.action === "retablir") {
