@@ -3,6 +3,7 @@
  * Donnée : une variété refusée (après le montage ou avant la voix) devient une remarque ; la liste fermée reste bloquante.
  * Chemin réel : `controlerVideoTableau`, `relireFicheTableau`, `qualiteDe`, `fabriquerTableau` (doubles, 0 €).
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { ResumeVisuel } from "../../../src/briques/variete";
 import { PREFIXE_REMARQUE_LIVRAISON } from "../../../src/domaine/livraison-avec-remarques";
@@ -10,7 +11,8 @@ import { controlerVideoTableau, type EntreeControleTableau } from "../../../src/
 import { fabriquerTableau } from "../../../src/moteurs/montage-tableau/fabriquer";
 import { sortiesDesReseaux } from "../../../src/moteurs/montage-tableau/formats-sortie";
 import { qualiteDe } from "../../../src/moteurs/montage-tableau";
-import { relireFicheTableau } from "../../../src/moteurs/montage-tableau/relecture";
+import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
+import { relireFicheTableau, sortiesRelues } from "../../../src/moteurs/montage-tableau/relecture";
 import { choisirFinTableau } from "../../../src/services/tableau-fin";
 import { doubles } from "../fabriquer/doubles";
 import { contexteExemple, copie, ficheErreurCorrigee } from "../regles/exemples";
@@ -97,6 +99,41 @@ describe("(d) liste fermée : durée et phrase non choisie", () => {
     const r = await controlerVideoTableau({ ...entree({ fiche, apresMontage: true, ...OPTION }), contexte: contexteExemple(copie(ficheErreurCorrigee)) }, RELECTURE_RAS);
     expect(r.verdict).toBe("bloque");
   });
+});
+
+describe("(d2) liste fermée par le chemin normal, APRÈS le montage (fiche de sortie : retour anticipé exclu)", () => {
+  const PHRASE_BANQUE = "Et chez vous, quelle tâche revient tous les jours ?";
+  const f = (JSON.parse(readFileSync(new URL("../temoins/blocage-fin-tiktok-2026-10-14.json", import.meta.url), "utf8")) as { fiche: FicheTableau }).fiche;
+  f.appelId = "fin-if-mot-envoi" as never;
+  const contexte = {
+    aujourdhui: "2026-10-14",
+    sourcesChiffres: [],
+    preuves: [],
+    matieres: [...new Set(f.scenes.flatMap((s) => s.elements).flatMap((e) => (e.type === "preuve" ? [e.preuveId] : [])))].map((id) => ({ id, type: "demonstration" as const, statut: "validee" as const, perimeLe: "2027-01-09" })),
+    texteScript: f.scenes.map((s) => s.texteDit).join(" "),
+  };
+  const choisir = choisirFinTableau({}, { sorties: sortiesDesReseaux(["verticaux"]), mot: "REPONSES" });
+  const preparees = sortiesRelues(f, sortiesDesReseaux(["verticaux"]), (id) => choisir(f.appelId ?? null, id));
+  const variante = structuredClone(preparees[1].fiche);
+  variante.scenes[variante.scenes.length - 1].texteDit += ` ${PHRASE_BANQUE}`;
+  const base = (en: object): EntreeControleTableau =>
+    ({ fiche: variante, contexte: { ...contexte, texteScript: variante.scenes.map((x) => x.texteDit).join(" ") }, historique: [], dejaVu: { coche: true, le: "2026-10-14" }, mesures: MESURES, apresMontage: true, ficheReference: f, sorties: [{ id: preparees[1].id, libelle: preparees[1].libelle, fiche: variante, options: preparees[1].options }], ...en }) as EntreeControleTableau;
+
+  it("« Phrase non choisie » : bloquante avec l'option, aucune remarque, ligne conservée", async () => {
+    const sans = await controlerVideoTableau(base({}), RELECTURE_RAS);
+    const avec = await controlerVideoTableau(base(OPTION), RELECTURE_RAS);
+    expect(avec.verdict).toBe("bloque");
+    expect(avec.bloquants.some((l) => l.libelle === "Phrase non choisie" && l.raison.includes("revient tous les jours"))).toBe(true);
+    expect(avec.lignes.some((l) => l.remarque)).toBe(false);
+    expect(avec).toEqual(sans);
+  }, 60_000);
+  it("« Fiche de chaque sortie » (sortiesImpossibles) : bloquante avec l'option, aucune remarque", async () => {
+    const e = base({ sortiesImpossibles: ["Sortie impossible : écran manquant."] });
+    const avec = await controlerVideoTableau({ ...e, ...OPTION }, RELECTURE_RAS);
+    expect(avec.verdict).toBe("bloque");
+    expect(avec.bloquants.some((l) => l.libelle === "Fiche de chaque sortie")).toBe(true);
+    expect(avec.lignes.some((l) => l.remarque)).toBe(false);
+  }, 60_000);
 });
 
 describe("(e) image noire", () => {
