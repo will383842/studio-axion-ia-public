@@ -9,82 +9,16 @@ import { creerMoteurTutorielOutil, validerScriptTutoriel } from "@/moteurs/monta
 import type { EtatTutoriel, OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import type { PortEquipe } from "@/moteurs/montage-tutoriel-outil/chaine";
 import { construireDossierValidation } from "@/moteurs/montage-tutoriel-outil/equipe/dossier-validation";
-import { figerRegistre } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
-import { roleAnalyste } from "@/moteurs/montage-tutoriel-outil/equipe/analyste";
-import { roleChefDeProjet } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
-import { roleStrategeValeur } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
 import type { EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
-import { lireJournalRoles, type IdRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
-import { equipeTutorielActive } from "@/services/tutoriel-equipe";
+import { lireJournalRoles } from "@/moteurs/montage-tutoriel-outil/journal-roles";
+import { equipeTutorielActive, portsEquipe } from "@/services/tutoriel-equipe";
 import { commandeTutoriel, outilsDoubles, une, type Journal } from "./doubles";
-import { dossierComplet, fauxScenariste } from "./equipe-doubles";
+import { avecRegistreFige, commandeDossier, FILM, fauxPort, type Equipe } from "./equipe-doubles";
 
 const T0 = Date.UTC(2026, 10, 19, 9);
 const journalVide = (): Journal => ({ voix: [], claude: [], rendus: [] });
 
-const FILM = {
-  version: "navigation-filmee.v1",
-  videoCle: "studio/test/film.mp4",
-  maquette: "stocks",
-  largeur: 1080,
-  hauteur: 1350,
-  debutFilmMs: 400,
-  dureeVoixMs: 60000,
-  cibles: [
-    { etapeId: "e1", zonePct: { x: 10, y: 10, largeur: 30, hauteur: 12 }, instantMs: 3000, finMs: 5000 },
-    { etapeId: "e2", zonePct: { x: 60, y: 50, largeur: 30, hauteur: 12 }, instantMs: 8000, finMs: 10000 },
-  ],
-};
-
-/** Commande « dossier déposé » : aucune phrase collée, ni idée. */
-const commandeDossier = (film?: unknown): CommandeFabrication =>
-  commandeTutoriel({ ratios: ["4:5"], script: { blocs: [], texteComplet: "" }, entrees: { tutorielOutil: { depot: { mode: "dossier", fichierId: "f1", attestationImages: true }, fin: "aucune", ...(film ? { navigationFilmee: film } : {}) } } } as never);
 const commandeIdee = (): CommandeFabrication => commandeTutoriel({ ratios: ["4:5"], script: { blocs: [], texteComplet: "" }, entrees: { tutorielOutil: { idee: "Suivre ses stocks sans tableur" } } } as never);
-
-interface Equipe {
-  port: PortEquipe;
-  appels: IdRole[];
-  dossierLu: number;
-  tronc: { evaluer: string[][]; corrections: [string, string][] };
-}
-
-/** Faux port : un appel = la simulation du rôle (aucun Claude). `panne` : le premier appel de ce rôle lève (rien n'est payé). */
-function fauxPort(options: { panne?: IdRole; tronc?: boolean } = {}): Equipe {
-  const eq: Equipe = { port: undefined as never, appels: [], dossierLu: 0, tronc: { evaluer: [], corrections: [] } };
-  let enPanne = options.panne;
-  const roles = { "chef-de-projet": roleChefDeProjet, analyste: roleAnalyste, stratege: roleStrategeValeur } as const;
-  let fiche: { moments: { id: string; zoneId: string }[] } | undefined;
-  eq.port = {
-    maintenant: () => new Date(T0).toISOString(),
-    async appelerRole(role, entree) {
-      if (enPanne === role) {
-        enPanne = undefined;
-        throw new Error("panne");
-      }
-      eq.appels.push(role);
-      if (role === "scenariste") return fauxScenariste(fiche!);
-      const sortie = (roles as Record<string, { simuler(e: typeof entree): unknown }>)[role]!.simuler(entree);
-      if (role === "stratege") fiche = sortie as never;
-      return sortie;
-    },
-    async lireDossier() {
-      eq.dossierLu++;
-      return dossierComplet();
-    },
-    ...(options.tronc
-      ? {
-          tronc: {
-            evaluer: (versions: readonly { id: string; texte: string }[]) => {
-              eq.tronc.evaluer.push(versions.map((v) => v.id));
-              return ["Remarque du tronc : la 3e phrase est longue."];
-            },
-            noterCorrection: (avant: string, apres: string) => void eq.tronc.corrections.push([avant, apres]),
-          },
-        }
-      : {}),
-  };
-  return eq;
-}
 
 const equipeDe = (t: Travail): EtatEquipe | undefined => (t.parametres?.tutoriel as EtatTutoriel | undefined)?.equipe;
 const etatDe = (t: Travail): EtatTutoriel => t.parametres!.tutoriel as EtatTutoriel;
@@ -112,14 +46,6 @@ async function mener(moteur: ReturnType<typeof creerMoteurTutorielOutil>, c: Com
 
 const moteurAvec = (j: Journal, equipe?: PortEquipe) => creerMoteurTutorielOutil({ outils: une({ ...outilsDoubles(j), ...(equipe ? { equipe } : {}) } as OutilsTutoriel) });
 const lancer = (m: ReturnType<typeof creerMoteurTutorielOutil>, c: CommandeFabrication, id = "t-eq") => m.lancer(c, { travailId: id, versionId: "ver-1", titre: "Tuto", maintenant: T0 });
-
-/** Ce que fait l'action de T-EXT-33 « valider » : le registre est figé dans l'équipe avant de reprendre. */
-function avecRegistreFige(t: Travail): Travail {
-  const e = equipeDe(t)!;
-  const f = figerRegistre(e.registre!, new Date(T0).toISOString());
-  if (!f.ok) throw new Error(f.erreur);
-  return { ...t, parametres: { ...t.parametres, tutoriel: { ...etatDe(t), equipe: { ...e, registre: f.registre } } } };
-}
 
 describe("T-EXT-55 · équipe éteinte (défaut) : rien ne change", () => {
   it.each([undefined, false, "true", 1])("réglage %s : `equipeTutorielActive` est faux, le port n'est pas fourni", async (v) => {
@@ -339,6 +265,39 @@ describe("T-EXT-55 · le choix de Williams, puis la fabrication", () => {
     const { arret, eq } = await jusquAuChoix();
     expect(equipeDe(arret.travail)!.remarquesTronc).toBeUndefined();
     expect(eq.tronc).toEqual({ evaluer: [], corrections: [] });
+  });
+});
+
+describe("T-EXT-55 · réponse payée mais illisible : gardée, comptée, jamais repayée sans limite", () => {
+  it("port : un appel réel sans `donnees` (refusé par la garde du rôle) n'est pas une panne : il rend une sortie non vide", async () => {
+    const executer = (async () => ({ ok: true, simule: false, coutUsd: 0.1, modele: "m" })) as never;
+    const port = portsEquipe({ origine: "will", entrees: {} } as never, "v1" as never, { executer });
+    const sortie = await port.appelerRole("scenariste", {} as never);
+    expect(sortie).not.toBeUndefined();
+    expect(sortie).not.toBeNull();
+  });
+
+  it("port : un appel simulé (Claude non choisi) lève toujours, rien n'est rangé", async () => {
+    const executer = (async () => ({ ok: true, simule: true, donnees: {}, coutUsd: 0, modele: "simulation" })) as never;
+    const port = portsEquipe({ origine: "will", entrees: {} } as never, "v1" as never, { executer });
+    await expect(port.appelerRole("scenariste", {} as never)).rejects.toThrow();
+  });
+
+  it("scénariste payé deux fois et illisible deux fois : TO_EQUIPE_BLOQUEE, 2 appels comptés, « Réessayer » ne paie pas un 3e", async () => {
+    const j = journalVide();
+    const eq = fauxPort({ illisible: "scenariste" });
+    const m = moteurAvec(j, eq.port);
+    const c = commandeDossier();
+    const arret = await mener(m, c, await lancer(m, c), eq);
+    expect(arret.travail.parametres?.pause).toMatchObject({ code: "TO_EQUIPE_BLOQUEE" });
+    expect(arret.travail.erreur).toBeUndefined();
+    expect(eq.appels.filter((r) => r === "scenariste")).toHaveLength(2);
+    expect(etatDe(arret.travail).appelsClaude?.roles?.scenariste).toBe(2);
+    const avant = eq.appels.length;
+    const encore = await mener(m, c, await m.reessayer(arret.travail, T0 + 100_000), eq, 100);
+    expect(eq.appels).toHaveLength(avant);
+    expect(encore.travail.parametres?.pause).toMatchObject({ code: "TO_EQUIPE_BLOQUEE" });
+    expect(etatDe(encore.travail).appelsClaude?.roles?.scenariste).toBe(2);
   });
 });
 

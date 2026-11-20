@@ -323,7 +323,8 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
     const aVenir: Partial<Consommation> = {};
     // Le script : « script » (ancien écrivain) et, équipe allumée, chaque rôle de l'équipe (tout sauf le plan de scènes).
-    if (cle === "script") aVenir.appelsClaude = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
+    // Équipe : seuls les essais RESTANTS (essais permis moins appels déjà faits) comptent, car `consomme` contient déjà ceux des rôles passés.
+    if (cle === "script") aVenir.appelsClaude = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0);
     else if (cle === "plan" && !etat.plan) aVenir.appelsClaude = essais("plan");
     else if (cle === "voix" && !etat.audio && lit && !payee) aVenir.caracteresVoix = lu.length;
     const reste = resteDuDevis(devis, await port.consomme(etat), aVenir);

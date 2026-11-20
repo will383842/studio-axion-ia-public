@@ -142,6 +142,9 @@ export function dossierDepuisFichiers(fichiers: ReadonlyMap<string, Uint8Array>)
 /* Ports                                                                */
 /* ------------------------------------------------------------------ */
 
+/** Réponse payée que la garde du rôle a refusée : rangée, comptée, puis refusée par `appliquerSortie`. */
+const SORTIE_ILLISIBLE = { illisible: true } as const;
+
 export interface DepsEquipe {
   executer?: typeof executerRolePourVideo;
   plafondUsd?: () => number;
@@ -173,8 +176,11 @@ export function portsEquipe(commande: Pick<CommandeFabrication, "origine" | "ent
       const executer = deps.executer ?? (await import("./depense-claude-video")).executerRolePourVideo;
       const r = await executer(videoId, def, entree, { etape: `${PREFIXE_ETAPE_TUTORIEL} ${role}`, plafondPropre: plafondPropreTutoriel(deps), origine: commande.origine });
       if (!r.ok) throw new ErreurClaude("requete", PHRASE_ARRET[r.arret] ?? "Claude n'a pas été appelé : rien n'a été payé.");
-      if (r.simule || r.donnees === undefined) throw new ErreurClaude("requete", "Claude n'est pas choisi pour les textes : l'équipe ne travaille pas.");
-      return r.donnees;
+      if (r.simule) throw new ErreurClaude("requete", "Claude n'est pas choisi pour les textes : l'équipe ne travaille pas.");
+      // Réponse RÉELLE mais refusée par la garde du rôle (pas de `donnees`) : elle est déjà payée. Elle est rendue telle quelle
+      // (jamais `undefined` ni `null`, valeurs « pas payé ») pour que `payerUneFois` la range et que `avecAppelRole` la compte ;
+      // `appliquerSortie` la refuse alors (remarque + un essai consommé), et `essaisMax` / `TO_EQUIPE_BLOQUEE` jouent.
+      return r.donnees === undefined ? SORTIE_ILLISIBLE : r.donnees;
     },
     async lireDossier() {
       const depot = lireEntreesTutoriel(commande.entrees).depot;
