@@ -397,6 +397,8 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
     } catch {
       dossier = null;
     }
+    // Lecture ratée : pause reprenable, SANS rien écrire dans etat.equipe (sinon un classement « phrase seule » resterait pour toujours).
+    if (dossier === null) return { statut: "pause", etat, code: "TO_DOSSIER_INCOMPLET", message: "Votre dossier n'a pas pu être lu pour l'instant : la vidéo reprend dès qu'il est lisible. Rien n'a échoué." };
   }
   const lecture = { dossier };
   const pas = prochainPas(equipe, lecture);

@@ -157,6 +157,28 @@ describe("T-EXT-55 · équipe allumée : un rôle par pas, jusqu'à l'écran de 
     expect(payes.filter((k) => k.startsWith("Tutoriel · stratege:"))).toHaveLength(1);
   });
 
+  const lecturesRatees: [string, () => unknown][] = [["rend null", () => null], ["lève", () => { throw new Error("stockage indisponible"); }]];
+  it.each(lecturesRatees)("lecture du dossier ratée au 1er pas (%s) : pause reprenable, rien d'enregistré dans l'équipe, 0 appel ; lecture rétablie : jusqu'à TO_SCRIPT_A_VALIDER", async (_nom: string, rater: () => unknown): Promise<void> => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const lire: () => Promise<unknown> = eq.port.lireDossier.bind(eq.port);
+    let ratees = 1;
+    eq.port.lireDossier = async () => (ratees-- > 0 ? (rater() as never) : ((await lire()) as never));
+    const m = moteurAvec(j, eq.port);
+    const c = commandeDossier();
+    const pause = await mener(m, c, await lancer(m, c), eq);
+    expect(pause.travail.statut).toBe("en_file");
+    expect(pause.travail.erreur).toBeUndefined();
+    expect(pause.travail.parametres?.pause).toMatchObject({ code: "TO_DOSSIER_INCOMPLET" });
+    expect(equipeDe(pause.travail)).toBeUndefined();
+    expect(eq.appels).toEqual([]);
+    expect(j.voix).toHaveLength(0);
+    const reprise = await mener(m, c, pause.travail, eq, 50);
+    expect(reprise.travail.parametres?.pause).toMatchObject({ code: "TO_SCRIPT_A_VALIDER" });
+    expect(eq.appels).toEqual(["stratege", "scenariste"]);
+    expect(equipeDe(reprise.travail)?.decision).not.toMatchObject({ entree: "C" });
+  });
+
   it("phrase seule (aucun dossier) : le chef met en pause avec sa phrase, 0 appel, 0 voix, sans échec", async () => {
     const j = journalVide();
     const eq = fauxPort();
