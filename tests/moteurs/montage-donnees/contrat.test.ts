@@ -131,7 +131,7 @@ describe("G4-09b · b) dépendances absentes : pause, 0 appel à tout port", () 
     // Le moteur inscrit n'a aucune dépendance : même pause.
     const t2 = await moteurMontageDonnees.lancer(c, { travailId: "t-pause-2", versionId: "v", titre: "Essai", maintenant: T0 });
     expect(t2.statut).toBe("en_file");
-    expect((await moteurMontageDonnees.avancer(t2, c, T0 + 5000)).resultat).toBeUndefined();
+    expect((await moteurMontageDonnees.avancer(t2, c, T0 + 5000)).travail).toEqual(t2);
   });
 
   it("branché sur des doubles muets : la vidéo se fait sans voix (0 appel voix), 0 €", async () => {
