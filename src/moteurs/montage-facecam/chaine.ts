@@ -58,6 +58,7 @@ import type { ControleCouleurs } from "@/briques/composition/scene";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { MemoireCartesAuto } from "@/briques/habillage-facecam";
 import { planPourVideo, type MemoPlanVideo } from "@/briques/plan-scenes-generateurs/video";
+import { piecesPermisesDesEntrees } from "@/briques/plan-scenes-objets/pieces-permises";
 import { dessinFacecamPermis, planFacecamPourSupplements } from "@/briques/plan-scenes-generateurs/dessin-facecam-porte";
 import { bandeSousTitres } from "@/briques/plan-scenes-generateurs/dessin-facecam";
 import { couleursBloquent, MESSAGE_COULEURS, pairesCouleurs } from "./garde-couleurs";
@@ -1008,7 +1009,8 @@ export async function avancerChaine(etatPrecedent: EtatChaine, commande: Command
       // X3-05 : cran `aucun` : pas de plan de scènes pour cette vidéo.
       const optionPlan = deps.planScenes && c.dosageMotion?.cran !== "aucun" ? await deps.planScenes().catch(() => undefined) : undefined;
       if (optionPlan) {
-        etat.planScenes = await planPourVideo({ generateur: "facecam", mots: mots.map((m) => ({ texte: m.mot, debutSec: m.debutSec, finSec: m.finSec })), dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM, appeler: optionPlan.appeler, memo: etat.planScenes });
+        // C9-37-b (20/11) : pièces d'objets permises par le profil figé ; aucune = rien ajouté (requête et plan identiques).
+        etat.planScenes = await planPourVideo({ generateur: "facecam", mots: mots.map((m) => ({ texte: m.mot, debutSec: m.debutSec, finSec: m.finSec })), dureeSec, facecam: true, format: FORMAT_PLAN_FACECAM, appeler: optionPlan.appeler, memo: etat.planScenes, ...((p) => (p.length ? { objetsPermis: p } : {}))(piecesPermisesDesEntrees(c.entrees)) });
       }
       // Lot G : sous-titres corrigés par Will (recalque) : ses groupes et ses mots, tels quels.
       if (etat.sousTitres?.length) e.segments = etat.sousTitres;
