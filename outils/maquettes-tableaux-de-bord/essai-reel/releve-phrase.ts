@@ -55,11 +55,15 @@ export function relevePhrase(texteExport: string): ResultatRelevePhrase {
     depenseUsd += l.coutUsd;
   }
   const appelsMaquettiste = appelsParRole[ROLE_MAQUETTISTE] ?? 0;
-  if (appelsMaquettiste === 0) return { ok: false, raison: "aucune création relevée : vérifier le réglage" };
+  const arrondi = Math.round(depenseUsd * 1e6) / 1e6;
+  // Même sans appel du maquettiste, la dépense relevée et le plafond sont montrés (terminal seulement) : un rôle mal nommé ne cache rien.
+  if (appelsMaquettiste === 0) {
+    const dessus = arrondi > exp.plafondUsd ? " : AU-DESSUS DU PLAFOND, arrêt" : "";
+    return { ok: false, raison: `aucune création relevée : vérifier le réglage (dépense relevée ${arrondi} $ pour un plafond de ${exp.plafondUsd} $${dessus})` };
+  }
   if (appelsMaquettiste > PROPOSITIONS_PIECE_MAX) {
     return { ok: false, raison: `dépassement : à signaler (${appelsMaquettiste} appels du maquettiste, ${PROPOSITIONS_PIECE_MAX} au plus)` };
   }
-  const arrondi = Math.round(depenseUsd * 1e6) / 1e6;
   return {
     ok: true,
     releve: {
