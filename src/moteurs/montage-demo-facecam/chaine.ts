@@ -40,6 +40,8 @@ export interface DependancesDemo {
   rendu: ServiceRendu;
   /** Composition du plan par le LLM (lot C). Absent : plan simple de repli, avec une remarque. */
   appelerPlan?: AppelClaude;
+  /** G3-10-v20e : vrai = l'IA compose le plan ; faux = plan simple. Absent : comme avant. */
+  planClaudeActif?: () => Promise<boolean>;
   urlLecture: (cle: string) => Promise<string>;
   urlDepot: (cle: string, mime: string) => Promise<string>;
   maintenant?: () => number;
@@ -328,7 +330,7 @@ export async function avancerChaineDemo(precedent: EtatDemo, commande: CommandeF
       etat.plan = apresCran(r.plan);
       etat.sourcePlan = "retouche";
       for (const x of r.remarques) ajouterRemarque(etat, x.code, x.message);
-    } else if (deps.appelerPlan && mots.length) {
+    } else if (deps.appelerPlan && mots.length && (deps.planClaudeActif ? await deps.planClaudeActif().catch(() => false) : true)) {
       const r = await genererPlan({ script: mots.map((m) => m.texte).join(" "), mots, format: contexte.format, facecam: false, ...avecObjets }, deps.appelerPlan);
       // Le plan suit la durée de Williams (validé de nouveau avec sa durée, jamais raccourci).
       const v = validerPlan(r.plan, contexte);

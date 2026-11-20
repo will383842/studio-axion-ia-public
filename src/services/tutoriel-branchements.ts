@@ -20,6 +20,19 @@ import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel
 import { estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
 
+/** T-EXT-52b : retouche sans tout refaire. ÉTEINT par défaut. */
+export const PARAM_RETOUCHE_PARTIELLE_TUTORIEL = "tutoriel.retouchePartielle";
+
+/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+export async function retouchePartielleActive(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
+  try {
+    const l = lire ?? (await import("./_commun")).lireParametre;
+    return (await l<unknown>(PARAM_RETOUCHE_PARTIELLE_TUTORIEL, false)) === true;
+  } catch {
+    return false;
+  }
+}
+
 brancherServicesTutoriel({
   outils: async (c, travailId): Promise<OutilsTutoriel | null> => {
     // T-EXT-SV : mode sans voix = ni personnage ni voix ; seuls le rendu et le stockage sont reliés (0 appel HeyGen, 0 €).
@@ -72,6 +85,7 @@ brancherServicesTutoriel({
           }
         : {}),
       ...(finitions ? { finitions: { actif: true as const } } : {}),
+      ...((await retouchePartielleActive()) ? { retouchePartielle: true } : {}),
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       ...(voixReelle ? { voix: {
         ...voixReelle,
