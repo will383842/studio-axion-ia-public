@@ -31,9 +31,9 @@ describe("HSH-01b · écran du placement", () => {
     expect(html).toContain("À la fin du texte");
     expect(html).toContain("Dans le premier commentaire");
   });
-  it("TikTok et Instagram (second outil) affichent la phrase de repli", () => {
+  it("TikTok affiche la phrase de repli ; Instagram (second outil) n'en a plus, il transmet le premier commentaire (ZRN-01)", () => {
     expect(html).toContain("TikTok n&#x27;accepte pas de premier commentaire");
-    expect(html).toContain("Le premier commentaire n&#x27;est pas transmis sur Instagram");
+    expect(html).not.toContain("Le premier commentaire n&#x27;est pas transmis sur Instagram");
   });
   it("pas de repli quand le choix est « texte »", () => {
     expect(renderToStaticMarkup(<PlacementHashtags reseaux={infos("texte")} />)).not.toContain("n&#x27;accepte pas");
