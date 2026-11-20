@@ -10,7 +10,7 @@
 import { etiquetteAuTemps, opaciteBandeFond, paveAuTemps, sceneAuTemps } from "../../../src/briques/sous-titres/scene.js";
 import { geometriePave } from "../../../src/briques/sous-titres/pave.js";
 import { bandeauAuTemps } from "../../../src/briques/sous-titres/bandeau-nom.js";
-import { encadreVisible, incrustationsAuTemps, type ProprietesTexteComposition } from "../../../src/briques/composition/scene.js";
+import { encadreVisible, imagePlanAuTemps, incrustationsAuTemps, type ProprietesTexteComposition } from "../../../src/briques/composition/scene.js";
 
 export interface InstantsTexte {
   /** Instant (s) dessiné pour chaque image rendue. */
@@ -20,7 +20,7 @@ export interface InstantsTexte {
 }
 
 /** Ce qui est dessiné à l'instant t, sous une forme comparable (deux images égales ⇔ même empreinte). */
-export function empreinteTexte(p: Pick<ProprietesTexteComposition, "sousTitres" | "encadre" | "incrustations">, t: number): string {
+export function empreinteTexte(p: Pick<ProprietesTexteComposition, "sousTitres" | "encadre" | "incrustations" | "planScenes">, t: number): string {
   const el = p.sousTitres ? sceneAuTemps(p.sousTitres, t) : null;
   const sous = el
     ? [el.cle, el.taillePx, +el.yPx.toFixed(2), el.rotationDeg, +el.echelle.toFixed(4), +el.opacite.toFixed(4), +el.decalageYPx.toFixed(2), el.mots.map((m) => [m.texte, m.couleur, +m.opacite.toFixed(4), +m.souligne.toFixed(4), ...(m.echelle === undefined && m.monteePx === undefined ? [] : [+(m.echelle ?? 1).toFixed(4), +(m.monteePx ?? 0).toFixed(2)]), ...(m.plaque ? [1] : []), ...(m.etiquette ? [m.etiquette] : []), ...(p.sousTitres?.poidsVariable === true && m.graisse !== undefined ? [Math.round(m.graisse / 50) * 50] : [])])]
@@ -33,11 +33,13 @@ export function empreinteTexte(p: Pick<ProprietesTexteComposition, "sousTitres" 
   // BR-PAVE-MARQUES : la plaque animée change à l'image pendant son entrée ; elle entre dans l'empreinte (sans `paveAnime` : inchangé).
   const pave = p.sousTitres?.paveAnime === true ? paveAuTemps(p.sousTitres, t) : null;
   const gp = pave ? geometriePave(pave.boite, pave.taillePx, t - pave.debutS) : null;
-  return JSON.stringify([sous, encadreVisible(p.encadre, t), inc, ...(bandeau ? [[bandeau.visible, +bandeau.opacite.toFixed(4), +bandeau.decalageXPx.toFixed(2)]] : []), ...(etiquette ? [[etiquette.id, +etiquette.opacite.toFixed(4)]] : []), ...(bande === null ? [] : [["bande", bande]]), ...(gp && pave ? [["pave", +gp.echelle.toFixed(4), +gp.opacite.toFixed(4), pave.marque ?? null]] : [])]);
+  // BR-DESSIN-FACECAM-b-v20a : l'image du plan à l'instant entre dans l'empreinte seulement si le plan est posé (sans : inchangé).
+  const imagePlan = p.planScenes ? imagePlanAuTemps(p.planScenes, t) : undefined;
+  return JSON.stringify([sous, encadreVisible(p.encadre, t), inc, ...(bandeau ? [[bandeau.visible, +bandeau.opacite.toFixed(4), +bandeau.decalageXPx.toFixed(2)]] : []), ...(etiquette ? [[etiquette.id, +etiquette.opacite.toFixed(4)]] : []), ...(bande === null ? [] : [["bande", bande]]), ...(gp && pave ? [["pave", +gp.echelle.toFixed(4), +gp.opacite.toFixed(4), pave.marque ?? null]] : []), ...(imagePlan === undefined ? [] : [["plan", imagePlan]])]);
 }
 
 /** Suites d'images égales : une image rendue par suite, à l'instant de sa première image. */
-export function instantsTexte(p: Pick<ProprietesTexteComposition, "sousTitres" | "encadre" | "incrustations" | "images" | "fps">): InstantsTexte {
+export function instantsTexte(p: Pick<ProprietesTexteComposition, "sousTitres" | "encadre" | "incrustations" | "planScenes" | "images" | "fps">): InstantsTexte {
   const instants: number[] = [];
   const durees: number[] = [];
   let precedente: string | null = null;

@@ -312,14 +312,15 @@ export function commandeDuMontageIV(d: Pick<DemandeRenduIV, "videoId" | "ligne" 
 }
 
 /** Base de la composition finale : scènes bout à bout, voix seule, bruitages, sous-titres VARIÉS dans la bande (PUR). */
-export function baseDuMontageIV(d: Pick<DemandeRenduIV, "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[], options?: { minimal?: true }): BaseComposition {
+export function baseDuMontageIV(d: Pick<DemandeRenduIV, "ligne" | "mixage" | "piste"> & Partial<Pick<DemandeRenduIV, "sansVoix">> & Partial<Pick<DemandeRenduIV, "styleSousTitres">>, scenes: readonly ScenePosee[], options?: { minimal?: true }): BaseComposition {
   const clairs = passagesIvoireIV(d.ligne);
   return {
     plans: plansDesScenes(scenes),
     segments: options?.minimal ? regrouperMinimalIV(sousTitresVariesIV(d.ligne, d.styleSousTitres)) : sousTitresVariesIV(d.ligne, d.styleSousTitres),
     dureeSec: d.ligne.dureeSec,
     mots: d.piste.mots.map((m) => ({ ...m })),
-    audioCle: d.mixage.voix.cle,
+    // IV-SV : sans voix, aucune piste envoyée : le serveur de rendu passe par `preparerSilence` (silence total).
+    ...(d.sansVoix ? {} : { audioCle: d.mixage.voix.cle }),
     // Jamais montée (les scènes couvrent toute la durée) : garde le chemin rapide du rendu, comme le cas concret.
     pistesDouble: { face: scenes[0]?.cle ?? "" },
     supplements: { positionSousTitresPct: centreSousTitresPct(ratioDeLaLigneIV(d.ligne)), ...(clairs.length ? { passagesClairs: clairs } : {}) },

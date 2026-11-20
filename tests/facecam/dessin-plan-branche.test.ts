@@ -63,8 +63,9 @@ const scene = (id: string, premier: number, dernier: number, debutMs: number, fi
  */
 const PLAN = { version: "plan-scenes-1", scenes: [scene("haut-libre", 0, 3, 500, 2500, "haut"), scene("sur-soustitres", 4, 8, 3000, 5500, "bas"), scene("pendant-carte", 40, 46, 16000, 19000, "haut")] };
 const llm = () => ({ appeler: async (): Promise<ReponseClaude> => ({ texte: JSON.stringify(PLAN), stopReason: "end_turn" }) as ReponseClaude });
-const composition = (o: { soumises: DemandeRendu[] }) => o.soumises.find((d) => (d.parametres as { mode?: string }).mode === "complet")!.parametres as unknown as ParametresDemandeComposition & { image: { planScenes?: { scenes: { id: string }[] } } };
-const ids = (o: { soumises: DemandeRendu[] }) => composition(o).image.planScenes?.scenes.map((s) => s.id);
+// BR-DESSIN-FACECAM-b-v20a (20/11) : attentes DÉPLACÉES, jamais retirées : quand le dessin est permis, le plan filtré est lu sur `texte.planScenes` (calque texte), sinon sur `image.planScenes` comme avant.
+const composition = (o: { soumises: DemandeRendu[] }) => o.soumises.find((d) => (d.parametres as { mode?: string }).mode === "complet")!.parametres as unknown as ParametresDemandeComposition & { image: { planScenes?: { scenes: { id: string }[] } }; texte: { planScenes?: { scenes: { id: string }[] } } };
+const ids = (o: { soumises: DemandeRendu[] }) => (composition(o).texte.planScenes ?? composition(o).image.planScenes)?.scenes.map((s) => s.id);
 
 /** Entrée bibliothèque figée dont le profil PERMET `plan-scenes.facecam` (le profil neutre ne le permet pas). */
 const entreePermise = () => {
@@ -98,6 +99,7 @@ describe("Face caméra · dessin du plan de scènes branché (BR-DESSIN-FACECAM-
   it("(b) allumé : la pièce sur les sous-titres et celle pendant la carte sont retirées, l'autre gardée, retraits notés", async () => {
     const { o, etat } = await fabriquer({ dessin: true });
     expect(ids(o)).toEqual(["haut-libre"]);
+    expect(composition(o).image.planScenes).toBeUndefined();
     expect(etat.planScenesRetirees).toEqual([{ id: "sur-soustitres", raison: "sous-titres" }, { id: "pendant-carte", raison: "carte" }]);
   });
 
@@ -118,12 +120,25 @@ describe("Face caméra · dessin du plan de scènes branché (BR-DESSIN-FACECAM-
       reglages = {};
     });
 
-    it("absent ou autre que `true` exact : l'option rendue est l'objet vide d'aujourd'hui", async () => {
-      expect(await servicesFacecam().planScenes!()).toEqual({});
-      for (const v of ["true", 1, "oui", false, null]) {
+    it("ALLUMÉ par défaut (20/11) : réglage absent ou valeur autre que `false` exact → `dessin: true`", async () => {
+      expect(await servicesFacecam().planScenes!()).toEqual({ dessin: true });
+      for (const v of ["true", 1, "oui", null]) {
         reglages = { "planScenes.facecamDessin": v };
-        expect(await servicesFacecam().planScenes!()).toEqual({});
+        expect(await servicesFacecam().planScenes!()).toEqual({ dessin: true });
       }
+    });
+
+    it("éteint explicitement (`false` exact) : l'option rendue est l'objet vide d'avant, rendu identique", async () => {
+      reglages = { "planScenes.facecamDessin": false };
+      expect(await servicesFacecam().planScenes!()).toEqual({});
+    });
+
+    it("par défaut (réglage absent) la chaîne réelle ne laisse aucune pièce sur les sous-titres ni sur une carte", async () => {
+      reglages = {};
+      const option = await servicesFacecam().planScenes!();
+      const { o, etat } = await fabriquer({ ...option });
+      expect(ids(o)).toEqual(["haut-libre"]);
+      expect(etat.planScenesRetirees).toEqual([{ id: "sur-soustitres", raison: "sous-titres" }, { id: "pendant-carte", raison: "carte" }]);
     });
 
     it("`true` exact : l'option porte `dessin: true`, et la chaîne réelle retire les pièces gênantes", async () => {

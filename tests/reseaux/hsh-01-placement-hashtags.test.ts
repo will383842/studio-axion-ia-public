@@ -11,7 +11,7 @@ import { ecritureReseau } from "@/reseaux/ecriture";
 import { limiteMotsDieses } from "@/reseaux/hashtags";
 import { premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
-import { PLACEMENTS, PLACEMENT_PAR_DEFAUT, REGLES_PLACEMENT, placerHashtags, type PlacementHashtags } from "@/reseaux/placement-hashtags";
+import { PLACEMENTS, PLACEMENT_PAR_DEFAUT, REGLES_PLACEMENT, placerHashtags, premierCommentairePossible, type PlacementHashtags } from "@/reseaux/placement-hashtags";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -162,5 +162,15 @@ describe("HSH-01a · service du réglage", () => {
     expect(JSON.stringify(journal)).toMatch(/placement/i);
     await expect(service.definirPlacement("linkedin", "ailleurs" as never)).rejects.toThrow();
     await expect(service.definirPlacement("youtube" as never, "texte")).rejects.toThrow();
+  });
+});
+
+describe("Instagram + Zernio + placement « premier commentaire » (ZRN-01)", () => {
+  it("les hashtags passent dans le premier commentaire, hors de la légende : c'est le choix explicite du réglage", () => {
+    const r = placerHashtags({ reseau: "instagram", outil: "zernio", placement: "premier-commentaire", texte: TEXTE, motsDiese: mots(3), commentaire: "Voir le guide" });
+    expect(premierCommentairePossible("instagram", "zernio")).toBe(true);
+    expect(r.texte).toBe(TEXTE);
+    expect(r.premierCommentaire).toBe(`Voir le guide\n\n${mots(3).join(" ")}`);
+    expect(r.repli).toBeUndefined();
   });
 });
