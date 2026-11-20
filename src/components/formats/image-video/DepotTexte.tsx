@@ -27,7 +27,7 @@ export function ciblageDepose(niveau: NiveauCible | undefined, valeur: string): 
   return niveau && libelleCibleValide(libelle) ? { niveau, libelle, origine: "saisie" } : undefined;
 }
 
-export function DepotTexte({ texte, onTexte, reseaux, montant, blocage, onRefus, onCiblage, children }: { texte: string; onTexte: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; onRefus: (phrase: string | null) => void; /** Cible et type choisis (facultatifs) ; non branchés au serveur par ce composant. */ onCiblage?: (c: { ciblage?: Ciblage; typeAutomatisation?: TypeAutomatisation }) => void; /** Sélecteur de réseaux, placé entre le texte et la barre du prix. */ children?: ReactNode }) {
+export function DepotTexte({ texte, onTexte, reseaux, montant, blocage, sansVoix, onRefus, onCiblage, children }: { texte: string; onTexte: (t: string) => void; reseaux: ReseauIV[]; montant: number; blocage?: string; /** IV-SV : mode sans voix. */ sansVoix?: boolean; onRefus: (phrase: string | null) => void; /** Cible et type choisis (facultatifs) ; non branchés au serveur par ce composant. */ onCiblage?: (c: { ciblage?: Ciblage; typeAutomatisation?: TypeAutomatisation }) => void; /** Sélecteur de réseaux, placé entre le texte et la barre du prix. */ children?: ReactNode }) {
   const router = useRouter();
   const [ciblage, setCiblage] = useState<Ciblage | undefined>();
   const [type, setType] = useState<TypeAutomatisation | undefined>();
@@ -35,7 +35,7 @@ export function DepotTexte({ texte, onTexte, reseaux, montant, blocage, onRefus,
 
   async function fabriquer(accord: number): Promise<{ centimes: number } | void> {
     onRefus(null);
-    const r = await deposerTexteImageVideoAction({ texte, reseaux, accordCentimes: accord });
+    const r = await deposerTexteImageVideoAction({ texte, reseaux, accordCentimes: accord, ...(sansVoix ? { sansVoix: true } : {}) });
     if (!r.ok) return void onRefus(r.message);
     if (r.donnees.statut === "accord-requis") return { centimes: r.donnees.centimes };
     if (r.donnees.statut === "refusee") return void onRefus(r.donnees.phrase);

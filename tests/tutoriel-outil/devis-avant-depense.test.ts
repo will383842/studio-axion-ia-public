@@ -8,6 +8,8 @@ import { creerMoteurTutorielOutil, validerScriptTutoriel } from "@/moteurs/monta
 import type { OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { ENTREE_DEVIS_TUTORIEL, etablirDevis, lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
 import { commandeTutoriel, outilsDoubles, SCRIPT, une, type Journal } from "./doubles";
+import { avecRegistreFige, commandeDossier, FILM, fauxPort } from "./equipe-doubles";
+import type { PortEquipe } from "@/moteurs/montage-tutoriel-outil/chaine";
 
 // Raccords : réglage simulé (valeur, ou lecture qui lève) ; voix, rendu et stockage réels remplacés par des doubles vides.
 const reglage: { valeur: unknown; leve: boolean } = { valeur: undefined, leve: false };
@@ -31,15 +33,16 @@ type Devis = NonNullable<OutilsTutoriel["devis"]>;
 const ROLES = [{ id: "plan", essaisMax: 2 }];
 
 /** Outils doubles + port du devis, lisant l'accord dans la commande (comme les branchements) et comptant comme eux. */
-function avecDevis(j: Journal, c: () => CommandeFabrication, roles: Devis["roles"] = ROLES, opts: Parameters<typeof outilsDoubles>[1] = {}): () => Promise<OutilsTutoriel> {
+function avecDevis(j: Journal, c: () => CommandeFabrication, roles: Devis["roles"] = ROLES, opts: Parameters<typeof outilsDoubles>[1] = {}, equipe?: PortEquipe): () => Promise<OutilsTutoriel> {
   // Les doubles sont créés UNE fois (le service de rendu simulé garde ses demandes d'un tour à l'autre) ; seul l'accord se relit.
   const doubles = outilsDoubles(j, opts);
   return async () => ({
     ...doubles,
+    ...(equipe ? { equipe } : {}),
     devis: {
       roles,
       accord: lireAccordDevis(c().entrees),
-      consomme: async (e) => ({ appelsClaude: (e.appelsClaude?.script ?? 0) + (e.appelsClaude?.plan ?? 0), caracteresVoix: e.audio && !e.audio.reutilise ? e.audio.caracteres : 0, rendus: e.rendus.length }),
+      consomme: async (e) => ({ appelsClaude: (e.appelsClaude?.script ?? 0) + (e.appelsClaude?.plan ?? 0) + Object.values(e.appelsClaude?.roles ?? {}).reduce((n, v) => n + v, 0), caracteresVoix: e.audio && !e.audio.reutilise ? e.audio.caracteres : 0, rendus: e.rendus.length }),
     },
   });
 }
@@ -139,33 +142,46 @@ describe("T-EXT-42 : allumé", () => {
     rien(j);
   });
 
-  it("départ d'une idée : un premier accord pour l'écriture, un SECOND après la validation du script, 0 voix avant", async () => {
+  // AUTORISATION PERMANENTE (c) : l'écriture d'une idée par l'ancien écrivain est retirée (T-EXT-55) ; l'équipe écrit à partir d'un
+  // dossier. Mêmes attentes : un accord avant le 1er appel, un SECOND après la validation du script, 0 voix avant.
+  const ROLES_EQUIPE = [
+    { id: "chef-de-projet", essaisMax: 1 },
+    { id: "analyste", essaisMax: 1 },
+    { id: "stratege", essaisMax: 1 },
+    { id: "scenariste", essaisMax: 2 },
+    { id: "plan", essaisMax: 2 },
+  ];
+
+  it("départ d'un dossier (équipe) : un premier accord pour l'écriture, un SECOND après la validation du script, 0 voix avant", async () => {
     const j = journalVide();
-    const c0 = commandeTutoriel({ script: { blocs: [], texteComplet: "" }, entrees: { tutorielOutil: { idee: "Créer un tableau de bord" } } });
-    const roles = [{ id: "script", essaisMax: 1 }, ...ROLES];
+    const eq = fauxPort();
+    const c0 = commandeDossier(FILM);
+    const roles = ROLES_EQUIPE;
     let c = c0;
-    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles) });
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
     const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
 
-    // Pause 1 : rien n'est écrit sans accord.
+    // Pause 1 : rien n'est écrit sans accord (le devis est montré avant le 1er appel de rôle).
     let t = await mener(moteur, () => c, t0);
     expect(pause(t)?.code).toBe("TO_DEVIS_A_ACCEPTER");
     rien(j);
+    expect(eq.appels).toHaveLength(0);
 
-    // Accord 1 (script encore inconnu : 0 caractère) : seul Claude écrit le script, puis pause de relecture.
+    // Accord 1 (script encore inconnu : 0 caractère) : seule l'équipe écrit le script, puis pause de relecture.
     const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c.ratios, essai: false });
     c = avecAccord(c0, devis1.empreinte);
     t = await mener(moteur, () => c, t);
     expect(pause(t)?.code).toBe("TO_SCRIPT_A_VALIDER");
-    expect(j.claude).toHaveLength(1);
+    expect(eq.appels).toEqual(["stratege", "scenariste"]);
     expect(j.voix).toHaveLength(0);
 
     // Script validé : l'empreinte change, un second accord est demandé, toujours 0 voix.
-    t = validerScriptTutoriel(t);
+    t = validerScriptTutoriel(avecRegistreFige(t), undefined, { version: "A" });
     t = await mener(moteur, () => c, t);
     expect(pause(t)?.code).toBe("TO_DEVIS_A_ACCEPTER");
     expect(j.voix).toHaveLength(0);
     expect(j.rendus).toHaveLength(0);
+    expect(eq.appels).toHaveLength(2);
 
     // Accord 2 sur le script validé : la fabrication va au bout.
     const texte = (t.parametres!.tutoriel as { script: { texte: string } }).script.texte;
@@ -193,22 +209,145 @@ describe("T-EXT-42 : allumé", () => {
     expect(j.voix).toHaveLength(1);
   });
 
-  it("plafond vérifié AVANT chaque appel : script ×1 + plan ×2 = 3 appels au plus, jamais un 4e (TO_DEVIS_ATTEINT avant)", async () => {
+  // AUTORISATION PERMANENTE (c) : « script ×1 + plan ×2 » devient « chaque rôle × ses essais + plan ×2 » (T-EXT-55). Même mesure :
+  // le plafond est vérifié AVANT chaque appel, jamais un appel de plus que le devis.
+  it("plafond vérifié AVANT chaque appel : stratège ×1 + scénariste ×1 permis, jamais un 4e appel de rôle (TO_DEVIS_ATTEINT avant)", async () => {
     const j = journalVide();
-    const c0 = commandeTutoriel({ script: { blocs: [], texteComplet: "" }, entrees: { tutorielOutil: { idee: "Créer un tableau de bord" } } });
-    const roles = [{ id: "script", essaisMax: 1 }, ...ROLES];
-    // Première écriture trop courte : l'appel est compté, le script n'est pas écrit.
+    const eq = fauxPort({ illisible: "scenariste" });
+    const c0 = commandeDossier(FILM);
+    // Comme en production (tutoriel-branchements.ts) : le plan ×2 est toujours dans le devis ; il ne doit pas servir de marge aux rôles.
+    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }, { id: "plan", essaisMax: 2 }];
     const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
     const c = avecAccord(c0, devis1.empreinte);
-    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, { scriptEcrit: "Trop court." }) });
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
     let t = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
-    // Chaque relance (après l'échec de l'écriture) repasse par la garde ; on relance jusqu'à la pause du devis.
     for (let i = 0; i < 6 && pause(t)?.code !== "TO_DEVIS_ATTEINT"; i++) {
-      t = await mener(moteur, () => c, { ...t, statut: "en_file", erreur: undefined, parametres: { ...t.parametres, pause: undefined }, etapes: t.etapes.map((e) => (e.statut === "echec" ? { ...e, statut: "en_attente" as const, erreur: undefined } : e)) });
-      expect(j.claude.length).toBeLessThanOrEqual(3);
+      t = await mener(moteur, () => c, { ...t, statut: "en_file", erreur: undefined, parametres: { ...t.parametres, pause: undefined } });
+      expect(eq.appels.length).toBeLessThanOrEqual(2);
     }
-    expect(j.claude.length).toBeLessThanOrEqual(3);
+    // Le devis permet 2 appels (stratège ×1 + scénariste ×1) : le scénariste illisible ne repart pas pour un 2e essai.
+    expect(eq.appels).toEqual(["stratege", "scenariste"]);
     expect(pause(t)?.code).toBe("TO_DEVIS_ATTEINT");
+    expect(j.claude).toHaveLength(0);
+    expect(j.voix).toHaveLength(0);
+  });
+
+  it("devis de l'équipe : les rôles déjà passés ne sont pas recomptés « à venir » (chef + analyste + stratège = 3 appels, puis le scénariste passe)", async () => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const c0 = commandeDossier(FILM);
+    // Total du devis : 1 + 1 + 1 + 2 (rôles) + 2 (plan) = 7 appels. Avant le scénariste : 3 consommés + 2 restants = 5 ≤ 7.
+    // Compté à l'ancienne (tous les essais de tous les rôles, soit 5, en plus des 3 consommés) : 8 > 7, arrêt à tort.
+    const devis1 = etablirDevis({ roles: ROLES_EQUIPE, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, ROLES_EQUIPE, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    // Le chef et l'analyste ont déjà fait chacun un appel (revenu) ; le stratège en fait un, puis le scénariste.
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, appelsClaude: { plan: 0, roles: { "chef-de-projet": 1, analyste: 1 } } } } };
+    const t = await mener(moteur, () => c, depart);
+    expect(pause(t)?.code).toBe("TO_SCRIPT_A_VALIDER");
+    expect(eq.appels).toEqual(["stratege", "scenariste"]);
+  });
+
+  // Devis de PRODUCTION (tutoriel-branchements.ts) : chaque rôle de ROLES_TUTORIEL × ses essais, plan ×2 = 1+1+1+1+2+2 = 8 appels.
+  const ROLES_PRODUCTION = [
+    { id: "chef-de-projet", essaisMax: 1 },
+    { id: "analyste", essaisMax: 1 },
+    { id: "maquettiste", essaisMax: 1 },
+    { id: "stratege", essaisMax: 1 },
+    { id: "scenariste", essaisMax: 2 },
+    { id: "plan", essaisMax: 2 },
+  ];
+
+  it("devis de production (8 appels) : chef, analyste, maquettiste faits, stratège + 2e essai du scénariste : on atteint la validation, pas TO_DEVIS_ATTEINT", async () => {
+    const j = journalVide();
+    const eq = fauxPort({ refusePremier: "scenariste" });
+    const c0 = commandeDossier(FILM);
+    const devis1 = etablirDevis({ roles: ROLES_PRODUCTION, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, ROLES_PRODUCTION, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    // Chef, analyste et maquettiste ont déjà chacun un appel revenu (compteur forcé, comme le cas voisin).
+    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, appelsClaude: { plan: 0, roles: { "chef-de-projet": 1, analyste: 1, maquettiste: 1 } } } } };
+    const t = await mener(moteur, () => c, depart);
+    // 3 + stratège (1) + scénariste (2 essais, le 2e valable) = 6 appels de rôle ; + plan ×2 réservé = 8 : tout tient dans le devis.
+    expect(eq.appels).toEqual(["stratege", "scenariste", "scenariste"]);
+    expect(pause(t)?.code).not.toBe("TO_DEVIS_ATTEINT");
+    expect(pause(t)?.code).toBe("TO_SCRIPT_A_VALIDER");
+    const compte = (t.parametres!.tutoriel as { appelsClaude: { roles: Record<string, number> } }).appelsClaude.roles;
+    expect(Object.values(compte).reduce((n, v) => n + v, 0)).toBe(6);
+    rien(j);
+  });
+
+  it("devis exact stratège ×1 + scénariste ×1 + plan ×2, deux sorties valables : TO_SCRIPT_A_VALIDER (pas TO_DEVIS_ATTEINT après le dernier appel payé)", async () => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const c0 = commandeDossier(FILM);
+    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }, { id: "plan", essaisMax: 2 }];
+    const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    // Chef et analyste : règles seules (0 appel). Le dossier de test les passe sans IA.
+    const t = await mener(moteur, () => c, t0);
+    expect(eq.appels).toEqual(["stratege", "scenariste"]);
+    expect(pause(t)?.code).toBe("TO_SCRIPT_A_VALIDER");
+    rien(j);
+  });
+
+  it("jamais un appel AU-DELÀ du devis : consommé = total des rôles + plan réservé, le pas payant suivant est refusé (0 appel de plus)", async () => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const c0 = commandeDossier(FILM);
+    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }, { id: "plan", essaisMax: 2 }];
+    const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    // 2 appels déjà consommés pour 2 permis aux rôles (+2 du plan = 4) : le scénariste, pas encore fait (stratège marqué fait), paierait un 3e.
+    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, appelsClaude: { plan: 0, roles: { stratege: 1, scenariste: 1 } } } } };
+    const t = await mener(moteur, () => c, depart);
+    expect(pause(t)?.code).toBe("TO_DEVIS_ATTEINT");
+    expect(eq.appels).toHaveLength(0);
+    rien(j);
+  });
+
+  it.each<[string, () => null]>([["rend null", () => null], ["lève", () => { throw new Error("stockage"); }]])("lecture du dossier ratée (%s) au seul pas de la garde : 0 appel de plus, TO_DEVIS_ATTEINT (jamais au-delà du devis)", async (_nom, rate) => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const vraie: PortEquipe["lireDossier"] = eq.port.lireDossier.bind(eq.port);
+    // Lectures impaires (celle de la garde) ratées, paires (celle du pas d'équipe) réussies : le pire cas d'une double lecture.
+    let lectures = 0;
+    eq.port.lireDossier = async () => (++lectures % 2 === 1 ? rate() : vraie());
+    const c0 = commandeDossier(FILM);
+    const roles = [{ id: "stratege", essaisMax: 1 }, { id: "scenariste", essaisMax: 1 }, { id: "plan", essaisMax: 2 }];
+    const devis1 = etablirDevis({ roles, caracteresScript: 0, texteScript: "", motsScript: 0, voixDejaPayee: false, ratios: c0.ratios, essai: false });
+    const c = avecAccord(c0, devis1.empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, roles, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, appelsClaude: { plan: 0, roles: { stratege: 1, scenariste: 1 } } } } };
+    const t = await mener(moteur, () => c, depart);
+    expect(pause(t)?.code).toBe("TO_DEVIS_ATTEINT");
+    expect(eq.appels).toHaveLength(0);
+    rien(j);
+  });
+
+  it("travail d'avant la PR (proposition de l'ancien écrivain encore là) + équipe + dossier : la garde s'applique, TO_DEVIS_A_ACCEPTER, 0 appel", async () => {
+    const j = journalVide();
+    const eq = fauxPort();
+    const c = commandeDossier(FILM);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, ROLES_EQUIPE, {}, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const etat0 = t0.parametres!.tutoriel as Record<string, unknown>;
+    const heritage = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...etat0, proposition: "Ancien script proposé." } } };
+    const t = await mener(moteur, () => c, heritage);
+    expect(pause(t)?.code).toBe("TO_DEVIS_A_ACCEPTER");
+    expect(eq.appels).toHaveLength(0);
+    rien(j);
   });
 
   it("la garde n'appelle jamais rien d'elle-même (espions)", async () => {

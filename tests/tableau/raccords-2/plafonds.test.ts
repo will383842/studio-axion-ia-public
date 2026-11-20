@@ -118,7 +118,7 @@ describe("plafonds propres du tableau animé", () => {
     const passe = await dcv.executerRolePourVideo(v.id, roleDecoupageTableau, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: dcv.PLAFOND_DECOUPAGE_TABLEAU });
     expect(passe.ok).toBe(true);
     expect(appels).toHaveLength(2);
-    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(video\)/.test(e.message))).toBe(true);
+    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(vidéo\)/.test(e.message))).toBe(true); // FIX-GARDE-ECRAN-b-v20j
     // Une commande de l'Usine reste bloquante : arrêt, aucun appel.
     const refus = await dcv.executerRolePourVideo(v.id, roleDecoupageTableau, entree, { etape: ETAPE_DECOUPAGE, plafondPropre: dcv.PLAFOND_DECOUPAGE_TABLEAU, origine: "usine" });
     expect(refus).toMatchObject({ ok: false, arret: "plafond-video", message: expect.stringMatching(/rien n'a été payé/) });
@@ -140,7 +140,7 @@ describe("plafonds propres du tableau animé", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.motifs[0]).not.toMatch(/Plafond de cette vidéo atteint/);
     expect(appels).toHaveLength(1);
-    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(video\)/.test(e.message))).toBe(true);
+    expect((await depots().evenements.lister((e) => e.type === "budget")).some((e) => /Budget indicatif dépassé \(vidéo\)/.test(e.message))).toBe(true); // FIX-GARDE-ECRAN-b-v20j
   });
 
   it("le générateur dépense par le chemin plafonné : la dépense est rattachée à la vidéo, sur son étape propre", async () => {
