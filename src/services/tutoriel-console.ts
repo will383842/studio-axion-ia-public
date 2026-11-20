@@ -23,7 +23,9 @@ import { texteDevis, type DevisTutoriel } from "@/moteurs/montage-tutoriel-outil
 import { PARAM_ENTREE_PHRASE } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PARAM_SCENES_TUTORIEL } from "./scenes-tutoriel";
 import { PARAM_CLAUDE_TUTORIEL, PARAM_PLAFOND_TUTORIEL } from "./tutoriel-claude";
+import { PARAM_FORMULAIRE } from "./tutoriel-depot";
 import { lienSuivi } from "./tutoriel-suivi";
+import { PARAM_ENTREE_ZIP } from "./zip-tutoriel";
 import { ecrireParametre as ecrireParDefaut, journaliser as journaliserParDefaut, lireParametre as lireParDefaut, maintenant } from "./_commun";
 
 /** Format du tutoriel (valeur de `ID_FORMAT_TUTORIEL_OUTIL`, comparée au fichier source par le test). */
@@ -31,9 +33,9 @@ export const FORMAT_TUTORIEL = "tutoriel-outil";
 export const CLE_MENTION_TUTORIEL = cleInterrupteurMentionIA("tutoriel-outil");
 export const CLE_TEXTE_MENTION_TUTORIEL = cleTexteMentionIA("tutoriel-outil");
 
-// Clés recopiées (fiche créatrice pas encore fusionnée) : une seule fois, ici.
-export const CLE_FORMULAIRE = "tutoriel.formulaire";
-export const CLE_ENTREE_ZIP = "tutoriel.entreeZip";
+// Importées des modules créateurs (T-EXT-41 et T-EXT-33 fusionnées). CLE_FIN_COMMUNE reste recopiée : ATTEND #1406 (26a).
+export const CLE_FORMULAIRE = PARAM_FORMULAIRE;
+export const CLE_ENTREE_ZIP = PARAM_ENTREE_ZIP;
 export const CLE_ENTREE_PHRASE = PARAM_ENTREE_PHRASE; // importée : la maquette est fusionnée
 export const CLE_DEVIS_AVANT_DEPENSE = "tutoriel.devisAvantDepense";
 export const CLE_FINITIONS = "tutoriel.finitions";

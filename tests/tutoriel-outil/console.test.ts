@@ -49,6 +49,17 @@ function memoire(initial: Record<string, unknown> = {}) {
 
 const lire = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
+describe("clés partagées avec les modules créateurs", () => {
+  it("la console utilise exactement les clés de tutoriel-depot et zip-tutoriel", async () => {
+    const { PARAM_FORMULAIRE } = await import("@/services/tutoriel-depot");
+    const { PARAM_ENTREE_ZIP } = await import("@/services/zip-tutoriel");
+    expect(c.CLE_FORMULAIRE).toBe(PARAM_FORMULAIRE);
+    expect(c.CLE_ENTREE_ZIP).toBe(PARAM_ENTREE_ZIP);
+    expect(c.CLE_FORMULAIRE).toBe("tutoriel.formulaire");
+    expect(c.CLE_ENTREE_ZIP).toBe("tutoriel.entreeZip");
+  });
+});
+
 describe("interrupteurs", () => {
   it("clés absentes : tout éteint ; la chaîne \"true\" : éteint", async () => {
     const m = memoire();
