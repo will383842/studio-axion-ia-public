@@ -47,7 +47,17 @@ describe("optionsRenduPlage : recollable === true", () => {
     expect(txt).toContain("-level:v 4.1");
     expect(args).toEqual(["-i", "x", "-c:v", "libx264", "sortie.mp4"]); // entrée non modifiée
     const pre = ["a", "b"];
-    expect(o.ffmpegOverride!({ type: "pre-stitcher", args: pre })).toEqual(["a", "b"]);
+    expect(o.ffmpegOverride!({ type: "autre", args: pre })).toEqual(["a", "b"]);
+  });
+  it("pre-stitcher qui encode : réglages ajoutés avant le fichier de sortie ; stitcher avec -c:v copy : sans ajout", async () => {
+    const o = (await charger()).optionsRenduPlage({ ...base, recollable: true }, { fps: 25, durationInFrames: 300 });
+    const r = o.ffmpegOverride!({ type: "pre-stitcher", args: ["-i", "x", "-c:v", "libx264", "-y", "sortie.mp4"] });
+    expect(r.at(-1)).toBe("sortie.mp4");
+    expect(r.slice(0, 6)).toEqual(["-i", "x", "-c:v", "libx264", "-y", "-g"]);
+    const txt = r.join(" ");
+    for (const t of ["-g 50", "-keyint_min 50", "-flags +cgop", "-profile:v high", "-level:v 4.1"]) expect(txt).toContain(t);
+    const copie = ["-i", "x", "-c:v", "copy", "-y", "sortie.mp4"];
+    expect(o.ffmpegOverride!({ type: "stitcher", args: copie })).toEqual(copie);
   });
   it("le crf demandé reste honoré", async () => {
     const o = (await charger()).optionsRenduPlage({ ...base, crf: 18, recollable: true }, choisie);

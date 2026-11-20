@@ -50,7 +50,7 @@ export function optionsPlage(parametres: Record<string, unknown>, choisie?: { du
 
 /**
  * Réglages x264 passés EN PLUS à `renderMedia` (pure). Éteint : exactement ce que master passait (`crf` + BT.709 si `crf`, sinon rien).
- * `parametres.recollable === true` (seul `true` allume, T-EXT-52c-e) : BT.709 même sans `crf`, et, à l'assemblage, GOP fermé de 2 s,
+ * `parametres.recollable === true` (seul `true` allume, T-EXT-52c-e) : BT.709 même sans `crf`, et, à l'étape qui encode (pre-stitcher, ou stitcher sans `-c:v copy`), GOP fermé de 2 s,
  * profil High 4.1 (mêmes valeurs que `reglagesVideo`, `composition/ffmpeg.ts`), pour qu'un morceau se recolle à un tronçon de l'export.
  */
 export function optionsRenduPlage(parametres: Record<string, unknown>, choisie: { fps: number; durationInFrames: number }): Record<string, unknown> {
@@ -62,8 +62,12 @@ export function optionsRenduPlage(parametres: Record<string, unknown>, choisie: 
   return {
     ...crf,
     colorSpace: "bt709" as const,
-    ffmpegOverride: ({ type, args }: { type: string; args: readonly string[] }): string[] =>
-      type === "stitcher" ? [...args.slice(0, -1), ...ajout, ...args.slice(-1)] : [...args],
+    // L'encodage x264 se fait au « pre-stitcher » (encodage parallèle par défaut de h264) ; le « stitcher » reçoit alors `-c:v copy`.
+    ffmpegOverride: ({ type, args }: { type: string; args: readonly string[] }): string[] => {
+      const copie = args.some((a, i) => a === "-c:v" && args[i + 1] === "copy");
+      const encode = (type === "pre-stitcher" || type === "stitcher") && !copie;
+      return encode ? [...args.slice(0, -1), ...ajout, ...args.slice(-1)] : [...args];
+    },
   };
 }
 
