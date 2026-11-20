@@ -10,7 +10,8 @@ export type StatutEnvoi = "brouillon" | "valide" | "programme" | "confirme" | "a
 export const TRANSITIONS_ENVOI: Record<StatutEnvoi, readonly StatutEnvoi[]> = {
   brouillon: ["valide", "annule"],
   valide: ["programme", "annule"],
-  programme: ["confirme", "valide", "annule"],
+  // « envoye » : constaté par le diffuseur (Zernio « published ») pour un envoi programmé à la main, jamais par un geste du Studio.
+  programme: ["confirme", "valide", "annule", "envoye"],
   confirme: ["a-envoyer", "programme", "annule"],
   "a-envoyer": ["envoye", "echec"],
   echec: ["programme", "annule"],
