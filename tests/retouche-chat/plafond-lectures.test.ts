@@ -52,6 +52,9 @@ describe("plafond des lectures du chat (C7-17)", () => {
     for (const p of [0, -1, Number.NaN, Infinity]) expect(sousPlafond({ engageCentimes: 0, plafondUsd: 1, pireUsd: p })).toBe(false);
     expect(sousPlafond({ engageCentimes: Number.NaN, plafondUsd: 1, pireUsd: pire })).toBe(false);
     expect(sousPlafond({ engageCentimes: 0, plafondUsd: -1, pireUsd: pire })).toBe(false);
+    // non finis : sans la garde `every(Number.isFinite)`, ces deux cas rendraient VRAI (aucun plafond / engagé infiniment négatif)
+    expect(sousPlafond({ engageCentimes: 0, plafondUsd: Infinity, pireUsd: 0.045 })).toBe(false);
+    expect(sousPlafond({ engageCentimes: -Infinity, plafondUsd: 0.27, pireUsd: 0.045 })).toBe(false);
   });
 
   it("d) appelSousBarriere : refus sans appel, phrase sans montant ; accord → 1 appel", async () => {
