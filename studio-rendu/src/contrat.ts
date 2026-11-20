@@ -63,6 +63,7 @@ export const OPERATIONS: readonly OperationRendu[] = [
   "extrait",
   "visuel-page",
   "assemblage-pdf",
+  "recollage-plages",
   "toile-continue",
 ];
 
