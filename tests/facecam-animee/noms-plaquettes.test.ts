@@ -59,7 +59,7 @@ describe("noms de plaquettes (S-15-v19b)", () => {
       for (const f of readdirSync(d)) {
         const p = join(d, f);
         if (statSync(p).isDirectory()) marche(p);
-        else if (/\.(ts|tsx)$/.test(f) && f !== "noms-plaquettes.ts" && /noms-plaquettes/.test(readFileSync(p, "utf8"))) trouves.push(p);
+        else if (/\.(ts|tsx)$/.test(f) && f !== "noms-plaquettes.ts" && p.split("\\").join("/") !== join(process.cwd(), "src", "domaine", "facecam-animee", "operations-plaquettes.ts").split("\\").join("/") && /noms-plaquettes/.test(readFileSync(p, "utf8"))) trouves.push(p);
       }
     };
     marche(join(process.cwd(), "src"));

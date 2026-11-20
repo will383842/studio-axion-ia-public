@@ -1,6 +1,6 @@
 /**
  * GARDE DES VALEURS D'UN PLAN DE SCÈNES (G4-12) — les pièces de données (graphique, tableau de bord,
- * carte KPI, compteur, jauge, barres, avant/après) ne montrent que des nombres de la donnée jointe.
+ * carte KPI, compteur, jauge, barres, avant/après, courbe à plusieurs séries (G4-11, pas encore inscrite)) ne montrent que des nombres de la donnée jointe.
  * Pure : aucun accès disque ou réseau. Ne retire ni ne remplace rien : elle rend le verdict, le moteur (G4-09) décide.
  * Rien dans `src/` ne l'importe encore. Donnée absente = ok, sans rien lire (comportement d'aujourd'hui).
  * N'ajoute aucun `case` à `plan-scenes/controles.ts` : ce fichier ne change donc le sort d'aucun plan existant.
@@ -43,6 +43,11 @@ function aControler(piece: string, p: Record<string, unknown>): { nombres: unkno
       return { nombres: liste(p.barres).map((b) => b.valeur), textes: liste(p.barres).map((b) => b.libelle) };
     case "avant-apres":
       return { nombres: [estObjet(p.avant) ? p.avant.valeur : undefined, estObjet(p.apres) ? p.apres.valeur : undefined], textes: [p.titre] };
+    case "courbe-series":
+      return {
+        nombres: liste(p.series).flatMap((s) => (Array.isArray(s.valeurs) ? s.valeurs : [])),
+        textes: [p.titre, ...(Array.isArray(p.abscisses) ? p.abscisses : []), ...liste(p.series).map((s) => s.nom)],
+      };
     default:
       return null;
   }
