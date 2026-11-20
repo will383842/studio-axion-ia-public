@@ -1,7 +1,7 @@
 /**
- * C6-H4a : réglages de l'habillage commun, lus par une fonction injectée. ÉTEINTS : seul le booléen `true` exact
- * allume ; toute autre valeur, une absence ou une lecture en échec = éteint. Rien n'appelle ce fichier : C6-H4
- * (après 0d), C6-H24b-b et C6-H9 le brancheront. Aucun réglage de son (décision du 17/11). PUR, aucun import.
+ * C6-H4a : réglages de l'habillage commun, lus par une fonction injectée. Éteints sauf `transitionsPlanScenes` : seul le booléen `true` exact
+ * allume les autres ; toute autre valeur, une absence ou une lecture en échec = éteint. Appelé par `services/cas-concret.ts` ;
+ * ALLUMER-TRANSITIONS-CC-v20g · Williams 20/11 : `transitionsPlanScenes` allumé par défaut, seul `false` l'éteint. Aucun réglage de son (décision du 17/11). PUR, aucun import.
  */
 export const CLES_REGLAGE_HABILLAGE = Object.freeze({
   transitionsPlanScenes: "habillage.transitionsPlanScenes",
@@ -18,6 +18,7 @@ export const estAllume = (v: unknown): boolean => v === true;
 export async function habillageActif(nom: NomReglageHabillage, lire: LireReglageHabillage): Promise<boolean> {
   if (!Object.prototype.hasOwnProperty.call(CLES_REGLAGE_HABILLAGE, nom)) return false;
   try {
+    if (nom === "transitionsPlanScenes") return (await lire(CLES_REGLAGE_HABILLAGE[nom], true)) !== false;
     return estAllume(await lire(CLES_REGLAGE_HABILLAGE[nom], false));
   } catch {
     return false;

@@ -51,6 +51,8 @@ export interface ChoixVideo {
   finDemandee?: "rendez-vous";
   /** LOT F : écrire un script neuf au lieu de rejouer le script validé (cas à script validé seulement). */
   nouveauScript?: boolean;
+  /** CC-SV : « Sans voix (sous-titres et texte à l'écran) » coché ; absent = avec voix (défaut). */
+  sansVoix?: true;
   /** Lot L3 : le choix de Will devant un cas déjà traité (renvoyé tel quel au serveur). */
   sujet?: ChoixSujet;
 }
@@ -120,6 +122,8 @@ export function FeuilleVotreVideo({
   const [avecMot, setAvecMot] = useState(false);
   // Éteint par défaut (D1) : « Aucune » ; coché, la phrase de fin est dite.
   const [finRdv, setFinRdv] = useState(false);
+  // CC-SV : éteint par défaut ; coché, la vidéo sort sans voix (même vidéo, sous-titres et texte à l'écran, silence total, 0 € de voix).
+  const [sansVoixVoulu, setSansVoix] = useState(false);
   const [nouveauScriptVoulu, setNouveauScript] = useState(false);
   /** Lot L3 : cas déjà traité (annoncé par l'estimation) et choix de Will ; « Nouvel angle » allume « Nouveau script ». */
   const [dejaTraite, setDejaTraite] = useState<DejaTraiteCas | undefined>();
@@ -152,7 +156,7 @@ export function FeuilleVotreVideo({
       return;
     }
     let courant = true;
-    void estimer({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }).then((e) => {
+    void estimer({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(sansVoixVoulu ? { sansVoix: true as const } : {}), ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }).then((e) => {
       if (!courant || !e) return;
       prixRecu.current = true;
       setMontant(e.centimes);
@@ -165,7 +169,7 @@ export function FeuilleVotreVideo({
     return () => {
       courant = false;
     };
-  }, [reseaux, avecMot, finRdv, mot, nouveauScript, choixSujet, estimer]);
+  }, [reseaux, avecMot, finRdv, mot, sansVoixVoulu, nouveauScript, choixSujet, estimer]);
 
   // Lot L3 : à l'ouverture, une seule estimation pour savoir si le cas est déjà traité (avant tout prix confirmé).
   useEffect(() => {
@@ -193,7 +197,7 @@ export function FeuilleVotreVideo({
 
   async function fabriquer(accord: number) {
     setRefus(null);
-    const r = await onFabriquer({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, accord);
+    const r = await onFabriquer({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(sansVoixVoulu ? { sansVoix: true as const } : {}), ...(nouveauScript ? { nouveauScript } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, accord);
     if (r && "phrase" in r) {
       setRefus(r.phrase);
       // Le serveur a répondu « déjà traité » (jeton périmé, ou cas traité depuis un autre onglet) : les trois choix reviennent.
@@ -218,10 +222,10 @@ export function FeuilleVotreVideo({
           refus={refus}
           blocage={blocage}
           desactive={!reseaux.length}
-          voix={voix}
+          voix={sansVoixVoulu ? undefined : voix}
           onFabriquer={fabriquer}
           sujetEnAttente={!peutFabriquer(dejaTraite, choixSujet)}
-          {...(cas.script && !cas.scriptFourni && onRelire && !nouveauScript ? { onRelire: () => onRelire({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, montant ?? 0) } : {})}
+          {...(cas.script && !cas.scriptFourni && onRelire && !nouveauScript ? { onRelire: () => onRelire({ reseaux, mot, avecMot, ...(finRdv ? { finDemandee: "rendez-vous" as const } : {}), ...(sansVoixVoulu ? { sansVoix: true as const } : {}), ...(choixSujet ? { sujet: sujetAEnvoyer(choixSujet) } : {}) }, montant ?? 0) } : {})}
         />
       }
     >
@@ -239,7 +243,7 @@ export function FeuilleVotreVideo({
           Ce sujet existe déjà dans un autre type de vidéo : {avertissement.precedents.slice(0, 3).map((p) => p.titre).join(" · ")}.
         </p>
       )}
-      <ContenuVotreVideo cas={cas} essai={essai} reseaux={reseaux} onReseaux={setReseaux} mot={mot} onMot={setMot} avecMot={avecMot} onAvecMot={setAvecMot} finRdv={finRdv} onFinRdv={setFinRdv} nouveauScript={nouveauScript} onNouveauScript={changerNouveauScript} mots={mots} onValider={onValider} onFait={onFait} occupe={occupe} {...(onRetire ? { onRetire } : {})} />
+      <ContenuVotreVideo cas={cas} essai={essai} reseaux={reseaux} onReseaux={setReseaux} mot={mot} onMot={setMot} avecMot={avecMot} onAvecMot={setAvecMot} finRdv={finRdv} onFinRdv={setFinRdv} sansVoix={sansVoixVoulu} onSansVoix={setSansVoix} nouveauScript={nouveauScript} onNouveauScript={changerNouveauScript} mots={mots} onValider={onValider} onFait={onFait} occupe={occupe} {...(onRetire ? { onRetire } : {})} />
     </FeuilleBas>
   );
 }
@@ -315,6 +319,8 @@ export function ContenuVotreVideo({
   onAvecMot,
   finRdv = false,
   onFinRdv,
+  sansVoix = false,
+  onSansVoix,
   nouveauScript = false,
   onNouveauScript,
   mots,
@@ -334,6 +340,9 @@ export function ContenuVotreVideo({
   /** FIX-CC-FIN-CHOIX (D1) : visible seulement si l'écran fournit le geste ; éteint = « Aucune ». */
   finRdv?: boolean;
   onFinRdv?: (v: boolean) => void;
+  /** CC-SV : le choix « Sans voix » ; `onSansVoix` absent : le choix n'est pas montré. */
+  sansVoix?: boolean;
+  onSansVoix?: (v: boolean) => void;
   /** LOT F : visible seulement pour un cas qui a un script validé (et si l'écran fournit le geste). */
   nouveauScript?: boolean;
   onNouveauScript?: (v: boolean) => void;
@@ -479,6 +488,11 @@ export function ContenuVotreVideo({
             </p>
           ))}
       </section>
+      {onSansVoix && (
+        <section aria-label="Sans voix" className="space-y-2">
+          <Interrupteur libelle="Sans voix (sous-titres et texte à l'écran)" detail="Même vidéo, mêmes images et mêmes animations, mais en silence : le texte se lit à l'écran et dans les sous-titres. Aucune voix, aucune musique, aucun coût de voix. Décoché : la vidéo est lue par votre voix." coche={sansVoix} onChange={onSansVoix} />
+        </section>
+      )}
       {onFinRdv && (
         <section aria-label="La phrase de fin" className="space-y-2">
           <Interrupteur libelle="La phrase de fin" detail={`La vidéo finit par : « ${DIT_FIN_RENDEZ_VOUS} » Décoché : la vidéo ne dit rien de plus à la fin.`} coche={finRdv} onChange={onFinRdv} />

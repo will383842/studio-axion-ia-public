@@ -34,12 +34,20 @@ export function interpreterReglageBibliotheque(valeur: unknown): ReglageBiblioth
   }
 }
 
+// ALLUMER-BIBLIO-DEFAUTS-v20g · Williams 20/11 : fini + gratuit allumé par défaut. Valeur utilisée quand la base est vide ;
+// une valeur écrite en base (même `false`) l'emporte. Tableau : sans effet tant que son profil garde ces objets non permis.
+const PAR_DEFAUT: Readonly<Record<string, unknown>> = Object.freeze({
+  avocat: { capacites: ["texte.nom-outil-autonome", "texte.sortie-animee", "texte.style-varie"] },
+  "tableau-anime": { capacites: ["objet.chiffre", "objet.etape", "objet.marque"] },
+});
+
 export async function lireReglageBibliotheque(
   formatId: string,
   lire: (cle: string) => Promise<unknown>,
 ): Promise<ReglageBibliotheque> {
   try {
-    return interpreterReglageBibliotheque(await lire(cleReglageBibliotheque(formatId)));
+    const v = await lire(cleReglageBibliotheque(formatId));
+    return interpreterReglageBibliotheque(v === undefined || v === null ? PAR_DEFAUT[formatId] : v);
   } catch {
     return { actif: false };
   }

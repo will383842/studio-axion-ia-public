@@ -2,7 +2,7 @@
  * CLAUDE DU PLAN DE SCÈNES DE LA DÉMO FACE CAMÉRA (G3-10-v20e, décision D4 de Williams du 20/11) : relie un vrai Claude (Sonnet)
  * à `genererPlan`, UNIQUEMENT par le chemin gardé de l'argent (`executerRolePourVideo`, reçu par injection). Aucun appel direct.
  *
- *  - ÉTEINT PAR DÉFAUT : sans le réglage `demoFacecam.planClaude` à exactement `true`, la chaîne garde le plan simple d'aujourd'hui.
+ *  - ALLUMÉ PAR DÉFAUT depuis le 20/11 (ALLUMER-PLAN-DEMO-CLAUDE, décision D4) : absent = allumé ; le réglage `demoFacecam.planClaude` à `false` remet le plan simple.
  *  - PLAFOND DUR EN CODE : 0,85 € au plus pour ce plan, 1,25 € au plus pour tous les usages de Claude d'une vidéo ; refusé AVANT
  *    l'appel, quels que soient le mode du budget, le quota seul ou le réglage de plafond (qui ne peut que baisser la limite).
  *  - Refus, échec, simulation, texte vide : `ErreurClaude` sans montant ; `genererPlan` sort alors son plan simple. Jamais d'autre exception.
@@ -34,11 +34,12 @@ const JETONS_VIDES: ReponseClaude["jetons"] = { entree: 0, cacheLu: 0, cacheEcri
 
 const plafondPropre = (id: IdUsage): PlafondPropre => ({ id, parametre: PARAMETRES[id], defautUsd: PLAFONDS_CLAUDE_VIDEO_EUR[id], prefixeEtape: PREFIXES_ETAPE_CLAUDE_VIDEO[id] }) as unknown as PlafondPropre;
 
-/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+/** ALLUMÉ par défaut (prix accepté) : vrai seulement si la valeur lue est exactement `true` ou absente (undefined/null) ; tout le reste et une lecture en échec : éteint. */
 export async function planClaudeDemoActif(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
-    return (await l<unknown>(PARAM_PLAN_CLAUDE_DEMO, false)) === true;
+    const v = await l<unknown>(PARAM_PLAN_CLAUDE_DEMO, true);
+    return v === true || v === undefined || v === null;
   } catch {
     return false;
   }

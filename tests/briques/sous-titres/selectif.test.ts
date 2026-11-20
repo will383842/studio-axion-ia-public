@@ -81,9 +81,9 @@ describe("garde : pièce non branchée", () => {
       const p = join(d, n);
       return statSync(p).isDirectory() ? sources(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
     });
-  it("aucun fichier existant n'importe selectif", () => {
+  it("aucun fichier existant n'importe selectif, hors selectif-calque.ts (K2-T2-b1)", () => {
     const importeurs = sources(racine).filter((p) => !p.endsWith("selectif.ts") && /from\s+["'][^"']*\/selectif["']/.test(readFileSync(p, "utf8")));
-    expect(importeurs).toEqual([]);
+    expect(importeurs).toEqual([join(racine, "briques/composition/selectif-calque.ts")]);
   });
   it("aucun alias @/ dans selectif.ts", () => {
     expect(readFileSync(join(racine, "briques/sous-titres/selectif.ts"), "utf8")).not.toMatch(/from\s+["']@\//);

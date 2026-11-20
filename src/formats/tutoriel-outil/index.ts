@@ -20,7 +20,7 @@ export const formatTutorielOutil: DefinitionFormat = {
   nomCourt: "Tutoriel d'outil",
   accroche: "Un outil montré à l'écran, pas à pas",
   description: "Votre script ou une idée : le studio montre l'outil en plein écran (curseur, clics, zooms, frappe, légendes) sur une voix HeyGen. Pas de visage.",
-  icone: "baguette",
+  icone: "appareils",
   adresseCreation: "/tutoriel-outil",
   statut: "masque",
   famille: "motion",
