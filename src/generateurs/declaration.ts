@@ -63,6 +63,8 @@ export const DECLARATIONS: Readonly<Record<string, DeclarationGenerateur>> = Obj
   "tutoriel-outil": figer({ formatId: "tutoriel-outil", consomme: [ID.planScenesTutorielOutil], artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["4:5", "9:16", "1:1"] }),
   "demo-facecam": figer({ formatId: "demo-facecam", consomme: [ID.cadrageZoomDemo, ID.planScenesDemoFacecam], artefacts: PLAN, decoupage: "plans", visage: true, ratios: ["9:16"] }),
   // VL-05 : artefacts plan/rendus-scenes annoncés, pas encore produits par le moteur (la voix l'est déjà : projetMontage.reprise.voix).
+  // G4-09b : tableau de bord, plan et rendus de scène annoncés ; la voix est facultative (variante muette).
+  "tableau-de-bord": figer({ formatId: "tableau-de-bord", artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["4:5", "9:16", "1:1", "16:9"] }),
   "video-longue": figer({ formatId: "video-longue", artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["16:9"] }),
 });
 
