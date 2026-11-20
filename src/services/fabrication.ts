@@ -75,6 +75,7 @@ import { plafondClaudeDuMoisAtteint } from "./plafond-claude";
 // Facecam lot E : raccords de la chaîne vidéo (agent monteur, Décor IA, relecture), posés au chargement.
 import "./facecam-branchements";
 // Mission H : raccords facultatifs de l'avocat (motion commune, monteur, multicaméra), coupés par défaut.
+import { bornesPersonnages, lireModeVoix } from "@/formats/tutoriel-outil/mode-sans-voix";
 import { entreesAvocatDuLancement } from "./avocat-branchements";
 import { entreeBibliothequeDuLancement } from "./bibliotheque-video";
 import { appliquerTexteEcranAuLancement } from "@/briques/sous-titres/variantes";
@@ -360,7 +361,9 @@ async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: st
   if (!reglages.ok) throw new ErreurStudio("REGLAGES_INVALIDES", "Un réglage n'est pas valable.");
 
   const distribution = await resoudreDistributionCommande(video, format, reglages.reglages);
-  if (distribution.length < format.personnages.min) throw new ErreurStudio("DISTRIBUTION_INCOMPLETE", "Choisissez qui parle.");
+  // T-EXT-SV : le tutoriel d'outil sans voix (choix de l'utilisateur) accepte 0 personnage ; tout le reste inchangé.
+  const minPersonnages = format.id === "tutoriel-outil" ? bornesPersonnages(lireModeVoix((video.entrees as Record<string, unknown> | undefined)?.tutorielOutil)).min : format.personnages.min;
+  if (distribution.length < minPersonnages) throw new ErreurStudio("DISTRIBUTION_INCOMPLETE", "Choisissez qui parle.");
 
   const briques = briquesEffectives(format, video.briquesCoupees, video.briquesAllumees);
   const plans = (options.sansPlans ? [] : await plansApercu(videoId)).map((p) => ({

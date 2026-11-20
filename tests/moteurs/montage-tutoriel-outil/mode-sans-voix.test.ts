@@ -4,7 +4,7 @@ import type { CommandeFabrication } from "@/domaine/types";
 import { formatTutorielOutil } from "@/formats/tutoriel-outil";
 import { bornesPersonnages, CLE_ENTREE_MODE_VOIX, distributionAdmise, entreeModeVoix, lireModeVoix, MODE_AVEC_VOIX, MODE_SANS_VOIX } from "@/formats/tutoriel-outil/mode-sans-voix";
 import { VOIX_MAITRE_HEYGEN_ID, VoixNonEpingleeError } from "@/briques/voix-maitre/voix-epinglee";
-import { avancerEtape, ErreurTutoriel, etatInitial, type EtatTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil/chaine";
+import { avancerEtape, etatInitial, type EtatTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil/chaine";
 import { controlerLongueurScript } from "@/moteurs/montage-tutoriel-outil/diffusion-tutoriel";
 import { ENTREE_TUTORIEL, estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { moteurMontageTutorielOutil } from "@/moteurs/montage-tutoriel-outil";
@@ -56,7 +56,8 @@ describe("mode sans voix : règle du format", () => {
     expect(distributionAdmise(MODE_AVEC_VOIX, 1)).toBe(true);
     expect(distributionAdmise(MODE_AVEC_VOIX, 2)).toBe(false);
     expect(bornesPersonnages(MODE_AVEC_VOIX).min).toBe(1);
-    expect(formatTutorielOutil.personnages.min).toBe(bornesPersonnages(MODE_SANS_VOIX).min);
+    expect(bornesPersonnages(MODE_SANS_VOIX).min).toBe(0);
+    expect(formatTutorielOutil.personnages.min).toBe(bornesPersonnages(MODE_AVEC_VOIX).min);
     expect(formatTutorielOutil.personnages.max).toBe(1);
     expect(formatTutorielOutil.musique).toBe("interdite");
   });
@@ -122,10 +123,12 @@ describe("mode sans voix : coût", () => {
 });
 
 describe("mode avec voix : règles inchangées", () => {
-  it("0 personnage sans le mode sans voix : refus clair (jamais un muet silencieux)", async () => {
+  it("0 personnage sans le mode sans voix : comportement d'avant (muet, aucune voix appelée)", async () => {
     const c = commande(false, 0);
-    const { outils } = outilsPieges();
-    await expect(avancerEtape("voix", etatAvecScript(c), c, outils, "t1")).rejects.toBeInstanceOf(ErreurTutoriel);
+    const { appel, outils } = outilsPieges();
+    const pas = await avancerEtape("voix", etatAvecScript(c), c, outils, "t1");
+    expect(pas.etat.audio?.fournisseur).toBe("aucune");
+    expect(appel).not.toHaveBeenCalled();
   });
   it("une voix qui n'est pas la voix HeyGen maître reste refusée avant tout appel (L1-05)", async () => {
     const c = commande(false, 1);

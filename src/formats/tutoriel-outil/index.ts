@@ -32,8 +32,8 @@ export const formatTutorielOutil: DefinitionFormat = {
   ratioMaitre: "4:5",
   miseEnPage: "plein-ecran",
   miseEnPageParRatio: { "4:5": "plein-ecran", "9:16": "plein-ecran", "1:1": "plein-ecran" },
-  // T-EXT-SV : 0 personnage n'est admis QUE dans le mode « sans voix » (`mode-sans-voix.ts` ; garde dans la chaîne) ; avec voix : 1.
-  personnages: { min: 0, max: 1, roles: ["voix"], sources: ["double"] },
+  // T-EXT-SV : avec voix, 1 personnage. 0 n'est admis QUE dans le mode « sans voix » : `bornesPersonnages` (mode-sans-voix.ts), lu au lancement.
+  personnages: { min: 1, max: 1, roles: ["voix"], sources: ["double"] },
   entrees: [],
   etapes: ["express", "fabrication"],
   reglages: { schema: z.object({}), champs: [] },

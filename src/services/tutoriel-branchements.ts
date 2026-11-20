@@ -26,13 +26,13 @@ brancherServicesTutoriel({
     const sansVoix = estSansVoix(c.entrees);
     const personnageId = c.distribution[0]?.personnageId;
     if (!personnageId && !sansVoix) return null;
-    const { branchementsReels, branchementsReelsSansVoix, TARIF_VOIX_CENTIMES_PAR_CARACTERE } = await import("./tableau-outils");
+    const { branchementsReels, TARIF_VOIX_CENTIMES_PAR_CARACTERE } = await import("./tableau-outils");
     const { verifierEtReserverSelonOrigine } = await import("./credits");
     const { centimes } = await import("@/lib/montants");
     const { ErreurClaude } = await import("@/fournisseurs/claude/client");
     let b: Pick<Awaited<ReturnType<typeof branchementsReels>>, "env" | "montage"> & { voix?: Awaited<ReturnType<typeof branchementsReels>>["voix"] };
     try {
-      b = sansVoix ? await branchementsReelsSansVoix(c.videoId) : await branchementsReels(personnageId!, c.videoId);
+      b = sansVoix ? await (await import("./tableau-outils")).branchementsReelsSansVoix(c.videoId) : await branchementsReels(personnageId!, c.videoId);
     } catch {
       // Rendu, stockage ou voix pas reliés : pause claire (le moteur le dit), rien n'est dépensé.
       return null;
