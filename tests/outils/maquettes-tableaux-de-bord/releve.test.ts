@@ -62,6 +62,10 @@ describe("relevé de l'essai réel du pilote 05", () => {
     const lisible = releverEssai(avec({ depensesReelles: [{ etape: "plan", fournisseur: "anthropic", centimes: Number.NaN }] }));
     expect(lisible.verdict).toBe("a-revoir");
     expect(lisible.ecarts.join(" ")).toContain("illisible");
+    // une ligne négative ne doit pas masquer un dépassement : 150 anthropic + (-100) claude pour un plafond de 100
+    const negatif = releverEssai(avec({ plafondClaudeCentimes: 100, depensesReelles: [{ etape: "plan", fournisseur: "anthropic", centimes: 150 }, { etape: "ecrit", fournisseur: "claude", centimes: -100 }] }));
+    expect(negatif.verdict).toBe("a-revoir");
+    expect(negatif.ecarts.join(" ")).toContain("illisible");
     for (const plafond of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
       const r = releverEssai(avec({ plafondClaudeCentimes: plafond }));
       expect(r.verdict).toBe("a-revoir");

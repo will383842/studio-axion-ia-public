@@ -67,7 +67,7 @@ export function releverEssai(e: EssaiReleve): ReleveEssai {
   // Le Studio inscrit les dépenses de Claude sous « anthropic » (et parfois « claude ») : même règle que `idFournisseur` (src/domaine/credits.ts).
   const estClaude = (f: unknown): boolean => typeof f === "string" && ["anthropic", "claude"].includes(f.trim().toLowerCase());
   const lignesClaude = e.depensesReelles.filter((d) => estClaude(d.fournisseur));
-  if (lignesClaude.some((d) => !nombreValide(d.centimes))) ecarts.push("Un chiffre de dépense de l'assistant d'écriture est illisible : impossible de comparer au plafond.");
+  if (lignesClaude.some((d) => !nombreValide(d.centimes) || d.centimes < 0)) ecarts.push("Un chiffre de dépense de l'assistant d'écriture est illisible : impossible de comparer au plafond.");
   const claude = lignesClaude.reduce((s, d) => s + (nombreValide(d.centimes) ? d.centimes : 0), 0);
   if (!nombreValide(e.plafondClaudeCentimes) || e.plafondClaudeCentimes < 0) ecarts.push("Le plafond de dépense de l'assistant d'écriture est illisible : impossible de comparer.");
   else if (claude > e.plafondClaudeCentimes) ecarts.push("La dépense de l'assistant d'écriture dépasse le plafond fixé pour cette vidéo.");
