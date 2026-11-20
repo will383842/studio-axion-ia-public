@@ -33,6 +33,8 @@ export interface DemandeDepotTexteIV {
   reserveId?: string;
   /** Montant affiché et confirmé (centimes d'euro). */
   accordCentimes?: AccordPrix;
+  /** IV-SV : mode sans voix (aucune voix, 0 appel HeyGen). Absent : avec voix. */
+  sansVoix?: boolean;
 }
 
 /** MODE « SCRIPT COMPLET » : le script de Will, dit tel quel (aucune écriture par l'IA). */
@@ -43,6 +45,8 @@ export interface DemandeDepotScriptIV {
   reserveId?: string;
   /** Montant affiché et confirmé (centimes d'euro). */
   accordCentimes?: AccordPrix;
+  /** IV-SV : mode sans voix (aucune voix, 0 appel HeyGen). Absent : avec voix. */
+  sansVoix?: boolean;
 }
 
 export type IssueDepotTexteIV =
@@ -97,7 +101,7 @@ export async function deposerTexteImageVideo(d: DemandeDepotTexteIV, dep: Depend
  * conçu depuis le script (comme le mode texte) ; seule l'écriture est remplacée, les mots du script sont dits à l'identique.
  */
 export async function deposerScriptImageVideo(d: DemandeDepotScriptIV, dep: DependancesTexteIV = {}): Promise<IssueDepotTexteIV> {
-  return deposer({ texte: d.script, reseaux: d.reseaux, ...(d.reserveId ? { reserveId: d.reserveId } : {}), ...(d.accordCentimes !== undefined ? { accordCentimes: d.accordCentimes } : {}) }, dep, true);
+  return deposer({ texte: d.script, reseaux: d.reseaux, ...(d.reserveId ? { reserveId: d.reserveId } : {}), ...(d.accordCentimes !== undefined ? { accordCentimes: d.accordCentimes } : {}), ...(d.sansVoix ? { sansVoix: true } : {}) }, dep, true);
 }
 
 async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptColle: boolean): Promise<IssueDepotTexteIV> {
@@ -108,8 +112,10 @@ async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptCo
   const reseaux = RESEAUX_IV.filter((r) => (d.reseaux as readonly string[]).includes(r)) as ReseauIV[];
   if (!reseaux.length) return { statut: "refusee", phrase: (d.reseaux as readonly string[]).includes("tiktok") ? PHRASE_TIKTOK_RETIRE_IV : PHRASES_IV.sansReseau };
   if (!(await (dep.formatOuvert ?? formatOuvertParDefaut)())) return { statut: "refusee", phrase: PHRASES_IV.pasRaccorde };
-  const voix = await (dep.voix ?? voixParDefaut)();
-  if (!voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
+  // IV-SV : sans voix, aucune voix n'est cherchée ni exigée.
+  const sansVoix = d.sansVoix === true;
+  const voix = sansVoix ? null : await (dep.voix ?? voixParDefaut)();
+  if (!sansVoix && !voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
   const montant = prixDuDepot(reseaux, await (dep.taux ?? (() => lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT)))(), scriptColle ? Math.max(50, dureeCibleDuScript(nombreDeMotsDuScript(d.texte))) : 50);
   return verrouDepotTexte<IssueDepotTexteIV>(async () => {
     // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord ; sinon l'accord reçu, tel quel.
@@ -131,9 +137,10 @@ async function deposer(d: DemandeDepotTexteIV, dep: DependancesTexteIV, scriptCo
         // Le plafond de la caisse est le prix « au plus » affiché et confirmé, comme pour une image.
         plafondCentimes: montant,
         accordEssaiReel: accordEssaiReel === true,
+        ...(sansVoix ? { sansVoix: true as const } : {}),
       },
     };
-    const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
+    const distribution: Distribution[] = voix ? [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }] : [];
     const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees });
     const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
     try {

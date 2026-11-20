@@ -88,8 +88,8 @@ export async function lotsDeLIndexIV(): Promise<string[]> {
 // ─── Estimation d'une vidéo ──────────────────────────────────────────────────────────────────────────────────────────
 
 /** Les lignes de coût d'UNE vidéo du lot (même calcul que le dépôt d'une image seule). */
-function lignesUneVideo(reseaux: readonly ReseauIV[], taux: number): LigneCout[] {
-  const commande = { entrees: { imageVideo: { reseaux: [...reseaux] } }, tauxUsdEur: taux, dureeCibleSec: 50 } as unknown as CommandeFabrication;
+function lignesUneVideo(reseaux: readonly ReseauIV[], taux: number, sansVoix = false): LigneCout[] {
+  const commande = { entrees: { imageVideo: { reseaux: [...reseaux], ...(sansVoix ? { sansVoix: true } : {}) } }, tauxUsdEur: taux, dureeCibleSec: 50 } as unknown as CommandeFabrication;
   return estimerImageVideo(commande).lignes;
 }
 
@@ -108,6 +108,8 @@ export interface DemandeLotIV {
   offre?: string;
   /** Montant affiché et confirmé pour TOUT le lot (centimes d'euro). */
   accordCentimes?: AccordPrix;
+  /** IV-SV : mode sans voix pour tout le lot (aucune voix, 0 appel HeyGen). Absent : avec voix. */
+  sansVoix?: boolean;
 }
 
 /** Image du lot laissée de côté parce qu'elle est déjà traitée (ou en double dans le lot). */
@@ -158,9 +160,10 @@ export async function sourcesSujetsIV(base?: SourcesSujets): Promise<SourcesSuje
 
 export const idDuLotIV = (cle: string) => `lot-iv-${cle.slice(0, 12)}`;
 
-export function cleIdempotenceLotIV(fichierIds: readonly string[], reseaux: readonly string[], offre: string | undefined, accord: number): string {
+export function cleIdempotenceLotIV(fichierIds: readonly string[], reseaux: readonly string[], offre: string | undefined, accord: number, sansVoix = false): string {
+  // IV-SV : le mode sans voix est une autre demande (clé distincte) ; sans lui, la clé reste celle d'avant.
   return createHash("sha256")
-    .update(JSON.stringify({ fichiers: [...fichierIds].sort(), reseaux: [...reseaux].sort(), offre: offre ?? "", accord }))
+    .update(JSON.stringify({ fichiers: [...fichierIds].sort(), reseaux: [...reseaux].sort(), offre: offre ?? "", accord, ...(sansVoix ? { sansVoix: true } : {}) }))
     .digest("hex");
 }
 
@@ -209,8 +212,10 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   if (!reseaux.length) return { statut: "refusee", phrase: (d.reseaux as readonly string[]).includes("tiktok") ? PHRASES_IV.tiktokRetire : PHRASES_IV.sansReseau };
   const offre = OFFRES.includes(d.offre as Offre) ? (d.offre as Offre) : undefined;
   if (!(await (dep.formatOuvert ?? formatOuvertParDefaut)())) return { statut: "refusee", phrase: PHRASES_IV.pasRaccorde };
-  const voix = await (dep.voix ?? voixParDefaut)();
-  if (!voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
+  // IV-SV : sans voix, aucune voix n'est cherchée ni exigée.
+  const sansVoix = d.sansVoix === true;
+  const voix = sansVoix ? null : await (dep.voix ?? voixParDefaut)();
+  if (!sansVoix && !voix) return { statut: "refusee", phrase: PHRASES_IV.sansVoix };
   const fichiers: { id: string; cleStockage: string; nom: string; taille: number; sha256?: string }[] = [];
   for (const i of d.images) {
     try {
@@ -224,7 +229,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   }
   // Images déjà traitées (lot L6) : sautées et dites, jamais le lot entier bloqué ; avant le prix et avant toute dépense.
   // La clé d'idempotence reste celle de la demande entière (un même dépôt rend le même lot, même si des vidéos sont parties entre-temps).
-  const cle = cleIdempotenceLotIV(d.images.map((i) => i.fichierId), reseaux, offre, typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : NaN);
+  const cle = cleIdempotenceLotIV(d.images.map((i) => i.fichierId), reseaux, offre, typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : NaN, sansVoix);
   // Même demande déjà déposée : le même lot, rendu AVANT le tri (des vidéos du lot ont pu partir et compter au registre depuis).
   const lotId = idDuLotIV(cle);
   if (await lireLotIV(lotId)) return { statut: "lancee", lotId };
@@ -282,7 +287,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   const fichiersLot = gardees.map((k) => fichiers[k]!);
   const nLot = images.length;
   const taux = await (dep.taux ?? tauxParDefaut)();
-  const prixParVideo = prixDuDepot(reseaux, taux);
+  const prixParVideo = prixDuDepot(reseaux, taux, 50, sansVoix);
   const total = prixDuLotIV(nLot, prixParVideo);
   // Mode indicatif (ordre du 25/10) : le prix du jour vaut accord pour tout le lot ; bloquant : l'accord reçu, tel quel.
   const accordBrut = typeof d.accordCentimes === "number" && Number.isFinite(d.accordCentimes) ? d.accordCentimes : undefined;
@@ -295,7 +300,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
   return verrouDepot(async () => {
     if (await lireLotIV(lotId)) return { statut: "lancee" as const, lotId, ...(sautees.length ? { sautees, ...(phraseSautees ? { phraseSautees } : {}) } : {}) };
     // Budget du mois, seuil de confirmation, clés et crédits de CHAQUE fournisseur, pour tout le lot : un refus ne crée rien.
-    const lignes = Array.from({ length: nLot }, () => lignesUneVideo(reseaux, taux)).flat();
+    const lignes = Array.from({ length: nLot }, () => lignesUneVideo(reseaux, taux, sansVoix)).flat();
     try {
       await reserverLot(lotId, lignes, additionner(...lignes.map((l) => l.total)), accord);
     } catch (e) {
@@ -304,7 +309,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
       throw e;
     }
     const accordEssaiReel = await (dep.accordEssai ?? (() => lireParametre<boolean>(PARAM_ACCORD_ESSAI_IV, false)))();
-    const distribution: Distribution[] = [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }];
+    const distribution: Distribution[] = voix ? [{ role: "voix", source: "double", personnageId: voix.personnageId, voixId: voix.voixId }] : [];
     const videos: VideoDuLotIV[] = [];
     try {
       for (const [k, i] of images.entries()) {
@@ -321,6 +326,7 @@ export async function deposerLotImageVideo(d: DemandeLotIV, dep: DependancesLotI
             hauteur: Math.round(i.hauteur),
             plafondCentimes: prixParVideo,
             accordEssaiReel: accordEssaiReel === true,
+            ...(sansVoix ? { sansVoix: true as const } : {}),
             lot: { id: lotId, rang: k + 1, accordParVideoCentimes: prixParVideo },
           },
         };

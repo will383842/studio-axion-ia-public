@@ -34,6 +34,8 @@ import type { ConvertirEnPng } from "@/moteurs/montage-image-video/lecture/prepa
 import { idTravailControleIV, imagesExtraitesIV } from "@/moteurs/montage-image-video/relecture-finale";
 import type { ReponseAppelLecture } from "@/moteurs/montage-image-video/lecture";
 import { brancherServicesImageVideo, lireEntreesImageVideo } from "@/moteurs/montage-image-video";
+import { wavSilenceIV } from "@/moteurs/montage-image-video/sans-voix";
+import { empreinteSon } from "@/moteurs/montage-image-video/assemblage";
 import { PLAFOND_VIDEO_IV_CENTIMES } from "@/moteurs/montage-image-video/fabrication";
 import { signalerDepassementIndicatif } from "./budget-mensuel";
 import { accordSansClicPour, normaliserOrigine } from "./autonomie-usine";
@@ -207,6 +209,8 @@ export async function relireRenduIV(service: ServiceRendu, demande: DemandeRendu
 
 export interface DependancesOutilsIV {
   videoId: Id;
+  /** IV-SV : mode sans voix (la voix HeyGen n'est ni exigée ni utilisée ; pistes de silence rangées sans appel payant). */
+  sansVoix?: boolean;
   /** Identifiant du travail (réservations de la voix). */
   travailId: Id;
   /** Plafond Claude propre du format pour cette vidéo, en dollars (défaut : le plafond de la vidéo). */
@@ -276,7 +280,7 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
   const voix = resoudreFournisseur("voix", "heygen");
   const rendu = client.obtenirServiceRendu();
   const renduSimule = client.renduSimule();
-  if (production && (stockage.mode === "simulation" || voix.mode === "simulation" || renduSimule)) throw new Error(STUDIO_NON_RELIE_IV);
+  if (production && (stockage.mode === "simulation" || (!dep.sansVoix && voix.mode === "simulation") || renduSimule)) throw new Error(STUDIO_NON_RELIE_IV);
   const taux = await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT);
   const sousTitresMinimal = (await lireParametre<unknown>(PARAM_SOUS_TITRES_MINIMAL_IV, false).catch(() => false)) === true;
   const tarifUsd = voix.capacites.tarifUsd?.unite === "caractere" ? voix.capacites.tarifUsd.centimesUsd : CENTIMES_USD_PAR_CARACTERE_HEYGEN;
@@ -388,6 +392,21 @@ export async function outilsImageVideo(dep: DependancesOutilsIV): Promise<Outils
         }
       },
     },
+    // IV-SV : piste de silence rangée dans le stockage du studio (aucun appel payant) ; sans stockage relié, la clé seule suffit aux essais.
+    ...(dep.sansVoix
+      ? {
+          pisteMuette: async (d: { version: string; dureeSec: number }) => {
+            const octets = wavSilenceIV(d.dureeSec);
+            const cle = cleIV(`voix-seule/sans-voix-${d.version}-${Math.round(d.dureeSec * 1000)}.wav`);
+            const url = await signerDepot(cle, "audio/wav");
+            if (url) {
+              const r = await fetch(url, { method: "PUT", body: octets as unknown as BodyInit, headers: { "content-type": "audio/wav" }, signal: AbortSignal.timeout(60_000) });
+              if (!r.ok) throw new Error(`dépôt refusé (${r.status})`);
+            }
+            return { cle, empreinte: empreinteSon(octets) };
+          },
+        }
+      : {}),
     voix: {
       voix: () => voix,
       stockage: () => stockage,
@@ -528,7 +547,7 @@ export function plafondClaudeUsdIV(commande: Pick<CommandeFabrication, "entrees"
 }
 
 brancherServicesImageVideo({
-  outils: async (commande, travailId) => outilsImageVideo({ videoId: commande.videoId, travailId, plafondClaudeUsd: plafondClaudeUsdIV(commande), ...(accordLotDeLaCommandeIV(commande) !== undefined ? { accordLotCentimes: accordLotDeLaCommandeIV(commande) } : {}), ...(commande.origine ? { origine: commande.origine } : {}) }),
+  outils: async (commande, travailId) => outilsImageVideo({ videoId: commande.videoId, travailId, ...(lireEntreesImageVideo(commande.entrees).sansVoix ? { sansVoix: true } : {}), plafondClaudeUsd: plafondClaudeUsdIV(commande), ...(accordLotDeLaCommandeIV(commande) !== undefined ? { accordLotCentimes: accordLotDeLaCommandeIV(commande) } : {}), ...(commande.origine ? { origine: commande.origine } : {}) }),
   numeroVersion: async (versionId) => {
     const { depots } = await import("./_commun");
     const v = await depots().versions.obtenir(versionId).catch(() => null);

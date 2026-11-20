@@ -159,6 +159,8 @@ export interface ContexteControlesIV {
   liens: Readonly<Record<string, string>>;
   /** Réglage de la question de commentaire (défaut `fin-seule`) : en `question-puis-fin`, une fin sans question est signalée (remarque). */
   appelCommentaire?: AppelCommentaire;
+  /** IV-SV : mode sans voix. Ni voix lue, ni écoute, ni volume : les lignes de la voix (Q16 à Q19, Q28) et du son (volume, crête) sont sans objet. */
+  sansVoix?: boolean;
   /** Script collé par Will : les points d'ossature d'un script écrit par l'IA ne le bloquent pas (`script-colle.ts`). */
   scriptColle?: boolean;
   /** Cible déclarée (facultative) : absente des 5 premières secondes = remarque C100, jamais un blocage. */
@@ -298,7 +300,7 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const choc = phraseChocAttendue(carte, ctx.regles?.choixFormules);
   // Phrase-choc pas entendue en entier = erreur de transcription probable (la voix, elle, existe) : remarque.
   const q06Souple = ecoute && !sansEcoute && !entendue(choc, entendu) ? [`la phrase-choc (« ${choc} ») n'est pas entendue en entier.`] : [];
-  if (sansEcoute && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true, ...(remarqueEcoute ? { indicatif: true } : {}) });
+  if (sansEcoute && !ctx.sansVoix && q06.length === 0) L("Q06", ["l'écoute n'a pas été faite : la phrase-choc n'est pas confirmée."], { nonFait: true, ...(remarqueEcoute ? { indicatif: true } : {}) });
   else L("Q06", [...q06, ...q06Souple], { indicatif: q06.length === 0 && q06Souple.length > 0 });
 
   // Q07 · ossature, et accroche finie avant 3 s sur la voix.
@@ -399,7 +401,9 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   // « Les chiffres dits ne sont pas confirmés » : une remarque seulement si la carte n'a AUCUN chiffre à dire ; sinon un chiffre dit pourrait être faux, la ligne bloque.
   const aDesChiffresADire = (v.courte ? carteSansRetires(carte, v.noeudsRetires ?? []) : carte).chiffres.some((c) => c.aDire);
   const chiffresNonConfirmes = "l'écoute n'a pas été faite : les chiffres dits ne sont pas confirmés.";
-  if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [chiffresNonConfirmes, ...chiffres], ctx.scriptColle ? { nonFait: true, indicatif: true } : { nonFait: true });
+  // IV-SV : rien n'est dit, donc rien à entendre ; « jamais affiché » reste contrôlé.
+  if (ctx.sansVoix) L("CHIFFRES", chiffres, { indicatif: true });
+  else if (sansEcoute && aDesChiffresADire) L("CHIFFRES", [chiffresNonConfirmes, ...chiffres], ctx.scriptColle ? { nonFait: true, indicatif: true } : { nonFait: true });
   else if (sansEcoute) L("CHIFFRES", [chiffresNonConfirmes], { nonFait: true, indicatif: true });
   else L("CHIFFRES", chiffres, { indicatif: true });
 
@@ -454,8 +458,8 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   const horsPlancherLufs = (x: number) => Math.abs(x - M.lufs) > LUFS_PLANCHER_ECART;
   const noirTropLong = (x: number) => x > NOIR_PLANCHER_SEC;
   const figeTropLong = (x: number) => x > FIGE_PLANCHER_SEC;
-  verifier("lufs", "le volume", (x) => Math.abs(x - M.lufs) <= M.toleranceLufs + 1e-9, (x) => `volume à ${x} LUFS (−14 à 1 près).`, true, horsPlancherLufs);
-  verifier("creteVraieDbtp", "la crête", (x) => x <= M.creteMaxDbtp + 1e-9, (x) => `crête à ${x} dBTP (−1 au plus).`, true);
+  if (!ctx.sansVoix) verifier("lufs", "le volume", (x) => Math.abs(x - M.lufs) <= M.toleranceLufs + 1e-9, (x) => `volume à ${x} LUFS (−14 à 1 près).`, true, horsPlancherLufs);
+  if (!ctx.sansVoix) verifier("creteVraieDbtp", "la crête", (x) => x <= M.creteMaxDbtp + 1e-9, (x) => `crête à ${x} dBTP (−1 au plus).`, true);
   verifier("noirMaxSec", "les images noires", (x) => x <= M.noirOuFigeMaxSec + 1e-9, (x) => `image noire de ${sec(x)} (0,5 s au plus).`, true, noirTropLong);
   // Image figée (décision de Will du 17/10) : jusqu'à 2,5 s tant que la voix parle (écran tenu le temps d'une phrase),
   // 0,5 s hors voix (silence, fin). Sans la mesure « hors voix », le fichier est jugé comme avant (0,5 s partout).
@@ -504,6 +508,9 @@ export function controlerVersionIV(v: VersionAControlerIV, ctx: ContexteControle
   sceneCode("ORANGE");
   sceneCode("FIN");
 
+  // IV-SV : sans voix, les lignes de la voix n'ont pas d'objet (rien n'est lu, rien n'est écouté).
+  const sansObjet: ReadonlySet<CodeControleIV> = new Set(["Q16", "Q17", "Q18", "Q19", "Q28"]);
+  const retenues = ctx.sansVoix ? lignes.map((l) => (sansObjet.has(l.code) ? ligneIV(l.code, v, [], { phraseOk: "mode sans voix : sans objet." }) : l)) : lignes;
   // Ordre du rapport.
-  return CODES_CONTROLE_IV.flatMap((c) => lignes.filter((l) => l.code === c));
+  return CODES_CONTROLE_IV.flatMap((c) => retenues.filter((l) => l.code === c));
 }

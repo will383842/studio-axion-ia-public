@@ -56,7 +56,7 @@ import type { ActiviteLien } from "@/domaine/mesures";
 import { liensSuivisIV, planDesFinsIV, refusQuestion, sorteDuPlanIV, type AppelCommentaire, type FinIV, type PlanDesFinsIV } from "./fins";
 import { lireImage, PHRASE_TYPE_INCONNU, type LectureImage, type OutilsLecture } from "./lecture";
 import { ecranVivantIV, ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFiletIV } from "./adaptation-scene";
-import { ErreurCalageIV } from "./calage";
+import { ErreurCalageIV, heuresSimulees } from "./calage";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
@@ -163,6 +163,12 @@ export interface DemandeFabricationIV {
   /** GV-ST-03 : style de sous-titres choisi (id, nom, valeur), posé depuis `commande.styles.sousTitres` ; absent : charte duo. */
   styleSousTitres?: StyleChoisiIV;
   dosage?: Extract<DosageMotion, "sobre" | "dynamique">; // X3-08 : cran du dosage ; absent : sous-titres inchangés
+  /**
+   * IV-SV : MODE SANS VOIX. Même vidéo (images, animations, sous-titres, texte à l'écran), silence total : aucune voix lue
+   * (0 appel HeyGen, aucune ligne de coût « voix »), aucun bruitage, aucune musique, aucune écoute. Le rythme suit le temps
+   * de lecture du texte (`DEBIT_MOTS_PAR_SEC`). Absent : mode avec voix, inchangé.
+   */
+  sansVoix?: true;
 }
 
 /** Une réservation comptée par la caisse (pire coût, centimes d'euro). */
@@ -460,6 +466,8 @@ export interface OutilsFabricationIV {
   ecriture: Omit<OutilsEcritureIV, "budget">;
   /** Voix : tout sauf la réservation, posée par la caisse. */
   voix: Omit<OutilsVoixIV, "avantLecture">;
+  /** IV-SV : range une piste de SILENCE (WAV) de cette durée et rend sa clé et son empreinte ; sans appel payant. Absent : piste sans fichier réel (tests). */
+  pisteMuette?: (d: { version: string; dureeSec: number }) => Promise<{ cle: string; empreinte: string }>;
   /** Faux : la fin de secours à lire n'est pas posée automatiquement, elle attend « Refaire cette partie » (parcours des tests d'avant). Défaut : vrai. */
   secoursAutomatique?: boolean;
   assemblage: OutilsAssemblageIV;
@@ -1095,7 +1103,8 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     voix: { mots: v.piste.mots, motsCorps: v.piste.motsCorps, dureeSec: v.piste.dureeSec, finVoixSec: v.piste.finVoixSec },
     fin: v.fin,
     reseaux: v.reseaux,
-    bruitagesValides: bruitages,
+    // IV-SV : silence total, aucun bruitage.
+    bruitagesValides: e.demande.sansVoix ? [] : bruitages,
     ...(v.format === "4:5" ? { format: v.format } : {}),
     // Variété : la recette de la version (son format, l'ouverture de ses réseaux) ; les bruitages partent de la graine.
     ...(e.variete ? { variete: recettePourVersion(e.variete.recette, v.reseaux, v.format ?? "9:16"), graine: e.demande.videoId } : {}),
@@ -1103,7 +1112,7 @@ function sceneDe(e: EtatFabricationIV, v: VersionIV, bruitages: readonly Bruitag
     ...(e.demande.styleSousTitres?.valeur ? { styleSousTitres: e.demande.styleSousTitres } : {}),
     ...(e.demande.dosage ? { dosage: e.demande.dosage } : {}), // X3-08
     // GV2-29 : sous-titres écrits comme le script et clôture après la voix, pour un état neuf seulement (clés de rendu des vidéos existantes inchangées).
-    ...(e.voix && pointFinalDe(e.voix) ? { texteEcrit: true as const } : {}),
+    ...(e.demande.sansVoix || (e.voix && pointFinalDe(e.voix)) ? { texteEcrit: true as const } : {}),
   };
 }
 
@@ -1431,7 +1440,47 @@ async function pasScript(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<
 /** Délai de base entre deux essais de conversion WAV (Q17) ; l'essai k attend k fois ce délai. */
 const DELAI_ESSAI_WAV_MS = 250;
 
+/**
+ * IV-SV : « voix » du mode sans voix. Aucune lecture, aucune réservation : chaque version reçoit une piste de SILENCE dont
+ * les mots sont horodatés au temps de lecture (`heuresSimulees`, débit `DEBIT_MOTS_PAR_SEC`) : chaque écran et chaque
+ * sous-titre reste le temps de lire son texte. Pas de version courte (elle se taille dans le son).
+ */
+async function pasVoixMuette(e: EtatFabricationIV, o: OutilsFabricationIV): Promise<EtatFabricationIV> {
+  const { script, plan } = e;
+  const segments = segmentsVoixIV(script!.fiche, plan!, { lectureUnique: false, pointFinal: true });
+  const corps = heuresSimulees([segments.corps]);
+  const pistes: PisteVoixSeuleIV[] = [];
+  for (const v of segments.versions) {
+    const fin = v.segment ? segments.fins.find((f) => f.id === v.segment) : undefined;
+    const depart = (corps.length ? corps[corps.length - 1].finSec : 0) + 0.3;
+    const motsFin = fin ? heuresSimulees([fin.texte], { departSec: depart }) : [];
+    const mots = [...corps, ...motsFin];
+    const finVoixSec = mots.length ? mots[mots.length - 1].finSec : 0;
+    const dureeSec = Math.round((finVoixSec + 0.5) * 1000) / 1000;
+    const son = o.pisteMuette ? await o.pisteMuette({ version: v.id, dureeSec }) : { cle: `sans-voix/${v.id}.wav`, empreinte: `sans-voix-${empreinteDe([v.id, dureeSec])}` };
+    pistes.push({
+      version: v.id,
+      reseaux: [...v.reseaux],
+      courte: false,
+      cle: son.cle,
+      dureeSec,
+      empreinte: son.empreinte,
+      mots,
+      motsCorps: corps.length,
+      ...(motsFin.length ? { raccordSec: depart } : {}),
+      finVoixSec,
+      coupesDeplacees: 0,
+      tempo: 1,
+    });
+  }
+  e.pistes = pistes;
+  e.courtes = [];
+  e.journal.push(`Mode sans voix : ${pistes.length} piste(s) de silence, aucune lecture, 0 € de voix. Le rythme suit le temps de lecture du texte.`);
+  return passerA(e, "mise-en-scene");
+}
+
 async function pasVoix(e: EtatFabricationIV, o: OutilsFabricationIV, caisse: Caisse, plafond: (c?: CodeRefusIV) => CodeRefusIV): Promise<EtatFabricationIV> {
+  if (e.demande.sansVoix) return pasVoixMuette(e, o);
   const { script, plan } = e;
   const segments = segmentsVoixIV(script!.fiche, plan!, optionsVoixDe(e.voix));
   // Lectures supplémentaires déjà réservées dans cette tentative : toute réservation voix au-delà des premières lectures du
@@ -1807,6 +1856,7 @@ export function entreePorteIV(e: EtatFabricationIV, bruitages: readonly Bruitage
     regles: { choixFormules: e.script!.choixFormules, ajoutsWill: e.script!.ajoutsWill, interdits: e.demande.interdits ?? [], ...recitDe(e) },
     ...(e.demande.scriptColle ? { scriptColle: true } : {}),
     voix: { issue: e.voix?.issue ?? { statut: "faite" } },
+    ...(e.demande.sansVoix ? { sansVoix: true } : {}),
     publication,
     liens,
     ...(e.demande.appelCommentaire ? { appelCommentaire: e.demande.appelCommentaire } : {}),
