@@ -7,8 +7,8 @@ const SANS_VISAGE_AVANT = ["tableau-anime", "cas-concret", "image-video", "motio
 const FORMATS = listerFormats({ inclureMasques: true, inclureReservesAWill: true });
 
 describe("famille() lit la déclaration (G1-05b)", () => {
-  it("même sortie qu'avant pour tous les formats sauf tutoriel-outil et video-longue", () => {
-    for (const f of FORMATS.filter((x) => x.id !== "tutoriel-outil" && x.id !== "video-longue")) {
+  it("même sortie qu'avant pour tous les formats sauf tutoriel-outil, video-longue et tableau-de-bord", () => {
+    for (const f of FORMATS.filter((x) => x.id !== "tutoriel-outil" && x.id !== "video-longue" && x.id !== "tableau-de-bord")) {
       expect(famille(f.id)).toEqual({ visage: !SANS_VISAGE_AVANT.includes(f.id) });
     }
   });
@@ -19,6 +19,10 @@ describe("famille() lit la déclaration (G1-05b)", () => {
 
   it("video-longue est sans visage", () => {
     expect(famille("video-longue").visage).toBe(false);
+  });
+
+  it("tableau-de-bord est sans visage", () => {
+    expect(famille("tableau-de-bord").visage).toBe(false);
   });
 
   it("format inconnu = visage, comme avant", () => {
