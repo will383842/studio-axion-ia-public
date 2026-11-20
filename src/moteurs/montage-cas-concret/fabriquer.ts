@@ -67,7 +67,8 @@ import { centimes, formaterMontant } from "@/lib/montants";
 import { ecritureDetachee, type AppelSuivi } from "./appels";
 import { figerMemoireCommune } from "./memoire-commune";
 import { poserBruitages } from "./bruitages";
-import { calerFiche, IMAGE_MS, type EvenementCale } from "./calage";
+import { IMAGE_MS, type EvenementCale } from "./calage";
+import { calageApproche, remettreMarque } from "./reparations-ecrans";
 import { appliquerCaptures, avancerCaptures, etatInitialCaptures, planCaptures, type EtatCaptures } from "./captures";
 import { clesImagesDuCas, imagesDuCas } from "./visuels-du-cas";
 import { REGLES_RECALAGE_CAS_CONCRET, controlerFinDeVoix, lireWav, recalerCoupesSurSilences, silencesMesures, type Silence, type Son } from "./fin-de-voix";
@@ -82,7 +83,7 @@ import { activiteDuPublic } from "@/domaine/mesures";
 import { liensSuivis, planDesFins } from "./fins";
 import type { DemandeCapture, EstimationVoixCasConcret, EtapeCasConcret, OutilsCaptures, OutilsFabricationCasConcret, OutilsVoixCasConcret, ResultatAssemblage, ResultatCapture } from "./outils";
 import { textesDePublication, type TextePublication } from "./publication";
-import { validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
+import { MARQUE, validerFicheEcrans, validerFicheEcransTolerant } from "./regles";
 import { parametresRaccord, planRaccordVoix, RECETTE_VOIX_CAS_CONCRET, reglagesRecette, type PlanRaccordVoix } from "./recette-voix";
 import { centreSousTitresCasConcret, MARQUEUR_STYLE_VARIE, surlignageCasConcret, variationSousTitresCasConcret, VARIANTE_PAR_VIDEO } from "./sous-titres-variete";
 import { appliquerContraintes, contraintesDosageCasConcret } from "./dosage";
@@ -687,6 +688,11 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const forme = validerSchemaFiche(brute);
     if (!forme.ok) throw refus(forme.problemes.map((p) => p.message));
     if (forme.fiche.casId !== cas.id) throw refus([`La fiche est écrite pour un autre cas (« ${forme.fiche.casId} »).`]);
+    // S-04a : la marque perdue est remise (R09 seulement) et dite en « À vérifier » ; tout autre refus reste un refus.
+    // Seule une variante de NOTRE marque (casse, « www. », « https:// », « axion ») est remise : une autre adresse (« autre-site.fr ») reste un refus R09.
+    const rm = remettreMarque(forme.fiche);
+    const absente = forme.fiche.ecrans.map((e) => e.marque.trim() !== MARQUE && /^(https?:\/\/)?(www\.)?axion([- ]ia)?(\.com)?\/?$/i.test(e.marque.trim()));
+    const marquee = { fiche: { ...rm.fiche, ecrans: rm.fiche.ecrans.map((e, i) => (absente[i] ? e : forme.fiche.ecrans[i])) as typeof rm.fiche.ecrans }, faits: forme.fiche.ecrans.filter((_, i) => absente[i]).map((e) => `Écran ${e.id} : marque remise.`) };
     // 08/11/2026 : le script de Will (validé, fourni ou modifié) fait foi : durée, accroche, tutoiement, mots à éviter… sont des
     // REMARQUES gardées sur la vidéo, jamais un refus. Un texte écrit par Claude garde les règles d'avant.
     const ctxRegles = { cas, texteScript: texteDuCorps(forme.fiche), ...controleRegles };
@@ -697,15 +703,15 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     }
     // GV2-30 : la retouche d'un texte du fondateur suit, comme lui, les règles tolérantes.
     if (script || o.texteFige) {
-      const t = validerFicheEcransTolerant(brute, ctxRegles, script ? script.fourni === true : true);
+      const t = validerFicheEcransTolerant(marquee.fiche, ctxRegles, script ? script.fourni === true : true);
       if (!t.ok) throw refus(t.problemes.map((p) => p.message));
-      return { fiche: t.fiche, remarquesScript: [...(script ? ecartsScriptValide(script, cas) : []), ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
+      return { fiche: t.fiche, remarquesScript: [...(script ? ecartsScriptValide(script, cas) : []), ...marquee.faits, ...t.remarques.map((p) => p.message), ...t.avertissements.map((p) => p.message)], avertissementsScript: t.avertissements.map((p) => p.message) };
     }
-    const v = validerFicheEcrans(brute, ctxRegles);
+    const v = validerFicheEcrans(marquee.fiche, ctxRegles);
     if (!v.ok) throw refus(v.problemes.map((p) => p.message));
     // V4-3 : un script écrit (ni validé, ni fourni) attend la validation de Will : aucune voix avant.
     if (ctx.exigerScriptValide && !script && !entrees.ficheCle) throw new ErreurFabricationCasConcret("fiche", [PHRASE_SCRIPT_A_VALIDER]);
-    return { fiche: v.fiche };
+    return { fiche: v.fiche, remarquesScript: marquee.faits };
   });
 
   // 3. Vrais écrans : une capture ratée prend son repli (jamais d'échec).
@@ -939,12 +945,12 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
   const calage = await etape("calage", empreinte("calage", reportee, plan.fins, voix.fins, prononciations), async () => {
     const parFin = plan.fins.map((f) => {
       const son = voix.fins.find((x) => x.id === f.id)!;
-      const r = calerFiche(reportee, f, son.mots, { prononciations, finApresDernierMotSec: FIN_APRES_DERNIER_MOT_SEC });
+      const r = calageApproche(reportee, f, son.mots, { prononciations, finApresDernierMotSec: FIN_APRES_DERNIER_MOT_SEC });
       if (!r.ok) throw new ErreurFabricationCasConcret("calage", r.problemes.map((p) => (plan.fins.length > 1 ? `Fin pour ${nomsReseaux(f.reseaux)} · ${p}` : p)));
       return { r, f };
     });
     // 08/11/2026 : les mots lus autrement que le texte écrit ne jettent plus la vidéo : ils partent en réserves « À vérifier ».
-    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`)))];
+    const ecarts = [...new Set(parFin.flatMap(({ r, f }) => [...r.ecarts.map((p) => `Calage · ${plan.fins.length > 1 ? `fin pour ${nomsReseaux(f.reseaux)} · ` : ""}${p}`), ...(r.reserve ? [r.reserve] : [])]))];
     // 17/11 : sans écran de fin nulle part, le corps finit avec la voix ; une fin vide ne fixe pas l'instant commun.
     const avecEcrans = parFin.filter(({ f }) => f.ecrans.length);
     const premier = parFin[0].r;

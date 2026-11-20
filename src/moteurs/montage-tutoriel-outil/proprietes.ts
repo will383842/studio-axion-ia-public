@@ -7,6 +7,7 @@
 import type { DonneesCalque } from "../../briques/sous-titres/scene";
 import type { NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
 import type { FormatPlan, HabillagePlan, PlanValide } from "../../briques/plan-scenes/schema";
+import type { DispositionToile, TrajectoireCamera } from "../../briques/schema-motion/types";
 
 export const COMPOSITION_TUTORIEL = "TutorielOutil";
 
@@ -26,6 +27,22 @@ export const HABILLAGE_TUTORIEL: HabillagePlan = { fond: "ivoire", accent: "terr
 export const DUREE_CARTE_FIN_MS = 2500;
 export const CARTE_FIN_AXION = { titre: "Axion IA", sousTitre: "axion-ia.com" } as const;
 
+/** Un bloc du schéma animé du flux (T-EXT-50) : heures en secondes depuis le début du schéma. */
+export type BlocFlux = { id: string; libelle: string; humain: boolean; motSec: number; allumageSec: number; traceSec?: number };
+
+/** Plan du schéma animé du flux, calculé par `schema-flux.ts` (pur) et seulement dessiné par `SchemaFlux.tsx`. */
+export type PlanSchemaFlux = {
+  dureeSec: number;
+  /** Durée d'entrée d'un bloc et de tracé d'une flèche (s). */
+  entreeSec: number;
+  traceDureeSec: number;
+  toile: DispositionToile;
+  trajectoire: TrajectoireCamera;
+  blocs: BlocFlux[];
+  /** Défauts de cadrage, alertes de caméra et mots introuvables : jamais d'exception. */
+  alertes: string[];
+};
+
 export type ProprietesTutorielOutil = {
   plan: PlanValide;
   /** Adresse signée de la voix (entrée « audio » de la demande de rendu) ; absente : vidéo muette. */
@@ -38,6 +55,8 @@ export type ProprietesTutorielOutil = {
   filmNavigation?: string;
   /** Navigation filmée (instants et zones), sans la clé du film (T-EXT-38). */
   navigation?: Omit<NavigationFilmee, "videoCle">;
+  /** Schéma animé du flux (T-EXT-50) : posé par-dessus le plan entre `debutImage` et `debutImage + dureeImages` ; absent : rendu d'aujourd'hui. */
+  schemaFlux?: { debutImage: number; dureeImages: number; plan: PlanSchemaFlux };
 };
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */
