@@ -76,7 +76,7 @@ describe("C10-13b-a gardes", () => {
     expect(texte).not.toMatch(/\b(useState|useEffect|useRef|Date\.now)\b/);
   });
   // C10-13-v19b (19/11) : le registre des objets est le SEUL importeur autorisé (liste blanche d'un chemin exact) ; rien dans studio-rendu/.
-  it("seul src/briques/plan-scenes-objets/registre.ts importe appel-rdv (et rien dans studio-rendu/)", () => {
+  it("seuls le registre, objets-inscrits.ts (import) et les fichiers qui citent l'id (C9-34-FIN-v20h) mentionnent appel-rdv (et rien dans studio-rendu/)", () => {
     const visiter = (dir: string): string[] =>
       readdirSync(dir).flatMap((n) => {
         if (n === "node_modules") return [];
@@ -87,6 +87,7 @@ describe("C10-13b-a gardes", () => {
     const fautifs = [...visiter(join(racine, "src")), ...visiter(join(racine, "studio-rendu"))]
       .filter((p) => !p.endsWith("appel-rdv.tsx") && /appel-rdv/.test(readFileSync(p, "utf8")))
       .map((p) => p.slice(racine.length + 1).split("\\").join("/"));
-    expect(fautifs).toEqual(["src/briques/plan-scenes-objets/registre.ts"]);
+    // toiles.ts et moments-ecran.ts ne citent que l'identifiant « objet-appel-rdv » (aucun import).
+    expect([...fautifs].sort()).toEqual(["src/briques/note-extraits/moments-ecran.ts", "src/briques/plan-scenes-objets/registre.ts", "src/briques/plan-scenes/briques/objets-inscrits.ts", "src/briques/plan-scenes/toiles.ts"]);
   });
 });
