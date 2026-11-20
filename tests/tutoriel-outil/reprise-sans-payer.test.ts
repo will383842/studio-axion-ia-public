@@ -22,6 +22,28 @@ async function mener(moteur: Moteur, c: CommandeFabrication, travail: Travail, d
   return t;
 }
 
+/**
+ * Comme le vrai `studio-rendu` : un rendu tombé reste tombé (le double de `doubles.ts` ne rend « echec » qu'au suivi où il échoue,
+ * puis « termine » au suivi suivant). Sans cela, suivre l'ancienne demande avant d'en soumettre une neuve (verdict Opus 792d0387)
+ * ferait croire qu'un rendu tombé est fini. N'enlève aucune attente : les tests mesurent les mêmes choses.
+ */
+function echecsCollants(o: OutilsTutoriel): OutilsTutoriel {
+  const base: ServiceRendu = o.rendu.service();
+  const tombes = new Map<string, Awaited<ReturnType<ServiceRendu["etat"]>>>();
+  const service: ServiceRendu = {
+    ...base,
+    async etat(id) {
+      const connu = tombes.get(id);
+      if (connu) return connu;
+      const e = await base.etat(id);
+      if (e.statut === "echec") tombes.set(id, e);
+      return e;
+    },
+  };
+  o.rendu.service = () => service;
+  return o;
+}
+
 const etatDe = (t: Travail) => t.parametres?.tutoriel as EtatTutoriel;
 const compositions = (j: Journal) => j.rendus.filter((d) => d.operation === "composition");
 const lancer = (moteur: Moteur, c: CommandeFabrication) => moteur.lancer(c, { travailId: "t-to", versionId: "ver-1", titre: "Tuto", maintenant: T0 });
@@ -38,7 +60,7 @@ function compterReservations(o: OutilsTutoriel): { n: number } {
 describe("tutoriel d'outil : reprise sans payer deux fois", () => {
   it("un rendu 4:5 tombé 3 fois : « Réessayer » redemande vraiment un rendu (identifiant jamais vu) et la vidéo se finit, voix lue 1 fois", async () => {
     const j = journalVide();
-    const moteur = creerMoteurTutorielOutil({ outils: une(outilsDoubles(j, { renduEchecs: 3 })) });
+    const moteur = creerMoteurTutorielOutil({ outils: une(echecsCollants(outilsDoubles(j, { renduEchecs: 3 }))) });
     const c = commandeTutoriel({ ratios: ["4:5"] });
     const tombe = await mener(moteur, c, await lancer(moteur, c));
     expect(tombe.statut).toBe("echec");
@@ -62,15 +84,17 @@ describe("tutoriel d'outil : reprise sans payer deux fois", () => {
 
   it("le 9:16 tombe après un 4:5 fini : « Réessayer » ne redemande pas le 4:5", async () => {
     const j = journalVide();
-    const o = outilsDoubles(j);
+    const o = echecsCollants(outilsDoubles(j));
     const base: ServiceRendu = o.rendu.service();
     let echecs = 3;
+    const tombes = new Set<string>();
     const service: ServiceRendu = {
       ...base,
       async etat(id) {
         const e = await base.etat(id);
-        if (id.includes("-9x16-") && e.statut === "termine" && echecs > 0) {
-          echecs--;
+        if (id.includes("-9x16-") && (tombes.has(id) || (e.statut === "termine" && echecs > 0))) {
+          if (!tombes.has(id)) echecs--;
+          tombes.add(id); // comme le vrai service : un rendu tombé reste tombé
           return { statut: "echec", erreur: { code: "indisponible", reessayable: true, message: "conteneur occupé" } as never };
         }
         return e;
@@ -120,9 +144,78 @@ describe("tutoriel d'outil : reprise sans payer deux fois", () => {
     });
   }
 
+  it("coupure réseau d'un seul suivi du 4:5 puis « Réessayer » : un seul rendu 4:5 payé (l'ancien est suivi, pas redemandé)", async () => {
+    const j = journalVide();
+    const o = echecsCollants(outilsDoubles(j));
+    const base: ServiceRendu = o.rendu.service();
+    let appels = 0;
+    let coupe = false;
+    const service: ServiceRendu = {
+      ...base,
+      async etat(id) {
+        if (id.includes("-4x5-") && ++appels === 2 && !coupe) {
+          coupe = true;
+          throw new Error("coupure réseau");
+        }
+        return base.etat(id);
+      },
+    };
+    o.rendu.service = () => service;
+    const moteur = creerMoteurTutorielOutil({ outils: une(o) });
+    const c = commandeTutoriel({ ratios: ["4:5"] });
+    const tombe = await mener(moteur, c, await lancer(moteur, c));
+    expect(tombe.statut).toBe("echec");
+    expect(coupe).toBe(true);
+    expect(compositions(j)).toHaveLength(1);
+
+    const relance = await moteur.reessayer!(tombe, T0 + 500_000);
+    const fini = await mener(moteur, c, relance, 600);
+    expect(fini.statut).toBe("termine");
+    expect(compositions(j).filter((d) => d.idRendu.includes("-4x5-"))).toHaveLength(1); // jamais « -4x5-r1-0 »
+    expect(etatDe(fini).rendus[0]?.aSoumettre).toBeUndefined();
+    expect(j.voix).toHaveLength(1);
+  });
+
+  it("le 9:16 tombe 3 fois pendant que le 1:1 tourne encore : « Réessayer » ne redemande pas le 1:1 tant qu'il n'est pas en échec", async () => {
+    const j = journalVide();
+    const o = echecsCollants(outilsDoubles(j));
+    const base: ServiceRendu = o.rendu.service();
+    let echecs = 3;
+    const tombes = new Set<string>();
+    let libere = false;
+    const service: ServiceRendu = {
+      ...base,
+      async etat(id) {
+        const e = await base.etat(id);
+        if (id.includes("-9x16-") && (tombes.has(id) || (e.statut === "termine" && echecs > 0))) {
+          if (!tombes.has(id)) echecs--;
+          tombes.add(id); // comme le vrai service : un rendu tombé reste tombé
+          return { statut: "echec", erreur: { code: "indisponible", reessayable: true, message: "conteneur occupé" } as never };
+        }
+        if (id.includes("-1x1-") && !libere && e.statut === "termine") return { statut: "en_cours", progression: 80 };
+        return e;
+      },
+    };
+    o.rendu.service = () => service;
+    const moteur = creerMoteurTutorielOutil({ outils: une(o) });
+    const c = commandeTutoriel({ ratios: ["4:5", "9:16", "1:1"] });
+    const tombe = await mener(moteur, c, await lancer(moteur, c));
+    expect(tombe.statut).toBe("echec");
+    expect(compositions(j).filter((d) => d.idRendu.includes("-1x1-"))).toHaveLength(1);
+
+    libere = true;
+    const relance = await moteur.reessayer!(tombe, T0 + 500_000);
+    const fini = await mener(moteur, c, relance, 600);
+    expect(fini.statut).toBe("termine");
+    expect(compositions(j).filter((d) => d.idRendu.includes("-1x1-"))).toHaveLength(1); // jamais deux 1:1, dont un en parallèle
+    expect(compositions(j).filter((d) => d.idRendu.includes("-4x5-"))).toHaveLength(1);
+    expect(compositions(j).filter((d) => d.idRendu.includes("-9x16-r1-"))).toHaveLength(1);
+    expect(j.voix).toHaveLength(1);
+  });
+
   it("la même demande de rendu n'est jamais soumise deux fois sous le même identifiant, même après plusieurs « Réessayer »", async () => {
     const j = journalVide();
-    const moteur = creerMoteurTutorielOutil({ outils: une(outilsDoubles(j, { renduEchecs: 6 })) });
+    const moteur = creerMoteurTutorielOutil({ outils: une(echecsCollants(outilsDoubles(j, { renduEchecs: 6 }))) });
     const c = commandeTutoriel({ ratios: ["4:5"] });
     let t = await mener(moteur, c, await lancer(moteur, c));
     expect(t.statut).toBe("echec");
