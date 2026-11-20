@@ -190,6 +190,10 @@ export async function extraireZipSur(
         refus.push(`« ${court(chemin)} » : la recherche de données de personnes a échoué, le fichier est refusé.`);
         continue;
       }
+      if (trouvees.some((d) => d.type === "guillemet-non-ferme")) {
+        refus.push(`« ${court(chemin)} » : guillemet jamais refermé dans le CSV, le fichier est refusé.`);
+        continue;
+      }
       if (trouvees.length === 0) {
         fichiers.set(chemin, donnees);
         continue;

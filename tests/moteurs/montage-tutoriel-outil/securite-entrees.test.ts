@@ -471,10 +471,43 @@ describe("colonnes de personnes : valeur entière masquée (verdict Opus 05e6ac9
     expect(d).not.toContain("Jean");
     expect(d).toContain("Paris");
   });
-  it("2b. CSV : guillemet jamais refermé → tout le reste est masqué", () => {
+  it("2b. CSV : guillemet jamais refermé dans une colonne de personne → rien en clair (refus)", () => {
     const sortie = m('id,nom\n1,"Martin\n2,Durand\n', "a.csv");
     expect(sortie).not.toContain("Martin");
     expect(sortie).not.toContain("Durand");
+  });
+  it("2d. CSV : guillemet jamais refermé dans une colonne qui n'est pas de personne → fichier refusé, rien en clair (verdict Opus 7814fdda)", () => {
+    const entrees = [
+      'ville,nom\n"Paris,Jean Dupont\nLyon,Paul Martin\n',
+      'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,Paul Martin\n',
+      'id,ville,nom\r\n1,"Paris,Jean Dupont\r\n2,Lyon,Paul Martin',
+      'id;ville;nom\n1;"Paris;Jean Dupont\n2;Lyon;Paul Martin\n',
+      'id\tville\tnom\n1\t"Paris\tJean Dupont\n2\tLyon\tPaul Martin\n',
+      'sep=;\nid;ville;nom\n1;"Paris;Jean Dupont\n',
+      'id,ville,nom\n1, "Paris,Jean Dupont\n',
+      '"Export clients\nid,nom\n1,Jean Dupont\n',
+      'id,nom\n1,"Jean Dupont',
+    ];
+    for (const e of entrees) {
+      const d = detecterDonneesPersonnelles(e, { chemin: "a.csv" });
+      expect(d.map((x) => x.type)).toEqual(["guillemet-non-ferme"]);
+      expect(JSON.stringify(d)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+      const sortie = masquerDonneesPersonnelles(e, { chemin: "a.csv" });
+      expect(sortie.texte).toBe("");
+      expect(sortie.remplacements).toEqual([{ type: "guillemet-non-ferme", nombre: 1 }]);
+    }
+    expect(detecterDonneesPersonnelles('id,ville,nom\n1,"Paris,Jean\n', { chemin: "a.csv" })[0]!.ligne).toBe(2);
+  });
+  it("2e. témoin : un guillemet refermé (même sur plusieurs lignes) n'est pas refusé", () => {
+    expect(detecterDonneesPersonnelles('id,ville,nom\n1,"Paris\nLyon",Martin\n', { chemin: "a.csv" }).map((x) => x.type)).toEqual(["colonne-personne"]);
+    expect(detecterDonneesPersonnelles('id,ville\n1,"Paris"\n', { chemin: "a.csv" })).toEqual([]);
+  });
+  it("2f. JSON : chaîne jamais refermée dans une clé qui n'est pas de personne → la colonne de personne suivante reste masquée", () => {
+    const sortie = m('{"ville":"Paris, "nom":"Jean Dupont"}', "d.json");
+    expect(sortie).not.toContain("Jean");
+    expect(sortie).not.toContain("Dupont");
+    const fin = m('{"nom":"Jean Dupont', "d.json");
+    expect(fin).not.toContain("Dupont");
   });
   it("3. CSV séparé par des tabulations : le nom est masqué", () => {
     const sortie = m("nom\temail\nJean Dupont\tjean@orange.fr\n", "a.csv");

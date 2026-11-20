@@ -673,7 +673,7 @@ export function verifierMaquette(fichiers: readonly { chemin: string; texte: str
 // ───────────────────────── Données de personnes ─────────────────────────
 
 /** "detection-echouee" : la détection elle-même a échoué ; on ne sait pas, donc on refuse (jamais « aucune donnée »). */
-export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne" | "detection-echouee";
+export type TypeDonnee = "courriel" | "telephone" | "iban" | "carte" | "nir" | "colonne-personne" | "detection-echouee" | "guillemet-non-ferme";
 export interface Detection {
   type: TypeDonnee;
   ligne: number;
@@ -692,7 +692,7 @@ export interface OptionsDonnees {
 
 const DOMAINES_EXEMPLE = new Set(["exemple.fr", "exemple.com", "example.com", "example.org"]);
 const COLONNES_PERSONNE = new Set(["nom", "prenom", "prénom", "email", "courriel", "telephone", "téléphone", "adresse", "date_naissance", "iban"]);
-const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | "detection-echouee">, string> = {
+const REMPLACEMENTS: Record<Exclude<TypeDonnee, "colonne-personne" | "detection-echouee" | "guillemet-non-ferme">, string> = {
   courriel: "contact@exemple.fr",
   telephone: "01 00 00 00 00",
   iban: "FR00 0000 0000 0000 0000 0000 000",
@@ -740,9 +740,11 @@ function toutZero(chaine: string): boolean {
 /**
  * Lit tout le CSV en un seul passage (temps linéaire) : guillemets suivis à travers les retours à la ligne,
  * séparateur « , », « ; » ou tabulation. Chaque valeur garde sa position dans le texte entier.
- * Un guillemet jamais refermé absorbe le reste du texte : la suite est donc masquée, jamais gardée en clair.
+ * Un guillemet jamais refermé absorbe le reste du texte dans UNE seule cellule : si cette colonne n'est pas une colonne de
+ * personne, la suite resterait en clair. `etat.nonFerme` le signale : l'appelant refuse alors le fichier entier
+ * (`guillemet-non-ferme`), jamais de rendu sans masquage.
  */
-function lireCsv(texte: string, separateur: string): { valeur: string; debut: number; fin: number; nu?: boolean }[][] {
+function lireCsv(texte: string, separateur: string, etat: { nonFerme: boolean; pos: number }): { valeur: string; debut: number; fin: number; nu?: boolean }[][] {
   const lignes: { valeur: string; debut: number; fin: number; nu?: boolean }[][] = [];
   let ligne: { valeur: string; debut: number; fin: number; nu?: boolean }[] = [];
   const n = texte.length;
@@ -756,6 +758,10 @@ function lireCsv(texte: string, separateur: string): { valeur: string; debut: nu
       i = k0;
       let j = i + 1;
       while (j < n && !(texte[j] === '"' && texte[j + 1] !== '"')) j += texte[j] === '"' ? 2 : 1;
+      if (j >= n && !etat.nonFerme) {
+        etat.nonFerme = true;
+        etat.pos = k0;
+      }
       const ouvrant = i;
       const fermant = Math.min(j, n);
       i = j + 1;
@@ -816,7 +822,12 @@ function nomColonne(valeur: string): string {
 /** Nombre de lignes du début d'un CSV où l'on cherche l'en-tête (ligne `sep=;`, titre d'export…). */
 const LIGNES_ENTETE_MAX = 10;
 
-function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<string> | undefined): { debut: number; fin: number; nu?: boolean }[] {
+function detecterColonnes(
+  texteBrut: string,
+  ext: string,
+  neutres: ReadonlySet<string> | undefined,
+  etat: { nonFerme: boolean; pos: number },
+): { debut: number; fin: number; nu?: boolean }[] {
   const trouves: { debut: number; fin: number; nu?: boolean }[] = [];
   // « CSV (Macintosh) » : fin de ligne `\r` seule ; fins de ligne Unicode U+2028, U+2029 et U+0085 (NEL). Chacune est remplacée
   // par `\n` (un caractère pour un caractère, positions inchangées) pour la lecture ; `\r\n` reste une seule fin de ligne.
@@ -910,7 +921,7 @@ function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<s
   let colonnes = new Set<number>();
   let indiceEntete = 0;
   for (const candidat of candidats) {
-    lignes = lireCsv(texte, candidat);
+    lignes = lireCsv(texte, candidat, etat);
     for (let l = 0; l < Math.min(lignes.length, LIGNES_ENTETE_MAX); l++) {
       const trouvees = (lignes[l] ?? []).flatMap((c, i) => (COLONNES_PERSONNE.has(nomColonne(c.valeur)) ? [i] : []));
       if (trouvees.length > 0) {
@@ -921,7 +932,8 @@ function detecterColonnes(texteBrut: string, ext: string, neutres: ReadonlySet<s
     }
     if (colonnes.size > 0) break;
   }
-  if (colonnes.size === 0) return trouves;
+  // Guillemet ouvrant jamais refermé (sous l'un des séparateurs essayés) : l'appelant refuse le fichier entier.
+  if (etat.nonFerme || colonnes.size === 0) return trouves;
   for (let l = indiceEntete + 1; l < lignes.length; l++) {
     const valeurs = lignes[l]!;
     for (const c of colonnes) {
@@ -957,7 +969,12 @@ export function detecterDonneesPersonnelles(texte: string, options: OptionsDonne
     }
     const ext = options.chemin ? extensionDe(options.chemin) : "";
     if (ext === "csv" || ext === "json") {
-      for (const c of detecterColonnes(texte, ext, options.nomsNeutres)) bruts.push({ type: "colonne-personne", ...c });
+      const etat = { nonFerme: false, pos: 0 };
+      const colonnes = detecterColonnes(texte, ext, options.nomsNeutres, etat);
+      // Un guillemet jamais refermé fait de tout le reste du fichier une seule cellule : si ce n'est pas une colonne de
+      // personne, rien ne serait masqué. On ne rend jamais le fichier : refus, sans recopier la valeur.
+      if (etat.nonFerme) return [{ type: "guillemet-non-ferme", ligne: ligneDe(texte, etat.pos), debut: etat.pos, fin: texte.length }];
+      for (const c of colonnes) bruts.push({ type: "colonne-personne", ...c });
     }
   } catch {
     // Échec de la détection : jamais « aucune donnée » (le fichier partirait non masqué) ; une détection spéciale force le refus.
@@ -1002,8 +1019,9 @@ export function masquerDonneesPersonnelles(texte: string, options: OptionsDonnee
   const trouvees = detecterDonneesPersonnelles(texte, options);
   // Détection impossible : on ne rend jamais le texte d'origine comme s'il était propre.
   if (trouvees.some((d) => d.type === "detection-echouee")) return { texte: "", remplacements: [{ type: "detection-echouee", nombre: 1 }] };
+  if (trouvees.some((d) => d.type === "guillemet-non-ferme")) return { texte: "", remplacements: [{ type: "guillemet-non-ferme", nombre: 1 }] };
   let numero = 0;
-  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | "detection-echouee">] }));
+  const remplaces = trouvees.map((d) => ({ d, par: d.type === "colonne-personne" ? (d.nu ? `"Personne exemple ${++numero}"` : `Personne exemple ${++numero}`) : REMPLACEMENTS[d.type as Exclude<TypeDonnee, "colonne-personne" | "detection-echouee" | "guillemet-non-ferme">] }));
   let sortie = "";
   let curseur = 0;
   for (const { d, par } of remplaces) {

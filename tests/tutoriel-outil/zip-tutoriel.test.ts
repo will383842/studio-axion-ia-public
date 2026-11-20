@@ -210,6 +210,16 @@ describe("éteint par défaut (R-9)", () => {
       expect(new TextDecoder().decode(r.fichiers.get(nom))).not.toMatch(/Jean|Dupont/);
     }
   });
+  it("de bout en bout (allumé) : guillemet jamais refermé dans une colonne qui n'est pas de personne → archive entière refusée, valeur absente du rapport", async () => {
+    ALLUME();
+    for (const csv of ['ville,nom\n"Paris,Jean Dupont\nLyon,Paul Martin\n', 'id,ville,nom\n1,"Paris,Jean Dupont\n2,Lyon,Paul Martin\n']) {
+      const r = await entree([...SAINE, { nom: "demo-data.csv", donnees: u8(csv) }]);
+      expect(r.ok).toBe(false);
+      expect(r.rapport.refus.join(" ")).toContain("guillemet jamais refermé");
+      expect(JSON.stringify(r.rapport)).not.toMatch(/Jean|Dupont|Paul|Martin/);
+      expect(journal.join(" ")).not.toMatch(/Jean|Dupont|Paul|Martin/);
+    }
+  });
   it("même une archive piégée n'est pas lue quand c'est éteint", async () => {
     const r = await entree([{ nom: "../x.js", donnees: u8("x") }]);
     expect(r.rapport.refus).toEqual([MESSAGE_ZIP_FERME]);
