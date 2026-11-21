@@ -87,6 +87,7 @@ const LITTERALES: Record<string, Etat> = {
  */
 type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 const PAR_CONSTANTE: Constante[] = [
+  { cle: "varieteCommune", etat: "eteint", appel: "src/services/variete-commune/lire-reglage.ts", declare: "src/briques/variete-commune/reglage.ts", motif: /lireParametre<unknown>\(cle, false\)/ }, // BR-TABLEAU-STYLE-b2 : seul true ou { seuil } allume
   { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
   { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
   { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
@@ -401,6 +402,7 @@ const EXCLUS_CLES: Record<string, Motif> = {
   "zernio.tests": "memoire",
   "zernio.essai_brouillon": "memoire", // brouillon de l'essai Zernio (creneauId), pas un interrupteur
   "calendrier.proposerSemaine.compteur": "memoire", // compteur { jour, n } des propositions de semaine
+  "calendrier.proposerSemaine.derniere": "memoire", // dernière semaine proposée { debut, propositions } (lireDerniereSemaine), pas un interrupteur
   "buffer.mode": "valeur",
   "bibliothequeVideo.archive.cochees": "valeur", // liste d'identifiants de vidéos cochées
   "bibliothequeVideo.archive.sources": "valeur", // choix « pretes » | « cochees » | « publiees », défaut null → politique du code
@@ -434,6 +436,7 @@ const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
   "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" },
   "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" },
+  "services/variete-commune/lire-reglage.ts:cle": { couvre: "varieteCommune" },
   "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
   "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
   "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
