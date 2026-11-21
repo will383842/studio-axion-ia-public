@@ -1,5 +1,6 @@
 /**
  * T-EXT-V2-04 · Poste de capture : écrit la maquette créée (constructeur vivant), la contrôle et en prend l'aperçu.
+ * T-EXT-V2-04b : un FLUX créé (flux-automatisation.v1) est écrit sur les écrans neutres de ecrans-outils/ (même poste, mêmes codes).
  *
  *   pnpm exec tsx outils/maquettes-tableaux-de-bord/constructeur/ecrire-maquette.mts --description <fichier.json> --sortie <dossier hors dépôt> [--apercu] [--attendue <empreinte>]
  *
@@ -22,6 +23,8 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "../../../src/moteurs/montage-tutoriel-outil/description-maquette";
 import { controlerTextesCrees, empreinteDescription, scenarioApercu, VERSION_APERCU, type ApercuPiece } from "../../../src/moteurs/montage-tutoriel-outil/maquette-creee";
+import { controlerFluxCree, empreinteFlux, scenarioApercuFlux } from "../../../src/moteurs/montage-tutoriel-outil/flux-cree";
+import { donneesEcransDepuisFlux, lireFluxAutomatisation, MAQUETTE_FLUX, VERSION_FLUX, type FluxAutomatisation } from "../../../src/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { empreinteCourte } from "../../../src/domaine/sujets-traites";
 import { environnementAutorise } from "../capture/garde";
 import { controlerMaquette, type NomsNeutres } from "../charte/controle";
@@ -132,6 +135,20 @@ export function apercuPiece(d: DescriptionMaquette, png: readonly string[], cont
   return { version: VERSION_APERCU, empreinteDescription: empreinteDescription(d), images, controle };
 }
 
+/**
+ * `apercu-piece.v1` d'un FLUX (V2-04b) : une image par écran du scénario d'aperçu (`aller` : « declencheur », id d'étape,
+ * « resultat »). « avant » pour le déclencheur, « maintenant » pour les autres. L'empreinte est celle de la pièce « flux ».
+ */
+export function apercuPieceFlux(flux: FluxAutomatisation, png: readonly string[], controle: { ok: boolean; defauts: string[] }): ApercuPiece {
+  const images: ApercuPiece["images"] = [];
+  for (const e of scenarioApercuFlux(flux).etapes) {
+    const id = e.id.replace(/[^A-Za-z0-9_-]+/g, "-");
+    const p = png.find((x) => new RegExp(`^\\d+-${id}\\.png$`).test(x.split("/").pop() ?? ""));
+    if (p) images.push({ ecranId: e.aller, etat: e.aller === "declencheur" ? "avant" : "maintenant", cle: p });
+  }
+  return { version: VERSION_APERCU, empreinteDescription: empreinteFlux(flux), images, controle };
+}
+
 /* ------------------------------------------------------------------ */
 /* Écriture (disque, dépendances injectables)                          */
 /* ------------------------------------------------------------------ */
@@ -237,6 +254,9 @@ export function ecrireMaquette(argv: readonly string[], dep: DependancesEcriture
   } catch {
     return refuser(CODE_REFUSE, [`Description illisible : ${args.description}`]);
   }
+  if (typeof brut === "object" && brut !== null && (brut as { version?: unknown }).version === VERSION_FLUX) {
+    return ecrireFlux(brut, args, { dep, sortie, neutres, ecransOutils, charteCss, refuser, dire });
+  }
   const lecture = lireDescriptionMaquette(brut, { interdits: neutres.interdits });
   if (!lecture.ok) return refuser(CODE_REFUSE, lecture.erreurs);
   const d = lecture.description;
@@ -276,6 +296,66 @@ export function ecrireMaquette(argv: readonly string[], dep: DependancesEcriture
   if (pngs) writeFileSync(join(sortie, "apercu-piece.json"), jsonJoli(apercuPiece(d, pngs, { ok: true, defauts })));
   writeFileSync(join(sortie, "rapport.json"), jsonJoli(rapportMaquette(CODE_OK, [])));
   dire(`Maquette écrite dans ${dossierMaquette}${pngs ? ` (aperçu : ${pngs.length} image(s))` : ""}.`);
+  return CODE_OK;
+}
+
+interface ContexteFlux {
+  dep: DependancesEcriture;
+  sortie: string;
+  neutres: NomsNeutres;
+  ecransOutils: unknown;
+  charteCss: string;
+  refuser: (code: number, erreurs: string[]) => number;
+  dire: (texte: string) => void;
+}
+
+const FICHIERS_ECRANS = ["index.html", "styles.css", "etats.js", "app.js"] as const;
+
+/** Cas 3 (V2-04b) : écrit un flux créé sur les écrans neutres du bureau exemple (`ecrans-outils/`), le contrôle et, avec « --apercu », en prend l'aperçu. */
+function ecrireFlux(brut: unknown, args: ArgsEcriture, c: ContexteFlux): number {
+  const { dep, sortie, neutres, ecransOutils, charteCss, refuser, dire } = c;
+  const lu = lireFluxAutomatisation(brut);
+  if (!lu.ok) return refuser(CODE_REFUSE, lu.erreurs);
+  const flux = lu.flux;
+  const crees = controlerFluxCree(flux, nomsPermis(neutres, ecransOutils));
+  if (crees.length > 0) return refuser(CODE_REFUSE, crees);
+  if (args.attendue !== undefined && empreinteFlux(flux) !== args.attendue) return refuser(CODE_EMPREINTE, [MESSAGE_EMPREINTE]);
+
+  const dossierEcrans = join(DOSSIER_OUTIL, "ecrans-outils");
+  let fichiers: Record<string, string>;
+  try {
+    fichiers = Object.fromEntries(FICHIERS_ECRANS.map((nom) => [nom, readFileSync(join(dossierEcrans, nom), "utf8")]));
+  } catch {
+    return refuser(CODE_REFUSE, ["Écrans du bureau exemple illisibles."]);
+  }
+  fichiers["demo-data.js"] = donneesEcransDepuisFlux(flux);
+
+  const noms: NomsNeutres = { ...neutres, maquettes: { ...neutres.maquettes, ...((ecransOutils as { maquettes?: NomsNeutres["maquettes"] } | null)?.maquettes ?? {}) } };
+  const controle = controlerMaquette(Object.entries(fichiers).map(([chemin, contenu]) => ({ chemin, contenu })), noms, MAQUETTE_FLUX);
+  if (!controle.ok) return refuser(CODE_REFUSE, controle.defauts.map((x) => `${x.chemin}:${x.ligne} · ${x.regle}`));
+
+  const dossierMaquette = join(sortie, "maquette");
+  mkdirSync(dossierMaquette, { recursive: true });
+  for (const [nom, contenu] of Object.entries(fichiers)) writeFileSync(join(dossierMaquette, nom), nom === "styles.css" ? policesJoignables(contenu, dep.racineDepot) : contenu);
+  mkdirSync(join(sortie, "charte"), { recursive: true });
+  writeFileSync(join(sortie, "charte", "charte.css"), policesJoignables(charteCss, dep.racineDepot));
+
+  let pngs: string[] | undefined;
+  if (args.apercu) {
+    const scenario = join(sortie, "apercu-scenario.json");
+    writeFileSync(scenario, jsonJoli(scenarioApercuFlux(flux)));
+    const dossierApercu = join(sortie, "apercu");
+    const r = dep.lancerCapteur(["--maquette", dossierMaquette, "--scenario", scenario, "--sortie", dossierApercu]);
+    if (r.status !== 0) {
+      const code = r.status ?? CODE_INATTENDU;
+      dire(`Le capteur d'aperçu a échoué (code ${code}).`);
+      return code;
+    }
+    pngs = listerPng(dossierApercu).map((p) => relative(sortie, p).split(sep).join("/"));
+    writeFileSync(join(sortie, "apercu-piece.json"), jsonJoli(apercuPieceFlux(flux, pngs, { ok: true, defauts: [] })));
+  }
+  writeFileSync(join(sortie, "rapport.json"), jsonJoli(rapportMaquette(CODE_OK, [])));
+  dire(`Flux écrit dans ${dossierMaquette}${pngs ? ` (aperçu : ${pngs.length} image(s))` : ""}.`);
   return CODE_OK;
 }
 
