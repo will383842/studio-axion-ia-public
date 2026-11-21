@@ -30,7 +30,9 @@ import { cleFichierRef, clesFichier, type CandidatSujet, type Confirmation, type
 import { empreinteAvantControle, PHRASE_VERIFICATION_EN_COURS, phraseRefusEmpreinte, type DependancesAvantControle } from "./empreintes-fichiers";
 import { telephoneVideoActif } from "@/moteurs/montage-facecam-animee/realisateur/consigne-telephone-video";
 import { planScenesActif } from "@/briques/plan-scenes-generateurs/reglage";
+import { lireReglageVarieteCommune } from "@/briques/variete-commune/reglage";
 import { creerVerrou, depots, ecrireParametre, ErreurStudio, journaliser, lireParametre } from "./_commun";
+import { lireVarieteCommune } from "./variete-commune/lire-reglage";
 import type { SourcesSujets } from "./sujets-traites";
 import { phrasePrisesSautees } from "@/components/formats/facecam-animee/sujet-deja-traite";
 import { estimerOpusV4, type EstimationOpusV4 } from "@/moteurs/montage-facecam-animee/realisateur/cout-v4";
@@ -207,6 +209,14 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     garderMaster = false;
   }
 
+  // X2-14b-b : variété commune, éteinte par défaut ; aucune clé neuve dans les outils tant qu'elle est éteinte.
+  let reseauxVoisines: string[] = [];
+  try {
+    const v = (await lireReglageVarieteCommune(lireVarieteCommune)).actif ? await depots().videos.obtenir(dep.videoId) : undefined;
+    reseauxVoisines = v?.reseau ? [v.reseau] : [];
+  } catch {
+    reseauxVoisines = [];
+  }
   return {
     ...(planScenes ? { planScenes } : {}),
     ...(calageAuMot ? { calageAuMot } : {}),
@@ -294,6 +304,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
         return [];
       }
     },
+    ...(reseauxVoisines.length ? { async voisinesCommunes() { const { ouverturesVoisinesCommunes } = await import("./variete-commune/ouvertures-voisines-communes"); return ouverturesVoisinesCommunes({ reseaux: reseauxVoisines, videoIdEnCours: dep.videoId, lire: lireVarieteCommune }).catch(() => undefined); } } : {}),
     async videos({ plan, mots }) {
       if (dep.videos) return dep.videos({ videoId: dep.videoId, plan, mots });
       const [{ fournirVideosV4 }, { chercherVideosServeur, outilsPreparationServeur }] = await Promise.all([import("@/moteurs/montage-facecam-animee/videos-v4-studio"), import("@/moteurs/montage-facecam-animee/images/production")]);

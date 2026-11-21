@@ -165,6 +165,8 @@ export interface OutilsChaineV4 {
   appelerRealisateur?: DependancesRealisateur["appeler"];
   /** Les 5 dernières vidéos v4 (variété d'une vidéo à l'autre). */
   historique?(): Promise<HistoriqueVideo[]>;
+  /** X2-14b-b : ouvertures récentes des autres vidéos du même réseau (variété commune). Absent (par défaut) : message inchangé. */
+  voisinesCommunes?(): Promise<readonly string[] | undefined>;
   /**
    * Vidéos d'illustration des plaquettes qui en exigent (AvantApres, MosaiqueVideos, duel-video) : cherche, contrôle (littéral) et prépare
    * une vidéo par `recherche`, rend le plan avec ses `medias` remplis, les fichiers préparés et les manques. Lève `EnCoursChaineV4` si
@@ -481,7 +483,7 @@ function planCaleV4(plan: PlanFacecamAnimee, mots: readonly MotTranscrit[] | und
 }
 
 /** Entrée du réalisateur pour la prise montée (sans écran de fin : la v4 se termine sur la dernière plaquette). PUR. */
-export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes" | "cadrage">, options: { plafondAtteint?: boolean; historique?: HistoriqueVideo[]; calageAuMot?: boolean; telephoneVideo?: boolean; extraitsMaison?: boolean } = {}): EntreeRealisateur {
+export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes" | "cadrage">, options: { plafondAtteint?: boolean; historique?: HistoriqueVideo[]; calageAuMot?: boolean; telephoneVideo?: boolean; extraitsMaison?: boolean; voisinesCommunes?: readonly string[] } = {}): EntreeRealisateur {
   const c = etat.coupes;
   if (!c) throw new ErreurChaineV4("Les coupes de la prise manquent : réessayez.", true);
   return {
@@ -494,6 +496,7 @@ export function entreeRealisateurV4(etat: Pick<EtatChaineV4, "demande" | "coupes
     ...(options.calageAuMot ? { calageAuMot: true } : {}),
     ...(options.telephoneVideo === true ? { telephoneVideo: true } : {}),
     ...(options.extraitsMaison === true ? { extraitsMaison: true } : {}),
+    ...(options.voisinesCommunes?.length ? { voisinesCommunes: options.voisinesCommunes } : {}),
     prise: {
       src: PRISE_MONTEE_V4,
       finSec: c.dureeSec,
@@ -589,11 +592,11 @@ export async function avancerChaineV4(etat: EtatChaineV4, outils: OutilsChaineV4
       return { ...sansInjoignable(etat, "visage"), etape: "mise-en-scene", coupes, ...(cadrage ? { cadrage } : {}) };
     }
     case "mise-en-scene": {
-      const [plafondAtteint, historique] = await Promise.all([outils.plafondClaudeAtteint(), outils.historique?.() ?? Promise.resolve([])]);
+      const [plafondAtteint, historique, voisinesCommunes] = await Promise.all([outils.plafondClaudeAtteint(), outils.historique?.() ?? Promise.resolve([]), outils.voisinesCommunes ? outils.voisinesCommunes().catch(() => undefined) : Promise.resolve(undefined)]);
       const repli = etat.repliSansVideo && !etat.repliSansVideo.fait ? etat.repliSansVideo : null;
       // État abîmé (repli commencé mais plan d'Opus perdu) : on le dit, on ne refait pas une mise en scène ordinaire à la place.
       if (repli && !etat.realisation) throw new ErreurChaineV4(phraseRepliEchecV4(repli.retirees), true, "repli sans vidéo : le plan précédent est introuvable", etat);
-      const entree = entreeRealisateurV4(etat, { plafondAtteint, historique, ...(outils.calageAuMot ? { calageAuMot: true } : {}), ...(outils.telephoneVideo ? { telephoneVideo: true } : {}), ...(outils.extraitsMaison ? { extraitsMaison: true } : {}) });
+      const entree = entreeRealisateurV4(etat, { plafondAtteint, historique, voisinesCommunes, ...(outils.calageAuMot ? { calageAuMot: true } : {}), ...(outils.telephoneVideo ? { telephoneVideo: true } : {}), ...(outils.extraitsMaison ? { extraitsMaison: true } : {}) });
       const r = await realiser(
         repli ? { ...entree, repli: { interdites: idsPlaquettesAVideoOuvertes({ telephoneVideo: outils.telephoneVideo }), elementsPrecedents: repli.elementsPrecedents, erreurs: erreursRepliOuvertesV4(etat.realisation!.plan, repli.retirees, { telephoneVideo: outils.telephoneVideo }), essaisMax: ESSAIS_REPLI_SANS_VIDEO_V4 } } : entree,
         { appeler: outils.appelerRealisateur },
