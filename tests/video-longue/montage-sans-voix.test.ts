@@ -55,6 +55,7 @@ const { construireCommande } = await import("@/services/fabrication");
 const { ecrireParametre, lireParametre } = await import("@/services/_commun");
 const { moteurMontageVideoLongue, ID_MOTEUR_VIDEO_LONGUE } = await import("@/moteurs/montage-video-longue");
 await import("@/services/video-longue-branchements");
+const { MOTS_PAR_SECONDE_LECTURE } = await import("@/moteurs/montage-video-longue/chaine");
 const { cleParametrePlages } = await import("@/services/video-longue-montage");
 const { reglageVuAllume, dependancesVideoLongue } = await import("@/services/video-longue-branchements");
 
@@ -116,11 +117,34 @@ describe("UI-4 : montage sans voix", () => {
     expect(p.morceaux).toHaveLength(plages.length);
     expect(p).not.toHaveProperty("voix");
     expect(Object.keys(collages[0].entrees as object)).toEqual(p.morceaux);
-    expect(fin.resultat!.sorties.map((s) => `${s.ratio} ${s.resolution} ${s.fichierCle}`)).toEqual([expect.stringMatching(/^16:9 1920x1080 .*video-longue-.+-16x9\.mp4$/)]);
+    expect(fin.resultat!.sorties.map((s) => `${s.ratio} ${s.resolution} ${s.fichierCle}`)).toEqual([expect.stringMatching(/^16:9 1920x1080 .*video-longue-t-ui4-16x9\.mp4$/)]);
     expect(branchementsReels).not.toHaveBeenCalled();
     expect(interdit).not.toHaveBeenCalled();
     expect(hotesInterdits).toEqual([]);
     expect(fin.resultat!.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
+  });
+
+  it("deux travaux d'une même vidéo : le travailId est dans le nom, les clés diffèrent (retouche n'écrase pas)", async () => {
+    await allumer(true);
+    const c = await commande();
+    const m = (id: string) => moteurMontageVideoLongue.lancer(c, { travailId: id, versionId: "v", titre: "Essai", maintenant: T0 });
+    const a = await mener(c, await m("t-a"));
+    const b = await mener(c, await m("t-b"));
+    const cleA = a.resultat!.sorties[0].fichierCle;
+    const cleB = b.resultat!.sorties[0].fichierCle;
+    expect(cleA).toContain("video-longue-t-a-16x9.mp4");
+    expect(cleB).toContain("video-longue-t-b-16x9.mp4");
+    expect(cleA).not.toBe(cleB);
+  });
+
+  it("durée dépassée (1201 s) : refus net, aucune demande de rendu", async () => {
+    await allumer(true);
+    const c = await commande();
+    const mots = Array.from({ length: Math.ceil(1201 * MOTS_PAR_SECONDE_LECTURE) + 10 }, (_, i) => `m${i}`).join(" ") + ".";
+    const longue = { ...c, entrees: { ...c.entrees, videoLongue: { chapitres: [{ id: "c1", titre: "Long", texte: mots }], sansVoix: true } } } as CommandeFabrication;
+    const fin = await mener(longue, await lancer(longue));
+    expect(fin.travail.statut).not.toBe("termine");
+    expect(demandes).toHaveLength(0);
   });
 
   it("réglage allumé après le démarrage : premier lancement, rendus partis", async () => {

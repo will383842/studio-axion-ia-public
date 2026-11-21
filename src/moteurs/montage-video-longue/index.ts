@@ -20,7 +20,7 @@ export const PHRASE_PAUSE_VIDEO_LONGUE = "La fabrication de la vidéo longue n'e
 /** 1920×1080, 20 min au plus (au-delà de 12 min : une remarque, jamais un refus). */
 export const DUREE_MAX_SEC = 1200;
 
-export function definitionVideoLongue(dependances: (commande: CommandeFabrication) => DependancesVideoLongue | null): DefinitionGabarit<EntreesVideoLongue, EtatVideoLongue, DependancesVideoLongue, RepriseVideoLongue> {
+export function definitionVideoLongue(dependances: (commande: CommandeFabrication, travailId?: string) => DependancesVideoLongue | null): DefinitionGabarit<EntreesVideoLongue, EtatVideoLongue, DependancesVideoLongue, RepriseVideoLongue> {
   return {
     id: ID_MOTEUR_VIDEO_LONGUE,
     nom: "Montage vidéo longue",
@@ -30,7 +30,7 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     dureeMaxSec: DUREE_MAX_SEC,
     phrasePause: PHRASE_PAUSE_VIDEO_LONGUE,
     lireEntrees: lireEntreesVideoLongue,
-    dependances: (commande) => dependances(commande),
+    dependances: (commande, travailId) => dependances(commande, travailId),
     etatInitial: () => ({ faites: [], remarques: [], sorties: {} }),
     avancer: avancerVideoLongue,
     resultat(commande, etat) {
@@ -68,7 +68,7 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
   };
 }
 
-export const creerMoteurVideoLongue = (dependances: (commande: CommandeFabrication) => DependancesVideoLongue | null) => creerMoteurGabarit(definitionVideoLongue(dependances));
+export const creerMoteurVideoLongue = (dependances: (commande: CommandeFabrication, travailId?: string) => DependancesVideoLongue | null) => creerMoteurGabarit(definitionVideoLongue(dependances));
 
 /** Moteur inscrit : AUCUNE dépendance reliée (VL-07 les reliera derrière un réglage éteint) = pause sans dépense. */
 export const moteurMontageVideoLongue = creerMoteurVideoLongue(() => null);

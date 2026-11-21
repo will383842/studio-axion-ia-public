@@ -313,11 +313,13 @@ export function brancherVideoLongue(): void {
   const cle = Symbol.for("studio-axion-ia.video-longue-branche");
   if (g[cle]) return;
   g[cle] = true;
-  const moteur = creerMoteurVideoLongue((c) => dependancesVideoLongue(c));
+  const moteur = creerMoteurVideoLongue((c, t) => dependancesVideoLongue(c, t));
   // Lancement et avancement relisent le réglage (attendu) : jamais de pause posée sur une valeur périmée.
   Object.assign(moteurMontageVideoLongue, moteur, {
     lancer: async (...a: Parameters<typeof moteur.lancer>) => (await rafraichirVideoLongueActif(), moteur.lancer(...a)),
     avancer: async (...a: Parameters<typeof moteur.avancer>) => (await rafraichirVideoLongueActif(), moteur.avancer(...a)),
+    retoucher: async (...a: Parameters<typeof moteur.retoucher>) => (await rafraichirVideoLongueActif(), moteur.retoucher(...a)),
+    reexporter: async (...a: Parameters<typeof moteur.reexporter>) => (await rafraichirVideoLongueActif(), moteur.reexporter(...a)),
   });
   rafraichirActif();
 }
