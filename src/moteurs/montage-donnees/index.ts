@@ -28,6 +28,7 @@ const ETAPES_RETOUCHE: DefinitionEtapeMoteur[] = ETAPES_FABRICATION.slice(2);
 export interface DependancesDonnees {
   voix?: PortVoix;
   calage?: PortCalage;
+  narration?: NonNullable<Parameters<typeof chaineMontageDonnees>[1]>["narration"]; // G4-06-c : injecté, jamais importé
   monter(ratio: Ratio, proprietes: ProprietesMontageDonnees): Promise<{ fichierCle: string }>;
 }
 
@@ -54,7 +55,7 @@ async function avancerDonnees(etat: EtatDonnees, ctx: ContexteAvance<EntreesDonn
       return faite(etat);
     }
     case "plan": {
-      const r = await chaineMontageDonnees(ctx.commande.entrees as Record<string, unknown> | undefined, { ...(deps.voix ? { voix: deps.voix } : {}), ...(deps.calage ? { calage: deps.calage } : {}) });
+      const r = await chaineMontageDonnees(ctx.commande.entrees as Record<string, unknown> | undefined, { ...(deps.voix ? { voix: deps.voix } : {}), ...(deps.calage ? { calage: deps.calage } : {}), ...(deps.narration ? { narration: deps.narration } : {}) });
       if (!r.ok) return { ...etat, echec: { etape, message: r.erreurs.join(" "), reessayable: false } };
       return faite({ ...etat, plan: r.projetMontage.reprise.plan, proprietes: r.proprietes });
     }
