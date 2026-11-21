@@ -64,12 +64,39 @@ describe("les 7 vrais dossiers face à la garde réelle (extraireZipSur, interru
     });
   }
   it("police absente des deux endroits : RESERVE_MAQUETTE, rien n'est zippé", async () => {
-    const lireDossier = async (chemin: string) => {
-      const { readdir, readFile } = await import("node:fs/promises");
-      const noms = (await readdir(chemin, { withFileTypes: true })).filter((e) => e.isFile() && e.name !== "manrope-latin.woff2");
-      return Promise.all(noms.map(async (e) => ({ nom: e.name, donnees: new Uint8Array(await readFile(`${chemin}/${e.name}`)) })));
+    const lireFichier = async (chemin: string) => {
+      if (chemin.endsWith("manrope-latin.woff2")) throw new Error("absente");
+      return (await import("node:fs/promises")).readFile(chemin);
     };
-    await expect(zipDeMaquetteDemo("05-stocks", { lireDossier })).rejects.toMatchObject({ code: "RESERVE_MAQUETTE" });
+    await expect(zipDeMaquetteDemo("05-stocks", { lireFichier })).rejects.toMatchObject({ code: "RESERVE_MAQUETTE" });
+  });
+  it("charte.css absente : RESERVE_MAQUETTE", async () => {
+    const lireFichier = async (chemin: string) => {
+      if (chemin.endsWith("charte.css")) throw new Error("absente");
+      return (await import("node:fs/promises")).readFile(chemin);
+    };
+    await expect(zipDeMaquetteDemo("05-stocks", { lireFichier })).rejects.toMatchObject({ code: "RESERVE_MAQUETTE" });
+  });
+  it("seuls charte.css et la police sont lus (jamais controle.ts, noms-neutres.json, autres polices, dossiers de charte)", async () => {
+    const lus: string[] = [];
+    const lireDossier = vi.fn(async (chemin: string) => {
+      lus.push(`dossier:${chemin}`);
+      const { readdir, readFile } = await import("node:fs/promises");
+      const noms = (await readdir(chemin, { withFileTypes: true })).filter((e) => e.isFile());
+      return Promise.all(noms.map(async (e) => ({ nom: e.name, donnees: new Uint8Array(await readFile(`${chemin}/${e.name}`)) })));
+    });
+    const lireFichier = vi.fn(async (chemin: string) => {
+      lus.push(chemin);
+      return (await import("node:fs/promises")).readFile(chemin);
+    });
+    await zipDeMaquetteDemo("05-stocks", { lireDossier, lireFichier });
+    const dossiersLus = lus.filter((c) => c.startsWith("dossier:"));
+    expect(dossiersLus).toHaveLength(1);
+    expect(dossiersLus[0]).toMatch(/05-stocks$/);
+    const fichiers = lus.filter((c) => !c.startsWith("dossier:"));
+    expect(fichiers.length).toBeGreaterThanOrEqual(2);
+    for (const c of fichiers) expect(c).toMatch(/(charte\/charte\.css|manrope-latin\.woff2)$/);
+    expect(lus.join("\n")).not.toMatch(/controle\.ts|noms-neutres|archivo-black|LISEZ-MOI/);
   });
 });
 

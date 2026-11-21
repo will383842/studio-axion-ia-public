@@ -10,7 +10,7 @@
  * soumis à `extraireZipSur` à la fabrication, comme tout dossier.
  */
 import "server-only";
-import { readFile, readdir } from "node:fs/promises";
+import { lstat, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { ElementReserve } from "@/domaine/tutoriel-reserve";
 import type { Fichier } from "@/domaine/types";
@@ -66,11 +66,18 @@ async function lireDossierParDefaut(chemin: string): Promise<{ nom: string; donn
   return Promise.all(fichiers.map(async (e) => ({ nom: e.name, donnees: new Uint8Array(await readFile(path.join(chemin, e.name))) })));
 }
 
+/** Un fichier régulier (jamais un lien symbolique ni un dossier), sinon erreur. */
+async function lireFichierParDefaut(chemin: string): Promise<Buffer> {
+  const st = await lstat(chemin);
+  if (!st.isFile() || st.isSymbolicLink()) throw new Error("Pas un fichier régulier.");
+  return readFile(chemin);
+}
+
 /**
  * Zip EN MÉMOIRE du dossier `outils/maquettes-tableaux-de-bord/<dossier>`. `dossier` hors de `MAQUETTES_DEMO` : refus (pas
  * de lecture, pas de « .. »). Premier niveau seulement, sans PROVENANCE.md.
  */
-export async function zipDeMaquetteDemo(dossier: string, dep: { lireDossier?: (chemin: string) => Promise<{ nom: string; donnees: Uint8Array }[]> } = {}): Promise<Uint8Array> {
+export async function zipDeMaquetteDemo(dossier: string, dep: { lireDossier?: (chemin: string) => Promise<{ nom: string; donnees: Uint8Array }[]>; lireFichier?: (chemin: string) => Promise<Buffer> } = {}): Promise<Uint8Array> {
   const connu = dossierConnu(dossier);
   if (!connu) throw new ErreurStudio("RESERVE_MAQUETTE", "Cette maquette de démonstration n'existe pas.");
   const chemin = path.join(process.cwd(), ...RACINE_MAQUETTES, connu);
@@ -90,24 +97,19 @@ export async function zipDeMaquetteDemo(dossier: string, dep: { lireDossier?: (c
   if (index) {
     const html = new TextDecoder("utf-8").decode(index.donnees);
     if (html.includes(LIEN_CHARTE_SOURCE)) {
-      const dossierCharte = path.join(process.cwd(), ...RACINE_CHARTE);
-      const lireCharte = dep.lireDossier ?? lireDossierParDefaut;
-      let charte: { nom: string; donnees: Uint8Array }[];
-      try {
-        charte = await lireCharte(dossierCharte);
-      } catch {
-        throw new ErreurStudio("RESERVE_MAQUETTE", "La charte des maquettes de démonstration n'a pas pu être lue.");
-      }
-      const css = charte.find((f) => f.nom === "charte.css");
-      let police = charte.find((f) => f.nom === POLICE);
-      if (!police) {
+      const lire = dep.lireFichier ?? lireFichierParDefaut;
+      const racine = process.cwd();
+      const lireOuNull = async (chemin: string): Promise<Uint8Array | null> => {
         try {
-          police = (await lireCharte(path.join(process.cwd(), "src", "app", "polices"))).find((f) => f.nom === POLICE);
+          return new Uint8Array(await lire(chemin));
         } catch {
-          police = undefined;
+          return null;
         }
-      }
-      if (!css || !police) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte ou la police des maquettes de démonstration est introuvable.");
+      };
+      // Deux fichiers, chemins constants : jamais un dossier entier.
+      const css = { donnees: await lireOuNull(path.join(racine, ...RACINE_CHARTE, "charte.css")) };
+      const police = { donnees: (await lireOuNull(path.join(racine, ...RACINE_CHARTE, POLICE))) ?? (await lireOuNull(path.join(racine, "src", "app", "polices", POLICE))) };
+      if (!css.donnees || !police.donnees) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte ou la police des maquettes de démonstration est introuvable.");
       const texteCss = new TextDecoder("utf-8").decode(css.donnees);
       if (!texteCss.includes(POLICE_SOURCE)) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte des maquettes de démonstration n'a pas la forme attendue.");
       index.donnees = new TextEncoder().encode(html.split(LIEN_CHARTE_SOURCE).join(LIEN_CHARTE_ZIP));
