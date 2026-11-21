@@ -6,10 +6,17 @@
  * La limite par vidéo ne peut que RESTREINDRE le tirage (les plafonds existants restent au-dessus d'elle).
  */
 import { revalidatePath } from "next/cache";
-import { PAR_SEMAINE_MAX, PLAFOND_VIDEO_MAX_CENTIMES, type ReglagesReserve } from "@/domaine/tutoriel-reserve";
-import { ErreurStudio, journaliser } from "@/services/_commun";
+import { sousVerrouCreditsPartage } from "@/donnees/memoire";
+import {
+  PAR_SEMAINE_MAX,
+  PARAM_RESERVE_REGLAGES,
+  PLAFOND_VIDEO_MAX_CENTIMES,
+  lireReglagesReserveBrut,
+  type ReglagesReserve,
+} from "@/domaine/tutoriel-reserve";
+import { ErreurStudio, journaliser, lireParametre, sousVerrou } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
-import { ecrireReglagesReserve, lireReglagesReserve } from "@/services/tutoriel-reserve";
+import { ecrireReglagesReserve } from "@/services/tutoriel-reserve";
 
 export type ResultatReglageReserve = { ok: true } | { ok: false; raison: string };
 
@@ -49,14 +56,31 @@ export async function enregistrerReglagesReserveAction(donnees: FormData): Promi
   await exigerSession();
   const champ = donnees.get("champ");
   if (champ !== "actif" && champ !== "parSemaine" && champ !== "voix" && champ !== "plafondVideo") return { ok: false, raison: "Ce réglage n'est pas modifiable ici." };
-  const r = appliquer(await lireReglagesReserve(), champ, donnees.get("valeur"));
-  if (typeof r === "string") return { ok: false, raison: r };
-  try {
-    await ecrireReglagesReserve(r.suivant);
-  } catch (e) {
-    if (e instanceof ErreurStudio) return { ok: false, raison: e.message };
-    throw e;
-  }
+  const valeur = donnees.get("valeur");
+  // Lecture + application + écriture sous les mêmes verrous que la réserve (crédits partagé PUIS boucle, même ordre que RES-1) :
+  // sans eux, trois envois simultanés lisent le même état et seul le dernier est gardé.
+  const r = await sousVerrouCreditsPartage(() =>
+    sousVerrou(async (): Promise<{ phrase: string } | { raison: string }> => {
+      // Échec fermé : une lecture qui LÈVE refuse l'envoi sans rien écrire (écrire par-dessus un état illisible l'écraserait avec le défaut,
+      // p. ex. en perdant la limite par vidéo). Absent (null) → défaut éteint ; forme corrompue → défaut (lireReglagesReserveBrut).
+      let courant: ReglagesReserve;
+      try {
+        courant = lireReglagesReserveBrut(await lireParametre<unknown>(PARAM_RESERVE_REGLAGES, null));
+      } catch {
+        return { raison: "Réglages illisibles, réessayez." };
+      }
+      const a = appliquer(courant, champ, valeur);
+      if (typeof a === "string") return { raison: a };
+      try {
+        await ecrireReglagesReserve(a.suivant);
+      } catch (e) {
+        if (e instanceof ErreurStudio) return { raison: e.message };
+        throw e;
+      }
+      return { phrase: a.phrase };
+    }),
+  );
+  if ("raison" in r) return { ok: false, raison: r.raison };
   await journaliser("reglage", `Tutoriel d'outil, réserve : ${r.phrase}`);
   revalidatePath("/reglages/tutoriel-outil");
   return { ok: true };

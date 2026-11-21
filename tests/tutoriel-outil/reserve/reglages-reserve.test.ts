@@ -164,3 +164,23 @@ describe("écran", () => {
     expect(visible(rendre(REGLAGES_RESERVE_DEFAUT, false))).not.toContain("Le tutoriel est fermé");
   });
 });
+
+describe("envois simultanés et lecture illisible", () => {
+  it("trois envois simultanés (actif, voix, rythme) sont tous gardés", async () => {
+    const res = await Promise.all([action(envoi("actif", "oui")), action(envoi("voix", "oui")), action(envoi("parSemaine", 5))]);
+    expect(res).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+    expect(await lireReglagesReserve()).toMatchObject({ actif: true, voix: true, parSemaine: 5 });
+  });
+
+  it("lecture qui lève : envoi refusé, rien n'est écrit, la limite stockée reste inchangée", async () => {
+    await action(envoi("plafondVideo", "3,50"));
+    const avant = await instantane();
+    const parametres = depots().parametres;
+    const spy = vi.spyOn(parametres, "obtenir").mockRejectedValue(new Error("base indisponible"));
+    const r = await action(envoi("voix", "oui"));
+    spy.mockRestore();
+    expect(r).toEqual({ ok: false, raison: "Réglages illisibles, réessayez." });
+    expect(await instantane()).toBe(avant);
+    expect((await lireReglagesReserve()).plafondVideoCentimes).toBe(350);
+  });
+});
