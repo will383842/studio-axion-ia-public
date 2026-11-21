@@ -4,8 +4,10 @@ import { join } from "node:path";
 import {
   DUREE_ZOOM_MOT_S,
   ECHELLE_PLEIN_CADRE,
+  echelleMotDansCadre,
   permisDansPlan,
   zoomMot,
+  zoomMotDansCadre,
 } from "@/briques/motion/habillage-commun/transition-zoom-mot";
 import { DUREES } from "@/briques/motion/jetons";
 import { IDS_TRANSITIONS_COMMUNES } from "@/briques/motion/habillage-commun/transitions";
@@ -67,5 +69,47 @@ describe("zoom à travers un mot (X1-05)", () => {
     const src = LU("transition-zoom-mot.ts");
     expect(src).not.toMatch(/Math\.random|Date\.now|performance\.now|cubic-bezier|from "@\//);
     expect(LU("choix.ts")).not.toMatch(/zoom-mot/);
+  });
+});
+
+describe("zoom sur le mot : le mot ENTIER tient dans le cadre (FIX-X1-05-a)", () => {
+  const FORMATS = [1080, 1080, 1080, 1920]; // largeurs de cadre : 9:16, 4:5, 1:1, 16:9
+  const MOTS = Array.from({ length: 20 }, (_, i) => 3 + (i % 12)); // 3 à 14 lettres
+  const MARGE = 40;
+
+  it("critère : largeur × échelle ≤ cadre − 2 marges tant que le mot est visible (20 mots × 4 formats)", () => {
+    for (const largeurCadre of FORMATS) {
+      for (const lettres of MOTS) {
+        const largeurMot = lettres * 24;
+        for (const t of PAS) {
+          const e = zoomMotDansCadre(SANS, t, { largeurMot, largeurCadre, marge: MARGE })!;
+          if (e.ouverture < 1) expect(largeurMot * e.echelleMot).toBeLessThanOrEqual(largeurCadre - 2 * MARGE + 1e-6);
+          expect(e.echelleMot).toBeGreaterThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it("un mot court atteint encore l'échelle maximale ; un long est borné ; entrées invalides = 1", () => {
+    expect(echelleMotDansCadre(10, 1080, 40)).toBe(ECHELLE_PLEIN_CADRE);
+    expect(echelleMotDansCadre(336, 1080, 40)).toBeCloseTo(1000 / 336, 6);
+    expect(echelleMotDansCadre(2000, 1080, 40)).toBe(1);
+    for (const m of [0, -5, Number.NaN, Infinity]) expect(echelleMotDansCadre(m, 1080, 40)).toBe(1);
+    expect(echelleMotDansCadre(100, Number.NaN, 40)).toBe(1);
+    expect(echelleMotDansCadre(100, 1080, -1)).toBe(1);
+  });
+
+  it("zoomMot garde ses valeurs ; le refus visage est conservé ; monotone ; fin = plein cadre une fois la scène en place", () => {
+    const sans = zoomMot(SANS, 0.5)!;
+    expect(sans.echelleMot).toBeGreaterThan(1);
+    expect(zoomMotDansCadre({ visageAvant: true, visageApres: false }, 0.5, { largeurMot: 100, largeurCadre: 1080, marge: 40 })).toBeNull();
+    let prec = 0;
+    for (const t of PAS) {
+      const e = zoomMotDansCadre(SANS, t, { largeurMot: 300, largeurCadre: 1080, marge: 40 })!.echelleMot;
+      expect(e).toBeGreaterThanOrEqual(prec);
+      prec = e;
+    }
+    expect(zoomMotDansCadre(SANS, 1, { largeurMot: 300, largeurCadre: 1080, marge: 40 })!.echelleMot).toBe(ECHELLE_PLEIN_CADRE);
+    expect(zoomMotDansCadre(SANS, 0, { largeurMot: 300, largeurCadre: 1080, marge: 40 })).toEqual(zoomMot(SANS, 0));
   });
 });

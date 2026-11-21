@@ -21,6 +21,9 @@ import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel
 import { estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
+import type { PortEquipe } from "@/moteurs/montage-tutoriel-outil/chaine";
+import { avecReleve } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
+import { relevePourStratege } from "@/moteurs/montage-tutoriel-outil/performance";
 
 /** T-EXT-52b : retouche sans tout refaire. ÉTEINT par défaut. */
 export const PARAM_RETOUCHE_PARTIELLE_TUTORIEL = "tutoriel.retouchePartielle";
@@ -33,6 +36,45 @@ export async function retouchePartielleActive(lire?: <T>(id: string, defaut: T) 
   } catch {
     return false;
   }
+}
+
+/** T-EXT-48b : boucle de performance (le relevé des vidéos publiées entre dans l'entrée du stratège de valeur). ÉTEINT par défaut. */
+export const PARAM_PERFORMANCE_TUTORIEL = "tutoriel.performance";
+
+/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`, lecture en échec : éteint). */
+export async function performanceTutorielActive(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
+  try {
+    const l = lire ?? (await import("./_commun")).lireParametre;
+    return (await l<unknown>(PARAM_PERFORMANCE_TUTORIEL, false)) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Relevé factuel lu en lecture seule (aucun appel payant, aucune écriture) ; aucune ligne si rien n'est lisible. */
+async function releveReel(): Promise<string[]> {
+  return relevePourStratege(await (await import("./tutoriel-performance")).lirePerformanceTutoriel());
+}
+
+/**
+ * T-EXT-48b : le port de l'équipe, où SEUL l'appel du stratège reçoit le relevé en contexte, et seulement si le réglage vaut
+ * exactement `true`. Éteint, relevé vide ou lecture en échec : l'entrée reçue est passée telle quelle (même objet). Le réglage
+ * et le relevé ne sont lus qu'au moment de cet appel. Le relevé n'écrit jamais une phrase de la vidéo.
+ */
+export function equipeAvecReleve(port: PortEquipe, deps: { active?: () => Promise<boolean>; releve?: () => Promise<readonly string[]> } = {}): PortEquipe {
+  return {
+    ...port,
+    appelerRole: async (role, entree) => {
+      if (role !== "stratege") return port.appelerRole(role, entree);
+      let lignes: readonly string[] = [];
+      try {
+        if ((await (deps.active ?? performanceTutorielActive)()) === true) lignes = await (deps.releve ?? releveReel)();
+      } catch {
+        lignes = [];
+      }
+      return port.appelerRole(role, avecReleve(entree, lignes));
+    },
+  };
 }
 
 brancherServicesTutoriel({
@@ -73,8 +115,8 @@ brancherServicesTutoriel({
     // T-EXT-27b : le regard de Claude sur les images-clés. Éteint (champ absent) sans `tutoriel.regardeur` ET `tutoriel.claude` à `true`.
     const regarder = (await regardTutorielActif()) ? creerRegardTutoriel({ videoId: c.videoId, origine: c.origine, rendu }) : undefined;
     const voixReelle = sansVoix ? undefined : b.voix;
-    // T-EXT-55 : l'équipe de rôles. Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
-    const equipe = (await equipeTutorielActive()) ? portsEquipe(c, c.videoId) : undefined;
+    // T-EXT-55 : l'équipe de rôles (T-EXT-48b : l'appel du stratège reçoit le relevé si `tutoriel.performance` vaut `true`). Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
+    const equipe = (await equipeTutorielActive()) ? equipeAvecReleve(portsEquipe(c, c.videoId)) : undefined;
     return {
       ...(devis
         ? {

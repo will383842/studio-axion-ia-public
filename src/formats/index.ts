@@ -13,6 +13,7 @@ import { formatFacecamAnimee } from "./facecam-animee";
 import { formatImageVideo } from "./image-video";
 import { formatTutorielOutil } from "./tutoriel-outil";
 import { formatDemoFacecam } from "./demo-facecam";
+import { formatTableauDeBord } from "./tableau-de-bord"; // G4-09b : format masqué (hors navigation)
 import { formatVideoLongue } from "./video-longue"; // 18/11 will-dc : format masqué (statut « masque », hors navigation), éteint derrière videoLongue.actif
 import type { DefinitionFormat, StatutFormat } from "./types";
 import type { ConseilSite, RegleChapitresWeb } from "@/domaine/site-videos/types";
@@ -23,6 +24,7 @@ import { codeDuFormat } from "./registre-codes";
 export type { DefinitionFormat } from "./types";
 
 const FORMATS: DefinitionFormat[] = [formatAvocat, formatFacecam, formatPodcast, formatCreateurB, formatEcranPartage, formatMotion, formatUgc, formatSelfie, formatTableauAnime, formatCasConcret, formatFacecamAnimee, formatImageVideo, formatTutorielOutil, formatDemoFacecam, formatVideoLongue];
+FORMATS.push(formatTableauDeBord); // G4-09b : entrée « masque », hors navigation
 
 /**
  * Inscrit un format PAR DES DONNÉES (générateur, plan v5 B.4.0) : ajouter un format ne change jamais le générateur

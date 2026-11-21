@@ -40,6 +40,9 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
   const [apercu, setApercu] = useState<Apercu | null>(null);
   const [versions, setVersions] = useState<string[]>(versionInitialeId ? [versionInitialeId] : []);
   const [occupe, setOccupe] = useState(false);
+  // T-EXT-46b : plan retouché prêt à fabriquer (tutoriel seulement), puis fabrication lancée.
+  const [aFabriquer, setAFabriquer] = useState<VersionAFabriquer | null>(null);
+  const [fabricationLancee, setFabricationLancee] = useState(false);
   const dire = (m: Message) => setHistorique((h) => [...h, m]);
 
   async function demander() {
@@ -64,11 +67,16 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
     setOccupe(true);
     try {
       const r = await envoyer({ action: "appliquer", videoId, demande: apercu.demande, operations: apercu.operations, ...(apercu.reglagesFilm ? { reglagesFilm: apercu.reglagesFilm } : {}), ...(generateur ? { generateur } : {}) });
-      const remarques = Array.isArray(r.remarques) ? (r.remarques as string[]) : [];
+      const afabriquer = versionAFabriquer(generateur, apercu.demande, r);
+      const remarques = remarquesAffichees(Array.isArray(r.remarques) ? (r.remarques as string[]) : [], afabriquer !== null);
       if (r.statut === "rendue" && typeof r.versionId === "string") {
         setVersions((v) => [...v, r.versionId as string]);
         dire({ auteur: "studio", texte: ["C'est fait : nouvelle version.", ...remarques].join(" ") });
-      } else dire({ auteur: "studio", texte: remarques.join(" ") || "Rien n'a changé." });
+      } else {
+        const texte = texteSansNouvelleVersion(remarques, r.impact, afabriquer !== null);
+        if (texte) dire({ auteur: "studio", texte });
+      }
+      setAFabriquer(afabriquer);
       setApercu(null);
     } catch {
       dire({ auteur: "studio", texte: "La retouche n'est pas partie. Réessayez dans un instant." });
@@ -85,6 +93,23 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
       await envoyer({ action: "revenir", videoId, versionId: avant, ...(generateur ? { generateur } : {}) });
       setVersions((v) => v.slice(0, -1));
       dire({ auteur: "studio", texte: "Version d'avant remise." });
+    } finally {
+      setOccupe(false);
+    }
+  }
+
+  /** T-EXT-46b : envoie le plan prêt à la route (`fabriquer`). Un refus s'affiche tel quel ; aucun montant ici. */
+  async function fabriquer() {
+    if (!aFabriquer || occupe) return;
+    setOccupe(true);
+    try {
+      const r = await envoyer({ action: "fabriquer", generateur: GENERATEUR_FABRICABLE, videoId, demande: aFabriquer.demande, plan: aFabriquer.plan, ...(aFabriquer.reglagesFilm !== undefined ? { reglagesFilm: aFabriquer.reglagesFilm } : {}) });
+      if (r.statut === "lancee") {
+        setFabricationLancee(true);
+        setAFabriquer(null);
+      } else dire({ auteur: "studio", texte: typeof r.erreur === "string" && r.erreur ? r.erreur : "La nouvelle version n'a pas pu partir. Réessayez dans un instant." });
+    } catch {
+      dire({ auteur: "studio", texte: "La nouvelle version n'a pas pu partir. Réessayez dans un instant." });
     } finally {
       setOccupe(false);
     }
@@ -136,11 +161,77 @@ export function ChatRetouche({ videoId, versionInitialeId, generateur, envoyer =
         </Bouton>
       </form>
       {coller ? <CollerOperations videoId={videoId} plan={coller.plan} envoyer={envoyer} {...(generateur ? { generateur } : {})} /> : null}
+      <ZoneFabriquer videoId={videoId} pret={aFabriquer !== null} lancee={fabricationLancee} occupe={occupe} onFabriquer={fabriquer} />
       {versions.length > 1 ? (
         <Bouton variante="fantome" onClick={revenir} disabled={occupe}>
           Revenir à la version d&apos;avant
         </Bouton>
       ) : null}
     </section>
+  );
+}
+
+/** T-EXT-46b : seul le tutoriel sait fabriquer une version depuis ce chat (table fermée côté route). */
+const GENERATEUR_FABRICABLE = "tutoriel-outil";
+
+export interface VersionAFabriquer {
+  demande: string;
+  plan: unknown;
+  /** Réglages du film demandés (non vides), à envoyer avec la fabrication. */
+  reglagesFilm?: unknown;
+}
+
+/** T-EXT-46b : le plan à fabriquer, seulement pour une issue « plan-pret » du tutoriel qui porte son plan ; sinon `null`. */
+export function versionAFabriquer(generateur: string | undefined, demande: string, reponse: Record<string, unknown>): VersionAFabriquer | null {
+  if (generateur !== GENERATEUR_FABRICABLE || reponse.statut !== "plan-pret") return null;
+  const plan = reponse.plan;
+  if (!plan || typeof plan !== "object") return null;
+  return reponse.reglagesFilm ? { demande, plan, reglagesFilm: reponse.reglagesFilm } : { demande, plan };
+}
+
+/**
+ * T-EXT-46b : même texte que `PHRASE_RENDU_NON_BRANCHE` (services/retouche-chat/service). Recopié ici car ce composant est
+ * client : il ne doit importer aucun module serveur (« server-only »). L'égalité stricte est gardée par un test.
+ */
+export const PHRASE_RENDU_NON_BRANCHE_COPIE = "Le plan retouché est prêt ; son rendu se branchera avec le générateur de cette vidéo.";
+
+/** T-EXT-46b : quand le bouton de fabrication est là, la phrase « son rendu se branchera… » serait contradictoire : elle n'est pas affichée (aucune phrase nouvelle). */
+export function remarquesAffichees(remarques: readonly string[], fabricable: boolean): string[] {
+  return remarques.filter((m) => !(fabricable && m === PHRASE_RENDU_NON_BRANCHE_COPIE));
+}
+
+/**
+ * T-EXT-46b : texte quand aucune nouvelle version n'est rendue. Sans rien à dire et avec le bouton de fabrication, on reprend
+ * la phrase d'impact déjà fournie (aucune phrase nouvelle) ou rien ; « Rien n'a changé. » seulement sans bouton.
+ */
+export function texteSansNouvelleVersion(remarques: readonly string[], impact: unknown, fabricable: boolean): string {
+  const texte = remarques.join(" ");
+  if (texte) return texte;
+  if (!fabricable) return "Rien n'a changé.";
+  // Retouche du film seul : aucune scène ne change, le serveur retire exprès cette phrase (elle contredirait le film) : rien à reprendre.
+  const i = impact && typeof impact === "object" ? (impact as { phrase?: unknown; scenes?: unknown }) : undefined;
+  const aDesScenes = Array.isArray(i?.scenes) && i.scenes.length > 0;
+  return aDesScenes && typeof i?.phrase === "string" ? i.phrase : "";
+}
+
+/** T-EXT-46b : bouton « Fabriquer cette version », puis la phrase et le lien de suivi. Aucun montant. Rien si rien à fabriquer. */
+export function ZoneFabriquer({ videoId, pret, lancee, occupe, onFabriquer }: { videoId: string; pret: boolean; lancee: boolean; occupe: boolean; onFabriquer: () => void }) {
+  if (!pret && !lancee) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {lancee ? (
+        <p role="status" className="text-sm">
+          La nouvelle version se fabrique. Les versions d&apos;avant restent disponibles.{" "}
+          <a href={`/tutoriel-outil/suivi/${encodeURIComponent(videoId)}`} className="font-semibold underline underline-offset-4">
+            Suivre la fabrication
+          </a>
+        </p>
+      ) : null}
+      {pret ? (
+        <Bouton onClick={onFabriquer} chargement={occupe}>
+          Fabriquer cette version
+        </Bouton>
+      ) : null}
+    </div>
   );
 }

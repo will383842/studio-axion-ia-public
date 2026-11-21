@@ -22,6 +22,7 @@ const { creerMoteurMontageImageVideo } = await import("@/moteurs/montage-image-v
 const { creerMoteurMontageFacecam } = await import("@/moteurs/montage-facecam");
 const { creerMoteurMontageFacecamAnimee } = await import("@/moteurs/montage-facecam-animee");
 const { creerMoteurVideoLongue } = await import("@/moteurs/montage-video-longue");
+const { creerMoteurDonnees } = await import("@/moteurs/montage-donnees");
 const { carteFixe, monde, outilsSimules } = await import("./../image-video/doubles-fabrication");
 const { banc: bancCas } = await import("./../cas-concret/moteur/doubles");
 const { banc: bancTableau } = await import("./../tableau/moteur/doubles");
@@ -104,6 +105,28 @@ async function commandeVideoLongue(): Promise<CommandeFabrication> {
   return { ...c, entrees: { ...c.entrees, videoLongue: { chapitres: [chapitreVL(1), chapitreVL(2), chapitreVL(3)] } } };
 }
 
+/** Tableau de bord (G4-09b) sur des doubles : donnée fictive, variante muette, montage simulé (aucun appel réel, 0 €). */
+const donneeTB = {
+  version: "tableau-de-bord.v1",
+  titre: "Tableau exemple",
+  periode: { debut: "2026-01-01", fin: "2026-03-31", libelle: "premier trimestre exemple" },
+  source: "Outil exemple",
+  indicateurs: [
+    { id: "ca-fevrier", libelle: "Chiffre d'affaires de février", valeur: 10200, unite: "€", precision: 0, sens: "hausse-bonne" },
+    { id: "ca-mars", libelle: "Chiffre d'affaires de mars", valeur: 12480, unite: "€", precision: 0, sens: "hausse-bonne" },
+    { id: "visites", libelle: "Visites du site", valeur: 3450, unite: "visites", precision: 0, sens: "hausse-bonne" },
+  ],
+  series: [],
+  comparaisons: [{ avant: "ca-fevrier", apres: "ca-mars" }],
+  alertes: [],
+  calculs: [],
+};
+const moteurDonnees = creerMoteurDonnees(() => ({ monter: async (ratio: string) => ({ fichierCle: `essai/donnees/${ratio.replace(":", "x")}.mp4` }) }));
+async function commandeDonnees(): Promise<CommandeFabrication> {
+  const c = await depuisV03("tableau-de-bord", "montage-donnees", ["4:5", "9:16", "1:1", "16:9"])();
+  return { ...c, entrees: { ...c.entrees, montageDonnees: { donnee: donneeTB, muette: true } } };
+}
+
 interface Cas {
   /** Le moteur câblé sur les doubles (celui du registre n'a pas d'outils dans un test). Absent : celui du registre. */
   moteur?: MoteurVideo;
@@ -122,6 +145,7 @@ const CAS: Record<string, Cas> = {
   "montage-tutoriel-outil": { moteur: tutoriel, fabriquer: async () => commandeTutoriel(), sansPrix: true, sansFournisseur: () => creerMoteurTutorielOutil({ outils: async () => null }) },
   "montage-demo-facecam": { fabriquer: depuisV03("demo-facecam", "montage-demo-facecam", ["4:5", "9:16", "1:1", "16:9"]), sansPrix: true, sansFournisseur: () => creerMoteurMontageDemoFacecam({ chaine: () => null }) },
   "montage-video-longue": { moteur: moteurVideoLongue, fabriquer: commandeVideoLongue, sansPrix: true, sansFournisseur: () => creerMoteurVideoLongue(() => null) },
+  "montage-donnees": { moteur: moteurDonnees, fabriquer: commandeDonnees, sansPrix: true, sansFournisseur: () => creerMoteurDonnees(() => null) },
   "montage-image-video": { moteur: moteurImageVideo, fabriquer: async () => commandeImageVideo(), sansFournisseur: () => creerMoteurMontageImageVideo({ outils: async () => undefined as never }) },
 };
 

@@ -12,9 +12,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exigerSession } from "@/services/auth";
-import { creerVerrou, ErreurStudio, essayer, type Resultat } from "@/services/_commun";
+import { creerVerrou, depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { lireDerniereSemaine } from "@/services/proposer-semaine";
-import { avecViseeUsine, usineActive } from "@/services/usine-porte";
+import { avecViseeUsine, retenirSujetUsine, usineActive } from "@/services/usine-porte";
 import { ecrireSujetDeLUsine } from "@/services/usine-sujet";
 import { RESEAUX_DECLINAISON } from "@/reseaux/codes";
 
@@ -50,6 +50,18 @@ export async function retenirSujetSemaineAction(debut: unknown, cle: unknown): P
       const v = visee.safeParse({ jour: proposition.jour, reseau: proposition.reseau });
       const i = idee.safeParse(proposition.sujet);
       if (!v.success || !i.success) throw new ErreurStudio("RETENIR_VISEE", "Ce jour ou ce réseau n'est pas reconnu : le sujet n'a pas été retenu.");
+      // Un sujet venu de l'usine est numéroté trop tard pour `controlerSujetCentral` : on refuse ici, sous le verrou, la même signature déjà retenue.
+      const dejaRetenu = await depots().scriptsMaitres.trouver((m) => !m.archiveLe && m.origineUsine?.signature === i.data.signature);
+      if (dejaRetenu) {
+        // L'Usine n'a pas confirmé (panne de `retenir` au premier essai) : on la rappelle, le contrat prévoit le rejeu (`deja: true`).
+        if (!dejaRetenu.origineUsine?.prevenueLe && dejaRetenu.origineUsine) {
+          const o = dejaRetenu.origineUsine;
+          if (await avecViseeUsine(v.data, () => retenirSujetUsine(o, dejaRetenu.id))) {
+            await depots().scriptsMaitres.modifier(dejaRetenu.id, { origineUsine: { ...o, prevenueLe: maintenant() } });
+          }
+        }
+        throw new ErreurStudio("RETENIR_DEJA", "Ce sujet est déjà retenu.");
+      }
       const r = await avecViseeUsine(v.data, () => ecrireSujetDeLUsine(i.data, { reseaux: [v.data.reseau], typeContenu: "video", dateVisee: v.data.jour }));
       revalidatePath("/calendrier");
       return r;

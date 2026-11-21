@@ -8,6 +8,8 @@ export const FRAICHEUR_CONSTAT_INTROUVABLE_MS = 3_600_000;
 /** Une rapatriée « à vérifier » aux constats faits est relue seule au plus tous les 30 min, et 10 au plus par passage (après les publications du Studio). */
 export const RELECTURE_INTROUVABLE_MIN_MS = 30 * 60_000;
 export const RELECTURES_INTROUVABLES_PAR_PASSAGE = 10;
+/** Retrait groupé : au clic, chaque publication à retirer est relue seule chez le diffuseur (lecture seule) ; 10 au plus par clic. */
+export const RETRAITS_MAX_PAR_CLIC = 10;
 export const MESSAGE_AUCUN_POST_RETROUVE = "Le diffuseur ne retrouve aucun de vos posts : vérifiez la connexion avant de retirer quoi que ce soit.";
 /** Une mesure d'écart n'est « vérifiée » que si elle date de moins d'une heure. */
 export const VALIDITE_MESURE_ECART_MS = 3_600_000;
@@ -25,6 +27,8 @@ export interface MesureEcartMinimale {
   connusFiables?: number;
   /** Premier passage où la liste ne contenait aucun post connu alors que des publications étaient suivies (collant jusqu'au retour d'un post connu). */
   espaceSuspectLe?: string;
+  /** Passage où la marque d'espace suspect est tombée : seuls les constats « introuvable » POSTÉRIEURS comptent pour un retrait groupé (un passage complet s'est terminé depuis). */
+  espaceRetrouveLe?: string;
 }
 
 /** Faux (avec message) si la mesure laisse penser que la clé relie un AUTRE espace : aucune publication suivie retrouvée dans la liste vérifiée. */
