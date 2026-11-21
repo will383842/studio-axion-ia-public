@@ -13,8 +13,8 @@
  * PONT « EN ATTENDANT » (dans ce fichier seulement ; il tient la place d'un raccord absent de master) : les ponts 1 (chaîne : option
  * `phraseOuverte`), 2 (écran : dépôt de la pièce) et 3 (écran : flux) sont retirés, leurs maillons étant corrigés sur master ; le bloc « maillons » en bas
  * de fichier prouve la chaîne et l'écran sans pont.
- *  - PONT 3 (cas 3) : RETIRÉ (V2-09b). L'écran lit et garde un flux comme une maquette ; seul reste, pour le flux, le fichier d'aperçu
- *    posé par le test, car le poste (`ecrire-maquette.mts`) ne fabrique pas encore l'aperçu d'un flux.
+ *  - PONT 3 (cas 3) : RETIRÉ (V2-09b). L'écran lit et garde un flux comme une maquette ; le poste (`ecrire-maquette.mts`) fabrique l'aperçu du flux
+ *    (`apercuPieceFlux`) : le test dépose le vrai aperçu du poste, sans fichier fabriqué.
  *
  * Règle de la fiche : si un maillon casse, le test reste ROUGE avec le nom du maillon ; aucune correction de production ici.
  */
@@ -46,7 +46,7 @@ import { verifierRendu } from "@/moteurs/montage-tutoriel-outil/equipe/registre-
 import { lirePropositionScripts } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { controlerFluxCree, DOMAINE_COURRIEL_EXEMPLE, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
 import type { FluxAutomatisation } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
-import { empreinteDescription, PARAM_ENTREE_PHRASE, PARAM_PIECE_CLAUDE, textesDeLaMaquette, VERSION_APERCU } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { empreinteDescription, PARAM_ENTREE_PHRASE, PARAM_PIECE_CLAUDE, textesDeLaMaquette } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { ETAPE_PIECE_TUTORIEL, PARAM_CLAUDE_TUTORIEL, plafondTutorielPhraseUsd } from "@/services/tutoriel-claude";
 import { deposerTutoriel, lireInterrupteursTutoriel, PARAM_FORMULAIRE, PHRASE_PHRASE_FERMEE, PHRASE_TUTORIEL_FERME } from "@/services/tutoriel-depot";
 import { equipeTutorielActive, PARAM_EQUIPE_TUTORIEL, portsEquipeAvecPhrase } from "@/services/tutoriel-equipe";
@@ -493,13 +493,11 @@ describe("V2-10 · « je veux un tri d'e-mails » (cas 3), le même chemin avec 
     const vus = textesDuFlux(flux);
     expect(vus.flatMap((t) => t.textes).filter((t) => /\p{Nd}/u.test(t))).toEqual([]);
 
-    /* ---- Écran « Votre maquette » (V2-09b) : l'aperçu est déposé, Williams voit le flux et chaque texte, puis le garde ---- */
     const p = e.pieceCreee!;
-    // Le poste (`ecrire-maquette.mts`) ne sait pas encore fabriquer l'aperçu d'un flux : le test pose le fichier d'aperçu et son image fixe.
-    const racineApercu = mkdtempSync(join(tmpdir(), "essai-phrase-flux-"));
-    dossiersTemporaires.push(racineApercu);
-    writeFileSync(join(racineApercu, NOM_FICHIER_APERCU), JSON.stringify({ version: VERSION_APERCU, empreinteDescription: p.empreinte, images: [{ ecranId: flux.etapes[0]!.id, etat: "maintenant", cle: "apercu/01-fixe.png" }], controle: { ok: true, defauts: [] } }));
-    const depose = await m.deposerApercu(racineApercu);
+    // Le vrai poste (`ecrire-maquette.mts`, capteur doublé) fabrique l'aperçu du flux ; le test le dépose.
+    const posteFlux = await m.poste();
+    expect(posteFlux.code).toBe(CODE_OK);
+    const depose = await m.deposerApercu(posteFlux.sortie);
     if (!depose.ok) maillon("écran « Votre maquette » (dépôt de l'aperçu du flux)", depose.message);
     await m.mener();
     expect(await m.pause()).toBe(CODE_PIECE_A_VALIDER);

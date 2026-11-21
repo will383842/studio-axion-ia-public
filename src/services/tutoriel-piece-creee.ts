@@ -266,7 +266,9 @@ async function nomsParDefaut(): Promise<NomsCharte> {
   return { interdits: [...interdits], permis: [...permis] };
 }
 
-export const MESSAGE_NOMS = "Les noms neutres de la charte ne sont pas lisibles : rien n'est modifié pour l'instant.";
+export /** Phrase d'accueil d'un flux « à revoir » (la phrase de `pas-piece-creee.ts` parle d'une maquette). */
+const MESSAGE_FLUX_A_REVOIR = "L'automatisation proposée ne respecte pas les règles (détail sur l'écran) : vous pouvez en demander une autre. Rien n'a échoué.";
+const MESSAGE_NOMS = "Les noms neutres de la charte ne sont pas lisibles : rien n'est modifié pour l'instant.";
 
 /** Les listes données par l'appelant font foi ; sinon celles de la charte. `null` si elles sont illisibles. */
 async function avecNoms(d: DependancesPiece): Promise<DependancesPiece | null> {
@@ -459,7 +461,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     cas: etat.cas,
     genre: flux ? "flux" : "maquette",
     etapes: fluxLu ? etapesDuFlux(fluxLu) : [],
-    message: etat.statut === "a-revoir" ? MESSAGE_PIECE_A_REVOIR : null,
+    message: etat.statut === "a-revoir" ? (flux ? MESSAGE_FLUX_A_REVOIR : MESSAGE_PIECE_A_REVOIR) : null,
     empreinte: etat.empreinte,
     apercu: (etat.apercu?.images ?? []).flatMap((i) => (urls[i.cle] ? [{ url: urls[i.cle]!, ecranId: i.ecranId, titre: titres.get(i.ecranId) ?? i.ecranId, etat: i.etat }] : [])),
     textes: textes.map((t) => ({ ...t, titre: titres.get(t.ecranId) ?? t.ecranId })),

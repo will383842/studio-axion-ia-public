@@ -531,7 +531,8 @@ describe("dépôt par défaut : la pièce vit dans parametres.tutoriel.equipe.pi
       await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ statut: "a-revoir", erreurs: ["Un nombre n'est pas permis."] }) }) } });
       const revoir = (await vuePieceCreee(VIDEO, sansDepot()))!;
       const h2 = decode(renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue: revoir, gestes: {} as GestesPiece })));
-      expect(h2).toContain(MESSAGE_PIECE_A_REVOIR);
+      expect(h2).toContain("L'automatisation proposée ne respecte pas les règles");
+      expect(h2).not.toContain(MESSAGE_PIECE_A_REVOIR);
       expect(h2).toContain("Un nombre n'est pas permis.");
       expect(/<button[^>]*\sdisabled=""[^>]*>\s*Garder/.test(h2)).toBe(true);
       expect(/<button[^>]*\sdisabled=""[^>]*>\s*En proposer/.test(h2)).toBe(false);
