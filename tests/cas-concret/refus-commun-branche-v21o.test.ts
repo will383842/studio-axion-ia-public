@@ -19,6 +19,10 @@ await import("@/services/videos");
 const { outilsVarieteDuStudio } = await import("@/services/cas-concret-variete");
 const { ecrireParametre } = await import("@/services/_commun");
 const { mettre, tirer } = await import("@/moteurs/montage-cas-concret/variete");
+const { fabriquerCasConcret } = await import("@/moteurs/montage-cas-concret/fabriquer");
+const { ficheParGabarit } = await import("@/moteurs/montage-cas-concret/ecriture");
+const { trouverCas } = await import("@/formats/cas-concret/catalogue");
+const { doubles } = await import("./fabriquer/doubles");
 
 import type { CommandeFabrication, Travail } from "@/domaine/types";
 import type { OutilsVariete } from "@/moteurs/montage-cas-concret/outils";
@@ -153,6 +157,41 @@ describe("X2-11b-c · refus commun branché dans le cas concret", { timeout: 120
   it("(c) tout refusé : un tirage sort quand même, aucune erreur", async () => {
     const tout = { ...sansRefus(), refusCommun: async () => () => "trop proche" } as OutilsVariete;
     for (const id of IDS.slice(0, 3)) expect(await jouer(id, tout)).toBeDefined();
+  });
+
+  /** Chemin « fiche fournie » (`entrees.ficheCle`) : `tirageAvantEcriture` est sauté, le tirage se fait dans `miseDeLaVideo`. */
+  async function fabriquerSurFicheFournie(videoId: string, variete: OutilsVariete) {
+    const fiche = ficheParGabarit(trouverCas(CAS)!, { videoId: "video-cc", versionId: "v1", habillage: "charte-duo/1", origine: "porte-a" as const });
+    const d = doubles({ reseaux: ["linkedin"] });
+    d.options.videoId = videoId;
+    d.options.entrees = { ...d.options.entrees, ficheCle: "studio/dev/fiches/video-cc.json" };
+    d.options.lireFiche = async () => structuredClone(fiche);
+    d.options.outils.variete = variete;
+    return (await fabriquerCasConcret(d.options)).fiche.mise;
+  }
+
+  it("(b'') fiche fournie, allumé, voisine LinkedIn : sur 10 vidéos, aucune n'ouvre comme la voisine (rouge sans le branchement de miseDeLaVideo)", async () => {
+    const voisin = tirer({ videoId: "v-voisine", canaux: RESEAUX, historique: [] });
+    const sans: string[] = [];
+    const avec: string[] = [];
+    for (const id of IDS) {
+      await monde();
+      await poserVoisine(voisin);
+      sans.push((await fabriquerSurFicheFournie(id, sansRefus()))!.tirage.ouverture);
+      await monde();
+      await poserVoisine(voisin);
+      await ecrireParametre("varieteCommune", true);
+      avec.push((await fabriquerSurFicheFournie(id, outilsVarieteDuStudio()))!.tirage.ouverture);
+    }
+    expect(sans).toContain(voisin.ouverture);
+    expect(avec).not.toContain(voisin.ouverture);
+  }, 120_000);
+
+  it("(c'') fiche fournie : refusCommun qui LÈVE ⇒ un tirage sort, aucune erreur (sansPanne)", async () => {
+    await poserVoisine(tirer({ videoId: "v-voisine", canaux: RESEAUX, historique: [] }));
+    await ecrireParametre("varieteCommune", true);
+    const panne = { ...outilsVarieteDuStudio(), refusCommun: async () => { throw new Error("lecture en panne"); } } as OutilsVariete;
+    expect((await fabriquerSurFicheFournie(IDS[0], panne))?.tirage).toBeDefined();
   });
 
   it("(d) tirage déjà au journal ou hérité : inchangé, refusCommun jamais appelé", async () => {
