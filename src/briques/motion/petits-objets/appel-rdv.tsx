@@ -7,7 +7,7 @@
  */
 import { type JSX } from "react";
 import { PALETTE } from "../../charte/axion-2026";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import { type DefinitionObjet, type ProprietesObjet } from "./contrat";
 import { phaseObjet } from "./progres";
 import { couleurDuTon } from "./tons";
@@ -77,7 +77,7 @@ function Rendu(pr: ProprietesObjet<ParametresAppelRdv>): JSX.Element {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontFamily: FAMILLE_CSS,
+                fontFamily: PILE_CSS,
                 fontWeight: 700,
                 fontSize: TAILLE_TEXTE,
                 whiteSpace: "nowrap",

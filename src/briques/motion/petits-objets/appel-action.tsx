@@ -5,7 +5,7 @@
  * Ton jamais couleur libre. Imports relatifs seulement (dossier lu par le rendu).
  */
 import { createElement, type JSX } from "react";
-import { FAMILLE_CSS, PALETTE } from "../../charte/axion-2026";
+import { PILE_CSS, PALETTE } from "../../charte/axion-2026";
 import { MOTS_MAX, type DefinitionObjet, type ProprietesObjet } from "./contrat";
 import { iconeObjet } from "./icones-objets";
 import { phaseObjet } from "./progres";
@@ -96,7 +96,7 @@ function Rendu(pr: ProprietesObjet<ParametresAppelAction>): JSX.Element {
         <path d={d} fill={PALETTE.blanc} stroke="none" opacity={entree(phase.trace)} />
         <Trace d={d} t={phase.trace} couleur={trait} epaisseur={4} />
         {avecIcone && parametres.role ? <Icone role={parametres.role} x={x0 + 40} y={CENTRE.y - ICONE / 2} t={phase.trace} couleur={trait} /> : null}
-        <text x={xTexte} y={CENTRE.y + taille * 0.35} fontFamily={FAMILLE_CSS} fontWeight={700} fontSize={taille.toFixed(1)} fill={PALETTE.noir} opacity={entree(phase.trace)}>
+        <text x={xTexte} y={CENTRE.y + taille * 0.35} fontFamily={PILE_CSS} fontWeight={700} fontSize={taille.toFixed(1)} fill={PALETTE.noir} opacity={entree(phase.trace)}>
           {parametres.texte}
         </text>
       </g>
