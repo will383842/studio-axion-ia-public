@@ -18,9 +18,9 @@ import type { EntreePorteIV, VerdictPorteIV, VerdictReseauPorteIV, VersionJugeeI
  * TABLE FERMÉE (choix de fond, à faire relire) : code de contrôle IV → code de `RESTE_BLOQUANT` qu'il porte, ou `null` :
  * reclassable en remarque. Au moindre doute, le contrôle est rattaché à un code (il reste bloquant). Les contrôles qui
  * sont DÉJÀ des remarques aujourd'hui (règle du 25/10 : `adaptation-scene.ts`, `controles.ts`) valent `null` : la table ne
- * les re-bloque JAMAIS. Évalués APRÈS écoute et relecture (donc le vrai gain) : Q06, Q08bis, Q16 à Q18, Q24, Q26, CHIFFRES.
+ * les re-bloque JAMAIS. Évalués APRÈS écoute et relecture (donc le vrai gain) : Q06, Q16 à Q18, Q24, Q26, CHIFFRES. Q08bis reste bloquant (règle de fer du texte).
  * Exceptions de texte : Q24 reste bloquant pour « image noire » (image-noire-au-debut) ; Q26 pour une fin ou une phrase non
- * choisie vue à l'image (`fin-absente`, `phrase-non-choisie`) ou une image noire.
+ * choisie vue à l'image (`fin-absente`, `phrase-non-choisie`), une image noire ou un chiffre faux (« faux : »).
  */
 export const TABLE_RECLASSEMENT_IV: Readonly<Record<CodeControleIV, CodeResteBloquant | null>> = Object.freeze({
   Q01: "chiffre-faux", // écarts de lecture de l'image non tranchés : chiffres incertains
@@ -32,7 +32,7 @@ export const TABLE_RECLASSEMENT_IV: Readonly<Record<CodeControleIV, CodeResteBlo
   Q06: "mot-dit-faux",
   Q07: "regles-h1-h2",
   Q08: "mot-interdit",
-  Q08bis: null,
+  Q08bis: "regles-h1-h2", // bloquant pour une règle du TEXTE (regles.ts:480-485, CODES_REGLES_JAMAIS_FAUX) : jamais reclassé
   Q09: "regles-h1-h2",
   Q10: "regles-h1-h2",
   Q11: "duree-plus-180-s",
@@ -66,7 +66,7 @@ const bloque = (l: Pick<LigneControleIV, "etat" | "bloquant">) => l.bloquant && 
 
 const TEXTE_RESTE_BLOQUANT: Readonly<Partial<Record<CodeControleIV, RegExp>>> = Object.freeze({
   Q24: /image noire|noire/i,
-  Q26: /\bfin\b|phrase non choisie|non choisie|noire|noir\b/i,
+  Q26: /\bfin\b|phrase non choisie|non choisie|noire|noir\b|\bfaux\s*:/i, // « faux : » = chiffre faux vu à l'image (relecture-finale.ts)
 });
 
 /** Une ligne bloquante qui ne peut PAS devenir une remarque. */

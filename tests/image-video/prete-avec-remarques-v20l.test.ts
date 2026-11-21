@@ -82,6 +82,12 @@ describe("même référence quand rien ne se reclasse", () => {
     const d = verdict([longue([echec("Q26", ["une phrase non choisie est visible."])])]);
     expect(assouplirVerdictIV(d, entree([longue([])]))).toBe(d);
   });
+  it("Q08bis (règle du texte) et Q26 « faux : » (chiffre faux vu à l'image) restent bloquants : verdict d'origine", () => {
+    const a = verdict([longue([echec("Q08bis", ["Question de commentaire : la question dépasse 12 mots."])])]);
+    expect(assouplirVerdictIV(a, entree([longue([])]))).toBe(a);
+    const b = verdict([longue([echec("Q26", ["à 3,2 s, faux : 45 % au lieu de 54 %."])])]);
+    expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
+  });
   it("un code de contrôle inconnu reste bloquant", () => {
     const b = verdict([longue([echec("Q26"), echec("Z99" as never)])]);
     expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
@@ -89,7 +95,7 @@ describe("même référence quand rien ne se reclasse", () => {
 });
 
 describe("seuls des blocages reclassables : prête, avec remarques", () => {
-  const lignes = [echec("Q26", ["le texte de l'image 3 est coupé."]), echec("Q08bis", ["la question de commentaire manque."]), echec("Q24", ["volume trop bas."]), ligne("Q06")];
+  const lignes = [echec("Q26", ["le texte de l'image 3 est coupé."]), echec("Q19", ["le contraste est faible."]), echec("Q24", ["volume trop bas."]), ligne("Q06")];
   const v = [longue(lignes)];
   const b = verdict(v);
   const avant = JSON.stringify(b);
@@ -107,7 +113,7 @@ describe("seuls des blocages reclassables : prête, avec remarques", () => {
     expect(r.mentions[0]).toBe("Instagram · un peu longue.");
     expect(r.mentions.slice(1)).toEqual([
       `${PREFIXE_REMARQUE_LIVRAISON}Instagram, LinkedIn · Q26 : le texte de l'image 3 est coupé.`,
-      `${PREFIXE_REMARQUE_LIVRAISON}Instagram, LinkedIn · Q08bis : la question de commentaire manque.`,
+      `${PREFIXE_REMARQUE_LIVRAISON}Instagram, LinkedIn · Q19 : le contraste est faible.`,
       `${PREFIXE_REMARQUE_LIVRAISON}Instagram, LinkedIn · Q24 : volume trop bas.`,
     ]);
   });
