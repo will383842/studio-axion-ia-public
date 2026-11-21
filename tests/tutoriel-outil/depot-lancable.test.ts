@@ -33,6 +33,7 @@ function banc() {
   const compte = { gardes: 0, abandons: [] as string[] };
   const dep: import("@/services/tutoriel-depot").DependancesDepotTutoriel = {
     interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
+    equipe: async () => true,
     lancer: async (id) => {
       compte.gardes++;
       await construireCommande(id);

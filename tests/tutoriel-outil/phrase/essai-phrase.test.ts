@@ -135,6 +135,7 @@ async function monde(phrase: string, options: Options = {}) {
     { mode: "phrase", phrase, ratios: ["4:5"] },
     {
       interrupteurs: () => lireInterrupteursTutoriel((id, d) => lire(id, d)),
+      equipe: async () => true,
       brouillon: async (e) => {
         entrees = e.entrees;
         return { id: VIDEO };
