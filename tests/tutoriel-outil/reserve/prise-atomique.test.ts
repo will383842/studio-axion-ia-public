@@ -39,7 +39,7 @@ vi.mock("@/donnees/memoire", async (importOriginal) => {
 
 import { CLE_BAIL_TIRAGE } from "@/domaine/tutoriel-reserve";
 import { prendreBail, rendreBail } from "@/donnees/memoire";
-import { ajouterElementReserve, changerEtatReserve, historiqueTiragesReserve, lireElementReserve, lireTirageReserve, noterVideoDuTirage, prendreSuivantReserve } from "@/services/tutoriel-reserve";
+import { ajouterElementReserve, changerEtatReserve, historiqueTiragesReserve, lireElementReserve, lireTirageReserve, noterFichierDemoReserve, noterVideoDuTirage, prendreSuivantReserve } from "@/services/tutoriel-reserve";
 
 const nouveau = (id: string) => ({ id, titre: id, source: { type: "idee", phrase: "p" } as const, fin: "aucune" as const, ajouteLe: "2026-11-01T00:00:00.000Z", ajoutePar: "fondateur" as const });
 
@@ -235,5 +235,37 @@ describe("prendreSuivantReserve", () => {
       null,
     ]);
     expect(await historiqueTiragesReserve()).toEqual([{ le: "2026-11-01T00:00:00.000Z", declencheur: "usine", elementId: "res-aaaaaa" }]);
+  });
+});
+
+describe("noterFichierDemoReserve", () => {
+  const demo = (id: string) => ({ id, titre: id, source: { type: "maquette-demo", dossier: "01-courriels" } as const, fin: "aucune" as const, ajouteLe: "2026-11-01T00:00:00.000Z", ajoutePar: "fondateur" as const });
+
+  it("écrit uniquement source.fichierId d'une démo prise", async () => {
+    await ajouterElementReserve(demo("res-demo01"));
+    await changerEtatReserve("res-demo01", "pris");
+    const avant = await lireElementReserve("res-demo01");
+    const r = await noterFichierDemoReserve("res-demo01", "fic-1");
+    expect(r).toEqual({ ...avant, source: { type: "maquette-demo", dossier: "01-courriels", fichierId: "fic-1" } });
+    expect(await lireElementReserve("res-demo01")).toEqual(r);
+  });
+
+  it("refuse un élément absent, non démo, ou à l'état ≠ pris", async () => {
+    await expect(noterFichierDemoReserve("res-absent", "f")).rejects.toMatchObject({ code: "RESERVE_INTROUVABLE" });
+    await ajouterElementReserve(nouveau("res-idee01"));
+    await changerEtatReserve("res-idee01", "pris");
+    await expect(noterFichierDemoReserve("res-idee01", "f")).rejects.toMatchObject({ code: "RESERVE_ELEMENT" });
+    await ajouterElementReserve(demo("res-demo02"));
+    await expect(noterFichierDemoReserve("res-demo02", "f")).rejects.toMatchObject({ code: "RESERVE_ELEMENT" });
+    expect((await lireElementReserve("res-demo02"))?.source).toEqual({ type: "maquette-demo", dossier: "01-courriels" });
+  });
+
+  it("idempotent : même fichierId, aucune écriture", async () => {
+    await ajouterElementReserve(demo("res-demo03"));
+    await changerEtatReserve("res-demo03", "pris");
+    await noterFichierDemoReserve("res-demo03", "fic-1");
+    echecEcriture = "tutoriel";
+    const r = await noterFichierDemoReserve("res-demo03", "fic-1");
+    expect(r.source).toMatchObject({ fichierId: "fic-1" });
   });
 });

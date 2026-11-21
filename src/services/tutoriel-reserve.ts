@@ -247,3 +247,22 @@ export async function noterVideoDuTirage(cle: string, elementId: string, videoId
     if (e?.prise?.cle === cle) await ecrireParametre(cleElementReserve(elementId), { ...e, prise: { ...e.prise, videoId } });
   });
 }
+
+/**
+ * Note `source.fichierId` (fichier de la maquette démo déposée) sur un élément `maquette-demo` à l'état `pris`. Sous `sousVerrouReserve`
+ * (base relue avant la lecture de l'élément). Absent → RESERVE_INTROUVABLE ; autre type de source ou état ≠ `pris` → RESERVE_ELEMENT.
+ * Déjà égal → rend l'élément tel quel, sans écrire. Sinon n'écrit que `source.fichierId`.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ */
+export async function noterFichierDemoReserve(id: string, fichierId: string): Promise<ElementReserve> {
+  return sousVerrouReserve(async () => {
+    const e = await lireElementReserve(id);
+    if (!e) throw new ErreurStudio("RESERVE_INTROUVABLE", "Cet élément n'est plus dans la réserve.");
+    if (e.source.type !== "maquette-demo") throw new ErreurStudio("RESERVE_ELEMENT", "Cet élément n'est pas une maquette démo.");
+    if (e.etat !== "pris") throw new ErreurStudio("RESERVE_ELEMENT", "Cet élément n'est pas pris : le fichier démo ne peut pas être noté.");
+    if (e.source.fichierId === fichierId) return e;
+    const suivant: ElementReserve = { ...e, source: { ...e.source, fichierId } };
+    await ecrireParametre(cleElementReserve(id), suivant);
+    return suivant;
+  });
+}
