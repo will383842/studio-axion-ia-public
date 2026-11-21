@@ -14,9 +14,12 @@ import {
   lireReglagesReserveBrut,
   type ReglagesReserve,
 } from "@/domaine/tutoriel-reserve";
-import { ErreurStudio, journaliser, lireParametre, sousVerrou } from "@/services/_commun";
+import { ErreurStudio, creerVerrou, journaliser, lireParametre, sousVerrou } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
 import { ecrireReglagesReserve } from "@/services/tutoriel-reserve";
+
+/** File propre au module, AVANT le verrou partagé : sans elle, des envois simultanés épuisent le pool Postgres (max 5) en attendant le verrou. */
+const fileReglages = creerVerrou();
 
 export type ResultatReglageReserve = { ok: true } | { ok: false; raison: string };
 
@@ -59,7 +62,7 @@ export async function enregistrerReglagesReserveAction(donnees: FormData): Promi
   const valeur = donnees.get("valeur");
   // Lecture + application + écriture sous les mêmes verrous que la réserve (crédits partagé PUIS boucle, même ordre que RES-1) :
   // sans eux, trois envois simultanés lisent le même état et seul le dernier est gardé.
-  const r = await sousVerrouCreditsPartage(() =>
+  const r = await fileReglages(() => sousVerrouCreditsPartage(() =>
     sousVerrou(async (): Promise<{ phrase: string } | { raison: string }> => {
       // Échec fermé : une lecture qui LÈVE refuse l'envoi sans rien écrire (écrire par-dessus un état illisible l'écraserait avec le défaut,
       // p. ex. en perdant la limite par vidéo). Absent (null) → défaut éteint ; forme corrompue → défaut (lireReglagesReserveBrut).
@@ -79,7 +82,7 @@ export async function enregistrerReglagesReserveAction(donnees: FormData): Promi
       }
       return { phrase: a.phrase };
     }),
-  );
+  ));
   if ("raison" in r) return { ok: false, raison: r.raison };
   await journaliser("reglage", `Tutoriel d'outil, réserve : ${r.phrase}`);
   revalidatePath("/reglages/tutoriel-outil");

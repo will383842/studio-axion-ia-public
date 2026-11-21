@@ -11,6 +11,23 @@ vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 const revalider = vi.hoisted(() => vi.fn());
 vi.mock("next/cache", () => ({ revalidatePath: revalider }));
+const credits = vi.hoisted(() => ({ enCours: 0, max: 0, appels: 0 }));
+vi.mock("@/donnees/memoire", async (importOriginal) => {
+  const reel = await importOriginal<typeof import("@/donnees/memoire")>();
+  return {
+    ...reel,
+    sousVerrouCreditsPartage: async <T,>(f: () => Promise<T>): Promise<T> => {
+      credits.appels++;
+      credits.enCours++;
+      credits.max = Math.max(credits.max, credits.enCours);
+      try {
+        return await reel.sousVerrouCreditsPartage(f);
+      } finally {
+        credits.enCours--;
+      }
+    },
+  };
+});
 const session = vi.hoisted(() => ({ ouverte: true }));
 vi.mock("@/services/auth", () => ({
   exigerSession: vi.fn(async () => {
@@ -41,6 +58,9 @@ beforeEach(() => {
   reinitialiserDepots();
   session.ouverte = true;
   revalider.mockClear();
+  credits.enCours = 0;
+  credits.max = 0;
+  credits.appels = 0;
 });
 
 describe("session", () => {
@@ -170,6 +190,13 @@ describe("envois simultanés et lecture illisible", () => {
     const res = await Promise.all([action(envoi("actif", "oui")), action(envoi("voix", "oui")), action(envoi("parSemaine", 5))]);
     expect(res).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
     expect(await lireReglagesReserve()).toMatchObject({ actif: true, voix: true, parSemaine: 5 });
+  });
+
+  it("trois envois simultanés : le verrou partagé n'est jamais pris par plus d'un à la fois (file propre au module)", async () => {
+    const res = await Promise.all([action(envoi("actif", "oui")), action(envoi("voix", "oui")), action(envoi("parSemaine", 5))]);
+    expect(res).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
+    expect(credits.appels).toBe(3);
+    expect(credits.max).toBe(1);
   });
 
   it("lecture qui lève : envoi refusé, rien n'est écrit, la limite stockée reste inchangée", async () => {
