@@ -107,6 +107,19 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
     expect(appels).toHaveLength(0);
   });
 
+  it("c bis) origine LUE sur la commande de la version choisie (sans `deps.origine`) : « usine » → plafond bloquant, le double n'est jamais appelé", async () => {
+    await ecrireParametre("fournisseur.texte-reseaux", "claude");
+    await ecrireParametre(m.PARAM_PLAFOND_LECTURE_CHAT, 0.01);
+    const v = (await depots().videos.obtenir("v-04"))!;
+    const ver = (await depots().versions.obtenir(v.versionChoisieId!))!;
+    await depots().versions.enregistrer({ ...ver, commande: { ...ver.commande, origine: "usine" } } as never);
+    const appels = brancherClaude();
+    const appel = await m.appelClaudeChat("v-04");
+    const err = await appel(requete()).catch((e: Error) => e);
+    expect((err as Error).message).toContain("limite de cette vidéo");
+    expect(appels).toHaveLength(0);
+  });
+
   it("d) vidéo ou version introuvable, origine qui lève → un appel qui lève, executer jamais appelé", async () => {
     const executer = vi.fn();
     for (const [id, deps] of [
