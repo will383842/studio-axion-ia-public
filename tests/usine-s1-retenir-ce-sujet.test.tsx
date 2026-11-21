@@ -149,7 +149,7 @@ function trouver(n: ReactNode, quoi: (e: ReactElement<{ children?: ReactNode }>)
 }
 const rendre = (retenir?: Parameters<typeof CarteProposition>[0]["retenir"], sujet: IdeeUsine | null = idee, debut: string | null = "2026-11-23") => {
   curseur = 0;
-  return CarteProposition({ entree, lienAValider: "/a-valider", ...(debut ? { debut } : {}), ...(sujet ? { sujet } : {}), ...(retenir ? { retenir } : {}) }) as ReactElement;
+  return CarteProposition({ entree, ...(debut ? { debut } : {}), ...(sujet ? { sujet } : {}), ...(retenir ? { retenir } : {}) }) as ReactElement;
 };
 const texte = (n: ReactNode): string => (Array.isArray(n) ? n.map(texte).join("") : typeof n === "string" || typeof n === "number" ? String(n) : n && typeof n === "object" && "props" in n ? texte((n as ReactElement<{ children?: ReactNode }>).props.children) : "");
 const bouton = (arbre: ReactElement) => trouver(arbre, (e) => e.type === "button");
@@ -159,7 +159,7 @@ describe("bouton « Retenir ce sujet »", () => {
 
   it("une proposition sans sujet n'a pas de bouton", () => {
     expect(bouton(rendre(undefined, null))).toBeNull();
-    expect(renderToStaticMarkup(<CarteProposition entree={entree} lienAValider="/a-valider" />)).not.toContain("<button");
+    expect(renderToStaticMarkup(<CarteProposition entree={entree} />)).not.toContain("<button");
   });
 
   it("avec sujet : bouton en français simple, n'envoie à l'action que le lundi et la clé de la carte (ni sujet, ni jour, ni réseau), puis « Retenu »", async () => {
@@ -172,11 +172,17 @@ describe("bouton « Retenir ce sujet »", () => {
     expect(bouton(apres)!.props.disabled).toBe(true);
   });
 
-  it("sans adresse « À valider » : le bouton est là, le lien manque", () => {
-    curseur = 0;
-    const arbre = CarteProposition({ entree, debut: "2026-11-23", sujet: idee }) as ReactElement;
-    expect(bouton(arbre)).not.toBeNull();
-    expect(trouver(arbre, (e) => typeof e.type !== "string" && String((e.type as { name?: string }).name) === "Link")).toBeNull();
+  it("le lien « Voir dans « Écrire » » est absent avant la retenue, présent (vers /ecrire) après", async () => {
+    const retenir = vi.fn(async () => ({ ok: true as const, donnees: { id: "suj-1", rappelUsine: false } }));
+    const lien = (arbre: ReactElement) => trouver(arbre, (e) => (e.props as { href?: string }).href !== undefined);
+    const avant = rendre(retenir);
+    expect(lien(avant)).toBeNull();
+    expect(texte(avant)).not.toContain("Voir dans");
+    await bouton(rendre(retenir))!.props.onClick!();
+    const apres = rendre(retenir);
+    expect((lien(apres)!.props as { href?: string }).href).toBe("/ecrire");
+    expect(texte(lien(apres)!)).toBe("Voir dans « Écrire »");
+    expect(texte(apres)).not.toContain("À valider");
   });
 
   it("sans lundi connu : pas de bouton (rien ne pourrait être retrouvé côté serveur)", () => {
@@ -185,7 +191,7 @@ describe("bouton « Retenir ce sujet »", () => {
 
   it("le sujet est repris de l'entrée quand elle le porte (liste des propositions)", () => {
     curseur = 0;
-    const arbre = CarteProposition({ entree: { ...entree, sujet: idee } as EntreeCarte, lienAValider: "/a-valider", debut: "2026-11-23" }) as ReactElement;
+    const arbre = CarteProposition({ entree: { ...entree, sujet: idee } as EntreeCarte, debut: "2026-11-23" }) as ReactElement;
     expect(bouton(arbre)).not.toBeNull();
   });
 
