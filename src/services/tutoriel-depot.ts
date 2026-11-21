@@ -10,7 +10,7 @@
  * Aucun appel payant, aucun montant écrit ni montré.
  */
 import "server-only";
-import type { Fichier, Id, Ratio, Video } from "@/domaine/types";
+import type { Distribution, Fichier, Id, Ratio, Video } from "@/domaine/types";
 import { ENTREE_TUTORIEL, PHRASE_DEPOT_MAX, PHRASE_DEPOT_MIN, type DepotTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import type { IdGabarit } from "@/moteurs/montage-tutoriel-outil/sortie-usine";
 import { TAILLE_ZIP_MAX } from "@/moteurs/montage-tutoriel-outil/securite-entrees";
@@ -25,6 +25,7 @@ export const ID_FORMAT_TUTORIEL = "tutoriel-outil";
 
 export const PHRASE_TUTORIEL_FERME = "Le tutoriel n'est pas encore ouvert : votre demande n'est pas envoyée.";
 export const PHRASE_PHRASE_FERMEE = "L'entrée par une phrase n'est pas ouverte pour le moment.";
+export const PHRASE_PERSONNE_ABSENTE = "Aucune personne n'est disponible pour parler dans la vidéo : ajoutez d'abord votre double dans Personnages, puis recommencez.";
 export const PHRASE_AUCUNE_ENTREE = "Aucune entrée n'est ouverte pour le moment.";
 
 /** Fin de la vidéo (mêmes valeurs que `FinChoisie` du chef de projet, recopiées : ce fichier n'importe pas l'équipe). */
@@ -82,7 +83,9 @@ export interface DependancesDepotTutoriel {
   /** Octets du fichier envoyé (en mémoire, jamais écrits sur le disque). */
   octets?: (fichier: Pick<Fichier, "id" | "cleStockage" | "taille">) => Promise<Uint8Array>;
   extraire?: (octets: Uint8Array, options: { attestationImages: boolean }) => Promise<ResultatZip>;
-  brouillon?: (e: { titre: string; sujet: string; distribution: []; entrees: Record<string, unknown> }) => Promise<Pick<Video, "id">>;
+  /** Distribution par défaut (le double de Williams) ; liste vide ou sans personne : le dépôt est refusé. */
+  distribution?: (formatId: string) => Promise<Distribution[]>;
+  brouillon?: (e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown> }) => Promise<Pick<Video, "id">>;
   ratios?: (videoId: Id, ratios: Ratio[]) => Promise<void>;
   /** Lancement commun (format sans prix : montant nul). */
   lancer?: (videoId: Id) => Promise<IssueLancement>;
@@ -112,9 +115,17 @@ async function octetsParDefaut(fichier: Pick<Fichier, "cleStockage" | "taille">)
 
 const phraseTropGros = (): string => `Le dossier dépasse ${Math.round(TAILLE_ZIP_MAX / (1024 * 1024))} Mo : réduisez-le puis renvoyez-le.`;
 
-async function brouillonParDefaut(e: { titre: string; sujet: string; distribution: []; entrees: Record<string, unknown> }) {
-  const { nouveauBrouillonFormat } = await import("./creation-format");
-  return nouveauBrouillonFormat({ formatId: ID_FORMAT_TUTORIEL, ...e });
+async function distributionParDefautDuTutoriel(formatId: string): Promise<Distribution[]> {
+  const { distributionParDefaut } = await import("./videos");
+  return distributionParDefaut(formatId);
+}
+
+async function brouillonParDefaut(e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown> }) {
+  const [{ nouveauBrouillonFormat }, { enregistrerScriptDuBrouillon }] = await Promise.all([import("./creation-format"), import("./videos")]);
+  const video = await nouveauBrouillonFormat({ formatId: ID_FORMAT_TUTORIEL, ...e });
+  // Le lancement commun exige un script rattaché : un bloc vide (le moteur du tutoriel écrit le texte lui-même).
+  await enregistrerScriptDuBrouillon(video.id, [{ id: `${video.id}-b1`, blocRecette: "corps", segments: [{ id: `${video.id}-s1`, texte: "" }] }]);
+  return video;
 }
 
 async function ratiosParDefaut(videoId: Id, ratios: Ratio[]): Promise<void> {
@@ -194,8 +205,17 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
     depot = { mode: "phrase", phrase };
   }
 
+  // Qui parle : le double par défaut. Personne de disponible : refus lisible, jamais un brouillon impossible à lancer.
+  let distribution: Distribution[];
+  try {
+    distribution = await (dep.distribution ?? distributionParDefautDuTutoriel)(ID_FORMAT_TUTORIEL);
+  } catch (e) {
+    return refus(e instanceof ErreurStudio ? e.message : PHRASE_PERSONNE_ABSENTE);
+  }
+  if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
+
   const titre = titreDe(depot, nomFichier);
-  const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution: [], entrees: { [ENTREE_TUTORIEL]: { depot, fin, ...(gabarit ? { gabarit } : {}) } } });
+  const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees: { [ENTREE_TUTORIEL]: { depot, fin, ...(gabarit ? { gabarit } : {}) } } });
   const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
   try {
     await (dep.ratios ?? ratiosParDefaut)(video.id, ratios);
