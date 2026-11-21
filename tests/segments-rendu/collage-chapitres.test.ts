@@ -24,6 +24,8 @@ describe("collage-chapitres : paramètres et arguments (purs)", () => {
     expect(() => lireParametresCollage({ morceaux: ["a", "a"] })).toThrow(/deux fois/);
     expect(() => lireParametresCollage({ morceaux: ["a"], voix: "a" })).toThrow(/voix/);
     expect(() => lireParametresCollage({ morceaux: ["a", 3] })).toThrow(/invalide/);
+    expect(lireParametresCollage({ morceaux: Array.from({ length: 200 }, (_, i) => `m${i}`) }).morceaux).toHaveLength(200);
+    expect(() => lireParametresCollage({ morceaux: Array.from({ length: 201 }, (_, i) => `m${i}`) })).toThrow(/Trop de morceaux/);
   });
   it("liste de concat : apostrophes protégées", () => {
     expect(contenuListe(["/a/b.mp4", "/c/d'e.mp4"])).toBe("file '/a/b.mp4'\nfile '/c/d'\\''e.mp4'\n");
