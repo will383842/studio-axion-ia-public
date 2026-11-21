@@ -208,8 +208,10 @@ export function texteSansNouvelleVersion(remarques: readonly string[], impact: u
   const texte = remarques.join(" ");
   if (texte) return texte;
   if (!fabricable) return "Rien n'a changé.";
-  const phrase = impact && typeof impact === "object" ? (impact as { phrase?: unknown }).phrase : undefined;
-  return typeof phrase === "string" ? phrase : "";
+  // Retouche du film seul : aucune scène ne change, le serveur retire exprès cette phrase (elle contredirait le film) : rien à reprendre.
+  const i = impact && typeof impact === "object" ? (impact as { phrase?: unknown; scenes?: unknown }) : undefined;
+  const aDesScenes = Array.isArray(i?.scenes) && i.scenes.length > 0;
+  return aDesScenes && typeof i?.phrase === "string" ? i.phrase : "";
 }
 
 /** T-EXT-46b : bouton « Fabriquer cette version », puis la phrase et le lien de suivi. Aucun montant. Rien si rien à fabriquer. */

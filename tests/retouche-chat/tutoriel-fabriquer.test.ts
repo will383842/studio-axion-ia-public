@@ -452,11 +452,16 @@ describe("46b · écran : bouton « Fabriquer cette version »", () => {
   it("rien à dire avec le bouton de fabrication : jamais « Rien n'a changé. » ; la phrase d'impact existante ou rien", () => {
     const sansRemarque = remarquesAffichees([PHRASE_RENDU_NON_BRANCHE], true);
     expect(sansRemarque).toEqual([]);
-    expect(texteSansNouvelleVersion(sansRemarque, { phrase: "Une scène change." }, true)).toBe("Une scène change.");
+    const scenes = [{ id: "s1" }];
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: "Une scène change.", scenes }, true)).toBe("Une scène change.");
+    // film seul : aucune scène ne change, la phrase d'impact est retirée par le serveur exprès : rien ne s'affiche
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: "Aucune scène ne change, la voix ne change pas.", scenes: [] }, true)).toBe("");
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: "Aucune scène ne change, la voix ne change pas." }, true)).toBe("");
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: "Aucune scène ne change.", scenes: "x" }, true)).toBe("");
     expect(texteSansNouvelleVersion(sansRemarque, undefined, true)).toBe("");
-    expect(texteSansNouvelleVersion(sansRemarque, { phrase: 3 }, true)).toBe("");
-    expect(texteSansNouvelleVersion(["Autre remarque."], { phrase: "Une scène change." }, true)).toBe("Autre remarque.");
-    expect(texteSansNouvelleVersion([], { phrase: "Une scène change." }, false)).toBe("Rien n'a changé.");
+    expect(texteSansNouvelleVersion(sansRemarque, { phrase: 3, scenes: [{ id: "s1" }] }, true)).toBe("");
+    expect(texteSansNouvelleVersion(["Autre remarque."], { phrase: "Une scène change.", scenes }, true)).toBe("Autre remarque.");
+    expect(texteSansNouvelleVersion([], { phrase: "Une scène change.", scenes }, false)).toBe("Rien n'a changé.");
   });
 
   it("`versionAFabriquer` emporte les réglages du film non vides, et seulement eux", () => {
