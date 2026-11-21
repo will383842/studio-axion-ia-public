@@ -312,11 +312,16 @@ describe("53c · moteur", () => {
 });
 
 describe("53c : la phrase de l'aperçu nomme le bouton qui existe vraiment", () => {
-  it("« Appliquer » (jamais « Fabriquer cette version », bouton absent de ce chat) dans la phrase et dans le composant", () => {
+  it("« Appliquer » (« Fabriquer cette version » seulement dans ZoneFabriquer de 46b, jamais dans la phrase ni l'aperçu) dans la phrase et dans le composant", () => {
     expect(PHRASE_RIEN_FABRIQUE).toContain("« Appliquer »");
     expect(PHRASE_RIEN_FABRIQUE).not.toContain("Fabriquer cette version");
     const composant = readFileSync(new URL("../../src/components/retouche-chat/ChatRetouche.tsx", import.meta.url), "utf8");
-    expect(composant).not.toContain("Fabriquer cette version");
+    // AUTORISATION PERMANENTE (c) : T-EXT-46b ajoute le bouton « Fabriquer cette version » dans `ZoneFabriquer` (fin du fichier, à partir de son commentaire) ; l'entrée du
+    // test devient le composant SANS ce bloc : le libellé reste interdit partout ailleurs (phrase, aperçu, bouton « Appliquer »).
+    const debutZone = composant.indexOf("/** T-EXT-46b : bouton « Fabriquer cette version »");
+    expect(debutZone).toBeGreaterThan(0);
+    expect(composant.slice(0, debutZone)).not.toContain("Fabriquer cette version");
+    expect(composant.slice(debutZone)).toMatch(/<Bouton[^>]*>\s*Fabriquer cette version\s*<\/Bouton>/);
     expect(composant.replace(/&apos;/g, "'")).toContain(PHRASE_RIEN_FABRIQUE);
     expect(composant).toMatch(/<Bouton[^>]*>\s*Appliquer\s*<\/Bouton>/);
   });
