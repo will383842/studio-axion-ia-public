@@ -65,11 +65,16 @@ export function rapportComptage(videos: VideoCompte[]): string[] {
   return lignes;
 }
 
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
+/** Lecture pure des arguments : `--videos` n'écarte l'argument suivant que s'il est présent (sinon `iv + 1` valait 0 et écartait le dossier). */
+export function lireArguments(args: string[]): { sortie?: string; fichierVideos?: string } {
   const iv = args.indexOf("--videos");
   const fichierVideos = iv >= 0 ? args[iv + 1] : undefined;
-  const sortie = args.find((a, i) => !a.startsWith("--") && i !== iv + 1);
+  const sortie = args.find((a, i) => !a.startsWith("--") && (iv < 0 || i !== iv + 1));
+  return { sortie, fichierVideos };
+}
+
+async function main(): Promise<void> {
+  const { sortie, fichierVideos } = lireArguments(process.argv.slice(2));
   if (!sortie) { console.error("Usage : pnpm exec tsx outils/zoom-gratuit/planche.mts <dossier-de-sortie> [--videos <fichier.json>]"); process.exit(1); }
   const racine = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
   const dossier = resolve(sortie);
