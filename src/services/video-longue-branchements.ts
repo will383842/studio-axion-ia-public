@@ -307,9 +307,11 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
   return creerDependancesVideoLongue(commande, paresseux);
 }
 
-/** Pose les raccords sur le moteur inscrit (une fois par processus). */
+/** Pose les raccords sur le moteur inscrit (une fois par copie du moteur : le garde est posé sur l'objet moteur lui-même). */
 export function brancherVideoLongue(): void {
-  const g = globalThis as typeof globalThis & { [k: symbol]: unknown };
+  // Le garde porte sur CETTE copie du moteur (sous `next start`, l'action serveur et la boucle peuvent charger chacune la leur) :
+  // un drapeau global ferait croire qu'une copie non reliée l'est.
+  const g = moteurMontageVideoLongue as unknown as { [k: symbol]: unknown };
   const cle = Symbol.for("studio-axion-ia.video-longue-branche");
   if (g[cle]) return;
   g[cle] = true;

@@ -179,4 +179,38 @@ describe("UI-4 : montage sans voix", () => {
     expect(demandes.filter((d) => d.operation === "composition")).toHaveLength(0);
     expect(demandes.filter((d) => d.operation === "collage-chapitres")).toHaveLength(1);
   });
+
+  it("retouche du texte sans voix : nouvelles plages, texte neuf rendu, nouveau collage, nouvelle clé, V1 intacte", async () => {
+    await allumer(true);
+    const c = await commande();
+    const v1 = await mener(c, await moteurMontageVideoLongue.lancer(c, { travailId: "t-v1", versionId: "v1", titre: "V1", maintenant: T0 }));
+    expect(v1.travail.statut).toBe("termine");
+    const plages1 = demandes.filter((d) => d.operation === "composition");
+    const collage1 = demandes.find((d) => d.operation === "collage-chapitres")!;
+    const cle1 = v1.resultat!.sorties[0].fichierCle;
+    demandes.length = 0;
+
+    const neuf = { ...c, entrees: { ...c.entrees, videoLongue: { chapitres: [chapitre(1), { ...chapitre(2), texte: chapitre(2).texte.replace(/mot2x/g, "NEUF2x") }], sansVoix: true } } } as CommandeFabrication;
+    const t2 = await moteurMontageVideoLongue.retoucher({
+      commande: neuf,
+      contexte: { travailId: "t-v2", versionId: "v2", titre: "V2", maintenant: T0 },
+      planIds: [],
+      consigne: "Texte du chapitre 2 changé",
+      parent: { versionId: "v1", projetMontage: v1.resultat!.projetMontage as Record<string, unknown>, pistes: [] },
+    });
+    const v2 = await mener(neuf, t2);
+    expect(v2.travail.statut).toBe("termine");
+    const plages2 = demandes.filter((d) => d.operation === "composition");
+    const collages2 = demandes.filter((d) => d.operation === "collage-chapitres");
+    const anciens = new Set(plages1.map((d) => d.idRendu));
+    expect(plages2.filter((d) => !anciens.has(d.idRendu)).length).toBeGreaterThan(0);
+    expect(JSON.stringify(plages2.map((d) => (d.parametres as { proprietes: unknown }).proprietes))).toContain("NEUF2x");
+    expect(collages2).toHaveLength(1);
+    expect(collages2[0].idRendu).not.toBe(collage1.idRendu);
+    const cle2 = v2.resultat!.sorties[0].fichierCle;
+    expect(cle2).not.toBe(cle1);
+    expect(cle2).toContain("video-longue-t-v2-16x9.mp4");
+    expect(cle1).toContain("video-longue-t-v1-16x9.mp4");
+    expect(branchementsReels).not.toHaveBeenCalled();
+  });
 });

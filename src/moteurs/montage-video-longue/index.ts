@@ -9,7 +9,7 @@ import { ZERO } from "@/lib/montants";
 import type { SortieProduite } from "../types";
 import { creerMoteurGabarit, type DefinitionGabarit } from "../gabarit";
 import { lireEntreesVideoLongue, type EntreesVideoLongue } from "./entrees";
-import { avancerVideoLongue, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
+import { avancerVideoLongue, estimerMotsSansVoix, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
 
 export { COMPOSITION_VIDEO_LONGUE } from "./chaine";
 export type { DependancesVideoLongue, EtatVideoLongue } from "./chaine";
@@ -62,7 +62,15 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
         return r?.voix && Array.isArray(r.chapitres) ? { voix: r.voix, chapitres: r.chapitres } : undefined;
       },
       // Retouche : la voix déjà lue est gardée (rien n'est relu ni repayé) ; seul le montage est refait.
-      etatPourRetouche: (reprise) => ({ faites: [], voix: reprise.voix, chapitres: reprise.chapitres, remarques: [], sorties: {} }),
+      // Sans voix, « voix » et « chapitres » ne sont que des estimations de l'ancien texte : on les recalcule (coût 0).
+      etatPourRetouche: (reprise, commande) => {
+        const entrees = lireEntreesVideoLongue(commande);
+        if (entrees.sansVoix) {
+          const lue = estimerMotsSansVoix(entrees);
+          return { faites: [], voix: { mots: lue.mots, dureeSec: lue.dureeSec, morceaux: 0 }, remarques: [], sorties: {} };
+        }
+        return { faites: [], voix: reprise.voix, chapitres: reprise.chapitres, remarques: [], sorties: {} };
+      },
     },
     proprietesRendu: () => ({}),
   };
