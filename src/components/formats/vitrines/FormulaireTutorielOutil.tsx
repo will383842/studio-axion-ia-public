@@ -20,10 +20,12 @@ import { PauseVitrine, RemarquesFiche } from "./RemarquesFiche";
 
 /** Ce que le formulaire envoie au serveur (même forme que `DemandeDepotTutoriel`, recopiée : pas d'import serveur ici). */
 export interface DemandeFormulaireTutoriel {
-  mode: "dossier" | "phrase";
+  mode: "dossier" | "phrase" | "script";
   fichierId?: string;
   attestationImages?: boolean;
   phrase?: string;
+  script?: string;
+  modeVoix?: "sans-voix";
   fin: "aucune" | "prendre-rendez-vous";
   gabarit?: string;
   ratios: string[];
@@ -38,6 +40,9 @@ export interface InterrupteursFormulaire {
   phrase: boolean;
 }
 
+/** Bornes du mode « Mon script » (mêmes valeurs que `SCRIPT_DEPOT_MIN/MAX` du service, recopiées : pas d'import serveur ici). */
+const SCRIPT_MIN = 10;
+const SCRIPT_MAX = 5000;
 export const PHRASE_AUCUNE_ENTREE_OUVERTE = "Aucune entrée n'est ouverte pour le moment.";
 export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.";
 const PARCOURS: { valeur: string; libelle: string }[] = [
@@ -59,8 +64,12 @@ export function FormulaireTutorielOutil({ interrupteurs, deposer }: { interrupte
 }
 
 function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: InterrupteursFormulaire; deposer: (demande: DemandeFormulaireTutoriel) => Promise<ResultatFormulaireTutoriel> }) {
-  const premier: "dossier" | "phrase" | null = interrupteurs.dossier ? "dossier" : interrupteurs.phrase ? "phrase" : null;
-  const [mode, setMode] = useState<"dossier" | "phrase" | null>(premier);
+  // « Mon script » est toujours proposé quand le formulaire est ouvert : il y a donc toujours un premier choix.
+  const premier: "dossier" | "phrase" | "script" = interrupteurs.dossier ? "dossier" : interrupteurs.phrase ? "phrase" : "script";
+  const [mode, setMode] = useState<"dossier" | "phrase" | "script">(premier);
+  const [script, setScript] = useState("");
+  // Le mode avec voix reste le défaut ; « sans voix » seulement si l'utilisateur le choisit.
+  const [modeVoix, setModeVoix] = useState<ModeVoixTutoriel>(MODE_AVEC_VOIX);
   const [envoye, setEnvoye] = useState<{ fichierId: string; nom: string; taille: number } | null>(null);
   const [progression, setProgression] = useState<number | null>(null);
   const [attestation, setAttestation] = useState(false);
@@ -73,8 +82,6 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
   const [enCours, setEnCours] = useState(false);
   const [videoId, setVideoId] = useState<string | null>(null);
   const [cible] = useState(() => `tuto-${Math.random().toString(36).slice(2, 12)}`);
-
-  if (!premier) return <PauseVitrine phrase={PHRASE_AUCUNE_ENTREE_OUVERTE} />;
 
   async function recevoir(fichiers: File[]) {
     const f = fichiers[0];
@@ -98,18 +105,22 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
     }
   }
 
-  const pret = mode === "dossier" ? envoye !== null : mode === "phrase" ? phrase.trim().length >= PHRASE_DEPOT_MIN && phrase.trim().length <= PHRASE_DEPOT_MAX : false;
+  const pret = mode === "dossier" ? envoye !== null : mode === "phrase" ? phrase.trim().length >= PHRASE_DEPOT_MIN && phrase.trim().length <= PHRASE_DEPOT_MAX : script.trim().length >= SCRIPT_MIN && script.trim().length <= SCRIPT_MAX;
+  // Sans voix, le rythme vient de la vitesse de lecture du texte ; hors cible = une remarque, jamais un refus ni une coupe.
+  const texteDuree = mode === "script" ? script : mode === "phrase" ? phrase : "";
+  const remarquesDuree = useMemo(() => (modeVoix === MODE_SANS_VOIX && texteDuree.trim() ? controlerLongueurScript(texteDuree, DUREE_CARTE_FIN_MS).map((r) => r.message) : []), [modeVoix, texteDuree]);
   const formatsOk = ratios.includes("4:5");
 
   async function envoyer() {
-    if (!mode || enCours) return;
+    if (enCours) return;
     setEnCours(true);
     setMessage(null);
     setRefus([]);
     try {
       const r = await deposer({
         mode,
-        ...(mode === "dossier" ? { fichierId: envoye?.fichierId, attestationImages: attestation } : { phrase: phrase.trim() }),
+        ...(mode === "dossier" ? { fichierId: envoye?.fichierId, attestationImages: attestation } : mode === "script" ? { script: script.trim() } : { phrase: phrase.trim() }),
+        ...(modeVoix === MODE_SANS_VOIX ? { modeVoix: MODE_SANS_VOIX } : {}),
         fin,
         ...(gabarit ? { gabarit } : {}),
         ratios: FORMATS.filter((x) => ratios.includes(x)),
@@ -150,20 +161,24 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
         <h2 id="bloc-donnez" className="text-lg font-semibold">
           Ce que vous donnez
         </h2>
-        {interrupteurs.dossier && interrupteurs.phrase && (
-          <div role="radiogroup" aria-label="Ce que vous donnez" className="flex flex-wrap gap-4">
+        <div role="radiogroup" aria-label="Ce que vous donnez" className="flex flex-wrap gap-4">
+          {interrupteurs.dossier && (
             <label className="flex min-h-11 items-center gap-2">
               <input type="radio" name="mode" value="dossier" checked={mode === "dossier"} onChange={() => setMode("dossier")} />
               Un dossier (.zip)
             </label>
+          )}
+          {interrupteurs.phrase && (
             <label className="flex min-h-11 items-center gap-2">
               <input type="radio" name="mode" value="phrase" checked={mode === "phrase"} onChange={() => setMode("phrase")} />
               Une phrase
             </label>
-          </div>
-        )}
-        {interrupteurs.dossier && !interrupteurs.phrase && <p className="font-semibold">Un dossier (.zip)</p>}
-        {!interrupteurs.dossier && interrupteurs.phrase && <p className="font-semibold">Une phrase</p>}
+          )}
+          <label className="flex min-h-11 items-center gap-2">
+            <input type="radio" name="mode" value="script" checked={mode === "script"} onChange={() => setMode("script")} />
+            Mon script
+          </label>
+        </div>
         {mode === "dossier" && (
           <div className="space-y-3">
             <ZoneDepot libelle="Choisir votre dossier" detail="50 Mo au plus" accepte=".zip,application/zip" multiple={false} onFichiers={(f) => void recevoir(f)} essai={false} />
@@ -177,6 +192,20 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
           </div>
         )}
         {mode === "phrase" && <ZoneTexte libelle="Votre phrase" aide={`De ${PHRASE_DEPOT_MIN} à ${PHRASE_DEPOT_MAX} caractères.`} longueurMax={PHRASE_DEPOT_MAX} value={phrase} onChange={(e) => setPhrase(e.target.value)} />}
+        {mode === "script" && <ZoneTexte libelle="Votre script" aide={`Collez-le : il fait foi, aucun mot n'est changé. De ${SCRIPT_MIN} à ${SCRIPT_MAX} caractères.`} longueurMax={SCRIPT_MAX} value={script} onChange={(e) => setScript(e.target.value)} />}
+      </section>
+
+      <section aria-label="Son de la vidéo" className="space-y-2">
+        <SelecteurPastilles
+          libelle="Son de la vidéo"
+          valeur={modeVoix}
+          onChange={setModeVoix}
+          options={[
+            { valeur: MODE_AVEC_VOIX, libelle: LIBELLE_MODE_AVEC_VOIX },
+            { valeur: MODE_SANS_VOIX, libelle: LIBELLE_MODE_SANS_VOIX, detail: AIDE_MODE_SANS_VOIX },
+          ]}
+        />
+        <RemarquesFiche remarques={remarquesDuree} />
       </section>
 
       <section aria-labelledby="bloc-fin" className="space-y-2">
