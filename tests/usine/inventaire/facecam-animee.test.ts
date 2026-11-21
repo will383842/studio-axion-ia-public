@@ -7,7 +7,7 @@ export const DOMAINE: Domaine = {
   litterales: {},
   constantes: [
     { cle: "facecamAnimee.calageAuMot", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /PARAM_CALAGE_AU_MOT_FA, false\)\) === true/ },
-    { cle: "facecamAnimee.finDouce", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /PARAM_FIN_DOUCE_FA, false\)\) === true/ },
+    { cle: "facecamAnimee.finDouce", etat: "allume", appel: "src/services/facecam-animee.ts", motif: /PARAM_FIN_DOUCE_FA, true\)\) === true/ },
     { cle: "facecamAnimee.extraitsMaison", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/realisateur/consigne-extraits-maison.ts", motif: /PARAM_EXTRAITS_MAISON_FA, false\)\) === true/ },
     { cle: "facecamAnimee.zoomGratuit", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/zoom-gratuit-v4.ts", motif: /PARAM_ZOOM_GRATUIT_FA, false\)\) === true/ },
     { cle: "facecamAnimee.garderMaster", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/master-v4.ts", motif: /PARAM_GARDER_MASTER_FA, false\)\) === true/ },
