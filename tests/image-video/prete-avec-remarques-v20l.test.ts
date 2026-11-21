@@ -70,6 +70,14 @@ describe("même référence quand rien ne se reclasse", () => {
     const b = verdict([longue([echec("Q26"), ligne("Q18", { etat: "non-fait", phrase: "Écoute (non vérifié)." })])]);
     expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
   });
+  it("un contrôle « non-fait » Q24 (non mesuré) ou Q26 (relecture non lancée) mêlé à une faute reclassable : verdict d'origine", () => {
+    const q24 = ligne("Q24", { etat: "non-fait", phrase: "Mesures du fichier (non vérifié) : non mesurés sur le fichier final : le volume, la crête.", details: ["non mesurés sur le fichier final : le volume, la crête."] });
+    const a = verdict([longue([echec("Q19"), q24])]);
+    expect(assouplirVerdictIV(a, entree([longue([])]))).toBe(a);
+    const q26 = ligne("Q26", { etat: "non-fait", phrase: "Relecture des images finales (non vérifié) : relecture non lancée.", details: ["relecture non lancée : la vidéo est déjà refusée par un autre contrôle, aucune dépense n’est engagée."] });
+    const b = verdict([longue([echec("Q19"), q26])]);
+    expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
+  });
   it.each([["Q08"], ["CHIFFRES"], ["Q16"], ["Q17"], ["Q18"], ["Q06"], ["FIN"], ["Q11"]] as const)("une ligne de RESTE_BLOQUANT (%s) mêlée à une remarque", (code) => {
     const b = verdict([longue([echec("Q08bis"), echec(code)])]);
     expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
