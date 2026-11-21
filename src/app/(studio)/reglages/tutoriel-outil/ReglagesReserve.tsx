@@ -18,9 +18,9 @@ export const TEXTES_RESERVE = {
   parSemaine: "Combien par semaine",
   parSemaineAide: "0 : seulement quand l'usine le demande",
   voix: "Avec voix",
-  voixAide: "Éteint : vidéos sans voix, aucune dépense de voix. Allumé : le devis avant dépense doit être allumé.",
+  voixAide: "Éteint : vidéos sans voix, aucune dépense de voix. Allumé : il faut aussi allumer le réglage « … avant toute dépense », plus haut sur cette page.",
   limite: "Limite par vidéo pour l'écriture (Claude)",
-  limiteAide: "Deux décimales, de 0,01 à 10,00. Cette limite ne peut que restreindre : elle ne change aucun plafond.",
+  limiteAide: "Deux décimales, de 0,01 à 10,00. Cette limite ne peut que restreindre : elle ne change aucune autre limite.",
   avertissementFerme: "Le tutoriel est fermé : rien ne sera pris tant qu'il l'est.",
   ouvrir: "Ouvrir la réserve",
 } as const;

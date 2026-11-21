@@ -168,7 +168,7 @@ describe("écran", () => {
     expect(t).toMatch(/Prendre seul dans la réserve Éteint/);
     expect(t).toMatch(/Avec voix Éteint/);
     expect(t).toContain("0 : seulement quand l'usine le demande");
-    expect(t).toContain("Éteint : vidéos sans voix, aucune dépense de voix. Allumé : le devis avant dépense doit être allumé.");
+    expect(t).toContain("Éteint : vidéos sans voix, aucune dépense de voix. Allumé : il faut aussi allumer le réglage « … avant toute dépense », plus haut sur cette page.");
     expect(t).not.toContain("Allumé Éteindre");
     const html = rendre();
     expect(html).toContain('value="1,25"');
