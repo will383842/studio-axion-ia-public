@@ -84,6 +84,12 @@ describe("BR-VARIETE-AVOCAT-v21o · avocat × variété commune", () => {
     expect(lister).not.toHaveBeenCalled();
   });
 
+  it("f) allumée, la vidéo en cours déjà publiée sur LinkedIn (aucune autre voisine) : exclue de ses propres voisines", async () => {
+    await voisineLinkedin("EN_COURS", "frise");
+    await regler(CLE, true);
+    expect(await entreesAvocatDuLancement(ligne({ reseau: "linkedin" }))).toEqual({ [ENTREE_MOTION_AVOCAT]: { actif: true } });
+  });
+
   it("la mémoire propre de l'avocat reste en tête (ses 5 dernières vidéos), les voisines s'y ajoutent", async () => {
     await depots().versions.enregistrer({
       id: "va", videoId: "AVOC", numero: 1, commande: {}, statut: "prete", choisie: false, creeLe: "2026-11-01T10:00:00Z", modifieLe: "2026-11-01T10:00:00Z",
