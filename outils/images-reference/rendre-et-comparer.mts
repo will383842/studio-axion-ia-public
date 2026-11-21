@@ -7,9 +7,10 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { comparerImages, type ImageRgba } from "../../tests/images-reference/comparer.ts";
+import { versionDerivee } from "../../tests/segments-rendu/version-derivee.ts";
 
 interface Piece { id: string; composition: string; image: number; ratio: string; fichier: string }
-interface References { version: number; seuil: number; versionCompositions?: number; pieces: Piece[] }
+interface References { version: number; seuil: number; versionCompositions?: string; pieces: Piece[] }
 
 const racine = resolve(import.meta.dirname, "..", "..");
 const fichierRefs = join(racine, "tests", "images-reference", "references.json");
@@ -28,7 +29,7 @@ if (iMaj >= 0 && !idMaj) sortir(1, "--mettre-a-jour demande l'identifiant de la 
 if (refs.pieces.length === 0) sortir(0, "aucune pièce à comparer");
 
 // Garde de version (G13-04) : si les compositions ont changé de version sans que les références aient été revues, on refuse.
-const versionActuelle = (JSON.parse(readFileSync(join(racine, "tests", "segments-rendu", "version-compositions.json"), "utf8")) as { version: number }).version;
+const versionActuelle = versionDerivee((JSON.parse(readFileSync(join(racine, "tests", "segments-rendu", "version-compositions.json"), "utf8")) as { empreintes: Record<string, string> }).empreintes);
 if (refs.versionCompositions !== versionActuelle) {
   sortir(1, `La version des compositions est ${versionActuelle}, les références ont été revues pour ${refs.versionCompositions ?? "aucune"} : revoir chaque pièce, puis mettre « versionCompositions » à jour dans references.json.`);
 }

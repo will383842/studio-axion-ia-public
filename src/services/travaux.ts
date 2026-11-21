@@ -673,7 +673,33 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
     if (lues.length) await enregistrerDepensePayee(travail, lues, { versionAussi: !reexport });
   }
   const suites = sortie.resultat ? await appliquerResultat(travail, sortie.resultat) : [];
+  await signalerPauseTutoriel(lu.moteur.id, actuel, travail);
   return { ecrit: true, suites };
+}
+
+/** Code de la pause du moteur tutoriel d'outil posée sur ce travail (`parametres.pause.code`), ou `null`. */
+function codeDePause(t: Travail): string | null {
+  const code = (t.parametres as { pause?: { code?: unknown } } | undefined)?.pause?.code;
+  return typeof code === "string" ? code : null;
+}
+
+/**
+ * AUD-8 : le tutoriel d'outil qui ENTRE en pause (le travail attend Williams) pose la cloche du suivi tout de suite, sans
+ * attendre qu'il ouvre la page. Une seule fois par pause (le code de pause doit avoir changé ; `signalerSuivi` dédoublonne
+ * aussi). Éteint par défaut (réglage « tutoriel.suiviCloche »). Jamais bloquant : l'avancement est déjà écrit, une erreur
+ * est seulement journalisée.
+ */
+async function signalerPauseTutoriel(moteurId: string, avant: Travail, apres: Travail): Promise<void> {
+  if (moteurId !== "montage-tutoriel-outil") return;
+  const code = codeDePause(apres);
+  if (!code || code === codeDePause(avant)) return;
+  try {
+    const { signalerSuivi } = await import("./tutoriel-suivi"); // chargé à l'usage : ce module relit déjà ce fichier
+    await signalerSuivi(apres);
+  } catch (e) {
+    console.error("[studio] cloche du suivi non posée", apres.id, e instanceof Error ? e.name : "");
+    await journaliser("echec", `Cloche du suivi non posée : « ${apres.titre} » (${e instanceof Error ? e.name : "erreur"})`, { type: "video", id: apres.cibleId }).catch(() => undefined);
+  }
 }
 
 /**
