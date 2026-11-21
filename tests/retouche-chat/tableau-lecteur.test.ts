@@ -50,7 +50,7 @@ describe("S-06-a : lireDemandeTableauParClaude (vrai lireDemande)", () => {
     const { p, appeler } = ports(rep([OP_VALIDE]));
     expect(await lireDemandeTableauParClaude(F, "bonjour", CTX, p)).toEqual(OP_VALIDE);
     expect(appeler).toHaveBeenCalledTimes(1);
-    const r = appeler.mock.calls[0][0] as { maxTokens: number; messages: { contenu: string }[] };
+    const r = (appeler.mock.calls[0] as unknown[])[0] as { maxTokens: number; messages: { contenu: string }[] };
     expect(r.maxTokens).toBe(MAX_JETONS_LECTEUR);
     const m = r.messages[r.messages.length - 1].contenu;
     const bloc = supplementTableau(F, CTX).bloc;
