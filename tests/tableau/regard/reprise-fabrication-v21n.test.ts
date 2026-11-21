@@ -118,6 +118,14 @@ describe("fabriquerAvecReprise (S-12-BRANCHER-a-v21n)", () => {
     expect(m.maxAppels).toEqual([0]);
   });
 
+  it.each([-1, 0.5, Number.NaN, "1"])("compteur lu %s (pas un entier positif) : plafond atteint, 0 regard", async (lu) => {
+    const m = monter([verdict(["texte-coupe", "page-3"]), verdict()], { regardsFaits: lu as number });
+    const r = await fabriquerAvecReprise({ fiche, actif: true }, m.ports);
+    expect(r.arret).toBe("non-relue");
+    expect(m.maxAppels).toEqual([0]);
+    expect(m.ecrits).toEqual([]);
+  });
+
   it("(4 ter) 1 regard déjà fait : un seul regard encore permis, pas de page refaite lue deux fois", async () => {
     const m = monter([verdict(["texte-coupe", "page-3"]), verdict()], { regardsFaits: 1 });
     const r = await fabriquerAvecReprise({ fiche, actif: true }, m.ports);
