@@ -174,7 +174,7 @@ describe("D4 / R1 aucune autre cloche, aucune écriture hors du cas visé", () =
 describe("D2 aucun nouvel interrupteur", () => {
   it("la mémoire « oppositions.sante » est déclarée dans le recensement, et aucune clé d'interrupteur n'est ajoutée", async () => {
     const { readFileSync } = await import("node:fs");
-    const src = readFileSync("tests/usine/interrupteurs-inventaire.test.ts", "utf8");
+    const src = readFileSync("tests/usine/inventaire/parcours-et-ecriture.test.ts", "utf8");
     expect(src).toMatch(/"oppositions\.sante": "memoire"/);
     expect(SO.PARAM_SANTE_OPPOSITIONS).toBe("oppositions.sante");
   });
