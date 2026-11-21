@@ -76,6 +76,8 @@ import { exigerSession } from "./auth";
 import { trouverMoi } from "./moi";
 import { TARIF_VOIX_CENTIMES_PAR_CARACTERE } from "./tableau-outils";
 import { historiqueStylesTableau, noterStyleTableau } from "./tableau-variete";
+import { stylesTableauAEviterCommun } from "./variete-commune/styles-tableau-commun";
+import { lireVarieteCommune } from "./variete-commune/lire-reglage";
 import { interditsDeLaMarque } from "./tableau-marque";
 import { choisirFinTableau } from "./tableau-fin";
 import { LONGUEUR_MAX_LIBELLE, TYPES_AUTOMATISATION } from "@/domaine/ciblage/types";
@@ -881,7 +883,9 @@ async function executerDecoupage(videoId: Id, tache: TacheTableau, dependances: 
   const donnees = brouillon.donnees;
   const aujourdhui = tache.aujourdhui ?? aujourdhuiIso();
   const controle = await contexteRegles(aujourdhui);
-  const tirage = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, false).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
+  const tirageBase = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, false).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
+  const eviter = tirageBase ? await stylesTableauAEviterCommun({ videoId, reseaux: donnees.reseaux, le: maintenant(), lire: lireVarieteCommune }) : undefined; // BR-TABLEAU-STYLE-b2 : varieteCommune éteint → undefined
+  const tirage = tirageBase && eviter?.length ? { ...tirageBase, eviter } : tirageBase;
   const entree = entreeDecoupage(donnees, videoId, tache.versionId ?? `b${brouillon.versions.length + 1}`, controle, await preuvesProposees(aujourdhui), tirage);
   await modifierTache(videoId, tache.id, (t) => t && { ...t, statut: "en-cours", etape: "decoupage" });
   const pireUsd = tache.pireUsd ?? coutPireDecoupageUsd(entree);
