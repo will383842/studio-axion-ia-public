@@ -140,6 +140,15 @@ describe("voix : réservation, plafond par appel et CUMULÉ par vidéo", () => {
     }
   });
 
+  it("déjà engagé négatif : refus sans rien payer", async () => {
+    const d = double();
+    d.engage.mockImplementation(async () => -10);
+    const deps = dependancesDonnees(commande(), { voixActive: true }, d.ports)!;
+    await expect(deps.voix!.lire("Bonjour")).rejects.toThrow(/engagé/);
+    expect(d.reserverCredits).not.toHaveBeenCalled();
+    expect(d.lire).not.toHaveBeenCalled();
+  });
+
   it("déjà engagé illisible : refus sans rien payer", async () => {
     const d = double();
     d.engage.mockImplementation(async () => Number.NaN);
@@ -248,10 +257,15 @@ describe("ports par défaut : la VRAIE porte d'argent et la narration réelle (m
     delete reste.reserverCredits;
     await mod.dependancesDonnees(commande({ origine: "usine" }), { voixActive: true }, reste)!.voix!.lire("a".repeat(500));
     expect(verifier).toHaveBeenCalledTimes(1);
-    const a = verifier.mock.calls[0] as unknown as [string, { lignes: { etape: string; nature: string }[]; total: { centimes: number } }, number, string, { videoId: string; travailId: string }];
+    const a = verifier.mock.calls[0] as unknown as [string, { lignes: { etape: string; nature: string; quantite: number; unite: string; fournisseur: string; prixUnitaire: { centimes: number } }[]; total: { centimes: number } }, number, string, { videoId: string; travailId: string }];
     expect(a[0]).toBe("usine");
     expect(a[1].lignes[0]!.etape.startsWith(mod.PREFIXE_ETAPE_VOIX_TDB)).toBe(true);
     expect(a[1].lignes[0]!.nature).toBe("estime");
+    // Ces lignes nourrissent le plafond CUMULÉ par vidéo (credits.ts les convertit en montant) : quantité, unité et fournisseur sont tenus.
+    expect(a[1].lignes[0]!.quantite).toBe(1000);
+    expect(a[1].lignes[0]!.unite).toBe("caractere");
+    expect(a[1].lignes[0]!.fournisseur).toBe("heygen");
+    expect(a[1].lignes[0]!.prixUnitaire.centimes).toBe(Math.round(0.03));
     expect(a[1].total.centimes).toBe(30);
     expect(a[2]).toBe(30);
     expect(a[4].videoId).toBe("v-test");
