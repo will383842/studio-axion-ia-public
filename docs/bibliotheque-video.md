@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 90 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -73,10 +73,20 @@ Le catalogue compte 90 capacités. L'état dit où elle en est : prod (déjà ut
 | `objet.reseau-schema` | prevu | 9 | D3 § C |  |
 | `objet.manuscrit` | prevu | 9 | D3 § C |  |
 | `objet.emoji` | prevu | 9 | D3 § C | attend W-K / W-14 |
+| `accroche.script` | prevu | 10 |  | branchée éteinte, aucune déclaration de générateur ne la consomme |
+| `rythme.mesure` | prevu | 10 |  | mesure allumée (remarque de plan), hors bibliothèque |
+| `etalonnage.noir-blanc` | prevu | 10 |  | livrée, non branchée |
+| `texte.lueur` | prevu | 10 |  | livrée, non branchée |
+| `texte.fond-clair` | prevu | 10 |  | livrée, non branchée |
 | `texte.sous-titres` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `plan-scenes.generique` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `son.pose` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `etalonnage.lut` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
+| `texte.marques-au-mot` | eteint | 11 |  | branchée, porte éteinte |
+| `texte.selectif` | prevu | 11 |  | porte éteinte, calque sans importeur |
+| `texte.mode-carte` | prevu | 11 |  | porte éteinte |
+| `texte.effets` | prevu | 11 |  | livrée, non branchée |
+| `texte.accents-role` | prevu | 11 |  | porte éteinte, rien ne l'importe |
 | `texte.poids-variable` | prevu | X1 |  |  |
 | `texte.minimal-dynamique` | prevu | X1 |  |  |
 | `ecran.fenetre-inclinee` | prevu | X1 |  |  |
