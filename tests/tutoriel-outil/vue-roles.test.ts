@@ -141,7 +141,7 @@ describe("mots simples", () => {
 });
 
 describe("AUD-5 : toutes les pauses du tutoriel se lisent", () => {
-  const CODES = ["TO_SCRIPT_A_VALIDER", "TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEVIS_A_ACCEPTER", "TO_DEVIS_ATTEINT", "TO_OUTILS_NON_RELIES", "TO_FILM_A_CAPTURER", "TO_DOSSIER_INCOMPLET", "TO_DEMANDE_VIDE", "TO_DEMANDE_ARRETEE", "TO_EQUIPE_BLOQUEE", "TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_VALIDER", "TO_PIECE_A_REVOIR"];
+  const CODES = ["TO_SCRIPT_A_VALIDER", "TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEVIS_A_ACCEPTER", "TO_DEVIS_ATTEINT", "TO_OUTILS_NON_RELIES", "TO_FILM_A_CAPTURER", "TO_DOSSIER_INCOMPLET", "TO_DEMANDE_VIDE", "TO_DEMANDE_ARRETEE", "TO_EQUIPE_BLOQUEE", "TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_VALIDER", "TO_PIECE_A_REVOIR", "TO_CAS_V2"];
   const base = vueRoles(travail({ script: "en_attente" }));
 
   it.each(CODES)("%s change au moins une ligne", (code) => {
@@ -152,6 +152,20 @@ describe("AUD-5 : toutes les pauses du tutoriel se lisent", () => {
   it("un code inconnu affiche le message de la pause", () => {
     const v = vueRoles(travail({ script: "en_attente" }, { pause: { code: "TO_NOUVEAU", message: "Rien n'a échoué, patientez." } }, "en_file"));
     expect(etatDe(v, "chef-de-projet").phrase).toBe("Rien n'a échoué, patientez.");
+  });
+
+  it("TO_CAS_V2 reprend le message du moteur sur la ligne du chef de projet", () => {
+    const v = vueRoles(travail({ script: "en_attente" }, { pause: { code: "TO_CAS_V2", message: "Votre phrase est trop longue." } }, "en_file"));
+    expect(etatDe(v, "chef-de-projet").phrase).toBe("Votre phrase est trop longue.");
+    expect(etatDe(v, "chef-de-projet").etat).toBe("attend-williams");
+  });
+
+  it("pauseALienValidation : seulement les pauses que l'écran de validation sert", async () => {
+    const { pauseALienValidation } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+    const lien = (code: string) => pauseALienValidation(travail({}, { pause: { code } }));
+    for (const c of ["TO_SCRIPT_A_VALIDER", "TO_DEVIS_A_ACCEPTER", "TO_DEVIS_ATTEINT", "TO_FILM_A_CAPTURER"]) expect(lien(c)).toBe(true);
+    for (const c of ["TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEMANDE_VIDE", "TO_CAS_V2", "TO_INCONNU"]) expect(lien(c)).toBe(false);
+    expect(pauseALienValidation(travail({}))).toBe(false);
   });
 
   it("messageDePause et pauseAttendWilliams", async () => {

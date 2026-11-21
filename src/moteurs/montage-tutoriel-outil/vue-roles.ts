@@ -62,18 +62,19 @@ export const PHRASE_PIECE_A_VALIDER = "La pièce de la vidéo attend votre accor
 export const PHRASE_PIECE_A_REVOIR = "La pièce de la vidéo a un point à revoir : elle attend votre avis.";
 
 /** Les codes de pause du tutoriel, un à un : quel rôle parle, dans quel état, avec quelle phrase (`undefined` : phrase du rôle). */
-const PAUSES_CONNUES: Record<string, { role: IdRole; etat: EtatRole; phrase?: string }> = {
-  TO_SCRIPT_A_VALIDER: { role: "scenariste", etat: "attend-williams" },
+const PAUSES_CONNUES: Record<string, { role: IdRole; etat: EtatRole; phrase?: string; /** Phrase = message posé par le moteur (variable selon le cas). */ phraseDuMoteur?: true; /** L'écran de validation sait servir cette pause : « Voir et valider » y mène. */ lien?: "validation" }> = {
+  TO_SCRIPT_A_VALIDER: { role: "scenariste", etat: "attend-williams", lien: "validation" },
   TO_SCRIPT_ABSENT: { role: "scenariste", etat: "attend-williams" },
   TO_SCRIPT_NON_ECRIT: { role: "scenariste", etat: "attend-williams", phrase: PHRASE_SCRIPT_NON_ECRIT },
-  TO_DEVIS_A_ACCEPTER: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEVIS_A_ACCEPTER },
-  TO_DEVIS_ATTEINT: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEVIS_ATTEINT },
+  TO_DEVIS_A_ACCEPTER: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEVIS_A_ACCEPTER, lien: "validation" },
+  TO_DEVIS_ATTEINT: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEVIS_ATTEINT, lien: "validation" },
   TO_OUTILS_NON_RELIES: { role: "chef-de-projet", etat: "a-venir", phrase: PHRASE_OUTILS_ATTENDUS },
-  TO_FILM_A_CAPTURER: { role: "documentaliste", etat: "a-venir", phrase: PHRASE_FILM_A_CAPTURER },
+  TO_FILM_A_CAPTURER: { role: "documentaliste", etat: "a-venir", phrase: PHRASE_FILM_A_CAPTURER, lien: "validation" },
   TO_DOSSIER_INCOMPLET: { role: "documentaliste", etat: "a-venir", phrase: PHRASE_DOSSIER_INCOMPLET },
   TO_DEMANDE_VIDE: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEMANDE_VIDE },
   TO_DEMANDE_ARRETEE: { role: "chef-de-projet", etat: "a-venir", phrase: PHRASE_DEMANDE_ARRETEE },
   TO_EQUIPE_BLOQUEE: { role: "chef-de-projet", etat: "a-revoir", phrase: PHRASE_EQUIPE_BLOQUEE },
+  TO_CAS_V2: { role: "chef-de-projet", etat: "attend-williams", phraseDuMoteur: true },
   TO_PIECE_A_CONSTRUIRE: { role: "maquettiste", etat: "en-cours", phrase: PHRASE_PIECE_A_CONSTRUIRE },
   TO_PIECE_A_VALIDER: { role: "maquettiste", etat: "attend-williams", phrase: PHRASE_PIECE_A_VALIDER },
   TO_PIECE_A_REVOIR: { role: "maquettiste", etat: "attend-williams", phrase: PHRASE_PIECE_A_REVOIR },
@@ -119,6 +120,12 @@ export function pauseAttendWilliams(travail: TravailPourVue): boolean {
   return !!p && PAUSES_CONNUES[p.code]?.etat === "attend-williams";
 }
 
+/** Vrai si la pause en cours est de celles que l'écran de validation sert : « Voir et valider » peut alors y mener. */
+export function pauseALienValidation(travail: TravailPourVue): boolean {
+  const p = pauseDe(travail);
+  return !!p && PAUSES_CONNUES[p.code]?.lien === "validation";
+}
+
 /** État d'un groupe d'étapes du moteur (absentes du travail : ignorées ; aucune présente : « à venir »). */
 function etatDesEtapes(travail: TravailPourVue, cles: string[]): EtatRole {
   const e = travail.etapes.filter((x) => cles.includes(x.cle));
@@ -149,7 +156,7 @@ export function vueRoles(travail: TravailPourVue): LigneRole[] {
     lignes[i] = ligne(role, etat, phrase, lignes[i].detail);
   };
   const connue = PAUSES_CONNUES[pause.code];
-  if (connue) remplacer(connue.role, connue.etat, connue.phrase);
+  if (connue) remplacer(connue.role, connue.etat, connue.phraseDuMoteur ? pause.message : connue.phrase);
   // Code inconnu : on montre le message du moteur plutôt que rien.
   else if (pause.message) remplacer("chef-de-projet", "a-venir", pause.message);
   return lignes;

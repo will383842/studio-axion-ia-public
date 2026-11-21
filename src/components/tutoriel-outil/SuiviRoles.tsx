@@ -5,7 +5,7 @@ import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import type { Tonalite } from "@/domaine/libelles";
 import type { EtatRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
-import { messageDePause, pauseAttendWilliams, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { messageDePause, pauseALienValidation, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 import { useTravaux } from "@/hooks/useTravaux";
 import type { VueTravail } from "@/services/vues";
 
@@ -59,15 +59,18 @@ export function MessagePause({ message, lienValidation }: { message: string; lie
   );
 }
 
-/** Le suivi rôle par rôle, rafraîchi tant que le travail avance. `lienValidation` : absent tant que l'écran de validation n'existe pas. */
+/** Le suivi rôle par rôle, rafraîchi tant que le travail avance. `lienValidation` : fourni par la page seulement quand l'écran de validation sait servir l'état en cours (sinon absent, pas de « Voir et valider »). */
 export function SuiviRoles({ initial, lienValidation }: { initial: VueTravail; lienValidation?: string }) {
   const { travail } = useTravaux({ travailId: initial.id, initial: [initial] });
   const t = travail ?? initial;
-  const message = messageDePause(t);
+  const lignes = vueRoles(t);
+  const brut = messageDePause(t);
+  // Le message déjà lu sur une ligne (code inconnu, TO_CAS_V2) n'est pas répété dans le bandeau.
+  const message = brut && !lignes.some((l) => l.phrase === brut) ? brut : null;
   return (
     <div className="space-y-3">
-      {message && <MessagePause message={message} lienValidation={pauseAttendWilliams(t) ? lienValidation : undefined} />}
-      <ListeRoles lignes={vueRoles(t)} lienValidation={lienValidation} />
+      {message && <MessagePause message={message} lienValidation={pauseALienValidation(t) ? lienValidation : undefined} />}
+      <ListeRoles lignes={lignes} lienValidation={lienValidation} />
     </div>
   );
 }
