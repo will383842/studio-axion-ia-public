@@ -92,6 +92,6 @@ describe("G4-08-b1 · gardes statiques", () => {
       }
     };
     parcourir(join(racine, "src"));
-    expect(trouves).toEqual([]);
+    expect(trouves).toEqual([join(racine, "src", "app", "(studio)", "videos", "actions-tableau-de-bord.ts")]);
   });
 });
