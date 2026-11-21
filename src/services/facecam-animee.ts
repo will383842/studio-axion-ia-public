@@ -340,7 +340,10 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
           import("./extraits-maison-v4"),
           import("@/moteurs/montage-facecam-animee/images/production"),
         ]);
-        approvisionner = avecExtraitsMaisonV4(approvisionnerFenetresStudio, portsAxionV4({ videoId: dep.videoId, signerLecture, outils: preparation, extraitPour: extraitMaisonPourRecherche })) as typeof approvisionnerFenetresStudio; // seul cast : le repli ne traite que le `Plan` du studio (le type générique `P` est ce même `Plan` ici)
+        // Le `media` d'une fenêtre est le nom brut du clip (`v4-<rang>-<k>.mp4`) : le clip doit être déposé sous le préfixe de CETTE vidéo (comme les clips des banques et des téléphones) et la clé rendue est celle que la chaîne compare.
+        const sousCleFA = (cle: string) => cleFA(`videos/${cle}`);
+        const outilsSousCleFA = { ...preparation, deposer: (fichier: string, cle: string) => preparation.deposer(fichier, sousCleFA(cle)), ...(preparation.retirer ? { retirer: (cle: string) => preparation.retirer!(sousCleFA(cle)) } : {}) };
+        approvisionner = avecExtraitsMaisonV4(approvisionnerFenetresStudio, portsAxionV4({ videoId: dep.videoId, signerLecture, outils: outilsSousCleFA, extraitPour: extraitMaisonPourRecherche })) as typeof approvisionnerFenetresStudio; // seul cast : le repli ne traite que le `Plan` du studio (le type générique `P` est ce même `Plan` ici)
       }
       return fusion(await fournirVideosV4({ videoId: dep.videoId, plan: tel?.plan ?? plan, mots }, { chercherVideos: chercherVideosServeur(cles), preparation, cleClip: (nom) => cleFA(`videos/${nom}`), controler, plafondUsd, ...(approvisionner ? { approvisionner } : {}) }));
     },
