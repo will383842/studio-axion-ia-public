@@ -212,6 +212,67 @@ describe("voix : le cumul RÉEL est lu dans les dépôts (sans port `engage`)", 
   });
 });
 
+describe("voix : borne exacte du plafond cumulé (100 ¢)", () => {
+  // 800 caractères × 0,03 = 24 ¢ × 2 lectures = 48 ¢ demandés.
+  it("engagé 52 + demande 48 = 100 : 1 réservation et la lecture faite ; engagé 53 (101) : refus, 0 réservation, 0 lecture", async () => {
+    const texte = "a".repeat(800);
+    const d1 = double();
+    d1.engage.mockImplementation(async () => 52);
+    await dependancesDonnees(commande(), { voixActive: true }, d1.ports)!.voix!.lire(texte);
+    expect(d1.reserverCredits).toHaveBeenCalledTimes(1);
+    expect(d1.lire).toHaveBeenCalledTimes(1);
+    const d2 = double();
+    d2.engage.mockImplementation(async () => 53);
+    await expect(dependancesDonnees(commande(), { voixActive: true }, d2.ports)!.voix!.lire(texte)).rejects.toThrow(/plafond/);
+    expect(d2.reserverCredits).not.toHaveBeenCalled();
+    expect(d2.lire).not.toHaveBeenCalled();
+  });
+});
+
+describe("ports par défaut : la VRAIE porte d'argent et la narration réelle (modules doublés)", () => {
+  afterEach(() => {
+    vi.doUnmock("@/services/credits");
+    vi.doUnmock("@/services/narration-tableau-claude");
+    vi.resetModules();
+  });
+
+  it("sans ports.reserverCredits : verifierEtReserverSelonOrigine(origine de la commande, lignes préfixées estimées, travailId tbvoix-), lecture APRÈS", async () => {
+    const ordre: string[] = [];
+    const verifier = vi.fn(async () => void ordre.push("reserver"));
+    vi.resetModules();
+    vi.doMock("@/services/credits", () => ({ verifierEtReserverSelonOrigine: verifier }));
+    const mod = await import("@/services/tableau-de-bord-branchements");
+    const d = double();
+    d.lire.mockImplementation(async () => (ordre.push("lire"), { fichierCle: "k", dureeSec: 1, mots: [] }));
+    const reste: PortsTableauDeBord = { ...d.ports };
+    delete reste.reserverCredits;
+    await mod.dependancesDonnees(commande({ origine: "usine" }), { voixActive: true }, reste)!.voix!.lire("a".repeat(500));
+    expect(verifier).toHaveBeenCalledTimes(1);
+    const a = verifier.mock.calls[0] as unknown as [string, { lignes: { etape: string; nature: string }[]; total: { centimes: number } }, number, string, { videoId: string; travailId: string }];
+    expect(a[0]).toBe("usine");
+    expect(a[1].lignes[0]!.etape.startsWith(mod.PREFIXE_ETAPE_VOIX_TDB)).toBe(true);
+    expect(a[1].lignes[0]!.nature).toBe("estime");
+    expect(a[1].total.centimes).toBe(30);
+    expect(a[2]).toBe(30);
+    expect(a[4].videoId).toBe("v-test");
+    expect(a[4].travailId.startsWith(mod.PREFIXE_TRAVAIL_VOIX_TDB)).toBe(true);
+    expect(ordre).toEqual(["reserver", "lire"]);
+  });
+
+  it("sans ports.narration : portNarrationClaude(videoId, origine de la commande) appelé une fois", async () => {
+    const port = vi.fn(() => vi.fn(async () => null));
+    vi.resetModules();
+    vi.doMock("@/services/narration-tableau-claude", () => ({ portNarrationClaude: port }));
+    const mod = await import("@/services/tableau-de-bord-branchements");
+    const d = double();
+    const reste: PortsTableauDeBord = { ...d.ports };
+    delete reste.narration;
+    mod.dependancesDonnees(commande({ origine: "usine" }), { voixActive: false }, reste);
+    expect(port).toHaveBeenCalledTimes(1);
+    expect(port).toHaveBeenCalledWith("v-test", "usine");
+  });
+});
+
 describe("narration et chaîne", () => {
   it("narration appelée une fois ; null ⇒ texte gratuit, la chaîne réussit avec la voix réservée une fois", async () => {
     const d = double();
