@@ -123,7 +123,7 @@ describe("interrupteurs", () => {
     expect(lire("src/formats/tutoriel-outil/index.ts")).toContain(`ID_FORMAT_TUTORIEL_OUTIL = "${c.FORMAT_TUTORIEL}"`);
     expect(c.CLE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.actif");
     expect(c.CLE_TEXTE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.texte");
-    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "mentionIA.tutoriel-outil.actif"]);
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
   });
 });
 
@@ -316,6 +316,41 @@ describe("clé de la fin commune (26a)", () => {
       const lues = [...readFileSync(f, "utf8").matchAll(/lireParametre\s*(?:<[^>]*>)?\s*\(\s*["'`](tutoriel\.finCommun[^"'`]*)["'`]/g)].map((m) => m[1]);
       expect(lues.every((k) => k === c.CLE_FIN_COMMUNE)).toBe(true);
     }
+  });
+});
+
+describe("clés ajoutées par AUD-3", () => {
+  const payants = ["tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude"];
+  const nouvelles = [...payants, "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil"];
+  it("les sept clés sont dans la console, éteintes par défaut", async () => {
+    const m = memoire();
+    const lignes = await c.lireReglagesTutoriel(m.ports);
+    for (const k of nouvelles) expect(lignes.find((l) => l.cle === k)?.allume).toBe(false);
+    expect(lignes.some((l) => l.allume)).toBe(false);
+  });
+  it("les réglages payants annoncent la dépense, pas les autres", () => {
+    for (const r of c.REGLAGES_TUTORIEL.filter((x) => nouvelles.includes(x.cle))) {
+      expect(/appels Claude payants, sous le plafond par vidéo/.test(r.phraseEteint)).toBe(payants.includes(r.cle));
+    }
+  });
+  it("le libellé périmé « (plus tard) » a disparu", () => {
+    for (const r of c.REGLAGES_TUTORIEL) expect(r.libelle).not.toMatch(/plus tard/i);
+  });
+  it("chaque clé de la console est lue quelque part dans src/ (hors console)", () => {
+    const sources = fichiers(join(process.cwd(), "src")).filter((f) => !f.endsWith("tutoriel-console.ts")).map((f) => readFileSync(f, "utf8"));
+    const sansLecteur = c.REGLAGES_TUTORIEL.map((r) => r.cle).filter((k) => !sources.some((s) => citeCle(s, k)));
+    // Les clés de mention IA sont construites par cleInterrupteurMentionIA (pas écrites en clair) : lues par mentionIAAAfficher.
+    expect(sansLecteur.filter((k) => !k.startsWith("mentionIA."))).toEqual([]);
+  });
+  it("les clés de la console ont exactement l'orthographe du code qui les lit", () => {
+    expect(lire("src/services/tutoriel-equipe.ts")).toContain(`PARAM_EQUIPE_TUTORIEL = "${c.CLE_EQUIPE}"`);
+    expect(lire("src/services/tutoriel-claude.ts")).toContain(`PARAM_REGARD_TUTORIEL = "${c.CLE_REGARDEUR}"`);
+    expect(lire("src/moteurs/montage-tutoriel-outil/maquette-creee.ts")).toContain(`PARAM_PIECE_CLAUDE = "${c.CLE_PIECE_CREEE_CLAUDE}"`);
+    const br = lire("src/services/tutoriel-branchements.ts");
+    expect(br).toContain(`PARAM_RETOUCHE_PARTIELLE_TUTORIEL = "${c.CLE_RETOUCHE_PARTIELLE}"`);
+    expect(br).toContain(`PARAM_PERFORMANCE_TUTORIEL = "${c.CLE_PERFORMANCE}"`);
+    expect(lire("src/services/tutoriel-suivi.ts")).toContain(`REGLAGE_SUIVI_CLOCHE = "${c.CLE_SUIVI_CLOCHE}"`);
+    expect(lire("src/services/retouche-chat/generateurs.ts")).toContain(`"tutoriel-outil": "${c.CLE_RETOUCHE_CHAT_TUTORIEL}"`);
   });
 });
 

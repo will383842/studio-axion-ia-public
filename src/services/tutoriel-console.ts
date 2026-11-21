@@ -20,11 +20,11 @@ import {
 } from "@/briques/mentions-legales/etiquetage-ia";
 import type { DepenseEnregistree, Id, StatutTravail, StatutVideo, Video } from "@/domaine/types";
 import { texteDevis, type DevisTutoriel } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
-import { PARAM_ENTREE_PHRASE } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { PARAM_ENTREE_PHRASE, PARAM_PIECE_CLAUDE } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PARAM_SCENES_TUTORIEL } from "./scenes-tutoriel";
-import { PARAM_CLAUDE_TUTORIEL, PARAM_PLAFOND_TUTORIEL } from "./tutoriel-claude";
+import { PARAM_CLAUDE_TUTORIEL, PARAM_PLAFOND_TUTORIEL, PARAM_REGARD_TUTORIEL } from "./tutoriel-claude";
 import { PARAM_FORMULAIRE } from "./tutoriel-depot";
-import { lienSuivi } from "./tutoriel-suivi";
+import { lienSuivi, REGLAGE_SUIVI_CLOCHE } from "./tutoriel-suivi";
 import { PARAM_ENTREE_ZIP } from "./zip-tutoriel";
 import { ecrireParametre as ecrireParDefaut, journaliser as journaliserParDefaut, lireParametre as lireParDefaut, maintenant } from "./_commun";
 
@@ -42,6 +42,20 @@ export const CLE_FINITIONS = "tutoriel.finitions";
 export const CLE_FIN_COMMUNE = "tutoriel.finCommune";
 export const CLE_SCENES_GARDEES = PARAM_SCENES_TUTORIEL; // importée : T-EXT-15 est fusionnée
 
+// Clés ajoutées par AUD-3. Importées quand le module créateur est léger (regardeur, pièce créée, cloche) ; écrites ici,
+// avec le même texte, quand l'import tirerait l'équipe ou les branchements (le test de la console compare chaque clé
+// au fichier qui la lit).
+export const CLE_EQUIPE = "tutoriel.equipe"; // lue par src/services/tutoriel-equipe.ts (PARAM_EQUIPE_TUTORIEL)
+export const CLE_REGARDEUR = PARAM_REGARD_TUTORIEL;
+export const CLE_PIECE_CREEE_CLAUDE = PARAM_PIECE_CLAUDE;
+export const CLE_RETOUCHE_PARTIELLE = "tutoriel.retouchePartielle"; // lue par tutoriel-branchements.ts
+export const CLE_PERFORMANCE = "tutoriel.performance"; // lue par tutoriel-branchements.ts
+export const CLE_SUIVI_CLOCHE = REGLAGE_SUIVI_CLOCHE;
+export const CLE_RETOUCHE_CHAT_TUTORIEL = "retoucheChat.tutorielOutil"; // lue via CLES_REGLAGE_RETOUCHE (retouche-chat/generateurs.ts)
+
+/** Phrase d'état éteint des réglages payants : elle annonce la dépense. */
+const ANNONCE_PAYANT = "allumer = appels Claude payants, sous le plafond par vidéo.";
+
 export interface ReglageTutoriel {
   cle: string;
   libelle: string;
@@ -53,12 +67,19 @@ export interface ReglageTutoriel {
 export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
   { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé." },
   { cle: CLE_ENTREE_ZIP, libelle: "Envoi d'un dossier", phraseEteint: "Éteint : aucun dossier ne peut être envoyé." },
-  { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase (plus tard)", phraseEteint: "Éteint : pas d'entrée par une phrase." },
+  { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase", phraseEteint: "Éteint : pas d'entrée par une phrase." },
   { cle: PARAM_CLAUDE_TUTORIEL, libelle: "Écriture et relecture par Claude", phraseEteint: "Éteint : Claude n'écrit ni ne relit rien." },
   { cle: CLE_DEVIS_AVANT_DEPENSE, libelle: "Devis avant toute dépense", phraseEteint: "Éteint : aucun devis n'est présenté avant de lancer." },
   { cle: CLE_FINITIONS, libelle: "Son et vignette finis", phraseEteint: "Éteint : ni son fini ni vignette finie." },
   { cle: CLE_FIN_COMMUNE, libelle: "Fin choisie (« Aucune » ou « Prendre rendez-vous »)", phraseEteint: "Éteint : aucune fin n'est ajoutée." },
   { cle: CLE_SCENES_GARDEES, libelle: "Scènes gardées", phraseEteint: "Éteint : aucune scène n'est gardée." },
+  { cle: CLE_EQUIPE, libelle: "Équipe de rôles", phraseEteint: `Éteint : l'équipe ne travaille pas ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_REGARDEUR, libelle: "Regard de Claude sur les images", phraseEteint: `Éteint : Claude ne regarde pas les images ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_PIECE_CREEE_CLAUDE, libelle: "Pièce créée par Claude", phraseEteint: `Éteint : Claude ne crée aucune pièce ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_RETOUCHE_PARTIELLE, libelle: "Retouche partielle", phraseEteint: "Éteint : une retouche refait toute la vidéo." },
+  { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis." },
+  { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
+  { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
 ];
 
