@@ -19,8 +19,8 @@ const plan: PlanValide = validerPlan(PLAN_DEMO, { mots: PLAN_DEMO.mots, format: 
 const idsScenes = plan.scenes.map((s) => s.id);
 
 describe("réglage du chat de retouche par générateur", () => {
-  it("cinq générateurs, une clé chacun, éteint par défaut", async () => {
-    expect([...GENERATEURS_RETOUCHE]).toEqual(["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue"]);
+  it("six générateurs, une clé chacun, éteint par défaut", async () => {
+    expect([...GENERATEURS_RETOUCHE]).toEqual(["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue", "demo-facecam"]);
     expect(CLES_REGLAGE_RETOUCHE["image-video"]).toBe("retoucheChat.imageVideo");
     for (const g of GENERATEURS_RETOUCHE) {
       expect(await retoucheChatActif(g, async (_c, defaut) => defaut)).toBe(false);
@@ -42,7 +42,7 @@ describe("adaptateur : phrase → opérations, propre à chaque générateur", (
     for (const g of GENERATEURS_RETOUCHE) {
       await appelPourGenerateur(g, base)({ modele: "claude-opus-5-5", maxTokens: 10, effort: "high", systeme: [{ texte: "BASE", cache: "1h" }], messages: [{ role: "user", contenu: "x" }], json: true });
     }
-    expect(vu).toHaveLength(5);
+    expect(vu).toHaveLength(6);
     for (const v of vu) {
       expect(v.modele).toBe("claude-opus-5-5");
       expect(v.systeme).toContain("BASE");
