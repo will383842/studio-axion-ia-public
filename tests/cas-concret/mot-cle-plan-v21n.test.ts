@@ -57,4 +57,12 @@ describe("planScenesCasConcret · motCle", () => {
     const r = await planScenesCasConcret({ groupes: GROUPES, motCle: { actif: true, sujet: "zzzzqqq", motsInterdits: [] } });
     expect(r.tranches).toEqual(base.tranches);
   });
+  it("motsInterdits transmis : le sujet interdit ne pose aucun mot-clé (plan identique au plan sans option)", async () => {
+    const base = await planScenesCasConcret({ groupes: GROUPES });
+    const libre = await planScenesCasConcret({ groupes: GROUPES, motCle: { actif: true, sujet: "devis", motsInterdits: [] } });
+    expect(mots(libre).length).toBeGreaterThan(0);
+    const r = await planScenesCasConcret({ groupes: GROUPES, motCle: { actif: true, sujet: "devis", motsInterdits: ["devis"] } });
+    expect(r.tranches).toEqual(base.tranches);
+    expect(mots(r)).toHaveLength(0);
+  });
 });
