@@ -47,7 +47,7 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     expect(m.refaire).not.toHaveBeenCalled();
   });
 
-  it("texte coupé page 3 : 1 page refaite, 2e regard, arrêt ; mots inchangés, voix jamais appelée", async () => {
+  it("texte coupé page 3 : 1 page refaite, 2e regard, arrêt ; mots inchangés ; le module n'a aucun port de voix (vrai par construction : `voix` n'est jamais passé)", async () => {
     const m = monter([verdict(["texte-coupe", "page-3"]), verdict()]);
     const r = await boucleDuRegard(fiche, m.ports);
     expect(r).toMatchObject({ regards: 2, refaites: 1 });
@@ -124,6 +124,54 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
         cas++;
       }
     expect(cas).toBe(possibles.length ** 2);
+  });
+
+  describe("borne portée par le module : suite ADVERSE injectée (rend TOUJOURS « refaire »)", () => {
+    const adverse = () => vi.fn((f: FicheTableau, _v: VerdictRegard, _o: { tour: number }) => ({ suite: "refaire" as const, fiche: f, pages: [3], remarques: [] as string[] }));
+    const codes: CodeDefautVu[] = ["phrase-non-choisie", "fin-absente", "page-vide", "texte-coupe", "hors-cadre", "desynchro", "noire", "illisible", "non-relue"];
+    const verdicts = [verdict(), ...codes.map((c) => verdict([c, "page-3"])), ...codes.map((c) => verdict([c, null]))];
+
+    it("a) quels que soient les verdicts : au plus 2 regards et 1 refaite, jamais de 3e regard", async () => {
+      for (const v1 of verdicts)
+        for (const v2 of verdicts) {
+          const suite = adverse();
+          const m = monter([v1, v2], { suite });
+          const r = await boucleDuRegard(fiche, m.ports);
+          expect(m.regarder.mock.calls.length).toBeLessThanOrEqual(2);
+          expect(m.refaire.mock.calls.length).toBeLessThanOrEqual(1);
+          expect(r.regards).toBeLessThanOrEqual(2);
+          expect(r.refaites).toBeLessThanOrEqual(1);
+          expect(suite.mock.calls.length).toBeLessThanOrEqual(2);
+        }
+    });
+
+    it("a') verdict fautif au 1er et au 2e regard, suite qui veut toujours refaire : exactement 2 regards, 1 refaite", async () => {
+      const m = monter([verdict(["texte-coupe", "page-3"]), verdict(["texte-coupe", "page-3"])], { suite: adverse() });
+      const r = await boucleDuRegard(fiche, m.ports);
+      expect(m.regarder).toHaveBeenCalledTimes(2);
+      expect(m.refaire).toHaveBeenCalledTimes(1);
+      expect(r).toMatchObject({ regards: 2, refaites: 1 });
+    });
+
+    it("b) « phrase-non-choisie » / « fin-absente » : 1 regard, 0 refaite, même si la suite veut refaire", async () => {
+      for (const code of ["phrase-non-choisie", "fin-absente"] as const) {
+        const m = monter([verdict([code, null])], { suite: adverse() });
+        const r = await boucleDuRegard(fiche, m.ports);
+        expect(m.regarder).toHaveBeenCalledTimes(1);
+        expect(m.refaire).not.toHaveBeenCalled();
+        expect(r).toMatchObject({ regards: 1, refaites: 0, arret: "rendre" });
+        expect(r.fiche).toBe(fiche);
+      }
+    });
+
+    it("c) le 1er appel à suite reçoit { tour: 0 }, le 2e (après le second regard) reçoit { tour: 1 }", async () => {
+      const suite = adverse();
+      const m = monter([verdict(["texte-coupe", "page-3"]), verdict(["texte-coupe", "page-3"])], { suite });
+      await boucleDuRegard(fiche, m.ports);
+      expect(suite).toHaveBeenCalledTimes(2);
+      expect(suite.mock.calls[0]?.[2]).toEqual({ tour: 0 });
+      expect(suite.mock.calls[1]?.[2]).toEqual({ tour: 1 });
+    });
   });
 
   it("éteint : aucun importeur dans src/**, la fiche d'entrée reste intacte", async () => {
