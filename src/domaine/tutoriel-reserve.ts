@@ -81,6 +81,8 @@ export interface TirageReserve {
   le: string;
   elementId: string;
   videoId?: string;
+  /** Posé quand le lancement de cette clé a été refusé ou a échoué APRÈS la note de la vidéo : un rejeu rend « échec », jamais « pris ». */
+  echec?: true;
 }
 export interface LigneHistorique {
   le: string;

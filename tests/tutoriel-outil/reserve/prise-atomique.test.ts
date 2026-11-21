@@ -39,7 +39,7 @@ vi.mock("@/donnees/memoire", async (importOriginal) => {
 
 import { CLE_BAIL_TIRAGE } from "@/domaine/tutoriel-reserve";
 import { prendreBail, rendreBail } from "@/donnees/memoire";
-import { ajouterElementReserve, changerEtatReserve, historiqueTiragesReserve, lireElementReserve, lireTirageReserve, noterFichierDemoReserve, noterVideoDuTirage, prendreSuivantReserve } from "@/services/tutoriel-reserve";
+import { ajouterElementReserve, changerEtatReserve, historiqueTiragesReserve, lireElementReserve, lireTirageReserve, noterEchecDuTirage, noterFichierDemoReserve, noterVideoDuTirage, prendreSuivantReserve } from "@/services/tutoriel-reserve";
 
 const nouveau = (id: string) => ({ id, titre: id, source: { type: "idee", phrase: "p" } as const, fin: "aucune" as const, ajouteLe: "2026-11-01T00:00:00.000Z", ajoutePar: "fondateur" as const });
 
@@ -116,6 +116,16 @@ describe("prendreSuivantReserve", () => {
     await noterVideoDuTirage("cle-video-01", "res-aaaaaa", "vid-1");
     expect((await lireTirageReserve("cle-video-01"))?.videoId).toBe("vid-1");
     expect((await lireElementReserve("res-aaaaaa"))?.prise?.videoId).toBe("vid-1");
+  });
+
+  it("noterEchecDuTirage marque la fiche (sans toucher au reste) ; fiche absente : rien", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    await prendreSuivantReserve({ cle: "cle-echec-001", declencheur: "usine" });
+    await noterVideoDuTirage("cle-echec-001", "res-aaaaaa", "vid-1");
+    await noterEchecDuTirage("cle-echec-001");
+    expect(await lireTirageReserve("cle-echec-001")).toMatchObject({ videoId: "vid-1", echec: true });
+    await noterEchecDuTirage("cle-inconnue-1");
+    expect(await lireTirageReserve("cle-inconnue-1")).toBeNull();
   });
 
   it("un élément déjà pris + prise avec une autre clé : deja_en_cours, rien d'écrit", async () => {

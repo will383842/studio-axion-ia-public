@@ -106,6 +106,7 @@ export const DOMAINE: Domaine = {
     "tutoriel.reserve.index": "memoire", // RES-1 : index FIFO de la réserve (données, pas un interrupteur)
     "tutoriel.reserve.historique": "memoire", // RES-1 : historique des tirages
     "facecam.plafondVersionUsd": "valeur",
+    "tutoriel.plafondClaudeUsd": "valeur", // RES-3 : plafond Claude d'une vidéo (nombre > 0 sinon défaut du mode), lu par le tirage
     "moteur.*": "valeur",
   },
   parExpression: {
@@ -113,6 +114,7 @@ export const DOMAINE: Domaine = {
     "services/tutoriel-reserve.ts:cleTirageReserve(cle)": { exclu: "memoire" }, // RES-1 : fiche de tirage (rejeu par clé)
     "services/zip-tutoriel.ts:id": { exclu: "relais" }, // port réel de l'entrée zip : la clé est PARAM_ENTREE_ZIP, tutoriel.entreeZip en table
     "services/tutoriel-depot.ts:id": { exclu: "relais" }, // lecteur des 3 interrupteurs du formulaire (T-EXT-33) : la clé est passée en paramètre (tutoriel.formulaire, tutoriel.entreeZip, tutoriel.entreePhrase)
+    "services/video-longue-creation.ts:cle": { exclu: "relais" }, // lecteur des interrupteurs de la vidéo longue (UI-3) : la clé est passée en paramètre
     // VL-07 : registre de dépense et morceaux déjà lus de la vidéo longue (mémoire par vidéo, pas des interrupteurs).
     "services/video-longue-branchements.ts:cleDepense(videoId)": { exclu: "memoire" },
     "services/video-longue-branchements.ts:cle": { exclu: "memoire" },
@@ -130,6 +132,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 10, parExpression: 18, env: 0 },
+  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 19, env: 0 },
   retirees: [],
 };
