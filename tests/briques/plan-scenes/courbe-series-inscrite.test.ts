@@ -6,6 +6,7 @@ import { consignePlan } from "../../../src/briques/plan-scenes/generateur";
 import { affichageDeLaScene, PIECES_DE_DONNEES } from "../../../src/briques/plan-scenes/controles";
 import { estGardee, PIECES_GARDEES } from "../../../src/briques/plan-scenes/pieces-gardees";
 import { TOILES } from "../../../src/briques/plan-scenes/toiles";
+import { CourbeSeries } from "../../../src/briques/plan-scenes-donnees/CourbeSeries";
 import { EXEMPLE_COURBE_SERIES } from "../../../src/briques/plan-scenes-donnees/definition-courbe-series";
 import { MONTRE_PAR_PIECE } from "../../../src/briques/note-extraits/moments-ecran";
 
@@ -13,7 +14,7 @@ describe("courbe-series inscrite, gardée", () => {
   it("catalogue, rendu, toile et garde", () => {
     const d = CATALOGUE_BRIQUES["courbe-series"];
     expect(d.id).toBe("courbe-series");
-    expect(RENDUS_BRIQUES["courbe-series"]).toBeTypeOf("function");
+    expect(RENDUS_BRIQUES["courbe-series"]).toBe(CourbeSeries);
     expect(TOILES["courbe-series"]).toEqual(TOILES.graphique);
     expect(d.toile).toEqual(TOILES["courbe-series"]);
     expect(PIECES_GARDEES).toContain("courbe-series");
