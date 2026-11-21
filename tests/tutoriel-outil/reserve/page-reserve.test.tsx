@@ -27,7 +27,7 @@ vi.mock("@/services/_commun", async (importOriginal) => {
     ecrireParametre: async (id: string, v: unknown) => void magasin.set(id, structuredClone(v)),
   };
 });
-// Double de RES-3 (absente de cette branche) : l'action l'atteint par import dynamique.
+// Double de RES-3 (tirerSuivantReserve) : l'action l'importe normalement.
 const tirage = vi.hoisted(() => ({ appels: [] as unknown[], issue: { etat: "reserve_vide" } as unknown }));
 vi.mock("@/services/tutoriel-reserve-tirage", () => ({
   tirerSuivantReserve: async (d: unknown) => {
@@ -169,16 +169,10 @@ describe("actions : session, formulaire éteint, essai", () => {
     expect(JSON.stringify([a, b, c])).not.toMatch(/€|\$/);
   });
 
-  it("RES-3 absente ou illisible : repli « pas encore disponible », rien n'est tiré ni écrit", async () => {
+  it("plafond_video : raison dite en mots simples, sans montant", async () => {
     allumer();
-    vi.resetModules();
-    vi.doMock("@/services/tutoriel-reserve-tirage", () => {
-      throw new Error("module absent");
-    });
-    const seul = await import("@/app/(studio)/tutoriel-outil/reserve/actions");
-    const r = await seul.essayerTirageAction();
-    expect(r).toEqual({ ok: true, donnees: { phrase: "La préparation à la demande n'est pas encore disponible. Vos éléments restent en réserve.", pris: false } });
-    expect(tirage.appels).toHaveLength(0);
-    vi.doUnmock("@/services/tutoriel-reserve-tirage");
+    tirage.issue = { etat: "attente", raison: "plafond_video", phrase: "x" };
+    const r = await actions.essayerTirageAction();
+    expect(r).toEqual({ ok: true, donnees: { phrase: "La limite par vidéo est trop basse : voir les réglages.", pris: false } });
   });
 });
