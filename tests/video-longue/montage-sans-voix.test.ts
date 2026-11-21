@@ -123,6 +123,16 @@ describe("UI-4 : montage sans voix", () => {
     expect(fin.resultat!.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
   });
 
+  it("réglage allumé après le démarrage : premier lancement, rendus partis", async () => {
+    await allumer(false);
+    const c = await commande();
+    // Le serveur a vu « éteint » ; l'utilisateur allume, SANS laisser le cache se rafraîchir en arrière-plan.
+    await ecrireParametre("videoLongue.actif", true);
+    const fin = await mener(c, await lancer(c));
+    expect(fin.travail.statut).toBe("termine");
+    expect(demandes.filter((d) => d.operation === "composition").length).toBeGreaterThanOrEqual(2);
+  });
+
   it("réglage éteint : rien ne part", async () => {
     await allumer(false);
     const c = await commande();

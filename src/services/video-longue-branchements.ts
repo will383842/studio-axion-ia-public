@@ -256,19 +256,25 @@ const DUREE_CACHE_MS = 5_000;
 
 function rafraichirActif(): void {
   if (etatActif.enCours || Date.now() - etatActif.deLe < DUREE_CACHE_MS) return;
+  void rafraichirVideoLongueActif();
+}
+
+/**
+ * Relit `videoLongue.actif` EN BASE (attendu, sans cache), met la dernière lecture à jour et la rend. Seul `true` exact allume.
+ * À appeler avant de lancer ou d'avancer une vidéo longue : le moteur ne reste jamais sur une valeur périmée.
+ */
+export async function rafraichirVideoLongueActif(): Promise<boolean> {
   etatActif.enCours = true;
-  void import("./_commun")
-    .then(({ lireParametre }) => lireParametre<unknown>("videoLongue.actif", false))
-    .then((v) => {
-      etatActif.vu = v === true;
-    })
-    .catch(() => {
-      etatActif.vu = false;
-    })
-    .finally(() => {
-      etatActif.deLe = Date.now();
-      etatActif.enCours = false;
-    });
+  try {
+    const { lireParametre } = await import("./_commun");
+    etatActif.vu = (await lireParametre<unknown>("videoLongue.actif", false)) === true;
+  } catch {
+    etatActif.vu = false;
+  } finally {
+    etatActif.deLe = Date.now();
+    etatActif.enCours = false;
+  }
+  return etatActif.vu;
 }
 
 /** Lecture de test : le réglage a-t-il été vu allumé (`true` exact) ? Ne décide de rien d'autre. */
@@ -307,7 +313,12 @@ export function brancherVideoLongue(): void {
   const cle = Symbol.for("studio-axion-ia.video-longue-branche");
   if (g[cle]) return;
   g[cle] = true;
-  Object.assign(moteurMontageVideoLongue, creerMoteurVideoLongue((c) => dependancesVideoLongue(c)));
+  const moteur = creerMoteurVideoLongue((c) => dependancesVideoLongue(c));
+  // Lancement et avancement relisent le réglage (attendu) : jamais de pause posée sur une valeur périmée.
+  Object.assign(moteurMontageVideoLongue, moteur, {
+    lancer: async (...a: Parameters<typeof moteur.lancer>) => (await rafraichirVideoLongueActif(), moteur.lancer(...a)),
+    avancer: async (...a: Parameters<typeof moteur.avancer>) => (await rafraichirVideoLongueActif(), moteur.avancer(...a)),
+  });
   rafraichirActif();
 }
 
