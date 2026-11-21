@@ -8,7 +8,8 @@
  *
  * Paramètres : `morceaux` : noms d'entrées, dans l'ordre (au moins un) ; `voix` : nom d'entrée facultatif (WAV/MP3…).
  * Entrées : une adresse signée par nom. Mesures : `morceaux`, et `voix` (0 ou 1).
- * NON déclarée dans `contrat.ts` (zone de will-dc) : tant que la ligne n'y est pas, l'opération n'est pas aiguillée.
+ * Déclarée dans `contrat.ts` (union `OperationRendu`, liste `OPERATIONS`) et aiguillée vers cette fonction.
+ * Au plus `MAX_MORCEAUX` morceaux par demande (refus net au-delà).
  */
 import { join } from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -20,6 +21,9 @@ export interface ParametresCollage {
   voix?: string;
 }
 
+/** Plafond du nombre de morceaux d'une demande de collage. */
+export const MAX_MORCEAUX = 200;
+
 const refuser = (message: string): never => {
   throw new ErreurRendu({ code: "refuse", reessayable: false, message });
 };
@@ -27,6 +31,7 @@ const refuser = (message: string): never => {
 /** Lit et contrôle les paramètres (PUR). */
 export function lireParametresCollage(p: Record<string, unknown>): ParametresCollage {
   if (!Array.isArray(p.morceaux) || !p.morceaux.length) return refuser("Aucun morceau à coller.");
+  if (p.morceaux.length > MAX_MORCEAUX) return refuser(`Trop de morceaux à coller (${MAX_MORCEAUX} au plus).`);
   const morceaux = p.morceaux.map((m) => (typeof m === "string" && m.trim() ? m : refuser("Nom de morceau invalide.")));
   if (new Set(morceaux).size !== morceaux.length) return refuser("Un morceau est cité deux fois.");
   if (p.voix !== undefined && (typeof p.voix !== "string" || !p.voix.trim())) return refuser("Nom de voix invalide.");
@@ -54,8 +59,8 @@ export const collageChapitres: Operation = async (demande, contexte) => {
   const noms = p.voix ? [...p.morceaux, p.voix] : p.morceaux;
   const fichiers: Record<string, string> = {};
   for (const [i, nom] of noms.entries()) {
-    const url = demande.entrees[nom];
-    if (!url) return refuser(`Entrée « ${nom} » manquante.`);
+    const url = Object.hasOwn(demande.entrees, nom) ? demande.entrees[nom] : undefined;
+    if (typeof url !== "string" || !url) return refuser(`Entrée « ${nom} » manquante.`);
     fichiers[nom] = join(contexte.dossier, nom === p.voix ? "voix" : `morceau-${i}.mp4`);
     await telecharger(url, fichiers[nom], contexte.signal);
   }
