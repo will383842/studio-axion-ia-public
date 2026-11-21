@@ -85,8 +85,8 @@ describe("refus, avant tout appel, sans montant", () => {
   });
   it("tarif ou plafond illisibles : refus, jamais gratuit par erreur", () => {
     for (const v of [Number.NaN, -1, Infinity, 0, -0]) expect(refus({ tarifCentimesParCaractere: v })).toMatchObject({ ok: false, code: "tarif-illisible" });
-    for (const v of [Number.NaN, -5]) expect(refus({ plafondCentimes: v })).toMatchObject({ ok: false, code: "plafond-illisible" });
-    expect(refus({ dejaEngageCentimes: Number.NaN })).toMatchObject({ ok: false, code: "plafond-illisible" });
+    for (const v of [Number.NaN, -5, Infinity]) expect(refus({ plafondCentimes: v })).toMatchObject({ ok: false, code: "plafond-illisible" });
+    for (const v of [Number.NaN, -1, Infinity]) expect(refus({ dejaEngageCentimes: v })).toMatchObject({ ok: false, code: "plafond-illisible" });
   });
   it("aucune phrase de refus ne contient de montant ni de devise", () => {
     const cas = [
