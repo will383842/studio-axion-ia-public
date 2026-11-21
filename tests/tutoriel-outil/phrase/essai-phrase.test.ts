@@ -10,15 +10,12 @@
  * film de navigation. Aucun appel réel, aucun réseau (`fetch` fait échouer le test), aucun navigateur, aucun secret.
  * RÉGLAGES : jamais écrits ; ils ne sont « allumés » que dans le lecteur injecté de cet essai.
  *
- * PONTS « EN ATTENDANT » (dans ce fichier seulement ; chacun tient la place d'un raccord absent de master, et chacun a son test
- * ROUGE dans le bloc « maillons » en bas de fichier ; la fiche de correction retire le pont et le test passe au vert) :
- *  - PONT 1 (chaîne) : `chaine.ts` appelle `prochainPas(equipe, { dossier })` sans l'option `phraseOuverte`, et
- *    `tutoriel-branchements.ts` fournit `portsEquipe` (pas `portsEquipeAvecPhrase`). Le pont transporte à `prochainPas` la
- *    valeur calculée par le VRAI `portsEquipeAvecPhrase` (lecteur injecté), rien d'autre.
- *  - PONT 2 (écran) : `tutoriel-piece-creee.ts` lit `parametres.pieceCreee` (forme d'avant V2-08), que rien n'écrit ; l'équipe
- *    range la pièce dans `parametres.tutoriel.equipe.pieceCreee`. Le pont est un `DepotPiece` qui traduit l'un en l'autre.
- *  - PONT 3 (cas 3) : ni le poste (`ecrire-maquette.mts`) ni l'écran ne savent lire un flux. Le double de Williams garde le
- *    flux en écrivant lui-même « gardée » dans l'état de l'équipe, après avoir vu chaque texte (`textesDuFlux`).
+ * PONT « EN ATTENDANT » (dans ce fichier seulement ; il tient la place d'un raccord absent de master) : les ponts 1 (chaîne : option
+ * `phraseOuverte`) et 2 (écran : dépôt de la pièce) sont retirés, leurs maillons étant corrigés sur master ; le bloc « maillons » en bas
+ * de fichier prouve la chaîne et l'écran sans pont.
+ *  - PONT 3 (cas 3, reste) : ni le poste (`ecrire-maquette.mts`) ni l'écran ne savent encore lire ni garder un flux. Le double de
+ *    Williams garde le flux en écrivant lui-même « gardée » dans l'état de l'équipe, après avoir vu chaque texte (`textesDuFlux`).
+ *    Il tombera avec la fiche « V2-09b » (à écrire : `tutoriel-piece-creee.ts` pour un `flux-automatisation.v1`).
  *
  * Règle de la fiche : si un maillon casse, le test reste ROUGE avec le nom du maillon ; aucune correction de production ici.
  */
@@ -28,17 +25,9 @@ import { basename, join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /* ------------------------------------------------------------------ */
-/* PONT 1 et session simulée                                            */
+/* Session simulée                                                     */
 /* ------------------------------------------------------------------ */
 
-/** `undefined` : aucun pont, la chaîne de master telle quelle. Sinon : la valeur rendue par le vrai `portsEquipeAvecPhrase`. */
-const pont = vi.hoisted(() => ({ phraseOuverte: undefined as boolean | undefined }));
-vi.mock("@/moteurs/montage-tutoriel-outil/equipe/orchestre", async (importOriginal) => {
-  const vrai = await importOriginal<typeof import("@/moteurs/montage-tutoriel-outil/equipe/orchestre")>();
-  // en attendant la fiche de correction de `chaine.ts` : l'option que la chaîne ne passe pas encore.
-  const prochainPas: typeof vrai.prochainPas = (e, entrees, options = {}) => vrai.prochainPas(e, entrees, pont.phraseOuverte === undefined ? options : { ...options, phraseOuverte: pont.phraseOuverte });
-  return { ...vrai, prochainPas };
-});
 vi.mock("@/services/auth", () => ({ exigerSession: async () => ({}) }));
 
 import { garderChiffres } from "@/briques/donnees-video/garde-chiffres";
@@ -53,7 +42,7 @@ import { DUREE_CIBLE_SEC } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de
 import { controlerMarque, etiquettesInterdites, montantsArgent, nomsNonNeutres, tutoiement } from "@/moteurs/montage-tutoriel-outil/equipe/controle-marque";
 import { roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { ROLES_APPELES, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
-import { CODE_PIECE_A_CONSTRUIRE, CODE_PIECE_A_REVOIR, CODE_PIECE_A_VALIDER, type PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { CODE_PIECE_A_CONSTRUIRE, CODE_PIECE_A_REVOIR, CODE_PIECE_A_VALIDER } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { verifierRendu } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
 import { lirePropositionScripts } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { controlerFluxCree, DOMAINE_COURRIEL_EXEMPLE, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
@@ -62,7 +51,7 @@ import { empreinteDescription, PARAM_ENTREE_PHRASE, PARAM_PIECE_CLAUDE, textesDe
 import { ETAPE_PIECE_TUTORIEL, PARAM_CLAUDE_TUTORIEL, plafondTutorielPhraseUsd } from "@/services/tutoriel-claude";
 import { deposerTutoriel, lireInterrupteursTutoriel, PARAM_FORMULAIRE, PHRASE_PHRASE_FERMEE, PHRASE_TUTORIEL_FERME } from "@/services/tutoriel-depot";
 import { equipeTutorielActive, PARAM_EQUIPE_TUTORIEL, portsEquipeAvecPhrase } from "@/services/tutoriel-equipe";
-import { autreProposition, corrigerTexte, enregistrerApercu, garderPiece, NOM_FICHIER_APERCU, vuePieceCreee, type DependancesPiece, type DepotPiece, type EtatPieceCreee } from "@/services/tutoriel-piece-creee";
+import { autreProposition, corrigerTexte, enregistrerApercu, garderPiece, NOM_FICHIER_APERCU, vuePieceCreee, type DependancesPiece } from "@/services/tutoriel-piece-creee";
 import { choisirVersion, validerTutoriel } from "@/services/tutoriel-validation";
 import { commandeTutoriel, outilsDoubles, type Journal } from "../doubles";
 // Le poste et le constructeur vivent sous `outils/` : import par chemin relatif (jamais `@/`).
@@ -125,8 +114,6 @@ interface Options {
   scriptChiffre?: boolean;
   /** Pannes du rendu (composition) avant qu'il réussisse. */
   renduEchecs?: number;
-  /** `false` : la chaîne de master telle quelle (aucun pont 1). */
-  pontChaine?: boolean;
 }
 
 const dossiersTemporaires: string[] = [];
@@ -191,7 +178,6 @@ async function monde(phrase: string, options: Options = {}) {
   const outils = async (): Promise<OutilsTutoriel> => {
     const c = commande();
     const equipe = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, VIDEO, { executer, lire }) : undefined;
-    pont.phraseOuverte = options.pontChaine === false ? undefined : (equipe?.phraseOuverte ?? false);
     return {
       ...base,
       voix: { ...voixDoubles, voix: () => voix as unknown as ReturnType<typeof voixDoubles.voix> },
@@ -230,25 +216,10 @@ async function monde(phrase: string, options: Options = {}) {
     await ranger({ ...t, parametres: { ...t.parametres, tutoriel: { ...(t.parametres!.tutoriel as EtatTutoriel), equipe: e } } });
   };
 
-  /* ---- PONT 2 : l'écran « Votre maquette » lit et écrit la pièce de l'équipe (en attendant la fiche de correction) ---- */
-  const depotPont: DepotPiece = {
-    async lire() {
-      const e = await equipe().catch(() => undefined);
-      const p = e?.pieceCreee;
-      if (!e || !p || p.genre !== "maquette" || p.statut === "a-revoir") return null;
-      return { phrase: e.demande.phrase ?? "", cas: "tableau-de-bord", proposition: p.proposition, statut: p.statut, description: p.contenu, empreinte: p.empreinte, ...(p.apercu ? { apercu: p.apercu } : {}), ...(p.gardee ? { gardee: p.gardee } : {}) };
-    },
-    async ecrire(_id, x: EtatPieceCreee) {
-      const e = await equipe();
-      const piece: PieceCreee = { genre: "maquette", proposition: x.proposition === 2 ? 2 : 1, contenu: x.description as DescriptionMaquette, empreinte: x.empreinte, statut: x.statut, ...(x.apercu ? { apercu: x.apercu } : {}), ...(x.gardee ? { gardee: x.gardee } : {}) };
-      await ecrireEquipe({ ...e, pieceCreee: piece });
-    },
-  };
   const deposes = new Map<string, { fichier: Fichier; json?: unknown }>();
   const ecran: DependancesPiece = {
     reglage: lire,
     session: async () => ({}),
-    depot: depotPont,
     fichiers: async (ids) => (ids as string[]).map((id) => deposes.get(id)!.fichier),
     lireJson: async (f) => deposes.get(f.id)!.json,
     urls: async (ids) => Object.fromEntries(ids.map((i) => [i, `https://stockage.test/${i}`])),
@@ -354,7 +325,6 @@ async function duScriptALaVideo(m: Monde, avantLeFilm?: () => Promise<void>) {
 
 beforeEach(() => {
   reinitialiserDepots();
-  pont.phraseOuverte = undefined;
   appelsReseau = 0;
   vi.stubGlobal("fetch", () => {
     appelsReseau++;
@@ -716,7 +686,7 @@ describe("V2-10 · refus attendus (un cas chacun), toujours à 0 €", () => {
 
 describe("V2-10 · maillons de la chaîne réelle, sans pont (rouge = raccord à faire en production)", () => {
   it("maillon chaîne : réglages allumés, la chaîne de master (sans pont) appelle le maquettiste pour une phrase", async () => {
-    const m = await monde(PHRASE_ATELIER, { pontChaine: false });
+    const m = await monde(PHRASE_ATELIER);
     await m.mener();
     const code = await m.pause();
     if (code !== CODE_PIECE_A_CONSTRUIRE || m.appels.length !== 1) {
@@ -728,9 +698,7 @@ describe("V2-10 · maillons de la chaîne réelle, sans pont (rouge = raccord à
     const m = await monde(PHRASE_ATELIER);
     await m.mener();
     expect((await m.equipe()).pieceCreee).toMatchObject({ statut: "a-construire" });
-    const { depot: _pont, ...sansPont } = m.ecran;
-    void _pont;
-    const vue = await vuePieceCreee(VIDEO, sansPont);
+    const vue = await vuePieceCreee(VIDEO, m.ecran);
     if (!vue) maillon("écran « Votre maquette »", "`tutoriel-piece-creee.ts` lit `parametres.pieceCreee` (forme d'avant V2-08) alors que l'équipe range la pièce dans `parametres.tutoriel.equipe.pieceCreee` : la page ne montre rien, aucun geste n'agit");
     expect(vue.empreinte).toBe((await m.equipe()).pieceCreee!.empreinte);
   });
