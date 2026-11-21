@@ -73,13 +73,13 @@ export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
   { cle: CLE_FINITIONS, libelle: "Son et vignette finis", phraseEteint: "Éteint : ni son fini ni vignette finie." },
   { cle: CLE_FIN_COMMUNE, libelle: "Fin choisie (« Aucune » ou « Prendre rendez-vous »)", phraseEteint: "Éteint : aucune fin n'est ajoutée." },
   { cle: CLE_SCENES_GARDEES, libelle: "Scènes gardées", phraseEteint: "Éteint : aucune scène n'est gardée." },
-  { cle: CLE_EQUIPE, libelle: "Équipe de rôles", phraseEteint: `Éteint : l'équipe ne travaille pas ; ${ANNONCE_PAYANT}` },
-  { cle: CLE_REGARDEUR, libelle: "Regard de Claude sur les images", phraseEteint: `Éteint : Claude ne regarde pas les images ; ${ANNONCE_PAYANT}` },
-  { cle: CLE_PIECE_CREEE_CLAUDE, libelle: "Pièce créée par Claude", phraseEteint: `Éteint : Claude ne crée aucune pièce ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_EQUIPE, libelle: "Équipe de rôles", phraseEteint: `Éteint : l'équipe ne travaille pas (nécessite aussi « Écriture et relecture par Claude ») ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_REGARDEUR, libelle: "Regard de Claude sur les images", phraseEteint: `Éteint : Claude ne regarde pas les images (nécessite aussi « Écriture et relecture par Claude ») ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_PIECE_CREEE_CLAUDE, libelle: "Pièce créée par Claude", phraseEteint: `Éteint : Claude ne crée aucune pièce (nécessite aussi « Entrée par une phrase » et « Équipe de rôles ») ; ${ANNONCE_PAYANT}` },
   { cle: CLE_RETOUCHE_PARTIELLE, libelle: "Retouche partielle", phraseEteint: "Éteint : une retouche refait toute la vidéo." },
-  { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis." },
+  { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis (n'agit que si l'équipe tourne)." },
   { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
-  { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel." },
+  { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = une retouche relance une fabrication (rendu), sans appel Claude." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
 ];
 
