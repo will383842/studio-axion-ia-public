@@ -146,7 +146,7 @@ describe("fabriquerAvecReprise (S-12-BRANCHER-a-v21n)", () => {
     const ordre: string[] = [];
     const base = m.ports.fabriquer;
     m.ports.fabriquer = vi.fn(async (f: FicheTableau) => {
-      const x = await base(f);
+      const x = await base(f, { maxAppels: 1 });
       ordre.push(`fab${ordre.filter((o) => o.startsWith("fab")).length + 1}`);
       return x;
     });
