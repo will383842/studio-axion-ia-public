@@ -207,7 +207,7 @@ export interface DonneesBrouillon {
 }
 
 /** Distribution par défaut : Will (son double et sa voix par défaut, sinon les premiers prêts), si le format a des personnages. */
-async function distributionParDefaut(formatId: string): Promise<Distribution[]> {
+export async function distributionParDefaut(formatId: string): Promise<Distribution[]> {
   const format = obtenirFormat(formatId);
   if (format.personnages.max === 0) return [];
   const d = depots();
