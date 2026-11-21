@@ -20,6 +20,7 @@ import { ETATS_CALENDRIER } from "@/components/calendrier/PastilleStatutPlan";
 import { RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
 import { libellePeriode } from "@/components/calendrier/BarreVue";
 import { EnTeteCalendrier } from "@/components/calendrier/EnTeteCalendrier";
+import { entreesAFaire, sansRemplacees } from "@/components/calendrier/a-faire";
 import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFaire";
 import { ReserveAPlacer } from "@/components/calendrier/ReserveAPlacer";
 import { debutDeTexte } from "@/components/calendrier/VueJour";
@@ -156,11 +157,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   const semaine = jours.flatMap((j) => parJour.get(cleJour(j)) ?? []);
   const adresseSemaine = dateDemandee ? `/calendrier?vue=semaine&date=${dateDemandee}` : decalageDemande ? `/calendrier?semaine=${decalageDemande}` : "/calendrier";
   // « À faire » : à corriger, à valider, brouillons ; les essais n'y sont pas.
-  const aFaire = semaine.filter((p) => p.via !== "simulation").map((p) => {
-    const e = entreeDepuisPublication(p);
-    // Un brouillon Buffer reste un brouillon à compléter pour le panneau.
-    return { cle: e.cle, etat: e.etat === "brouillon_buffer" ? "brouillon" : e.etat, titre: debutDeTexte(p.texte) || e.titre, href: e.lienSource ?? adresseVueJour(e.jour) };
-  });
+  // Les tentatives remplacées (même contenu et réseau déjà publié ou programmé) sont masquées ; les autres sont regroupées.
+  const aFaire = entreesAFaire(semaine);
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
   // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
   const entreesBrutes = await entreesAvecMedias(semaine);
@@ -239,7 +237,8 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
 function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes, ecart, maintenant }: { ecart?: EcartCalendrier | null; maintenant: number; jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[]; plan: CreneauDuJour[]; comptes: Partial<Record<IdReseau, string>> }) {
   const aujourdhui = cleJour(new Date());
   // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
-  const duJour = calendrier.flatMap((j) => j.publications).filter((p) => cleJour(p.date) === jour);
+  const toutesDuJour = calendrier.flatMap((j) => j.publications);
+  const duJour = sansRemplacees(toutesDuJour.filter((p) => cleJour(p.date) === jour), toutesDuJour);
   const entrees = filtrerParTexte(
     duJour.map((p) => {
       const e = entreeDepuisPublication(p);
