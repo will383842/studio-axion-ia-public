@@ -426,19 +426,23 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     for (const [nom, v] of Object.entries(pkg.dependencies)) expect(lock.packages[`node_modules/${nom}`].version).toBe(v);
   });
   it("échéance côté hôte qui TUE le conteneur : run -d --name, docker wait borné à 960 s sinon docker kill, docker rm -f", () => {
-    expect(compose).toMatch(/^\s*#\s+docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode>\s*$/m);
-    expect(compose).toMatch(/^\s*#\s+timeout 960 docker wait studio-capture-<id> \|\| docker kill studio-capture-<id>\s*$/m);
+    expect(compose).toMatch(/^\s*#\s+docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> \|\| docker kill studio-capture-<id>\s*$/m);
+    expect(compose).toMatch(/studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> \|\| docker kill studio-capture-<id>\s*$/m);
+    // `&&` : ne jamais attendre un ancien conteneur (docker wait seul sur un nom déjà pris)
+    expect(compose).not.toMatch(/^\s*#\s+timeout 960 docker wait/m);
     expect(compose).toMatch(/^\s*#\s+docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>\s*$/m);
     // l'ancienne forme (qui ne tuait pas le conteneur) est interdite
     expect(compose).not.toMatch(/timeout 960 docker compose/);
     // aucune commande documentée `run --rm` (sans échéance) : la seule forme est `run -d --name`
     expect(compose).not.toMatch(/^\s*#\s+docker compose --profile capture run --rm/m);
-    expect(compose.match(/^\s*#\s+(STUDIO_CAPTURE_\w+=\S+ )?docker compose --profile capture run .*$/gm)?.every((l) => / run -d --name studio-capture-<id> /.test(l))).toBe(true);
+    const lancements = compose.match(/^\s*#\s+(STUDIO_CAPTURE_\w+=\S+ )?docker compose --profile capture run .*$/gm) ?? [];
+    expect(lancements.length).toBe(2);
+    for (const l of lancements) expect(l).toMatch(/ run -d --name studio-capture-<id> studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> \|\| docker kill studio-capture-<id>$/);
   });
   it("procédure côté hôte : aucun conteneur, /sortie NEUF (umount, mkfs.ext4 sur fichier neuf, mount loop, chown 1001), copie sans lien hors de capture-sortie, contrôle, montage de la copie", () => {
     const cmd = (re: RegExp) => expect(compose, String(re)).toMatch(re);
-    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE \(sinon ARRÊT : ne rien faire\),$/m);
-    cmd(/^\s*#\s+ET `docker ps --filter label=com\.docker\.compose\.service=studio-capture` doit être VIDE \(sinon ARRÊT : ne rien faire\)\.$/m);
+    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps -a --filter name=studio-capture` doit être VIDE \(sinon ARRÊT : ne rien faire\),$/m);
+    cmd(/^\s*#\s+ET `docker ps -a --filter label=com\.docker\.compose\.service=studio-capture` doit être VIDE \(sinon ARRÊT : ne rien faire\)\.$/m);
     expect(compose).not.toMatch(/sinon continuer/i);
     cmd(/^\s*#\s+sudo umount \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
     cmd(/^\s*#\s+sudo rm -f \/opt\/studio-axion-ia\/capture-sortie\.img && sudo fallocate -l 3G \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
@@ -446,25 +450,41 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     cmd(/^\s*#\s+sudo mount -o loop,nodev,nosuid,noexec \/opt\/studio-axion-ia\/capture-sortie\.img \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
     cmd(/^\s*#\s+sudo chown 1001:1001 \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
     cmd(/CONTRÔLER LA SOURCE, puis COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root/);
-    cmd(/^\s*#\s+sudo cp -r --no-dereference \/opt\/studio-axion-ia\/capture-sortie\/maquette\/<dossier> \/opt\/studio-axion-ia\/capture-maquettes\/<id>\s*$/m);
-    cmd(/rsync --no-links/);
-    cmd(/sudo chown -R root:root \/opt\/studio-axion-ia\/capture-maquettes\/<id>/);
+    expect(compose).not.toMatch(/rsync/i); // rsync (liens physiques, options) est retiré de la procédure
+    cmd(/sudo chown -R root:root \/opt\/studio-axion-ia\/capture-maquettes\/<id>\/maquette/);
+    // fs en boucle BORNÉ et NEUF pour la copie (1 Gio), puis remontage en lecture seule
+    cmd(/^\s*#\s+sudo mkdir -p \/opt\/studio-axion-ia\/capture-maquettes-img && sudo rm -f \/opt\/studio-axion-ia\/capture-maquettes-img\/<id>\.img && sudo fallocate -l 1G \/opt\/studio-axion-ia\/capture-maquettes-img\/<id>\.img\s*$/m);
+    cmd(/^\s*#\s+sudo mkfs\.ext4 -q -m 0 \/opt\/studio-axion-ia\/capture-maquettes-img\/<id>\.img\s*$/m);
+    cmd(/^\s*#\s+sudo mkdir \/opt\/studio-axion-ia\/capture-maquettes\/<id> && sudo mount -o loop,nodev,nosuid,noexec \/opt\/studio-axion-ia\/capture-maquettes-img\/<id>\.img \/opt\/studio-axion-ia\/capture-maquettes\/<id>\s*$/m);
+    cmd(/^\s*#\s+sudo mount -o remount,ro \/opt\/studio-axion-ia\/capture-maquettes\/<id>\s*$/m);
+    cmd(/^\s*#\s+6\. Après la capture/m);
+    cmd(/sudo umount \/opt\/studio-axion-ia\/capture-maquettes\/<id> && sudo rm -f \/opt\/studio-axion-ia\/capture-maquettes-img\/<id>\.img && sudo rmdir /);
+    // étape 3 : refaire l'étape 1 après la décompression
+    cmd(/^\s*#\s+3\. Décompresser \(commande ci-dessus\), puis refaire l'étape 1 \(le conteneur est supprimé\)\.$/m);
+    // réglage du noyau
+    cmd(/`sysctl fs\.suid_dumpable` doit valoir 0 ou 2/);
+    cmd(/sudo sysctl -w fs\.suid_dumpable=0/);
+    cmd(/`setpriority` et SCHED_IDLE peuvent RETARDER la fin du conteneur/);
+    cmd(/seul le `docker kill` de l'hôte la garantit, à l'échéance de 960 s/);
     cmd(/CONTRÔLER LA COPIE de la même façon/);
-    cmd(/STUDIO_CAPTURE_MAQUETTE=\/opt\/studio-axion-ia\/capture-maquettes\/<id> docker compose --profile capture run -d --name studio-capture-<id>/);
+    cmd(/STUDIO_CAPTURE_MAQUETTE=\/opt\/studio-axion-ia\/capture-maquettes\/<id>\/maquette docker compose --profile capture run -d --name studio-capture-<id>/);
     // contrôles de la SOURCE (une commande par ligne, copiable) AVANT le cp, puis contrôles de la COPIE
     const D = "\\/opt\\/studio-axion-ia";
     const L = (re: string) => new RegExp(`^\\s*#\\s+${re}\\s*$`, "m");
     const srcFind = L(`sudo find ${D}\\/capture-sortie\\/maquette ! -type f ! -type d`);
     const srcReal = L(`sudo realpath -e ${D}\\/capture-sortie\\/maquette\\/<dossier>`);
     const neuf = L(`sudo mkdir -p ${D}\\/capture-maquettes && test ! -e ${D}\\/capture-maquettes\\/<id> && test ! -L ${D}\\/capture-maquettes\\/<id>`);
-    const cp = L(`sudo cp -r --no-dereference ${D}\\/capture-sortie\\/maquette\\/<dossier> ${D}\\/capture-maquettes\\/<id>`);
-    const copFind = L(`sudo find ${D}\\/capture-maquettes\\/<id> ! -type f ! -type d`);
-    const copReal = L(`sudo realpath -e ${D}\\/capture-maquettes\\/<id>`);
+    const srcLiens = L(`sudo find ${D}\\/capture-sortie\\/maquette -type f -links \\+1`);
+    const cp = L(`sudo cp -r --no-dereference ${D}\\/capture-sortie\\/maquette\\/<dossier> ${D}\\/capture-maquettes\\/<id>\\/maquette`);
+    const copFind = L(`sudo find ${D}\\/capture-maquettes\\/<id>\\/maquette ! -type f ! -type d`);
+    const copReal = L(`sudo realpath -e ${D}\\/capture-maquettes\\/<id>\\/maquette`);
+    const fsMount = L(`sudo mkdir ${D}\\/capture-maquettes\\/<id> && sudo mount -o loop,nodev,nosuid,noexec .*`);
     // chaque critère est écrit sur la ligne qui PRÉCÈDE immédiatement la commande qu'il vise
     const avant = (critere: string, commande: RegExp) =>
       new RegExp(`^\\s*#\\s+${critere}[^\\n]*\\n${commande.source.replace(/^\^/, "")}`, "m");
     const critere = [
       avant("Critère 1 : [^\\n]*doit afficher RIEN", srcFind),
+      avant("Critère 1 bis : [^\\n]*liens physiques[^\\n]*doit afficher RIEN", srcLiens),
       avant("Critère 2 : [^\\n]*doit être ÉGAL", srcReal),
       avant("Critère 3 : <id> doit être NEUF", neuf),
       avant("Critère 4 : [^\\n]*doit afficher RIEN[^\\n]*ÉGAL", copFind),
@@ -478,22 +498,23 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     // étape 5 : refaire le contrôle docker ps JUSTE AVANT de lancer
     const e5 = compose.indexOf("5. Refaire l'étape 2");
     const rappel = compose.indexOf("JUSTE AVANT de lancer, refaire le contrôle `docker ps` de l'étape 1");
-    const lance = compose.indexOf("STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id> docker compose");
+    const lance = compose.indexOf("STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id>/maquette docker compose");
     expect(e5).toBeGreaterThan(0);
     expect(rappel).toBeGreaterThan(e5);
     expect(lance).toBeGreaterThan(rappel);
     // `test ! -L` : un lien cassé ne passe pas `test ! -e`
     expect(compose).toMatch(/test ! -e [^\n]*<id> && test ! -L [^\n]*<id>/);
-    const pos = [srcFind, srcReal, neuf, cp, copFind, copReal].map((re) => compose.search(re));
+    const pos = [srcFind, srcLiens, srcReal, neuf, fsMount, cp, copFind, copReal].map((re) => compose.search(re));
     expect(pos.every((n) => n >= 0), JSON.stringify(pos)).toBe(true);
-    expect([...pos].sort((x, y) => x - y)).toEqual(pos); // source, source, id neuf, cp, copie, copie : dans cet ordre
+    expect([...pos].sort((x, y) => x - y)).toEqual(pos); // source (find, liens), realpath, id neuf, fs borné monté, cp, copie (find, realpath) : dans cet ordre
     // l'ordre des étapes : 1 (aucun conteneur) avant 2 (/sortie neuf) avant 4 (source puis copie) avant 5 (capture)
     const ordre = ["1. AUCUN conteneur", "2. Un /sortie NEUF", "3. Décompresser", "4. CONTRÔLER LA SOURCE", "5. Refaire"].map((t) => compose.indexOf(t));
     expect(ordre.every((n) => n >= 0)).toBe(true);
     expect([...ordre].sort((x, y) => x - y)).toEqual(ordre);
     // exactement 2 contrôles `! -type f ! -type d` (source, copie), 2 `realpath -e`, jamais `-type l` seul ni `ls`
     expect(compose.match(/! -type f ! -type d/g)).toHaveLength(2);
-    expect(compose.match(/^\s*#\s+(sudo )?find /gm)).toHaveLength(2);
+    expect(compose.match(/^\s*#\s+(sudo )?find /gm)).toHaveLength(3); // 2 `! -type f ! -type d` + 1 `-links +1`
+    expect(compose.match(/-links \+1/g)).toHaveLength(1);
     expect(compose.match(/^\s*#\s+sudo realpath -e /gm)).toHaveLength(2);
     expect(compose.match(/realpath -e /g)).toHaveLength(2);
     expect(compose).not.toMatch(/-type l\b/);

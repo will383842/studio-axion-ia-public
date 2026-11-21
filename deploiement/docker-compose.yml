@@ -329,6 +329,8 @@ services:
   # <image> pwuser` donne uid=1001) :
   #   sudo mkdir -p /opt/studio-axion-ia/capture-entree /opt/studio-axion-ia/capture-sortie
   #   (capture-entree : scenario.json + calage.json, lisibles par 1001, montés en lecture seule)
+  # Réglage du noyau à vérifier : `sysctl fs.suid_dumpable` doit valoir 0 ou 2 (avec 1, un binaire non lisible redevient « dumpable »
+  # et le `chmod 0711` de `timeout` dans l'image ne protège plus) ; sinon : `sudo sysctl -w fs.suid_dumpable=0`.
   # /sortie BORNÉE (obligatoire : lancer.sh REFUSE de démarrer, code 64, si /sortie n'est pas un point de montage, et,
   # code 65, si sa taille totale dépasse 4 Gio ; le disque du serveur est partagé avec Postgres et les médias). Procédure :
   # un système de fichiers en boucle DÉDIÉ de 3 Gio, ni exécutable ni à droits spéciaux, monté sur capture-sortie :
@@ -345,8 +347,7 @@ services:
   # LANCER (toujours ainsi, capturer ou decompresser) : avec `-d`, l'échéance côté hôte tue VRAIMENT le conteneur (tuer
   # seulement le client `docker compose run` ne lui transmet aucun signal : il continuerait de tourner et garderait /sortie
   # monté en écriture). Avec `-d`, il n'y a plus de `--rm` : le `docker rm -f` final le remplace. <id> = un nom unique :
-  #   docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode>
-  #   timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
+  #   docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
   #   docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>
   # (960 s = 900 s du `timeout` de lancer.sh + sa marge de 30 s + 30 s.) Les <arguments du mode> sont ceux de la commande de
   # capture ci-dessus (`--maquette … --sortie /sortie`) ou de décompression ci-dessous.
@@ -359,8 +360,8 @@ services:
   # PROCÉDURE CÔTÉ HÔTE, dans cet ordre, pour CHAQUE client. Un Chromium compromis peut poser des liens symboliques dans
   # /sortie, et docker SUIT sur l'hôte un lien placé dans la source d'un montage (essai réel : un lien vers un dossier
   # contenant .env a donné son contenu au conteneur) :
-  #  1. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire),
-  #     ET `docker ps --filter label=com.docker.compose.service=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire).
+  #  1. AUCUN conteneur ne doit tourner : `docker ps -a --filter name=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire),
+  #     ET `docker ps -a --filter label=com.docker.compose.service=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire).
   #     OBLIGATOIRE : `umount` (étape 2) RÉUSSIT même si un conteneur garde /sortie ouvert (le montage disparaît de l'hôte, pas du conteneur) ;
   #     sans ce contrôle, un conteneur resté en vie pourrait encore écrire dans l'ancien /sortie.
   #  2. Un /sortie NEUF POUR CHAQUE CLIENT (jamais de décompression et de capture en même temps sur le même /sortie) :
@@ -374,19 +375,30 @@ services:
   #     ne monte pas. Chaque commande se copie telle quelle ; au moindre écart : ARRÊT, ne rien monter.
   #     Critère 1 : la source ne contient que des fichiers et des dossiers, cette commande doit afficher RIEN (liens, FIFO, sockets, périphériques) :
   #       sudo find /opt/studio-axion-ia/capture-sortie/maquette ! -type f ! -type d
+  #     Critère 1 bis : aucun fichier à plusieurs liens physiques (ils gonfleraient la copie), cette commande doit afficher RIEN :
+  #       sudo find /opt/studio-axion-ia/capture-sortie/maquette -type f -links +1
   #     Critère 2 : le chemin réel doit être ÉGAL au chemin exact écrit (aucun lien, ni sur `maquette`, ni sur `<dossier>`) :
   #       sudo realpath -e /opt/studio-axion-ia/capture-sortie/maquette/<dossier>
   #     Critère 3 : <id> doit être NEUF (ni fichier, ni dossier, ni lien, même cassé ; cette commande doit réussir) :
   #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes && test ! -e /opt/studio-axion-ia/capture-maquettes/<id> && test ! -L /opt/studio-axion-ia/capture-maquettes/<id>
-  #     Copier (ou `rsync --no-links` à la place de `cp`), donner la copie à root :
-  #       sudo cp -r --no-dereference /opt/studio-axion-ia/capture-sortie/maquette/<dossier> /opt/studio-axion-ia/capture-maquettes/<id>
-  #       sudo chown -R root:root /opt/studio-axion-ia/capture-maquettes/<id> && sudo chmod -R a+rX,go-w /opt/studio-axion-ia/capture-maquettes/<id>
+  #     La copie va sur un système de fichiers en boucle BORNÉ (1 Gio) et NEUF, comme /sortie (une copie qui dépasse échoue : ARRÊT) :
+  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes-img && sudo rm -f /opt/studio-axion-ia/capture-maquettes-img/<id>.img && sudo fallocate -l 1G /opt/studio-axion-ia/capture-maquettes-img/<id>.img
+  #       sudo mkfs.ext4 -q -m 0 /opt/studio-axion-ia/capture-maquettes-img/<id>.img
+  #       sudo mkdir /opt/studio-axion-ia/capture-maquettes/<id> && sudo mount -o loop,nodev,nosuid,noexec /opt/studio-axion-ia/capture-maquettes-img/<id>.img /opt/studio-axion-ia/capture-maquettes/<id>
+  #     Copier avec `cp` SEULEMENT (aucun autre outil de copie), puis donner la copie à root :
+  #       sudo cp -r --no-dereference /opt/studio-axion-ia/capture-sortie/maquette/<dossier> /opt/studio-axion-ia/capture-maquettes/<id>/maquette
+  #       sudo chown -R root:root /opt/studio-axion-ia/capture-maquettes/<id>/maquette && sudo chmod -R a+rX,go-w /opt/studio-axion-ia/capture-maquettes/<id>/maquette
   #     Critère 4 : CONTRÔLER LA COPIE de la même façon, cette commande doit afficher RIEN, et le chemin réel doit être ÉGAL au chemin écrit :
-  #       sudo find /opt/studio-axion-ia/capture-maquettes/<id> ! -type f ! -type d
-  #       sudo realpath -e /opt/studio-axion-ia/capture-maquettes/<id>
+  #       sudo find /opt/studio-axion-ia/capture-maquettes/<id>/maquette ! -type f ! -type d
+  #       sudo realpath -e /opt/studio-axion-ia/capture-maquettes/<id>/maquette
+  #     Puis, la copie contrôlée, la remonter en LECTURE SEULE :
+  #       sudo mount -o remount,ro /opt/studio-axion-ia/capture-maquettes/<id>
   #  5. Refaire l'étape 2 (un /sortie neuf pour la capture), puis, JUSTE AVANT de lancer, refaire le contrôle `docker ps` de l'étape 1
-  #     (par nom ET par label, VIDES, sinon ARRÊT), puis capturer en montant la COPIE contrôlée :
-  #       STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id> docker compose --profile capture run -d --name studio-capture-<id> studio-capture …
+  #     (`docker ps -a` par nom ET par label, VIDES, sinon ARRÊT), puis capturer en montant la COPIE contrôlée (lancer avec `&&` : ne jamais
+  #     attendre un ancien conteneur) :
+  #       STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id>/maquette docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
+  #  6. Après la capture (conteneur supprimé, étape 1) : libérer la copie :
+  #       sudo umount /opt/studio-axion-ia/capture-maquettes/<id> && sudo rm -f /opt/studio-axion-ia/capture-maquettes-img/<id>.img && sudo rmdir /opt/studio-axion-ia/capture-maquettes/<id>
   # Le film sort dans /sortie ; l'envoi au stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens
   # symboliques, fichiers énormes : lstat, O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
   # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h : uniquement le dossier décompressé
@@ -433,7 +445,8 @@ services:
     # relatif AU FICHIER COMPOSE. Changer de version de Docker : reprendre le profil au nouveau tag, mêmes 3 retraits.
     # DURÉE : seul le `docker kill` de l'HÔTE (procédure LANCER ci-dessus) la GARANTIT. `init: false`, seccomp sans ptrace et
     # `timeout` en 0711 dans l'image (Dockerfile : non lisible, donc non dumpable : pas de /proc/1/mem) ne font que la rendre
-    # plus difficile à contourner pour un processus du conteneur.
+    # plus difficile à contourner pour un processus du conteneur. `setpriority` et SCHED_IDLE peuvent RETARDER la fin du conteneur
+    # (processus ralentis) : seul le `docker kill` de l'hôte la garantit, à l'échéance de 960 s.
     security_opt:
       - no-new-privileges:true
       - seccomp=./studio-capture/seccomp.json
