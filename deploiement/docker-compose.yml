@@ -317,6 +317,45 @@ services:
     cpus: 2
     cpu_shares: 256
 
+  # Poste de capture figé du tutoriel d'outil (T-EXT-51b) : Chromium + FFmpeg, SANS RÉSEAU. LIVRÉ INACTIF : profil
+  # « capture » = NI construit NI démarré par `docker compose up`/`build`, ni par mettre-a-jour.sh (qui ne le nomme pas).
+  # Obligatoire avant d'accepter un dossier (.zip) de client (T-EXT-41, T-EXT-29). Déclenchement À LA MAIN seulement,
+  # depuis deploiement/ (le film sort dans STUDIO_CAPTURE_SORTIE, défaut ./capture-sortie ; l'envoi au stockage reste au Studio) :
+  #   docker compose --profile capture build studio-capture
+  #   docker compose --profile capture run --rm studio-capture \
+  #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json --sortie /sortie
+  # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h) et STUDIO_CAPTURE_ENTREE (dossier
+  # contenant scenario.json). Rien n'est inscriptible hors /sortie et un tmpfs /tmp borné (Chromium) ; durée : 15 min
+  # (`timeout` dans l'ENTRYPOINT de l'image) ; aucune variable d'environnement secrète, aucun port.
+  studio-capture:
+    profiles: [capture]
+    build:
+      context: ..
+      dockerfile: deploiement/studio-capture/Dockerfile
+    image: studio-capture:local
+    restart: "no"
+    network_mode: none
+    read_only: true
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Limite de mémoire par `deploy.resources.limits` (et non `mem_limit`) : le budget mémoire du serveur
+    # (tests/v5-serveur-scripts.test.ts) ne compte que les services qui tournent en permanence ; celui-ci est inactif.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          pids: 512
+    shm_size: 512m
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    volumes:
+      - ${STUDIO_CAPTURE_MAQUETTE:-../outils/maquettes-tableaux-de-bord/03-accueil-24h}:/app/outils/maquettes-tableaux-de-bord/maquette:ro
+      - ../outils/maquettes-tableaux-de-bord/charte:/app/outils/maquettes-tableaux-de-bord/charte:ro
+      - ${STUDIO_CAPTURE_ENTREE:-./capture-entree}:/entree:ro
+      - ${STUDIO_CAPTURE_SORTIE:-./capture-sortie}:/sortie
+
 volumes:
   donnees:
   # Travaux face caméra de studio-aligneur (fichiers de travail, jamais des données : rien d'irremplaçable).
