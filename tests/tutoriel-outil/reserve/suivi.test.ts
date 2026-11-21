@@ -13,9 +13,9 @@ vi.mock("@/services/_commun", async (importOriginal) => {
 
 import { CLE_BAIL_TIRAGE, REGLAGES_RESERVE_DEFAUT } from "@/domaine/tutoriel-reserve";
 import type { StatutVideo } from "@/domaine/types";
-import { rendreBail } from "@/donnees/memoire";
+import { prendreBail, rendreBail } from "@/donnees/memoire";
 import { ajouterElementReserve, lireElementReserve, prendreSuivantReserve } from "@/services/tutoriel-reserve";
-import { suivreElementsPris, tirerSuivantReserve, type NotificationReserve } from "@/services/tutoriel-reserve-tirage";
+import { CLE_BAIL_LANCEMENT, suivreElementsPris, tirerSuivantReserve, type NotificationReserve } from "@/services/tutoriel-reserve-tirage";
 
 const nouveau = (id: string) => ({ id, titre: id, source: { type: "idee", phrase: "Un tableau de bord pour un atelier" } as const, fin: "aucune" as const, ajouteLe: "2026-11-01T00:00:00.000Z", ajoutePar: "fondateur" as const });
 const MAINTENANT = "2026-11-21T10:00:00.000Z";
@@ -23,6 +23,7 @@ const MAINTENANT = "2026-11-21T10:00:00.000Z";
 beforeEach(async () => {
   magasin.clear();
   await rendreBail(CLE_BAIL_TIRAGE, "autre-titulaire");
+  await rendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire");
 });
 
 async function pris(id: string, cle: string, le: string, videoId?: string) {
@@ -157,5 +158,51 @@ describe("suivreElementsPris", () => {
     );
     expect(r).toMatchObject({ etat: "pris", videoId: "v-9" });
     expect(await suivreElementsPris(dep("prete").dep)).toEqual({ faits: 1, echecs: 0 });
+  });
+
+  it("ARGENT : vidéo notée entre la lecture de la liste et l'écriture du suivi : l'élément reste pris avec son videoId", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z");
+    const { noterVideoDuTirage } = await import("@/services/tutoriel-reserve");
+    const { listerReserve } = await import("@/services/tutoriel-reserve");
+    const s = dep(null);
+    const lister = async () => {
+      const liste = await listerReserve();
+      await noterVideoDuTirage("cle-suivi-001", "res-premier1", "v-tard"); // l'autre machine note sa vidéo juste après la lecture
+      return liste;
+    };
+    expect(await suivreElementsPris({ ...s.dep, lister })).toEqual({ faits: 0, echecs: 0 });
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "pris", tentatives: 0, prise: { cle: "cle-suivi-001", videoId: "v-tard" } });
+  });
+
+  it("rendrePriseSiInchangee : écrit si la prise est la même (vidéo absente comprise), sinon rien et false", async () => {
+    const { rendrePriseSiInchangee } = await import("@/services/tutoriel-reserve");
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z", "v-1");
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "cle-suivi-001" }, "en_reserve", { patch: { prise: undefined } })).toBe(false);
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "autre-cle-01", videoId: "v-1" }, "en_reserve", { patch: { prise: undefined } })).toBe(false);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "cle-suivi-001", videoId: "v-1" }, "en_reserve", { patch: { prise: undefined, tentatives: 1 } })).toBe(true);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "cle-suivi-001", videoId: "v-1" }, "en_reserve")).toBe(false);
+  });
+
+  it("ARGENT : bail de lancement tenu par un autre titulaire : le suivi n'archive rien et ne remet rien en réserve", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 60_000)).toBe(true);
+    const archives: string[] = [];
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => void archives.push(id), travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+    magasin.clear();
+    await pris("res-second01", "cle-suivi-002", "2026-11-21T09:30:00.000Z");
+    expect(await suivreElementsPris(dep(null).dep)).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-second01"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : prise du bail qui lève : rien n'est fait ; bail rendu après un suivi normal", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z");
+    expect(await suivreElementsPris({ ...dep(null).dep, prendreBail: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+    expect(await suivreElementsPris(dep(null).dep)).toEqual({ faits: 0, echecs: 1 });
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 1000)).toBe(true); // rendu par le suivi
   });
 });

@@ -12,10 +12,10 @@ vi.mock("@/services/_commun", async (importOriginal) => {
 });
 
 import { CLE_BAIL_TIRAGE, REGLAGES_RESERVE_DEFAUT, type ReglagesReserve } from "@/domaine/tutoriel-reserve";
-import { rendreBail } from "@/donnees/memoire";
+import { prendreBail, rendreBail } from "@/donnees/memoire";
 import { origineFournisseurCourante } from "@/services/plafond-fournisseur";
 import { ajouterElementReserve, lireElementReserve, lireTirageReserve } from "@/services/tutoriel-reserve";
-import { conditionsTirage, tirerSuivantReserve, type DependancesTirage } from "@/services/tutoriel-reserve-tirage";
+import { CLE_BAIL_LANCEMENT, conditionsTirage, tirerSuivantReserve, type DependancesTirage } from "@/services/tutoriel-reserve-tirage";
 
 const nouveau = (id: string, source: { type: "idee"; phrase: string } | { type: "dossier"; fichierId: string; nomFichier: string; attestationImages: boolean } | { type: "maquette-demo"; dossier: string } = { type: "idee", phrase: "Un tableau de bord pour un atelier" }, script?: string) => ({
   id,
@@ -65,6 +65,7 @@ function banc(surcharge: Partial<DependancesTirage> = {}): Banc {
 beforeEach(async () => {
   magasin.clear();
   await rendreBail(CLE_BAIL_TIRAGE, "autre-titulaire");
+  await rendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire");
 });
 
 describe("tirerSuivantReserve", () => {
@@ -273,8 +274,15 @@ describe("tirerSuivantReserve", () => {
     expect((await lireElementReserve("res-premier1"))?.etat).toBe("a_revoir");
 
     await ajouterElementReserve(nouveau("res-second01"));
-    const b2 = banc({ lancer: async () => { throw new Error("boum"); } });
-    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-02" }, b2.dep)).toMatchObject({ etat: "echec", retourEnReserve: true });
+    const b2 = banc({ lancer: async () => { throw new Error("panne"); } });
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-02" }, b2.dep)).toMatchObject({ etat: "echec" });
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 1000)).toBe(true); // rendu malgré l'échec
+    await rendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire");
+
+    magasin.clear();
+    await ajouterElementReserve(nouveau("res-tiers001"));
+    const b3 = banc({ rendreBail: async (c, t) => { await rendreBail(c, t); throw new Error("rendu en panne"); } });
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-03" }, b3.dep)).toMatchObject({ etat: "pris" }); // échec du rendu absorbé
   });
 
   it("bail occupé par une autre machine : « attente bail_occupe », rien d'écrit", async () => {
@@ -297,5 +305,34 @@ describe("tirerSuivantReserve", () => {
     const b = banc();
     expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01", elementId: "res-second01" }, b.dep)).toMatchObject({ etat: "pris", elementId: "res-second01" });
     expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-02", elementId: "res-inconnu1" }, banc().dep)).toEqual({ etat: "reserve_vide" });
+  });
+
+  it("ARGENT : bail de lancement tenu par une autre machine : attente bail_occupe, rien de pris, rien de lancé", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 60_000)).toBe(true);
+    const b = banc();
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep)).toMatchObject({ etat: "attente", raison: "bail_occupe" });
+    expect(b.lancements).toHaveLength(0);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("en_reserve");
+    expect(await lireTirageReserve("cle-usine-01")).toBeNull();
+  });
+
+  it("ARGENT : bail de lancement rendu après un tirage normal et après une exception du lancement", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    const rendus: string[] = [];
+    const rendreBailEspion = async (c: string, t: string) => { rendus.push(c); await rendreBail(c, t); };
+    const b = banc({ rendreBail: rendreBailEspion });
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep)).toMatchObject({ etat: "pris" });
+    expect(rendus).toContain(CLE_BAIL_LANCEMENT);
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 1000)).toBe(true);
+    await rendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire");
+
+    magasin.clear();
+    await ajouterElementReserve(nouveau("res-second01"));
+    const b2 = banc({ lancer: async () => { throw new Error("panne"); }, rendreBail: async (c, t) => { await rendreBail(c, t); throw new Error("rendu en panne"); } });
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-02" }, b2.dep)).toMatchObject({ etat: "echec" }); // exception du rendu absorbée
+    const b3 = banc({ prendre: async () => { throw new Error("base"); } });
+    await rendreBail(CLE_BAIL_LANCEMENT, "x");
+    await expect(tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-03" }, b3.dep)).rejects.toThrow("base");
   });
 });

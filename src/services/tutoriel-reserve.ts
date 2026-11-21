@@ -166,6 +166,38 @@ export async function changerEtatReserve(
 }
 
 /**
+ * Remise conditionnelle (suivi, ARGENT) : sous `sousVerrouReserve` (base relue), n'écrit QUE si l'élément est toujours `pris` avec la même
+ * `prise.cle` ET le même `prise.videoId` (absent compris) que ceux que l'appelant a lus. Sinon (vidéo notée entre-temps, élément repris
+ * ou déjà rendu, disparu) : rien n'est écrit, rend `false`. Rend `true` si l'écriture a eu lieu. Transition interdite → RESERVE_TRANSITION.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (erreur RESERVE_REENTRANT).
+ */
+export async function rendrePriseSiInchangee(
+  id: string,
+  attendu: { cle: string; videoId?: string },
+  vers: EtatElementReserve,
+  o?: { motif?: string; patch?: Partial<Pick<ElementReserve, "prise" | "tentatives" | "source" | "motif">> },
+): Promise<boolean> {
+  return sousVerrouReserve(async () => {
+    const e = await lireElementReserve(id);
+    if (!e || e.etat !== "pris" || !e.prise) return false;
+    if (e.prise.cle !== attendu.cle || e.prise.videoId !== attendu.videoId) return false;
+    const t = transition(e, vers, maintenant(), o?.motif);
+    if (!t) throw new ErreurStudio("RESERVE_TRANSITION", "Ce changement d'état n'est pas permis pour cet élément.");
+    const p = o?.patch ?? {};
+    const suivant: ElementReserve = { ...t };
+    if ("prise" in p) {
+      if (p.prise === undefined) delete suivant.prise;
+      else suivant.prise = p.prise;
+    }
+    if (p.tentatives !== undefined) suivant.tentatives = p.tentatives;
+    if (p.source !== undefined) suivant.source = p.source;
+    if (p.motif !== undefined) suivant.motif = p.motif;
+    await ecrireParametre(cleElementReserve(id), suivant);
+    return true;
+  });
+}
+
+/**
  * PRISE ATOMIQUE. Ordre des verrous (le même que `credits.ts` : crédits PUIS boucle, jamais l'inverse, sinon interblocage) :
  * 1. `sousVerrouCreditsPartage` : avec Postgres, verrou consultatif partagé entre machines ET relecture de `parametres` dans
  *    la base (la copie mémoire chargée au démarrage peut être périmée) ; sans base, simple appel (un seul processus) ;

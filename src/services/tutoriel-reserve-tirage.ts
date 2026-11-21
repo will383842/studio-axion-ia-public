@@ -26,15 +26,25 @@ import {
   type ReglagesReserve,
   type TirageReserve,
 } from "@/domaine/tutoriel-reserve";
+import { prendreBail, rendreBail } from "@/donnees/memoire";
 import { TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import type { StatutVideo, TypeNotification } from "@/domaine/types";
+import { randomUUID } from "node:crypto";
 import { creerVerrou, ErreurStudio, lireParametre, maintenant as maintenantReel } from "./_commun";
 import { avecOrigineFournisseur } from "./plafond-fournisseur";
 import type { IssueLancementReserve } from "./tutoriel-reserve-lancement";
-import { changerEtatReserve, lireElementReserve, lireReglagesReserve, lireTirageReserve, listerReserve, noterEchecDuTirage, noterVideoDuTirage, prendreSuivantReserve } from "./tutoriel-reserve";
+import { changerEtatReserve, lireElementReserve, lireReglagesReserve, lireTirageReserve, listerReserve, noterEchecDuTirage, noterVideoDuTirage, prendreSuivantReserve, rendrePriseSiInchangee } from "./tutoriel-reserve";
 import type { InterrupteursTutoriel } from "./tutoriel-depot";
 import { CLE_DEVIS_AVANT_DEPENSE } from "./tutoriel-console";
 import { fichierDeMaquetteDemo } from "./tutoriel-reserve-maquettes";
+
+/**
+ * Bail de LANCEMENT entre machines (ARGENT) : tenu par `tirer` de la prise jusqu'à l'issue, et par le suivi pendant qu'il remet un élément
+ * en réserve ou archive un brouillon. Les baux vivent dans leur propre collection (pas dans `parametres`) : aucune clé d'inventaire.
+ * Ligne avec expiration, jamais un verrou bloquant. 60 min > DELAI_PRIS_SANS_VIDEO_MS (15 min).
+ */
+export const CLE_BAIL_LANCEMENT = "tutoriel.reserve.lancement";
+export const DUREE_BAIL_LANCEMENT_MS = 60 * 60_000;
 
 export interface DemandeTirage {
   declencheur: DeclencheurTirage;
@@ -88,6 +98,8 @@ export interface DependancesTirage {
   lireElement?: (id: string) => Promise<ElementReserve | null>;
   lireTirage?: (cle: string) => Promise<TirageReserve | null>;
   prendre?: typeof prendreSuivantReserve;
+  prendreBail?: typeof prendreBail;
+  rendreBail?: typeof rendreBail;
   changerEtat?: typeof changerEtatReserve;
   noterVideo?: typeof noterVideoDuTirage;
   /** Marque la fiche du tirage comme échouée (le rejeu rend « échec »). */
@@ -240,13 +252,27 @@ export async function conditionsTirage(e: ElementReserve, r: ReglagesReserve, de
 /* Échec d'un élément                                                  */
 /* ------------------------------------------------------------------ */
 
+function issueEchec(e: ElementReserve, definitif: boolean): { tentatives: number; retourEnReserve: boolean; vers: EtatElementReserve } {
+  const tentatives = e.tentatives + 1;
+  const retourEnReserve = !definitif && tentatives < TENTATIVES_MAX;
+  return { tentatives, retourEnReserve, vers: retourEnReserve ? "en_reserve" : "a_revoir" };
+}
+
+/**
+ * Suivi : même échec que `echouer`, mais CONDITIONNEL (rien n'est écrit si la prise a changé depuis la lecture : vidéo notée, élément repris).
+ * Rend `true` seulement si l'écriture a eu lieu. Une panne de l'écriture lève (le tour suivant réessaie).
+ */
+async function echouerSiInchange(e: ElementReserve, phrase: string, dep: DependancesSuivi): Promise<boolean> {
+  if (!e.prise) return false;
+  const { tentatives, vers } = issueEchec(e, false);
+  return (dep.rendrePrise ?? rendrePriseSiInchangee)(e.id, { cle: e.prise.cle, ...(e.prise.videoId !== undefined ? { videoId: e.prise.videoId } : {}) }, vers, { motif: phrase, patch: { tentatives, prise: undefined, motif: phrase } });
+}
+
 /** Échec : moins de `TENTATIVES_MAX` échecs et non définitif → retour en réserve à sa place ; sinon « à revoir ». */
 async function echouer(e: ElementReserve, phrase: string, definitif: boolean, dep: DependancesTirage, cleTirage?: string): Promise<Extract<IssueTirage, { etat: "echec" }>> {
   // Lancement refusé après la note de la vidéo : la fiche est marquée échouée AVANT le retour en réserve (jamais « pris » au rejeu).
   if (cleTirage) await (dep.noterEchec ?? noterEchecDuTirage)(cleTirage).catch(() => undefined);
-  const tentatives = e.tentatives + 1;
-  const retourEnReserve = !definitif && tentatives < TENTATIVES_MAX;
-  const vers: EtatElementReserve = retourEnReserve ? "en_reserve" : "a_revoir";
+  const { tentatives, retourEnReserve, vers } = issueEchec(e, definitif);
   try {
     await (dep.changerEtat ?? changerEtatReserve)(e.id, vers, { motif: phrase, patch: { tentatives, prise: undefined, motif: phrase } });
   } catch {
@@ -313,6 +339,31 @@ async function tirer(d: DemandeTirage, dep: DependancesTirage): Promise<IssueTir
   const manque = await conditionsTirage(candidat, reglages, dep);
   if (manque) return { etat: "attente", raison: manque.raison, phrase: manque.phrase };
 
+  // 3 bis. Bail de LANCEMENT (entre machines) : de la prise jusqu'à l'issue. Occupé : rien n'est pris. Une panne de la base le prendre = rien n'est pris.
+  const prendreB = dep.prendreBail ?? prendreBail;
+  const rendreB = dep.rendreBail ?? rendreBail;
+  const titulaire = `lancement-${randomUUID()}`;
+  let tenu: boolean;
+  try {
+    tenu = await prendreB(CLE_BAIL_LANCEMENT, titulaire, DUREE_BAIL_LANCEMENT_MS);
+  } catch {
+    tenu = false;
+  }
+  if (!tenu) return { etat: "attente", raison: "bail_occupe", phrase: PHRASES_ATTENTE.bail_occupe };
+  try {
+    return await tirerSousBail(d, dep, reglages, elements, candidat);
+  } finally {
+    // Échec du rendu absorbé : le bail expire seul.
+    try {
+      await rendreB(CLE_BAIL_LANCEMENT, titulaire);
+    } catch {
+      /* expire seul */
+    }
+  }
+}
+
+async function tirerSousBail(d: DemandeTirage, dep: DependancesTirage, reglages: ReglagesReserve, elements: ElementReserve[], candidat: ElementReserve): Promise<IssueTirage> {
+  const lireElement = dep.lireElement ?? lireElementReserve;
   // 4. Prise atomique (verrou du processus + bail entre machines). Reprend le candidat DÉJÀ jugé : si un autre tirage a pris la
   // place entre-temps, la prise rend un autre élément ou rien, et les conditions sont rejouées sur lui.
   const prise = await (dep.prendre ?? prendreSuivantReserve)({ cle: d.cle, declencheur: d.declencheur, ...(d.elementId ? { elementId: d.elementId } : {}), maintenant: (dep.maintenant ?? maintenantReel)() });
@@ -376,6 +427,11 @@ export interface DependancesSuivi {
   /** Statut de la vidéo, ou `null` si elle n'existe plus. */
   statutVideo?: (videoId: string) => Promise<StatutVideo | null>;
   changerEtat?: typeof changerEtatReserve;
+  /** Remise en réserve CONDITIONNELLE (prise inchangée : même clé, même vidéo). Défaut : `rendrePriseSiInchangee`. */
+  rendrePrise?: typeof rendrePriseSiInchangee;
+  lireElement?: (id: string) => Promise<ElementReserve | null>;
+  prendreBail?: typeof prendreBail;
+  rendreBail?: typeof rendreBail;
   notifier?: (n: NotificationReserve) => Promise<void>;
   /** Archive une vidéo restée brouillon (jamais effacée). Défaut : même geste que l'abandon du lancement. */
   abandonner?: (videoId: string) => Promise<void>;
@@ -409,6 +465,33 @@ export async function suivreElementsPris(dep: DependancesSuivi = {}): Promise<{ 
   return enSerie(() => suivre(dep));
 }
 
+/**
+ * Exécute `f` SEULEMENT si le suivi obtient lui-même le bail de lancement (occupé, ou prise qui lève : rien n'est fait, `false`) ; le rend
+ * dans un `finally` (rendu en échec absorbé). Le bail n'est qu'une ligne avec expiration : il se prend hors de tout verrou bloquant.
+ */
+async function avecBailSuivi(dep: DependancesSuivi, f: () => Promise<void>): Promise<boolean> {
+  const prendreB = dep.prendreBail ?? prendreBail;
+  const rendreB = dep.rendreBail ?? rendreBail;
+  const titulaire = `suivi-${randomUUID()}`;
+  let tenu: boolean;
+  try {
+    tenu = await prendreB(CLE_BAIL_LANCEMENT, titulaire, DUREE_BAIL_LANCEMENT_MS);
+  } catch {
+    return false;
+  }
+  if (!tenu) return false;
+  try {
+    await f();
+    return true;
+  } finally {
+    try {
+      await rendreB(CLE_BAIL_LANCEMENT, titulaire);
+    } catch {
+      /* expire seul */
+    }
+  }
+}
+
 async function suivre(dep: DependancesSuivi): Promise<{ faits: number; echecs: number }> {
   const maintenant = Date.parse((dep.maintenant ?? maintenantReel)());
   const changer = dep.changerEtat ?? changerEtatReserve;
@@ -421,8 +504,10 @@ async function suivre(dep: DependancesSuivi): Promise<{ faits: number; echecs: n
       if (!videoId) {
         const depuis = Date.parse(e.prise?.le ?? "");
         if (!Number.isFinite(depuis) || maintenant - depuis > DELAI_PRIS_SANS_VIDEO_MS) {
-          await echouer(e, PHRASE_PRIS_SANS_VIDEO, false, { changerEtat: changer });
-          echecs++;
+          // ARGENT : un lancement d'une autre machine est peut-être en cours : sans le bail, on ne touche à rien.
+          await avecBailSuivi(dep, async () => {
+            if (await echouerSiInchange(e, PHRASE_PRIS_SANS_VIDEO, dep)) echecs++;
+          });
         }
         continue;
       }
@@ -446,14 +531,17 @@ async function suivre(dep: DependancesSuivi): Promise<{ faits: number; echecs: n
             continue;
           }
           if (travail) continue;
-          // Archivé D'ABORD : si l'archivage échoue, l'élément reste « pris » et le tour suivant réessaie.
-          await (dep.abandonner ?? abandonnerParDefaut)(videoId);
-          await echouer(e, PHRASE_PRIS_SANS_VIDEO, false, { changerEtat: changer });
-          echecs++;
+          // ARGENT : bail de lancement obligatoire (sinon rien), puis relecture : prise changée depuis la liste → rien.
+          await avecBailSuivi(dep, async () => {
+            const frais = await (dep.lireElement ?? lireElementReserve)(e.id);
+            if (!frais || frais.etat !== "pris" || frais.prise?.cle !== e.prise?.cle || frais.prise?.videoId !== videoId) return;
+            // Archivé D'ABORD : si l'archivage échoue, l'élément reste « pris » et le tour suivant réessaie.
+            await (dep.abandonner ?? abandonnerParDefaut)(videoId);
+            if (await echouerSiInchange(e, PHRASE_PRIS_SANS_VIDEO, dep)) echecs++;
+          });
         }
       } else if (statut === null || statut === "echec" || statut === "annulee" || statut === "archivee") {
-        await echouer(e, PHRASE_VIDEO_ECHEC, false, { changerEtat: changer });
-        echecs++;
+        if (await echouerSiInchange(e, PHRASE_VIDEO_ECHEC, dep)) echecs++;
       }
     } catch {
       /* un élément à problème ne bloque pas les autres ; il sera revu au tour suivant */
