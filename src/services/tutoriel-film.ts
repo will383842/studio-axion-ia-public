@@ -7,7 +7,7 @@
  * Le service range `entrees.tutorielOutil.navigationFilmee` dans la vidéo ET dans la commande figée de la version en cours
  * (modèle : `validerTutoriel`), puis sort le travail de sa pause : la boucle reprend au tour suivant.
  *
- * Aucun appel payant, aucun octet lu ici (seule la fiche du fichier est contrôlée) : 0 €. La capture AUTOMATIQUE par le poste
+ * Aucun appel payant : 0 €. Le type RÉEL du film est lu dans ses 16 premiers octets (jamais dans ce qu'il déclare). La capture AUTOMATIQUE par le poste
  * 51b est HORS de ce lot. Le `videoCle` du film est TOUJOURS la clé de stockage du fichier déposé, jamais celle du JSON.
  */
 import "server-only";
@@ -15,7 +15,8 @@ import type { Fichier, Id, Travail } from "@/domaine/types";
 import { TAILLE_MAX_ENVOI } from "@/formats";
 import { lireNavigationFilmee } from "@/briques/plan-scenes/tutoriel/navigation-filmee";
 import { ENTREE_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/entrees";
-import { depots, ErreurStudio } from "./_commun";
+import { OCTETS_SIGNATURE, signatureVideo } from "@/lib/signature-video";
+import { depots, ErreurStudio, fournisseur, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 
 export const CODE_FILM_A_CAPTURER = "TO_FILM_A_CAPTURER";
@@ -33,6 +34,8 @@ export interface DemandeFilm {
 }
 
 export interface DependancesFilm {
+  /** Lecture des premiers octets du fichier STOCKÉ (injectable en test) ; par défaut, celle du stockage du studio. */
+  lireDebut?: (cleStockage: string, octets: number) => Promise<Uint8Array>;
   fichier?: (fichierId: string, videoId: Id) => Promise<Pick<Fichier, "id" | "nom" | "mime" | "taille" | "cleStockage">>;
 }
 
@@ -49,7 +52,36 @@ async function derniereFabrication(videoId: Id): Promise<Travail | null> {
   return liste.sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0] ?? null;
 }
 
-const pauseFilm = (t: Travail | null): boolean => objet(t?.parametres?.pause) && t?.parametres?.pause.code === CODE_FILM_A_CAPTURER;
+const PHRASE_ARRETEE = "Cette vidéo est arrêtée : relancez-la, puis déposez le film.";
+const PHRASE_FILM_TYPE = "Le film doit être un fichier vidéo mp4 ou webm.";
+
+/** Seul un travail encore actif (en file ou en cours) peut attendre le film : un travail arrêté ou fini n'est pas relancé ici. */
+const actif = (t: Travail | null): boolean => t?.statut === "en_file" || t?.statut === "en_cours";
+const aPauseFilm = (t: Travail | null): boolean => objet(t?.parametres?.pause) && t?.parametres?.pause.code === CODE_FILM_A_CAPTURER;
+const pauseFilm = (t: Travail | null): boolean => actif(t) && aPauseFilm(t);
+
+/** Type réel du film : premiers octets du fichier stocké (même règle que `estUneVideo` de videos-heygen). */
+async function estLeBonFilm(cle: string, format: "mp4" | "webm", lireDebut?: DependancesFilm["lireDebut"]): Promise<boolean> {
+  let debut: Uint8Array;
+  if (lireDebut) {
+    try {
+      debut = await lireDebut(cle, OCTETS_SIGNATURE);
+    } catch {
+      throw new ErreurStudio("RELECTURE", "Le film n'a pas pu être relu. Réessayez dans un instant.");
+    }
+  } else {
+    const stockage = await fournisseur("stockage");
+    // Stockage simulé : aucun octet n'existe ; un stockage réel DOIT savoir relire.
+    if (!stockage.lireDebut) return stockage.mode !== "reel";
+    try {
+      debut = await stockage.lireDebut(cle, OCTETS_SIGNATURE);
+    } catch {
+      throw new ErreurStudio("RELECTURE", "Le film n'a pas pu être relu. Réessayez dans un instant.");
+    }
+  }
+  const signature = signatureVideo(debut);
+  return signature === (format === "mp4" ? "iso-bmff" : "matroska");
+}
 
 /** La page n'affiche le bloc « Déposer le film » que si la vidéo attend ce film. Lecture seule. */
 export async function filmAttendu(videoId: Id): Promise<boolean> {
@@ -79,7 +111,8 @@ export async function deposerFilmNavigation(videoId: Id, demande: DemandeFilm, d
   const video = await d.videos.obtenir(videoId);
   if (!video) return refus("Cette vidéo n'existe pas.");
   const travail = await derniereFabrication(videoId);
-  if (!travail || !pauseFilm(travail)) return refus("Cette vidéo n'attend pas de film pour le moment.");
+  if (!travail || !aPauseFilm(travail)) return refus("Cette vidéo n'attend pas de film pour le moment.");
+  if (!actif(travail)) return refus(PHRASE_ARRETEE);
 
   const fichierId = typeof demande.fichierId === "string" ? demande.fichierId : "";
   if (!fichierId) return refus("Envoyez d'abord le film.");
@@ -92,9 +125,14 @@ export async function deposerFilmNavigation(videoId: Id, demande: DemandeFilm, d
   const extensions = FORMATS_FILM[String(fichier.mime ?? "").toLowerCase()];
   const ext = (fichier.cleStockage ?? "").split(".").pop()?.toLowerCase() ?? "";
   const extNom = (fichier.nom ?? "").split(".").pop()?.toLowerCase() ?? "";
-  if (!extensions || !extensions.includes(ext) || !extensions.includes(extNom)) return refus("Le film doit être un fichier vidéo mp4 ou webm.");
+  if (!extensions || !extensions.includes(ext) || !extensions.includes(extNom)) return refus(PHRASE_FILM_TYPE);
   if (!(fichier.taille > 0) || fichier.taille > TAILLE_MAX_ENVOI) return refus("Ce film est vide ou dépasse la taille permise.");
   const cle = fichier.cleStockage as string;
+  try {
+    if (!(await estLeBonFilm(cle, extensions.includes("mp4") ? "mp4" : "webm", dep.lireDebut))) return refus(PHRASE_FILM_TYPE);
+  } catch (e) {
+    return refus(e instanceof ErreurStudio ? e.message : PHRASE_FILM_TYPE);
+  }
 
   const lu = lireNavigationTexte(demande.navigation);
   if (!lu.ok) return refus(lu.phrase);
@@ -105,12 +143,21 @@ export async function deposerFilmNavigation(videoId: Id, demande: DemandeFilm, d
     const base = entrees ?? {};
     return { ...base, [ENTREE_TUTORIEL]: { ...(objet(base[ENTREE_TUTORIEL]) ? base[ENTREE_TUTORIEL] : {}), navigationFilmee: nav.navigation } };
   };
-  await d.videos.modifier(videoId, { entrees: ecrire(video.entrees) });
-  const version = travail.versionId ? await d.versions.obtenir(travail.versionId) : null;
-  if (version) await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: ecrire(version.commande.entrees) } });
-  // Sortie de pause (même geste que la validation) : la boucle reprend au prochain tour.
-  const { pause: _p, ...parametres } = travail.parametres ?? {};
-  void _p;
-  await d.travaux.modifier(travail.id, { statut: "en_cours", parametres });
-  return { statut: "ok", phrase: "Le film est déposé : la vidéo reprend." };
+  // Vérification finale ET écritures dans le même bloc, sous le verrou : l'état est relu (un « Arrêter » entre-temps gagne).
+  return sousVerrou(async (): Promise<IssueFilm> => {
+    const courant = await d.travaux.obtenir(travail.id);
+    if (!courant || !aPauseFilm(courant)) return refus("Cette vidéo n'attend pas de film pour le moment.");
+    if (!actif(courant)) return refus(PHRASE_ARRETEE);
+    const videoLue = await d.videos.obtenir(videoId);
+    if (!videoLue) return refus("Cette vidéo n'existe pas.");
+    const version = courant.versionId ? await d.versions.obtenir(courant.versionId) : null;
+    if (!version) return refus("La version de cette vidéo est introuvable : rien n'a été modifié.");
+    await d.videos.modifier(videoId, { entrees: ecrire(videoLue.entrees) });
+    await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: ecrire(version.commande.entrees) } });
+    // Sortie de pause (même geste que la validation) : seule la pause est retirée, le statut lu est gardé.
+    const { pause: _p, ...parametres } = courant.parametres ?? {};
+    void _p;
+    await d.travaux.modifier(courant.id, { parametres });
+    return { statut: "ok", phrase: "Le film est déposé : la vidéo reprend." };
+  });
 }

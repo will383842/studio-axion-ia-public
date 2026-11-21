@@ -28,13 +28,22 @@ const NAV = JSON.stringify({
   version: "navigation-filmee.v1", videoCle: "autre.mp4", maquette: "maquette.html", largeur: 1280, hauteur: 800, debutFilmMs: 0, dureeVoixMs: 10000,
   cibles: [{ etapeId: "e1", instantMs: 1000, finMs: 3000 }],
 });
-const dep = (fichier: Partial<typeof FICHIER> = {}) => ({ fichier: async () => ({ ...FICHIER, ...fichier }) });
+const MP4 = new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 0]);
+const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+const M3U = new TextEncoder().encode("#EXTM3U\n#EXT-X-VERSION");
+const dep = (fichier: Partial<typeof FICHIER> = {}, debut: Uint8Array | Error = MP4) => ({
+  fichier: async () => ({ ...FICHIER, ...fichier }),
+  lireDebut: async () => {
+    if (debut instanceof Error) throw debut;
+    return debut;
+  },
+});
 
-async function installer(pause: string | null = "TO_FILM_A_CAPTURER") {
+async function installer(pause: string | null = "TO_FILM_A_CAPTURER", statut = "en_file") {
   await depots().videos.enregistrer({ id: "v1", titre: "T", formatId: "tutoriel-outil", statut: "en_fabrication", entrees: { tutorielOutil: { fin: "aucune" } }, creeLe: LE, modifieLe: LE } as never);
   await depots().versions.enregistrer({ id: "ver1", videoId: "v1", numero: 1, statut: "en_fabrication", commande: { entrees: { tutorielOutil: { fin: "aucune" } } }, creeLe: LE, modifieLe: LE } as never);
   await depots().travaux.enregistrer({
-    id: "t1", type: "fabrication", cibleId: "v1", versionId: "ver1", titre: "T", statut: "en_file", progression: 10, tentatives: 1, cleIdempotence: "k", fournisseurUtilise: "studio",
+    id: "t1", type: "fabrication", cibleId: "v1", versionId: "ver1", titre: "T", statut, progression: 10, tentatives: 1, cleIdempotence: "k", fournisseurUtilise: "studio",
     etapes: [], parametres: { ...(pause ? { pause: { code: pause, message: "x" } } : {}), tutoriel: { ratios: ["4:5"] } }, creeLe: LE, modifieLe: LE,
   } as never);
 }
@@ -83,6 +92,73 @@ describe("dépôt du film", () => {
       expect(r.statut).toBe("refusee");
       expect(r.phrase).toMatch(motif);
     }
+    expect(await instantane()).toBe(avant);
+  });
+
+  it("refuse un film dont le contenu n'est pas une vidéo (liste de lecture déguisée) : rien n'est écrit", async () => {
+    await installer();
+    const avant = await instantane();
+    const r = await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep({}, M3U));
+    expect(r).toEqual({ statut: "refusee", phrase: "Le film doit être un fichier vidéo mp4 ou webm." });
+    // webm déclaré mais contenu ISO-BMFF, mp4 déclaré mais contenu Matroska, contenu vide, lecture en échec
+    const webm = { mime: "video/webm", nom: "film.webm", cleStockage: "studio/dev/entree/v1/f-film1.webm" };
+    expect((await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep(webm, MP4))).statut).toBe("refusee");
+    expect((await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep({}, WEBM))).statut).toBe("refusee");
+    expect((await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep({}, new Uint8Array()))).statut).toBe("refusee");
+    const panne = await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep({}, new Error("r2 coupé")));
+    expect(panne).toMatchObject({ statut: "refusee", phrase: expect.stringMatching(/relu/) });
+    expect(await instantane()).toBe(avant);
+    expect((await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep(webm, WEBM))).statut).toBe("ok");
+  });
+
+  it("refuse une vidéo arrêtée (echec, annule) avec la pause restée : rien n'est écrit", async () => {
+    for (const statut of ["echec", "annule"]) {
+      reinitialiserDepots();
+      await installer("TO_FILM_A_CAPTURER", statut);
+      const avant = await instantane();
+      expect(await f.filmAttendu("v1")).toBe(false);
+      const r = await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep());
+      expect(r).toEqual({ statut: "refusee", phrase: "Cette vidéo est arrêtée : relancez-la, puis déposez le film." });
+      expect(await instantane()).toBe(avant);
+    }
+  });
+
+  it("garde le statut lu (en_cours reste en_cours) et ne retire que la pause", async () => {
+    await installer("TO_FILM_A_CAPTURER", "en_cours");
+    expect(await f.filmAttendu("v1")).toBe(true);
+    expect((await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep())).statut).toBe("ok");
+    const t = (await depots().travaux.obtenir("t1"))!;
+    expect(t.statut).toBe("en_cours");
+    expect(t.parametres).toEqual({ tutoriel: { ratios: ["4:5"] } });
+  });
+
+  it("version introuvable : refus lisible, rien n'est touché", async () => {
+    await installer();
+    await depots().travaux.modifier("t1", { versionId: "ver-absente" });
+    const avant = await instantane();
+    const r = await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep());
+    expect(r).toMatchObject({ statut: "refusee", phrase: expect.stringMatching(/version.*introuvable/) });
+    expect(await instantane()).toBe(avant);
+  });
+
+  it("après le dépôt, la boucle lit la commande avec le film déposé (videoCle = clé du fichier)", async () => {
+    await installer();
+    expect((await f.deposerFilmNavigation("v1", { fichierId: "f-film1", navigation: NAV }, dep())).statut).toBe("ok");
+    const { lireTravauxAAvancer } = await import("@/services/travaux");
+    const lus = await lireTravauxAAvancer(Date.parse(LE) + 60_000, () => ({}) as never);
+    const lu = lus.find((x) => x.travail.id === "t1");
+    expect(lu).toBeDefined();
+    const entrees = lu!.commande.entrees as { tutorielOutil: { navigationFilmee: { videoCle: string }; fin?: string } };
+    expect(entrees.tutorielOutil.navigationFilmee.videoCle).toBe(CLE);
+    expect(entrees.tutorielOutil.fin).toBe("aucune");
+  }, 60_000);
+
+  it("un vrai fichier rangé sous entree/v2/… est refusé pour la vidéo v1", async () => {
+    await installer();
+    const avant = await instantane();
+    await depots().fichiers.enregistrer({ id: "f-autre", nom: "film.mp4", mime: "video/mp4", taille: 5_000_000, cleStockage: "studio/dev/entree/v2/f-autre.mp4", origine: "depot", statut: "pret", creeLe: LE, modifieLe: LE } as never);
+    const r = await f.deposerFilmNavigation("v1", { fichierId: "f-autre", navigation: NAV }, { lireDebut: async () => MP4 });
+    expect(r).toMatchObject({ statut: "refusee", phrase: expect.stringMatching(/pas arrivé/) });
     expect(await instantane()).toBe(avant);
   });
 
