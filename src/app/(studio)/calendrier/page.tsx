@@ -20,7 +20,7 @@ import { ETATS_CALENDRIER } from "@/components/calendrier/PastilleStatutPlan";
 import { RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
 import { libellePeriode } from "@/components/calendrier/BarreVue";
 import { EnTeteCalendrier } from "@/components/calendrier/EnTeteCalendrier";
-import { entreesAFaire, sansRemplacees } from "@/components/calendrier/a-faire";
+import { duJourSansRemplacees, entreesAFaire } from "@/components/calendrier/a-faire";
 import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFaire";
 import { ReserveAPlacer } from "@/components/calendrier/ReserveAPlacer";
 import { debutDeTexte } from "@/components/calendrier/VueJour";
@@ -133,8 +133,11 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
     const jour = dateDemandee ?? cleJour(new Date());
     // Journée de Paris, de minuit à minuit (23 h ou 25 h le jour d'un changement d'heure).
     const finIso = new Date(new Date(instantParis(ajouterJoursParis(jour, 1), "00:00")).getTime() - 1).toISOString();
+    // « Remplacée » se décide sur la même base que le panneau : la semaine qui contient le jour.
+    const semaineDuJour = plageSemaine(jour);
+    const calendrierSemaine = await listerCalendrier(semaineDuJour.debutIso, semaineDuJour.finIso);
     const [calendrier, plan, comptes] = await Promise.all([listerCalendrier(instantParis(jour, "00:00"), finIso), chargerPlanDuJour(jour, cleJour(new Date())), comptesCibles(reseauxActifs)]);
-    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={calendrier} plan={plan} comptes={comptes} ecart={ecart} maintenant={maintenant} />;
+    return <PageJour jour={jour} reseauxActifs={reseauxActifs} filtres={filtres} calendrier={calendrier} baseSemaine={calendrierSemaine.flatMap((j) => j.publications)} plan={plan} comptes={comptes} ecart={ecart} maintenant={maintenant} />;
   }
   if (params.vue === "mois") {
     const plage = plageMois(dateDemandee ?? cleJour(new Date()));
@@ -234,11 +237,10 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
  * Vue du jour (CAL-02) : heure par heure, publications de tous les réseaux, créneaux libres.
  * Le jour est celui de Paris.
  */
-function PageJour({ jour, reseauxActifs, filtres, calendrier, plan, comptes, ecart, maintenant }: { ecart?: EcartCalendrier | null; maintenant: number; jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[]; plan: CreneauDuJour[]; comptes: Partial<Record<IdReseau, string>> }) {
+function PageJour({ jour, reseauxActifs, filtres, calendrier, baseSemaine, plan, comptes, ecart, maintenant }: { ecart?: EcartCalendrier | null; maintenant: number; jour: string; reseauxActifs: IdReseau[]; filtres: CriteresFiltre; calendrier: JourCalendrier[]; baseSemaine: JourCalendrier["publications"]; plan: CreneauDuJour[]; comptes: Partial<Record<IdReseau, string>> }) {
   const aujourdhui = cleJour(new Date());
   // Seules les publications qui tombent vraiment ce jour-là, à l'heure de Paris.
-  const toutesDuJour = calendrier.flatMap((j) => j.publications);
-  const duJour = sansRemplacees(toutesDuJour.filter((p) => cleJour(p.date) === jour), toutesDuJour);
+  const duJour = duJourSansRemplacees([...baseSemaine, ...calendrier.flatMap((j) => j.publications).filter((p) => !baseSemaine.some((b) => b.id === p.id))], jour, cleJour);
   const entrees = filtrerParTexte(
     duJour.map((p) => {
       const e = entreeDepuisPublication(p);

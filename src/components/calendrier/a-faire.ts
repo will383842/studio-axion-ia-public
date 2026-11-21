@@ -9,7 +9,7 @@ import { debutDeTexte } from "./VueJour";
 import { entreeDepuisPublication, etatAffiche, type PublicationApercu } from "./apercu-reseau";
 import type { EntreeAFaire } from "./PanneauAFaire";
 
-export type PubAFaire = PublicationApercu & { creeLe?: string; modifieLe?: string };
+export type PubAFaire = PublicationApercu & { creeLe?: string; modifieLe?: string; canalId?: string };
 
 export const RAISON_ECHEC = "envoi en échec";
 export const RAISON_BROUILLON = "brouillon non envoyé";
@@ -21,7 +21,11 @@ function sourceDe(p: PubAFaire): string {
   return `texte:${p.texte.trim().replace(/\s+/g, " ")}`;
 }
 
-const horodatage = (p: PubAFaire): string => p.creeLe ?? p.modifieLe ?? "";
+/** Le moment où l'échec ou la réussite a eu lieu (dernière modification), jamais la date de création. */
+const horodatage = (p: PubAFaire): string => p.modifieLe ?? "";
+
+/** Même compte, ou compte inconnu d'un côté (même règle que publications.ts) ; deux comptes connus et différents ne se remplacent jamais. */
+const memeCompte = (a: PubAFaire, b: PubAFaire): boolean => !a.canalId || !b.canalId || a.canalId === b.canalId;
 
 /** Une tentative à montrer (échec ou brouillon), par opposition à une publication réussie ou programmée. */
 function estTentative(p: PubAFaire): boolean {
@@ -40,16 +44,22 @@ export function estRemplacee(p: PubAFaire, toutes: readonly PubAFaire[]): boolea
   if (!estTentative(p)) return false;
   const source = sourceDe(p);
   return toutes.some((q) => {
-    if (q.id === p.id || q.reseau !== p.reseau || !estReussie(q) || sourceDe(q) !== source) return false;
+    if (q.id === p.id || q.reseau !== p.reseau || !memeCompte(p, q) || !estReussie(q) || sourceDe(q) !== source) return false;
     const a = horodatage(p);
     const b = horodatage(q);
-    return !a || !b || b > a;
+    // Dans le doute (horodatage absent), l'échec reste affiché : il n'est masqué que si la réussite est POSTÉRIEURE.
+    return !!a && !!b && b > a;
   });
 }
 
 /** Les publications sans les tentatives remplacées (même règle pour la vue jour). */
 export function sansRemplacees<T extends PubAFaire>(pubs: readonly T[], toutes: readonly PubAFaire[] = pubs): T[] {
   return pubs.filter((p) => !estRemplacee(p, toutes));
+}
+
+/** Vue jour : les publications du jour, remplacées masquées d'après la MÊME base que le panneau (la semaine), pas la seule journée. */
+export function duJourSansRemplacees<T extends PubAFaire>(base: readonly T[], jour: string, cleDuJour: (date: string) => string): T[] {
+  return sansRemplacees(base.filter((p) => cleDuJour(p.date) === jour), base);
 }
 
 /** Entrées du panneau « À faire » : remplacées masquées, tentatives d'un même visuel et réseau regroupées. */
@@ -69,7 +79,7 @@ export function entreesAFaire(publications: readonly PubAFaire[]): EntreeAFaire[
     }
     const reseau = obtenirReseau(p.reseau as IdReseau).nom;
     const raison = etat === "a_corriger" ? RAISON_ECHEC : RAISON_BROUILLON;
-    const cle = `${etat}|${sourceDe(p)}|${p.reseau}`;
+    const cle = `${etat}|${sourceDe(p)}|${p.reseau}|${p.canalId ?? ""}`;
     const g = groupes.get(cle);
     if (g) {
       g.n += 1;
