@@ -105,6 +105,16 @@ describe("X1-03 FIX : un instant où la fenêtre est inclinée ET remplie", () =
     expect(rempli(html)).toBe(true);
     expect(html).toMatch(/perspective:\d+cqh/);
   });
+  it("la perspective en cqh est sur un DESCENDANT du conteneur container-type:size, jamais sur le même élément", () => {
+    const html = renderToStaticMarkup(createElement(FenetreInclineeVue, props(70)));
+    const balises = html.match(/<div [^>]*>/g) ?? [];
+    const iConteneur = balises.findIndex((b) => /container-type:size/.test(b));
+    const iPerspective = balises.findIndex((b) => /perspective:\d+cqh/.test(b));
+    expect(iConteneur).toBeGreaterThanOrEqual(0);
+    expect(iPerspective).toBeGreaterThan(iConteneur);
+    expect(balises[iConteneur]).not.toMatch(/perspective:/);
+    expect(balises[iPerspective]).not.toMatch(/container-type/);
+  });
 });
 
 describe("X1-03 éteint et garde", () => {

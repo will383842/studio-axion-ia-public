@@ -88,13 +88,19 @@ export function FenetreInclineeVue({ image, fps, dureeImages, fond, graine, para
   // L'angle est décalé de `DELAI_INCLINAISON` : inclinée ET remplie pendant le redressement. Perspective relative au cadre (cqh).
   const a = angleFenetre(image / fps - DELAI_INCLINAISON, { sens });
   const s = styleInclinaison(a);
+  // Trois niveaux : la racine est le conteneur de requête (`container-type: size`), la perspective (cqh) est posée sur son ENFANT
+  // (un élément ne peut pas être son propre conteneur : sinon 150cqh se résoudrait contre un ancêtre), la rotation sur le petit-enfant.
   return createElement(
     "div",
-    { style: { position: "absolute", inset: 0, containerType: "size", perspective: `${PERSPECTIVE_POURCENT}cqh` } },
+    { style: { position: "absolute", inset: 0, containerType: "size" } },
     createElement(
       "div",
-      { style: { position: "absolute", inset: 0, transform: s.transform, transformOrigin: "50% 50%" } },
-      OBJET_FENETRE_APP.Rendu({ image, fps, dureeImages, fond, parametres, ton: "neutre", graine }),
+      { style: { position: "absolute", inset: 0, perspective: `${PERSPECTIVE_POURCENT}cqh` } },
+      createElement(
+        "div",
+        { style: { position: "absolute", inset: 0, transform: s.transform, transformOrigin: "50% 50%" } },
+        OBJET_FENETRE_APP.Rendu({ image, fps, dureeImages, fond, parametres, ton: "neutre", graine }),
+      ),
     ),
   );
 }
