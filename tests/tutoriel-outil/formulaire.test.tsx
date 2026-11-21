@@ -44,7 +44,7 @@ describe("allumé : les quatre blocs, dans l'ordre", () => {
   const html = rendre(TOUT);
   const t = visible(html);
   it("« Ce que vous donnez », « Fin de la vidéo », « Parcours », « Formats », puis la phrase fixe et le bouton", () => {
-    const ordre = ["Ce que vous donnez", "Un dossier (.zip)", "Une phrase", "Fin de la vidéo", "Aucune", "Prendre rendez-vous", "Parcours", "Choisi par le Studio", "Formats", "4:5", "9:16", "1:1", "Rien n'est dépensé avant votre accord", "Préparer la vidéo"];
+    const ordre = ["Ce que vous donnez", "Un dossier (.zip)", "Une phrase", "Fin de la vidéo", "Aucune", "Prendre rendez-vous", "Parcours", "Choisi par le Studio", "Formats", "4:5", "9:16", "1:1", "Le studio prépare le parcours et le script", "Préparer la vidéo"];
     let depuis = 0;
     for (const x of ordre) {
       const i = t.indexOf(x, depuis);
@@ -52,21 +52,22 @@ describe("allumé : les quatre blocs, dans l'ordre", () => {
       depuis = i;
     }
     // Devis éteint (défaut) : on ne promet pas un devis qui n'existe pas.
-    expect(t).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours et le script.");
+    expect(t).toContain("Le studio prépare le parcours et le script dès l'envoi ; rien n'est lu ni rendu avant que vous validiez le script.");
     expect(t).not.toContain("le devis");
   });
   it("le devis n'est annoncé que si le réglage est allumé (`true` exact)", () => {
-    expect(visible(rendre({ ...TOUT, devis: true }))).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.");
+    expect(visible(rendre({ ...TOUT, devis: true }))).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le devis, puis le parcours et le script.");
     expect(visible(rendre({ ...TOUT, devis: "true" as never }))).not.toContain("le devis");
   });
   it("la phrase « Rien n'est dépensé » suit le script collé : pas de relecture ni de devis promis à tort", () => {
     expect(phraseRienDepense(false, "")).toBe(PHRASE_RIEN_DEPENSE_SANS_DEVIS);
     expect(phraseRienDepense(true, "  ")).toBe(PHRASE_RIEN_DEPENSE);
     expect(phraseRienDepense(false, "Mon texte")).toBe(PHRASE_RIEN_DEPENSE_SCRIPT);
-    expect(PHRASE_RIEN_DEPENSE_SCRIPT).toContain("part directement au rendu avec votre script");
+    expect(PHRASE_RIEN_DEPENSE_SCRIPT).toContain("part au rendu dès l'envoi avec votre script");
     expect(PHRASE_RIEN_DEPENSE_SCRIPT).not.toMatch(/devis|relu|le script et/);
     expect(phraseRienDepense(true, "Mon texte")).toBe(PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS);
-    expect(PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS).not.toContain("script");
+    expect(PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS).toBe("Rien n'est dépensé avant votre accord : vous verrez d'abord le devis.");
+    expect(PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS).not.toMatch(/parcours|script/);
   });
   it("un seul contrôle du son (pastilles « Avec voix » par défaut / « Sans voix ») et une seule zone de script", () => {
     const pastilles = [...html.matchAll(/<button[^>]*role="radio"[^>]*aria-checked="(true|false)"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => ({ coche: m[1] === "true", texte: visible(m[2]) }));

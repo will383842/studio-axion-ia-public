@@ -43,12 +43,12 @@ export interface InterrupteursFormulaire {
 }
 
 export const PHRASE_AUCUNE_ENTREE_OUVERTE = "Aucune entrée n'est ouverte pour le moment.";
-export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.";
+export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord le devis, puis le parcours et le script.";
 /** Même promesse quand le devis est éteint : on ne parle pas d'un devis qui n'existe pas. */
-export const PHRASE_RIEN_DEPENSE_SANS_DEVIS = "Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours et le script.";
-/** Avec un script collé, il fait foi : pas de relecture du script ; sans devis, la vidéo part directement au rendu. */
-export const PHRASE_RIEN_DEPENSE_SCRIPT = "Rien n'est dépensé avant votre accord : la vidéo part directement au rendu avec votre script.";
-export const PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS = "Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours et le devis.";
+export const PHRASE_RIEN_DEPENSE_SANS_DEVIS = "Le studio prépare le parcours et le script dès l'envoi ; rien n'est lu ni rendu avant que vous validiez le script.";
+/** Avec un script collé, il fait foi : pas de relecture du script ; sans devis, la vidéo part au rendu dès l'envoi. */
+export const PHRASE_RIEN_DEPENSE_SCRIPT = "Rien n'est dépensé avant votre accord : la vidéo part au rendu dès l'envoi avec votre script.";
+export const PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS = "Rien n'est dépensé avant votre accord : vous verrez d'abord le devis.";
 /** La phrase « Rien n'est dépensé… » juste selon le devis et la présence d'un script collé (`scriptColle` déjà nettoyé). */
 export function phraseRienDepense(devis: boolean, scriptColle: string): string {
   if (scriptColle.trim()) return devis ? PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS : PHRASE_RIEN_DEPENSE_SCRIPT;
