@@ -1,6 +1,6 @@
 // T-EXT-03 : gardes du lanceur de capture. Pur : aucune lecture de disque, aucun réseau, aucun navigateur.
 // Le lanceur ne tourne que dans une session cloud ou en CI, et ne charge QUE des fichiers locaux de la maquette.
-import { isAbsolute, resolve, sep } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const MESSAGE_ENVIRONNEMENT_INTERDIT = "Capture interdite ici : seulement dans le cloud ou la CI, jamais sur le PC.";
@@ -13,10 +13,33 @@ export const RACINES_PAR_DEFAUT: readonly string[] = [
 
 export type Verdict = { ok: true } | { ok: false; raison: string };
 
-/** Vrai seulement dans la CI ou une session cloud, et jamais sous Windows (le PC de Williams). */
-export function environnementAutorise(env: Record<string, string | undefined>, plateforme: string): Verdict {
+/** Fichiers que Docker et Podman posent dans un conteneur : l'indice que le lanceur lit sur le disque (la garde reste pure). */
+export const INDICES_CONTENEUR: readonly string[] = ["/.dockerenv", "/run/.containerenv"];
+
+/** `existe` est injecté (le lanceur passe `fs.existsSync`) : vrai si l'un des fichiers témoins d'un conteneur est présent. */
+export function indicesConteneur(existe: (chemin: string) => boolean): boolean {
+  try {
+    return INDICES_CONTENEUR.some((c) => existe(c));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Vrai seulement dans la CI, une session cloud, ou le conteneur de capture, et jamais sous Windows (le PC de Williams) ni macOS.
+ * `CAPTURE_CONTENEUR` doit valoir exactement « true » ET le lanceur doit avoir vu un fichier témoin de conteneur
+ * (`indicesConteneur`) : poser la variable seule sur un PC ne suffit pas. Sans 3e paramètre : refusé (rétro-compatible).
+ */
+export function environnementAutorise(
+  env: Record<string, string | undefined>,
+  plateforme: string,
+  conteneurDetecte: boolean = false,
+): Verdict {
   const cloud = env.CI === "true" || env.CLAUDE_CODE_REMOTE === "true";
-  if (!cloud || plateforme === "win32") return { ok: false, raison: MESSAGE_ENVIRONNEMENT_INTERDIT };
+  const conteneur = env.CAPTURE_CONTENEUR === "true" && conteneurDetecte === true && plateforme === "linux";
+  if (plateforme === "win32" || !(cloud || conteneur)) {
+    return { ok: false, raison: MESSAGE_ENVIRONNEMENT_INTERDIT };
+  }
   return { ok: true };
 }
 
@@ -36,6 +59,33 @@ export function adresseAutorisee(url: string, racines: readonly string[] = RACIN
     if (brut.split(/[\\/]/).includes("..")) return false;
     const chemin = resolve(fileURLToPath(url));
     return racines.some((r) => sousRacine(chemin, isAbsolute(r) ? r : resolve(r)));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Comme `adresseAutorisee`, mais sur le chemin RÉEL : `realpath` est injecté (le lanceur passe `fs.realpathSync.native`).
+ * Refuse tout lien symbolique sous la racine (un lien vers /proc/self/environ, /etc/passwd ou /app ne sort jamais ; un lien
+ * « interne » est refusé aussi : le plus sûr, une maquette n'a aucun besoin de liens), et refuse si la résolution échoue
+ * (fichier absent). La racine elle-même peut être un lien (choix de l'opérateur) : on compare au `realpath` de la racine.
+ */
+export function adresseAutoriseeReelle(
+  url: string,
+  racines: readonly string[],
+  realpath: (chemin: string) => string,
+): boolean {
+  if (!adresseAutorisee(url, racines)) return false;
+  if (!/^file:\/\//i.test(url)) return true; // about:blank, data:
+  try {
+    const chemin = resolve(fileURLToPath(url));
+    for (const r of racines) {
+      const racine = isAbsolute(r) ? r : resolve(r);
+      if (!sousRacine(chemin, racine)) continue;
+      const attendu = resolve(realpath(racine), relative(resolve(racine), chemin));
+      if (realpath(chemin) === attendu) return true;
+    }
+    return false;
   } catch {
     return false;
   }

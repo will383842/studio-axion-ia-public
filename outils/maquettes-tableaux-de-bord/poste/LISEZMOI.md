@@ -24,3 +24,5 @@ Le vérificateur ne lance pas le navigateur, ne fait aucune requête réseau et 
 ## Après l'ouverture
 
 Avant d'accepter des dossiers de clients, un conteneur de capture figé (sans réseau, utilisateur sans droits) est construit par will-dc : voir la demande 51b de la fiche T-EXT-51. Tant qu'il n'existe pas, aucun dossier de client n'est ouvert.
+
+Dans le conteneur de capture, la garde reconnaît `CAPTURE_CONTENEUR=true` seulement si `/.dockerenv` ou `/run/.containerenv` existe (la capture l'applique ; le vérificateur de poste sera branché par une fiche suivante, d'ici là le conteneur garde `CI=true`). Les liens symboliques dans une maquette sont refusés (chemin réel).

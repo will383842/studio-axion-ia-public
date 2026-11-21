@@ -69,3 +69,36 @@ describe("capturer.mts ne vérifie pas la maquette lui-même", () => {
     expect(SRC).not.toContain("verifierMaquette");
   });
 });
+
+describe("T-EXT-51c : lancement de Chromium et chemins réels", () => {
+  const lancements = [...CODE.matchAll(/chromium\.launch\(\{([^}]*)\}\)/g)].map((m) => m[1]!);
+  it("deux lancements (film, contrôles), chacun avec chromiumSandbox, jamais désactivé en dur", () => {
+    expect(lancements).toHaveLength(2);
+    for (const l of lancements) expect(l).toMatch(/chromiumSandbox:\s*!EN_CONTENEUR/);
+    expect(CODE).not.toMatch(/chromiumSandbox:\s*false/);
+  });
+  it("aucun --no-sandbox, aucun args, aucun ignoreDefaultArgs, aucun drapeau de lancement ajouté", () => {
+    expect(CODE).not.toContain("no-sandbox");
+    expect(CODE).not.toMatch(/\bargs:/);
+    expect(CODE).not.toContain("ignoreDefaultArgs");
+    expect(CODE).not.toMatch(/chromiumSandbox:\s*false/);
+    for (const l of lancements) expect(l.replace(/\s+/g, " ").trim()).toBe("executablePath: process.env.CAPTURE_CHROMIUM || undefined, chromiumSandbox: !EN_CONTENEUR");
+  });
+  it("l'exécutable ne vient que de CAPTURE_CHROMIUM (sinon Playwright)", () => {
+    expect(CODE.match(/executablePath/g)).toHaveLength(2);
+    expect(CODE.match(/process\.env\.CAPTURE_CHROMIUM/g)).toHaveLength(2);
+  });
+  it("EN_CONTENEUR vient de indicesConteneur(existsSync) et est passé à la garde d'environnement", () => {
+    expect(CODE).toMatch(/const EN_CONTENEUR = indicesConteneur\(existsSync\)/);
+    expect(CODE).toMatch(/environnementAutorise\(process\.env, process\.platform, EN_CONTENEUR\)/);
+  });
+  it("les deux gestionnaires de route passent par adresseAutoriseeReelle avec realpathSync.native, avant route.continue", () => {
+    const passes = CODE.split(/async function (?=passe)/).slice(1);
+    expect(passes).toHaveLength(2);
+    for (const p of passes) {
+      const reel = p.indexOf("adresseAutoriseeReelle(url, RACINES_MAQUETTE, realpathSync.native)");
+      expect(reel).toBeGreaterThan(-1);
+      expect(reel).toBeLessThan(p.indexOf("await route.continue()"));
+    }
+  });
+});
