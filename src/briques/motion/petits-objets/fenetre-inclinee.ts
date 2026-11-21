@@ -20,6 +20,9 @@ export const PERSPECTIVE_POURCENT = 150;
 /** Hauteur apparente minimale du plus petit texte, en % du cadre, après projection. */
 export const HAUTEUR_TEXTE_MIN_POURCENT = 3;
 
+/** Délai (s) avant le début du redressement : la fenêtre reste inclinée pendant que le contenu apparaît (le tracé du contour dure `DUREES.entree`). */
+export const DELAI_INCLINAISON = DUREES.entree;
+
 export interface AngleFenetre {
   rotateX: number;
   rotateY: number;
@@ -82,15 +85,22 @@ export interface PropsFenetreInclinee {
 
 /** Vue pure (testable sans Remotion) : enveloppe CSS `perspective` + `rotateX/rotateY` autour de la fenêtre d'application C9-18. */
 export function FenetreInclineeVue({ image, fps, dureeImages, fond, graine, parametres, sens }: PropsFenetreInclinee): ReactElement {
-  const a = angleFenetre(image / fps, { sens });
+  // L'angle est décalé de `DELAI_INCLINAISON` : inclinée ET remplie pendant le redressement. Perspective relative au cadre (cqh).
+  const a = angleFenetre(image / fps - DELAI_INCLINAISON, { sens });
   const s = styleInclinaison(a);
+  // Trois niveaux : la racine est le conteneur de requête (`container-type: size`), la perspective (cqh) est posée sur son ENFANT
+  // (un élément ne peut pas être son propre conteneur : sinon 150cqh se résoudrait contre un ancêtre), la rotation sur le petit-enfant.
   return createElement(
     "div",
-    { style: { position: "absolute", inset: 0, perspective: s.perspective } },
+    { style: { position: "absolute", inset: 0, containerType: "size" } },
     createElement(
       "div",
-      { style: { position: "absolute", inset: 0, transform: s.transform, transformOrigin: "50% 50%" } },
-      OBJET_FENETRE_APP.Rendu({ image, fps, dureeImages, fond, parametres, ton: "neutre", graine }),
+      { style: { position: "absolute", inset: 0, perspective: `${PERSPECTIVE_POURCENT}cqh` } },
+      createElement(
+        "div",
+        { style: { position: "absolute", inset: 0, transform: s.transform, transformOrigin: "50% 50%" } },
+        OBJET_FENETRE_APP.Rendu({ image, fps, dureeImages, fond, parametres, ton: "neutre", graine }),
+      ),
     ),
   );
 }
