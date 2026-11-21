@@ -49,11 +49,16 @@ function constante(nom: string, textes: string[]): string | undefined {
 /** Première famille demandée par un fichier d'objet, en résolvant les constantes connues. */
 export function famillesDemandees(texte: string): string[] {
   const noms: string[] = [];
-  for (const m of texte.matchAll(/fontFamily\s*[=:]\s*(\{`[^`]*`\}|\{[A-Za-z_]+\}|[A-Za-z_]+)/g)) {
-    const expression = m[1].replace(/^\{|\}$/g, "");
+  const LU = /fontFamily\s*[=:]\s*(?:\{`[^`]*`\}|\{[A-Za-z_]+\}|[A-Za-z_]+|"([^"]*)"|'([^']*)'|\{\s*"([^"]*)"\s*\}|\{\s*'([^']*)'\s*\})/g;
+  let lues = 0;
+  for (const m of texte.matchAll(LU)) {
+    lues += 1;
+    const litteral = m[1] ?? m[2] ?? m[3] ?? m[4];
+    const expression = m[0].replace(/^fontFamily\s*[=:]\s*/, "").replace(/^\{|\}$/g, "");
     const gabarit = expression.match(/^`"?\$\{FAMILLE_CSS\}"?/);
     let valeur: string | undefined;
-    if (gabarit) valeur = FAMILLE_CSS;
+    if (litteral !== undefined) valeur = premiereFamille(litteral);
+    else if (gabarit) valeur = FAMILLE_CSS;
     else if (expression === "FAMILLE_CSS") valeur = FAMILLE_CSS;
     else if (expression === "FAMILLE_CSS_AXION") valeur = premiereFamille(FAMILLE_CSS_AXION);
     else if (expression === "PILE_CSS") valeur = FAMILLE_CSS;
@@ -61,9 +66,12 @@ export function famillesDemandees(texte: string): string[] {
       const pile = constante(expression, [texte]);
       if (pile) valeur = premiereFamille(pile);
     }
-    if (!valeur) throw new Error(`expression fontFamily inconnue : ${m[1]}`);
+    if (!valeur) throw new Error(`expression fontFamily inconnue : ${m[0]}`);
     noms.push(valeur);
   }
+  // Filet : une occurrence de fontFamily non lue ci-dessus ne doit jamais être ignorée en silence.
+  const presentes = (texte.match(/fontFamily\s*[=:]/g) ?? []).length;
+  if (presentes > lues) throw new Error(`expression fontFamily inconnue : ${presentes} occurrences, ${lues} lues`);
   return [...new Set(noms)];
 }
 
@@ -153,5 +161,14 @@ describe("POLICES-P3-a : la première famille de chaque objet est enregistrée p
   it("la pile d'une constante terminal est résolue : première famille non générique", () => {
     expect(famillesDemandees('const FAMILLE_TERMINAL = `"JetBrains Mono", monospace`;\n<text fontFamily={FAMILLE_TERMINAL}>')).toEqual(["JetBrains Mono"]);
     expect(premiereFamille("Manrope, sans-serif")).toBe("Manrope");
+  });
+
+  it("une famille écrite en littéral est lue, jamais ignorée en silence", () => {
+    expect(famillesDemandees('<text fontFamily="Police Fantome">')).toEqual(["Police Fantome"]);
+    expect(famillesDemandees("<text fontFamily='Police Fantome'>")).toEqual(["Police Fantome"]);
+    expect(famillesDemandees('<text fontFamily={"Police Fantome"}>')).toEqual(["Police Fantome"]);
+    expect(famillesDemandees("<text fontFamily={'Police Fantome'}>")).toEqual(["Police Fantome"]);
+    expect(famillesDemandees("style={{ fontFamily: \"'Axion Manrope', sans-serif\" }}")).toEqual(["Axion Manrope"]);
+    expect(() => famillesDemandees("<text fontFamily={choisir()}>")).toThrow("expression fontFamily inconnue");
   });
 });
