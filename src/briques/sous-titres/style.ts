@@ -83,7 +83,7 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
     id: "impact",
     nom: "Impact",
     police: "Manrope ExtraBold",
-    poids: 900,
+    poids: 800,
     // × 1,8 (très grand) : ≈ 126 px, comme la maquette (118-140 px).
     taillePx: 70,
     casse: "majuscules",
