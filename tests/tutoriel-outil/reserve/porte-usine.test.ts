@@ -31,8 +31,10 @@ function envoyer(corps: unknown, secret: string | null = SECRET): Promise<Respon
   if (secret !== null) h.authorization = `Bearer ${secret}`;
   return prise.POST(new NextRequest("http://studio.test/api/usine/tutoriels", { method: "POST", headers: h, body: JSON.stringify(corps) }));
 }
-function lire(cle: string, corps: unknown = { contrat: 2 }): Promise<Response> {
-  const requete = new NextRequest(`http://studio.test/api/usine/tutoriels/${cle}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` }, body: JSON.stringify(corps) });
+function lire(cle: string, corps: unknown = { contrat: 2 }, secret: string | null = SECRET): Promise<Response> {
+  const h: Record<string, string> = { "content-type": "application/json" };
+  if (secret !== null) h.authorization = `Bearer ${secret}`;
+  const requete = new NextRequest(`http://studio.test/api/usine/tutoriels/${cle}`, { method: "POST", headers: h, body: JSON.stringify(corps) });
   return suivi.POST(requete, { params: Promise.resolve({ cle }) });
 }
 const demande = (extra: Record<string, unknown> = {}) => ({ contrat: 2, cle: CLE, source: "reserve", ...extra });
@@ -142,9 +144,12 @@ describe("prise", () => {
 });
 
 describe("état d'un tirage", () => {
-  it("clé inconnue : 404 ; sans jeton 401", async () => {
+  it("clé inconnue : 404 ; sans jeton 401 ; porte éteinte 404", async () => {
     expect((await lire("inconnue-0001")).status).toBe(404);
     expect((await lire("court")).status).toBe(404);
+    expect((await lire("inconnue-0001", { contrat: 2 }, null)).status).toBe(401);
+    vi.stubEnv("STUDIO_PORTE_SECRET", "");
+    expect((await lire("inconnue-0001", { contrat: 2 }, null)).status).toBe(404);
   });
   it("pris puis fait : aValider seulement quand la vidéo est prête ; ni titre ni nom de fichier", async () => {
     await ajouterElementReserve(nouveau("res-abcdef12"));

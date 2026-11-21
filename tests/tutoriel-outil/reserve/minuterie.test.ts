@@ -1,7 +1,7 @@
 /** RES-4 : minuterie de la réserve (démarrage unique, arrêt, tour avec doubles : pas dû / dû). Aucun réseau, aucune dépense. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { REGLAGES_RESERVE_DEFAUT, type IssueTirage, type LigneHistorique } from "@/domaine/tutoriel-reserve";
-import { arreterTirageReserve, demarrerTirageReserve, tourReserve } from "@/services/tutoriel-reserve-minuterie";
+import { arreterTirageReserve, DEPART_RESERVE_MS, demarrerTirageReserve, INTERVALLE_RESERVE_MS, tourReserve } from "@/services/tutoriel-reserve-minuterie";
 
 const MAINTENANT = new Date("2026-11-18T10:00:00.000Z"); // mercredi
 const actif = { ...REGLAGES_RESERVE_DEFAUT, actif: true, parSemaine: 2 };
@@ -24,12 +24,14 @@ describe("minuterie", () => {
     arreterTirageReserve();
     expect(demarrerTirageReserve()).toBe(true);
   });
-  it("arrêtée, aucun tour ne part", async () => {
-    const tirer = vi.fn();
+  it("démarrée : 2 minuteries ; arrêtée : 0 ; délais attendus", () => {
+    expect(INTERVALLE_RESERVE_MS).toBe(10 * 60_000);
+    expect(DEPART_RESERVE_MS).toBe(2 * 60_000);
+    expect(vi.getTimerCount()).toBe(0);
     expect(demarrerTirageReserve()).toBe(true);
+    expect(vi.getTimerCount()).toBe(2);
     arreterTirageReserve();
-    await vi.advanceTimersByTimeAsync(60 * 60_000);
-    expect(tirer).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

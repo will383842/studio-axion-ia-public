@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { CLE_TIRAGE_VALIDE, ID_ELEMENT_VALIDE } from "@/domaine/tutoriel-reserve";
-import { tirerSuivantReserve } from "@/services/tutoriel-reserve-tirage";
 import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 
 /**
@@ -45,6 +44,8 @@ export async function POST(requete: NextRequest) {
     if (jour !== undefined && (typeof jour !== "string" || !JOUR.test(jour) || Number.isNaN(Date.parse(`${jour}T00:00:00Z`)) || new Date(`${jour}T00:00:00Z`).toISOString().slice(0, 10) !== jour)) return refus("jour doit être AAAA-MM-JJ.");
     if (repere !== undefined && (typeof repere !== "string" || !REPERE.test(repere))) return refus("repere.");
 
+    // Import tardif : ce module est lourd, la garde (jeton) doit répondre sans le charger.
+    const { tirerSuivantReserve } = await import("@/services/tutoriel-reserve-tirage");
     const issue = await tirerSuivantReserve({ declencheur: "usine", cle: PREFIXE_CLE + cle, ...(typeof reserveTutorielId === "string" ? { elementId: reserveTutorielId } : {}) });
     switch (issue.etat) {
       case "pris":
@@ -52,7 +53,7 @@ export async function POST(requete: NextRequest) {
       case "attente":
         return reponseJson(200, { etat: "attente", raison: issue.raison });
       case "echec":
-        // Rejeu d'un tirage déjà tenté puis échoué : rien n'est repris sous cette clé (une autre clé fera un autre essai).
+        // Tirage échoué : au premier appel (le lancement a échoué) comme au rejeu de la même clé. Rien n'est repris sous cette clé (une autre clé fera un autre essai).
         return reponseJson(200, { etat: "echec", elementId: issue.elementId, retourEnReserve: issue.retourEnReserve });
       default:
         return reponseJson(200, { etat: issue.etat });
