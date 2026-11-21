@@ -142,7 +142,7 @@ describe("stockage", () => {
     expect(a.titre).toHaveLength(80);
     await ajouterElementReserve({ ...base, titre: "autre" });
     await ajouterElementReserve({ ...base, id: "res-ghijkl" });
-    expect((await listerReserve()).map((e) => [e.id, e.titre.length])).toEqual([["res-abcdef", 80], ["res-ghijkl", 100 > 80 ? 80 : 0]]);
+    expect((await listerReserve()).map((e) => [e.id, e.titre.length])).toEqual([["res-abcdef", 80], ["res-ghijkl", 80]]);
     expect(magasin.get("tutoriel.reserve.index")).toEqual(["res-abcdef", "res-ghijkl"]);
   });
   it("identifiant invalide refusé", async () => {

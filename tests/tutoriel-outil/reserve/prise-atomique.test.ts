@@ -15,24 +15,48 @@ vi.mock("@/services/_commun", async (importOriginal) => {
   };
 });
 
+// Simulation de la base partagée entre machines : quand `baseCommune` est actif, `sousVerrouCreditsPartage` relit la base
+// (copie de la machine := base) avant `f`, et la republie après, comme le fait Postgres (relire(COLLECTIONS_ARGENT)).
+let baseCommune: Map<string, unknown> | null = null;
+let relectures = 0;
+vi.mock("@/donnees/memoire", async (importOriginal) => {
+  const reel = await importOriginal<typeof import("@/donnees/memoire")>();
+  return {
+    ...reel,
+    sousVerrouCreditsPartage: async <T,>(f: () => Promise<T>): Promise<T> => {
+      if (!baseCommune) return f();
+      relectures += 1;
+      magasin.clear();
+      for (const [k, v] of baseCommune) magasin.set(k, structuredClone(v));
+      try {
+        return await f();
+      } finally {
+        baseCommune = new Map([...magasin].map(([k, v]) => [k, structuredClone(v)]));
+      }
+    },
+  };
+});
+
 import { CLE_BAIL_TIRAGE } from "@/domaine/tutoriel-reserve";
 import { prendreBail, rendreBail } from "@/donnees/memoire";
-import { ajouterElementReserve, historiqueTiragesReserve, lireElementReserve, lireTirageReserve, noterVideoDuTirage, prendreSuivantReserve } from "@/services/tutoriel-reserve";
+import { ajouterElementReserve, changerEtatReserve, historiqueTiragesReserve, lireElementReserve, lireTirageReserve, noterVideoDuTirage, prendreSuivantReserve } from "@/services/tutoriel-reserve";
 
 const nouveau = (id: string) => ({ id, titre: id, source: { type: "idee", phrase: "p" } as const, fin: "aucune" as const, ajouteLe: "2026-11-01T00:00:00.000Z", ajoutePar: "fondateur" as const });
 
 beforeEach(async () => {
   magasin.clear();
   echecEcriture = null;
+  baseCommune = null;
+  relectures = 0;
   await rendreBail(CLE_BAIL_TIRAGE, "autre-titulaire");
 });
 
 describe("prendreSuivantReserve", () => {
-  it("20 prises simultanées, clés différentes, un seul élément : 1 prise et 19 null", async () => {
+  it("20 prises simultanées, clés différentes, un seul élément : 1 prise et 19 deja_en_cours", async () => {
     await ajouterElementReserve(nouveau("res-unique1"));
     const r = await Promise.all(Array.from({ length: 20 }, (_, i) => prendreSuivantReserve({ cle: `essai-${String(i).padStart(3, "0")}-xx`, declencheur: "usine" })));
-    expect(r.filter((x) => x !== null && x !== "bail_occupe")).toHaveLength(1);
-    expect(r.filter((x) => x === null)).toHaveLength(19);
+    expect(r.filter((x) => x !== null && typeof x === "object")).toHaveLength(1);
+    expect(r.filter((x) => x === "deja_en_cours")).toHaveLength(19);
     expect((await lireElementReserve("res-unique1"))?.etat).toBe("pris");
     expect(await historiqueTiragesReserve()).toHaveLength(1);
   });
@@ -41,9 +65,11 @@ describe("prendreSuivantReserve", () => {
     for (const id of ["res-aaaaaa", "res-bbbbbb", "res-cccccc"]) await ajouterElementReserve(nouveau(id));
     const a = await prendreSuivantReserve({ cle: "cle-numero-1", declencheur: "rythme" });
     expect(a).toMatchObject({ deja: false, element: { id: "res-aaaaaa", etat: "pris", prise: { cle: "cle-numero-1", declencheur: "rythme" } } });
+    await changerEtatReserve("res-aaaaaa", "fait"); // un seul « pris » à la fois (MAX_EN_COURS)
     const c = await prendreSuivantReserve({ cle: "cle-numero-2", declencheur: "usine", elementId: "res-cccccc" });
     expect(c).toMatchObject({ element: { id: "res-cccccc" } });
-    expect(await prendreSuivantReserve({ cle: "cle-numero-3", declencheur: "usine", elementId: "res-aaaaaa" })).toBeNull(); // déjà pris
+    await changerEtatReserve("res-cccccc", "fait");
+    expect(await prendreSuivantReserve({ cle: "cle-numero-3", declencheur: "usine", elementId: "res-aaaaaa" })).toBeNull(); // déjà fait
     expect(await prendreSuivantReserve({ cle: "cle-numero-4", declencheur: "usine" })).toMatchObject({ element: { id: "res-bbbbbb" } });
   });
 
@@ -53,7 +79,8 @@ describe("prendreSuivantReserve", () => {
     const a = await prendreSuivantReserve({ cle: "cle-rejeu-01", declencheur: "essai" });
     const b = await prendreSuivantReserve({ cle: "cle-rejeu-01", declencheur: "essai" });
     expect(b).toMatchObject({ deja: true, element: { id: "res-aaaaaa" } });
-    expect(a && a !== "bail_occupe" && b && b !== "bail_occupe" && b.element.prise).toEqual(a && a !== "bail_occupe" ? a.element.prise : null);
+    const prise = (x: unknown) => (x && typeof x === "object" ? (x as { element: { prise?: unknown } }).element.prise : null);
+    expect(prise(b)).toEqual(prise(a));
     expect((await lireElementReserve("res-bbbbbb"))?.etat).toBe("en_reserve");
     expect(await historiqueTiragesReserve()).toHaveLength(1);
   });
@@ -89,5 +116,90 @@ describe("prendreSuivantReserve", () => {
     await noterVideoDuTirage("cle-video-01", "res-aaaaaa", "vid-1");
     expect((await lireTirageReserve("cle-video-01"))?.videoId).toBe("vid-1");
     expect((await lireElementReserve("res-aaaaaa"))?.prise?.videoId).toBe("vid-1");
+  });
+
+  it("un élément déjà pris + prise avec une autre clé : deja_en_cours, rien d'écrit", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    await ajouterElementReserve(nouveau("res-bbbbbb"));
+    await prendreSuivantReserve({ cle: "cle-premiere-1", declencheur: "usine" });
+    const avant = structuredClone([...magasin]);
+    expect(await prendreSuivantReserve({ cle: "cle-seconde-02", declencheur: "usine" })).toBe("deja_en_cours");
+    expect(await prendreSuivantReserve({ cle: "cle-seconde-03", declencheur: "usine", elementId: "res-bbbbbb" })).toBe("deja_en_cours");
+    expect([...magasin]).toEqual(avant);
+    expect(await lireTirageReserve("cle-seconde-02")).toBeNull();
+    // le rejeu de la première clé reste servi
+    expect(await prendreSuivantReserve({ cle: "cle-premiere-1", declencheur: "usine" })).toMatchObject({ deja: true });
+  });
+
+  it("deux éléments, deux clés en parallèle : une seule prise", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    await ajouterElementReserve(nouveau("res-bbbbbb"));
+    const r = await Promise.all([prendreSuivantReserve({ cle: "cle-parallele-a", declencheur: "usine" }), prendreSuivantReserve({ cle: "cle-parallele-b", declencheur: "rythme" })]);
+    expect(r.filter((x) => x !== null && typeof x === "object")).toHaveLength(1);
+    expect(r.filter((x) => x === "deja_en_cours")).toHaveLength(1);
+    expect((await lireElementReserve("res-bbbbbb"))?.etat).toBe("en_reserve");
+    expect(await historiqueTiragesReserve()).toHaveLength(1);
+  });
+
+  it("seconde machine à copie périmée : la base est relue sous verrou, ni l'élément ni la clé ne sont repris", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    await ajouterElementReserve(nouveau("res-bbbbbb"));
+    const copiePerimee = structuredClone([...magasin]); // ce que la machine B a chargé au démarrage
+    baseCommune = new Map(structuredClone([...magasin]));
+    // Machine A prend l'élément (la base partagée est mise à jour).
+    expect(await prendreSuivantReserve({ cle: "cle-machine-a1", declencheur: "usine" })).toMatchObject({ deja: false, element: { id: "res-aaaaaa" } });
+    // Machine B : sa copie mémoire est celle d'avant (élément encore « en_reserve », pas de fiche de tirage).
+    magasin.clear();
+    for (const [k, v] of copiePerimee) magasin.set(k, v);
+    expect(magasin.has("tutoriel.reserve.tirage.cle-machine-a1")).toBe(false);
+    const avantRelectures = relectures;
+    // Autre clé : sans relecture, B reprendrait res-aaaaaa ; avec, elle voit l'élément pris et s'arrête.
+    expect(await prendreSuivantReserve({ cle: "cle-machine-b1", declencheur: "rythme" })).toBe("deja_en_cours");
+    expect(relectures).toBe(avantRelectures + 1);
+    // Même clé que A : rejeu, sans nouvelle prise.
+    magasin.clear();
+    for (const [k, v] of copiePerimee) magasin.set(k, v);
+    expect(await prendreSuivantReserve({ cle: "cle-machine-a1", declencheur: "usine" })).toMatchObject({ deja: true, element: { id: "res-aaaaaa" } });
+    expect(await historiqueTiragesReserve()).toHaveLength(1);
+    expect((await lireElementReserve("res-bbbbbb"))?.etat).toBe("en_reserve");
+  });
+
+  it("un échec de rendreBail après des écritures réussies ne fait pas lever la prise", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    const rendre = vi.fn(async (cle: string, titulaire: string) => {
+      await rendreBail(cle, titulaire); // le bail est bien libéré, mais l'appel échoue côté réponse
+      throw new Error("base injoignable");
+    });
+    expect(await prendreSuivantReserve({ cle: "cle-rendu-001", declencheur: "usine" }, { rendreBail: rendre })).toMatchObject({ deja: false });
+    expect(rendre).toHaveBeenCalledTimes(1);
+  });
+
+  it("noterVideoDuTirage n'écrit pas sur l'élément si sa prise est d'une autre clé", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    await prendreSuivantReserve({ cle: "cle-prise-vraie", declencheur: "usine" });
+    await noterVideoDuTirage("cle-autre-prise", "res-aaaaaa", "vid-intrus");
+    expect((await lireElementReserve("res-aaaaaa"))?.prise?.videoId).toBeUndefined();
+    expect(await lireTirageReserve("cle-autre-prise")).toBeNull();
+  });
+
+  it("rejeu d'une clé dont l'élément a été repris sous une autre clé : pas deja true", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    await prendreSuivantReserve({ cle: "cle-ancienne-1", declencheur: "usine" });
+    await changerEtatReserve("res-aaaaaa", "en_reserve", { patch: { prise: undefined } }); // rendu à la réserve
+    expect(await prendreSuivantReserve({ cle: "cle-ancienne-1", declencheur: "usine" })).toBeNull();
+    expect((await lireElementReserve("res-aaaaaa"))?.etat).toBe("en_reserve");
+    await prendreSuivantReserve({ cle: "cle-nouvelle-2", declencheur: "rythme" }); // repris sous une autre clé
+    expect(await prendreSuivantReserve({ cle: "cle-ancienne-1", declencheur: "usine" })).toBe("deja_en_cours");
+  });
+
+  it("historique : les lignes corrompues sont écartées", async () => {
+    magasin.set("tutoriel.reserve.historique", [
+      { le: "2026-11-01T00:00:00.000Z", declencheur: "usine", elementId: "res-aaaaaa" },
+      { le: "pas une date", declencheur: "usine", elementId: "res-aaaaaa" },
+      { le: 12, declencheur: "usine", elementId: "res-aaaaaa" },
+      { le: "2026-11-02T00:00:00.000Z", declencheur: "inconnu", elementId: "res-aaaaaa" },
+      null,
+    ]);
+    expect(await historiqueTiragesReserve()).toEqual([{ le: "2026-11-01T00:00:00.000Z", declencheur: "usine", elementId: "res-aaaaaa" }]);
   });
 });

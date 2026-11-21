@@ -5,12 +5,13 @@
  */
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { prendreBail, rendreBail } from "@/donnees/memoire";
+import { prendreBail, rendreBail, sousVerrouCreditsPartage } from "@/donnees/memoire";
 import {
   CLE_BAIL_TIRAGE,
   CLE_TIRAGE_VALIDE,
   HISTORIQUE_MAX,
   ID_ELEMENT_VALIDE,
+  MAX_EN_COURS,
   PARAM_RESERVE_HISTORIQUE,
   PARAM_RESERVE_INDEX,
   PARAM_RESERVE_REGLAGES,
@@ -76,7 +77,12 @@ export async function lireTirageReserve(cle: string): Promise<TirageReserve | nu
 
 export async function historiqueTiragesReserve(): Promise<LigneHistorique[]> {
   const v = await lireParametre<unknown>(PARAM_RESERVE_HISTORIQUE, []);
-  return Array.isArray(v) ? (v as LigneHistorique[]) : [];
+  if (!Array.isArray(v)) return [];
+  // Lignes corrompues écartées : `le` lisible par Date.parse, `declencheur` connu (sinon tirageDu/cleTirageRythme lèvent).
+  return v.filter(
+    (l): l is LigneHistorique =>
+      !!l && typeof l === "object" && typeof l.le === "string" && !Number.isNaN(Date.parse(l.le)) && (l.declencheur === "rythme" || l.declencheur === "usine" || l.declencheur === "essai"),
+  );
 }
 
 // ─── Écriture ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -128,61 +134,82 @@ export async function changerEtatReserve(
   });
 }
 
-/** PRISE ATOMIQUE (sousVerrou + bail CLE_BAIL_TIRAGE 60 s). Rejeu de `cle` → { element, deja: true }. Bail occupé → "bail_occupe". Rien à prendre → null. */
+/**
+ * PRISE ATOMIQUE. Ordre des verrous (le même que `credits.ts` : crédits PUIS boucle, jamais l'inverse, sinon interblocage) :
+ * 1. `sousVerrouCreditsPartage` : avec Postgres, verrou consultatif partagé entre machines ET relecture de `parametres` dans
+ *    la base (la copie mémoire chargée au démarrage peut être périmée) ; sans base, simple appel (un seul processus) ;
+ * 2. `sousVerrou` : file d'attente du processus (c'est elle qui garantit l'exclusion sans base) ;
+ * 3. bail CLE_BAIL_TIRAGE (60 s), rendu dans un `finally`.
+ * Sous ces trois verrous : rejeu de `cle` → { element, deja: true } si l'élément porte encore cette clé (sinon "deja_en_cours" s'il y a un élément pris, null sinon) ; sinon, si l'index compte déjà MAX_EN_COURS éléments à
+ * l'état `pris` → "deja_en_cours" (rien n'est écrit) ; sinon choix FIFO (ou `elementId`) et écritures (élément, tirage,
+ * historique). Bail occupé → "bail_occupe". Réserve vide, ou élément demandé indisponible → null.
+ */
 export async function prendreSuivantReserve(
   o: { cle: string; declencheur: DeclencheurTirage; elementId?: string; maintenant?: string },
   dep?: { prendreBail?: typeof prendreBail; rendreBail?: typeof rendreBail },
-): Promise<{ element: ElementReserve; deja: boolean } | null | "bail_occupe"> {
+): Promise<{ element: ElementReserve; deja: boolean } | null | "bail_occupe" | "deja_en_cours"> {
   if (!CLE_TIRAGE_VALIDE.test(o.cle)) throw new ErreurStudio("RESERVE_CLE", "La clé de ce tirage n'est pas valide.");
   const prendre = dep?.prendreBail ?? prendreBail;
   const rendre = dep?.rendreBail ?? rendreBail;
-  return sousVerrou(async () => {
-    const titulaire = `reserve-${randomUUID()}`;
-    if (!(await prendre(CLE_BAIL_TIRAGE, titulaire, DUREE_BAIL_MS))) return "bail_occupe";
-    try {
-      // Relecture SOUS verrou : rejeu d'abord, puis choix de l'élément.
-      const deja = await lireTirageReserve(o.cle);
-      if (deja) {
-        const element = await lireElementReserve(deja.elementId);
-        return element ? { element, deja: true } : null;
-      }
-      let candidat: ElementReserve | null;
-      if (o.elementId !== undefined) {
-        const demande = await lireElementReserve(o.elementId);
-        candidat = demande && demande.etat === "en_reserve" ? demande : null;
-      } else {
+  return sousVerrouCreditsPartage(() =>
+    sousVerrou(async () => {
+      const titulaire = `reserve-${randomUUID()}`;
+      if (!(await prendre(CLE_BAIL_TIRAGE, titulaire, DUREE_BAIL_MS))) return "bail_occupe";
+      try {
+        // Relecture SOUS verrou : rejeu d'abord, puis plafond d'éléments en cours, puis choix de l'élément.
         const index = await lireIndex();
         const elements = new Map<string, ElementReserve>();
         for (const id of index) {
           const e = await lireElementReserve(id);
           if (e) elements.set(id, e);
         }
-        candidat = suivantFifo(index, elements);
+        let enCours = 0;
+        for (const e of elements.values()) if (e.etat === "pris") enCours += 1;
+        const deja = await lireTirageReserve(o.cle);
+        if (deja) {
+          // Rejeu : même prise seulement si l'élément porte encore cette clé ; sinon il a été repris ou rendu depuis.
+          const element = await lireElementReserve(deja.elementId);
+          if (element?.prise?.cle === o.cle) return { element, deja: true };
+          return enCours >= MAX_EN_COURS ? "deja_en_cours" : null;
+        }
+        if (enCours >= MAX_EN_COURS) return "deja_en_cours";
+        let candidat: ElementReserve | null;
+        if (o.elementId !== undefined) {
+          const demande = elements.get(o.elementId) ?? (await lireElementReserve(o.elementId));
+          candidat = demande && demande.etat === "en_reserve" ? demande : null;
+        } else {
+          candidat = suivantFifo(index, elements);
+        }
+        if (!candidat) return null;
+        const le = o.maintenant ?? maintenant();
+        const pris = transition(candidat, "pris", le);
+        if (!pris) return null;
+        const element: ElementReserve = { ...pris, prise: { cle: o.cle, declencheur: o.declencheur, le } };
+        // Ordre : élément pris, fiche de tirage, historique.
+        await ecrireParametre(cleElementReserve(element.id), element);
+        const tirage: TirageReserve = { cle: o.cle, declencheur: o.declencheur, le, elementId: element.id };
+        await ecrireParametre(cleTirageReserve(o.cle), tirage);
+        const historique = await historiqueTiragesReserve();
+        await ecrireParametre(PARAM_RESERVE_HISTORIQUE, [...historique, { le, declencheur: o.declencheur, elementId: element.id }].slice(-HISTORIQUE_MAX));
+        return { element, deja: false };
+      } finally {
+        // Un échec du rendu du bail (après des écritures réussies) ne doit pas masquer le résultat : le bail expire seul au bout de 60 s.
+        try {
+          await rendre(CLE_BAIL_TIRAGE, titulaire);
+        } catch {
+          /* bail expiré tout seul */
+        }
       }
-      if (!candidat) return null;
-      const le = o.maintenant ?? maintenant();
-      const pris = transition(candidat, "pris", le);
-      if (!pris) return null;
-      const element: ElementReserve = { ...pris, prise: { cle: o.cle, declencheur: o.declencheur, le } };
-      // Ordre : élément pris, fiche de tirage, historique.
-      await ecrireParametre(cleElementReserve(element.id), element);
-      const tirage: TirageReserve = { cle: o.cle, declencheur: o.declencheur, le, elementId: element.id };
-      await ecrireParametre(cleTirageReserve(o.cle), tirage);
-      const historique = await historiqueTiragesReserve();
-      await ecrireParametre(PARAM_RESERVE_HISTORIQUE, [...historique, { le, declencheur: o.declencheur, elementId: element.id }].slice(-HISTORIQUE_MAX));
-      return { element, deja: false };
-    } finally {
-      await rendre(CLE_BAIL_TIRAGE, titulaire);
-    }
-  });
+    }),
+  );
 }
 
-/** Écrit le `videoId` sur la fiche de tirage ET sur `element.prise`. */
+/** Écrit le `videoId` sur la fiche de tirage ET sur `element.prise` (seulement si cette prise est bien celle de `cle`). */
 export async function noterVideoDuTirage(cle: string, elementId: string, videoId: string): Promise<void> {
   await sousVerrou(async () => {
     const tirage = await lireTirageReserve(cle);
     if (tirage) await ecrireParametre(cleTirageReserve(cle), { ...tirage, videoId });
     const e = await lireElementReserve(elementId);
-    if (e?.prise) await ecrireParametre(cleElementReserve(elementId), { ...e, prise: { ...e.prise, videoId } });
+    if (e?.prise?.cle === cle) await ecrireParametre(cleElementReserve(elementId), { ...e, prise: { ...e.prise, videoId } });
   });
 }
