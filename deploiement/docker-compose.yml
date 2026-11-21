@@ -317,32 +317,42 @@ services:
     cpus: 2
     cpu_shares: 256
 
-  # Poste de capture figé du tutoriel d'outil (T-EXT-51b) : Chromium + FFmpeg, SANS RÉSEAU. LIVRÉ INACTIF : profil
+  # Poste de capture figé du tutoriel d'outil (T-EXT-51b/51c) : Chromium + FFmpeg, SANS RÉSEAU. LIVRÉ INACTIF : profil
   # « capture » = NI construit NI démarré par `docker compose up`/`build`, ni par mettre-a-jour.sh (qui ne le nomme pas).
   # Obligatoire avant d'accepter un dossier (.zip) de client (T-EXT-41, T-EXT-29). Déclenchement À LA MAIN seulement,
-  # depuis deploiement/ ; n'utiliser que cette commande, JAMAIS `--entrypoint` (il supprimerait le `timeout`).
+  # depuis deploiement/ ; n'utiliser que ces commandes : JAMAIS `--entrypoint`, `-v`/`--volume`, `-e`/`--env` (ils
+  # contournent le `timeout`, les montages fermés et le choix du Chromium). Le point d'entrée est lancer.sh.
   #
   # PRÉPARATION CÔTÉ SERVEUR (une fois, AVANT le premier lancement ; sinon docker crée les dossiers en root:root et la
   # capture échoue en EACCES). Les dossiers sont HORS du dépôt cloné (fichiers de clients : jamais dans le contexte de
   # construction ni dans git) ; UID 1001 = `pwuser`, l'utilisateur de l'image (vérifié : `docker run --rm --entrypoint id
   # <image> pwuser` donne uid=1001) :
   #   sudo mkdir -p /opt/studio-axion-ia/capture-entree /opt/studio-axion-ia/capture-sortie
-  #   sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie     # inscriptible par l'uid du conteneur
   #   (capture-entree : scenario.json + calage.json, lisibles par 1001, montés en lecture seule)
-  # Autres emplacements : STUDIO_CAPTURE_ENTREE et STUDIO_CAPTURE_SORTIE (mêmes droits). Variables NON obligatoires
-  # (`:?` casserait l'analyse du compose entier, donc `up` en production) : les défauts sont hors dépôt.
+  # /sortie BORNÉE (obligatoire : lancer.sh REFUSE de démarrer, code 64, si /sortie n'est pas un point de montage, et,
+  # code 65, si sa taille totale dépasse 4 Gio ; le disque du serveur est partagé avec Postgres et les médias). Procédure :
+  # un système de fichiers en boucle DÉDIÉ de 3 Gio, ni exécutable ni à droits spéciaux, monté sur capture-sortie :
+  #   sudo fallocate -l 3G /opt/studio-axion-ia/capture-sortie.img && sudo mkfs.ext4 -q -m 0 /opt/studio-axion-ia/capture-sortie.img
+  #   echo '/opt/studio-axion-ia/capture-sortie.img /opt/studio-axion-ia/capture-sortie ext4 loop,nodev,nosuid,noexec 0 0' | sudo tee -a /etc/fstab
+  #   sudo mount /opt/studio-axion-ia/capture-sortie && sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie
+  # (ce fichier .img occupe 3 Gio de disque, pas de mémoire vive). Autres emplacements : STUDIO_CAPTURE_ENTREE et
+  # STUDIO_CAPTURE_SORTIE (mêmes droits, même borne). Variables NON obligatoires (`:?` casserait l'analyse du compose
+  # entier, donc `up` en production) : les défauts sont hors dépôt.
   #   docker compose --profile capture build studio-capture
   #   docker compose --profile capture run --rm studio-capture \
   #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json \
   #     --calage /entree/calage.json --sortie /sortie
-  # (sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4). Le film sort dans /sortie ; l'envoi au
-  # stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens symboliques, fichiers énormes : lstat,
-  # O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
-  # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h). Rien n'est inscriptible hors
-  # /sortie et un tmpfs /tmp borné (Chromium) ; durée : 15 min (`timeout` dans l'ENTRYPOINT) ; aucun secret, aucun port.
-  # TAILLE DE /sortie : non bornée par ce service (bind sur le disque du serveur, partagé avec Postgres et les médias).
-  # Attendu avant d'allumer tutoriel.entreeZip : dossier de sortie sur un volume dédié (système de fichiers en boucle,
-  # ou quota XFS/projet) de 2 à 4 Go, ou contrôle de l'espace libre avant et après chaque lancement.
+  # (mode « capturer », par défaut ; sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4).
+  # DÉCOMPRESSION d'un .zip client : dans CE conteneur (même service, même durcissement), jamais sur l'hôte. Le zip est
+  # posé dans capture-entree (monté en lecture seule sur /entree), la sortie va dans /sortie (bornée) ; les options
+  # exactes sont celles de outils/maquettes-tableaux-de-bord/capture/decompresser.mts (lot « zip ») :
+  #   docker compose --profile capture run --rm studio-capture decompresser /entree/client.zip /sortie
+  # Le film sort dans /sortie ; l'envoi au stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens
+  # symboliques, fichiers énormes : lstat, O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
+  # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h : uniquement le dossier décompressé
+  # et contrôlé). Inscriptible : /sortie (bornée), un tmpfs /tmp de 256 Mo et un tmpfs /dev/shm de 512 Mo (Chromium),
+  # tous deux noexec,nosuid,nodev ; rien d'autre. Durée : 15 min (capturer) ou 5 min (decompresser), `timeout` de
+  # lancer.sh ; aucun secret, aucun port.
   # ISOLATION : le bac à sable de Chromium est DÉSACTIVÉ (Playwright 1.63 passe --no-sandbox si chromiumSandbox n'est
   # pas true) : SEUL ce conteneur isole Chromium. Pour cela, NE JAMAIS ajouter : privileged, cap_add, devices, ipc/pid/
   # userns_mode host, seccomp:unconfined, apparmor:unconfined, systempaths=unconfined, montage de docker.sock, de /var/run,
@@ -373,9 +383,9 @@ services:
           # CPU bornée (comme studio-rendu/studio-aligneur) : 2 cœurs au plus ; ici et non `cpus:` (compose refuse les deux).
           cpus: "2"
     cpu_shares: 256
-    shm_size: 512m
     tmpfs:
       - /tmp:size=256m,mode=1777,noexec,nosuid,nodev
+      - /dev/shm:size=512m,mode=1777,noexec,nosuid,nodev
     volumes:
       - ${STUDIO_CAPTURE_MAQUETTE:-../outils/maquettes-tableaux-de-bord/03-accueil-24h}:/app/outils/maquettes-tableaux-de-bord/maquette:ro
       - ../outils/maquettes-tableaux-de-bord/charte:/app/outils/maquettes-tableaux-de-bord/charte:ro

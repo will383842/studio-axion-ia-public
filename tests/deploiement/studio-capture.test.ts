@@ -34,6 +34,7 @@ const compose = lire("deploiement/docker-compose.yml");
 const service = bloc(compose, "studio-capture");
 const dockerfile = lire("deploiement/studio-capture/Dockerfile");
 const dockerfileCode = sansCommentaires(dockerfile);
+const lancer = sansCommentaires(lire("deploiement/studio-capture/lancer.sh"));
 
 describe("T-EXT-51b · service studio-capture du compose", () => {
   it("existe", () => {
@@ -51,7 +52,7 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
   });
   it("système de fichiers en lecture seule, /sortie seul volume inscriptible, maquette en lecture seule", () => {
     expect(service).toMatch(/^\s+read_only: true\s*$/m);
-    const volumes = service.split("\n").filter((l) => /^\s+- .*:\/.*/.test(l) && !/^\s+- \/tmp:/.test(l));
+    const volumes = service.split("\n").filter((l) => /^\s+- .*:\/.*/.test(l) && !/^\s+- \/(tmp|dev\/shm):/.test(l));
     expect(volumes.length).toBeGreaterThanOrEqual(3);
     const inscriptibles = volumes.filter((l) => !/:ro\s*$/.test(l));
     expect(inscriptibles).toHaveLength(1);
@@ -59,12 +60,14 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
     expect(volumes.some((l) => /:\/app\/outils\/maquettes-tableaux-de-bord\/maquette:ro\s*$/.test(l))).toBe(true);
     expect(volumes.some((l) => /:\/entree:ro\s*$/.test(l))).toBe(true);
   });
-  it("tmpfs minimal et borné", () => {
-    const tmpfs = service.split("\n").filter((l) => /^\s+- \/\w+:.*size=/.test(l));
-    expect(tmpfs).toHaveLength(1);
-    const m = /size=(\d+)m/.exec(tmpfs[0]);
-    expect(m).not.toBeNull();
-    expect(Number(m![1])).toBeLessThanOrEqual(512);
+  it("tmpfs minimal et borné : /tmp et /dev/shm seulement, chacun <= 512 Mo", () => {
+    const tmpfs = service.split("\n").filter((l) => /^\s+- \/[\w/]+:.*size=/.test(l));
+    expect(tmpfs.map((l) => l.trim().split(":")[0])).toEqual(["- /tmp", "- /dev/shm"]);
+    for (const l of tmpfs) {
+      const m = /size=(\d+)m/.exec(l);
+      expect(m).not.toBeNull();
+      expect(Number(m![1])).toBeLessThanOrEqual(512);
+    }
   });
   it("mémoire 2 Go, processus bornés, utilisateur non root, aucune capacité, pas de nouveaux privilèges", () => {
     expect(service).toMatch(/^\s+limits:\s*\n\s+memory: 2g\s*$/m);
@@ -75,6 +78,7 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
     expect(service).toMatch(/^\s+cap_drop: \[ALL\]\s*$/m);
     expect(service).toMatch(/^\s+- no-new-privileges:true\s*$/m);
     expect(service).not.toMatch(/privileged|cap_add|pid: host|network_mode: host/);
+    expect(Number(/^\s+pids: (\d+)\s*$/m.exec(service)![1])).toBeLessThanOrEqual(1024);
   });
   it("un SEUL uid : celui de `user:` du compose = celui de l'utilisateur de l'image (pwuser)", () => {
     const u = /^\s+user: "?(\d+):(\d+)"?\s*$/m.exec(service);
@@ -138,7 +142,7 @@ describe("T-EXT-51b · Dockerfile de studio-capture", () => {
     const v = /'@playwright\/test':\s+specifier: [^\n]+\s+version: (\d+\.\d+\.\d+)/.exec(lock)?.[1];
     expect(v).toBeDefined();
     expect(from.some((l) => l.includes(`mcr.microsoft.com/playwright:v${v}-noble@sha256:`))).toBe(true);
-    expect(dockerfileCode).toContain(`@playwright/test@${v}`);
+    expect(JSON.parse(lire("deploiement/studio-capture/package.json")).dependencies["@playwright/test"]).toBe(v);
   });
   it("même FFmpeg statique (même empreinte) que studio-rendu", () => {
     const f = (t: string) => /^FROM (mwader\/static-ffmpeg:[^\s]+)/m.exec(t)?.[1];
@@ -152,7 +156,8 @@ describe("T-EXT-51b · Dockerfile de studio-capture", () => {
     expect(users[users.length - 1]).not.toMatch(/^USER\s+(root|0)\b/);
     expect(dockerfileCode).toMatch(/^ENV .*\bCAPTURE_CONTENEUR=true\b/m);
     expect(dockerfileCode).toContain("manrope-latin.woff2");
-    expect(dockerfileCode).toMatch(/^ENTRYPOINT \["timeout", "--kill-after=\d+", "900",/m);
+    expect(dockerfileCode).toMatch(/^ENTRYPOINT \["\/app\/lancer\.sh"\]\s*$/m);
+    expect(lancer).toMatch(/exec timeout --kill-after=30 900 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/capturer\.mts "\$@"/);
     expect(dockerfileCode).toMatch(/^RUN .*verifier-poste\.mts/m);
     // la vérification vient avant le dernier USER/ENTRYPOINT et rien n'est lancé après
     expect(dockerfileCode.indexOf("verifier-poste.mts")).toBeLessThan(dockerfileCode.indexOf("ENTRYPOINT"));
@@ -162,6 +167,9 @@ describe("T-EXT-51b · Dockerfile de studio-capture", () => {
     const sources = copies.flatMap((l) => l.replace(/^COPY\s+(--\S+\s+)*/, "").split(/\s+/).slice(0, -1));
     expect(sources.sort()).toEqual(
       [
+        "deploiement/studio-capture/lancer.sh",
+        "deploiement/studio-capture/package-lock.json",
+        "deploiement/studio-capture/package.json",
         "outils/maquettes-tableaux-de-bord/capture",
         "outils/maquettes-tableaux-de-bord/poste",
         "src/app/polices/manrope-latin.woff2",
@@ -184,5 +192,192 @@ describe("T-EXT-51b · jamais construit ni démarré par la mise à jour", () =>
   });
   it("aucun autre service du compose n'est dans le profil capture", () => {
     expect(compose.match(/profiles: \[capture\]/g)).toHaveLength(1);
+  });
+});
+
+/* ------------------------------------------------------------------------------------------------------------------
+ * T-EXT-51c · lot « conteneur » : une réserve des audits de #1574 = au moins un test.
+ * ---------------------------------------------------------------------------------------------------------------- */
+
+/** Les lignes `- ...` du sous-bloc `cle:` du service (liste YAML à tirets), commentaires déjà retirés. */
+function liste(cle: string): string[] {
+  const lignes = service.split("\n");
+  const i = lignes.findIndex((l) => new RegExp(`^\\s+${cle}:\\s*$`).test(l));
+  if (i < 0) return [];
+  const indent = /^(\s*)/.exec(lignes[i])![1].length;
+  const out: string[] = [];
+  for (let k = i + 1; k < lignes.length; k++) {
+    const l = lignes[k];
+    if (l.trim() === "") continue;
+    if (/^(\s*)/.exec(l)![1].length <= indent) break;
+    out.push(l.trim());
+  }
+  return out;
+}
+
+describe("T-EXT-51c · réserve 1 : /sortie bornée", () => {
+  it("lancer.sh refuse de démarrer (codes dédiés, message français) si /sortie n'est pas un point de montage ou dépasse 4 Gio", () => {
+    expect(lancer).toMatch(/grep -q ' \/sortie ' \/proc\/self\/mountinfo/);
+    expect(lancer).toMatch(/exit 64/);
+    expect(lancer).toMatch(/df -B1 --output=size \/sortie/);
+    expect(lancer).toMatch(/MAX_OCTETS=4294967296\b/);
+    expect(lancer).toMatch(/-gt "\$MAX_OCTETS"/);
+    expect(lancer).toMatch(/exit 65/);
+    expect(lancer).toMatch(/refus de démarrer/);
+    // la vérification vient AVANT tout lancement
+    expect(lancer.indexOf("mountinfo")).toBeLessThan(lancer.indexOf("exec timeout"));
+    expect(lancer.indexOf("MAX_OCTETS")).toBeLessThan(lancer.indexOf("exec timeout"));
+  });
+  it("le commentaire du service documente le système de fichiers en boucle de 3 Gio (fallocate, mkfs.ext4, loop,nodev,nosuid,noexec, fstab, chown 1001)", () => {
+    for (const t of ["fallocate -l 3G", "mkfs.ext4", "loop,nodev,nosuid,noexec", "/etc/fstab", "chown 1001:1001 /opt/studio-axion-ia/capture-sortie"])
+      expect(compose).toContain(t);
+    expect(compose).not.toMatch(/TAILLE DE \/sortie : non bornée/);
+  });
+  it("aucune mémoire vive dépensée pour /sortie : pas de tmpfs sur /sortie, mémoire du service inchangée", () => {
+    expect(liste("tmpfs").join("\n")).not.toMatch(/\/sortie/);
+    expect(service).toMatch(/^\s+memory: 2g\s*$/m);
+  });
+});
+
+describe("T-EXT-51c · réserve 2 : dépendances verrouillées (npm ci)", () => {
+  const lock = JSON.parse(lire("deploiement/studio-capture/package-lock.json"));
+  const pkg = JSON.parse(lire("deploiement/studio-capture/package.json"));
+  const pnpm = lire("pnpm-lock.yaml");
+  const versionPnpm = (nom: string) =>
+    new RegExp(`'?${nom.replace("/", "\\/")}'?:\\s+specifier: [^\\n]+\\s+version: (\\d+\\.\\d+\\.\\d+)`).exec(pnpm)?.[1];
+  it("package-lock.json existe, lockfileVersion >= 3, chaque paquet a une intégrité sha512 et vient du registre npm", () => {
+    expect(lock.lockfileVersion).toBeGreaterThanOrEqual(3);
+    const paquets = Object.entries(lock.packages as Record<string, { integrity?: string; resolved?: string }>).filter(([k]) => k !== "");
+    expect(paquets.length).toBeGreaterThan(0);
+    for (const [k, v] of paquets) {
+      expect(v.integrity, k).toMatch(/^sha512-[A-Za-z0-9+/]+=*$/);
+      expect(v.resolved, k).toMatch(/^https:\/\/registry\.npmjs\.org\//);
+    }
+  });
+  it("@playwright/test et tsx : versions exactes = pnpm-lock.yaml, esbuild aligné", () => {
+    for (const nom of ["@playwright/test", "tsx"]) {
+      const v = versionPnpm(nom);
+      expect(v, nom).toBeDefined();
+      expect(pkg.dependencies[nom]).toBe(v);
+      expect(lock.packages[`node_modules/${nom}`].version).toBe(v);
+    }
+    const esb = /^  esbuild@(\d+\.\d+\.\d+):/m.exec(pnpm)?.[1];
+    expect(esb).toBeDefined();
+    expect(pkg.overrides.esbuild).toBe(esb);
+    expect(lock.packages["node_modules/esbuild"].version).toBe(esb);
+  });
+  it("le Dockerfile utilise `npm ci --ignore-scripts` après avoir copié les deux fichiers, jamais `npm install`", () => {
+    expect(dockerfileCode).toMatch(/^RUN npm ci\b[^\n]*--ignore-scripts/m);
+    expect(dockerfileCode).not.toMatch(/npm (install|i|add|update)\b/);
+    expect(dockerfileCode).not.toMatch(/\b(pnpm|yarn)\b/);
+    expect(dockerfileCode.indexOf("package-lock.json")).toBeLessThan(dockerfileCode.indexOf("npm ci"));
+    expect(dockerfileCode).toMatch(/^COPY deploiement\/studio-capture\/package\.json deploiement\/studio-capture\/package-lock\.json /m);
+  });
+  it("l'étape verifier-poste tourne SANS RÉSEAU et ne peut pas être neutralisée", () => {
+    const l = dockerfileCode.split("\n").filter((x) => /verifier-poste/.test(x));
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatch(/^RUN --network=none node_modules\/\.bin\/tsx \S*verifier-poste\.mts/);
+    expect(l[0]).not.toMatch(/\|\||;|&/);
+  });
+});
+
+describe("T-EXT-51c · réserve 3 : CI retiré de l'image", () => {
+  it("`CI` absent de tout ENV/ARG du Dockerfile et de l'environnement du service ; CAPTURE_CONTENEUR=true reste", () => {
+    for (const l of dockerfileCode.split("\n").filter((x) => /^(ENV|ARG)\s/.test(x)))
+      expect(l, l).not.toMatch(/(^|\s)CI(=|\s|$)/);
+    expect(dockerfileCode).not.toMatch(/\bCI=/);
+    expect(service).not.toMatch(/(^|\s|-)CI[=:]/m);
+    expect(service).not.toMatch(/^\s+environment:/m);
+    expect(dockerfileCode).toMatch(/^ENV .*\bCAPTURE_CONTENEUR=true\b/m);
+  });
+});
+
+describe("T-EXT-51c · réserve 4 : liste EXACTE des montages et Dockerfile durci", () => {
+  it("volumes : exactement les 4 montages attendus (sources, cibles, options)", () => {
+    expect(liste("volumes")).toEqual([
+      "- ${STUDIO_CAPTURE_MAQUETTE:-../outils/maquettes-tableaux-de-bord/03-accueil-24h}:/app/outils/maquettes-tableaux-de-bord/maquette:ro",
+      "- ../outils/maquettes-tableaux-de-bord/charte:/app/outils/maquettes-tableaux-de-bord/charte:ro",
+      "- ${STUDIO_CAPTURE_ENTREE:-/opt/studio-axion-ia/capture-entree}:/entree:ro",
+      "- ${STUDIO_CAPTURE_SORTIE:-/opt/studio-axion-ia/capture-sortie}:/sortie",
+    ]);
+  });
+  it("interdits dans le service : volumes_from, extends, ancres/fusions YAML, runtime, pids > 1024", () => {
+    expect(service).not.toMatch(/^\s*volumes_from:/m);
+    expect(service).not.toMatch(/^\s*extends:/m);
+    expect(service).not.toMatch(/<<:/);
+    expect(service).not.toMatch(/(^|\s)[&*][A-Za-z_][\w-]*/m);
+    expect(service).not.toMatch(/^\s*runtime:/m);
+    expect(Number(/^\s+pids: (\d+)\s*$/m.exec(service)![1])).toBeLessThanOrEqual(1024);
+  });
+  it("le service n'est pas défini par ancre dans le fichier (pas de `<<:` ni d'ancre dans tout le compose)", () => {
+    expect(sansCommentaires(compose)).not.toMatch(/<<:/);
+  });
+  it("tmpfs : jamais `exec`, toujours nosuid et nodev", () => {
+    const t = liste("tmpfs");
+    expect(t.length).toBeGreaterThan(0);
+    for (const l of t) {
+      expect(l).not.toMatch(/[:,]exec(,|$)/);
+      expect(l).toMatch(/[:,]noexec(,|$)/);
+      expect(l).toMatch(/[:,]nosuid(,|$)/);
+      expect(l).toMatch(/[:,]nodev(,|$)/);
+    }
+  });
+  it("aucune commande documentée avec -v/--volume/--entrypoint/-e en dehors de leur interdiction", () => {
+    const cmd = compose.split("\n").filter((l) => /^\s*#\s+docker (compose )?\S*.*(run|exec)/.test(l) || /^\s*#\s+(--|\/)/.test(l));
+    for (const l of cmd) expect(l).not.toMatch(/\s(-v|--volume|--entrypoint|-e|--env)(\s|=)/);
+    expect(compose).toMatch(/JAMAIS `--entrypoint`, `-v`\/`--volume`/);
+  });
+  it("Dockerfile : pas d'ADD, pas de playwright install, pas de chmod setuid/setgid, pas d'ARG/ENV de secret, --ignore-scripts", () => {
+    expect(dockerfileCode).not.toMatch(/^\s*ADD\s/im);
+    expect(dockerfileCode).not.toMatch(/playwright\s+install/);
+    expect(dockerfileCode).not.toMatch(/chmod\s+(-\S+\s+)*[ugoa]*\+s|chmod\s+(-\S+\s+)*[2467][0-7]{3}\b/);
+    expect(dockerfileCode).not.toMatch(/--chmod=[2467][0-7]{3}\b/);
+    for (const l of dockerfileCode.split("\n").filter((x) => /^(ARG|ENV)\s/.test(x)))
+      expect(l, l).not.toMatch(/PAT|TOKEN|KEY|SECRET|PASSWORD/i);
+    expect(dockerfileCode).toMatch(/--ignore-scripts/);
+    expect(dockerfileCode).not.toMatch(/\|\|\s*true|;\s*true\b/);
+  });
+});
+
+describe("T-EXT-51c · réserve 5 : /dev/shm déclaré, borné, sans exec", () => {
+  it("tmpfs /dev/shm:size<=512m,noexec,nosuid,nodev, et plus de shm_size implicite", () => {
+    const l = liste("tmpfs").find((x) => x.startsWith("- /dev/shm:")) ?? "";
+    expect(l).toMatch(/^- \/dev\/shm:size=(\d+)m,mode=1777,noexec,nosuid,nodev$/);
+    expect(Number(/size=(\d+)m/.exec(l)![1])).toBeLessThanOrEqual(512);
+    expect(service).not.toMatch(/^\s+shm_size:/m);
+  });
+  it("le commentaire dit vrai : /dev/shm est cité parmi les zones inscriptibles", () => {
+    expect(compose).not.toMatch(/Rien n'est inscriptible hors/);
+    expect(compose).toMatch(/Inscriptible : \/sortie \(bornée\), un tmpfs \/tmp de 256 Mo et un tmpfs \/dev\/shm de 512 Mo/);
+  });
+});
+
+describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", () => {
+  const brut = lire("deploiement/studio-capture/lancer.sh");
+  it("set -eu, shebang sh, pas d'eval, exec, arguments en \"$@\"", () => {
+    expect(brut.split("\n")[0]).toBe("#!/bin/sh");
+    expect(lancer).toMatch(/^set -eu\s*$/m);
+    expect(lancer).not.toMatch(/\beval\b|`|\$\(\s*\$|bash -c|sh -c/);
+    const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
+    expect(execs).toHaveLength(2);
+    for (const l of execs) expect(l).toMatch(/"\$@"\s*$/);
+    expect(lancer).not.toMatch(/\$\*|\$@[^"]|[^"]\$@/);
+  });
+  it("liste fermée de modes : capturer (défaut, 900 s) et decompresser (300 s) ; mode inconnu refusé", () => {
+    expect(lancer).toMatch(/exec timeout --kill-after=30 900 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/capturer\.mts "\$@"/);
+    expect(lancer).toMatch(/exec timeout 300 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/decompresser\.mts "\$@"/);
+    expect(lancer).toMatch(/capturer \| decompresser\)/);
+    expect(lancer).toMatch(/^mode=capturer\s*$/m);
+    expect(lancer).toMatch(/exit 66/);
+    const cases = [...lancer.matchAll(/^ {2}(\w+)\)\s*$/gm)].map((m) => m[1]);
+    expect(cases).toEqual(["capturer", "decompresser"]);
+  });
+  it("la commande de décompression est documentée : même service, zip en /entree :ro, sortie /sortie, pas de --entrypoint", () => {
+    expect(compose).toMatch(/run --rm studio-capture decompresser \/entree\/\S+\.zip \/sortie/);
+    expect(compose).toMatch(/lecture seule\) sur \/entree|lecture seule sur \/entree/);
+    expect(compose).toMatch(/dans CE conteneur[^\n]*jamais sur l'hôte/);
+  });
+  it("DÉPENDANCE : decompresser.mts est livré par le lot « zip » (lecture seule, sans effet ici)", () => {
+    expect(lancer).toContain("outils/maquettes-tableaux-de-bord/capture/decompresser.mts");
   });
 });

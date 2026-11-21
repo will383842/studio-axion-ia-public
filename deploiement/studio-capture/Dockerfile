@@ -12,22 +12,23 @@ FROM mwader/static-ffmpeg:8.1.1@sha256:735f84b905e00d5c618b667f0b053f83b1096f5fc
 # Image Playwright v1.63.0 (= @playwright/test de pnpm-lock.yaml), FIGÉE PAR SON EMPREINTE : Docker refuse tout autre
 # contenu. Empreinte de l'index multi-architectures relevée le 21/11/2026 sur le registre (en-tête Docker-Content-Digest
 # de https://mcr.microsoft.com/v2/playwright/manifests/v1.63.0-noble ; le sha256 du corps de la réponse est identique).
-# Changer de version : nouvelle étiquette ET nouvelle empreinte, et même version dans `npm install` plus bas.
+# Changer de version : nouvelle étiquette ET nouvelle empreinte, et mêmes versions dans package.json et package-lock.json.
 FROM mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
 
-# Posé par l'image : le vérificateur y lit le type de poste « conteneur » (poste.json).
-# CI=true : la garde de capture (outils/.../capture/garde.ts) n'accepte que CI ou CLAUDE_CODE_REMOTE ; elle ne connaît
-# pas CAPTURE_CONTENEUR. Ce conteneur EST un poste autorisé (sans réseau, sans droits) : on pose donc CI. Aucun secret.
-ENV CAPTURE_CONTENEUR=true CI=true NODE_ENV=production HOME=/tmp
+# Posé par l'image : le vérificateur y lit le type de poste « conteneur » (poste.json), et la garde de capture
+# (outils/.../capture/garde.ts) reconnaît CAPTURE_CONTENEUR=true. NE PAS poser CI ici (T-EXT-51c : tout outil de
+# l'image se croirait en CI) ; aucun secret.
+ENV CAPTURE_CONTENEUR=true NODE_ENV=production HOME=/tmp
 
 COPY --from=ffmpeg /ffmpeg /ffprobe /usr/local/bin/
 RUN ffmpeg -hide_banner -version >/dev/null && ffprobe -hide_banner -version >/dev/null && ffmpeg -hide_banner -version | head -n 1
 
 WORKDIR /app
-# Les deux seuls paquets que les scripts importent (versions EXACTES du pnpm-lock.yaml) ; installés ici, à la
-# construction (le réseau n'existe qu'à ce moment-là), sans scripts d'installation et sans télécharger de navigateur :
-# le Chromium est celui de l'image (même version que @playwright/test).
-RUN npm install --no-audit --no-fund --ignore-scripts --save-exact @playwright/test@1.63.0 tsx@4.23.15
+# Les deux seuls paquets que les scripts importent, VERROUILLÉS : package.json (versions exactes = pnpm-lock.yaml) et
+# package-lock.json (intégrité sha512 de chaque paquet, esbuild 0.28.2). `npm ci` refuse tout écart entre les deux ;
+# sans scripts d'installation et sans télécharger de navigateur : le Chromium est celui de l'image.
+COPY deploiement/studio-capture/package.json deploiement/studio-capture/package-lock.json /app/
+RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # Strict nécessaire (le dépôt entier n'est PAS copié) :
 #  - capture/ et poste/ : le lanceur de capture et le vérificateur du poste ;
@@ -38,6 +39,8 @@ COPY outils/maquettes-tableaux-de-bord/capture /app/outils/maquettes-tableaux-de
 COPY outils/maquettes-tableaux-de-bord/poste /app/outils/maquettes-tableaux-de-bord/poste
 COPY src/moteurs/montage-tutoriel-outil/scenario-maquette.ts src/moteurs/montage-tutoriel-outil/etapes-tutoriel.ts /app/src/moteurs/montage-tutoriel-outil/
 COPY src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff2
+# Point d'entrée : borne /sortie, choisit le mode (capturer | decompresser), applique le `timeout`.
+COPY --chmod=0555 deploiement/studio-capture/lancer.sh /app/lancer.sh
 
 # Points de montage (le système de fichiers est en lecture seule à l'exécution) : la maquette et sa charte (../charte)
 # sous la racine permise par la garde, le scénario dans /entree (lecture seule), le film dans /sortie (seul inscriptible).
@@ -50,9 +53,10 @@ RUN test "$(id -u pwuser)" = "1001" && test "$(id -g pwuser)" = "1001"
 
 # Vérification à la construction : la construction ÉCHOUE si le poste n'est pas bon (verifier-poste sort 0 seulement
 # si Playwright 1.63.0, Chromium, FFmpeg >= 6 et ses filtres, la police et l'espace libre sont bons). Ne lance pas le navigateur.
+# SANS RÉSEAU (`--network=none`, BuildKit) : tsx et ses dépendances s'exécutent ici sans accès à Internet.
 USER 1001:1001
-RUN node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction
+RUN --network=none node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction
 
-# Durée bornée à 15 min (SIGTERM, puis SIGKILL 30 s après) : le compose n'a pas de limite de durée.
-# Arguments : --maquette ... --scenario ... --sortie /sortie (voir le commentaire du service dans docker-compose.yml).
-ENTRYPOINT ["timeout", "--kill-after=30", "900", "node_modules/.bin/tsx", "outils/maquettes-tableaux-de-bord/capture/capturer.mts"]
+# Durée bornée par lancer.sh (capturer : 15 min, SIGTERM puis SIGKILL 30 s après ; decompresser : 5 min) ; le compose n'a
+# pas de limite de durée. Arguments : voir le commentaire du service dans docker-compose.yml. Jamais `--entrypoint`.
+ENTRYPOINT ["/app/lancer.sh"]
