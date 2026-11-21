@@ -46,8 +46,6 @@ const PAROLES: Record<IdRole, Parole> = {
 
 export const PHRASE_SAUTE = "Pas nécessaire : votre dossier était complet.";
 
-/** Codes de pause du moteur que l'écran sait lire (T-EXT-42 pose les deux premiers). */
-
 export const PHRASE_DEVIS_A_ACCEPTER = "Le devis attend votre accord.";
 export const PHRASE_DEVIS_ATTEINT = "Le devis de cette vidéo est atteint : rien de plus n'est lancé sans votre accord.";
 export const PHRASE_OUTILS_ATTENDUS = "En attente des outils de fabrication : rien n'a échoué.";
@@ -61,7 +59,7 @@ export const PHRASE_PIECE_A_CONSTRUIRE = "La pièce de la vidéo se prépare.";
 export const PHRASE_PIECE_A_VALIDER = "La pièce de la vidéo attend votre accord.";
 export const PHRASE_PIECE_A_REVOIR = "La pièce de la vidéo a un point à revoir : elle attend votre avis.";
 
-/** Les codes de pause du tutoriel, un à un : quel rôle parle, dans quel état, avec quelle phrase (`undefined` : phrase du rôle). */
+/** Les codes de pause du moteur que l'écran sait lire (T-EXT-42 pose les deux premiers), un à un : quel rôle parle, dans quel état, avec quelle phrase (`undefined` : phrase du rôle). */
 const PAUSES_CONNUES: Record<string, { role: IdRole; etat: EtatRole; phrase?: string; /** Phrase = message posé par le moteur (variable selon le cas). */ phraseDuMoteur?: true; /** L'écran de validation sait servir cette pause : « Voir et valider » y mène. */ lien?: "validation" }> = {
   TO_SCRIPT_A_VALIDER: { role: "scenariste", etat: "attend-williams", lien: "validation" },
   TO_SCRIPT_ABSENT: { role: "scenariste", etat: "attend-williams" },
@@ -114,16 +112,20 @@ export function messageDePause(travail: TravailPourVue): string | null {
   return pauseDe(travail)?.message ?? null;
 }
 
-/** Vrai si la pause attend un geste de Williams (l'écran de validation est alors le bon lien). */
-export function pauseAttendWilliams(travail: TravailPourVue): boolean {
-  const p = pauseDe(travail);
-  return !!p && PAUSES_CONNUES[p.code]?.etat === "attend-williams";
-}
-
 /** Vrai si la pause en cours est de celles que l'écran de validation sert : « Voir et valider » peut alors y mener. */
 export function pauseALienValidation(travail: TravailPourVue): boolean {
   const p = pauseDe(travail);
   return !!p && PAUSES_CONNUES[p.code]?.lien === "validation";
+}
+
+/**
+ * Où mène « Voir et valider » pour l'état courant du travail (calculé à chaque rafraîchissement, jamais figé au rendu serveur) :
+ * maquettiste qui attend Williams ou à revoir → « Votre maquette » ; sinon pause que l'écran de validation sert → cet écran ; sinon aucun lien.
+ */
+export function lienDeSuivi(travail: TravailPourVue, videoId: string): string | undefined {
+  const maquette = vueRoles(travail).find((l) => l.role === "maquettiste");
+  if (maquette && (maquette.etat === "attend-williams" || maquette.etat === "a-revoir")) return `/tutoriel-outil/maquette/${videoId}`;
+  return pauseALienValidation(travail) ? `/tutoriel-outil/${videoId}` : undefined;
 }
 
 /** État d'un groupe d'étapes du moteur (absentes du travail : ignorées ; aucune présente : « à venir »). */

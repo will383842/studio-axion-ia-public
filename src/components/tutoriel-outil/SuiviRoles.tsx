@@ -5,7 +5,7 @@ import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import type { Tonalite } from "@/domaine/libelles";
 import type { EtatRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
-import { messageDePause, pauseALienValidation, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { lienDeSuivi, messageDePause, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 import { useTravaux } from "@/hooks/useTravaux";
 import type { VueTravail } from "@/services/vues";
 
@@ -59,18 +59,21 @@ export function MessagePause({ message, lienValidation }: { message: string; lie
   );
 }
 
-/** Le suivi rôle par rôle, rafraîchi tant que le travail avance. `lienValidation` : fourni par la page seulement quand l'écran de validation sait servir l'état en cours (sinon absent, pas de « Voir et valider »). */
-export function SuiviRoles({ initial, lienValidation }: { initial: VueTravail; lienValidation?: string }) {
+/** Le suivi rôle par rôle, rafraîchi tant que le travail avance. Le lien « Voir et valider » se calcule ici, sur le travail courant : il change avec la pause. */
+export function SuiviRoles({ initial, videoId }: { initial: VueTravail; videoId: string }) {
   const { travail } = useTravaux({ travailId: initial.id, initial: [initial] });
   const t = travail ?? initial;
   const lignes = vueRoles(t);
+  const lien = lienDeSuivi(t, videoId);
   const brut = messageDePause(t);
   // Le message déjà lu sur une ligne (code inconnu, TO_CAS_V2) n'est pas répété dans le bandeau.
   const message = brut && !lignes.some((l) => l.phrase === brut) ? brut : null;
+  // Un seul « Voir et valider » : le bandeau n'en porte pas quand une ligne qui attend Williams l'affiche déjà.
+  const lienBandeau = lignes.some((l) => l.attendWilliams) ? undefined : lien;
   return (
     <div className="space-y-3">
-      {message && <MessagePause message={message} lienValidation={pauseALienValidation(t) ? lienValidation : undefined} />}
-      <ListeRoles lignes={lignes} lienValidation={lienValidation} />
+      {message && <MessagePause message={message} lienValidation={lienBandeau} />}
+      <ListeRoles lignes={lignes} lienValidation={lien} />
     </div>
   );
 }

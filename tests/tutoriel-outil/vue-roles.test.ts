@@ -168,11 +168,29 @@ describe("AUD-5 : toutes les pauses du tutoriel se lisent", () => {
     expect(pauseALienValidation(travail({}))).toBe(false);
   });
 
-  it("messageDePause et pauseAttendWilliams", async () => {
-    const { messageDePause, pauseAttendWilliams } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+  it("messageDePause", async () => {
+    const { messageDePause } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
     expect(messageDePause(travail({}, { pause: { code: "TO_X", message: " Bonjour " } }))).toBe("Bonjour");
     expect(messageDePause(travail({}))).toBeNull();
-    expect(pauseAttendWilliams(travail({}, { pause: { code: "TO_SCRIPT_A_VALIDER" } }))).toBe(true);
-    expect(pauseAttendWilliams(travail({}, { pause: { code: "TO_FILM_A_CAPTURER" } }))).toBe(false);
+  });
+
+  it("une pause qui attend Williams met la ligne en « attend-williams » ; TO_FILM_A_CAPTURER non, mais il garde son lien", () => {
+    expect(etatDe(vueRoles(travail({}, { pause: { code: "TO_SCRIPT_A_VALIDER" } })), "scenariste").attendWilliams).toBe(true);
+    expect(vueRoles(travail({}, { pause: { code: "TO_FILM_A_CAPTURER" } })).some((l) => l.attendWilliams)).toBe(false);
+  });
+
+  it("lienDeSuivi : calculé sur le travail courant, il change avec la pause", async () => {
+    const { lienDeSuivi } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+    const avec = (code: string) => lienDeSuivi(travail({}, { pause: { code } }), "v1");
+    expect(avec("TO_SCRIPT_A_VALIDER")).toBe("/tutoriel-outil/v1");
+    expect(avec("TO_FILM_A_CAPTURER")).toBe("/tutoriel-outil/v1");
+    // La pause change : le lien change (maquette), puis disparaît.
+    expect(avec("TO_PIECE_A_VALIDER")).toBe("/tutoriel-outil/maquette/v1");
+    expect(avec("TO_PIECE_A_REVOIR")).toBe("/tutoriel-outil/maquette/v1");
+    expect(avec("TO_PIECE_A_CONSTRUIRE")).toBeUndefined();
+    // TO_DEMANDE_VIDE après TO_SCRIPT_A_VALIDER : plus de lien.
+    expect(avec("TO_SCRIPT_A_VALIDER")).toBeDefined();
+    expect(avec("TO_DEMANDE_VIDE")).toBeUndefined();
+    expect(lienDeSuivi(travail({}), "v1")).toBeUndefined();
   });
 });
