@@ -60,6 +60,50 @@ describe("lecture des sorties de FFmpeg", () => {
   });
 });
 
+// Extrait RÉEL de `ffmpeg -hide_banner -filters` / `-encoders` de FFmpeg 8.1.1 (image studio-capture, binaire
+// /usr/local/bin/ffmpeg issu de mwader/static-ffmpeg:8.1.1) : 2 caractères d'options pour les filtres.
+const FILTRES_TXT_FFMPEG8 = `Filters:
+  T.. = Timeline support
+  .S. = Slice threading
+  A = Audio input/output
+  V = Video input/output
+  N = Dynamic number and/or type of input/output
+  | = Source or sink filter
+  ------
+ TS aap               AA->A      Apply Affine Projection algorithm to first audio stream.
+ .. anull             A->A       Pass the source unchanged to the output.
+ .S blackdetect       V->V       Detect video intervals that are (almost) black.
+ .. freezedetect      V->V       Detects frozen video input.
+ TS ssim              VV->V      Calculate the SSIM between two video streams.
+`;
+const ENCODEURS_TXT_FFMPEG8 = `Encoders:
+ V..... = Video
+ A..... = Audio
+ S..... = Subtitle
+ ....B. = Supports draw_horiz_band
+ .....D = Supports direct rendering method 1
+ ------
+ V....D amv                  AMV Video
+ V....D libx264              libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 (codec h264)
+ V....D libx264rgb           libx264 H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10 RGB (codec h264)
+`;
+
+describe("FFmpeg 8.1.1 : sortie réelle à 2 caractères d'options", () => {
+  it("lireFiltres lit les noms, sans lire l'en-tête ni la légende", () => {
+    expect(lireFiltres(FILTRES_TXT_FFMPEG8)).toEqual(["aap", "anull", "blackdetect", "freezedetect", "ssim"]);
+  });
+  it("lireEncodeurs lit libx264 sur la sortie réelle", () => {
+    expect(lireEncodeurs(ENCODEURS_TXT_FFMPEG8)).toEqual(["amv", "libx264", "libx264rgb"]);
+  });
+  it("jugerPoste accepte un poste FFmpeg 8.1.1 avec ces filtres", () => {
+    const j = jugerPoste(
+      poste({ ffmpeg: { version: "8.1.1", encodeurs: lireEncodeurs(ENCODEURS_TXT_FFMPEG8), filtres: lireFiltres(FILTRES_TXT_FFMPEG8) } }),
+    );
+    expect(j.manques).toEqual([]);
+    expect(j.ok).toBe(true);
+  });
+});
+
 describe("jugerPoste", () => {
   it("poste complet en cloud → ok", () => {
     const j = jugerPoste(poste());

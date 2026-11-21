@@ -317,6 +317,71 @@ services:
     cpus: 2
     cpu_shares: 256
 
+  # Poste de capture figé du tutoriel d'outil (T-EXT-51b) : Chromium + FFmpeg, SANS RÉSEAU. LIVRÉ INACTIF : profil
+  # « capture » = NI construit NI démarré par `docker compose up`/`build`, ni par mettre-a-jour.sh (qui ne le nomme pas).
+  # Obligatoire avant d'accepter un dossier (.zip) de client (T-EXT-41, T-EXT-29). Déclenchement À LA MAIN seulement,
+  # depuis deploiement/ ; n'utiliser que cette commande, JAMAIS `--entrypoint` (il supprimerait le `timeout`).
+  #
+  # PRÉPARATION CÔTÉ SERVEUR (une fois, AVANT le premier lancement ; sinon docker crée les dossiers en root:root et la
+  # capture échoue en EACCES). Les dossiers sont HORS du dépôt cloné (fichiers de clients : jamais dans le contexte de
+  # construction ni dans git) ; UID 1001 = `pwuser`, l'utilisateur de l'image (vérifié : `docker run --rm --entrypoint id
+  # <image> pwuser` donne uid=1001) :
+  #   sudo mkdir -p /opt/studio-axion-ia/capture-entree /opt/studio-axion-ia/capture-sortie
+  #   sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie     # inscriptible par l'uid du conteneur
+  #   (capture-entree : scenario.json + calage.json, lisibles par 1001, montés en lecture seule)
+  # Autres emplacements : STUDIO_CAPTURE_ENTREE et STUDIO_CAPTURE_SORTIE (mêmes droits). Variables NON obligatoires
+  # (`:?` casserait l'analyse du compose entier, donc `up` en production) : les défauts sont hors dépôt.
+  #   docker compose --profile capture build studio-capture
+  #   docker compose --profile capture run --rm studio-capture \
+  #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json \
+  #     --calage /entree/calage.json --sortie /sortie
+  # (sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4). Le film sort dans /sortie ; l'envoi au
+  # stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens symboliques, fichiers énormes : lstat,
+  # O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
+  # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h). Rien n'est inscriptible hors
+  # /sortie et un tmpfs /tmp borné (Chromium) ; durée : 15 min (`timeout` dans l'ENTRYPOINT) ; aucun secret, aucun port.
+  # TAILLE DE /sortie : non bornée par ce service (bind sur le disque du serveur, partagé avec Postgres et les médias).
+  # Attendu avant d'allumer tutoriel.entreeZip : dossier de sortie sur un volume dédié (système de fichiers en boucle,
+  # ou quota XFS/projet) de 2 à 4 Go, ou contrôle de l'espace libre avant et après chaque lancement.
+  # ISOLATION : le bac à sable de Chromium est DÉSACTIVÉ (Playwright 1.63 passe --no-sandbox si chromiumSandbox n'est
+  # pas true) : SEUL ce conteneur isole Chromium. Pour cela, NE JAMAIS ajouter : privileged, cap_add, devices, ipc/pid/
+  # userns_mode host, seccomp:unconfined, apparmor:unconfined, systempaths=unconfined, montage de docker.sock, de /var/run,
+  # de /opt/studio-axion-ia (hors capture-*) ou d'un .env, ni `--no-sandbox` ajouté à la main (tests/deploiement/studio-capture.test.ts).
+  studio-capture:
+    profiles: [capture]
+    build:
+      context: ..
+      dockerfile: deploiement/studio-capture/Dockerfile
+    image: studio-capture:local
+    restart: "no"
+    network_mode: none
+    read_only: true
+    # init : un vrai PID 1 récupère les processus orphelins de Chromium (timeout, lui, ne le fait pas).
+    init: true
+    # UN SEUL uid : celui de `pwuser` dans l'image (Dockerfile : USER 1001:1001, contrôlé à la construction).
+    user: "1001:1001"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Limite de mémoire par `deploy.resources.limits` (et non `mem_limit`) : le budget mémoire du serveur
+    # (tests/v5-serveur-scripts.test.ts) ne compte que les services qui tournent en permanence ; celui-ci est inactif.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          pids: 512
+          # CPU bornée (comme studio-rendu/studio-aligneur) : 2 cœurs au plus ; ici et non `cpus:` (compose refuse les deux).
+          cpus: "2"
+    cpu_shares: 256
+    shm_size: 512m
+    tmpfs:
+      - /tmp:size=256m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - ${STUDIO_CAPTURE_MAQUETTE:-../outils/maquettes-tableaux-de-bord/03-accueil-24h}:/app/outils/maquettes-tableaux-de-bord/maquette:ro
+      - ../outils/maquettes-tableaux-de-bord/charte:/app/outils/maquettes-tableaux-de-bord/charte:ro
+      - ${STUDIO_CAPTURE_ENTREE:-/opt/studio-axion-ia/capture-entree}:/entree:ro
+      - ${STUDIO_CAPTURE_SORTIE:-/opt/studio-axion-ia/capture-sortie}:/sortie
+
 volumes:
   donnees:
   # Travaux face caméra de studio-aligneur (fichiers de travail, jamais des données : rien d'irremplaçable).
