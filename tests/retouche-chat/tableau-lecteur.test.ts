@@ -62,6 +62,7 @@ describe("S-06-a : lireDemandeTableauParClaude (vrai lireDemande)", () => {
       rep([{ type: "deplacerElement", sceneId: "s01", elementId: "e01", x: 1 }]),
       rep([{ type: "supprimerElement", sceneId: "s01", elementId: "e99" }]),
       rep("pas une liste"),
+      rep(OP_VALIDE),
       "ceci n'est pas du JSON",
       new Error("plafond refusé"),
     ];
@@ -87,6 +88,11 @@ describe("S-06-a : lireDemandeTableauParClaude (vrai lireDemande)", () => {
     const mixte = ports(JSON.stringify({ operations: [OP_PLAN], supplementaires: [OP_VALIDE] }));
     expect(await lireDemandeTableauParClaude(F, "bonjour", CTX, mixte.p)).toEqual(OP_VALIDE);
     expect(mixte.appeler).toHaveBeenCalledTimes(1);
+  });
+
+  it("d3) relire(brut) : un tableau est attendu, une opération valide en OBJET SEUL est refusée", () => {
+    expect(supplementTableau(F, CTX).relire(OP_VALIDE).operations).toEqual([]);
+    expect(supplementTableau(F, CTX).relire([OP_VALIDE]).operations).toEqual([OP_VALIDE]);
   });
 
   it("e) plus de lecture permise : null, 0 appel (phrase d'épuisement du lecteur)", async () => {
