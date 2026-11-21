@@ -433,8 +433,8 @@ export interface DependancesSuivi {
   prendreBail?: typeof prendreBail;
   rendreBail?: typeof rendreBail;
   notifier?: (n: NotificationReserve) => Promise<void>;
-  /** Archive une vidéo restée brouillon (jamais effacée). Défaut : même geste que l'abandon du lancement. */
-  abandonner?: (videoId: string) => Promise<void>;
+  /** Archive une vidéo restée brouillon (jamais effacée). Rend `true` SEULEMENT si un brouillon a réellement été archivé. Défaut : même geste que l'abandon du lancement. */
+  abandonner?: (videoId: string) => Promise<boolean>;
   /** Un travail en file ou en cours pour cette vidéo ? Défaut : même règle que la garde de fabrication. Lecture qui lève : on ne touche à rien. */
   travailEnCours?: (videoId: string) => Promise<boolean>;
 }
@@ -444,9 +444,12 @@ async function travailEnCoursParDefaut(videoId: string): Promise<boolean> {
   return lire(videoId);
 }
 
-async function abandonnerParDefaut(videoId: string): Promise<void> {
+async function abandonnerParDefaut(videoId: string): Promise<boolean> {
+  // L'archivage du lancement ne rend rien : le statut est relu ici (brouillon → archivé = vrai ; sinon rien n'est archivé).
+  if ((await statutVideoParDefaut(videoId)) !== "brouillon") return false;
   const { abandonnerParDefaut: archiver } = await import("./tutoriel-reserve-lancement");
   await archiver(videoId);
+  return true;
 }
 
 async function statutVideoParDefaut(videoId: string): Promise<StatutVideo | null> {
@@ -535,12 +538,20 @@ async function suivre(dep: DependancesSuivi): Promise<{ faits: number; echecs: n
           await avecBailSuivi(dep, async () => {
             const frais = await (dep.lireElement ?? lireElementReserve)(e.id);
             if (!frais || frais.etat !== "pris" || frais.prise?.cle !== e.prise?.cle || frais.prise?.videoId !== videoId) return;
-            // Archivé D'ABORD : si l'archivage échoue, l'élément reste « pris » et le tour suivant réessaie.
-            await (dep.abandonner ?? abandonnerParDefaut)(videoId);
+            // ARGENT : sous le bail, statut et travail RELUS (un tirage d'une autre machine a pu finir son lancement depuis). Lecture qui lève : rien.
+            if ((await (dep.statutVideo ?? statutVideoParDefaut)(videoId)) !== "brouillon") return;
+            if (await (dep.travailEnCours ?? travailEnCoursParDefaut)(videoId)) return;
+            // Archivé D'ABORD : si l'archivage échoue, l'élément reste « pris » et le tour suivant réessaie. Rien d'archivé : pas d'échec écrit.
+            if (!(await (dep.abandonner ?? abandonnerParDefaut)(videoId))) return;
             if (await echouerSiInchange(e, PHRASE_PRIS_SANS_VIDEO, dep)) echecs++;
           });
         }
       } else if (statut === null || statut === "echec" || statut === "annulee" || statut === "archivee") {
+        // Relecture juste avant l'écriture : un lancement abouti entre-temps (en_file, en_cours, prete) ne s'écrase pas.
+        if (statut !== null) {
+          const maintenantStatut = await (dep.statutVideo ?? statutVideoParDefaut)(videoId);
+          if (maintenantStatut === "en_file" || maintenantStatut === "en_cours" || maintenantStatut === "prete") continue;
+        }
         if (await echouerSiInchange(e, PHRASE_VIDEO_ECHEC, dep)) echecs++;
       }
     } catch {

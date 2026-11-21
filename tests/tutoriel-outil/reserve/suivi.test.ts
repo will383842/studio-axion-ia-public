@@ -89,24 +89,65 @@ describe("suivreElementsPris", () => {
     await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z", "v-1");
     const archives: string[] = [];
     const s = dep("brouillon");
-    expect(await suivreElementsPris({ ...s.dep, abandonner: async (id) => void archives.push(id), travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 1 });
+    expect(await suivreElementsPris({ ...s.dep, abandonner: async (id) => { archives.push(id); return true; }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 1 });
     expect(archives).toEqual(["v-1"]);
     expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
   });
 
   it("vidéo brouillon depuis moins de 15 min : on attend ; archivage en échec : l'élément reste pris", async () => {
     await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:50:00.000Z", "v-1");
-    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => undefined })).toEqual({ faits: 0, echecs: 0 });
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => true })).toEqual({ faits: 0, echecs: 0 });
     magasin.clear();
     await pris("res-second01", "cle-suivi-002", "2026-11-21T09:30:00.000Z", "v-2");
     expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => { throw new Error("base"); }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
     expect((await lireElementReserve("res-second01"))?.etat).toBe("pris");
   });
 
+  it("ARGENT : lancement d'une autre machine terminé entre la lecture et le bail (en_file, travail payant) : aucun archivage, élément toujours pris, rien d'écrit", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    let lectures = 0;
+    let travaux = 0;
+    const r = await suivreElementsPris({
+      ...dep("brouillon").dep,
+      statutVideo: async () => (lectures++ === 0 ? "brouillon" : "en_file"),
+      travailEnCours: async () => travaux++ > 0,
+      abandonner: async (id) => { archives.push(id); return true; },
+    });
+    expect(r).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "pris", prise: { videoId: "v-1" } });
+  });
+
+  it("ARGENT : travail apparu sous le bail alors que le statut reste brouillon, ou relecture qui lève : rien", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    const abandonner = async (id: string) => { archives.push(id); return true; };
+    let n = 0;
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => n++ > 0 })).toEqual({ faits: 0, echecs: 0 });
+    let m = 0;
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => { if (m++ > 0) throw new Error("base"); return false; } })).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("abandonner qui n'archive rien (rend false) : pas d'échec écrit, élément toujours pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => false, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("vidéo en échec lue, puis lancement abouti avant l'écriture (en_file) : rien n'est écrit", async () => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    let lectures = 0;
+    expect(await suivreElementsPris({ ...dep("echec").dep, statutVideo: async () => (lectures++ === 0 ? "echec" : "en_file") })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
   it("ARGENT : brouillon > 15 min avec un travail en file, ou lecture des travaux qui lève : ni archivage ni échec, élément toujours pris", async () => {
     await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
     const archives: string[] = [];
-    const abandonner = async (id: string) => void archives.push(id);
+    const abandonner = async (id: string) => { archives.push(id); return true; };
     expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => true })).toEqual({ faits: 0, echecs: 0 });
     expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
     expect(archives).toEqual([]);
@@ -124,7 +165,7 @@ describe("suivreElementsPris", () => {
     await enCours;
     const archives: string[] = [];
     let fini = false;
-    const suivi = suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => void archives.push(id), travailEnCours: async () => false }).then((r) => { fini = true; return r; });
+    const suivi = suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => { archives.push(id); return true; }, travailEnCours: async () => false }).then((r) => { fini = true; return r; });
     await new Promise((r) => setTimeout(r, 20));
     expect(fini).toBe(false);
     expect(archives).toEqual([]);
@@ -189,7 +230,7 @@ describe("suivreElementsPris", () => {
     await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
     expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 60_000)).toBe(true);
     const archives: string[] = [];
-    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => void archives.push(id), travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => { archives.push(id); return true; }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
     expect(archives).toEqual([]);
     expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
     magasin.clear();
