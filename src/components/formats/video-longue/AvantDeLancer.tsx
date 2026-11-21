@@ -16,6 +16,9 @@ export function AvantDeLancer({
   courts,
   sansVoix = false,
   peutLancer,
+  enCours = false,
+  lance = false,
+  phraseBloquee,
   onLancer,
   onRetour,
 }: {
@@ -26,6 +29,12 @@ export function AvantDeLancer({
   /** Mode « Sans voix » : pas de voix, aucun crédit voix, coût 0 €. */
   sansVoix?: boolean;
   peutLancer: boolean;
+  /** Envoi en cours : bouton remplacé par « Lancement en cours… ». */
+  enCours?: boolean;
+  /** Vidéo déjà lancée : ni bouton ni lien vers les réglages. */
+  lance?: boolean;
+  /** Phrase affichée à la place du bouton quand le mode choisi n'est pas disponible. */
+  phraseBloquee?: string;
   onLancer: () => void;
   onRetour: () => void;
 }) {
@@ -44,7 +53,11 @@ export function AvantDeLancer({
         </p>
       </Carte>
       <div className="flex flex-wrap items-center gap-3">
-        {peutLancer ? (
+        {enCours ? (
+          <p role="status" className="text-sm text-texte">Lancement en cours…</p>
+        ) : lance ? null : phraseBloquee ? (
+          <p role="status" className="text-sm font-semibold text-texte">{phraseBloquee}</p>
+        ) : peutLancer ? (
           <Bouton type="button" icone="baguette" onClick={onLancer}>
             Je donne mon accord et je lance la vidéo
           </Bouton>

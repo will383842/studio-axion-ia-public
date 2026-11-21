@@ -33,7 +33,7 @@ const PHRASE_LANCEMENT_NON_RELIEE = "Le lancement n'est pas disponible sur cet �
  * n'est pas reliée (VL-07), chaque geste qui voudrait écrire ou fabriquer répond par une pause claire.
  * Le plan vient du script collé par l'utilisateur ; sans script, rien n'est inventé.
  */
-export function FormulaireVideoLongue({ actif, depensesCoupees, lancer }: { actif: boolean; depensesCoupees: boolean; lancer?: (demande: DemandeVideoLongue) => Promise<Resultat<IssueVideoLongue>> }) {
+export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVoixNonReliee }: { actif: boolean; depensesCoupees: boolean; phraseVoixNonReliee?: string; lancer?: (demande: DemandeVideoLongue) => Promise<Resultat<IssueVideoLongue>> }) {
   const [etape, setEtape] = useState(0);
   const [question, setQuestion] = useState("");
   const [pourQui, setPourQui] = useState("");
@@ -145,6 +145,8 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer }: { acti
             />
             {sansVoix ? (
               <p className="text-sm text-texte-doux">Silence total, sans musique : chaque scène reste le temps de lire le texte.</p>
+            ) : phraseVoixNonReliee ? (
+              <p role="status" className="text-sm font-semibold text-texte">{phraseVoixNonReliee}</p>
             ) : (
               <p className="text-sm font-semibold text-texte">Voix : votre double.</p>
             )}
@@ -192,7 +194,10 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer }: { acti
               chapitres={planFinal.length}
               courts={courts ? planFinal.length : 0}
               sansVoix={sansVoix}
-              peutLancer={actif && !depensesCoupees && !enCours && !videoId}
+              peutLancer={actif && !depensesCoupees && !(phraseVoixNonReliee && !sansVoix)}
+              enCours={enCours}
+              lance={!!videoId}
+              phraseBloquee={actif && !depensesCoupees && !sansVoix ? phraseVoixNonReliee : undefined}
               onLancer={() => void lancerLaVideo()}
               onRetour={() => aller(2)}
             />

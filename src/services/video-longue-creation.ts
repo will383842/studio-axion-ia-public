@@ -18,6 +18,11 @@ import { PARAM_OPTIONS_COUPEES } from "./options-payantes";
 export const ID_FORMAT_VIDEO_LONGUE = "video-longue";
 const PARAM_ACTIF = "videoLongue.actif";
 export const TOTAL_CARACTERES_MAX = 60_000;
+/**
+ * Le montage AVEC voix n'est pas encore relié (UI-4 : MONTAGE_AVEC_VOIX_RELIE=false) : une vidéo créée avec voix resterait
+ * en pause puis échouerait. À passer à true quand UI-4 reliera la voix.
+ */
+export const VOIX_VIDEO_LONGUE_RELIEE = false;
 
 export const PHRASE_VIDEO_LONGUE_ETEINTE = "La vidéo longue est éteinte : rien n'est parti.";
 export const PHRASE_DEPENSES_COUPEES = "Les options payantes sont coupées dans Réglages : rien n'est parti, rien n'est payé.";
@@ -25,6 +30,7 @@ export const PHRASE_CHAPITRES_VIDES = "Ajoutez au moins un chapitre avec du text
 export const PHRASE_CHAPITRES_INVALIDES = "Les chapitres ne sont pas valides (numéros en double) : rien n'est parti.";
 export const PHRASE_TROP_LONG = "Le texte est trop long pour une vidéo longue (60 000 caractères au plus) : rien n'est parti.";
 export const PHRASE_QUI_PARLE = "Choisissez qui parle : ajoutez d'abord votre double dans Personnages, ou choisissez « Sans voix ».";
+export const PHRASE_VOIX_NON_RELIEE = "La vidéo longue avec voix n'est pas encore reliée : choisissez « Sans voix » pour la fabriquer dès maintenant.";
 export const PHRASE_LANCEMENT_REFUSE = "Le lancement n'a pas pu se faire : votre demande n'est pas envoyée.";
 
 export interface ChapitreDemande {
@@ -45,6 +51,8 @@ export interface DemandeVideoLongue {
 export type IssueVideoLongue = { statut: "lancee"; videoId: Id } | { statut: "refusee"; phrase: string };
 
 export interface DependancesVideoLongueCreation {
+  /** Voix reliée ? (défaut : VOIX_VIDEO_LONGUE_RELIEE). */
+  voixReliee?: boolean;
   /** Lecture d'un réglage (défaut : la base). Une lecture qui lève éteint. */
   lire?: (cle: string, defaut: unknown) => Promise<unknown>;
   distribution?: (formatId: string) => Promise<Distribution[]>;
@@ -88,6 +96,11 @@ async function preparerParDefaut(videoId: Id, chapitres: ChapitreDemande[], acco
 
 async function lancerParDefaut(videoId: Id): Promise<IssueLancement> {
   const { lancerAvecAccord } = await import("./creation-format");
+  // Le réglage est rafraîchi côté moteur avant le lancement. `rafraichirVideoLongueActif` arrive avec le lot UI-4 : import
+  // tolérant, sans effet tant que l'export n'existe pas.
+  const m: object = await import("./video-longue-branchements");
+  const rafraichir = (m as { rafraichirVideoLongueActif?: unknown }).rafraichirVideoLongueActif;
+  if (typeof rafraichir === "function") await (rafraichir as () => Promise<unknown>)();
   // Format sans prix : montant nul. Le moteur garde lui-même le réglage, l'accord et le plafond avant tout appel payant.
   return lancerAvecAccord(videoId, 0, 0);
 }
@@ -97,7 +110,7 @@ async function abandonnerParDefaut(videoId: Id): Promise<void> {
   await abandonnerBrouillon(videoId);
 }
 
-/** Chapitres propres, ou `null` si la demande n'est pas valide (l'appelant choisit la phrase). */
+/** Chapitres propres (sans les chapitres vides), ou la raison du refus (« vides », « invalides », « trop-long ») : l'appelant choisit la phrase. */
 function chapitresPropres(brut: unknown): ChapitreDemande[] | "vides" | "invalides" | "trop-long" {
   if (!Array.isArray(brut)) return "vides";
   const liste: ChapitreDemande[] = [];
@@ -122,6 +135,7 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
   const lire = dep.lire ?? ((cle, defaut) => lireParametre<unknown>(cle, defaut));
   const allume = async (cle: string): Promise<boolean> => {
     try {
+      if (!dep.lire && cle === PARAM_ACTIF) return await (await import("./reglage-video-longue")).lireVideoLongueActif();
       return (await lire(cle, false)) === true;
     } catch {
       return false;
@@ -136,6 +150,8 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
   if (chapitres === "trop-long") return refus(PHRASE_TROP_LONG);
 
   const sansVoix = demande.sansVoix === true;
+  // Avant toute création : tant que la voix n'est pas reliée, le mode avec voix est refusé proprement.
+  if (!sansVoix && !(dep.voixReliee ?? VOIX_VIDEO_LONGUE_RELIEE)) return refus(PHRASE_VOIX_NON_RELIEE);
   let distribution: Distribution[] = [];
   if (!sansVoix) {
     try {

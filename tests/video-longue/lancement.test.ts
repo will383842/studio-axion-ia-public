@@ -1,6 +1,6 @@
 /**
  * UI-3 · lancement de la vidéo longue : dépôts en mémoire, vraie garde de fabrication (`construireCommande`) via `lancer`
- * injecté, aucun appel réel. Sans voix : distribution vide, aucun accord, 0 appel HeyGen / ElevenLabs / branchementsReels.
+ * injecté. Le test « 0 appel payant » réel est dans lancement-reel.test.ts.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -8,18 +8,6 @@ import { preparerMotDePasse } from "../helpers/g1a";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
-
-const appels = { branchementsReels: 0, heygen: 0, elevenlabs: 0 };
-vi.mock("@/services/tableau-outils", async (importOriginal) => {
-  const reel = await importOriginal<typeof import("@/services/tableau-outils")>();
-  return {
-    ...reel,
-    branchementsReels: async () => {
-      appels.branchementsReels++;
-      throw new Error("branchementsReels ne doit pas être appelé");
-    },
-  };
-});
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { depots, ecrireParametre } = await import("@/services/_commun");
@@ -41,13 +29,13 @@ beforeAll(async () => {
 beforeEach(async () => {
   reinitialiserDepots();
   reinitialiserRequete();
-  appels.branchementsReels = appels.heygen = appels.elevenlabs = 0;
   await auth.seConnecter(MDP, false);
 });
 
 function banc(actif: unknown = true) {
   const compte = { gardes: 0, abandons: [] as string[] };
   const dep: Dep = {
+    voixReliee: true,
     lire: async (cle) => (cle === "videoLongue.actif" ? actif : false),
     lancer: async (id) => {
       compte.gardes++;
@@ -60,7 +48,7 @@ function banc(actif: unknown = true) {
 }
 
 describe("lancer une vidéo longue", () => {
-  it("sans voix : distribution vide, sansVoix rangé, aucun accord, la garde passe, 0 appel voix", async () => {
+  it("sans voix : distribution vide, sansVoix rangé, aucun accord, la garde passe", async () => {
     const { compte, dep } = banc();
     const r = await lancerVideoLongue({ question: "Pourquoi ?", chapitres, sansVoix: true, accordVoix: false }, dep);
     expect(r.statut).toBe("lancee");
@@ -77,7 +65,6 @@ describe("lancer une vidéo longue", () => {
     expect(compte.gardes).toBe(1);
     expect(compte.abandons).toEqual([]);
     expect((await construireCommande(r.videoId)).distribution).toEqual([]);
-    expect(appels).toEqual({ branchementsReels: 0, heygen: 0, elevenlabs: 0 });
   });
 
   it("défaut (sans le champ) : avec voix, double exigé, accord de cette vidéo rangé si donné", async () => {
