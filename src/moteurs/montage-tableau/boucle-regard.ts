@@ -56,12 +56,18 @@ export async function boucleDuRegard(fiche: FicheTableau, ports: PortsBoucleRega
     }
     if (dit(nouvelle) !== dit(fiche)) return { fiche, regards: 1, refaites: 0, arret: "mots-changes", raisons: ["Réparation refusée : les mots auraient changé.", ...s.remarques] };
 
+    let v2: VerdictRegard;
     try {
-      const v2 = await ports.regarder(nouvelle, 2);
+      v2 = await ports.regarder(nouvelle, 2);
+    } catch {
+      return { fiche: nouvelle, regards: 1, refaites: 1, arret: "second-regard-en-panne", raisons: ["Le second regard n'a pas pu se faire.", ...s.remarques] };
+    }
+    // Le second regard a eu lieu (donc payé) : il est compté même si la suite lève ensuite.
+    try {
       const fin = ports.suite(nouvelle, v2, { tour: 1 });
       return { fiche: nouvelle, regards: 2, refaites: 1, arret: fin.suite === "rien" ? "rien" : "rendre", raisons: fin.suite === "rendre" ? fin.raisons : s.remarques };
     } catch {
-      return { fiche: nouvelle, regards: 1, refaites: 1, arret: "second-regard-en-panne", raisons: ["Le second regard n'a pas pu se faire.", ...s.remarques] };
+      return { fiche: nouvelle, regards: 2, refaites: 1, arret: "rendre", raisons: ["Suite impossible après le second regard : la page refaite est gardée.", ...s.remarques] };
     }
   } catch {
     return { fiche, regards: 1, refaites: 0, arret: "rendre", raisons: ["Suite impossible : la vidéo est gardée telle quelle."] };

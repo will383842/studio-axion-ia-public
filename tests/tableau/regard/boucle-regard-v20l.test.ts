@@ -69,6 +69,20 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     expect(m.refaire).toHaveBeenCalledTimes(1);
   });
 
+  it("`suite` qui lève APRÈS un 2e regard payé : regards 2 (la dépense est comptée), fiche refaite gardée", async () => {
+    let appels = 0;
+    const suite: PortsBoucleRegard["suite"] = (f, v, o) => {
+      if (++appels === 2) throw new Error("suite en panne");
+      return suiteDuRegard(f, v, o);
+    };
+    const m = monter([verdict(["texte-coupe", "page-3"])], { suite });
+    const r = await boucleDuRegard(fiche, m.ports);
+    expect(r).toMatchObject({ regards: 2, refaites: 1, arret: "rendre" });
+    expect(r.fiche).toBe(await m.refaire.mock.results[0].value);
+    expect(m.regarder).toHaveBeenCalledTimes(2);
+    expect(r.raisons.length).toBeGreaterThan(0);
+  });
+
   it("« phrase-non-choisie » ou « fin-absente » : arrêt tout de suite, 1 regard, rien refait", async () => {
     for (const code of ["phrase-non-choisie", "fin-absente"] as const) {
       const m = monter([verdict([code, null], ["texte-coupe", "page-3"])]);
@@ -79,8 +93,10 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
   });
 
   it("panne de `refaire` : la vidéo d'avant est gardée avec sa remarque, 1 regard", async () => {
-    const m = monter([verdict(["texte-coupe", "page-3"])], { refaire: async () => { throw new Error("rendu en panne"); } });
+    const m = monter([verdict(["texte-coupe", "page-3"])], { refaire: vi.fn(async () => { throw new Error("rendu en panne"); }) });
     const r = await boucleDuRegard(fiche, m.ports);
+    expect(m.ports.refaire).toHaveBeenCalledTimes(1);
+    expect(m.regarder).toHaveBeenCalledTimes(1);
     expect(r.fiche).toBe(fiche);
     expect(r).toMatchObject({ regards: 1, refaites: 0, arret: "refaire-en-panne" });
     expect(r.raisons.length).toBeGreaterThan(0);
@@ -99,6 +115,8 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     const m = monter([new Error("regard en panne")]);
     const r = await boucleDuRegard(fiche, m.ports);
     expect(r).toMatchObject({ regards: 0, refaites: 0, arret: "regard-en-panne" });
+    expect(m.regarder).toHaveBeenCalledTimes(1);
+    expect(m.refaire).not.toHaveBeenCalled();
     expect(r.fiche).toBe(fiche);
   });
 
@@ -108,6 +126,7 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     expect(r).toMatchObject({ refaites: 1, arret: "second-regard-en-panne" });
     expect(r.fiche).toBe(await m.refaire.mock.results[0].value);
     expect(m.refaire).toHaveBeenCalledTimes(1);
+    expect(m.regarder).toHaveBeenCalledTimes(2);
   });
 
   it("énumération : aucune suite de verdicts ne produit plus de 2 regards ni plus d'1 refaite", async () => {
