@@ -46,7 +46,7 @@ export function AvantDeLancer({
           {sansVoix ? <li>Sans voix : sous-titres et texte à l&apos;écran, environ {formaterDuree(dureeSec)}, aucun coût</li> : <li>Voix de votre double : environ {formaterDuree(dureeSec)}</li>}
           <li>{chapitres} chapitre{chapitres > 1 ? "s" : ""}</li>
           <li>Format large</li>
-          {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus</li>}
+          {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus : pas encore fabriquée{courts > 1 ? "s" : ""}</li>}
         </ul>
         <p className="text-sm text-texte-doux">
           {sansVoix ? "Aucune voix, aucune musique : rien n'est payé." : "Rien n'est payé avant votre accord. Si le prix du jour change, le Studio s'arrête et vous redemande."}

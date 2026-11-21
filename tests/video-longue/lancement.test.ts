@@ -13,7 +13,8 @@ const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { depots, ecrireParametre } = await import("@/services/_commun");
 const auth = await import("@/services/auth");
 const { construireCommande } = await import("@/services/fabrication");
-const { lancerVideoLongue, PHRASE_VIDEO_LONGUE_ETEINTE, PHRASE_CHAPITRES_VIDES } = await import("@/services/video-longue-creation");
+const { lancerVideoLongue, PHRASE_VIDEO_LONGUE_ETEINTE, PHRASE_CHAPITRES_VIDES, PHRASE_MONTAGE_NON_RELIE } = await import("@/services/video-longue-creation");
+const { MONTAGE_VIDEO_LONGUE_RELIE } = await import("@/services/video-longue-branchements");
 type Dep = import("@/services/video-longue-creation").DependancesVideoLongueCreation;
 
 const MDP = "essai-lancement-video-longue-ui3";
@@ -35,6 +36,7 @@ beforeEach(async () => {
 function banc(actif: unknown = true) {
   const compte = { gardes: 0, abandons: [] as string[] };
   const dep: Dep = {
+    montageRelie: true,
     voixReliee: true,
     lire: async (cle) => (cle === "videoLongue.actif" ? actif : false),
     lancer: async (id) => {
@@ -48,6 +50,29 @@ function banc(actif: unknown = true) {
 }
 
 describe("lancer une vidéo longue", () => {
+  it("montage non relié (sans voix comme avec voix) : refus avant toute création, 0 appel", async () => {
+    for (const sansVoix of [true, false]) {
+      const { compte, dep } = banc();
+      const avant = (await depots().videos.lister()).length;
+      const travauxAvant = (await depots().travaux.lister()).length;
+      const r = await lancerVideoLongue({ question: "Q", chapitres, sansVoix, accordVoix: !sansVoix }, { ...dep, montageRelie: false });
+      expect(r).toEqual({ statut: "refusee", phrase: PHRASE_MONTAGE_NON_RELIE });
+      expect((await depots().videos.lister()).length).toBe(avant);
+      expect((await depots().travaux.lister()).length).toBe(travauxAvant);
+      expect(compte.gardes).toBe(0);
+    }
+  });
+
+  it("sans injection : la valeur réelle du montage commande (non relié = refus, rien d'abandonné ni lancé)", async () => {
+    const { compte, dep } = banc();
+    const sansInjection: Dep = { ...dep, montageRelie: undefined };
+    const r = await lancerVideoLongue({ question: "Q", chapitres, sansVoix: true }, sansInjection);
+    if (!(MONTAGE_VIDEO_LONGUE_RELIE as boolean)) {
+      expect(r).toEqual({ statut: "refusee", phrase: PHRASE_MONTAGE_NON_RELIE });
+      expect(compte.gardes).toBe(0);
+    } else expect(r.statut).toBe("lancee");
+  });
+
   it("sans voix : distribution vide, sansVoix rangé, aucun accord, la garde passe", async () => {
     const { compte, dep } = banc();
     const r = await lancerVideoLongue({ question: "Pourquoi ?", chapitres, sansVoix: true, accordVoix: false }, dep);
@@ -109,10 +134,10 @@ describe("lancer une vidéo longue", () => {
   });
 
   it("réglage lu dans la base : éteint par défaut, allumé par true exact", async () => {
-    const eteint = await lancerVideoLongue({ question: "Q", chapitres, sansVoix: true }, { lancer: banc().dep.lancer });
+    const eteint = await lancerVideoLongue({ question: "Q", chapitres, sansVoix: true }, { montageRelie: true, lancer: banc().dep.lancer });
     expect(eteint.statut).toBe("refusee");
     await ecrireParametre("videoLongue.actif", true);
-    const allume = await lancerVideoLongue({ question: "Q", chapitres, sansVoix: true }, { lancer: banc().dep.lancer });
+    const allume = await lancerVideoLongue({ question: "Q", chapitres, sansVoix: true }, { montageRelie: true, lancer: banc().dep.lancer });
     expect(allume.statut).toBe("lancee");
   });
 

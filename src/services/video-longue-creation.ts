@@ -12,6 +12,7 @@ import { decouperScript } from "@/briques/voix-longue";
 import type { Distribution, Id, Ratio, Video } from "@/domaine/types";
 import { depots, ErreurStudio, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
+import { MONTAGE_VIDEO_LONGUE_RELIE } from "@/services/video-longue-branchements";
 import type { IssueLancement } from "./creation-format";
 import { PARAM_OPTIONS_COUPEES } from "./options-payantes";
 
@@ -30,6 +31,7 @@ export const PHRASE_CHAPITRES_VIDES = "Ajoutez au moins un chapitre avec du text
 export const PHRASE_CHAPITRES_INVALIDES = "Les chapitres ne sont pas valides (numéros en double) : rien n'est parti.";
 export const PHRASE_TROP_LONG = "Le texte est trop long pour une vidéo longue (60 000 caractères au plus) : rien n'est parti.";
 export const PHRASE_QUI_PARLE = "Choisissez qui parle : ajoutez d'abord votre double dans Personnages, ou choisissez « Sans voix ».";
+export const PHRASE_MONTAGE_NON_RELIE = "La fabrication de la vidéo longue n'est pas encore reliée : rien n'est parti.";
 export const PHRASE_VOIX_NON_RELIEE = "La vidéo longue avec voix n'est pas encore reliée : choisissez « Sans voix » pour la fabriquer dès maintenant.";
 export const PHRASE_LANCEMENT_REFUSE = "Le lancement n'a pas pu se faire : votre demande n'est pas envoyée.";
 
@@ -51,6 +53,8 @@ export interface DemandeVideoLongue {
 export type IssueVideoLongue = { statut: "lancee"; videoId: Id } | { statut: "refusee"; phrase: string };
 
 export interface DependancesVideoLongueCreation {
+  /** Montage réel relié ? (défaut : MONTAGE_VIDEO_LONGUE_RELIE). Faux : refus avant toute création. */
+  montageRelie?: boolean;
   /** Voix reliée ? (défaut : VOIX_VIDEO_LONGUE_RELIEE). */
   voixReliee?: boolean;
   /** Lecture d'un réglage (défaut : la base). Une lecture qui lève éteint. */
@@ -149,6 +153,8 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
   if (chapitres === "invalides") return refus(PHRASE_CHAPITRES_INVALIDES);
   if (chapitres === "trop-long") return refus(PHRASE_TROP_LONG);
 
+  // Avant toute création : tant que le montage n'est pas relié, le travail resterait en pause puis échouerait (sans voix comme avec voix).
+  if ((dep.montageRelie ?? MONTAGE_VIDEO_LONGUE_RELIE) !== true) return refus(PHRASE_MONTAGE_NON_RELIE);
   const sansVoix = demande.sansVoix === true;
   // Avant toute création : tant que la voix n'est pas reliée, le mode avec voix est refusé proprement.
   if (!sansVoix && !(dep.voixReliee ?? VOIX_VIDEO_LONGUE_RELIEE)) return refus(PHRASE_VOIX_NON_RELIEE);

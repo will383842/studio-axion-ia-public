@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
 import { PauseVitrine } from "@/components/formats/vitrines/RemarquesFiche";
 import { Bouton } from "@/components/ui/Bouton";
@@ -33,7 +33,7 @@ const PHRASE_LANCEMENT_NON_RELIEE = "Le lancement n'est pas disponible sur cet �
  * n'est pas reliée (VL-07), chaque geste qui voudrait écrire ou fabriquer répond par une pause claire.
  * Le plan vient du script collé par l'utilisateur ; sans script, rien n'est inventé.
  */
-export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVoixNonReliee }: { actif: boolean; depensesCoupees: boolean; phraseVoixNonReliee?: string; lancer?: (demande: DemandeVideoLongue) => Promise<Resultat<IssueVideoLongue>> }) {
+export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVoixNonReliee, phraseMontageNonRelie }: { actif: boolean; depensesCoupees: boolean; phraseVoixNonReliee?: string; phraseMontageNonRelie?: string; lancer?: (demande: DemandeVideoLongue) => Promise<Resultat<IssueVideoLongue>> }) {
   const [etape, setEtape] = useState(0);
   const [question, setQuestion] = useState("");
   const [pourQui, setPourQui] = useState("");
@@ -48,6 +48,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
   const [valide, setValide] = useState<ChapitreValide[] | null>(null);
   const [pause, setPause] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const verrou = useRef(false);
   const [videoId, setVideoId] = useState<string | null>(null);
 
   const versions = useMemo<ChapitreAvecVersions[]>(
@@ -76,7 +77,8 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
       setPause(PHRASE_LANCEMENT_NON_RELIEE);
       return;
     }
-    if (enCours || !valide) return;
+    if (verrou.current || enCours || !valide) return;
+    verrou.current = true;
     setEnCours(true);
     setPause(null);
     try {
@@ -92,6 +94,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
     } catch {
       setPause("Le lancement n'a pas abouti : rien n'est payé. Vous pouvez réessayer.");
     } finally {
+      verrou.current = false;
       setEnCours(false);
     }
   }
@@ -194,10 +197,10 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
               chapitres={planFinal.length}
               courts={courts ? planFinal.length : 0}
               sansVoix={sansVoix}
-              peutLancer={actif && !depensesCoupees && !(phraseVoixNonReliee && !sansVoix)}
+              peutLancer={actif && !depensesCoupees && !phraseMontageNonRelie && !(phraseVoixNonReliee && !sansVoix)}
               enCours={enCours}
               lance={!!videoId}
-              phraseBloquee={actif && !depensesCoupees && !sansVoix ? phraseVoixNonReliee : undefined}
+              phraseBloquee={actif && !depensesCoupees ? phraseMontageNonRelie ?? (!sansVoix ? phraseVoixNonReliee : undefined) : undefined}
               onLancer={() => void lancerLaVideo()}
               onRetour={() => aller(2)}
             />
