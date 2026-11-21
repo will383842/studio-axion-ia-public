@@ -70,7 +70,7 @@ const estAppelFacecam = (travailId?: string) => !!travailId?.startsWith(`${PREFI
  */
 export interface PlafondPropre {
   /** Identifiant court (entre dans le préfixe des réservations). */
-  id: "tbdec" | "tbscr" | "favid";
+  id: "tbdec" | "tbscr" | "favid" | "rtcht";
   /** Réglage du plafond, en dollars. */
   parametre: string;
   /** Valeur par défaut du réglage, en dollars. */
@@ -100,9 +100,11 @@ export const PLAFOND_DECOUPAGE_TABLEAU_USD = 0.6;
 export const PARAM_PLAFOND_DECOUPAGE_TABLEAU = "tableau.plafondDecoupageUsd";
 export const PARAM_PLAFOND_SCRIPT_TABLEAU = "tableau.plafondScriptUsd";
 
+/** Chat de retouche (S3-07, 20/11) : ses lectures par Claude ont leur PROPRE plafond par vidéo (« rtcht »), à part des textes de publication. */
+export const PREFIXE_ETAPE_RETOUCHE_CHAT = "Retouche chat ·";
 /** Préfixes d'étape des plafonds propres connus (leurs dépenses ne comptent pas dans le plafond des textes). */
-const PREFIXES_PLAFONDS_PROPRES = ["Tableau · découpage", "Tableau · script", PREFIXE_ETAPE_VIDEOS_FA] as const;
-const PREFIXES_APPELS_PROPRES = ["tbdec", "tbscr", "favid"].map((id) => `${PREFIXE_APPEL_TEXTE}-${id}-`);
+const PREFIXES_PLAFONDS_PROPRES = ["Tableau · découpage", "Tableau · script", PREFIXE_ETAPE_VIDEOS_FA, PREFIXE_ETAPE_RETOUCHE_CHAT] as const;
+const PREFIXES_APPELS_PROPRES = ["tbdec", "tbscr", "favid", "rtcht"].map((id) => `${PREFIXE_APPEL_TEXTE}-${id}-`);
 const estDepensePropre = (x: Pick<DepenseEnregistree, "lignes">) => x.lignes.some((l) => PREFIXES_PLAFONDS_PROPRES.some((p) => l.etape.startsWith(p)));
 const estAppelPropre = (travailId?: string) => !!travailId && PREFIXES_APPELS_PROPRES.some((p) => travailId.startsWith(p));
 
