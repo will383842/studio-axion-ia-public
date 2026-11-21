@@ -302,6 +302,108 @@ describe("V2-08 : le pas « pièce créée » (option phraseOuverte)", () => {
   });
 });
 
+describe("V2-FIX-C : « En proposer une autre » rappelle le maquettiste pour la proposition 2 (au plus 2 appels)", () => {
+  const ouvert: EntreesEquipe = { dossier: null, phraseOuverte: true };
+  const apercuDe = (empreinte: string) => ({ version: "apercu-piece.v1" as const, empreinteDescription: empreinte, images: [{ ecranId: "accueil", etat: "avant" as const, cle: "a.png" }], controle: { ok: true, defauts: [] } });
+
+  /** Maquette n° 1 proposée (1 appel payé) ; puis la pièce n° 2 « à construire », comme l'écran la note. */
+  async function apresDemande(statut2: "a-construire" | "a-valider" | "gardee" = "a-construire"): Promise<{ n1: EtatEquipe; n2: EtatEquipe }> {
+    const n1 = (await courir({ demande: { phrase: "un tableau de bord pour un atelier" }, payes: {} }, ouvert, sortiePhrase)).e;
+    const p = n1.pieceCreee!;
+    expect(p.proposition).toBe(1);
+    expect(n1.appels?.maquettiste).toBe(1);
+    const base = { ...p, proposition: 2 as const, statut: statut2 };
+    const piece = statut2 === "a-construire" ? base : { ...base, apercu: apercuDe(p.empreinte), ...(statut2 === "gardee" ? { gardee: { empreinte: p.empreinte, le: "2026-11-20T10:00:00.000Z" } } : {}) };
+    return { n1, n2: { ...n1, pieceCreee: piece } };
+  }
+  const payant = (e: EtatEquipe) => {
+    const p = prochainPas(e, ouvert);
+    if (!("faire" in p) || !p.payant) throw new Error("un appel payant était attendu");
+    return p;
+  };
+  /** Une description à titre changé : une autre proposition, donc une autre empreinte. */
+  const autreDescription = (e: EtatEquipe): DescriptionMaquette => {
+    const d = e.pieceCreee!.contenu as DescriptionMaquette;
+    return { ...d, ecrans: d.ecrans.map((x, i) => (i === 0 ? { ...x, titre: "Votre atelier au quotidien" } : x)) };
+  };
+
+  it("pièce n° 2 « à construire », 1 appel déjà fait : le maquettiste est rappelé, payant, pour la proposition 2, avec une autre empreinte", async () => {
+    const { n1, n2 } = await apresDemande();
+    const p = payant(n2);
+    expect(p.faire).toBe("maquettiste");
+    expect(p.entree.variable).toContain("<proposition>2</proposition>");
+    expect(p.entree.variable).not.toContain("<proposition>1</proposition>");
+    expect(p.entree.variable).toContain("<manque>maquette</manque>");
+    const { pieceCreee: _p, appels: _a, ...sansPiece } = n1;
+    void [_p, _a];
+    const pas1 = prochainPas(sansPiece as EtatEquipe, ouvert);
+    if (!("faire" in pas1) || !pas1.payant) throw new Error("maquettiste n° 1 attendu");
+    expect(pas1.entree.variable).toContain("<proposition>1</proposition>");
+    expect(p.empreinteEntree).not.toBe(pas1.empreinteEntree);
+  });
+
+  it("même état, mêmes entrées : le même pas (déterministe)", async () => {
+    const { n2 } = await apresDemande();
+    expect(prochainPas(n2, ouvert)).toEqual(prochainPas(n2, ouvert));
+  });
+
+  it("après une réponse valable : pièce n° 2 neuve, 2 appels faits, le pas suivant n'est plus payant (TO_PIECE_A_CONSTRUIRE)", async () => {
+    const { n1, n2 } = await apresDemande();
+    const p = payant(n2);
+    const sortie = { manque: "maquette", contenu: autreDescription(n2) };
+    const sortieSimulee = (roleMaquettiste as unknown as DefinitionRole).simuler(p.entree) as { manque?: string; contenu?: unknown };
+    const a = await appliquerSortie(n2, "maquettiste", { ...sortieSimulee, ...sortie }, ouvert);
+    if (!a.ok) throw new Error("une réponse valable était attendue");
+    expect(a.etat.appels?.maquettiste).toBe(2);
+    expect(a.etat.pieceCreee?.proposition).toBe(2);
+    expect(a.etat.pieceCreee?.statut).toBe("a-construire");
+    expect(a.etat.pieceCreee?.empreinte).not.toBe(n1.pieceCreee?.empreinte);
+    const suite = prochainPas(a.etat, ouvert);
+    expect("faire" in suite).toBe(false);
+    expect(suite).toMatchObject({ pause: { code: "TO_PIECE_A_CONSTRUIRE" } });
+  });
+
+  it("réponse n° 2 refusée : le pas suivant est TO_EQUIPE_BLOQUEE, jamais un 3e appel", async () => {
+    const { n2 } = await apresDemande();
+    const a = await appliquerSortie(n2, "maquettiste", { manque: "maquette", contenu: {} }, ouvert);
+    expect(a.ok).toBe(false);
+    expect(a.etat.appels?.maquettiste).toBe(2);
+    for (let i = 0; i < 3; i++) {
+      const p = prochainPas(a.etat, ouvert);
+      expect("faire" in p).toBe(false);
+      expect(p).toMatchObject({ pause: { code: "TO_EQUIPE_BLOQUEE" } });
+    }
+  });
+
+  it("pièce n° 1 « à construire » (aucune demande d'une autre proposition) : aucun appel", async () => {
+    const { n1 } = await apresDemande();
+    expect(n1.pieceCreee?.statut).toBe("a-construire");
+    const p = prochainPas(n1, ouvert);
+    expect("faire" in p).toBe(false);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_CONSTRUIRE" } });
+  });
+
+  it("pièce n° 2 « a-valider » ou « gardée » : aucun appel", async () => {
+    for (const statut of ["a-valider", "gardee"] as const) {
+      const { n2 } = await apresDemande(statut);
+      expect("faire" in prochainPas(n2, ouvert) && (prochainPas(n2, ouvert) as { payant?: boolean }).payant === true).toBe(false);
+    }
+  });
+
+  it("pièce n° 2 « à construire » mais les 2 appels sont faits : aucun 3e appel", async () => {
+    const { n2 } = await apresDemande();
+    const p = prochainPas({ ...n2, appels: { ...n2.appels, maquettiste: 2 } }, ouvert);
+    expect("faire" in p).toBe(false);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_CONSTRUIRE" } });
+  });
+
+  it("sans l'option phraseOuverte : jamais d'appel du maquettiste pour une pièce n° 2", async () => {
+    const { n2 } = await apresDemande();
+    const p = prochainPas(n2, { dossier: null });
+    expect("faire" in p && p.payant === true).toBe(false);
+  });
+});
+
 function sortiePhrase(role: IdRole, entree: EntreeRole, n: number, etat: EtatEquipe): unknown {
   if (role === "maquettiste") return (roleMaquettiste as unknown as DefinitionRole).simuler(entree);
   // Deux moments, comme dans le dossier fictif : le faux scénariste tient alors dans la durée cible.
