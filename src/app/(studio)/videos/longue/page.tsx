@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { FormulaireVideoLongue } from "@/components/formats/video-longue/FormulaireVideoLongue";
 import { PARAM_OPTIONS_COUPEES } from "@/services/options-payantes";
 import { lireParametre } from "@/services/_commun";
+import { lancerVideoLongueAction } from "./actions";
 
 export const metadata: Metadata = { title: "Vidéo longue" };
 export const dynamic = "force-dynamic";
@@ -12,5 +13,5 @@ export const dynamic = "force-dynamic";
  */
 export default async function PageVideoLongue() {
   const [actif, coupees] = await Promise.all([lireParametre<unknown>("videoLongue.actif", false), lireParametre<unknown>(PARAM_OPTIONS_COUPEES, false)]);
-  return <FormulaireVideoLongue actif={actif === true} depensesCoupees={coupees === true} />;
+  return <FormulaireVideoLongue actif={actif === true} depensesCoupees={coupees === true} lancer={lancerVideoLongueAction} />;
 }
