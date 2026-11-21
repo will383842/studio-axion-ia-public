@@ -1,8 +1,8 @@
 /**
- * RÉGLAGES « PLAN DE SCÈNES » DES GÉNÉRATEURS EXISTANTS (lot R2). Un réglage par générateur. Depuis GV2-55, le plan est
- * ALLUMÉ par défaut pour le cas concret et le face caméra (`false` coupe : le réglage reste un coupe-circuit) ; la face
- * caméra animée reste ÉTEINTE par défaut (seul `true` l'allume : son rendu v4 est validé). Toute autre valeur, une absence
- * ou une lecture en échec = le défaut du générateur. PUR : la lecture est injectée (`lireParametre` côté service).
+ * RÉGLAGES « PLAN DE SCÈNES » DES GÉNÉRATEURS EXISTANTS (lot R2). Un réglage par générateur. Le plan est ALLUMÉ par
+ * défaut pour les trois (cas concret et face caméra depuis GV2-55, face caméra animée depuis ALLUMER-PLAN-FA-v21m) :
+ * seul `false` coupe, le réglage reste un coupe-circuit. Toute autre valeur, une absence ou une lecture en échec = le
+ * défaut du générateur. PUR : la lecture est injectée (`lireParametre` côté service).
  */
 export const GENERATEURS_PLAN = ["cas-concret", "facecam", "facecam-animee"] as const;
 export type IdGenerateurPlan = (typeof GENERATEURS_PLAN)[number];
@@ -15,8 +15,8 @@ export const CLES_REGLAGE_PLAN_SCENES: Record<IdGenerateurPlan, string> = {
 
 export type LireReglage = (id: string, defaut: unknown) => Promise<unknown>;
 
-/** Défaut de chaque générateur : allumé pour le cas concret et le face caméra, éteint pour la face caméra animée. */
-export const ALLUME_PAR_DEFAUT: Record<IdGenerateurPlan, boolean> = { "cas-concret": true, facecam: true, "facecam-animee": false };
+/** Défaut de chaque générateur : allumé pour les trois (seul `false` éteint). */
+export const ALLUME_PAR_DEFAUT: Record<IdGenerateurPlan, boolean> = { "cas-concret": true, facecam: true, "facecam-animee": true };
 
 export async function planScenesActif(generateur: IdGenerateurPlan, lire: LireReglage): Promise<boolean> {
   const defaut = ALLUME_PAR_DEFAUT[generateur];

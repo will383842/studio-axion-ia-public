@@ -282,7 +282,7 @@ const ENV: { nom: string; fichier: string }[] = [
 const PLAN_SCENES: Record<string, Etat> = {
   "planScenes.casConcret": "allume",
   "planScenes.facecam": "allume", // CHANGERA : C5-5.02
-  "planScenes.facecamAnimee": "eteint",
+  "planScenes.facecamAnimee": "allume",
 };
 const RETOUCHE: Record<string, Etat> = {
   "retoucheChat.avocat": "eteint",
