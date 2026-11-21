@@ -19,7 +19,7 @@ const OP_VALIDE: OperationRetouche = { type: "ajouterMarque", sceneId: "s06", el
 const OP_VALIDE_2: OperationRetouche = { type: "remplacerDessin", sceneId: "s01", elementId: "e02", dessinId: "loupe" };
 
 function ports(reponse: string | Error, extra: Partial<PortsLecteur> = {}) {
-  const appeler = vi.fn(async (..._args: unknown[]) => {
+  const appeler = vi.fn(async () => {
     if (reponse instanceof Error) throw reponse;
     return { texte: reponse } as never;
   });
@@ -77,6 +77,16 @@ describe("S-06-a : lireDemandeTableauParClaude (vrai lireDemande)", () => {
     expect(await lireDemandeTableauParClaude(F, "bonjour", CTX, p)).toEqual(OP_VALIDE);
     const s = supplementTableau(F, CTX).relire([OP_VALIDE, OP_VALIDE_2]);
     expect(s.operations).toEqual([OP_VALIDE]);
+  });
+
+  it("d2) les opérations du plan de scènes rendues par le lecteur sont IGNORÉES (seul un supplément compte)", async () => {
+    const OP_PLAN = { type: "ajouter-dynamisme", intensite: "leger" };
+    const seul = ports(JSON.stringify({ operations: [OP_PLAN], supplementaires: [] }));
+    expect(await lireDemandeTableauParClaude(F, "bonjour", CTX, seul.p)).toBeNull();
+    expect(seul.appeler).toHaveBeenCalledTimes(1);
+    const mixte = ports(JSON.stringify({ operations: [OP_PLAN], supplementaires: [OP_VALIDE] }));
+    expect(await lireDemandeTableauParClaude(F, "bonjour", CTX, mixte.p)).toEqual(OP_VALIDE);
+    expect(mixte.appeler).toHaveBeenCalledTimes(1);
   });
 
   it("e) plus de lecture permise : null, 0 appel (phrase d'épuisement du lecteur)", async () => {
