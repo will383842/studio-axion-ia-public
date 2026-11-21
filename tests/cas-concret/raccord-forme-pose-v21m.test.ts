@@ -60,6 +60,17 @@ describe("raccord par forme : règle de pose quand on l'allume", () => {
     }
     expect(vus).toBeGreaterThan(0);
   });
+  it("toute tranche dont une transition a une entrée reçoit exactement un raccord (la première scène à entrée, pas seulement la scène 1)", () => {
+    let tranchesAvecEntree = 0;
+    for (let g = 1; g <= 20; g++) {
+      for (const h of habillages(lancer(planDe(24), g, true))) {
+        if (!Object.values(h.transitions ?? {}).some((t) => t?.entree)) continue;
+        tranchesAvecEntree++;
+        expect(Object.keys(h.raccords ?? {})).toHaveLength(1);
+      }
+    }
+    expect(tranchesAvecEntree).toBeGreaterThan(0);
+  });
   it("allumé : les transitions choisies sont les mêmes qu'éteint (le raccord s'ajoute, ne remplace rien)", () => {
     for (let g = 1; g <= 20; g++) {
       const plan = planDe(24);

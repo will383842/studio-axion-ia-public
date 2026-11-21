@@ -81,6 +81,14 @@ describe("rendu : plan avec un raccord posé à la main", () => {
     const html = rendre(p, debut0);
     expect(html.indexOf("data-raccord-forme")).toBeLessThan(html.indexOf(scene0.piece === "legende" ? "legende" : "position:absolute", html.indexOf("data-raccord-forme") + 10));
   });
+  it("le <svg> du raccord est le premier enfant de la scène (tracé SOUS le contenu)", () => {
+    expect(rendre(p, debut0)).toMatch(/inset:0[^"]*"><svg data-raccord-forme="1"/);
+  });
+  it("le raccord est un morphing carré → carte : le chemin change d'une image à l'autre", () => {
+    const d = (k: number) => /<path d="([^"]+)"/.exec(rendre(p, debut0 + k))?.[1];
+    expect(d(0)).toBeDefined();
+    expect(d(0)).not.toBe(d(DUREE_RACCORD_IMAGES - 1));
+  });
   it("plan avec visage (facecam) : aucun raccord, balisage identique", () => {
     const pf = avecRaccord(planFacecam);
     for (const image of [debut0, debut0 + 6]) expect(rendre(pf, image), String(image)).toBe(rendre(planFacecam, image));
