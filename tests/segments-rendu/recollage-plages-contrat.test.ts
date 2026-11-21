@@ -52,7 +52,7 @@ describe("déclaration de recollage-plages au contrat (T-EXT-52c-b)", () => {
     expect(verifierDemande(demande)).toBeNull();
     expect(verifierDemande({ ...demande, operation: COLLAGE })).toBeNull();
   });
-  it("aucune demande de src/** ne porte l'opération recollage-plages", () => {
+  it("les seuls fichiers de src/** qui citent recollage-plages sont les porteurs connus (type, brique, chaîne)", () => {
     const trouves: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -62,6 +62,11 @@ describe("déclaration de recollage-plages au contrat (T-EXT-52c-b)", () => {
       }
     };
     parcourir(join(__dirname, "../..", "src"));
-    expect(trouves).toEqual(["src/fournisseurs/types.ts"]);
+    // Le branchement existe désormais (brique rendu-par-plages, chaîne du montage tutoriel) : toute nouvelle citation doit être ajoutée ici sciemment.
+    expect(trouves.sort()).toEqual([
+      "src/briques/rendu-par-plages/index.ts",
+      "src/fournisseurs/types.ts",
+      "src/moteurs/montage-tutoriel-outil/chaine.ts",
+    ]);
   });
 });
