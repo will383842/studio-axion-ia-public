@@ -32,7 +32,11 @@ describe("planche raccord par forme : la tranche vient de la chaîne réelle", (
     expect(html(t.tranche, t.imageDebut + 12)).toContain('data-raccord-forme="1"');
     expect(html(t.tranche, t.imageDebut + 10)).toContain('data-raccord-forme="1"');
     expect(html(t.tranche, t.imageDebut + DUREE_RACCORD_IMAGES)).not.toContain("data-raccord-forme");
-    expect((t.temoin as PlanHabille).habillageCommun).toBeUndefined();
+    const hc = (t.temoin as PlanHabille).habillageCommun;
+    expect(hc?.raccords ?? {}).toEqual({});
+    // Le témoin garde la transition commune d'entrée : seule la forme du raccord le distingue.
+    expect(hc?.transitions?.[t.sceneId]?.entree).toBe("glisse-droite");
+    expect(hc?.transitions?.[t.sceneId]).toEqual(t.tranche.habillageCommun?.transitions?.[t.sceneId]);
     for (const k of [1, 5, 10, 12]) expect(html(t.temoin, t.imageDebut + k)).not.toContain("data-raccord-forme");
   });
   it("déterministe : même appel, même tranche", async () => {

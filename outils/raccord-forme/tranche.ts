@@ -69,14 +69,15 @@ export async function trancheRaccordForme(): Promise<TrancheRaccord> {
   const habillees = habillerTranches({ actif: true, raccordForme: true, plan, ecrans, tranches, plafonds: PLAFONDS_PAR_DEFAUT, graine: graineHabillage("planche-raccord-forme/corps") });
   for (const e of ecrans) {
     const h = habillees[e.cle] as PlanHabille | undefined;
-    const raccords = h?.habillageCommun?.raccords;
+    const commun = h?.habillageCommun;
+    const raccords = commun?.raccords;
     const sceneId = raccords ? Object.keys(raccords)[0] : undefined;
-    if (!h || !sceneId) continue;
+    if (!h || !commun || !sceneId) continue;
     const scene = h.scenes.find((x) => x.id === sceneId);
     if (!scene) continue;
-    const temoin: Partial<PlanHabille> = { ...h };
-    delete temoin.habillageCommun;
-    return { tranche: h, temoin: temoin as PlanValide, sceneId, imageDebut: msEnImages(scene.debutMs, h.format.fps), premiereImage: Math.ceil((scene.debutMs * h.format.fps) / 1000) };
+    // Témoin : même tranche SANS raccords seulement ; les transitions communes (dont l'entrée) restent, pour que la seule différence soit la forme.
+    const temoin: PlanHabille = { ...h, habillageCommun: { ...commun, raccords: {} } };
+    return { tranche: h, temoin, sceneId, imageDebut: msEnImages(scene.debutMs, h.format.fps), premiereImage: Math.ceil((scene.debutMs * h.format.fps) / 1000) };
   }
   throw new Error("BLOQUÉ : aucune tranche à raccord");
 }
