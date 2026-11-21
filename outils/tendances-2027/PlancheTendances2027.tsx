@@ -11,9 +11,9 @@ import { GRAISSE_MAX, GRAISSE_MIN, graisseAuTemps } from "../../src/briques/sous
 import { couleursMinimalDynamique, decouperMinimalDynamique, tailleTexteMinimale } from "../../src/briques/sous-titres/minimal-dynamique";
 import { cheminBoiteArrondie } from "../../src/briques/sous-titres/boite-arrondie";
 import type { SegmentRendu } from "../../src/briques/sous-titres/types-rendu";
-import { FenetreInclineeVue } from "../../src/briques/motion/petits-objets/fenetre-inclinee";
+import { DELAI_INCLINAISON, FenetreInclineeVue } from "../../src/briques/motion/petits-objets/fenetre-inclinee";
 import { CarteVerre } from "../../src/briques/motion/habillage-commun/verre";
-import { ECHELLE_PLEIN_CADRE, zoomMot } from "../../src/briques/motion/habillage-commun/transition-zoom-mot";
+import { ECHELLE_PLEIN_CADRE, echelleMotDansCadre, zoomMotDansCadre } from "../../src/briques/motion/habillage-commun/transition-zoom-mot";
 import { choisirRaccordForme } from "../../src/briques/motion/habillage-commun/raccord-forme";
 import { barreTemps } from "../../src/briques/motion/petits-objets/barre-temps";
 import { deciderBoucle, type SceneBoucle } from "../../src/briques/fins/boucle";
@@ -91,11 +91,24 @@ export function casesDeLaPlanche(format: FormatPlanche = "9x16"): CasePlanche[] 
 }
 
 const FPS = 25;
+/** X1-03 : image montrée = juste après l'arrivée du contenu, fenêtre encore inclinée (DELAI_INCLINAISON) ET remplie. */
+const IMAGE_X103 = Math.round((DELAI_INCLINAISON + 0.1) * FPS);
 const fonds: Record<FondAxion, { fond: string; encre: string }> = {
   ivoire: { fond: CHARTE_AXION.ivoire, encre: CHARTE_AXION.noir },
   noir: { fond: CHARTE_AXION.noir, encre: CHARTE_AXION.ivoire },
 };
 const texte = (px: number, extra: CSSProperties = {}): CSSProperties => ({ fontFamily: FAMILLE_CSS_AXION, fontSize: px, color: CHARTE_AXION.noir, ...extra });
+
+/** X1-05 : mot de démonstration, taille et largeur estimée (0,62 em par lettre en Manrope gras) ; marge de chaque côté du cadre de la case. */
+const MOT_X105 = "devis";
+const TAILLE_MOT_X105 = 40;
+const MARGE_X105 = 8;
+const REMPLISSAGE_CASE = 16;
+/** Largeurs en px du mot (échelle 1) et du cadre (la case moins son remplissage) : le mot grossi doit tenir dans `largeurCadre - 2 * marge`. */
+export function geometrieMotX105(format: FormatPlanche = "9x16"): { largeurMot: number; largeurCadre: number; marge: number } {
+  const c = casesDeLaPlanche(format)[0];
+  return { largeurMot: MOT_X105.length * TAILLE_MOT_X105 * 0.62, largeurCadre: (FORMATS_PLANCHE[format].largeur * c.l) / 100 - REMPLISSAGE_CASE, marge: MARGE_X105 };
+}
 
 const PLAN_FLASH = {
   dureeMs: 6000,
@@ -192,7 +205,7 @@ function ContenuCase(c: CasePlanche, graine: number, format: FormatPlanche = "9x
       );
     }
     case "x1-03":
-      return createElement(FenetreInclineeVue, { image: 4, fps: FPS, dureeImages: 100, fond: "ivoire", graine, parametres: { largeur: 70, hauteur: 60, titre: "Mon espace" } });
+      return createElement(FenetreInclineeVue, { image: IMAGE_X103, fps: FPS, dureeImages: 100, fond: "ivoire", graine, parametres: { largeur: 70, hauteur: 60, titre: "Mon espace" } });
     case "x1-04-ivoire":
     case "x1-04-noir": {
       const fond: FondAxion = c.id.endsWith("noir") ? "noir" : "ivoire";
@@ -206,11 +219,14 @@ function ContenuCase(c: CasePlanche, graine: number, format: FormatPlanche = "9x
     case "x1-05-b":
     case "x1-05-c": {
       const t = c.id.endsWith("a") ? 0 : c.id.endsWith("b") ? 0.5 : 1;
-      const e = zoomMot({ visageAvant: false, visageApres: false }, t);
+      const g = geometrieMotX105(format);
+      const brut = zoomMotDansCadre({ visageAvant: false, visageApres: false }, t, g);
+      // La planche n'ouvre pas la scène suivante (qui recouvre le mot en fin de zoom) : le mot reste donc entier dans sa case à tout instant.
+      const e = brut && { ...brut, echelleMot: Math.min(brut.echelleMot, echelleMotDansCadre(g.largeurMot, g.largeurCadre, g.marge)) };
       return (
         <div style={{ position: "absolute", inset: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", background: CHARTE_AXION.ivoire }}>
-          <div style={texte(40, { fontWeight: 800, transform: `scale(${e?.echelleMot ?? 1})`, opacity: e?.opaciteMot ?? 1 })}>devis</div>
-          <div style={{ position: "absolute", left: 8, bottom: 6, ...texte(14) }}>échelle {e?.echelleMot} / {ECHELLE_PLEIN_CADRE}</div>
+          <div data-echelle-mot={e?.echelleMot ?? 1} data-opacite-mot={e?.opaciteMot ?? 1} style={texte(TAILLE_MOT_X105, { fontWeight: 800, transform: `scale(${e?.echelleMot ?? 1})`, opacity: e?.opaciteMot ?? 1 })}>{MOT_X105}</div>
+          <div style={{ position: "absolute", left: 8, bottom: 6, ...texte(14) }}>échelle {Math.round((e?.echelleMot ?? 1) * 100) / 100} / {ECHELLE_PLEIN_CADRE}</div>
         </div>
       );
     }
@@ -229,7 +245,8 @@ function ContenuCase(c: CasePlanche, graine: number, format: FormatPlanche = "9x
       const b = barreTemps({ image: 60, dureeImages: 100, zone: { haut: 8, droite: 10, bas: 15, gauche: 5 }, fond: "ivoire" });
       return (
         <div style={{ position: "absolute", inset: 0 }}>
-          <div style={{ position: "absolute", left: `${b.boite.x}%`, top: `${b.boite.y}%`, width: `${b.boite.largeur}%`, height: `${Math.max(b.boite.hauteur, 1.5)}%`, background: b.couleur }} />
+          <div data-rail={`${b.rail.boite.x} ${b.rail.boite.y} ${b.rail.boite.largeur} ${b.rail.boite.hauteur}`} style={{ position: "absolute", left: `${b.rail.boite.x}%`, top: `${b.rail.boite.y}%`, width: `${b.rail.boite.largeur}%`, height: `${Math.max(b.rail.boite.hauteur, 1.5)}%`, background: b.rail.couleur }} />
+          <div data-barre={`${b.boite.x} ${b.boite.y} ${b.boite.largeur} ${b.boite.hauteur}`} style={{ position: "absolute", left: `${b.boite.x}%`, top: `${b.boite.y}%`, width: `${b.boite.largeur}%`, height: `${Math.max(b.boite.hauteur, 1.5)}%`, background: b.couleur }} />
           <div style={{ position: "absolute", left: 8, top: 6, ...texte(14) }}>progression {Math.round(b.progression * 100)} %</div>
         </div>
       );
