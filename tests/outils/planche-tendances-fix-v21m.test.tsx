@@ -49,12 +49,16 @@ describe("FIX-PLANCHE-X1-v21m", () => {
       expect(barre.y).toBeCloseTo(rail.y, 3);
     }
   });
-  it("x1-03 : la fenêtre est inclinée (angle non nul) ET remplie (son titre est là)", () => {
+  it("x1-03 : la fenêtre est inclinée (angle non nul) ET remplie (son titre est là et son contenu est visible)", () => {
     for (const f of FORMATS) {
       const c = morceau(renderToStaticMarkup(createElement(PlancheTendances2027, { format: f })), "x1-03");
       const angle = Number(/rotateX\(([\d.]+)deg\)/.exec(c)?.[1]);
       expect(angle, f).toBeGreaterThan(0);
       expect(c, f).toContain("Mon espace");
+      // Le titre est dans le balisage même quand le contenu est invisible : « remplie » se prouve par une opacité de remplissage > 0.
+      const opacites = [...c.matchAll(/fill-opacity="([\d.]+)"/g)].map((m) => Number(m[1]));
+      expect(opacites.length, `${f} fill-opacity`).toBeGreaterThan(0);
+      expect(Math.max(...opacites), `${f} contenu visible`).toBeGreaterThan(0);
     }
   });
   it("les cases ne se chevauchent pas (grille inchangée)", () => {
