@@ -26,7 +26,7 @@ export const ID_FORMAT_TUTORIEL = "tutoriel-outil";
 
 export const PHRASE_TUTORIEL_FERME = "Le tutoriel n'est pas encore ouvert : votre demande n'est pas envoyée.";
 export const PHRASE_PHRASE_FERMEE = "L'entrée par une phrase n'est pas ouverte pour le moment.";
-export const PHRASE_PERSONNE_ABSENTE = "Aucune personne n'est disponible pour parler dans la vidéo : ajoutez d'abord votre double dans Personnages, puis recommencez.";
+export const PHRASE_PERSONNE_ABSENTE = "Aucune personne n'est disponible pour cette vidéo : ajoutez d'abord votre double dans Personnages, puis recommencez.";
 export const PHRASE_EQUIPE_FERMEE = "L'équipe qui écrit le script n'est pas ouverte pour le moment : collez votre propre script pour lancer la vidéo.";
 export const SCRIPT_COLLE_MAX = 8000;
 export const PHRASE_AUCUNE_ENTREE = "Aucune entrée n'est ouverte pour le moment.";

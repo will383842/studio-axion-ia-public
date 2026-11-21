@@ -9,7 +9,7 @@ import { BarreProgression } from "@/components/ui/ProgressionEtapes";
 import { SelecteurPastilles } from "@/components/ui/SelecteurPastilles";
 import { ZoneDepot } from "@/components/ui/ZoneDepot";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
-import { AIDE_MODE_SANS_VOIX, LIBELLE_MODE_AVEC_VOIX, LIBELLE_MODE_SANS_VOIX, MODE_AVEC_VOIX, MODE_SANS_VOIX, type ModeVoixTutoriel } from "@/formats/tutoriel-outil/mode-sans-voix";
+import { AIDE_MODE_SANS_VOIX, LIBELLE_MODE_AVEC_VOIX, MODE_AVEC_VOIX, MODE_SANS_VOIX, type ModeVoixTutoriel } from "@/formats/tutoriel-outil/mode-sans-voix";
 import { controlerLongueurScript } from "@/moteurs/montage-tutoriel-outil/diffusion-tutoriel";
 import { DUREE_CARTE_FIN_MS } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import { analyserFicheTutorielOutil } from "@/domaine/outils-motion/fiches";
@@ -38,10 +38,24 @@ export interface InterrupteursFormulaire {
   formulaire: boolean;
   dossier: boolean;
   phrase: boolean;
+  /** Réglage `tutoriel.devisAvantDepense` : seul `true` exact annonce un devis (absent = éteint). */
+  devis?: boolean;
 }
 
 export const PHRASE_AUCUNE_ENTREE_OUVERTE = "Aucune entrée n'est ouverte pour le moment.";
-export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.";
+export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord le devis, puis le parcours et le script.";
+/** Même promesse quand le devis est éteint : on ne parle pas d'un devis qui n'existe pas. */
+export const PHRASE_RIEN_DEPENSE_SANS_DEVIS = "Le studio prépare le parcours et le script dès l'envoi ; rien n'est lu ni rendu avant que vous validiez le script.";
+/** Avec un script collé, il fait foi : pas de relecture du script ; sans devis, la vidéo part au rendu dès l'envoi. */
+export const PHRASE_RIEN_DEPENSE_SCRIPT = "Rien n'est dépensé avant votre accord : la vidéo part au rendu dès l'envoi avec votre script.";
+export const PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS = "Rien n'est dépensé avant votre accord : vous verrez d'abord le devis.";
+/** La phrase « Rien n'est dépensé… » juste selon le devis et la présence d'un script collé (`scriptColle` déjà nettoyé). */
+export function phraseRienDepense(devis: boolean, scriptColle: string): string {
+  if (scriptColle.trim()) return devis ? PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS : PHRASE_RIEN_DEPENSE_SCRIPT;
+  return devis ? PHRASE_RIEN_DEPENSE : PHRASE_RIEN_DEPENSE_SANS_DEVIS;
+}
+/** Pastille courte (la pleine explication est sous le sélecteur) : tient dans 390 px, sans défilement horizontal. */
+export const LIBELLE_PASTILLE_SANS_VOIX = "Sans voix (sous-titres)";
 const PARCOURS: { valeur: string; libelle: string }[] = [
   { valeur: "", libelle: "Choisi par le Studio" },
   { valeur: "G-Journee", libelle: "Une journée avant / après" },
@@ -191,7 +205,15 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
         <h2 id="bloc-son" className="text-lg font-semibold">
           Son et script
         </h2>
-        <CaseACocher libelle={LIBELLE_MODE_SANS_VOIX} coche={sansVoix} onChange={setSansVoix} />
+        <SelecteurPastilles
+          libelle="Son de la vidéo"
+          valeur={sansVoix ? MODE_SANS_VOIX : MODE_AVEC_VOIX}
+          onChange={(v) => setSansVoix(v === MODE_SANS_VOIX)}
+          options={[
+            { valeur: MODE_AVEC_VOIX, libelle: LIBELLE_MODE_AVEC_VOIX },
+            { valeur: MODE_SANS_VOIX, libelle: LIBELLE_PASTILLE_SANS_VOIX },
+          ]}
+        />
         {sansVoix && <p className="text-sm text-texte-doux">{AIDE_MODE_SANS_VOIX}</p>}
         <ZoneTexte libelle="Script à utiliser tel quel (facultatif)" aide="Collez-le : il fait foi. Sans script, le studio en écrit un que vous relirez avant de valider." longueurMax={SCRIPT_COLLE_MAX} value={scriptColle} onChange={(e) => setScriptColle(e.target.value)} />
       </section>
@@ -244,7 +266,7 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
         {!formatsOk && <p className="text-sm text-texte-doux">Gardez au moins le format 4:5.</p>}
       </section>
 
-      <p className="text-sm text-texte-doux">{PHRASE_RIEN_DEPENSE}</p>
+      <p className="text-sm text-texte-doux">{phraseRienDepense(interrupteurs.devis === true, scriptColle)}</p>
       {message && (
         <div role="alert" className="space-y-1 rounded-carte border border-trait bg-surface-2 p-3.5 text-sm text-texte">
           <p>{message}</p>
@@ -292,9 +314,10 @@ function VitrineTutorielOutil() {
         onChange={setMode}
         options={[
           { valeur: MODE_AVEC_VOIX, libelle: LIBELLE_MODE_AVEC_VOIX },
-          { valeur: MODE_SANS_VOIX, libelle: LIBELLE_MODE_SANS_VOIX, detail: AIDE_MODE_SANS_VOIX },
+          { valeur: MODE_SANS_VOIX, libelle: LIBELLE_PASTILLE_SANS_VOIX },
         ]}
       />
+      {mode === MODE_SANS_VOIX && <p className="text-sm text-texte-doux">{AIDE_MODE_SANS_VOIX}</p>}
       <RemarquesFiche remarques={[...analyse.remarques, ...remarquesDuree]} />
       <Bouton type="submit" icone="baguette">
         Préparer le tutoriel
