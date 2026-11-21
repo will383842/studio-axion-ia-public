@@ -141,6 +141,21 @@ describe("S-06-a : le bloc du tableau", () => {
     expect(bloc).toContain("e01");
   });
 
+  it("g2) le bloc montre TOUS les écrans : chaque id de scène, chaque id d'élément, et le dernier numéro d'écran", () => {
+    const bloc = supplementTableau(F, CTX).bloc;
+    for (const sc of F.scenes) {
+      expect(bloc).toContain(sc.id);
+      for (const e of sc.elements) expect(bloc).toContain(e.id);
+    }
+    expect(bloc).toContain(`Écran ${F.scenes.length} `);
+  });
+
+  it("g3) le contexte est bien transmis à l'aperçu : changerFin « fin-question » passe avec CTX, pas sans les appels", () => {
+    const op = { type: "changerFin", appelId: "fin-question" } as const;
+    expect(supplementTableau(F, CTX).relire([op]).operations).toEqual([op]);
+    expect(supplementTableau(F, { ...CTX, appels: [] }).relire([op]).operations).toEqual([]);
+  });
+
   it("regles() est vide : les règles du tableau ont déjà été tentées par l'appelant", () => {
     expect(supplementTableau(F, CTX).regles("coupe la phrase")).toEqual([]);
   });
