@@ -409,6 +409,7 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
         const attente: Travail = { ...base, statut: "en_file", modifieLe: iso, parametres: { ...base.parametres, pause } };
         // AUD-7 : le devis est rangé dans l'état de l'équipe quand elle existe (lu par l'écran de validation) ; sinon la pause seule le porte
         // (jamais d'équipe partielle : la chaîne en fabrique une complète quand elle n'en trouve pas).
+        // Le cast : `devis` n'est pas dans EtatEquipe (equipe/orchestre.ts, interdit d'écriture) ; il n'est lu que par tutoriel-validation-ecran.ts.
         const avecDevis = pause.devis && etat.equipe ? avecEtat(attente, { ...etat, equipe: { ...etat.equipe, devis: pause.devis } as NonNullable<EtatTutoriel["equipe"]> }) : attente;
         return { travail: avecDevis };
       }

@@ -90,7 +90,8 @@ const CODES_PAUSE_VALIDATION: readonly string[] = [CODE_SCRIPT_A_VALIDER];
 function enPauseDeValidation(travail: Travail): boolean {
   const pause = travail.parametres?.pause;
   const code = objet(pause) ? pause.code : undefined;
-  return travail.statut === "en_file" && typeof code === "string" && CODES_PAUSE_VALIDATION.includes(code);
+  // La pause fait foi : la vraie boucle laisse le travail « en_cours » (`ecrireAvancement` ne le remet jamais « en_file »).
+  return (travail.statut === "en_file" || travail.statut === "en_cours") && typeof code === "string" && CODES_PAUSE_VALIDATION.includes(code);
 }
 
 /** Gestes communs : session, travail, équipe lue ; sinon « Rien à valider », rien n'est écrit. */

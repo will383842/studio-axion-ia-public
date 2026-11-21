@@ -16,6 +16,7 @@ vi.mock("@/services/auth", () => ({
   }),
 }));
 
+import type { Travail } from "@/domaine/types";
 import { ENTREE_DEVIS_TUTORIEL, lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
 import type { RegistreTextes } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
 import { VERSION_SCRIPTS, type PropositionScripts } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
@@ -104,9 +105,10 @@ describe("seulement en pause de validation du script", () => {
     ["termine", { statut: "termine" }],
     ["echec", { statut: "echec" }],
     ["annule", { statut: "annule" }],
-    ["en_cours", { statut: "en_cours" }],
     ["en_file sans pause", { statut: "en_file", sansPause: true }],
     ["en_file, autre code de pause", { statut: "en_file", code: "TO_SCRIPT_ABSENT" }],
+    ["en_cours sans pause", { statut: "en_cours", sansPause: true }],
+    ["en_cours, autre code de pause", { statut: "en_cours", code: "TO_SCRIPT_ABSENT" }],
   ];
   for (const [nom, mod] of cas) {
     it(`${nom} : les 5 gestes refusent, rien n'est écrit`, async () => {
@@ -313,4 +315,30 @@ describe("0 € et conformité", () => {
       expect(src).toMatch(new RegExp(`export async function ${nom}\\([^\\n]*\\{\\n  return geste\\(`));
     }
   });
+});
+
+describe("par la vraie boucle (lireTravauxAAvancer + moteur.avancer + ecrireAvancement)", () => {
+  it("la pause de validation est enregistrée « en_cours » (jamais remise « en_file ») : les gestes agissent et la validation passe", async () => {
+    const { lireTravauxAAvancer, ecrireAvancement } = await import("@/services/travaux");
+    await installer();
+    await allumer();
+    // Départ réel : le travail est en file, sans pause ; le moteur rend, comme le vrai (index.ts), `en_file` + la pause du script.
+    const t0 = await travail();
+    const { pause: _p, ...sansPause } = t0.parametres ?? {};
+    void _p;
+    await depots().travaux.modifier("t1", { parametres: sansPause });
+    const { creerMoteurTutorielOutil } = await import("@/moteurs/montage-tutoriel-outil");
+    const moteur = {
+      ...creerMoteurTutorielOutil({ outils: async () => { throw new Error("aucun outil : le moteur est doublé"); } }),
+      avancer: async (t: Travail) => ({ travail: { ...t, statut: "en_file" as const, parametres: { ...t.parametres, pause: { code: "TO_SCRIPT_A_VALIDER", message: "x" } } } }),
+    };
+    for (const lu of await lireTravauxAAvancer(Date.now(), () => moteur as never)) await ecrireAvancement(lu, await moteur.avancer(lu.travail));
+    const enPause = await travail();
+    expect(enPause.statut).toBe("en_cours");
+    expect((enPause.parametres?.pause as { code: string }).code).toBe("TO_SCRIPT_A_VALIDER");
+    expect(await a.choisirVersionAction("v1", "A")).toEqual({ ok: true, donnees: { statut: "ok", phrase: expect.any(String) } });
+    const r = await a.validerTutorielAction("v1", { empreinteDevis: "abc" });
+    expect(r).toMatchObject({ ok: true, donnees: { statut: "ok" } });
+    expect((await travail()).parametres?.pause).toBeUndefined();
+  }, 30_000);
 });
