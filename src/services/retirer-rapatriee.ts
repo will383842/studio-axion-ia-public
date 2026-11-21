@@ -68,55 +68,57 @@ export function retraitGroupeSur(mesure: MesureEcartMinimale | null | undefined,
   return { sur: true };
 }
 
-export interface DepsRetraitIntrouvables {
-  lister(): Promise<Publication[]>;
-  ecrire(id: string, modif: Partial<Publication>): Promise<void>;
-  maintenant(): string;
-}
-
-export type ResultatRetraitGroupe = { ok: true; retirees: number } | { ok: false; message: string };
 export const MESSAGE_LISTE_CHANGEE = "La liste a changé : rechargez la page.";
-
-/**
- * Geste LOCAL groupé : pose `retireeLe` sur les seules rapatriées dont l'identifiant a été AFFICHÉ, après revérification de chacune
- * au moment du clic. Si l'ensemble retirable a changé (en plus ou en moins), rien n'est écrit. N'efface rien, ne demande rien au diffuseur.
- */
-export async function retirerLesRapatrieesIntrouvables(d: DepsRetraitIntrouvables, ids: readonly string[], espaceRetrouveLe?: string): Promise<ResultatRetraitGroupe> {
-  const m = d.maintenant();
-  const demandes = new Set(ids);
-  if (demandes.size === 0 || demandes.size !== ids.length) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
-  const retirables = (await d.lister()).filter((p) => estRapatrieeRetirable(p, Date.parse(m), espaceRetrouveLe));
-  if (retirables.length !== demandes.size || !retirables.every((p) => demandes.has(p.id))) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
-  for (const p of retirables) await d.ecrire(p.id, { retireeLe: m, modifieLe: m });
-  return { ok: true, retirees: retirables.length };
-}
+export const MESSAGE_RELECTURE_INCERTAINE = "Le diffuseur n'a pas répondu clairement : rien n'a été retiré. Réessayez dans quelques minutes.";
 
 /** Ce que répond le diffuseur à la relecture seule d'une publication : elle y est (« present »), n'y est plus (« introuvable »), ou la réponse n'est pas claire (« incertain »). */
 export type VerdictRelecture = "present" | "introuvable" | "incertain";
-export interface DepsRetraitRelu extends DepsRetraitIntrouvables {
-  /** Lecture SEULE chez le diffuseur ; ne lève jamais. */
-  relire(p: Publication): Promise<VerdictRelecture>;
-}
 export type ResultatRetraitRelu = { ok: true; retirees: number; remises: number; message: string } | { ok: false; message: string };
 
-/**
- * Retrait groupé au clic : même contrôle de la liste, puis chaque publication à retirer (10 au plus) est relue seule chez le diffuseur.
- * Celle qui répond est refusée et remise à la normale ; celle dont la réponse n'est pas claire n'est pas retirée ; seules les vérifiées
- * « introuvables » reçoivent `retireeLe`. Au-delà de 10, les autres restent telles quelles (et le message le dit). N'écrit rien chez le diffuseur.
- */
-export async function retirerLesRapatrieesApresRelecture(d: DepsRetraitRelu, ids: readonly string[], espaceRetrouveLe?: string): Promise<ResultatRetraitRelu> {
-  const m = d.maintenant();
+/** Empreinte des champs qui décident du retrait : si elle change entre la sélection et l'écriture, on ne retire pas. */
+const empreinte = (p: Publication): string => JSON.stringify([p.etatEnvoi, p.retireeLe, p.statut, p.constatsIntrouvable, p.introuvableDepuis, p.dernierConstatIntrouvable, p.etatLuLe, p.modifieLe]);
+
+export interface SelectionRetrait {
+  /** Les publications à relire (10 au plus), triées par identifiant. */
+  verifiees: Publication[];
+  /** Nombre de retirables non relues à ce clic. */
+  restantes: number;
+  /** Empreintes de TOUTES les retirables au moment de la sélection. */
+  empreintes: Map<string, string>;
+}
+
+/** Phase 1 (sous verrou, sans réseau) : l'ensemble retirable doit être exactement celui affiché. */
+export function selectionnerRetrait(publications: readonly Publication[], ids: readonly string[], maintenantIso: string, espaceRetrouveLe?: string): SelectionRetrait | null {
   const demandes = new Set(ids);
-  if (demandes.size === 0 || demandes.size !== ids.length) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
-  const retirables = (await d.lister()).filter((p) => estRapatrieeRetirable(p, Date.parse(m), espaceRetrouveLe)).sort((a, b) => a.id.localeCompare(b.id));
-  if (retirables.length !== demandes.size || !retirables.every((p) => demandes.has(p.id))) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
+  if (demandes.size === 0 || demandes.size !== ids.length) return null;
+  const retirables = publications.filter((p) => estRapatrieeRetirable(p, Date.parse(maintenantIso), espaceRetrouveLe)).sort((a, b) => a.id.localeCompare(b.id));
+  if (retirables.length !== demandes.size || !retirables.every((p) => demandes.has(p.id))) return null;
   const verifiees = retirables.slice(0, RETRAITS_MAX_PAR_CLIC);
-  const restantes = retirables.length - verifiees.length;
+  return { verifiees, restantes: retirables.length - verifiees.length, empreintes: new Map(retirables.map((p) => [p.id, empreinte(p)])) };
+}
+
+/**
+ * Phase 3 (sous verrou, écriture locale seule) : l'état relu doit être identique à celui de la sélection (mêmes retirables, mêmes empreintes) ;
+ * sinon rien n'est écrit. Celle dont le diffuseur répond est remise à la normale ; celle dont la réponse n'est pas claire reste en place ;
+ * seules les vérifiées « introuvables » reçoivent `retireeLe`. N'écrit rien chez le diffuseur.
+ */
+export async function appliquerRetraitRelu(
+  d: { lister(): Promise<Publication[]>; ecrire(id: string, modif: Partial<Publication>): Promise<void>; maintenant(): string },
+  ids: readonly string[],
+  avant: SelectionRetrait,
+  verdicts: ReadonlyMap<string, VerdictRelecture>,
+  espaceRetrouveLe?: string,
+): Promise<ResultatRetraitRelu> {
+  const m = d.maintenant();
+  const publications = await d.lister();
+  const maintenant = selectionnerRetrait(publications, ids, m, espaceRetrouveLe);
+  const inchange = !!maintenant && maintenant.empreintes.size === avant.empreintes.size && [...avant.empreintes].every(([id, e]) => maintenant.empreintes.get(id) === e);
+  if (!inchange) return { ok: false, message: MESSAGE_LISTE_CHANGEE };
   let retirees = 0;
   let remises = 0;
   let incertaines = 0;
-  for (const p of verifiees) {
-    const verdict = await d.relire(p);
+  for (const p of avant.verifiees) {
+    const verdict = verdicts.get(p.id) ?? "incertain";
     if (verdict === "introuvable") {
       await d.ecrire(p.id, { retireeLe: m, modifieLe: m });
       retirees++;
@@ -125,10 +127,11 @@ export async function retirerLesRapatrieesApresRelecture(d: DepsRetraitRelu, ids
       remises++;
     } else incertaines++;
   }
-  if (retirees === 0 && remises === 0) return { ok: false, message: "Le diffuseur n'a pas répondu clairement : rien n'a été retiré. Réessayez dans quelques minutes." };
-  const phrases = [`${retirees} publication${retirees > 1 ? "s" : ""} retirée${retirees > 1 ? "s" : ""} du calendrier.`];
+  const restantes = avant.restantes;
+  if (retirees === 0 && remises === 0) return { ok: false, message: MESSAGE_RELECTURE_INCERTAINE };
+  const phrases = retirees > 0 ? [`${retirees} publication${retirees > 1 ? "s" : ""} retirée${retirees > 1 ? "s" : ""} du calendrier.`] : [];
   if (remises > 0) phrases.push(`${remises} ${remises > 1 ? "sont" : "est"} encore chez le diffuseur : ${remises > 1 ? "elles ne sont pas retirées et sont remises" : "elle n'est pas retirée et est remise"} à la normale.`);
   if (incertaines > 0) phrases.push(`${incertaines} n'${incertaines > 1 ? "ont" : "a"} pas pu être vérifiée${incertaines > 1 ? "s" : ""} : ${incertaines > 1 ? "elles restent" : "elle reste"} en place.`);
-  if (restantes > 0) phrases.push(`Seules ${verifiees.length} publications sont vérifiées à chaque fois : ${restantes} autre${restantes > 1 ? "s restent" : " reste"} à retirer, recommencez après avoir rechargé la page.`);
-  return { ok: true, retirees, remises, message: `C'est fait : ${phrases.join(" ")} Rien n'est supprimé ni changé chez le diffuseur.` };
+  if (restantes > 0) phrases.push(`Seules ${avant.verifiees.length} publications sont vérifiées à chaque fois : ${restantes} autre${restantes > 1 ? "s restent" : " reste"} à retirer, recommencez après avoir rechargé la page.`);
+  return { ok: true, retirees, remises, message: `${retirees > 0 ? "C'est fait : " : "Rien n'est retiré du calendrier. "}${phrases.join(" ")} Rien n'est supprimé ni changé chez le diffuseur.` };
 }

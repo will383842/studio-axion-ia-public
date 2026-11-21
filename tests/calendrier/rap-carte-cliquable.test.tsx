@@ -90,6 +90,29 @@ describe("RAP · carte rapatriée cliquable", () => {
     verifierFiche(ouverte[0].props.entree as Entree);
   });
 
+  it("vue jour : les flèches de la fiche d'une reprise ne parcourent que les reprises", () => {
+    const studio: Entree = { cle: "creneau:c1|linkedin", jour: "2026-11-25", reseau: "linkedin", type: "video", etat: "a_valider", heure: "09:00", titre: "T", texte: "t" };
+    const autre = { ...rapatriee, cle: `${rapatriee.cle}-bis`, heure: "10:30" } as Entree;
+    const m = monter(VueJourAvecFiche, { jour: "2026-11-25", aujourdhui: AUJOURDHUI, entrees: [studio, rapatriee, autre], liens: {} });
+    const vue = trouver(m.rendre(), (e) => e.type === VueJour)[0];
+    (vue.props.onOuvrirRapatriee as (e: Entree) => void)(rapatriee);
+    const cle = () => (trouver(m.rendre(), (e) => e.type === ApercuPublication)[0].props.entree as Entree).cle;
+    const props = () => trouver(m.rendre(), (e) => e.type === ApercuPublication)[0].props;
+    for (const sens of ["onSuivante", "onPrecedente", "onSuivante", "onSuivante"]) {
+      (props()[sens] as () => void)();
+      expect(cle()).not.toBe(studio.cle);
+    }
+  });
+
+  it("fiche : une adresse « javascript: » ne rend aucun lien, et le texte est échappé", () => {
+    const piege = { ...rapatriee, lienDiffuseur: "javascript:alert(1)", texte: "<script>alert(1)</script> \"x\"" } as Entree;
+    const m = html(<ApercuPublication entree={piege} aujourdhui={AUJOURDHUI} onPrecedente={() => 0} onSuivante={() => 0} onFermer={() => 0} onChangerDate={() => 0} />);
+    expect(m).not.toContain("Ouvrir chez le diffuseur");
+    expect(m).not.toContain("javascript:");
+    expect(m).not.toContain("<script>");
+    expect(m).toContain("&lt;script&gt;");
+  });
+
   it("aucune reprise : rien n'est ajouté sous le mois", () => {
     expect(monter(RapatrieesDuMois, { aujourdhui: AUJOURDHUI, entrees: [] }).rendre()).toBeNull();
   });
@@ -99,7 +122,7 @@ describe("RAP · lien « Ouvrir chez le diffuseur »", () => {
   it("seulement https sur l'hôte du diffuseur", () => {
     expect(adresseDiffuseurSure("https://zernio.com/p/abc")).toBe("https://zernio.com/p/abc");
     expect(adresseDiffuseurSure("https://app.zernio.com/p/abc")).toContain("app.zernio.com");
-    for (const mauvais of ["http://zernio.com/x", "https://zernio.com.autre.test/x", "https://exemple.test/x", "javascript:alert(1)", "https://u:p@zernio.com/x", "", null, undefined]) expect(adresseDiffuseurSure(mauvais)).toBeNull();
+    for (const mauvais of ["http://zernio.com/x", "https://zernio.com.autre.test/x", "https://exemple.test/x", "javascript:alert(1)", "https://u:p@zernio.com/x", "https://zernio.com:8443/p", "", null, undefined]) expect(adresseDiffuseurSure(mauvais)).toBeNull();
   });
   it("adresse sûre : lien en nouvel onglet, rel sûr ; sinon aucun lien", () => {
     const avec = html(<ApercuPublication entree={{ ...rapatriee, lienDiffuseur: "https://zernio.com/p/abc" }} aujourdhui={AUJOURDHUI} onPrecedente={() => 0} onSuivante={() => 0} onFermer={() => 0} onChangerDate={() => 0} />);

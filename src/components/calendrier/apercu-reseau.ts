@@ -206,7 +206,7 @@ export function adresseDiffuseurSure(url: string | null | undefined): string | n
   try {
     const u = new URL(url);
     const hote = u.hostname.toLowerCase();
-    if (u.protocol !== "https:" || u.username || u.password) return null;
+    if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
     return hote === "zernio.com" || hote.endsWith(".zernio.com") ? u.href : null;
   } catch {
     return null;
