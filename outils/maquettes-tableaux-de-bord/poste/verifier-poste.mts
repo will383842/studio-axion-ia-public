@@ -9,10 +9,10 @@
 import { chromium } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { environnementAutorise } from "../capture/garde";
+import { environnementAutorise, indicesConteneur } from "../capture/garde";
 import { EXIGENCES_POSTE, jugerPoste, lireEncodeurs, lireFiltres, lireVersionFfmpeg, posteJson, type SondesPoste } from "./poste";
 
 const RACINE_DEPOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -66,7 +66,7 @@ function main(): number {
     return 4;
   }
 
-  const garde = environnementAutorise(process.env, process.platform);
+  const garde = environnementAutorise(process.env, process.platform, indicesConteneur(existsSync));
   if (!garde.ok) {
     console.error(garde.raison);
     return 7;
@@ -95,6 +95,7 @@ function main(): number {
   const chrome = sondeChromium();
   const sondes: SondesPoste = {
     plateforme: process.platform,
+    indicesConteneur: indicesConteneur(existsSync),
     env: {
       ...(process.env.CI !== undefined ? { CI: process.env.CI } : {}),
       ...(process.env.CLAUDE_CODE_REMOTE !== undefined ? { CLAUDE_CODE_REMOTE: process.env.CLAUDE_CODE_REMOTE } : {}),

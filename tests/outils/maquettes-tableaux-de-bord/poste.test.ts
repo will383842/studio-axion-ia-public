@@ -158,3 +158,31 @@ describe("texte de verifier-poste.mts", () => {
     expect(src).toContain("spawnSync");
   });
 });
+
+describe("T-EXT-51c : CAPTURE_CONTENEUR et indice de conteneur dans le poste", () => {
+  const OK = { ok: true, manques: [], remarques: [] };
+  it("jugerPoste : CAPTURE_CONTENEUR=true + indice → ok ; sans indice (ou indice faux) → refus avec la phrase de garde", () => {
+    expect(jugerPoste(poste({ env: { CAPTURE_CONTENEUR: "true" }, indicesConteneur: true })).ok).toBe(true);
+    for (const i of [false, undefined]) {
+      const j = jugerPoste(poste({ env: { CAPTURE_CONTENEUR: "true" }, indicesConteneur: i }));
+      expect(j.ok).toBe(false);
+      expect(j.manques.join(" ")).toContain("Capture interdite ici");
+    }
+  });
+  it("jugerPoste : « 1 » ou « TRUE » refusés même avec l'indice ; win32 refusé", () => {
+    for (const v of ["1", "TRUE"]) expect(jugerPoste(poste({ env: { CAPTURE_CONTENEUR: v }, indicesConteneur: true })).ok).toBe(false);
+    expect(jugerPoste(poste({ plateforme: "win32", env: { CAPTURE_CONTENEUR: "true" }, indicesConteneur: true })).ok).toBe(false);
+  });
+  it("posteJson : type « conteneur » seulement avec la variable exacte ET sans indice absent ; l'indice n'entre pas dans la fiche", () => {
+    const f = posteJson(poste({ env: { CAPTURE_CONTENEUR: "true" }, indicesConteneur: true }), OK);
+    expect(f.type).toBe("conteneur");
+    expect(f).not.toHaveProperty("indicesConteneur");
+    expect(posteJson(poste({ env: { CAPTURE_CONTENEUR: "true" }, indicesConteneur: false }), OK).type).toBe("routine-cloud");
+    expect(posteJson(poste({ env: { CAPTURE_CONTENEUR: "1" }, indicesConteneur: true }), OK).type).toBe("routine-cloud");
+  });
+  it("verifier-poste.mts lit les indices sur le disque (existsSync) et les passe à la garde et aux sondes", () => {
+    const src = readFileSync(resolve(__dirname, "../../../outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts"), "utf8");
+    expect(src).toContain("environnementAutorise(process.env, process.platform, indicesConteneur(existsSync))");
+    expect(src).toMatch(/indicesConteneur:\s*indicesConteneur\(existsSync\)/);
+  });
+});
