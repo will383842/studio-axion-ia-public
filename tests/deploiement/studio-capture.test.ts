@@ -2,9 +2,11 @@
  * T-EXT-51b · poste de capture sans réseau : lecture de TEXTE seulement (compose, Dockerfile, script de mise à jour).
  * Aucun docker, aucun réseau, aucun navigateur, aucune IA.
  */
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 const RACINE = join(__dirname, "..", "..");
 const lire = (p: string) => readFileSync(join(RACINE, p), "utf8");
@@ -90,10 +92,9 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
     expect(dockerfileCode).toContain(`test "$(id -u pwuser)" = "${u![1]}"`);
     expect(Number(u![1])).toBeGreaterThan(1000); // ni root ni l'uid 1000 d'ubuntu
   });
-  it("CPU bornée, init: true, tmpfs /tmp noexec,nosuid,nodev", () => {
+  it("CPU bornée, tmpfs /tmp noexec,nosuid,nodev (init: true : voir réserve 1 bis, il est INTERDIT)", () => {
     expect(service).toMatch(/^\s+cpus: "?[0-9.]+"?\s*$/m);
     expect(service).toMatch(/^\s+cpu_shares: \d+\s*$/m);
-    expect(service).toMatch(/^\s+init: true\s*$/m);
     const tmp = service.split("\n").find((l) => /^\s+- \/tmp:/.test(l)) ?? "";
     for (const o of ["noexec", "nosuid", "nodev"]) expect(tmp).toMatch(new RegExp(`[:,]${o}(,|\\s*$)`));
   });
@@ -276,16 +277,19 @@ describe("T-EXT-51c · réserve 2 : dépendances verrouillées (npm ci)", () => 
   it("l'étape verifier-poste tourne SANS RÉSEAU et ne peut pas être neutralisée", () => {
     const l = dockerfileCode.split("\n").filter((x) => /verifier-poste/.test(x));
     expect(l).toHaveLength(1);
-    expect(l[0]).toMatch(/^RUN --network=none node_modules\/\.bin\/tsx \S*verifier-poste\.mts/);
+    expect(l[0]).toMatch(/^RUN --network=none env CI=true node_modules\/\.bin\/tsx \S*verifier-poste\.mts/);
     expect(l[0]).not.toMatch(/\|\||;|&/);
   });
 });
 
 describe("T-EXT-51c · réserve 3 : CI retiré de l'image", () => {
-  it("`CI` absent de tout ENV/ARG du Dockerfile et de l'environnement du service ; CAPTURE_CONTENEUR=true reste", () => {
+  it("`CI` absent de tout ENV/ARG du Dockerfile et de l'environnement du service ; CAPTURE_CONTENEUR=true reste ; `CI=true` SEULEMENT sur la ligne exacte de verifier-poste", () => {
     for (const l of dockerfileCode.split("\n").filter((x) => /^(ENV|ARG)\s/.test(x)))
       expect(l, l).not.toMatch(/(^|\s)CI(=|\s|$)/);
-    expect(dockerfileCode).not.toMatch(/\bCI=/);
+    const avecCI = dockerfileCode.split("\n").filter((x) => /\bCI\b/.test(x));
+    expect(avecCI).toEqual([
+      "RUN --network=none env CI=true node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction",
+    ]);
     expect(service).not.toMatch(/(^|\s|-)CI[=:]/m);
     expect(service).not.toMatch(/^\s+environment:/m);
     expect(dockerfileCode).toMatch(/^ENV .*\bCAPTURE_CONTENEUR=true\b/m);
@@ -309,8 +313,9 @@ describe("T-EXT-51c · réserve 4 : liste EXACTE des montages et Dockerfile durc
     expect(service).not.toMatch(/^\s*runtime:/m);
     expect(Number(/^\s+pids: (\d+)\s*$/m.exec(service)![1])).toBeLessThanOrEqual(1024);
   });
-  it("le service n'est pas défini par ancre dans le fichier (pas de `<<:` ni d'ancre dans tout le compose)", () => {
+  it("le service n'utilise ni `<<:` ni `&ancre` ni `*alias` (le compose n'en a que pour les journaux des autres services)", () => {
     expect(sansCommentaires(compose)).not.toMatch(/<<:/);
+    expect(service).not.toMatch(/&[A-Za-z_]|\*[A-Za-z_]/);
   });
   it("tmpfs : jamais `exec`, toujours nosuid et nodev", () => {
     const t = liste("tmpfs");
@@ -365,7 +370,7 @@ describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", 
   });
   it("liste fermée de modes : capturer (défaut, 900 s) et decompresser (300 s) ; mode inconnu refusé", () => {
     expect(lancer).toMatch(/exec timeout --kill-after=30 900 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/capturer\.mts "\$@"/);
-    expect(lancer).toMatch(/exec timeout 300 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/decompresser\.mts "\$@"/);
+    expect(lancer).toMatch(/exec timeout --kill-after=30 300 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/decompresser\.mts "\$@"/);
     expect(lancer).toMatch(/capturer \| decompresser\)/);
     expect(lancer).toMatch(/^mode=capturer\s*$/m);
     expect(lancer).toMatch(/exit 66/);
@@ -373,11 +378,128 @@ describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", 
     expect(cases).toEqual(["capturer", "decompresser"]);
   });
   it("la commande de décompression est documentée : même service, zip en /entree :ro, sortie /sortie, pas de --entrypoint", () => {
-    expect(compose).toMatch(/run --rm studio-capture decompresser \/entree\/\S+\.zip \/sortie/);
+    expect(compose).toMatch(/run --rm studio-capture decompresser --zip \/entree\/<fichier>\.zip --sortie \/sortie\/maquette\s*$/m);
+    expect(compose).not.toMatch(/decompresser \/entree/);
     expect(compose).toMatch(/lecture seule\) sur \/entree|lecture seule sur \/entree/);
     expect(compose).toMatch(/dans CE conteneur[^\n]*jamais sur l'hôte/);
   });
   it("DÉPENDANCE : decompresser.mts est livré par le lot « zip » (lecture seule, sans effet ici)", () => {
     expect(lancer).toContain("outils/maquettes-tableaux-de-bord/capture/decompresser.mts");
+  });
+});
+
+describe("T-EXT-51c · corrections de l'audit de #1611", () => {
+  it("réserve 1 bis : journaux Docker BORNÉS, en clair dans le service (json-file, max-size <= 20m, max-file <= 5)", () => {
+    expect(liste("logging")).toEqual(["driver: json-file", "options:", 'max-size: "20m"', 'max-file: "5"']);
+    const taille = /max-size: "(\d+)m"/.exec(service);
+    expect(taille).not.toBeNull();
+    expect(Number(taille![1])).toBeLessThanOrEqual(20);
+    expect(Number(/max-file: "(\d+)"/.exec(service)![1])).toBeLessThanOrEqual(5);
+    expect(service).not.toMatch(/logging:\s*\*/);
+  });
+  it("réserve 2 : PAS d'init (timeout doit être PID 1, insensible à SIGSTOP) ; lancer.sh fait `exec timeout` dans les deux modes", () => {
+    expect(service).not.toMatch(/^\s+init:/m);
+    const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
+    expect(execs).toHaveLength(2);
+    for (const l of execs) expect(l).toMatch(/^\s*exec timeout /);
+    expect(lancer.match(/\bexec\b/g)).toHaveLength(2); // aucun autre exec (ex. `exec "$@"`) ailleurs que sur ces deux lignes
+    expect(compose).toMatch(/PAS d'`init: true`/);
+    expect(compose).toMatch(/timeout 960 docker compose --profile capture run/);
+  });
+  it("interdits en plus : storage_opt, ulimits, stop_signal, CMD, et tout RUN après le USER final hors verifier-poste", () => {
+    expect(service).not.toMatch(/^\s+(storage_opt|ulimits|stop_signal|stop_grace_period|command|entrypoint):/m);
+    expect(dockerfileCode).not.toMatch(/^CMD\b/m);
+    const l = dockerfileCode.split("\n");
+    const dernierUser = l.map((x, i) => (/^USER\s/.test(x) ? i : -1)).filter((i) => i >= 0).pop()!;
+    const apres = l.slice(dernierUser + 1).filter((x) => /^(RUN|ADD|COPY|ENV|ARG)\s/.test(x));
+    expect(apres).toEqual([
+      "RUN --network=none env CI=true node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction",
+    ]);
+  });
+  it("dépendances : EXACTEMENT 2 (@playwright/test, tsx) dans package.json, toutes présentes à la même version dans le lock", () => {
+    const pkg = JSON.parse(lire("deploiement/studio-capture/package.json"));
+    const lock = JSON.parse(lire("deploiement/studio-capture/package-lock.json"));
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@playwright/test", "tsx"]);
+    expect(pkg.devDependencies ?? {}).toEqual({});
+    expect(pkg.optionalDependencies ?? {}).toEqual({});
+    expect(lock.packages[""].dependencies).toEqual(pkg.dependencies);
+    for (const [nom, v] of Object.entries(pkg.dependencies)) expect(lock.packages[`node_modules/${nom}`].version).toBe(v);
+  });
+  it("PASSAGE décompression -> capture décrit : maquette à monter et contrôles côté hôte", () => {
+    for (const t of ["PASSAGE décompression -> capture", "STUDIO_CAPTURE_MAQUETTE", "capture-sortie/maquette/<dossier>"])
+      expect(compose).toContain(t);
+  });
+  it("décompression : sous-dossier de /sortie, règles /sortie neuf par client, refus des liens symboliques (realpath)", () => {
+    for (const t of ["/sortie/maquette", "NEUF", "JAMAIS de", "find <dossier>", "-type l", "realpath -e", "SUIT sur l'hôte"])
+      expect(compose.toLowerCase()).toContain(t.toLowerCase());
+  });
+});
+
+describe("T-EXT-51c · lancer.sh EXÉCUTÉ (faux grep, df, timeout dans un PATH temporaire)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "lancer-test-"));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  const faux = (nom: string, corps: string) => {
+    writeFileSync(join(dir, nom), `#!/bin/sh\n${corps}\n`);
+    chmodSync(join(dir, nom), 0o755);
+  };
+  faux("grep", 'exit "${FAUX_GREP:-0}"');
+  faux("df", 'echo Size; echo "${FAUX_DF-}"');
+  faux("timeout", 'echo APPEL_TIMEOUT; for a in "$@"; do echo "ARG:$a"; done');
+  const lancerSh = join(RACINE, "deploiement/studio-capture/lancer.sh");
+  const lancerEn = (env: Record<string, string>, ...args: string[]) => {
+    const r = spawnSync("sh", [lancerSh, ...args], {
+      env: { PATH: `${dir}:${process.env.PATH}`, ...env } as unknown as NodeJS.ProcessEnv,
+      encoding: "utf8",
+    });
+    return { code: r.status, out: r.stdout, err: r.stderr, appele: r.stdout.includes("APPEL_TIMEOUT"), args: r.stdout.split("\n").filter((l) => l.startsWith("ARG:")).map((l) => l.slice(4)) };
+  };
+  const TSX = "node_modules/.bin/tsx";
+  const CAP = "outils/maquettes-tableaux-de-bord/capture/capturer.mts";
+  const DEC = "outils/maquettes-tableaux-de-bord/capture/decompresser.mts";
+  it("/sortie n'est pas un point de montage : code 64, timeout jamais appelé", () => {
+    const r = lancerEn({ FAUX_GREP: "1", FAUX_DF: "3094126592" }, "--maquette", "x");
+    expect(r.code).toBe(64);
+    expect(r.appele).toBe(false);
+    expect(r.err).toContain("refus de démarrer");
+  });
+  it("/sortie trop grande (5 Gio) : code 65, timeout jamais appelé ; 4 Gio + 1 octet aussi ; exactement 4 Gio accepté", () => {
+    for (const n of ["5368709120", "4294967297"]) {
+      const r = lancerEn({ FAUX_DF: n }, "--maquette", "x");
+      expect(r.code, n).toBe(65);
+      expect(r.appele, n).toBe(false);
+    }
+    expect(lancerEn({ FAUX_DF: "4294967296" }, "--maquette", "x").code).toBe(0);
+  });
+  it("taille illisible (vide, texte) : code 65, timeout jamais appelé", () => {
+    for (const n of ["", "abc", "12x34", "-1"]) {
+      const r = lancerEn({ FAUX_DF: n }, "--maquette", "x");
+      expect(r.code, JSON.stringify(n)).toBe(65);
+      expect(r.appele, JSON.stringify(n)).toBe(false);
+    }
+  });
+  it("bon (3 Gio), mode par défaut : exec timeout --kill-after=30 900 tsx capturer.mts avec les arguments tels quels", () => {
+    const r = lancerEn({ FAUX_DF: "3094126592" }, "--maquette", "un dossier", "--sortie", "/sortie");
+    expect(r.code).toBe(0);
+    expect(r.args).toEqual(["--kill-after=30", "900", TSX, CAP, "--maquette", "un dossier", "--sortie", "/sortie"]);
+  });
+  it("mode capturer explicite : le mot « capturer » est retiré (shift)", () => {
+    const r = lancerEn({ FAUX_DF: "3094126592" }, "capturer", "--maquette", "x");
+    expect(r.args).toEqual(["--kill-after=30", "900", TSX, CAP, "--maquette", "x"]);
+  });
+  it("mode decompresser : timeout --kill-after=30 300, sans le mot « decompresser » dans les arguments", () => {
+    const r = lancerEn({ FAUX_DF: "3094126592" }, "decompresser", "--zip", "a", "--sortie", "b");
+    expect(r.code).toBe(0);
+    expect(r.args).toEqual(["--kill-after=30", "300", TSX, DEC, "--zip", "a", "--sortie", "b"]);
+  });
+  it("mode inconnu : code 66, timeout jamais appelé (sh, -h, CAPTURER)", () => {
+    for (const m of ["sh", "-h", "CAPTURER", "id"]) {
+      const r = lancerEn({ FAUX_DF: "3094126592" }, m);
+      expect(r.code, m).toBe(66);
+      expect(r.appele, m).toBe(false);
+    }
+  });
+  it("sans argument : mode capturer par défaut", () => {
+    const r = lancerEn({ FAUX_DF: "3094126592" });
+    expect(r.args).toEqual(["--kill-after=30", "900", TSX, CAP]);
   });
 });

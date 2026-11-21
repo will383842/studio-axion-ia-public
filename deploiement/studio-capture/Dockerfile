@@ -54,9 +54,11 @@ RUN test "$(id -u pwuser)" = "1001" && test "$(id -g pwuser)" = "1001"
 # Vérification à la construction : la construction ÉCHOUE si le poste n'est pas bon (verifier-poste sort 0 seulement
 # si Playwright 1.63.0, Chromium, FFmpeg >= 6 et ses filtres, la police et l'espace libre sont bons). Ne lance pas le navigateur.
 # SANS RÉSEAU (`--network=none`, BuildKit) : tsx et ses dépendances s'exécutent ici sans accès à Internet.
+# `CI=true` vaut pour CETTE SEULE COMMANDE (jamais dans ENV/ARG ni dans le service, donc absent de l'image) : BuildKit ne crée
+# pas /.dockerenv pendant un RUN, la garde ne reconnaît le poste qu'ainsi à la construction.
 USER 1001:1001
-RUN --network=none node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction
+RUN --network=none env CI=true node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction
 
-# Durée bornée par lancer.sh (capturer : 15 min, SIGTERM puis SIGKILL 30 s après ; decompresser : 5 min) ; le compose n'a
+# Durée bornée par lancer.sh (capturer : 15 min, decompresser : 5 min, chacun SIGTERM puis SIGKILL 30 s après) ; le compose n'a
 # pas de limite de durée. Arguments : voir le commentaire du service dans docker-compose.yml. Jamais `--entrypoint`.
 ENTRYPOINT ["/app/lancer.sh"]

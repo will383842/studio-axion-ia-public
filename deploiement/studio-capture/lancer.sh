@@ -45,6 +45,6 @@ case "$mode" in
     exec timeout --kill-after=30 900 node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/capture/capturer.mts "$@"
     ;;
   decompresser)
-    exec timeout 300 node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/capture/decompresser.mts "$@"
+    exec timeout --kill-after=30 300 node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/capture/decompresser.mts "$@"
     ;;
 esac
