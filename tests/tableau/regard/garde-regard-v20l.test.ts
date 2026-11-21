@@ -71,6 +71,15 @@ describe("garderRegard (S-10-GARDE-A-v20l) : au plus 2 regards, sortie principal
     expect(un).toHaveBeenCalledTimes(1);
   });
 
+  it("f2) plafond illisible (NaN, Infinity, texte) : 0 appel réel, « non relue », jamais sans plafond", async () => {
+    for (const maxAppels of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number("abc")]) {
+      const r = vi.fn(() => bonne);
+      const g = garderRegard(r, { clePrincipale: "p.mp4", maxAppels });
+      for (let i = 0; i < 5; i += 1) expect(await g({}, {}, video("p.mp4")), String(maxAppels)).toEqual(nonRelue);
+      expect(r).not.toHaveBeenCalled();
+    }
+  });
+
   it("g) éteint : aucun fichier de src n'importe garde-regard ; le module ne cite pas les textes interdits", () => {
     const racine = new URL("../../../src", import.meta.url).pathname;
     const fichiers: string[] = [];

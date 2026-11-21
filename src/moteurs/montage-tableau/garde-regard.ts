@@ -29,7 +29,9 @@ export function garderRegard<F, M>(
   relecteur: (fiche: F, miseEnPage: M, video: VideoRegardee) => Promise<RelectureRendue> | RelectureRendue,
   options: OptionsGardeRegard,
 ): (fiche: F, miseEnPage: M, video: VideoRegardee) => Promise<RelectureRendue> {
-  const plafond = Math.min(MAX_REGARDS_PAR_VIDEO, Math.max(0, Math.floor(options.maxAppels ?? MAX_REGARDS_PAR_VIDEO)));
+  // Plafond illisible (NaN, Infinity, texte) : sens prudent, 0 appel réel ; jamais sans plafond.
+  const brut = options.maxAppels ?? MAX_REGARDS_PAR_VIDEO;
+  const plafond = typeof brut === "number" && Number.isFinite(brut) ? Math.min(MAX_REGARDS_PAR_VIDEO, Math.max(0, Math.floor(brut))) : 0;
   let appels = 0;
   return async (fiche, miseEnPage, video) => {
     if (video.cle !== options.clePrincipale) return nonRelue();
