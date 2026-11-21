@@ -26,7 +26,9 @@ export function indicesConteneur(existe: (chemin: string) => boolean): boolean {
 }
 
 /**
- * Vrai seulement dans la CI, une session cloud, ou le conteneur de capture, et jamais sous Windows (le PC de Williams) ni macOS.
+ * Vrai seulement dans la CI, une session cloud, ou le conteneur de capture, et jamais sous Windows (le PC de Williams).
+ * macOS : refusé pour la voie `CAPTURE_CONTENEUR` (linux seulement), mais ACCEPTÉ avec `CI=true` ou `CLAUDE_CODE_REMOTE=true`
+ * (exécuteurs CI macOS) ; c'est le comportement d'avant 51c, `jugerPoste` refuse darwin de son côté.
  * `CAPTURE_CONTENEUR` doit valoir exactement « true » ET le lanceur doit avoir vu un fichier témoin de conteneur
  * (`indicesConteneur`) : poser la variable seule sur un PC ne suffit pas. Sans 3e paramètre : refusé (rétro-compatible).
  */
@@ -88,5 +90,33 @@ export function adresseAutoriseeReelle(
     return false;
   } catch {
     return false;
+  }
+}
+
+/** Ce que `deciderRequete` lit d'un `stat` (le lanceur passe `fs.statSync`) : fichier ordinaire, un seul nom. */
+export interface InfosFichier {
+  isFile(): boolean;
+  nlink: number;
+}
+
+/**
+ * Décision pure d'une requête du navigateur : « continuer » ou « refuser ». Tout ce qui n'est pas explicitement bon est refusé.
+ * Adresse permise (`adresseAutoriseeReelle`, chemin réel par `realpath` injecté) ET, pour `file://`, un fichier ordinaire
+ * (`isFile()`) avec un seul nom (`nlink === 1` : un lien physique vers un fichier hors racine, que `realpath` ne voit pas, est refusé).
+ * Toute exception (fichier absent, `stat` en échec) : refusé.
+ */
+export function deciderRequete(
+  url: string,
+  racines: readonly string[],
+  realpath: (chemin: string) => string,
+  stat: (chemin: string) => InfosFichier,
+): "continuer" | "refuser" {
+  try {
+    if (!adresseAutoriseeReelle(url, racines, realpath)) return "refuser";
+    if (!/^file:\/\//i.test(url)) return "continuer"; // about:blank, data:
+    const infos = stat(resolve(fileURLToPath(url)));
+    return infos.isFile() === true && infos.nlink === 1 ? "continuer" : "refuser";
+  } catch {
+    return "refuser";
   }
 }

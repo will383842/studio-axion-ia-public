@@ -2,7 +2,7 @@
  * T-EXT-51c (lot garde) : CAPTURE_CONTENEUR à la place de CI, et chemins réels (realpath) dans la garde.
  * La garde reste pure : le « disque » (indices de conteneur, realpath) lui est injecté. L'essai symlink utilise un vrai dossier temporaire.
  */
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,6 +11,8 @@ import {
   MESSAGE_ENVIRONNEMENT_INTERDIT,
   adresseAutorisee,
   adresseAutoriseeReelle,
+  deciderRequete,
+  INDICES_CONTENEUR,
   environnementAutorise,
   indicesConteneur,
 } from "../../../outils/maquettes-tableaux-de-bord/capture/garde";
@@ -114,5 +116,57 @@ describe("adresseAutoriseeReelle : vrai système de fichiers temporaire", () => 
   });
   it("un realpath qui lève une exception : refusé", () => {
     expect(adresseAutoriseeReelle(u("index.html"), [racine], () => { throw new Error("ENOENT"); })).toBe(false);
+  });
+});
+
+describe("T-EXT-51c correctifs : INDICES_CONTENEUR figé", () => {
+  it("exactement les deux fichiers témoins de Docker et Podman", () => {
+    expect(INDICES_CONTENEUR).toEqual(["/.dockerenv", "/run/.containerenv"]);
+  });
+});
+
+describe("T-EXT-51c correctifs : deciderRequete sur un vrai système de fichiers", () => {
+  let base = "";
+  let racine = "";
+  const u = (...p: string[]) => pathToFileURL(join(racine, ...p)).href;
+  const rp = (p: string) => realpathSync.native(p);
+  const st = (p: string) => statSync(p);
+  beforeAll(() => {
+    base = realpathSync(mkdtempSync(join(tmpdir(), "decider-51c-")));
+    racine = join(base, "maquette");
+    mkdirSync(join(racine, "sous"), { recursive: true });
+    writeFileSync(join(racine, "index.html"), "<html></html>");
+    writeFileSync(join(base, "secret.txt"), "secret");
+    linkSync(join(base, "secret.txt"), join(racine, "physique.txt"));
+    symlinkSync(join(base, "secret.txt"), join(racine, "symbolique.txt"));
+  });
+  afterAll(() => rmSync(base, { recursive: true, force: true }));
+
+  it("fichier ordinaire de la maquette : continuer", () => {
+    expect(deciderRequete(u("index.html"), [racine], rp, st)).toBe("continuer");
+  });
+  it("about:blank et data: : continuer (aucun fichier lu)", () => {
+    expect(deciderRequete("about:blank", [racine], rp, st)).toBe("continuer");
+    expect(deciderRequete("data:text/plain,a", [racine], rp, st)).toBe("continuer");
+  });
+  it("lien symbolique, lien physique hors racine, dossier, fichier absent : refuser", () => {
+    expect(deciderRequete(u("symbolique.txt"), [racine], rp, st)).toBe("refuser");
+    expect(deciderRequete(u("physique.txt"), [racine], rp, st)).toBe("refuser");
+    expect(deciderRequete(u("sous"), [racine], rp, st)).toBe("refuser");
+    expect(deciderRequete(u("absent.html"), [racine], rp, st)).toBe("refuser");
+  });
+  it("http, https, file hors racine : refuser", () => {
+    expect(deciderRequete("https://exemple.test/", [racine], rp, st)).toBe("refuser");
+    expect(deciderRequete("http://127.0.0.1/", [racine], rp, st)).toBe("refuser");
+    expect(deciderRequete(pathToFileURL(join(base, "secret.txt")).href, [racine], rp, st)).toBe("refuser");
+  });
+  it("stat injecté : non-fichier ou nlink différent de 1 refusés, stat qui lève refusé, realpath qui lève refusé", () => {
+    const url = u("index.html");
+    expect(deciderRequete(url, [racine], rp, () => ({ isFile: () => false, nlink: 1 }))).toBe("refuser");
+    expect(deciderRequete(url, [racine], rp, () => ({ isFile: () => true, nlink: 2 }))).toBe("refuser");
+    expect(deciderRequete(url, [racine], rp, () => ({ isFile: () => true, nlink: 0 }))).toBe("refuser");
+    expect(deciderRequete(url, [racine], rp, () => ({ isFile: () => true, nlink: 1 }))).toBe("continuer");
+    expect(deciderRequete(url, [racine], rp, () => { throw new Error("EIO"); })).toBe("refuser");
+    expect(deciderRequete(url, [racine], () => { throw new Error("ENOENT"); }, st)).toBe("refuser");
   });
 });
