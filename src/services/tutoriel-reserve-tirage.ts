@@ -547,10 +547,10 @@ async function suivre(dep: DependancesSuivi): Promise<{ faits: number; echecs: n
           });
         }
       } else if (statut === null || statut === "echec" || statut === "annulee" || statut === "archivee") {
-        // Relecture juste avant l'écriture : un lancement abouti entre-temps (en_file, en_cours, prete) ne s'écrase pas.
+        // Relecture juste avant l'écriture : un lancement abouti entre-temps (en_file, en_fabrication, prete) ne s'écrase pas.
         if (statut !== null) {
           const maintenantStatut = await (dep.statutVideo ?? statutVideoParDefaut)(videoId);
-          if (maintenantStatut === "en_file" || maintenantStatut === "en_cours" || maintenantStatut === "prete") continue;
+          if (maintenantStatut === "en_file" || maintenantStatut === "en_fabrication" || maintenantStatut === "prete") continue;
         }
         if (await echouerSiInchange(e, PHRASE_VIDEO_ECHEC, dep)) echecs++;
       }
