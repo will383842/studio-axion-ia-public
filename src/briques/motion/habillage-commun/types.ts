@@ -3,6 +3,7 @@
  * (le dossier `src/briques/motion/**` est lu par le rendu). Rien ne lit ces types encore ; tout est éteint par défaut.
  */
 import type { PlanValide } from "../../plan-scenes/schema";
+import type { FormeRaccord } from "./raccord-forme";
 
 /** Identifiant de transition. Union vide d'effet : rien ne la lit ; C6-H1 la complète avec les 14 identifiants. */
 export type IdTransition = string & { readonly __idTransition?: never };
@@ -23,6 +24,8 @@ export type FamilleSon = string & { readonly __familleSon?: never };
 
 export interface HabillagePlan {
   transitions?: Record<string, { entree?: IdTransition; sortie?: IdTransition }>;
+  /** BR-RACCORD-FORME-a : raccord par forme posé à l'entrée d'une scène (clé = id de scène). Absent : rien n'est dessiné. */
+  raccords?: Record<string, { de: FormeRaccord; vers: FormeRaccord }>;
   pleinCadrePermis: boolean;
   version: "habillage-1";
 }
