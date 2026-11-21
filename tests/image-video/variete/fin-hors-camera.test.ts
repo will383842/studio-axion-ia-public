@@ -41,7 +41,7 @@ async function rendre(avecCamera: boolean, horsCamera: boolean): Promise<string>
   const { HabillageVariete } = await import("../../../studio-rendu/compositions/image-video/variete/HabillageVariete");
   const variete = { recette: { ...RECETTE_REFERENCE_IV } as RecetteVarieteIV, format: "4:5" as const, donnees: avecCamera ? { camera } : {} };
   const contenu = createElement("div", { id: "scene" }, marque("entete"), horsCamera ? null : [marque("queue"), marque("affiche")]);
-  return renderToStaticMarkup(createElement(ContexteVariete, { variete, scene, children: createElement(HabillageVariete, { horsCamera: horsCamera ? createElement("div", { id: "hors" }, marque("queue"), marque("affiche")) : undefined }, contenu) }));
+  return renderToStaticMarkup(createElement(ContexteVariete, { variete, scene, children: createElement(HabillageVariete, { horsCamera: horsCamera ? createElement("div", { id: "hors" }, marque("queue"), marque("affiche")) : undefined } as never, contenu) }));
 }
 const pos = (h: string, motif: string) => h.indexOf(motif);
 
@@ -62,7 +62,7 @@ describe("queue et affiche : place dans l'habillage", () => {
   });
   it("sans variété : horsCamera est rendu après le contenu", async () => {
     const { HabillageVariete } = await import("../../../studio-rendu/compositions/image-video/variete/HabillageVariete");
-    const h = renderToStaticMarkup(createElement(HabillageVariete, { horsCamera: marque("queue") }, marque("scene")));
+    const h = renderToStaticMarkup(createElement(HabillageVariete, { horsCamera: marque("queue") } as never, marque("scene")));
     expect(h).toBe('<i id="scene"></i><i id="queue"></i>');
   });
 });

@@ -39,7 +39,7 @@ describe("le bouton « Lien privé »", () => {
   });
 
   it("n'y est pas sans le lien fourni (écran inchangé)", () => {
-    expect(texte(renderToStaticMarkup(createElement(VosVideos, { videos: [CARTE] })))).not.toContain("Lien privé");
+    expect(texte(renderToStaticMarkup(createElement(VosVideos, { videos: [CARTE] } as never)))).not.toContain("Lien privé");
   });
 
   it("est dans « Vos fichiers » (Cas concret) en tête de section", () => {

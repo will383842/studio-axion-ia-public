@@ -179,7 +179,7 @@ describe("bout en bout en simulation, avec les arrêts « carte » et « script 
       expect(arrets).toEqual(["carte", "script"]);
       expect(etat.refus).toBeUndefined();
       expect(etat.etape).toBe("prete");
-      const mentions = etat.controles?.verdict.mentions ?? [];
+      const mentions = etat.controles?.verdict!.mentions ?? [];
       expect(mentions.some((p) => defaut.test(p))).toBe(true);
       expect(mentions.some((p) => /Mise en page/.test(p))).toBe(true);
       expect(m.appelsClaude.some((a) => a.role === "relecture-finale-iv")).toBe(true);

@@ -57,7 +57,7 @@ describe("Habillage · plan pur", () => {
     expect(planHabillage({ debutMs: 3000 }, 0.1, 3)).toBe(NEUTRE);
     expect(habille({ debutMs: 3000, jeu: undefined })).toBe(false);
     expect(habille({ debutMs: 3000, jeu: { fondFort: true } })).toBe(false);
-    for (const jeu of [{ entree: "glissement" }, { transition: "eclair" }, { entree: "rideau", transition: "poussee" }]) {
+    for (const jeu of [{ entree: "glissement" }, { transition: "eclair" }, { entree: "rideau", transition: "poussee" }] as Record<string, string>[]) {
       const h = planHabillage({ debutMs: 0, jeu }, 0, 3);
       expect(h).toEqual(NEUTRE);
     }

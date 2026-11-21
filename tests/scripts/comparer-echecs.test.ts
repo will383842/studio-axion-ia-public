@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-// @ts-expect-error module .mjs sans types
 import { extraireEchecs, comparer, compterLances, rapport, selectionnerTests } from "../../scripts/comparer-echecs.mjs";
 
 const rapportVitest = (fichiers: Record<string, [string, "passed" | "failed"][]>) => ({
