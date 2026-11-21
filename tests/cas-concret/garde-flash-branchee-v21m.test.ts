@@ -9,7 +9,24 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { planScenesCasConcret, cleTranche, type GroupePourPlan } from "@/moteurs/montage-cas-concret/plan-scenes";
 import { DIX_SCRIPTS } from "../briques/faits-script/dix-scripts";
 
-const etat = vi.hoisted(() => ({ rafale: 0 }));
+const etat = vi.hoisted(() => ({ rafale: 0, remarqueDuPlan: false, mesureVide: false }));
+vi.mock("@/briques/composition/garde-flash", async (origine) => {
+  const vrai = await origine<typeof import("@/briques/composition/garde-flash")>();
+  // Double : `mesureVide` remplace la mesure par « aucun flash » (même plan, mêmes tranches).
+  return { ...vrai, mesurerFlashs: (p: Parameters<typeof vrai.mesurerFlashs>[0]) => (etat.mesureVide ? { flashs: 0, maxParSeconde: 0, debutFenetreMs: 0, reserves: [] } : vrai.mesurerFlashs(p)) };
+});
+const REMARQUE_DU_PLAN = { code: "RYTHME" as const, message: "Remarque du plan (double), pas un flash." };
+vi.mock("@/briques/plan-scenes-generateurs/adaptateur", async (origine) => {
+  const vrai = await origine<typeof import("@/briques/plan-scenes-generateurs/adaptateur")>();
+  return {
+    ...vrai,
+    // Double : le plan du groupe sort avec UNE remarque non FLASH (sans lui, `remarques` est vide et l'ordre ne se prouve pas).
+    adapterPlan: async (...a: Parameters<typeof vrai.adapterPlan>) => {
+      const x = await vrai.adapterPlan(...a);
+      return etat.remarqueDuPlan ? { ...x, remarques: [...x.remarques, REMARQUE_DU_PLAN] } : x;
+    },
+  };
+});
 vi.mock("@/moteurs/montage-cas-concret/habillage-plan", async (origine) => {
   const vrai = await origine<typeof import("@/moteurs/montage-cas-concret/habillage-plan")>();
   return {
@@ -50,6 +67,8 @@ const scene = (id: string, debutMs: number, finMs: number): Scene => ({ id, debu
 
 beforeEach(() => {
   etat.rafale = 0;
+  etat.remarqueDuPlan = false;
+  etat.mesureVide = false;
 });
 
 describe("mesurerFlashs lit habillageCommun", () => {
@@ -76,22 +95,34 @@ describe("mesurerFlashs lit habillageCommun", () => {
 });
 
 describe("planScenesCasConcret : remarque FLASH", () => {
-  it("tranche habillée à 4 flashs en 1 s : une remarque FLASH en fin de liste, mémo et tranches inchangés", async () => {
+  it("tranche habillée à 4 flashs en 1 s : remarque(s) FLASH APRÈS les remarques du plan (ordre, sans doublon), mémo et tranches inchangés", async () => {
+    etat.remarqueDuPlan = true;
     const base = await planScenesCasConcret({ groupes: [GROUPE], habillage: { actif: true, graine: "v-flash" } });
+    expect(base.remarques.length).toBeGreaterThan(0);
     expect(flashs(base)).toHaveLength(0);
     etat.rafale = 4;
     const r = await planScenesCasConcret({ groupes: [GROUPE], habillage: { actif: true, graine: "v-flash" } });
     const f = flashs(r);
     expect(f.length).toBeGreaterThan(0);
     expect(f[0]!.message).toMatch(/^À vérifier : 4 flashs en 1 s/);
-    expect(r.remarques.slice(-f.length).every((x) => x.code === "FLASH")).toBe(true);
+    // Exactement : remarques du plan d'abord (ni retirées, ni doublées, ni passées après), puis les FLASH, rien d'autre.
+    expect(r.remarques).toEqual([...base.remarques, ...f]);
     expect(r.remarques.slice(0, base.remarques.length)).toEqual(base.remarques);
+    expect(r.remarques.slice(base.remarques.length)).toEqual(f);
     expect(r.memo).toEqual(base.memo);
     expect(JSON.stringify(r.memo)).not.toContain("FLASH");
+    expect(r.tranches).not.toEqual(base.tranches); // le double de rafale a bien posé des scènes habillées
     expect(Object.keys(r.tranches).sort()).toEqual(Object.keys(base.tranches).sort());
+    // Les tranches, comparées en profondeur à celles d'un appel où la mesure ne voit aucun flash (même rafale posée).
+    etat.mesureVide = true;
+    const muet = await planScenesCasConcret({ groupes: [GROUPE], habillage: { actif: true, graine: "v-flash" } });
+    etat.mesureVide = false;
+    expect(muet.tranches).toEqual(r.tranches);
+    expect(muet.remarques).toEqual(base.remarques);
     // Reprise depuis le mémo : la remarque n'est pas doublée.
     const rejoue = await planScenesCasConcret({ groupes: [GROUPE], memo: r.memo, habillage: { actif: true, graine: "v-flash" } });
     expect(flashs(rejoue)).toHaveLength(f.length);
+    expect(rejoue.remarques).toEqual(r.remarques);
   });
   it("3 flashs en 1 s : aucune remarque", async () => {
     etat.rafale = 3;
