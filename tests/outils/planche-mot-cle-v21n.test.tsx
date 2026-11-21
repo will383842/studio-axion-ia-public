@@ -7,7 +7,8 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { BANDE_SOUS_TITRES, controlesMotCle, geometrieMotCle, MOT_CLE, PlancheMotCle, STYLES_MOT_CLE, TAILLE_MOT_CLE } from "../../outils/mot-cle/PlancheMotCle";
+import { Legende } from "../../src/briques/plan-scenes/briques/Legende";
+import { BANDE_SOUS_TITRES, IMAGE_PLANCHE, controlesMotCle, geometrieMotCle, MOT_CLE, PlancheMotCle, STYLES_MOT_CLE, TAILLE_MOT_CLE } from "../../outils/mot-cle/PlancheMotCle";
 import { seChevauchent, ZONE_VISAGE, ZONES } from "../../src/briques/plan-scenes/zones";
 
 const lire = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
@@ -45,7 +46,14 @@ describe("planche mot-clé : rendu", () => {
       expect(h.split(MOT_CLE).length - 1).toBe(1); // « Devis » avec majuscule : le mot-clé seul (la phrase des sous-titres écrit « devis » en minuscule)
       expect(h).toContain(`data-style="${style}"`);
       expect(h).toContain("Manrope");
-      expect(h).toContain("Le devis part tout seul");
+      for (const m of ["Le", "devis", "part", "tout", "seul"]) expect(h).toContain(`>${m}<`);
+    });
+  }
+  for (const style of STYLES_MOT_CLE) {
+    it(`${style} : la planche contient le balisage EXACT de la vraie pièce legende (rendue par Legende, pas dessinée à la main)`, () => {
+      const piece = renderToStaticMarkup(createElement(Legende, { image: IMAGE_PLANCHE, fps: 30, dureeImages: 90, fond: "noir", accent: "terracotta", parametres: { texte: MOT_CLE, sousTexte: "", style } }));
+      expect(piece).toContain(MOT_CLE);
+      expect(renderToStaticMarkup(createElement(PlancheMotCle, { style }))).toContain(piece);
     });
   }
   it("même entrée, même sortie", () => {
