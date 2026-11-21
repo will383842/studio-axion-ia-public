@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { garderPlanScenes } from "@/briques/donnees-video/garde-plan-scenes";
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { CATALOGUE_BRIQUES } from "@/briques/plan-scenes/catalogue";
+import { estGardee } from "@/briques/plan-scenes/pieces-gardees";
 
 const donnee: TableauDeBord = {
   version: "tableau-de-bord.v1",
@@ -77,7 +78,8 @@ describe("garderPlanScenes : courbe-series", () => {
     const s = { niveau: 2, piece: "legende", parametres: { texte: "Bonjour 99", sousTexte: "", style: "bandeau" }, calques: [{ piece: "compteur", parametres: { valeur: 8, surMot: 0, aMs: 0 }, debutMs: 0, zone: "plein" }] };
     expect(garderPlanScenes(plan(s), donnee).fautes).toEqual([{ sceneId: "s1", piece: "compteur", valeur: 8 }]);
 
-    expect(Object.keys(CATALOGUE_BRIQUES)).not.toContain("courbe-series");
+    expect(Object.keys(CATALOGUE_BRIQUES)).toContain("courbe-series");
+    expect(estGardee(CATALOGUE_BRIQUES["courbe-series"])).toBe(true);
   });
 
   it("ne modifie pas le plan", () => {

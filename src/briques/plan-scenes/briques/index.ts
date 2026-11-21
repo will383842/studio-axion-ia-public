@@ -11,6 +11,7 @@ import { Curseur } from "./Curseur";
 import { FenetreApp } from "./FenetreApp";
 import { FrappeClavier } from "./FrappeClavier";
 import { Graphique } from "./Graphique";
+import { CourbeSeries } from "../../plan-scenes-donnees/CourbeSeries";
 import { Legende } from "./Legende";
 import { ListeCrm } from "./ListeCrm";
 import { AvantApres, Barres, Citation, Compteur, Etapes, Jauge, ListeAuMot, Repere } from "./PiecesDonnees";
@@ -45,6 +46,8 @@ export const RENDUS_BRIQUES: Record<IdPiece, RenduBrique> = {
   "intercalaire-chapitre": IntercalaireChapitre as RenduBrique,
   "flux-ramifie": FluxRamifie as RenduBrique,
   "cadre-capture": CadreCapture as RenduBrique,
+  // G4-11b-2 : courbe à plusieurs séries (porte fermée : PIECES_GARDEES)
+  "courbe-series": CourbeSeries as RenduBrique,
 };
 
 export { transformZoom };
