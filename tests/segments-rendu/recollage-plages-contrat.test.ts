@@ -51,7 +51,7 @@ describe("déclaration de recollage-plages au contrat (T-EXT-52c-b)", () => {
     expect(verifierDemande(demande)).toBeNull();
     expect(verifierDemande({ ...demande, operation: "collage-chapitres" })).toBe("opération inconnue");
   });
-  it("aucune demande de src/** ne porte l'opération recollage-plages", () => {
+  it("seuls ces fichiers de src/** citent l'opération recollage-plages (52c-d du tutoriel, ports communs S-11-b)", () => {
     const trouves: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -61,7 +61,7 @@ describe("déclaration de recollage-plages au contrat (T-EXT-52c-b)", () => {
       }
     };
     parcourir(join(__dirname, "../..", "src"));
-    expect(trouves).toEqual(["src/fournisseurs/types.ts"]);
+    expect(trouves).toEqual(["src/briques/rendu-par-plages/index.ts", "src/fournisseurs/types.ts", "src/moteurs/montage-tutoriel-outil/chaine.ts", "src/services/retouche-chat/rendu-commun.ts"]);
   });
   it("collage-chapitres n'est déclarée dans aucun des trois fichiers", () => {
     for (const f of ["studio-rendu/src/contrat.ts", "src/fournisseurs/types.ts", "studio-rendu/src/index.ts"]) {
