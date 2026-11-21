@@ -1,5 +1,6 @@
 /**
- * C10-15-b2 : la mesure du rythme est branchée à la fin de `adapterPlan`, ÉTEINTE par défaut (seul `true` allume).
+ * C10-15-b2 : la mesure du rythme est branchée à la fin de `adapterPlan`. ALLUMÉE par défaut (ALLUMER-RYTHME-MESURE, décision du 21/11 :
+ * fini, vérifié, gratuit) ; `rythme: false` explicite l'éteint.
  * Aucun appel réel : `appeler` est un faux injecté ou absent.
  */
 import { describe, expect, it } from "vitest";
@@ -22,19 +23,28 @@ const UNE_SCENE = [scene("a", 0, 2, "Bonjour à tous")];
 const VIVANT = [scene("a", 0, 2, "Bonjour à tous"), scene("b", 3, 6, "On gagne 3 heures"), scene("c", 7, 11, "par semaine avec cet outil"), scene("d", 12, 16, "Le devis part tout seul"), scene("e", 17, 22, "chaque matin")];
 const rythmes = (r: { remarques: { code: string }[] }) => r.remarques.filter((x) => x.code === "RYTHME");
 
-describe("C10-15-b2 · rythme au plan (éteint par défaut)", () => {
-  it("(f) la constante est éteinte", () => {
-    expect(RYTHME_MESURE_ACTIF).toBe(false);
+describe("C10-15-b2 · rythme au plan (allumé par défaut)", () => {
+  it("(f) la constante est allumée", () => {
+    expect(RYTHME_MESURE_ACTIF).toBe(true);
   });
 
-  it("(a) éteint = identique, aucune remarque RYTHME (absent, false, « true » texte)", async () => {
+  it("(f bis) absent = rythme: true : mêmes remarques, plan identique à l'éteint", async () => {
+    const e = entree({ dureeMs: 10000 });
+    const absent = await adapterPlan(e, faux(UNE_SCENE));
+    expect(absent).toEqual(await adapterPlan({ ...e, rythme: true }, faux(UNE_SCENE)));
+    expect(rythmes(absent).length).toBeGreaterThan(0);
+    const eteint = await adapterPlan({ ...e, rythme: false }, faux(UNE_SCENE));
+    expect(absent.plan).toEqual(eteint.plan);
+  });
+
+  it("(a) `rythme: false` explicite (ou « true » en texte) = éteint : aucune remarque RYTHME, sortie identique", async () => {
     const cas: [EntreeAdaptateur, { appeler: never } | undefined][] = [
       [entree({ dureeMs: 10000 }), faux(UNE_SCENE)],
       [entree({ dureeMs: 10000, objetsPermis: ["objet-gros-chiffre", "objet-coche"] }), faux(UNE_SCENE)],
       [entree(), undefined],
     ];
     for (const [e, d] of cas) {
-      const base = await adapterPlan(e, d);
+      const base = await adapterPlan({ ...e, rythme: false }, d);
       expect(await adapterPlan({ ...e, rythme: false }, d)).toEqual(base);
       expect(await adapterPlan({ ...e, rythme: "true" as unknown as boolean }, d)).toEqual(base);
       expect(rythmes(base)).toEqual([]);
