@@ -88,6 +88,11 @@ describe("même référence quand rien ne se reclasse", () => {
     const b = verdict([longue([echec("Q26", ["à 3,2 s, faux : 45 % au lieu de 54 %."])])]);
     expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
   });
+
+  it("Q26 « rendu suspect, sans relecture » (aucune image lue) : relecture impossible, reste bloquant, verdict d'origine", () => {
+    const b = verdict([longue([echec("Q26", ["les images de contrôle n'ont pas pu être extraites du fichier final (x). Le rendu est suspect : la vidéo n'est pas livrée sans relecture."])])]);
+    expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
+  });
   it("un code de contrôle inconnu reste bloquant", () => {
     const b = verdict([longue([echec("Q26"), echec("Z99" as never)])]);
     expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);

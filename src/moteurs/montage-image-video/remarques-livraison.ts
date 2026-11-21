@@ -66,7 +66,7 @@ const bloque = (l: Pick<LigneControleIV, "etat" | "bloquant">) => l.bloquant && 
 
 const TEXTE_RESTE_BLOQUANT: Readonly<Partial<Record<CodeControleIV, RegExp>>> = Object.freeze({
   Q24: /image noire|noire/i,
-  Q26: /\bfin\b|phrase non choisie|non choisie|noire|noir\b|\bfaux\s*:/i, // « faux : » = chiffre faux vu à l'image (relecture-finale.ts)
+  Q26: /\bfin\b|phrase non choisie|non choisie|noire|noir\b|\bfaux\s*:|rendu est suspect|sans relecture/i, // « faux : » = chiffre faux vu à l'image (relecture-finale.ts) ; « rendu suspect / sans relecture » = rien n'a été vu (nonRelue, relecture-finale.ts:553)
 });
 
 /** Une ligne bloquante qui ne peut PAS devenir une remarque. */
