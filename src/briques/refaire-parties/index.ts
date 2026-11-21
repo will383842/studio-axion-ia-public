@@ -10,7 +10,7 @@
  * Arrêt si rien ne progresse (même défaut au second regard) : on rend la vidéo d'avant ET la liste exacte.
  */
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import { demandesRecollage, ENTREE_AVANT, entreePlage, planRecollage, plagesARerendre, type ParametresRecollage, type PlageImages } from "@/briques/rendu-par-plages";
+import { demandesRecollage, ENTREE_AVANT, ENTREE_VOIX, entreePlage, planRecollage, plagesARerendre, type ParametresRecollage, type PlageImages } from "@/briques/rendu-par-plages";
 import type { DefautVu } from "@/briques/regardeur/types";
 
 export interface EntreeRefaire {
@@ -31,8 +31,7 @@ export interface EntreeRefaire {
 }
 
 export interface PlageRendue {
-  /** Nom de l'entrée du morceau muet ; à défaut `plage-<index>`. */
-  entree?: string;
+  /** Fichier du morceau muet ; le recollage le nomme toujours `plage-<index>`. */
   fichier: string;
 }
 
@@ -87,11 +86,11 @@ export async function refaireParties(e: EntreeRefaire, ports: PortsRefaire): Pro
     if (decision.mode === "aucun") return garder("rien", "Aucune partie à refaire : la vidéo d'avant est gardée.");
     if (decision.mode === "entier") return garder("entier", "Trop de parties à refaire : mieux vaut refaire la vidéo entière (rendu entier).", e.defauts);
 
-    const entrees: Record<string, string> = {};
+    const entrees: Record<string, string> = { [ENTREE_AVANT]: e.fichierAvant, ...(e.voixAvant ? { [ENTREE_VOIX]: e.voixAvant } : {}) };
     for (const [index] of decision.plages.entries()) {
       const rendu = await ports.rendrePlage(decision.plages[index]!, index);
       if (!rendu) return garder("echec", "Une partie n'a pas pu être refaite : la vidéo d'avant est gardée.", e.defauts, decision.plages);
-      entrees[rendu.entree ?? entreePlage(index)] = rendu.fichier;
+      entrees[entreePlage(index)] = rendu.fichier;
     }
 
     const plan = planRecollage({ plages: decision.plages, dureeTotaleImages: e.dureeTotaleImages, fichierAvant: ENTREE_AVANT, ...(e.voixAvant ? { voixAvant: e.voixAvant } : {}) });

@@ -70,6 +70,25 @@ describe("refaireParties : le chemin heureux", () => {
     expect(new Set(entrees).size).toBe(entrees.length);
   });
 
+  it("les noms cités (avant, voix, chaque entrée de segment) sont EXACTEMENT les clés de `entrees`, même si le rendu nomme son morceau autrement", async () => {
+    const p = ports({ rendrePlage: vi.fn(async (_plage: unknown, index: number) => ({ entree: "autre", fichier: `p${index}.mp4` })) as never });
+    await refaireParties(base(), p);
+    const [params, entrees] = p.recoller.mock.calls[0] as [{ segments: Array<{ source: string; entree?: string }>; avant: string; voix?: string }, Record<string, string>];
+    const cites = new Set<string>([params.avant, ...(params.voix ? [params.voix] : []), ...params.segments.filter((s) => s.source === "plage").map((s) => s.entree!)]);
+    expect(cites).toEqual(new Set(Object.keys(entrees)));
+    expect(entrees.avant).toBe("avant.mp4");
+    expect(entrees.voix).toBe("voix.mp3");
+    expect(entrees["plage-0"]).toBe("p0.mp4");
+  });
+
+  it("sans voix d'avant : `entrees` ne contient pas de voix et correspond encore aux noms cités", async () => {
+    const p = ports();
+    await refaireParties(base({ voixAvant: undefined }), p);
+    const [params, entrees] = p.recoller.mock.calls[0] as [{ segments: Array<{ source: string; entree?: string }>; avant: string; voix?: string }, Record<string, string>];
+    expect(params.voix).toBeUndefined();
+    expect(Object.keys(entrees).sort()).toEqual([params.avant, ...params.segments.filter((s) => s.source === "plage").map((s) => s.entree!)].sort());
+  });
+
   it("le regard est limité aux plages refaites", async () => {
     const p = ports();
     await refaireParties(base(), p);
