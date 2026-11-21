@@ -122,3 +122,26 @@ describe("(e) gratuit : aucun appel de plus, prix identique", () => {
     expect(apres.soumises).toBe(avant.soumises);
   });
 });
+
+describe("(f) les 8 pièces ouvertes en trop par le profil ne sont posées par fabriquerTableau sur aucune entrée", () => {
+  const EN_TROP = ["objet-anneau-donnees", "objet-barre-progression", "objet-chrono", "objet-compteur-rouleau", "objet-etape-segments", "objet-croix", "objet-mot-barre", "objet-particules"];
+  it("les 8 sont bien ouvertes au niveau du profil (sinon ce test ne prouve rien)", () => {
+    const ouvertes = piecesParDefaut();
+    for (const id of EN_TROP) expect(ouvertes, id).toContain(id);
+  });
+  it("plusieurs fiches (un nombre, deux nombres, aucun nombre) : jamais une des 8 posée, seules les 3 du moteur", async () => {
+    const deux = ficheAvecNombre();
+    deux.scenes[5]!.texteDit = `Et 5 rendez-vous. ${deux.scenes[5]!.texteDit}`;
+    const entrees = [ficheAvecNombre(), deux, structuredClone(auStyleReference(ficheDemonstration))];
+    let posees = 0;
+    for (const f of entrees) {
+      const apres = await fabriquer(f, { objetsPermis: piecesParDefaut() });
+      for (const o of apres.proprietes.flatMap((p) => p.objets ?? [])) {
+        posees += 1;
+        expect(EN_TROP, o.id).not.toContain(o.id);
+        expect(["objet-gros-chiffre", "objet-etape", "objet-coche"]).toContain(o.id);
+      }
+    }
+    expect(posees).toBeGreaterThan(0);
+  });
+});

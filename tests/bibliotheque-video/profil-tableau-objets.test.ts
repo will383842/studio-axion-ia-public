@@ -24,11 +24,10 @@ describe("profil tableau-anime : objets permis", () => {
     expect(Object.entries(capacites).filter(([, c]) => c?.permis === true).map(([id]) => id).sort()).toEqual([...TROIS].sort());
   });
 
-  it("entrée du profil → exactement les pièces des 3 objets (aucune autre capacité ouverte)", () => {
+  it("entrée du profil → EXACTEMENT les 11 pièces ouvertes par les 3 capacités (liste figée ; le moteur n'en pose que 3)", () => {
     const e: EntreeBibliotheque = { version: VERSION_BIBLIOTHEQUE, profil: PROFIL_TABLEAU_ANIME, recents: [], graine: "G", figeeLe: "2026-11-19" };
     const pieces = piecesPermisesDesEntrees({ bibliothequeVideo: e });
-    for (const p of ["objet-gros-chiffre", "objet-etape", "objet-coche"]) expect(pieces).toContain(p);
-    expect(pieces).not.toContain("objet-cartes-coche");
+    expect([...pieces].sort()).toEqual(["objet-anneau-donnees", "objet-barre-progression", "objet-chrono", "objet-coche", "objet-compteur-rouleau", "objet-croix", "objet-etape", "objet-etape-segments", "objet-gros-chiffre", "objet-mot-barre", "objet-particules"]);
   });
 
   it("les deux capacités d'avant sont inchangées", () => {

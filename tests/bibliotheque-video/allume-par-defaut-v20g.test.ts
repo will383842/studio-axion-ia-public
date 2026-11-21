@@ -67,7 +67,7 @@ describe("(c) tableau : le profil permet exactement les 3 objets de ALLUMER-OBJE
     };
     for (const id of TABLEAU) expect(entree.profil.capacites[id]?.permis).toBe(true);
     expect(Object.entries(entree.profil.capacites).filter(([, r]) => r?.permis === true).map(([id]) => id).sort()).toEqual([...TABLEAU].sort());
-    expect(piecesPermisesDesEntrees({ bibliothequeVideo: entree })).toContain("objet-gros-chiffre");
+    expect([...piecesPermisesDesEntrees({ bibliothequeVideo: entree })].sort()).toEqual(["objet-anneau-donnees", "objet-barre-progression", "objet-chrono", "objet-coche", "objet-compteur-rouleau", "objet-croix", "objet-etape", "objet-etape-segments", "objet-gros-chiffre", "objet-mot-barre", "objet-particules"]);
   });
 });
 
