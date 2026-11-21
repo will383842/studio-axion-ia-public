@@ -18,7 +18,6 @@ import { entreeModeVoix, lireModeVoix, MODE_SANS_VOIX, type ModeVoixTutoriel } f
 import { depots, ErreurStudio, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import type { IssueLancement } from "./creation-format";
-import { PARAM_EQUIPE_TUTORIEL } from "./tutoriel-equipe";
 import { MESSAGE_ZIP_FERME, PARAM_ENTREE_ZIP, extraireZipSur, type RapportEntree, type ResultatZip } from "./zip-tutoriel";
 
 export const PARAM_FORMULAIRE = "tutoriel.formulaire";
@@ -88,7 +87,7 @@ export type IssueDepotTutoriel = { statut: "lancee"; videoId: Id } | { statut: "
 export interface DependancesDepotTutoriel {
   interrupteurs?: () => Promise<InterrupteursTutoriel>;
   fichier?: (fichierId: string) => Promise<Pick<Fichier, "id" | "nom" | "taille" | "cleStockage">>;
-  /** Réglage `tutoriel.equipe` (lecture seule : jamais allumé ici) ; absent = lu dans les réglages, éteint si la lecture échoue. */
+  /** Équipe ouverte = `equipeTutorielActive()` (réglages `tutoriel.equipe` ET `tutoriel.claude`, lecture seule : jamais allumés ici) ; absent = lu dans les réglages, éteint si la lecture échoue. */
   equipe?: () => Promise<boolean>;
   /** Octets du fichier envoyé (en mémoire, jamais écrits sur le disque). */
   octets?: (fichier: Pick<Fichier, "id" | "cleStockage" | "taille">) => Promise<Uint8Array>;
@@ -131,8 +130,10 @@ async function distributionParDefautDuTutoriel(formatId: string): Promise<Distri
 }
 
 async function equipeParDefaut(): Promise<boolean> {
+  // Import DYNAMIQUE : l'équipe tire l'orchestre et le client Claude, qui n'ont rien à faire dans le dépôt. La règle est celle
+  // de la chaîne (tutoriel.equipe ET tutoriel.claude) ; elle attrape elle-même une lecture en échec (éteint).
   try {
-    return (await lireParametre<unknown>(PARAM_EQUIPE_TUTORIEL, false)) === true;
+    return await (await import("./tutoriel-equipe")).equipeTutorielActive();
   } catch {
     return false;
   }
@@ -235,15 +236,15 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   }
 
   // Qui parle : le double par défaut. Personne de disponible : refus lisible, jamais un brouillon impossible à lancer.
-  // Sans voix : personne ne parle, la distribution peut rester vide (0 personnage admis).
+  // Valable aussi sans voix : la garde de fabrication exige encore une personne (format tutoriel-outil, personnages.min = 1).
   let distribution: Distribution[] = [];
   try {
     distribution = await (dep.distribution ?? distributionParDefautDuTutoriel)(ID_FORMAT_TUTORIEL);
   } catch (e) {
-    if (modeVoix !== MODE_SANS_VOIX) return refus(e instanceof ErreurStudio ? e.message : PHRASE_PERSONNE_ABSENTE);
+    return refus(e instanceof ErreurStudio ? e.message : PHRASE_PERSONNE_ABSENTE);
   }
   if (modeVoix === MODE_SANS_VOIX) distribution = distribution.filter((d) => d?.personnageId).slice(0, 1);
-  else if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
+  if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
 
   const titre = titreDe(depot, nomFichier);
   const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees: { [ENTREE_TUTORIEL]: { depot, fin, ...(gabarit ? { gabarit } : {}), ...entreeModeVoix(modeVoix), ...(script ? { scriptColle: true } : {}) } }, ...(script ? { script } : {}) });

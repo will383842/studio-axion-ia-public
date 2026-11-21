@@ -10,6 +10,12 @@ import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
+// Réglages de la lecture par défaut de l'équipe : `null` = les vrais réglages (éteints en test) ; sinon la table donnée.
+const reglages = vi.hoisted(() => ({ table: null as Record<string, unknown> | null }));
+vi.mock("@/services/_commun", async (importOriginal) => {
+  const reel = await importOriginal<typeof import("@/services/_commun")>();
+  return { ...reel, lireParametre: async (id: string, defaut: unknown) => (reglages.table ? (id in reglages.table ? reglages.table[id] : defaut) : reel.lireParametre(id, defaut)) };
+});
 
 import { estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 
@@ -57,10 +63,13 @@ describe("sans voix : rangé par entreeModeVoix", () => {
       expect("modeVoix" in entreeDe(brouillons[0]!)).toBe(false);
     }
   });
-  it("sans voix, personne de disponible : le dépôt passe avec une distribution vide ; avec voix : refus", async () => {
-    const a = banc({ distribution: [] });
-    expect((await d.deposerTutoriel({ ...phrase, modeVoix: "sans-voix" }, a.dep)).statut).toBe("lancee");
-    expect(a.brouillons[0]!.distribution).toEqual([]);
+  it("sans voix, personne de disponible : refus lisible, aucun brouillon, rien n'est lancé (comme avec voix)", async () => {
+    for (const distribution of [[], [{}]]) {
+      const a = banc({ distribution });
+      expect(await d.deposerTutoriel({ ...phrase, modeVoix: "sans-voix" }, a.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_PERSONNE_ABSENTE });
+      expect(a.brouillons).toHaveLength(0);
+      expect(a.compte.lancements).toBe(0);
+    }
     const b = banc({ distribution: [] });
     expect(await d.deposerTutoriel(phrase, b.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_PERSONNE_ABSENTE });
     expect(b.brouillons).toHaveLength(0);
@@ -103,6 +112,21 @@ describe("équipe éteinte : refus lisible, rien n'est créé", () => {
     const { brouillons, dep } = banc({ equipe: false });
     expect((await d.deposerTutoriel({ ...phrase, script: "Mon script." }, dep)).statut).toBe("lancee");
     expect(brouillons).toHaveLength(1);
+  });
+  it("lecture par défaut : tutoriel.equipe vrai mais tutoriel.claude faux (ou lecture en échec) : refusé", async () => {
+    const sansEquipe = { ...banc().dep, equipe: undefined };
+    try {
+      for (const table of [{ "tutoriel.equipe": true, "tutoriel.claude": false }, { "tutoriel.equipe": true }, { "tutoriel.equipe": true, "tutoriel.claude": "true" }]) {
+        reglages.table = table;
+        const brouillon = vi.fn(async () => ({ id: "v1" }));
+        expect(await d.deposerTutoriel(phrase, { ...sansEquipe, brouillon })).toEqual({ statut: "refusee", phrase: d.PHRASE_EQUIPE_FERMEE });
+        expect(brouillon).not.toHaveBeenCalled();
+      }
+      reglages.table = { "tutoriel.equipe": true, "tutoriel.claude": true };
+      expect((await d.deposerTutoriel(phrase, { ...sansEquipe, brouillon: async () => ({ id: "v1" }) })).statut).toBe("lancee");
+    } finally {
+      reglages.table = null;
+    }
   });
   it("lecture par défaut : seul `true` exact du réglage tutoriel.equipe ouvre ; jamais d'écriture", async () => {
     const sansEquipe = { ...banc().dep, equipe: undefined };
