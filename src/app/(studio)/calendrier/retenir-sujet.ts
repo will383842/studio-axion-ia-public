@@ -10,12 +10,16 @@
  * et non `sousVerrou`, car `creerSujet` prend déjà `sousVerrou` (non réentrant : le même verrou bloquerait). Valable pour un seul processus.
  */
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { exigerSession } from "@/services/auth";
 import { creerVerrou, depots, ErreurStudio, essayer, maintenant, type Resultat } from "@/services/_commun";
 import { lireDerniereSemaine } from "@/services/proposer-semaine";
 import { avecViseeUsine, retenirSujetUsine, usineActive } from "@/services/usine-porte";
 import { ecrireSujetDeLUsine } from "@/services/usine-sujet";
+import { creerCarrouselDeLUsine } from "@/services/usine-carrousel";
+import { lancerRendu } from "@/visuels/services/carrousels";
+import { dependancesCarrousels } from "@/visuels/services/production";
 import { RESEAUX_DECLINAISON } from "@/reseaux/codes";
 
 const idee = z.object({
@@ -39,7 +43,7 @@ const unALaFois = creerVerrou();
 
 const PHRASE_PROPOSITION_INCONNUE = "Cette proposition n'est plus à jour. Demandez la semaine à nouveau, puis retenez le sujet.";
 
-export async function retenirSujetSemaineAction(debut: unknown, cle: unknown): Promise<Resultat<{ id: string; rappelUsine: boolean }>> {
+export async function retenirSujetSemaineAction(debut: unknown, cle: unknown): Promise<Resultat<{ id: string; rappelUsine: boolean; type?: "carrousel" }>> {
   await exigerSession();
   return essayer(() =>
     unALaFois(async () => {
@@ -50,6 +54,20 @@ export async function retenirSujetSemaineAction(debut: unknown, cle: unknown): P
       const v = visee.safeParse({ jour: proposition.jour, reseau: proposition.reseau });
       const i = idee.safeParse(proposition.sujet);
       if (!v.success || !i.success) throw new ErreurStudio("RETENIR_VISEE", "Ce jour ou ce réseau n'est pas reconnu : le sujet n'a pas été retenu.");
+      if (proposition.type === "carrousel") {
+        // Carrousel : un brouillon à relire (jamais validé, préparé, programmé ni publié). `ecrireSujetDeLUsine` refuserait (formats vidéo seulement).
+        const c = await creerCarrouselDeLUsine(i.data, { reseau: v.data.reseau, jour: v.data.jour });
+        after(async () => {
+          try {
+            await lancerRendu(c.id, dependancesCarrousels());
+          } catch {
+            // Un brouillon bloqué par la porte ne se rend pas : la fiche l'explique.
+          }
+        });
+        revalidatePath("/calendrier");
+        revalidatePath("/carrousels");
+        return { ...c, type: "carrousel" as const };
+      }
       // Un sujet venu de l'usine est numéroté trop tard pour `controlerSujetCentral` : on refuse ici, sous le verrou, la même signature déjà retenue.
       const dejaRetenu = await depots().scriptsMaitres.trouver((m) => !m.archiveLe && m.origineUsine?.signature === i.data.signature);
       if (dejaRetenu) {
