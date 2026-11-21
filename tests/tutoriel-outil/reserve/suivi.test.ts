@@ -119,6 +119,38 @@ describe("suivreElementsPris", () => {
     expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "pris", prise: { videoId: "v-1" } });
   });
 
+  it("ARGENT : statut relu sous le bail (brouillon puis en_file), sans aucun travail visible : aucun archivage, élément toujours pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    let lectures = 0;
+    const r = await suivreElementsPris({
+      ...dep("brouillon").dep,
+      statutVideo: async () => (lectures++ === 0 ? "brouillon" : "en_file"),
+      travailEnCours: async () => false,
+      abandonner: async (id) => { archives.push(id); return true; },
+    });
+    expect(r).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it.each([["autre prise.cle", { cle: "cle-suivi-999", videoId: "v-1" }], ["autre videoId", { cle: "cle-suivi-001", videoId: "v-autre" }]] as const)("ARGENT : élément changé entre la liste et le bail (%s), branche brouillon : aucun archivage, rien d'écrit", async (_nom, prise) => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    const frais = (await lireElementReserve("res-premier1"))!;
+    let listes = 0;
+    const r = await suivreElementsPris({
+      ...dep("brouillon").dep,
+      travailEnCours: async () => false,
+      abandonner: async (id) => { archives.push(id); return true; },
+      lireElement: async () => ({ ...frais, prise: { ...frais.prise!, ...prise } }),
+      lister: async () => (listes++ === 0 ? [frais] : []),
+    });
+    expect(r).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
   it("ARGENT : travail apparu sous le bail alors que le statut reste brouillon, ou relecture qui lève : rien", async () => {
     await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
     const archives: string[] = [];
@@ -137,10 +169,17 @@ describe("suivreElementsPris", () => {
     expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
   });
 
-  it("vidéo en échec lue, puis lancement abouti avant l'écriture (en_file) : rien n'est écrit", async () => {
+  it.each(["en_file", "en_fabrication", "prete"] as const)("vidéo en échec lue, puis lancement abouti avant l'écriture (%s) : rien n'est écrit", async (relu) => {
     await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
     let lectures = 0;
-    expect(await suivreElementsPris({ ...dep("echec").dep, statutVideo: async () => (lectures++ === 0 ? "echec" : "en_file") })).toEqual({ faits: 0, echecs: 0 });
+    expect(await suivreElementsPris({ ...dep("echec").dep, statutVideo: async () => (lectures++ === 0 ? "echec" : relu) })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("vidéo en échec lue, puis statut relu « maquette » : rien n'est écrit", async () => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    let lectures = 0;
+    expect(await suivreElementsPris({ ...dep("echec").dep, statutVideo: async () => (lectures++ === 0 ? "echec" : "maquette") as StatutVideo })).toEqual({ faits: 0, echecs: 0 });
     expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
   });
 
