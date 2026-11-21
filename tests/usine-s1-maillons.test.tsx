@@ -87,6 +87,17 @@ describe("la grille transmet le sujet à la carte", () => {
   });
 });
 
+describe("la grille montre les propositions sans adresse « À valider »", () => {
+  const idee: IdeeUsine = { signature: "s", parts: { metier: "m" }, metier: "M", taille: "TPE", douleur: "d", casUsage: "c" };
+  const entree = { cle: "p1", jour: "2026-12-15", reseau: "linkedin", type: "video", etat: "propose" } as const;
+  it("sans lienAValider : la carte est montrée, le bouton « Retenir ce sujet » aussi, mais aucun lien « À valider »", () => {
+    const html = renderToStaticMarkup(<GrilleSemaine semaineDu={LUNDI} aujourdhui={LUNDI} entrees={[]} propositions={[{ entree: { ...entree }, sujet: idee }]} />);
+    expect(html).toContain("data-proposition");
+    expect(html).toContain("Retenir ce sujet");
+    expect(html).not.toContain("Voir dans À valider");
+  });
+});
+
 describe("la page n'exige plus l'adresse « À valider »", () => {
   it("le bouton de la semaine ne dépend que de l'usine reliée ; l'adresse est facultative", () => {
     const page = readFileSync("src/app/(studio)/calendrier/page.tsx", "utf8");
