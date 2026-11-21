@@ -81,6 +81,7 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
     const r = await appel(requete());
     expect(r.texte).toBe('{"operations":[]}');
     expect(appels).toHaveLength(1);
+    expect(appels[0]).toContain("fais quelque chose de joli pour moi");
     const depenses = await depots().depenses.lister((d) => d.videoId === "v-04" && d.lignes.some((l) => l.etape.startsWith(m.ETAPE_LECTURE_CHAT)));
     expect(depenses).toHaveLength(1);
     expect(depenses[0].lignes.some((l) => l.fournisseur === "anthropic")).toBe(true);
@@ -111,6 +112,15 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
       const appel = await m.appelClaudeChat(id, { ...deps, executer: executer as never });
       await expect(appel(requete())).rejects.toThrow();
     }
+    expect(executer).not.toHaveBeenCalled();
+  });
+
+  it("d quater) version choisie introuvable par le vrai chemin des dépôts (sans `origine` injectée) → l'appel lève, executer jamais appelé", async () => {
+    const v = (await depots().videos.obtenir("v-04"))!;
+    await depots().videos.enregistrer({ ...v, versionChoisieId: "absente" } as never);
+    const executer = vi.fn();
+    const appel = await m.appelClaudeChat("v-04", { executer: executer as never });
+    await expect(appel(requete())).rejects.toThrow();
     expect(executer).not.toHaveBeenCalled();
   });
 
