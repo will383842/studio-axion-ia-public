@@ -2,7 +2,7 @@
  * S-14-a : routeur PUR du chat unique. Pour une vidéo (son format), dit où va la demande de Williams : plan de scènes (un des
  * générateurs inscrits), tableau animé, cas concret, « Mon monteur », film du tutoriel, démo face caméra, ou « pas de chat pour ce
  * format » avec une phrase simple. ÉTEINT : aucun importeur ; la clé `retoucheChat.porteUnique` ne s'allume que par `true` exact.
- * Aucun accès base ni réseau : la lecture du réglage est INJECTÉE (aucun `lireParametre(` ici). Jamais de montant dans une phrase.
+ * Aucun accès base ni réseau : la lecture du réglage est INJECTÉE (aucune lecture directe des réglages ici). Jamais de montant dans une phrase.
  */
 import { CLE_REGLAGE_DEMO_FACECAM, estGenerateurRetouche, type IdGenerateurRetouche, type LireReglage } from "./generateurs";
 
