@@ -115,6 +115,8 @@ export interface PortEquipe {
   lireDossier(): Promise<DossierLu | null>;
   /** Horloge (ISO) pour le registre des appels payés et le journal ; absente : l'heure du système. */
   maintenant?: () => string;
+  /** V2-08 : vidéo partie d'une phrase ET création ouverte (lu par le service). Absent ou autre que `true` : comportement d'avant. */
+  phraseOuverte?: boolean;
   /**
    * Briques du tronc commun des scripts (chantier SC), si elles sont sur master : elles COMMENTENT, jamais ne réécrivent.
    * Absent = rien (cas de master).
@@ -378,7 +380,7 @@ export async function prochainPasPaye(etat: EtatTutoriel, commande: CommandeFabr
       }
       if (dossier === null) return true; // idem : lecture sans résultat
     }
-    const pas = prochainPas(equipe, { dossier });
+    const pas = prochainPas(equipe, { dossier }, { phraseOuverte: port.phraseOuverte === true });
     if (!("faire" in pas) || !pas.payant) return false;
     return dejaPaye(equipe.payes, `Tutoriel · ${pas.faire}`, pas.empreinteEntree) === null;
   } catch {
@@ -410,7 +412,7 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
     if (dossier === null) return { statut: "pause", etat, code: "TO_DOSSIER_INCOMPLET", message: "Votre dossier n'a pas pu être lu pour l'instant : la vidéo reprend dès qu'il est lisible. Rien n'a échoué." };
   }
   const lecture = { dossier };
-  const pas = prochainPas(equipe, lecture);
+  const pas = prochainPas(equipe, lecture, { phraseOuverte: port.phraseOuverte === true });
   if ("fini" in pas) return { statut: "faite", etat };
   if ("pause" in pas) {
     let suite: EtatTutoriel = { ...etat, equipe: pas.etat ?? equipe };
