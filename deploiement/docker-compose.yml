@@ -339,10 +339,9 @@ services:
   # STUDIO_CAPTURE_SORTIE (mêmes droits, même borne). Variables NON obligatoires (`:?` casserait l'analyse du compose
   # entier, donc `up` en production) : les défauts sont hors dépôt.
   #   docker compose --profile capture build studio-capture
-  #   docker compose --profile capture run --rm studio-capture \
-  #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json \
-  #     --calage /entree/calage.json --sortie /sortie
-  # (mode « capturer », par défaut ; sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4).
+  # Capture (mode « capturer », par défaut) : lancer par la forme LANCER ci-dessous, avec ces <arguments du mode> :
+  #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json --calage /entree/calage.json --sortie /sortie
+  # (sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4).
   # LANCER (toujours ainsi, capturer ou decompresser) : avec `-d`, l'échéance côté hôte tue VRAIMENT le conteneur (tuer
   # seulement le client `docker compose run` ne lui transmet aucun signal : il continuerait de tourner et garderait /sortie
   # monté en écriture). Avec `-d`, il n'y a plus de `--rm` : le `docker rm -f` final le remplace. <id> = un nom unique :
@@ -350,7 +349,7 @@ services:
   #   timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
   #   docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>
   # (960 s = 900 s du `timeout` de lancer.sh + sa marge de 30 s + 30 s.) Les <arguments du mode> sont ceux de la commande de
-  # capture ci-dessus (`--maquette … --sortie /sortie`, à la place du `run --rm`).
+  # capture ci-dessus (`--maquette … --sortie /sortie`) ou de décompression ci-dessous.
   # DÉCOMPRESSION d'un .zip client : dans CE conteneur (même service, même durcissement), jamais sur l'hôte. Le zip est
   # posé dans capture-entree (monté en lecture seule sur /entree), la sortie va dans /sortie (bornée) ; les options
   # exactes sont celles de outils/maquettes-tableaux-de-bord/capture/decompresser.mts (lot « zip »). <arguments du mode> :
@@ -360,7 +359,10 @@ services:
   # PROCÉDURE CÔTÉ HÔTE, dans cet ordre, pour CHAQUE client. Un Chromium compromis peut poser des liens symboliques dans
   # /sortie, et docker SUIT sur l'hôte un lien placé dans la source d'un montage (essai réel : un lien vers un dossier
   # contenant .env a donné son contenu au conteneur) :
-  #  1. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire).
+  #  1. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` ET `docker ps --filter label=com.docker.compose.service=studio-capture`
+  #     doivent être VIDES (sinon ARRÊT : ne rien faire).
+  #     OBLIGATOIRE : `umount` (étape 2) RÉUSSIT même si un conteneur garde /sortie ouvert (le montage disparaît de l'hôte, pas du conteneur) ;
+  #     sans ce contrôle, un conteneur resté en vie pourrait encore écrire dans l'ancien /sortie.
   #  2. Un /sortie NEUF POUR CHAQUE CLIENT (jamais de décompression et de capture en même temps sur le même /sortie) :
   #       sudo umount /opt/studio-axion-ia/capture-sortie
   #       sudo rm -f /opt/studio-axion-ia/capture-sortie.img && sudo fallocate -l 3G /opt/studio-axion-ia/capture-sortie.img
@@ -368,12 +370,20 @@ services:
   #       sudo mount -o loop,nodev,nosuid,noexec /opt/studio-axion-ia/capture-sortie.img /opt/studio-axion-ia/capture-sortie
   #       sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie
   #  3. Décompresser (commande ci-dessus), puis refaire l'étape 1 (le conteneur est supprimé).
-  #  4. COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root que le conteneur ne monte pas :
-  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes
+  #  4. CONTRÔLER LA SOURCE, puis COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root que le conteneur
+  #     ne monte pas. Chaque commande se copie telle quelle ; au moindre écart : ARRÊT, ne rien monter.
+  #     La source doit ne contenir que des fichiers et des dossiers : cette commande doit afficher RIEN (liens, FIFO, sockets, périphériques) :
+  #       sudo find /opt/studio-axion-ia/capture-sortie/maquette ! -type f ! -type d
+  #     Le chemin réel doit être ÉGAL au chemin exact écrit (aucun lien, ni sur `maquette`, ni sur `<dossier>`) :
+  #       realpath -e /opt/studio-axion-ia/capture-sortie/maquette/<dossier>
+  #     <id> doit être NEUF (cette commande doit réussir) :
+  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes && test ! -e /opt/studio-axion-ia/capture-maquettes/<id>
+  #     Copier (ou `rsync --no-links` à la place de `cp`), donner la copie à root :
   #       sudo cp -r --no-dereference /opt/studio-axion-ia/capture-sortie/maquette/<dossier> /opt/studio-axion-ia/capture-maquettes/<id>
   #       sudo chown -R root:root /opt/studio-axion-ia/capture-maquettes/<id> && sudo chmod -R a+rX,go-w /opt/studio-axion-ia/capture-maquettes/<id>
-  #     (ou `rsync --no-links` à la place de `cp`.) Puis CONTRÔLER LA COPIE : `find /opt/studio-axion-ia/capture-maquettes/<id>
-  #     -type l` doit être vide ET `realpath -e /opt/studio-axion-ia/capture-maquettes/<id>` doit être égal à ce chemin.
+  #     CONTRÔLER LA COPIE de la même façon (RIEN affiché ; chemin égal) :
+  #       sudo find /opt/studio-axion-ia/capture-maquettes/<id> ! -type f ! -type d
+  #       realpath -e /opt/studio-axion-ia/capture-maquettes/<id>
   #  5. Refaire l'étape 2 (un /sortie neuf pour la capture), puis capturer en montant la COPIE contrôlée :
   #       STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id> docker compose --profile capture run -d --name studio-capture-<id> studio-capture …
   # Le film sort dans /sortie ; l'envoi au stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens
@@ -420,6 +430,9 @@ services:
     # https://github.com/moby/moby/blob/docker-v29.10.0/vendor/github.com/moby/profiles/seccomp/default.json (commit 06db173,
     # sha256 6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6) ; le test reconstruit cette référence. Chemin
     # relatif AU FICHIER COMPOSE. Changer de version de Docker : reprendre le profil au nouveau tag, mêmes 3 retraits.
+    # DURÉE : seul le `docker kill` de l'HÔTE (procédure LANCER ci-dessus) la GARANTIT. `init: false`, seccomp sans ptrace et
+    # `timeout` en 0711 dans l'image (Dockerfile : non lisible, donc non dumpable : pas de /proc/1/mem) ne font que la rendre
+    # plus difficile à contourner pour un processus du conteneur.
     security_opt:
       - no-new-privileges:true
       - seccomp=./studio-capture/seccomp.json

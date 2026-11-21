@@ -124,7 +124,7 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
   it("commande documentée : préparation des dossiers (chown de l'uid) et --calage", () => {
     const u = /^\s+user: "?(\d+)/m.exec(service)![1];
     expect(compose).toContain(`chown ${u}:${u} /opt/studio-axion-ia/capture-sortie`);
-    expect(compose).toMatch(/#\s+--calage \/entree\/calage\.json --sortie \/sortie/);
+    expect(compose).toMatch(/#\s+--maquette \S+ --scenario \/entree\/scenario\.json --calage \/entree\/calage\.json --sortie \/sortie\s*$/m);
   });
   it("aucune variable d'environnement, donc aucun secret", () => {
     expect(service).not.toMatch(/^\s+(environment|env_file):/m);
@@ -431,31 +431,61 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     expect(compose).toMatch(/^\s*#\s+docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>\s*$/m);
     // l'ancienne forme (qui ne tuait pas le conteneur) est interdite
     expect(compose).not.toMatch(/timeout 960 docker compose/);
+    // aucune commande documentée `run --rm` (sans échéance) : la seule forme est `run -d --name`
+    expect(compose).not.toMatch(/^\s*#\s+docker compose --profile capture run --rm/m);
+    expect(compose.match(/^\s*#\s+(STUDIO_CAPTURE_\w+=\S+ )?docker compose --profile capture run .*$/gm)?.every((l) => / run -d --name studio-capture-<id> /.test(l))).toBe(true);
   });
   it("procédure côté hôte : aucun conteneur, /sortie NEUF (umount, mkfs.ext4 sur fichier neuf, mount loop, chown 1001), copie sans lien hors de capture-sortie, contrôle, montage de la copie", () => {
     const cmd = (re: RegExp) => expect(compose, String(re)).toMatch(re);
-    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE \(sinon ARRÊT/m);
+    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` ET `docker ps --filter label=com\.docker\.compose\.service=studio-capture`$/m);
     cmd(/^\s*#\s+sudo umount \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
     cmd(/^\s*#\s+sudo rm -f \/opt\/studio-axion-ia\/capture-sortie\.img && sudo fallocate -l 3G \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
     cmd(/^\s*#\s+sudo mkfs\.ext4 -q -m 0 \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
     cmd(/^\s*#\s+sudo mount -o loop,nodev,nosuid,noexec \/opt\/studio-axion-ia\/capture-sortie\.img \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
     cmd(/^\s*#\s+sudo chown 1001:1001 \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
-    cmd(/COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root/);
+    cmd(/CONTRÔLER LA SOURCE, puis COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root/);
     cmd(/^\s*#\s+sudo cp -r --no-dereference \/opt\/studio-axion-ia\/capture-sortie\/maquette\/<dossier> \/opt\/studio-axion-ia\/capture-maquettes\/<id>\s*$/m);
     cmd(/rsync --no-links/);
     cmd(/sudo chown -R root:root \/opt\/studio-axion-ia\/capture-maquettes\/<id>/);
-    cmd(/CONTRÔLER LA COPIE/);
+    cmd(/CONTRÔLER LA COPIE de la même façon/);
     cmd(/STUDIO_CAPTURE_MAQUETTE=\/opt\/studio-axion-ia\/capture-maquettes\/<id> docker compose --profile capture run -d --name studio-capture-<id>/);
-    // l'ordre : 1 (aucun conteneur) avant 2 (/sortie neuf) avant 4 (copie) avant 5 (capture)
-    const ordre = ["1. AUCUN conteneur", "2. Un /sortie NEUF", "3. Décompresser", "4. COPIER", "5. Refaire"].map((t) => compose.indexOf(t));
+    // contrôles de la SOURCE (une commande par ligne, copiable) AVANT le cp, puis contrôles de la COPIE
+    const D = "\\/opt\\/studio-axion-ia";
+    const L = (re: string) => new RegExp(`^\\s*#\\s+${re}\\s*$`, "m");
+    const srcFind = L(`sudo find ${D}\\/capture-sortie\\/maquette ! -type f ! -type d`);
+    const srcReal = L(`realpath -e ${D}\\/capture-sortie\\/maquette\\/<dossier>`);
+    const neuf = L(`sudo mkdir -p ${D}\\/capture-maquettes && test ! -e ${D}\\/capture-maquettes\\/<id>`);
+    const cp = L(`sudo cp -r --no-dereference ${D}\\/capture-sortie\\/maquette\\/<dossier> ${D}\\/capture-maquettes\\/<id>`);
+    const copFind = L(`sudo find ${D}\\/capture-maquettes\\/<id> ! -type f ! -type d`);
+    const copReal = L(`realpath -e ${D}\\/capture-maquettes\\/<id>`);
+    const pos = [srcFind, srcReal, neuf, cp, copFind, copReal].map((re) => compose.search(re));
+    expect(pos.every((n) => n >= 0), JSON.stringify(pos)).toBe(true);
+    expect([...pos].sort((x, y) => x - y)).toEqual(pos); // source, source, id neuf, cp, copie, copie : dans cet ordre
+    // l'ordre des étapes : 1 (aucun conteneur) avant 2 (/sortie neuf) avant 4 (source puis copie) avant 5 (capture)
+    const ordre = ["1. AUCUN conteneur", "2. Un /sortie NEUF", "3. Décompresser", "4. CONTRÔLER LA SOURCE", "5. Refaire"].map((t) => compose.indexOf(t));
     expect(ordre.every((n) => n >= 0)).toBe(true);
-    expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
-    // les contrôles de l'hôte ne sont écrits qu'UNE fois (plus de doublon)
-    expect(compose.match(/-type l/g)).toHaveLength(1);
-    expect(compose.match(/realpath -e/g)).toHaveLength(1);
+    expect([...ordre].sort((x, y) => x - y)).toEqual(ordre);
+    // exactement 2 contrôles `! -type f ! -type d` (source, copie), 2 `realpath -e`, jamais `-type l` seul ni `ls`
+    expect(compose.match(/! -type f ! -type d/g)).toHaveLength(2);
+    expect(compose.match(/^\s*#\s+(sudo )?find /gm)).toHaveLength(2);
+    expect(compose.match(/^\s*#\s+realpath -e /gm)).toHaveLength(2);
+    expect(compose).not.toMatch(/-type l\b/);
+    expect(compose).not.toMatch(/^\s*#\s+(sudo )?ls /m);
     // l'ancienne règle « monter la maquette prise dans capture-sortie » n'existe plus
     expect(compose).not.toMatch(/STUDIO_CAPTURE_MAQUETTE=\/opt\/studio-axion-ia\/capture-sortie/);
     expect(compose).toMatch(/docker SUIT sur l'hôte un lien/);
+  });
+  it("timeout en 0711 avant le USER final ; commentaires : seul docker kill garantit la durée ; umount réussit même avec un conteneur", () => {
+    const l = dockerfileCode.split("\n");
+    const chmod = l.findIndex((x) => x === "RUN chmod 0711 /usr/bin/timeout");
+    const user = l.findIndex((x) => x === "USER 1001:1001");
+    expect(chmod).toBeGreaterThanOrEqual(0);
+    expect(user).toBeGreaterThan(chmod);
+    expect(l.filter((x) => /chmod/.test(x) && /timeout/.test(x))).toEqual(["RUN chmod 0711 /usr/bin/timeout"]);
+    expect(compose).toMatch(/seul le `docker kill` de l'HÔTE[^\n]*\n?[^\n]*GARANTIT/);
+    expect(compose).toMatch(/ne font que la rendre\s+# plus difficile à contourner/);
+    expect(compose).toMatch(/`umount` \(étape 2\) RÉUSSIT même si un conteneur garde \/sortie ouvert/);
+    expect(compose).toMatch(/OBLIGATOIRE/);
   });
 });
 

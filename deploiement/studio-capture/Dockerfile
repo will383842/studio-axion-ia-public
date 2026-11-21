@@ -47,6 +47,11 @@ COPY --chmod=0555 deploiement/studio-capture/lancer.sh /app/lancer.sh
 RUN mkdir -p /app/outils/maquettes-tableaux-de-bord/maquette /app/outils/maquettes-tableaux-de-bord/charte /entree /sortie \
   && chown pwuser:pwuser /sortie
 
+# `timeout` (PID 1 à l'exécution) en 0711 : exécutable mais NON lisible par l'uid 1001, donc son processus n'est plus « dumpable »
+# pour le noyau : un processus du conteneur (même uid) ne peut ni lire /proc/1/mem ni le tracer. Avec seccomp (sans ptrace) et
+# `init: false`, cela rend la durée bornée plus difficile à contourner ; seul le `docker kill` de l'hôte (docker-compose.yml) la GARANTIT.
+RUN chmod 0711 /usr/bin/timeout
+
 # UN SEUL uid : celui de `pwuser` (1001 : l'image Playwright part d'ubuntu:noble, qui a déjà `ubuntu` = 1000). Le même
 # que `user:` du compose (tests/deploiement/studio-capture.test.ts) ; la construction échoue si l'image change d'uid.
 RUN test "$(id -u pwuser)" = "1001" && test "$(id -g pwuser)" = "1001"
