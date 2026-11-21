@@ -39,6 +39,14 @@ describe("garderRegard (S-10-GARDE-A-v20l) : au plus 2 regards, sortie principal
     expect(relecteur).toHaveBeenCalledTimes(2);
   });
 
+  it("c2) relecteur qui rend « non relue » sans lever (appel payé, réponse illisible) : l'appel compte, 2 appels réels au plus", async () => {
+    const vide = { imagesLues: 0, remarques: [{ image: 1, raison: "Images de la vidéo non relues." }] };
+    const relecteur = vi.fn(async () => vide);
+    const garde = garderRegard(relecteur, { clePrincipale: "p.mp4" });
+    for (let i = 0; i < 5; i += 1) expect((await garde({}, {}, video("p.mp4"))).imagesLues).toBe(0);
+    expect(relecteur).toHaveBeenCalledTimes(2);
+  });
+
   it("d) appels simultanés : le compteur est pris avant l'attente, jamais plus de 2 appels réels", async () => {
     const relecteur = vi.fn(async () => bonne);
     const garde = garderRegard(relecteur, { clePrincipale: "p.mp4" });
