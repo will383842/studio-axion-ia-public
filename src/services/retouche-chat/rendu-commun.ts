@@ -60,7 +60,10 @@ export function creerPortsRefaire(deps: DepsPortsRefaire): PortsRefaire {
     async rendrePlage(plage: PlageImages, index: number) {
       try {
         const cle = deps.cle(`${deps.idBase}-plage${index}.mp4`);
-        const signe = await deps.signer({ ...(deps.lecturesPlage ?? {}) }, { cle, mime: "video/mp4" });
+        // Morceau MUET : jamais d'entrée « audio », même si l'appelant en a donné une.
+        const lectures = { ...(deps.lecturesPlage ?? {}) };
+        delete lectures.audio;
+        const signe = await deps.signer(lectures, { cle, mime: "video/mp4" });
         return await rendre({
           idRendu: `${deps.idBase}-plage${index}-0`,
           operation: "composition",

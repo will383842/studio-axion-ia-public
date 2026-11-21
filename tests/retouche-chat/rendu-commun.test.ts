@@ -81,6 +81,15 @@ describe("rendrePlage", () => {
     expect(new Set(demandes.map((d) => d.idRendu)).size).toBe(2);
   });
 
+  it("a) une entrée « audio » donnée par l'appelant est retirée : le morceau reste muet, signer jamais appelé avec « audio »", async () => {
+    const { s, demandes } = service();
+    signer.mockClear();
+    await ports(s, { lecturesPlage: { audio: "k/v.mp3", decor: "k/decor.png" } }).rendrePlage({ debut: 0, fin: 5 }, 0);
+    expect(demandes[0]!.entrees).toEqual({ decor: "signe:k/decor.png" });
+    expect(signer.mock.calls.length).toBeGreaterThan(0);
+    for (const [lectures] of signer.mock.calls) expect(Object.keys(lectures)).not.toContain("audio");
+  });
+
   it("a) les propriétés ne sont pas partagées : changer la demande ne change pas la source", async () => {
     const { s, demandes } = service();
     const props = { a: 1 };
