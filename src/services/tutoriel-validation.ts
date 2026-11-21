@@ -20,7 +20,7 @@ import { choisirProposition, etablirRegistre, figerRegistre, type RegistreTextes
 import { figerScriptChoisi, type PropositionScripts, type ScriptChoisi } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { validerScriptTutoriel } from "@/moteurs/montage-tutoriel-outil/index";
 import { CODE_SCRIPT_A_VALIDER } from "@/moteurs/montage-tutoriel-outil/script";
-import { depots, maintenant } from "./_commun";
+import { depots, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 
 export const PHRASE_RIEN_A_VALIDER = "Rien à valider pour l'instant.";
@@ -186,30 +186,33 @@ export async function refaireEcrire(videoId: Id): Promise<IssueValidation> {
  * vidéo ET dans la commande figée de la version ; reprend la fabrication avec le texte choisi.
  */
 export async function validerTutoriel(videoId: Id, options: { empreinteDevis?: string } = {}): Promise<IssueValidation> {
-  const c = await contexte(videoId);
-  if (estIssue(c)) return c;
-  const script = c.equipe.scriptChoisi;
-  if (!script) return refus(PHRASE_CHOISIR_D_ABORD);
-  const empreinteDevis = options?.empreinteDevis;
-  if (empreinteDevis !== undefined && (typeof empreinteDevis !== "string" || !empreinteDevis.trim() || empreinteDevis.length > 200)) return refus("L'accord du devis n'est pas valable : rouvrez le devis.");
-  const le = maintenant();
-  const base = c.equipe.registre ?? registreDe(c.equipe, script, await finChoisie(videoId));
-  const fige = base.fige ? { ok: true as const, registre: base } : figerRegistre(base, le);
-  if (!fige.ok) return refus(PHRASE_REGISTRE_FIGE);
-  const equipe: EtatEquipeLu = { ...c.equipe, registre: fige.registre };
+  // Tout sous le verrou de la boucle : aucun tour lu entre l'écriture de la version et celle du travail (double dépense de voix). Aucun appel réseau dedans.
+  return sousVerrou(async (): Promise<IssueValidation> => {
+    const c = await contexte(videoId);
+    if (estIssue(c)) return c;
+    const script = c.equipe.scriptChoisi;
+    if (!script) return refus(PHRASE_CHOISIR_D_ABORD);
+    const empreinteDevis = options?.empreinteDevis;
+    if (empreinteDevis !== undefined && (typeof empreinteDevis !== "string" || !empreinteDevis.trim() || empreinteDevis.length > 200)) return refus("L'accord du devis n'est pas valable : rouvrez le devis.");
+    const le = maintenant();
+    const base = c.equipe.registre ?? registreDe(c.equipe, script, await finChoisie(videoId));
+    const fige = base.fige ? { ok: true as const, registre: base } : figerRegistre(base, le);
+    if (!fige.ok) return refus(PHRASE_REGISTRE_FIGE);
+    const equipe: EtatEquipeLu = { ...c.equipe, registre: fige.registre };
 
-  const d = depots();
-  if (empreinteDevis !== undefined) {
-    const accord = { empreinte: empreinteDevis.trim(), le };
-    const video = await d.videos.obtenir(videoId);
-    if (video) await d.videos.modifier(videoId, { entrees: { ...(video.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } });
-    const version = c.travail.versionId ? await d.versions.obtenir(c.travail.versionId) : null;
-    if (version) await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: { ...(version.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } } });
-  }
-  // T-EXT-55 : le moteur exige le registre FIGÉ dans l'équipe du travail qu'il reçoit (le choix de Williams reste le texte déjà figé).
-  const tuto0 = objet(c.travail.parametres?.tutoriel) ? c.travail.parametres.tutoriel : {};
-  const relance = validerScriptTutoriel({ ...c.travail, parametres: { ...(c.travail.parametres ?? {}), tutoriel: { ...tuto0, equipe } } }, script.texte);
-  const tuto = objet(relance.parametres?.tutoriel) ? relance.parametres.tutoriel : {};
-  await d.travaux.modifier(c.travail.id, { statut: relance.statut, etapes: relance.etapes, parametres: { ...(relance.parametres ?? {}), tutoriel: { ...tuto, equipe } } });
-  return ok("Votre texte est validé : la vidéo reprend.");
+    const d = depots();
+    if (empreinteDevis !== undefined) {
+      const accord = { empreinte: empreinteDevis.trim(), le };
+      const video = await d.videos.obtenir(videoId);
+      if (video) await d.videos.modifier(videoId, { entrees: { ...(video.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } });
+      const version = c.travail.versionId ? await d.versions.obtenir(c.travail.versionId) : null;
+      if (version) await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: { ...(version.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } } });
+    }
+    // T-EXT-55 : le moteur exige le registre FIGÉ dans l'équipe du travail qu'il reçoit (le choix de Williams reste le texte déjà figé).
+    const tuto0 = objet(c.travail.parametres?.tutoriel) ? c.travail.parametres.tutoriel : {};
+    const relance = validerScriptTutoriel({ ...c.travail, parametres: { ...(c.travail.parametres ?? {}), tutoriel: { ...tuto0, equipe } } }, script.texte);
+    const tuto = objet(relance.parametres?.tutoriel) ? relance.parametres.tutoriel : {};
+    await d.travaux.modifier(c.travail.id, { statut: relance.statut, etapes: relance.etapes, parametres: { ...(relance.parametres ?? {}), tutoriel: { ...tuto, equipe } } });
+    return ok("Votre texte est validé : la vidéo reprend.");
+  });
 }

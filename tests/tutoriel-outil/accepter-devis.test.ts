@@ -2,7 +2,7 @@
  * AUD-7 · le devis en pause se range dans la pause, et le geste « accepter le devis » seul lève l'impasse.
  * Moteur réel, outils doubles, dépôts en mémoire : aucun appel réel, 0 €. Aucun réglage n'est allumé hors `tutoriel.formulaire` (garde des actions).
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 
 vi.mock("next/headers", () => mockHeaders);
@@ -118,7 +118,7 @@ describe("AUD-7 : impasse levée", () => {
     expect(lireAccordDevis((await depots().videos.obtenir("v1"))!.entrees)?.empreinte).toBe(pause(t)!.devis!.empreinte);
     expect(lireAccordDevis((await depots().versions.obtenir("ver1"))!.commande.entrees)?.empreinte).toBe(pause(t)!.devis!.empreinte);
     expect((await travail()).parametres?.pause).toBeUndefined();
-    expect((await travail()).statut).toBe("en_cours");
+    expect((await travail()).statut).toBe("en_file"); // le statut du travail est gardé tel quel, jamais forcé
     rien(j);
     const fin = await reprendre();
     expect(pause(fin)).toBeNull();
@@ -131,6 +131,7 @@ describe("AUD-7 : impasse levée", () => {
     await depots().travaux.modifier("t1", { statut: "en_cours" });
     expect(await service.lireDevisAAccepter("v1")).toEqual(pause(t)!.devis);
     expect(await service.accepterDevis("v1", pause(t)!.devis!.empreinte)).toMatchObject({ statut: "ok" });
+    expect((await travail()).statut).toBe("en_cours"); // gardé tel quel
   });
 
   it("ne change aucun réglage : seule la clé du formulaire est posée par le test, devisAvantDepense reste absente", async () => {
@@ -206,8 +207,8 @@ describe("AUD-7 : refus", () => {
   it("pause TO_DEVIS_A_ACCEPTER dont l'empreinte est déjà acceptée : refus « déjà accepté »", async () => {
     const { t } = await installerPauseDevis();
     const e = pause(t)!.devis!.empreinte;
-    const v = (await depots().videos.obtenir("v1"))!;
-    await depots().videos.modifier("v1", { entrees: { ...v.entrees, [ENTREE_DEVIS_TUTORIEL]: { empreinte: e, le: LE } } });
+    const ver = (await depots().versions.obtenir("ver1"))!;
+    await depots().versions.modifier("ver1", { commande: { ...ver.commande, entrees: { ...(ver.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: { empreinte: e, le: LE } } } });
     const tr = await travail();
     await depots().travaux.modifier("t1", { parametres: { ...tr.parametres, pause: { code: "TO_DEVIS_A_ACCEPTER", message: "x", devis: pause(t)!.devis } } });
     expect(await service.accepterDevis("v1", e)).toEqual({ statut: "refusee", phrase: service.PHRASE_DEVIS_DEJA });
@@ -265,5 +266,131 @@ describe("AUD-7 : par la vraie boucle (lireTravauxAAvancer + moteur.avancer + ec
     expect(pause(fin)).toBeNull();
     expect(fin.statut).toBe("termine");
     expect(j.voix).toHaveLength(1);
+  }, 60_000);
+});
+
+/** Vraie boucle : vidéo, version, travail lancé ; `tour` = lecture (sort de la file) + moteur + écriture ; horloge Date simulée. */
+async function boucleReelle() {
+  const { lireTravauxAAvancer, ecrireAvancement } = await import("@/services/travaux");
+  const j = journalVide();
+  let commande: CommandeFabrication = { ...commandeTutoriel(), videoId: "v1" };
+  await depots().videos.enregistrer({ id: "v1", titre: "Mon tutoriel", formatId: "tutoriel-outil", statut: "en_fabrication", ratios: ["4:5"], entrees: {}, creeLe: LE, modifieLe: LE } as never);
+  await depots().versions.enregistrer({ id: "ver1", videoId: "v1", numero: 1, statut: "en_fabrication", commande, creeLe: LE, modifieLe: LE } as never);
+  const moteur = creerMoteurTutorielOutil({ outils: outils(j, () => commande) });
+  await depots().travaux.enregistrer({ ...(await moteur.lancer(commande, { travailId: "t1", versionId: "ver1", titre: "T", maintenant: T0 })), creeLe: LE } as never);
+  let instant = T0;
+  vi.setSystemTime(instant);
+  const lecture = async () => {
+    return lireTravauxAAvancer(instant, () => moteur);
+  };
+  const tour = async (avancerMs = 1000) => {
+    instant += avancerMs;
+    vi.setSystemTime(instant);
+    for (const lu of await lecture()) {
+      commande = lu.commande;
+      await ecrireAvancement(lu, await moteur.avancer(lu.travail, lu.commande, instant));
+    }
+  };
+  const jusquaPause = async () => {
+    for (let i = 0; i < 400 && !(await travail()).parametres?.pause; i++) await tour();
+  };
+  const jusquaFin = async () => {
+    for (let i = 0; i < 400 && !["termine", "echec", "annule"].includes((await travail()).statut) && !(await travail()).parametres?.pause; i++) await tour();
+  };
+  return { j, tour, lecture, jusquaPause, jusquaFin, instantCourant: () => instant };
+}
+
+describe("AUD-7 : verrou (double dépense)", () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ["Date"] }));
+  afterEach(() => vi.useRealTimers());
+
+  it("un tour de boucle lu entre l'écriture de la version et celle du travail attend la fin du geste : une seule voix payée", async () => {
+    const { sousVerrou } = await import("@/services/_commun");
+    const b = await boucleReelle();
+    await b.jusquaPause();
+    const enPause = await travail();
+    const ordre: string[] = [];
+    let tourLu: Promise<unknown> = Promise.resolve();
+    const versions = depots().versions;
+    const vraieVersion = versions.modifier.bind(versions);
+    vi.spyOn(versions, "modifier").mockImplementation(async (...a: Parameters<typeof vraieVersion>) => {
+      const r = await vraieVersion(...a);
+      ordre.push("version");
+      // Le tour de la boucle arrive ICI (comme boucle.ts : sousVerrou(lecture)) : il doit être mis en file derrière le geste.
+      tourLu = sousVerrou(async () => {
+        ordre.push("lecture");
+        return b.lecture();
+      });
+      await new Promise((r2) => setTimeout(r2, 5));
+      return r;
+    });
+    const travaux = depots().travaux;
+    const vraiTravail = travaux.modifier.bind(travaux);
+    vi.spyOn(travaux, "modifier").mockImplementation(async (...a: Parameters<typeof vraiTravail>) => {
+      ordre.push("travail");
+      return vraiTravail(...a);
+    });
+    expect(await service.accepterDevis("v1", pause(enPause)!.devis!.empreinte)).toMatchObject({ statut: "ok" });
+    await tourLu;
+    expect(ordre).toEqual(["version", "travail", "lecture"]);
+    vi.restoreAllMocks();
+    await b.jusquaFin();
+    expect((await travail()).statut).toBe("termine");
+    expect(b.j.voix).toHaveLength(1);
+  }, 60_000);
+
+  it("« déjà accepté » se lit dans la commande de la version (ce que lit le moteur), pas seulement dans la vidéo", async () => {
+    const { t } = await installerPauseDevis();
+    const e = pause(t)!.devis!.empreinte;
+    const ver = (await depots().versions.obtenir("ver1"))!;
+    await depots().versions.modifier("ver1", { commande: { ...ver.commande, entrees: { ...(ver.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: { empreinte: e, le: LE } } } });
+    expect(await service.accepterDevis("v1", e)).toEqual({ statut: "refusee", phrase: service.PHRASE_DEVIS_DEJA });
+    // La vidéo seule ne suffit pas : la version (lue par le moteur) n'a pas l'accord, il faut l'y écrire.
+    reinitialiserDepots();
+    const { t: t2 } = await installerPauseDevis();
+    const v = (await depots().videos.obtenir("v1"))!;
+    await depots().videos.modifier("v1", { entrees: { ...v.entrees, [ENTREE_DEVIS_TUTORIEL]: { empreinte: pause(t2)!.devis!.empreinte, le: LE } } });
+    expect(await service.accepterDevis("v1", pause(t2)!.devis!.empreinte)).toMatchObject({ statut: "ok" });
+    expect(lireAccordDevis((await depots().versions.obtenir("ver1"))!.commande.entrees)?.empreinte).toBe(pause(t2)!.devis!.empreinte);
+  });
+});
+
+describe("AUD-7 : la garde « plus d'avancement » (60 min) ne touche pas une pause qui attend Williams", () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ["Date"] }));
+  afterEach(() => vi.useRealTimers());
+
+  it("vraie boucle en pause devis pendant plus de 60 min : toujours en_cours, puis l'accord réussit", async () => {
+    const b = await boucleReelle();
+    await b.jusquaPause();
+    expect(pause(await travail())?.code).toBe("TO_DEVIS_A_ACCEPTER");
+    for (let i = 0; i < 16; i++) await b.tour(5 * 60_000); // 80 min, par tours de 5 min
+    const apres = await travail();
+    expect(apres.statut).toBe("en_cours");
+    expect(apres.erreur).toBeUndefined();
+    expect(await service.accepterDevis("v1", pause(apres)!.devis!.empreinte)).toMatchObject({ statut: "ok" });
+    await b.jusquaFin();
+    expect((await travail()).statut).toBe("termine");
+    expect(b.j.voix).toHaveLength(1);
+  }, 60_000);
+
+  it("un travail tutoriel SANS pause reste gardé : PANNE_SANS_NOUVELLE après 60 min", async () => {
+    const b = await boucleReelle();
+    await b.jusquaPause();
+    // Même travail, sans pause, et un moteur qui ne bouge plus : la garde joue.
+    const { ecrireAvancement, lireTravauxAAvancer } = await import("@/services/travaux");
+    const tr = await travail();
+    const { pause: _p, ...sans } = tr.parametres ?? {};
+    void _p;
+    await depots().travaux.modifier("t1", { parametres: sans });
+    const immobile = { ...creerMoteurTutorielOutil({ outils: async () => outilsDoubles(journalVide(), {}) }), avancer: async (t: Travail) => ({ travail: { ...t, statut: "en_cours" as const } }) };
+    let instant = b.instantCourant();
+    for (let i = 0; i < 16 && (await travail()).statut === "en_cours"; i++) {
+      instant += 5 * 60_000;
+      vi.setSystemTime(instant);
+      for (const lu of await lireTravauxAAvancer(instant, () => immobile)) await ecrireAvancement(lu, await immobile.avancer(lu.travail));
+    }
+    const fin = await travail();
+    expect(fin.statut).toBe("echec");
+    expect(fin.erreur).toMatchObject({ code: "PANNE_SANS_NOUVELLE", reessayable: true });
   }, 60_000);
 });

@@ -262,6 +262,33 @@ describe("l'accord du devis est écrit par la validation", () => {
     expect((video.entrees as Record<string, unknown>).tutorielOutil).toEqual({ fin: "aucune" });
     expect((ver.commande.entrees as Record<string, unknown>).tutorielOutil).toEqual({ fin: "aucune" });
   });
+  it("verrou : un tour de boucle lu entre l'écriture de la version et celle du travail attend la fin de la validation", async () => {
+    const { sousVerrou } = await import("@/services/_commun");
+    await installer();
+    await allumer();
+    await a.choisirVersionAction("v1", "A");
+    const ordre: string[] = [];
+    let tour: Promise<unknown> = Promise.resolve();
+    const versions = depots().versions;
+    const vraieVersion = versions.modifier.bind(versions);
+    vi.spyOn(versions, "modifier").mockImplementation(async (...args: Parameters<typeof vraieVersion>) => {
+      const r = await vraieVersion(...args);
+      ordre.push("version");
+      tour = sousVerrou(async () => void ordre.push("lecture"));
+      await new Promise((fin) => setTimeout(fin, 5));
+      return r;
+    });
+    const travaux = depots().travaux;
+    const vraiTravail = travaux.modifier.bind(travaux);
+    vi.spyOn(travaux, "modifier").mockImplementation(async (...args: Parameters<typeof vraiTravail>) => {
+      ordre.push("travail");
+      return vraiTravail(...args);
+    });
+    expect((await a.validerTutorielAction("v1", { empreinteDevis: "abc123" })).ok).toBe(true);
+    await tour;
+    vi.restoreAllMocks();
+    expect(ordre).toEqual(["version", "travail", "lecture"]);
+  });
   it("sans empreinte : aucune entrée de devis ; empreinte invalide : refus, rien d'écrit", async () => {
     await installer();
     await allumer();

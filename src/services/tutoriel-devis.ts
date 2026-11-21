@@ -14,7 +14,7 @@ import "server-only";
 import type { Id, Travail } from "@/domaine/types";
 import { ENTREE_DEVIS_TUTORIEL, lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
 import { CODE_DEVIS_A_ACCEPTER } from "@/moteurs/montage-tutoriel-outil/index";
-import { depots, maintenant } from "./_commun";
+import { depots, maintenant, sousVerrou } from "./_commun";
 import { exigerSession } from "./auth";
 
 export type IssueDevis = { statut: "ok"; phrase: string } | { statut: "refusee"; phrase: string };
@@ -57,25 +57,34 @@ export async function lireDevisAAccepter(videoId: Id): Promise<DevisAAccepter | 
   return devisDeLaPause(await derniereFabrication(videoId));
 }
 
-/** « Accepter le devis » : l'empreinte donnée doit être celle du devis encore en attente. */
+/**
+ * « Accepter le devis » : l'empreinte donnée doit être celle du devis encore en attente.
+ * Tout le corps est sous `sousVerrou` (le verrou de la boucle) : relecture du travail, de la vidéo et de la version, contrôles, puis
+ * écritures vidéo → version → travail, sans tour de boucle entre deux (sinon un tour lu entre l'écriture de la version et celle du
+ * travail rejoue la voix : double dépense). Aucun appel réseau dedans ; `exigerSession` reste dehors (lecture de cookie, pas d'écriture).
+ */
 export async function accepterDevis(videoId: Id, empreinteVue: string): Promise<IssueDevis> {
   await exigerSession();
   if (typeof videoId !== "string" || !videoId) return refus(PHRASE_DEVIS_RIEN);
   if (typeof empreinteVue !== "string" || !empreinteVue.trim() || empreinteVue.length > 200) return refus(PHRASE_DEVIS_INVALIDE);
-  const travail = await derniereFabrication(videoId);
-  const devis = devisDeLaPause(travail);
-  if (!travail || !devis) return refus(PHRASE_DEVIS_RIEN);
-  if (empreinteVue.trim() !== devis.empreinte) return refus(PHRASE_DEVIS_CHANGE);
-  const d = depots();
-  const video = await d.videos.obtenir(videoId);
-  if (!video) return refus(PHRASE_DEVIS_RIEN);
-  if (lireAccordDevis(video.entrees)?.empreinte === devis.empreinte) return refus(PHRASE_DEVIS_DEJA);
-  const accord = { empreinte: devis.empreinte, le: maintenant() };
-  await d.videos.modifier(videoId, { entrees: { ...(video.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } });
-  const version = travail.versionId ? await d.versions.obtenir(travail.versionId) : null;
-  if (version) await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: { ...(version.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } } });
-  const { pause: _p, ...sansPause } = travail.parametres ?? {};
-  void _p;
-  await d.travaux.modifier(travail.id, { statut: "en_cours", parametres: sansPause });
-  return { statut: "ok", phrase: "Le devis est accepté : la vidéo reprend." };
+  return sousVerrou(async () => {
+    const travail = await derniereFabrication(videoId);
+    const devis = devisDeLaPause(travail);
+    if (!travail || !devis) return refus(PHRASE_DEVIS_RIEN);
+    if (empreinteVue.trim() !== devis.empreinte) return refus(PHRASE_DEVIS_CHANGE);
+    const d = depots();
+    const video = await d.videos.obtenir(videoId);
+    if (!video) return refus(PHRASE_DEVIS_RIEN);
+    const version = travail.versionId ? await d.versions.obtenir(travail.versionId) : null;
+    // « Déjà accepté » : ce que lit le moteur est la commande figée de la version (à défaut, la vidéo).
+    const entreesLues = version ? version.commande.entrees : video.entrees;
+    if (lireAccordDevis(entreesLues)?.empreinte === devis.empreinte) return refus(PHRASE_DEVIS_DEJA);
+    const accord = { empreinte: devis.empreinte, le: maintenant() };
+    await d.videos.modifier(videoId, { entrees: { ...(video.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } });
+    if (version) await d.versions.modifier(version.id, { commande: { ...version.commande, entrees: { ...(version.commande.entrees ?? {}), [ENTREE_DEVIS_TUTORIEL]: accord } } });
+    const { pause: _p, ...sansPause } = travail.parametres ?? {};
+    void _p;
+    await d.travaux.modifier(travail.id, { statut: travail.statut, parametres: sansPause });
+    return { statut: "ok", phrase: "Le devis est accepté : la vidéo reprend." } as IssueDevis;
+  });
 }
