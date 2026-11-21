@@ -493,7 +493,7 @@ describe("V2-10 · « je veux un tri d'e-mails » (cas 3), le même chemin avec 
     const vus = textesDuFlux(flux);
     expect(vus.flatMap((t) => t.textes).filter((t) => /\p{Nd}/u.test(t))).toEqual([]);
 
-    const p = e.pieceCreee!;
+    /* ---- Écran « Votre maquette » (V2-09b) : l'aperçu est déposé, Williams voit le flux et chaque texte, puis le garde ---- */
     // Le vrai poste (`ecrire-maquette.mts`, capteur doublé) fabrique l'aperçu du flux ; le test le dépose.
     const posteFlux = await m.poste();
     expect(posteFlux.code).toBe(CODE_OK);
