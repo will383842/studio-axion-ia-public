@@ -90,6 +90,17 @@ describe("S-06-a : lireDemandeTableauParClaude (vrai lireDemande)", () => {
     expect(mixte.appeler).toHaveBeenCalledTimes(1);
   });
 
+  it("d4) un refus AVANT une opération valide n'arrête pas la lecture : la première VALIDE est gardée", async () => {
+    const HORS_SCHEMA = { type: "inconnue" };
+    const INEXISTANT = { type: "supprimerElement", sceneId: "s01", elementId: "e99" };
+    for (const refus of [HORS_SCHEMA, INEXISTANT]) {
+      expect(supplementTableau(F, CTX).relire([refus, OP_VALIDE]).operations).toEqual([OP_VALIDE]);
+      const { p, appeler } = ports(rep([refus, OP_VALIDE]));
+      expect(await lireDemandeTableauParClaude(F, "bonjour", CTX, p)).toEqual(OP_VALIDE);
+      expect(appeler).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it("d3) relire(brut) : un tableau est attendu, une opération valide en OBJET SEUL est refusée", () => {
     expect(supplementTableau(F, CTX).relire(OP_VALIDE).operations).toEqual([]);
     expect(supplementTableau(F, CTX).relire([OP_VALIDE]).operations).toEqual([OP_VALIDE]);
