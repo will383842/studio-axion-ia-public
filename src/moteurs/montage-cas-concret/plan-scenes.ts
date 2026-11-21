@@ -7,6 +7,7 @@
  * écran dont les scènes changent est rendu à nouveau. Le résultat est gardé au journal (clé = entrée) : une reprise ne
  * rappelle pas l'IA.
  */
+import { FLASH_MESURE_ACTIVE, mesurerFlashs } from "@/briques/composition/garde-flash";
 import { jsonCanonique, fnv1a64 } from "@/briques/plan-scenes/empreinte";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
@@ -49,6 +50,7 @@ export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appel
   const tranches: Record<string, PlanValide> = {};
   const memo: MemoPlanScenes = {};
   const remarques: Remarque[] = [];
+  const flashs: Remarque[] = [];
   for (const g of o.groupes) {
     const segments = g.ecrans.map((e) => ({ texte: e.texteDit, debutMs: e.debutMs, finMs: e.finMs }));
     const entree = fnv1a64(jsonCanonique({ format, segments, ia: !!o.appeler, ...(o.objetsPermis?.length ? { objets: o.objetsPermis } : {}) }));
@@ -75,7 +77,15 @@ export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appel
         const cle = cleTranche(g.id, e.id);
         if (habillees[cle]) tranches[cle] = habillees[cle];
       }
+      // BR-GARDE-FLASH-a : réserve « À vérifier » (jamais bloquante) sur les flashs réellement posés ; hors mémo (une reprise ne la double pas).
+      if (FLASH_MESURE_ACTIVE === true) {
+        for (const e of g.ecrans) {
+          const cle = cleTranche(g.id, e.id);
+          if (!habillees[cle]) continue;
+          for (const message of mesurerFlashs(habillees[cle]).reserves) flashs.push({ code: "FLASH", message });
+        }
+      }
     }
   }
-  return { tranches, remarques, memo };
+  return { tranches, remarques: [...remarques, ...flashs], memo };
 }
