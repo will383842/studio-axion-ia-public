@@ -37,6 +37,9 @@ const fetchInterdit = (async () => {
 /** Lecture du préfixe exporté par le fichier d'argent ; la conversion ne sert qu'à compiler avant le code. */
 const prefixeArgent = () => (dcv as unknown as { PREFIXE_ETAPE_TUTORIEL_PLAFOND?: string }).PREFIXE_ETAPE_TUTORIEL_PLAFOND;
 
+/** Le plafond « tuto » tel que le tutoriel le passe (`tutoriel-claude.ts`), toujours présent. */
+const tuto = () => plafondPropreTutoriel()!;
+
 const roleTexte: DefinitionRole = { id: "texte-essai-tuto", version: 1, consigne: "Consigne d'essai.", modele: "claude-sonnet-5-5", effort: "low", maxTokens: 100, sansPhrasesFixes: true, simuler: () => "" };
 
 beforeAll(async () => {
@@ -92,12 +95,12 @@ describe("TUTO-DEPENSE-PROPRE-v21q · plafond propre du tutoriel (« tuto ») da
 
   it("c) dépenses et réservations du tutoriel comptent dans le plafond « tuto »", async () => {
     const v = await video();
-    expect(await dcv.engagePlafondPropreCentimes(v.id, plafondPropreTutoriel())).toBe(0);
+    expect(await dcv.engagePlafondPropreCentimes(v.id, tuto())).toBe(0);
     await reservation(v.id, "txtpub-tuto-essai3", 9);
-    expect(await dcv.engagePlafondPropreCentimes(v.id, plafondPropreTutoriel())).toBe(9);
+    expect(await dcv.engagePlafondPropreCentimes(v.id, tuto())).toBe(9);
     await depense(v.id, ETAPE_PLAN, 8);
     await depense(v.id, ETAPE_MAQUETTISTE, 5);
-    expect(await dcv.engagePlafondPropreCentimes(v.id, plafondPropreTutoriel())).toBeGreaterThan(9);
+    expect(await dcv.engagePlafondPropreCentimes(v.id, tuto())).toBeGreaterThan(9);
   });
 
   it("d) disjoint : tbdec, tbscr, favid, rtcht, tbreg ne comptent pas dans « tuto », et inversement", async () => {
@@ -108,13 +111,13 @@ describe("TUTO-DEPENSE-PROPRE-v21q · plafond propre du tutoriel (« tuto ») da
     await depense(v.id, `${dcv.PREFIXE_ETAPE_RETOUCHE_CHAT} lecture`, 20);
     await depense(v.id, `${dcv.PREFIXE_ETAPE_REGARD_TABLEAU} de la vidéo finie`, 20);
     for (const id of ["tbdec", "tbscr", "favid", "rtcht", "tbreg"]) await reservation(v.id, `txtpub-${id}-essai`, 7);
-    expect(await dcv.engagePlafondPropreCentimes(v.id, plafondPropreTutoriel())).toBe(0);
+    expect(await dcv.engagePlafondPropreCentimes(v.id, tuto())).toBe(0);
     const voisins = [dcv.PLAFOND_DECOUPAGE_TABLEAU, dcv.plafondScriptTableau(1), dcv.plafondVideosFa()];
     const avant = await Promise.all(voisins.map((p) => dcv.engagePlafondPropreCentimes(v.id, p)));
     await depense(v.id, ETAPE_PLAN, 30);
     await reservation(v.id, "txtpub-tuto-essai4", 11);
     expect(await Promise.all(voisins.map((p) => dcv.engagePlafondPropreCentimes(v.id, p)))).toEqual(avant);
-    expect(await dcv.engagePlafondPropreCentimes(v.id, plafondPropreTutoriel())).toBeGreaterThan(11);
+    expect(await dcv.engagePlafondPropreCentimes(v.id, tuto())).toBeGreaterThan(11);
     expect(await dcv.engageClaudeVideoCentimes(v.id)).toBe(0);
   });
 
@@ -122,7 +125,7 @@ describe("TUTO-DEPENSE-PROPRE-v21q · plafond propre du tutoriel (« tuto ») da
     const v = await video();
     const appels: unknown[] = [];
     gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: (async () => { appels.push(1); throw new Error("réseau interdit"); }) as typeof fetch, attenteMs: () => 0 });
-    await expect(dcv.executerRolePourVideo(v.id, roleTexte, { contexte: {}, variable: "demande" }, { etape: ETAPE_TEXTE, plafondPropre: plafondPropreTutoriel(), origine: "usine" })).rejects.toMatchObject({ code: "ETAPE_INVALIDE" });
+    await expect(dcv.executerRolePourVideo(v.id, roleTexte, { contexte: {}, variable: "demande" }, { etape: ETAPE_TEXTE, plafondPropre: tuto(), origine: "usine" })).rejects.toMatchObject({ code: "ETAPE_INVALIDE" });
     expect(appels).toHaveLength(0);
     expect(await depots().reservations.lister((r) => r.videoId === v.id)).toHaveLength(0);
     expect(await depots().depenses.lister((x) => x.videoId === v.id)).toHaveLength(0);
@@ -131,7 +134,7 @@ describe("TUTO-DEPENSE-PROPRE-v21q · plafond propre du tutoriel (« tuto ») da
   it("f) le préfixe du fichier d'argent est exactement celui du tutoriel (« Tutoriel · »)", () => {
     expect(prefixeArgent()).toBe(PREFIXE_ETAPE_TUTORIEL);
     expect(PREFIXE_ETAPE_TUTORIEL).toBe("Tutoriel ·");
-    expect(plafondPropreTutoriel().prefixeEtape).toBe(prefixeArgent());
+    expect(tuto().prefixeEtape).toBe(prefixeArgent());
   });
 
   it("g) aucun plafond existant ne bouge (0,3 / 1,5 / 0,6 / 0,6)", async () => {
@@ -152,7 +155,7 @@ describe("TUTO-DEPENSE-PROPRE-v21q · plafond propre du tutoriel (« tuto ») da
     const v = await video();
     await depense(v.id, ETAPE_PLAN, 25);
     await depense(v.id, ETAPE_MAQUETTISTE, 20);
-    expect(await dcv.engagePlafondPropreCentimes(v.id, plafondPropreTutoriel())).toBeGreaterThanOrEqual(40);
+    expect(await dcv.engagePlafondPropreCentimes(v.id, tuto())).toBeGreaterThanOrEqual(40);
     const r = await dcv.executerRolePourVideo(v.id, roleTexte, { contexte: {}, variable: "demande" }, { etape: ETAPE_TEXTE, origine: "usine" });
     expect(r, JSON.stringify(r)).toMatchObject({ ok: true });
     expect(appels).toHaveLength(1);
