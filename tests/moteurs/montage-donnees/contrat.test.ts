@@ -99,12 +99,12 @@ describe("G4-09b · a) inscription : moteur inscrit, format masqué, absent de l
     expect(COMPOSITION_DONNEES).toBe("MontageDonnees");
   });
 
-  it("le format tableau-de-bord est masqué, sans adresse de saisie, absent des listes et de la navigation", () => {
+  it("le format tableau-de-bord est masqué, avec son adresse de saisie (page fermée), absent des listes et de la navigation", () => {
     const f = trouverFormat("tableau-de-bord")!;
     expect(f.statut).toBe("masque");
     expect(f.moteur).toBe("montage-donnees");
     expect(f.ouvertDansLaNavigation).toBeUndefined();
-    expect(f.adresseCreation).toBeUndefined();
+    expect(f.adresseCreation).toBe("/tableau-de-bord");
     expect(f.ratios.every((r) => moteurMontageDonnees.capacites.ratios.includes(r))).toBe(true);
     expect(listerFormats({ inclureMasques: true }).some((x) => x.id === "tableau-de-bord")).toBe(true);
     expect(listerFormats().some((x) => x.id === "tableau-de-bord")).toBe(false);
