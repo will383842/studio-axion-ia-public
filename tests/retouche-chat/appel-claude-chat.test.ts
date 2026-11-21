@@ -82,6 +82,11 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
     expect(r.texte).toBe('{"operations":[]}');
     expect(appels).toHaveLength(1);
     expect(appels[0]).toContain("fais quelque chose de joli pour moi");
+    const corps = JSON.parse(appels[0]);
+    expect(corps.model).toBe(requete().modele);
+    expect(corps.output_config.effort).toBe(requete().effort);
+    expect(corps.max_tokens).toBe(requete().maxTokens);
+    expect(JSON.stringify(corps.system)).toContain(JSON.stringify(requete().systeme[0].texte.slice(0, 200)).slice(1, -1));
     const depenses = await depots().depenses.lister((d) => d.videoId === "v-04" && d.lignes.some((l) => l.etape.startsWith(m.ETAPE_LECTURE_CHAT)));
     expect(depenses).toHaveLength(1);
     expect(depenses[0].lignes.some((l) => l.fournisseur === "anthropic")).toBe(true);
