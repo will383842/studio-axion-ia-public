@@ -502,7 +502,7 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
       const repris = enEchec.has("montage") || enEchec.has("exports") ? avecEtat(reste as Travail, relancerRendusTombes(lireEtat(travail))) : reste;
       // Fiche 45 point 5 : la phrase « ce qui est refait, ce qui est gardé » est rangée dans les paramètres du travail, où le suivi la lit.
       const bilan = bilanReprise(lireEtat(travail), [...enEchec]);
-      const avecBilan = { ...repris, parametres: { ...repris.parametres, reprise: { phrase: bilan.phrase, refait: bilan.refait, garde: bilan.garde } } };
+      const avecBilan = { ...repris, parametres: { ...repris.parametres, bilanReprise: { phrase: bilan.phrase, refait: bilan.refait, garde: bilan.garde } } };
       return { ...avecBilan, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
     },
     retoucher: async ({ commande, contexte, parent, operations }) => {
