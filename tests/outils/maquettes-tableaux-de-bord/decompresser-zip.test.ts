@@ -1,10 +1,10 @@
 /**
  * T-EXT-51c : décompression sûre d'un .zip. Les .zip sont FABRIQUÉS ici (petit écrivain, octets à la main) : aucun binaire tiers.
  */
-import { spawnSync } from "node:child_process";
-import { constants, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { chownSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { deflateRawSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -16,6 +16,8 @@ import {
   creerParents,
   extraireOctets,
   decompresserZip,
+  estDechetSysteme,
+  purgerTemporairesPerimes,
   ecrireFichierSur,
   lireArchive,
   lireArchiveSurDisque,
@@ -38,6 +40,8 @@ interface Ent {
   tailleLocale?: number;
   brut?: Buffer; // données déjà compressées à poser telles quelles
   decalageLocal?: number;
+  /** Vrai : bit 3 (data descriptor) : CRC et tailles à 0 dans l'en-tête local, descripteur `PK\x07\x08` après les données. */
+  descripteur?: boolean;
 }
 
 /** Écrivain zip minimal : en-têtes locaux + répertoire central + fin. */
@@ -56,20 +60,31 @@ function zip(entrees: Ent[], opts: { commentaire?: string; patchFin?: (b: Buffer
     const l = Buffer.alloc(30);
     l.writeUInt32LE(0x04034b50, 0);
     l.writeUInt16LE(20, 4);
-    l.writeUInt16LE((e.drapeaux ?? 0) & ~0x8, 6);
+    l.writeUInt16LE(e.descripteur ? (e.drapeaux ?? 0) | 0x8 : (e.drapeaux ?? 0) & ~0x8, 6);
     l.writeUInt16LE(e.methodeLocale ?? methode, 8);
-    l.writeUInt32LE(crc, 14);
-    l.writeUInt32LE(comp.length, 18);
-    l.writeUInt32LE(e.tailleLocale ?? tailleA, 22);
+    if (!e.descripteur) {
+      l.writeUInt32LE(crc, 14);
+      l.writeUInt32LE(comp.length, 18);
+      l.writeUInt32LE(e.tailleLocale ?? tailleA, 22);
+    }
     l.writeUInt16LE(nomL.length, 26);
     const debut = pos;
     parts.push(l, nomL, comp);
     pos += 30 + nomL.length + comp.length;
+    if (e.descripteur) {
+      const d = Buffer.alloc(16);
+      d.writeUInt32LE(0x08074b50, 0);
+      d.writeUInt32LE(crc, 4);
+      d.writeUInt32LE(comp.length, 8);
+      d.writeUInt32LE(tailleA, 12);
+      parts.push(d);
+      pos += 16;
+    }
     const c = Buffer.alloc(46);
     c.writeUInt32LE(0x02014b50, 0);
     c.writeUInt16LE(((e.faitPar ?? 3) << 8) | 20, 4);
     c.writeUInt16LE(20, 6);
-    c.writeUInt16LE(e.drapeaux ?? 0, 8);
+    c.writeUInt16LE((e.drapeaux ?? 0) | (e.descripteur ? 0x8 : 0), 8);
     c.writeUInt16LE(methode, 10);
     c.writeUInt32LE(crc, 16);
     c.writeUInt32LE(comp.length, 20);
@@ -223,10 +238,10 @@ describe("liens symboliques et sortie", () => {
     expect(() => creerParents(racine, ["lien", "sous"])).toThrow(/Parent non sûr/);
     expect(existsSync(join(racine, "vrai", "sous"))).toBe(false);
   });
-  it("creerParents crée en 0o755 (hors umask)", () => {
+  it("creerParents crée chaque niveau en 0o755 filtré par l'umask (jamais plus large)", () => {
     const p = creerParents(racine, ["a", "b"]);
     expect(p).toBe(join(racine, "a", "b"));
-    expect(existsSync(p)).toBe(true);
+    for (const d of [join(racine, "a"), p]) expect(statSync(d).mode & 0o777).toBe(0o755 & ~process.umask());
   });
   it("lireArchiveSurDisque refuse un lien symbolique et un dossier", () => {
     const z = join(racine, "r.zip");
@@ -286,7 +301,7 @@ describe("bombes", () => {
     const e = lireArchive(z, lim)[0]!;
     expect(() => extraireOctetsLimite(z, e, lim)).toThrow(/interrompue/);
   });
-  it("budget total restant : une 2e entrée mensongère est coupée au budget", () => {
+  it("2e entrée mensongère (annonce 900, contenu 2000) : refusée ; le budget total seul est verrouillé par le test extraireOctets", () => {
     const lim: Limites = { ...LIMITES, totalDecompresse: 3000, parFichier: 2500, ratio: 100000 };
     const z = zip([
       { nom: "a.txt", donnees: Buffer.alloc(2000, 1) },
@@ -316,7 +331,7 @@ describe("bombes", () => {
     loc.writeUInt32LE(0x07064b50, 0);
     const z = zip([{ nom: "a.txt", donnees: "x" }]);
     const fin = z.length - 22;
-    refuse(Buffer.concat([z.subarray(0, fin), loc, z.subarray(fin)]), "format");
+    refuse(Buffer.concat([z.subarray(0, fin), loc, z.subarray(fin)]), "format", /ZIP64/); // message du localisateur, pas celui de l'incohérence centrale
   });
   it("refuse multi-disques", () => {
     refuse(zip([{ nom: "a.txt", donnees: "x" }], { patchFin: (f) => f.writeUInt16LE(1, 4) }), "format", /multi-disques/);
@@ -327,7 +342,10 @@ describe("bombes", () => {
     refuse(zip([{ nom: "a.txt", donnees: "xyz", tailleLocale: 99 }]), "format", /locaux/);
   });
   it("refuse un CRC32 faux", () => refuse(zip([{ nom: "a.txt", donnees: "bonjour", crc: 1234 }]), "format", /CRC32/));
-  it("refuse une taille annoncée ≠ taille réelle (sans dépassement)", () => refuse(zip([{ nom: "a.txt", donnees: "bonjour", tailleAnnoncee: 3 }]), "bombe"));
+  it("taille annoncée TROP PETITE (le contenu dépasse l'annonce) : coupé et refusé comme bombe", () =>
+    refuse(zip([{ nom: "a.txt", donnees: "bonjour", tailleAnnoncee: 3 }]), "bombe", /interrompue/));
+  it("taille réelle PLUS PETITE que l'annoncée : refusée comme format (Taille réelle ≠ annoncée)", () =>
+    refuse(zip([{ nom: "a.txt", donnees: "bonjour", tailleAnnoncee: 100 }]), "format", /Taille réelle/));
   it("refuse des données deflate corrompues", () => refuse(zip([{ nom: "a.txt", donnees: "abc", brut: Buffer.from([0xff, 0xff, 0xff]) }]), "format"));
   it("refuse des données hors du fichier (taille compressée géante)", () => {
     const z = zip([{ nom: "a.txt", donnees: "x" }]);
@@ -356,7 +374,7 @@ describe("bombes", () => {
 });
 
 describe("extensions", () => {
-  it("liste fermée", () => expect([...EXTENSIONS_AUTORISEES]).toEqual(["html", "css", "js", "json", "svg", "png", "jpg", "jpeg", "webp", "woff2", "txt"]));
+  it("liste fermée", () => expect([...EXTENSIONS_AUTORISEES]).toEqual(["html", "css", "js", "json", "svg", "png", "jpg", "jpeg", "webp", "woff2", "txt", "md"]));
   for (const nom of ["x.exe", "x.php", "x.sh", "x.zip", "x.html.exe", "sans-extension", ".htaccess", "x.mp4", "x.woff"]) {
     it(`refuse ${nom}`, () => refuse(zip([{ nom, donnees: "x" }]), "extension"));
   }
@@ -374,13 +392,13 @@ describe("rien de partiel après un échec en cours de route", () => {
 describe("lanceur decompresser.mts", () => {
   const LANCEUR = "outils/maquettes-tableaux-de-bord/capture/decompresser.mts";
   const lancer = (argv: string[], env: Record<string, string>) =>
-    spawnSync(process.execPath, ["--import", "tsx", LANCEUR, ...argv], { env: { PATH: process.env.PATH ?? "", ...env } as unknown as NodeJS.ProcessEnv, encoding: "utf8" as const, cwd: process.cwd() });
-  it("code 3 hors cloud/CI", () => {
+    spawnSync(process.execPath, ["--import", "tsx", LANCEUR, ...argv], { env: { PATH: process.env.PATH ?? "", ...env } as unknown as NodeJS.ProcessEnv, encoding: "utf8" as const, cwd: process.cwd(), timeout: 20_000 });
+  it("code 3 hors cloud/CI", { timeout: 30_000 }, () => {
     const r = lancer(["--zip", "x", "--sortie", "y"], {});
     expect(r.status).toBe(3);
     expect(r.stderr).toContain("Capture interdite");
   });
-  it("code 4 sans arguments, code 4 archive refusée, code 0 archive saine", () => {
+  it("code 4 sans arguments, code 4 archive refusée, code 0 archive saine", { timeout: 30_000 }, () => {
     expect(lancer([], { CI: "true" }).status).toBe(4);
     const mauvais = join(racine, "m.zip");
     writeFileSync(mauvais, zip([{ nom: "../x.txt", donnees: "x" }]));
@@ -393,6 +411,295 @@ describe("lanceur decompresser.mts", () => {
     const ok = lancer(["--zip", bon, "--sortie", sortie], { CI: "true" });
     expect(ok.status).toBe(0);
     expect(readFileSync(join(sortie, "index.html"), "utf8")).toBe("<p>ok</p>");
+  });
+});
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+// T-EXT-51c correctif : gardes isolées, déchets système, vrais formats, temporaires périmés, garde du conteneur.
+// ---------------------------------------------------------------------------------------------------------------------
+const LANCEUR_CHEMIN = "outils/maquettes-tableaux-de-bord/capture/decompresser.mts";
+const lanceur = (argv: string[], env: Record<string, string>, timeout = 20_000) =>
+  spawnSync(process.execPath, ["--import", "tsx", LANCEUR_CHEMIN, ...argv], {
+    env: { PATH: process.env.PATH ?? "", ...env } as unknown as NodeJS.ProcessEnv,
+    encoding: "utf8" as const,
+    cwd: process.cwd(),
+    timeout,
+  });
+const EN_CONTENEUR = existsSync("/.dockerenv") || existsSync("/run/.containerenv");
+
+describe("gardes testées seules (une par une)", () => {
+  it("antislash brut : refusé AVANT la découpe (message « Antislash »)", () => {
+    for (const nom of ["..\\x.txt", "a\\b.txt"]) expect(() => validerNom(nom)).toThrow(/Antislash/);
+  });
+  it("antislash obtenu par décodage (%5C) : refusé par le contrôle de segment (message « Segment »)", () => {
+    expect(() => validerNom("a/%5Cb.txt")).toThrow(/Segment/);
+    expect(() => validerNom("a/%2Fb.txt")).toThrow(/Segment/);
+  });
+  it("le budget total restant coupe l'inflation seul (annonce et fichier corrects, budget 100 octets)", () => {
+    const z = zip([{ nom: "a.txt", donnees: Buffer.alloc(2000, 1) }]);
+    const e = lireArchive(z)[0]!;
+    expect(() => extraireOctets(z, e, 100)).toThrow(/interrompue/);
+    expect(extraireOctets(z, e, 2000).length).toBe(2000);
+  });
+  it("lireArchiveSurDisque : le plafond de taille est lu sur le descripteur AVANT de charger l'archive", () => {
+    const f = join(racine, "gros.zip");
+    writeFileSync(f, zip([{ nom: "a.txt", donnees: "x".repeat(500) }]));
+    let err: unknown;
+    try {
+      lireArchiveSurDisque(f, { ...LIMITES, tailleArchive: 10 });
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(ErreurZip);
+    expect((err as ErreurZip).famille).toBe("bombe");
+    expect((err as ErreurZip).message).toMatch(/\(\d+ > 10 octets\)/); // message de la lecture disque, pas celui de lireArchive
+  });
+  it("un parent de la sortie qui est un lien symbolique est refusé, la cible reste vide", () => {
+    mkdirSync(join(racine, "vrai"));
+    symlinkSync(join(racine, "vrai"), join(racine, "lienparent"));
+    const z = zip([{ nom: "a.txt", donnees: "x" }]);
+    expect(() => decompresserZip(z, join(racine, "lienparent", "maquette"))).toThrow(/parent de la sortie n'est pas un dossier ordinaire/);
+    expect(readdirSync(join(racine, "vrai"))).toEqual([]);
+  });
+  it("sortie = racine du disque : refusée en français (sous-dossier demandé)", () => {
+    expect(() => decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), "/")).toThrow(/SOUS-DOSSIER/);
+  });
+  it.skipIf(process.platform !== "linux" || !existsSync("/proc/self"))("sortie = point de montage (/proc) : refusée en français, rien n'est tenté", () => {
+    let err: unknown;
+    try {
+      decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), "/proc");
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(ErreurZip);
+    expect((err as ErreurZip).famille).toBe("sortie");
+    expect((err as ErreurZip).message).toMatch(/point de montage.*SOUS-DOSSIER/);
+    expect(readdirSync("/").some((n) => n.startsWith(".decompression-"))).toBe(false);
+  });
+  it.skipIf(process.getuid?.() === 0)("parent de la sortie non inscriptible : refusé en français (code 4 par le lanceur)", () => {
+    // (ignoré pour root : root passe outre les droits ; vérifié en lecture seule réelle par les essais Docker de la PR)
+    const ro = join(racine, "ro");
+    mkdirSync(ro, { mode: 0o555 });
+    expect(() => decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), join(ro, "m"))).toThrow(/pas inscriptible.*SOUS-DOSSIER/);
+  });
+  it("lanceur : --sortie = point de montage ou racine → code 4 et message en français", { timeout: 30_000 }, () => {
+    const bon = join(racine, "b.zip");
+    writeFileSync(bon, zip([{ nom: "index.html", donnees: "<p>ok</p>" }]));
+    const r = lanceur(["--zip", bon, "--sortie", "/"], { CI: "true" });
+    expect(r.status).toBe(4);
+    expect(r.stderr).toMatch(/Archive refusée \(sortie\).*SOUS-DOSSIER/);
+  });
+  it("lanceur : code 1 (erreur inattendue) quand le renommage final échoue (nom de sortie de 300 octets) ; le temporaire est supprimé", { timeout: 30_000 }, () => {
+    const bon = join(racine, "b.zip");
+    writeFileSync(bon, zip([{ nom: "index.html", donnees: "<p>ok</p>" }]));
+    const r = lanceur(["--zip", bon, "--sortie", join(racine, "sortie", "a".repeat(300))], { CI: "true" });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("Erreur inattendue");
+    expect(readdirSync(join(racine, "sortie"))).toEqual([]);
+  });
+  it("lanceur : une FIFO en --zip est refusée tout de suite (O_NONBLOCK), sans attendre un écrivain", { timeout: 30_000 }, () => {
+    const fifo = join(racine, "tube.zip");
+    expect(spawnSync("mkfifo", [fifo]).status).toBe(0);
+    const t0 = Date.now();
+    const r = lanceur(["--zip", fifo, "--sortie", sortie], { CI: "true" }, 15_000);
+    expect(r.status).toBe(4); // null (tué par le délai) si l'ouverture bloque
+    expect(r.stderr).toContain("pas un fichier ordinaire");
+    expect(Date.now() - t0).toBeLessThan(14_000);
+  });
+});
+
+describe("déchets système ignorés (liste fermée), jamais écrits", () => {
+  it("estDechetSysteme : liste fermée exacte", () => {
+    for (const s of [["__MACOSX", "a.html"], ["__MACOSX", "d", "._a.html"], [".DS_Store"], ["a", ".DS_Store"], ["Thumbs.db"], ["a", "THUMBS.DB"], ["desktop.ini"], ["a", "._x.css"]])
+      expect(estDechetSysteme(s), s.join("/")).toBe(true);
+    for (const s of [["__MACOSX"], ["a", "__MACOSX", "b.html"], ["index.html"], [".htaccess"], ["x._y.css"], ["thumbs.db.exe"]])
+      expect(estDechetSysteme(s), s.join("/")).toBe(false);
+  });
+  it("une archive de Finder/Explorateur est acceptée : déchets comptés, listés, non écrits", () => {
+    const z = zip([
+      { nom: "index.html", donnees: "<p>ok</p>" },
+      { nom: "__MACOSX/", externes: (0o040755 << 16) >>> 0 },
+      { nom: "__MACOSX/._index.html", donnees: Buffer.from([0, 5, 22, 7, 0, 2, 0, 0]) },
+      { nom: ".DS_Store", donnees: Buffer.from([0, 0, 0, 1, 0x42, 0x75, 0x64, 0x31]) },
+      { nom: "css/", externes: (0o040755 << 16) >>> 0 },
+      { nom: "css/Thumbs.db", donnees: "x" },
+      { nom: "css/desktop.ini", donnees: "[.ShellClassInfo]" },
+      { nom: "css/._site.css", donnees: "x" },
+      { nom: "css/site.css", donnees: "a{}" },
+    ]);
+    const r = decompresserZip(z, sortie);
+    expect(r.fichiers).toBe(2);
+    expect(r.ignores).toEqual(["__MACOSX/", "__MACOSX/._index.html", ".DS_Store", "css/Thumbs.db", "css/desktop.ini", "css/._site.css"]);
+    expect(readdirSync(sortie).sort()).toEqual(["css", "index.html"]);
+    expect(readdirSync(join(sortie, "css"))).toEqual(["site.css"]);
+  });
+  it("un autre fichier sans extension permise reste refusé à côté des déchets", () =>
+    refuse(zip([{ nom: ".DS_Store", donnees: "x" }, { nom: "a.exe", donnees: "x" }]), "extension"));
+  it("les déchets suivent les autres règles : un lien dans __MACOSX/ est refusé, un déchet géant est refusé", () => {
+    refuse(zip([{ nom: "__MACOSX/l", donnees: "x", externes: (0o120777 << 16) >>> 0 }]), "lien");
+    refuse(zip([{ nom: "__MACOSX/._a", donnees: "x", tailleAnnoncee: 5000 }]), "bombe", /trop gros/, { ...LIMITES, parFichier: 1000 });
+  });
+  it("plafond du nombre de déchets ignorés", () => {
+    const lim: Limites = { ...LIMITES, ignores: 2 };
+    decompresserZip(zip([{ nom: "a.txt", donnees: "x" }, { nom: ".DS_Store", donnees: "x" }, { nom: "b/.DS_Store", donnees: "x" }]), sortie, lim);
+    rmSync(sortie, { recursive: true });
+    refuse(zip([{ nom: "a.txt", donnees: "x" }, { nom: ".DS_Store", donnees: "x" }, { nom: "b/.DS_Store", donnees: "x" }, { nom: "c/.DS_Store", donnees: "x" }]), "bombe", /à ignorer/, lim);
+  });
+  it("le lanceur liste les déchets ignorés dans son rapport", { timeout: 30_000 }, () => {
+    const f = join(racine, "mac.zip");
+    writeFileSync(f, zip([{ nom: "index.html", donnees: "<p>ok</p>" }, { nom: "__MACOSX/._index.html", donnees: "x" }]));
+    const r = lanceur(["--zip", f, "--sortie", sortie], { CI: "true" });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Fichiers système ignorés (1) : __MACOSX/._index.html");
+    expect(existsSync(join(sortie, "__MACOSX"))).toBe(false);
+  });
+});
+
+describe("vrais formats", () => {
+  it("data descriptor (bit 3 : CRC et tailles locales à 0) ET nom UTF-8 NFD (bit 11) : accepté, octets identiques", () => {
+    const nfd = "re\u0301sume\u0301.txt";
+    expect(nfd).not.toBe(nfd.normalize("NFC"));
+    const contenu = Buffer.from("contenu avec accents é è ".repeat(40));
+    const z = zip([
+      { nom: "index.html", donnees: "<p>ok</p>", descripteur: true },
+      { nom: nfd, donnees: contenu, descripteur: true, drapeaux: 0x800 },
+      { nom: "img/", externes: (0o040755 << 16) >>> 0 },
+      { nom: "img/p.png", donnees: Buffer.from([137, 80, 78, 71, 0]), descripteur: true, methode: 0 },
+    ]);
+    expect(z.readUInt16LE(6) & 0x8).toBe(0x8); // l'écrivain a bien posé le bit 3 et un CRC local à 0
+    expect(z.readUInt32LE(14)).toBe(0);
+    decompresserZip(z, sortie);
+    expect(readFileSync(join(sortie, "index.html"), "utf8")).toBe("<p>ok</p>");
+    expect(readdirSync(sortie)).toContain(nfd); // nom conservé tel quel (NFD)
+    expect(readFileSync(join(sortie, nfd))).toEqual(contenu);
+    expect([...readFileSync(join(sortie, "img/p.png"))]).toEqual([137, 80, 78, 71, 0]);
+  });
+  it("data descriptor : un CRC faux dans le central reste refusé", () => refuse(zip([{ nom: "a.txt", donnees: "bonjour", descripteur: true, crc: 99 }]), "format", /CRC32/));
+  it.skipIf(spawnSync("zip", ["-v"]).error !== undefined)("vrai zip d'Info-ZIP en flux (`zip -r -`, bit 3) : accepté, identique à la source", () => {
+    const src = join(racine, "src");
+    mkdirSync(join(src, "sous"), { recursive: true });
+    writeFileSync(join(src, "index.html"), "<h1>é</h1>".repeat(100));
+    writeFileSync(join(src, "sous", "r\u0065\u0301sume\u0301.css"), "a{}");
+    const r = spawnSync("zip", ["-q", "-r", "-", "."], { cwd: src, maxBuffer: 10_000_000 });
+    expect(r.status).toBe(0);
+    const z = Buffer.from(r.stdout);
+    expect(z.readUInt16LE(6) & 0x8).toBe(0x8);
+    decompresserZip(z, sortie);
+    expect(readFileSync(join(sortie, "index.html"), "utf8")).toBe("<h1>é</h1>".repeat(100));
+    expect(readFileSync(join(sortie, "sous", "r\u0065\u0301sume\u0301.css"), "utf8")).toBe("a{}");
+  });
+  it("la maquette du dépôt 05-stocks, zippée telle quelle (avec PROVENANCE.md) : acceptée et identique", () => {
+    const base = join(process.cwd(), "outils/maquettes-tableaux-de-bord/05-stocks");
+    const fichiers: string[] = [];
+    const marche = (d: string): void => {
+      for (const n of readdirSync(d)) {
+        const c = join(d, n);
+        if (lstatSync(c).isDirectory()) marche(c);
+        else fichiers.push(relative(base, c));
+      }
+    };
+    marche(base);
+    expect(fichiers).toContain("PROVENANCE.md");
+    expect(fichiers.length).toBeGreaterThanOrEqual(8);
+    const z = zip(fichiers.map((f) => ({ nom: `05-stocks/${f.split("\\").join("/")}`, donnees: readFileSync(join(base, f)) })));
+    const r = decompresserZip(z, sortie);
+    expect(r.fichiers).toBe(fichiers.length);
+    for (const f of fichiers) expect(readFileSync(join(sortie, "05-stocks", f)).equals(readFileSync(join(base, f))), f).toBe(true);
+  });
+});
+
+describe("temporaires `.decompression-*` périmés (lancement précédent tué)", () => {
+  it("purge : dossiers ordinaires frères supprimés, liens / fichiers / autres noms intouchés, jamais de lien suivi", () => {
+    const parent = join(racine, "sortie");
+    const cible = join(racine, "cible-du-lien");
+    mkdirSync(cible);
+    writeFileSync(join(cible, "precieux.txt"), "VIVANT");
+    mkdirSync(join(parent, ".decompression-1-a", "sous"), { recursive: true });
+    writeFileSync(join(parent, ".decompression-1-a", "sous", "partiel.js"), "x".repeat(1000));
+    symlinkSync(cible, join(parent, ".decompression-1-a", "lien-vers-cible")); // lien DANS un reste : jamais suivi
+    symlinkSync(cible, join(parent, ".decompression-lien"));
+    writeFileSync(join(parent, ".decompression-fichier"), "fichier ordinaire");
+    mkdirSync(join(parent, "autre"));
+    mkdirSync(join(parent, ".decompressionX"));
+    expect(purgerTemporairesPerimes(parent)).toBe(1);
+    expect(readdirSync(parent).sort()).toEqual([".decompression-fichier", ".decompression-lien", ".decompressionX", "autre"]);
+    expect(readFileSync(join(cible, "precieux.txt"), "utf8")).toBe("VIVANT");
+  });
+  it.skipIf(process.getuid?.() !== 0)("purge : un dossier appartenant à un autre uid n'est pas supprimé", () => {
+    const parent = join(racine, "sortie");
+    mkdirSync(join(parent, ".decompression-2-b"));
+    chownSync(join(parent, ".decompression-2-b"), 12345, 12345);
+    expect(purgerTemporairesPerimes(parent)).toBe(0);
+    expect(existsSync(join(parent, ".decompression-2-b"))).toBe(true);
+  });
+  it("decompresserZip purge au démarrage et le dit (purges), même si l'archive est ensuite refusée", () => {
+    mkdirSync(join(racine, "sortie", ".decompression-9-z"));
+    writeFileSync(join(racine, "sortie", ".decompression-9-z", "x.js"), "x");
+    expect(() => decompresserZip(zip([{ nom: "../x.txt", donnees: "x" }]), sortie)).toThrow(ErreurZip);
+    expect(readdirSync(join(racine, "sortie"))).toEqual([]);
+    mkdirSync(join(racine, "sortie", ".decompression-9-y"));
+    expect(decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), sortie).purges).toBe(1);
+  });
+  it("ESSAI RÉEL : lanceur tué (SIGKILL) en cours d'écriture laisse un partiel ; le lancement suivant le purge, sortie correcte", { timeout: 90_000 }, async () => {
+    const gros = join(racine, "gros.zip");
+    // 150 fichiers de 1 Mio (zéros : sous le seuil de ratio), ~150 Mio à écrire.
+    writeFileSync(gros, zip(Array.from({ length: 150 }, (_, i) => ({ nom: `f${i}.txt`, donnees: Buffer.alloc(1024 * 1024) }))));
+    const parent = join(racine, "sortie");
+    const enfant = spawn(process.execPath, ["--import", "tsx", LANCEUR_CHEMIN, "--zip", gros, "--sortie", sortie], {
+      env: { PATH: process.env.PATH ?? "", CI: "true" } as unknown as NodeJS.ProcessEnv,
+      cwd: process.cwd(),
+      stdio: "ignore",
+    });
+    const fini = new Promise<{ code: number | null; signal: string | null }>((ok) => enfant.on("exit", (code, signal) => ok({ code, signal })));
+    const t0 = Date.now();
+    let vu = false;
+    while (!vu && Date.now() - t0 < 60_000) {
+      try {
+        const d = readdirSync(parent).find((n) => n.startsWith(".decompression-"));
+        if (d && readdirSync(join(parent, d)).length > 0) {
+          vu = true;
+          enfant.kill("SIGKILL");
+          break;
+        }
+      } catch {
+        /* course de lecture : on recommence */
+      }
+      await new Promise((ok) => setTimeout(ok, 1));
+    }
+    const fin = await fini;
+    expect(vu).toBe(true);
+    expect(fin.signal).toBe("SIGKILL");
+    expect(readdirSync(parent).filter((n) => n.startsWith(".decompression-")).length).toBe(1); // le partiel est bien resté
+    expect(existsSync(sortie)).toBe(false);
+
+    const bon = join(racine, "bon.zip");
+    writeFileSync(bon, zip([{ nom: "index.html", donnees: "<p>ok</p>" }]));
+    const r = lanceur(["--zip", bon, "--sortie", sortie], { CI: "true" }, 30_000);
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("Temporaires périmés supprimés : 1");
+    expect(readdirSync(parent)).toEqual(["maquette"]);
+    expect(readdirSync(sortie)).toEqual(["index.html"]);
+    expect(readFileSync(join(sortie, "index.html"), "utf8")).toBe("<p>ok</p>");
+  });
+});
+
+describe("garde du conteneur (CAPTURE_CONTENEUR) dans le lanceur", () => {
+  const texte = readFileSync(join(process.cwd(), LANCEUR_CHEMIN), "utf8");
+  it("lecture du texte : indice local (chemins exacts) passé en 3e argument, type élargi, mot d'ordre de remplacement", () => {
+    expect(texte).toContain('const INDICE_DOCKER = "/.dockerenv";');
+    expect(texte).toContain('const INDICE_PODMAN = "/run/.containerenv";');
+    expect(texte).toMatch(/\[INDICE_DOCKER, INDICE_PODMAN\]\.some\(\(c\) => existsSync\(c\)\)/);
+    expect(texte).toMatch(/environnementAutorise as \(env: Record<string, string \| undefined>, plateforme: string, conteneurDetecte\?: boolean\) => Verdict/);
+    expect(texte).toMatch(/garde\(process\.env, process\.platform, conteneurDetecte\(\)\)/);
+    expect(texte).toContain("à remplacer par `indicesConteneur` de garde.ts après fusion de #1609");
+  });
+  it.skipIf(EN_CONTENEUR)("CAPTURE_CONTENEUR=true sans CI et sans fichier témoin : code 3 (la variable seule ne suffit pas)", { timeout: 30_000 }, () => {
+    const bon = join(racine, "b.zip");
+    writeFileSync(bon, zip([{ nom: "index.html", donnees: "<p>ok</p>" }]));
+    const r = lanceur(["--zip", bon, "--sortie", sortie], { CAPTURE_CONTENEUR: "true" });
+    expect(r.status).toBe(3);
+    expect(existsSync(sortie)).toBe(false);
   });
 });
 

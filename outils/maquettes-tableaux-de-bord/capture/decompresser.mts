@@ -1,9 +1,21 @@
 // T-EXT-51c : lanceur de décompression d'un .zip de maquette. Usage :
 //   tsx outils/maquettes-tableaux-de-bord/capture/decompresser.mts --zip /entree/dossier.zip --sortie /sortie/maquette
+// --sortie doit être un SOUS-DOSSIER du volume de sortie (jamais /sortie elle-même, qui est un point de montage).
+// NE JAMAIS lancer ce lanceur en même temps qu'une capture (ou une autre décompression) sur le même /sortie : au démarrage il
+// supprime les `.decompression-*` périmés frères de la sortie, y compris celui d'un lancement concurrent.
 // Codes de sortie : 0 ok ; 1 erreur inattendue ; 3 environnement non autorisé (garde) ; 4 entrée refusée
 // (arguments manquants, archive refusée, sortie déjà non vide). Aucun réseau, aucun shell, aucun eval.
+import { existsSync } from "node:fs";
 import { decompresserZip, ErreurZip, lireArchiveSurDisque } from "./decompresser-zip";
-import { environnementAutorise } from "./garde";
+import { environnementAutorise, type Verdict } from "./garde";
+
+// Fichiers témoins d'un conteneur Docker / Podman. Indice calculé ICI, sans fichier commun avec le lot garde (#1609) :
+// à remplacer par `indicesConteneur` de garde.ts après fusion de #1609.
+const INDICE_DOCKER = "/.dockerenv";
+const INDICE_PODMAN = "/run/.containerenv";
+const conteneurDetecte = (): boolean => [INDICE_DOCKER, INDICE_PODMAN].some((c) => existsSync(c));
+// Type élargi : compile avec la garde à 2 arguments (pile actuelle) ET avec celle à 3 arguments (#1609).
+const garde = environnementAutorise as (env: Record<string, string | undefined>, plateforme: string, conteneurDetecte?: boolean) => Verdict;
 
 function args(argv: string[]): Record<string, string> {
   const r: Record<string, string> = {};
@@ -15,7 +27,7 @@ function args(argv: string[]): Record<string, string> {
 }
 
 function principal(): number {
-  const verdict = environnementAutorise(process.env, process.platform);
+  const verdict = garde(process.env, process.platform, conteneurDetecte());
   if (!verdict.ok) {
     console.error(verdict.raison);
     return 3;
@@ -30,6 +42,8 @@ function principal(): number {
   try {
     const r = decompresserZip(lireArchiveSurDisque(a.zip!), a.sortie!);
     console.log(`Archive décompressée : ${r.fichiers} fichier(s), ${r.octets} octet(s).`);
+    if (r.purges > 0) console.log(`Temporaires périmés supprimés : ${r.purges}.`);
+    if (r.ignores.length > 0) console.log(`Fichiers système ignorés (${r.ignores.length}) : ${r.ignores.join(", ")}.`);
     return 0;
   } catch (e) {
     if (e instanceof ErreurZip) {

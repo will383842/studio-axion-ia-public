@@ -7,7 +7,7 @@
 // Choix « zip imbriqué » : `.zip` n'est PAS dans la liste d'extensions, donc un zip dans le zip est REFUSÉ (jamais
 // décompressé, jamais conservé) : une maquette n'a aucune raison d'en contenir un.
 // Ce module ne tourne que dans le conteneur de capture (sans réseau, racine en lecture seule, /sortie bornée).
-import { closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, writeSync } from "node:fs";
+import { accessSync, closeSync, constants, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, writeSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { posix } from "node:path";
 import { inflateRawSync } from "node:zlib";
@@ -23,10 +23,25 @@ export const LIMITES = {
   profondeur: 16,
   octetsNom: 255,
   octetsChemin: 1024,
+  /** Nombre maximal de déchets système ignorés (jamais écrits) ; au-delà, l'archive est refusée. */
+  ignores: 200,
 } as const;
 export type Limites = { -readonly [K in keyof typeof LIMITES]: number };
 
-export const EXTENSIONS_AUTORISEES: readonly string[] = ["html", "css", "js", "json", "svg", "png", "jpg", "jpeg", "webp", "woff2", "txt"];
+export const EXTENSIONS_AUTORISEES: readonly string[] = ["html", "css", "js", "json", "svg", "png", "jpg", "jpeg", "webp", "woff2", "txt", "md"];
+
+/**
+ * Liste FERMÉE de déchets système que les explorateurs ajoutent aux archives : ils sont IGNORÉS (jamais écrits, jamais
+ * décompressés), comptés et listés dans le rapport, mais l'archive n'est pas refusée. Tout le reste suit les règles normales.
+ * `__MACOSX/**` (fichiers AppleDouble), `.DS_Store`, `Thumbs.db`, `desktop.ini` (casse indifférente), `._*`.
+ */
+export const DECHETS_NOMS: readonly string[] = [".ds_store", "thumbs.db", "desktop.ini"];
+export const DECHETS_PREFIXE_MACOS = "__MACOSX";
+export function estDechetSysteme(segments: readonly string[]): boolean {
+  if (segments.length > 1 && segments[0] === DECHETS_PREFIXE_MACOS) return true;
+  const dernier = segments[segments.length - 1] ?? "";
+  return DECHETS_NOMS.includes(dernier.toLowerCase()) || dernier.startsWith("._");
+}
 
 /** Drapeaux d'ouverture en écriture : création exclusive, jamais de lien suivi. */
 export const DRAPEAUX_ECRITURE = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW;
@@ -47,6 +62,8 @@ export interface EntreeZip {
   nom: string;
   segments: string[];
   dossier: boolean;
+  /** Déchet système : validé comme les autres mais jamais écrit. */
+  ignoree: boolean;
   methode: 0 | 8;
   crc: number;
   tailleCompressee: number;
@@ -136,6 +153,7 @@ export function lireArchive(zip: Buffer, lim: Limites = LIMITES): EntreeZip[] {
   let p = decalageCentral;
   const clesVues = new Set<string>();
   const dossiersVus = new Set<string>();
+  let ignorees = 0;
   for (let i = 0; i < total; i++) {
     if (p + 46 > fin || zip.readUInt32LE(p) !== SIG_CENTRAL) return refus("format", "Entrée du répertoire central illisible.");
     const faitPar = zip.readUInt16LE(p + 4) >>> 8;
@@ -170,13 +188,16 @@ export function lireArchive(zip: Buffer, lim: Limites = LIMITES): EntreeZip[] {
     if ((faitPar === 3 || faitPar === 19) && type !== 0 && type !== 0o100000 && type !== 0o040000) {
       return refus("lien", `Type d'entrée non permis (ni fichier ni dossier) : ${nom}.`);
     }
+    // Dossier explicite `__MACOSX/` : ignoré aussi (même liste fermée).
+    const ignoree = estDechetSysteme(segments) || (dossier && segments.length === 1 && segments[0] === DECHETS_PREFIXE_MACOS);
+    if (ignoree && ++ignorees > lim.ignores) return refus("bombe", `Trop de fichiers système à ignorer (> ${lim.ignores}).`);
     if (type === 0o040000 && !dossier) return refus("format", `Entrée dossier sans « / » final : ${nom}.`);
     if (type === 0o100000 && dossier) return refus("format", `Entrée fichier avec « / » final : ${nom}.`);
     if (dossier) {
       if (tailleAnnoncee !== 0) return refus("format", `Dossier avec données : ${nom}.`);
     } else {
       const ext = posix.extname(segments[segments.length - 1]!).slice(1).toLowerCase();
-      if (!EXTENSIONS_AUTORISEES.includes(ext)) return refus("extension", `Extension non permise pour ${nom} (permises : ${EXTENSIONS_AUTORISEES.join(", ")}).`);
+      if (!ignoree && !EXTENSIONS_AUTORISEES.includes(ext)) return refus("extension", `Extension non permise pour ${nom} (permises : ${EXTENSIONS_AUTORISEES.join(", ")}).`);
       if (tailleAnnoncee > lim.parFichier) return refus("bombe", `Fichier trop gros (annoncé ${tailleAnnoncee} octets) : ${nom}.`);
       if (methode === 0 && tailleCompressee !== tailleAnnoncee) return refus("format", `Taille stockée incohérente : ${nom}.`);
       if (tailleAnnoncee > lim.seuilRatio && tailleAnnoncee > lim.ratio * Math.max(1, tailleCompressee)) return refus("bombe", `Ratio de compression excessif (> ${lim.ratio}:1) : ${nom}.`);
@@ -207,7 +228,7 @@ export function lireArchive(zip: Buffer, lim: Limites = LIMITES): EntreeZip[] {
     }
     const debutDonnees = finNom + lExtraLong;
     if (debutDonnees + tailleCompressee > decalageCentral) return refus("format", `Données hors du fichier : ${nom}.`);
-    entrees.push({ nom, segments, dossier, methode: methode as 0 | 8, crc, tailleCompressee, tailleAnnoncee, decalageLocal, debutDonnees });
+    entrees.push({ nom, segments, dossier, ignoree, methode: methode as 0 | 8, crc, tailleCompressee, tailleAnnoncee, decalageLocal, debutDonnees });
     p = suite;
   }
   if (p !== fin) return refus("format", "Répertoire central avec octets en trop.");
@@ -259,13 +280,14 @@ export function extraireOctets(zip: Buffer, e: EntreeZip, budgetRestant: number,
 export function lireArchiveSurDisque(chemin: string, lim: Limites = LIMITES): Buffer {
   let fd: number;
   try {
-    fd = openSync(chemin, constants.O_RDONLY | constants.O_NOFOLLOW);
+    // O_NONBLOCK : une FIFO donnée par erreur ne bloque pas l'ouverture (elle est ensuite refusée par `isFile`).
+    fd = openSync(chemin, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   } catch {
     return refus("archive", `Archive illisible ou lien symbolique : ${chemin}.`);
   }
   try {
     const st = fstatSync(fd);
-    if (!st.isFile()) return refus("archive", "L'archive n'est pas un fichier ordinaire.");
+    if (!st.isFile()) return refus("archive", "L'archive n'est pas un fichier ordinaire (ni FIFO, ni périphérique, ni dossier).");
     if (st.size > lim.tailleArchive) return refus("bombe", `Archive trop grande (${st.size} > ${lim.tailleArchive} octets).`);
     return readFileSync(fd);
   } finally {
@@ -307,6 +329,8 @@ export function ecrireFichierSur(chemin: string, octets: Buffer): void {
 
 function verifierSortie(sortie: string): void {
   const parent = dirname(sortie);
+  const conseil = "Donnez un SOUS-DOSSIER du volume de sortie, par exemple /sortie/maquette.";
+  if (parent === sortie) return refus("sortie", `La sortie ne peut pas être la racine du disque. ${conseil}`);
   let sp;
   try {
     sp = lstatSync(parent);
@@ -314,6 +338,11 @@ function verifierSortie(sortie: string): void {
     return refus("sortie", `Dossier parent de la sortie introuvable : ${parent}.`);
   }
   if (sp.isSymbolicLink() || !sp.isDirectory()) return refus("sortie", "Le parent de la sortie n'est pas un dossier ordinaire.");
+  try {
+    accessSync(parent, constants.W_OK | constants.X_OK);
+  } catch {
+    return refus("sortie", `Le parent de la sortie (${parent}) n'est pas inscriptible (lecture seule ?). ${conseil}`);
+  }
   let st;
   try {
     st = lstatSync(sortie);
@@ -321,12 +350,50 @@ function verifierSortie(sortie: string): void {
     return; // n'existe pas : sera créée par renommage
   }
   if (st.isSymbolicLink() || !st.isDirectory()) return refus("sortie", "La sortie existe et n'est pas un dossier ordinaire.");
+  // Point de montage (le disque diffère de celui du parent) : on ne peut pas le remplacer par renommage (ex. /sortie elle-même).
+  if (st.dev !== sp.dev) return refus("sortie", `La sortie est un point de montage (${sortie}) : elle ne peut pas être remplacée. ${conseil}`);
   if (readdirSync(sortie).length > 0) return refus("sortie", "La sortie existe déjà et n'est pas vide.");
 }
 
 export interface Resultat {
   fichiers: number;
   octets: number;
+  /** Noms (dans l'archive) des déchets système ignorés, jamais écrits. */
+  ignores: string[];
+  /** Nombre de temporaires `.decompression-*` périmés (lancement précédent tué) supprimés au démarrage. */
+  purges: number;
+}
+
+/**
+ * Supprime les `.decompression-*` FRÈRES de la sortie laissés par un lancement précédent tué (SIGTERM du `timeout`, SIGKILL :
+ * le code est synchrone, aucun gestionnaire de signal ne pourrait s'exécuter en cours d'écriture, donc on purge au démarrage).
+ * Seulement des vrais dossiers (lstat : jamais un lien, jamais un fichier) appartenant à l'uid courant ; `rmSync` récursif ne suit aucun lien.
+ * Au mieux : une erreur sur un reste n'arrête pas le lancement.
+ * NE JAMAIS lancer `decompresser` en même temps qu'une capture (ou une autre décompression) sur le même /sortie :
+ * la purge supprimerait le temporaire du lancement concurrent, et le temporaire frère n'est protégé que par ce rangement.
+ */
+export function purgerTemporairesPerimes(parent: string): number {
+  let n = 0;
+  let noms: string[];
+  try {
+    noms = readdirSync(parent);
+  } catch {
+    return 0;
+  }
+  const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
+  for (const nom of noms) {
+    if (!nom.startsWith(".decompression-")) continue;
+    const chemin = join(parent, nom);
+    try {
+      const st = lstatSync(chemin);
+      if (st.isSymbolicLink() || !st.isDirectory() || (uid !== undefined && st.uid !== uid)) continue;
+      rmSync(chemin, { recursive: true, force: true });
+      n++;
+    } catch {
+      /* reste intouchable : on continue */
+    }
+  }
+  return n;
 }
 
 /**
@@ -336,13 +403,19 @@ export interface Resultat {
 export function decompresserZip(zip: Buffer, sortie: string, lim: Limites = LIMITES): Resultat {
   const cible = resolve(sortie);
   verifierSortie(cible);
+  const purges = purgerTemporairesPerimes(dirname(cible));
   const entrees = lireArchive(zip, lim);
   const temp = join(dirname(cible), `.decompression-${process.pid}-${Date.now().toString(36)}`);
   mkdirSync(temp, { mode: 0o755 });
   try {
     let octets = 0;
     let fichiers = 0;
+    const ignores: string[] = [];
     for (const e of entrees) {
+      if (e.ignoree) {
+        ignores.push(e.nom);
+        continue;
+      }
       const dest = join(temp, ...e.segments);
       if (!dest.startsWith(temp + sep)) return refus("chemin", `Sortie du dossier refusée : ${e.nom}.`);
       if (e.dossier) {
@@ -356,7 +429,7 @@ export function decompresserZip(zip: Buffer, sortie: string, lim: Limites = LIMI
       fichiers++;
     }
     renameSync(temp, cible);
-    return { fichiers, octets };
+    return { fichiers, octets, ignores, purges };
   } catch (err) {
     rmSync(temp, { recursive: true, force: true });
     throw err;
