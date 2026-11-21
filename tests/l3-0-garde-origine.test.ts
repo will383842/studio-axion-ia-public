@@ -159,6 +159,7 @@ const SITES: Site[] = [
   { fichier: "src/services/cas-concret-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du cas concret, origine de la commande" },
   { fichier: "src/services/cas-concret-branchements.ts", appel: "verifierBudgetEtCredits", n: 1, nature: "pré-vol", pourquoi: "écriture Claude du cas concret : réservée par `executerRolePourVideo` avec la même origine" },
   { fichier: "src/services/tableau-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du tableau animé, origine de la commande" },
+  { fichier: "src/services/tableau-de-bord-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du tableau de bord, origine de la commande" },
   { fichier: "src/services/fabrication-reseaux.ts", appel: "verifierBudgetEtCredits", n: 2, nature: "pré-vol", pourquoi: "pré-vols « Fabriquer » : la réservation se fait au lancement (fabrication.ts)" },
   { fichier: "src/moteurs/montage-tableau/fabriquer.ts", appel: "verifierEtReserver", n: 2, nature: "crochet", pourquoi: "crochet `budget.verifierEtReserver` du branchement (tableau-branchements.ts, garde)" },
   { fichier: "src/moteurs/montage-cas-concret/fabriquer.ts", appel: "verifierEtReserver", n: 1, nature: "crochet", pourquoi: "crochet `budget.verifierEtReserver` du branchement (cas-concret-branchements.ts, garde)" },
