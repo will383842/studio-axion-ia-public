@@ -1,0 +1,15 @@
+{
+  "src/briques/habillage/charte-duo.ts": 4,
+  "src/briques/habillage/charte-video.ts": 4,
+  "src/briques/habillage/controle-piece-neuve.ts": 1,
+  "src/briques/tableau-scene/trois-styles/styles.ts": 3,
+  "src/briques/tableau-scene/v2/charte.ts": 2,
+  "studio-rendu/compositions/commune/Miniature.tsx": 3,
+  "studio-rendu/compositions/commune/motion/sur-mesure/bibliotheques.genere.ts": 1,
+  "studio-rendu/compositions/interface-claire/charte.ts": 2,
+  "studio-rendu/compositions/interface-claire/motion-v4/communs/briques-v4.tsx": 6,
+  "studio-rendu/compositions/interface-claire/motion-v4/lot1/commun-lot1.tsx": 4,
+  "studio-rendu/compositions/interface-claire/motion-v4/lot2/commun-lot2.tsx": 6,
+  "studio-rendu/compositions/interface-claire/motion-v4/lot3/commun-lot3.tsx": 3,
+  "studio-rendu/compositions/interface-claire/motion-v4/lot4/commun-lot4.tsx": 3
+}
