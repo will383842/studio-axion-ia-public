@@ -47,14 +47,37 @@ const PAROLES: Record<IdRole, Parole> = {
 export const PHRASE_SAUTE = "Pas nécessaire : votre dossier était complet.";
 
 /** Codes de pause du moteur que l'écran sait lire (T-EXT-42 pose les deux premiers). */
-const CODE_DEVIS_A_ACCEPTER = "TO_DEVIS_A_ACCEPTER";
-const CODE_DEVIS_ATTEINT = "TO_DEVIS_ATTEINT";
-const CODE_OUTILS_NON_RELIES = "TO_OUTILS_NON_RELIES";
-const CODES_SCRIPT_A_FAIRE = ["TO_SCRIPT_A_VALIDER", "TO_SCRIPT_ABSENT"];
 
 export const PHRASE_DEVIS_A_ACCEPTER = "Le devis attend votre accord.";
 export const PHRASE_DEVIS_ATTEINT = "Le devis de cette vidéo est atteint : rien de plus n'est lancé sans votre accord.";
 export const PHRASE_OUTILS_ATTENDUS = "En attente des outils de fabrication : rien n'a échoué.";
+export const PHRASE_FILM_A_CAPTURER = "Le film de navigation attend d'être déposé : rien n'a échoué.";
+export const PHRASE_SCRIPT_NON_ECRIT = "Le script attend votre texte : collez-le, la vidéo reprend.";
+export const PHRASE_DOSSIER_INCOMPLET = "Votre dossier n'est pas encore lisible : la vidéo reprend dès qu'il l'est.";
+export const PHRASE_DEMANDE_VIDE = "Votre demande est trop courte : précisez-la pour que la vidéo démarre.";
+export const PHRASE_DEMANDE_ARRETEE = "Cette demande a été arrêtée : rien de plus n'est lancé.";
+export const PHRASE_EQUIPE_BLOQUEE = "Une étape de préparation n'a pas abouti : réessayez ou collez votre script.";
+export const PHRASE_PIECE_A_CONSTRUIRE = "La pièce de la vidéo se prépare.";
+export const PHRASE_PIECE_A_VALIDER = "La pièce de la vidéo attend votre accord.";
+export const PHRASE_PIECE_A_REVOIR = "La pièce de la vidéo a un point à revoir : elle attend votre avis.";
+
+/** Les codes de pause du tutoriel, un à un : quel rôle parle, dans quel état, avec quelle phrase (`undefined` : phrase du rôle). */
+const PAUSES_CONNUES: Record<string, { role: IdRole; etat: EtatRole; phrase?: string }> = {
+  TO_SCRIPT_A_VALIDER: { role: "scenariste", etat: "attend-williams" },
+  TO_SCRIPT_ABSENT: { role: "scenariste", etat: "attend-williams" },
+  TO_SCRIPT_NON_ECRIT: { role: "scenariste", etat: "attend-williams", phrase: PHRASE_SCRIPT_NON_ECRIT },
+  TO_DEVIS_A_ACCEPTER: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEVIS_A_ACCEPTER },
+  TO_DEVIS_ATTEINT: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEVIS_ATTEINT },
+  TO_OUTILS_NON_RELIES: { role: "chef-de-projet", etat: "a-venir", phrase: PHRASE_OUTILS_ATTENDUS },
+  TO_FILM_A_CAPTURER: { role: "documentaliste", etat: "a-venir", phrase: PHRASE_FILM_A_CAPTURER },
+  TO_DOSSIER_INCOMPLET: { role: "documentaliste", etat: "a-venir", phrase: PHRASE_DOSSIER_INCOMPLET },
+  TO_DEMANDE_VIDE: { role: "chef-de-projet", etat: "attend-williams", phrase: PHRASE_DEMANDE_VIDE },
+  TO_DEMANDE_ARRETEE: { role: "chef-de-projet", etat: "a-venir", phrase: PHRASE_DEMANDE_ARRETEE },
+  TO_EQUIPE_BLOQUEE: { role: "chef-de-projet", etat: "a-revoir", phrase: PHRASE_EQUIPE_BLOQUEE },
+  TO_PIECE_A_CONSTRUIRE: { role: "maquettiste", etat: "en-cours", phrase: PHRASE_PIECE_A_CONSTRUIRE },
+  TO_PIECE_A_VALIDER: { role: "maquettiste", etat: "attend-williams", phrase: PHRASE_PIECE_A_VALIDER },
+  TO_PIECE_A_REVOIR: { role: "maquettiste", etat: "attend-williams", phrase: PHRASE_PIECE_A_REVOIR },
+};
 
 function phraseDe(role: IdRole, etat: EtatRole): string {
   const p = PAROLES[role];
@@ -78,9 +101,22 @@ function ligne(role: IdRole, etat: EtatRole, phrase?: string, detail?: string): 
   return { role, libelle: PAROLES[role].libelle, etat, phrase: phrase ?? phraseDe(role, etat), ...(detail ? { detail } : {}), attendWilliams: etat === "attend-williams" };
 }
 
-function pauseDe(travail: TravailPourVue): { code: string } | null {
-  const p = (travail.parametres as { pause?: { code?: unknown } } | undefined)?.pause;
-  return p && typeof p.code === "string" ? { code: p.code } : null;
+function pauseDe(travail: TravailPourVue): { code: string; message?: string } | null {
+  const p = (travail.parametres as { pause?: { code?: unknown; message?: unknown } } | undefined)?.pause;
+  if (!p || typeof p.code !== "string") return null;
+  const message = typeof p.message === "string" && p.message.trim() ? p.message.trim() : undefined;
+  return { code: p.code, ...(message ? { message } : {}) };
+}
+
+/** Le message de la pause en cours (celui que le moteur a posé), pour l'afficher tel quel ; `null` s'il n'y a pas de pause ou pas de message. */
+export function messageDePause(travail: TravailPourVue): string | null {
+  return pauseDe(travail)?.message ?? null;
+}
+
+/** Vrai si la pause attend un geste de Williams (l'écran de validation est alors le bon lien). */
+export function pauseAttendWilliams(travail: TravailPourVue): boolean {
+  const p = pauseDe(travail);
+  return !!p && PAUSES_CONNUES[p.code]?.etat === "attend-williams";
 }
 
 /** État d'un groupe d'étapes du moteur (absentes du travail : ignorées ; aucune présente : « à venir »). */
@@ -112,10 +148,10 @@ export function vueRoles(travail: TravailPourVue): LigneRole[] {
     const i = ROLES.indexOf(role);
     lignes[i] = ligne(role, etat, phrase, lignes[i].detail);
   };
-  if (CODES_SCRIPT_A_FAIRE.includes(pause.code)) remplacer("scenariste", "attend-williams");
-  else if (pause.code === CODE_DEVIS_A_ACCEPTER) remplacer("chef-de-projet", "attend-williams", PHRASE_DEVIS_A_ACCEPTER);
-  else if (pause.code === CODE_DEVIS_ATTEINT) remplacer("chef-de-projet", "attend-williams", PHRASE_DEVIS_ATTEINT);
-  else if (pause.code === CODE_OUTILS_NON_RELIES) remplacer("chef-de-projet", "a-venir", PHRASE_OUTILS_ATTENDUS);
+  const connue = PAUSES_CONNUES[pause.code];
+  if (connue) remplacer(connue.role, connue.etat, connue.phrase);
+  // Code inconnu : on montre le message du moteur plutôt que rien.
+  else if (pause.message) remplacer("chef-de-projet", "a-venir", pause.message);
   return lignes;
 }
 

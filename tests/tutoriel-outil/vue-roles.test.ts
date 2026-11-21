@@ -139,3 +139,26 @@ describe("mots simples", () => {
     }
   });
 });
+
+describe("AUD-5 : toutes les pauses du tutoriel se lisent", () => {
+  const CODES = ["TO_SCRIPT_A_VALIDER", "TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEVIS_A_ACCEPTER", "TO_DEVIS_ATTEINT", "TO_OUTILS_NON_RELIES", "TO_FILM_A_CAPTURER", "TO_DOSSIER_INCOMPLET", "TO_DEMANDE_VIDE", "TO_DEMANDE_ARRETEE", "TO_EQUIPE_BLOQUEE", "TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_VALIDER", "TO_PIECE_A_REVOIR"];
+  const base = vueRoles(travail({ script: "en_attente" }));
+
+  it.each(CODES)("%s change au moins une ligne", (code) => {
+    const v = vueRoles(travail({ script: "en_attente" }, { pause: { code, message: "m" } }, "en_file"));
+    expect(v.some((l, i) => l.phrase !== base[i].phrase || l.etat !== base[i].etat)).toBe(true);
+  });
+
+  it("un code inconnu affiche le message de la pause", () => {
+    const v = vueRoles(travail({ script: "en_attente" }, { pause: { code: "TO_NOUVEAU", message: "Rien n'a échoué, patientez." } }, "en_file"));
+    expect(etatDe(v, "chef-de-projet").phrase).toBe("Rien n'a échoué, patientez.");
+  });
+
+  it("messageDePause et pauseAttendWilliams", async () => {
+    const { messageDePause, pauseAttendWilliams } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+    expect(messageDePause(travail({}, { pause: { code: "TO_X", message: " Bonjour " } }))).toBe("Bonjour");
+    expect(messageDePause(travail({}))).toBeNull();
+    expect(pauseAttendWilliams(travail({}, { pause: { code: "TO_SCRIPT_A_VALIDER" } }))).toBe(true);
+    expect(pauseAttendWilliams(travail({}, { pause: { code: "TO_FILM_A_CAPTURER" } }))).toBe(false);
+  });
+});

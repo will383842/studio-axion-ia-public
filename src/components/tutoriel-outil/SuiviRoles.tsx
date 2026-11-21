@@ -5,7 +5,7 @@ import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import type { Tonalite } from "@/domaine/libelles";
 import type { EtatRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
-import { vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { messageDePause, pauseAttendWilliams, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 import { useTravaux } from "@/hooks/useTravaux";
 import type { VueTravail } from "@/services/vues";
 
@@ -45,8 +45,29 @@ export function ListeRoles({ lignes, lienValidation }: { lignes: LigneRole[]; li
   );
 }
 
+/** Le message de la pause en cours, tel que le moteur l'a écrit, avec « Voir et valider » quand c'est à Williams de jouer. */
+export function MessagePause({ message, lienValidation }: { message: string; lienValidation?: string }) {
+  return (
+    <Carte className="flex flex-wrap items-center gap-3" role="status">
+      <p className="min-w-0 flex-1 text-[15px] text-texte">{message}</p>
+      {lienValidation && (
+        <Link href={lienValidation} className="inline-flex min-h-11 items-center rounded-full border border-trait-fort px-4 text-sm font-semibold text-texte hover:bg-surface-2">
+          Voir et valider
+        </Link>
+      )}
+    </Carte>
+  );
+}
+
 /** Le suivi rôle par rôle, rafraîchi tant que le travail avance. `lienValidation` : absent tant que l'écran de validation n'existe pas. */
 export function SuiviRoles({ initial, lienValidation }: { initial: VueTravail; lienValidation?: string }) {
   const { travail } = useTravaux({ travailId: initial.id, initial: [initial] });
-  return <ListeRoles lignes={vueRoles(travail ?? initial)} lienValidation={lienValidation} />;
+  const t = travail ?? initial;
+  const message = messageDePause(t);
+  return (
+    <div className="space-y-3">
+      {message && <MessagePause message={message} lienValidation={pauseAttendWilliams(t) ? lienValidation : undefined} />}
+      <ListeRoles lignes={vueRoles(t)} lienValidation={lienValidation} />
+    </div>
+  );
 }
