@@ -33,12 +33,12 @@ describe("zipDeMaquetteDemo", () => {
     for (const d of ["../x", "../../etc", "/etc", "01-courriels/..", "99-inconnu", ""]) await expect(zipDeMaquetteDemo(d, { lireDossier })).rejects.toMatchObject({ code: "RESERVE_MAQUETTE" });
     expect(lireDossier).not.toHaveBeenCalled();
   });
-  it("sans PROVENANCE.md, premier niveau seulement", async () => {
+  it("sans PROVENANCE.md, premier niveau de la maquette (seule la charte est sous charte/)", async () => {
     const z = await zipDeMaquetteDemo("05-stocks");
     const noms = lireZip(z).map((f) => f.nom);
     expect(noms).toContain("index.html");
     expect(noms).not.toContain("PROVENANCE.md");
-    expect(noms.every((n) => !n.includes("/"))).toBe(true);
+    expect(noms.filter((n) => n.includes("/")).sort()).toEqual(["charte/charte.css", "charte/manrope-latin.woff2"]);
   });
   it("PROVENANCE.md rendu par la lecture est tout de même écarté", async () => {
     const z = await zipDeMaquetteDemo("01-courriels", { lireDossier: async () => [{ nom: "PROVENANCE.md", donnees: new Uint8Array([1]) }, { nom: "a.html", donnees: new Uint8Array([2]) }] });
@@ -46,21 +46,31 @@ describe("zipDeMaquetteDemo", () => {
   });
 });
 
-/**
- * CONSTAT RES-2 (21/11) : la garde réelle REFUSE aujourd'hui les 7 maquettes. Chaque `index.html` charge la charte par
- * `<link rel="stylesheet" href="../charte/charte.css">`, et `extraireZipSur` refuse tout chemin qui sort du dossier. La garde
- * n'est JAMAIS contournée : au tirage (RES-3), chaque démo ira donc « à revoir ». Le jour où les maquettes embarquent leur
- * charte (autre fiche, hors lot Z), ce test passera au rouge : remplacer alors la liste attendue par « aucune refusée ».
- */
 describe("les 7 vrais dossiers face à la garde réelle (extraireZipSur, interrupteur simulé true)", () => {
-  const MOTIF = "chemin qui sort du dossier";
   for (const m of MAQUETTES_DEMO) {
-    it(`${m.dossier} : refusée (charte hors du dossier), jamais contournée`, async () => {
+    it(`${m.dossier} : acceptée, aucun refus`, async () => {
       const r = await extraireZipSur(await zipDeMaquetteDemo(m.dossier), { attestationImages: false }, PORTS_OUVERTS);
-      expect(r.ok).toBe(false);
-      expect(r.rapport.refus.some((x) => x.includes(MOTIF)), JSON.stringify(r.rapport.refus)).toBe(true);
+      expect(r.rapport.refus, JSON.stringify(r.rapport.refus)).toEqual([]);
+      expect(r.ok).toBe(true);
+    });
+    it(`${m.dossier} : charte et police dans le zip, aucun « ../ »`, async () => {
+      const fichiers = lireZip(await zipDeMaquetteDemo(m.dossier));
+      const noms = fichiers.map((f) => f.nom);
+      expect(noms).toContain("charte/charte.css");
+      expect(noms).toContain("charte/manrope-latin.woff2");
+      expect(noms).not.toContain("charte/controle.ts");
+      expect(noms).not.toContain("charte/noms-neutres.json");
+      for (const f of fichiers.filter((x) => /\.(html|css)$/.test(x.nom))) expect(new TextDecoder().decode(f.donnees), f.nom).not.toContain("../");
     });
   }
+  it("police absente des deux endroits : RESERVE_MAQUETTE, rien n'est zippé", async () => {
+    const lireDossier = async (chemin: string) => {
+      const { readdir, readFile } = await import("node:fs/promises");
+      const noms = (await readdir(chemin, { withFileTypes: true })).filter((e) => e.isFile() && e.name !== "manrope-latin.woff2");
+      return Promise.all(noms.map(async (e) => ({ nom: e.name, donnees: new Uint8Array(await readFile(`${chemin}/${e.name}`)) })));
+    };
+    await expect(zipDeMaquetteDemo("05-stocks", { lireDossier })).rejects.toMatchObject({ code: "RESERVE_MAQUETTE" });
+  });
 });
 
 function banc() {

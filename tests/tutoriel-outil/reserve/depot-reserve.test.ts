@@ -151,6 +151,13 @@ describe("amorçage, retrait, remise", () => {
     expect((await remettreEnReserve("demo-02-projets")).statut).toBe("ok");
     expect((await lireElementReserve("demo-02-projets"))?.etat).toBe("en_reserve");
   });
+  it("session exigée pour ajouterIdeeReserve, retirerDeLaReserve, remettreEnReserve : rien n'est écrit", async () => {
+    session.ouverte = false;
+    await expect(ajouterIdeeReserve({ phrase: "Un tableau de bord pour un atelier" }, { interrupteurs: async () => TOUT })).rejects.toThrow("session");
+    await expect(retirerDeLaReserve("demo-01-courriels")).rejects.toThrow("session");
+    await expect(remettreEnReserve("demo-01-courriels")).rejects.toThrow("session");
+    rien();
+  });
   it("transitions interdites et ids inconnus : refus lisible", async () => {
     await amorcerMaquettesDemo();
     expect((await remettreEnReserve("demo-01-courriels")).statut).toBe("refuse"); // déjà en réserve

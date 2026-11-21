@@ -39,7 +39,13 @@ export const MAQUETTES_DEMO: readonly MaquetteDemo[] = [
 ];
 
 const RACINE_MAQUETTES = ["outils", "maquettes-tableaux-de-bord"] as const;
+const RACINE_CHARTE = [...RACINE_MAQUETTES, "charte"] as const;
 const FICHIER_EXCLU = "PROVENANCE.md";
+const POLICE = "manrope-latin.woff2";
+const LIEN_CHARTE_SOURCE = 'href="../charte/charte.css"';
+const LIEN_CHARTE_ZIP = 'href="charte/charte.css"';
+const POLICE_SOURCE = 'url("../../../src/app/polices/manrope-latin.woff2")';
+const POLICE_ZIP = 'url("manrope-latin.woff2")';
 /** Date fixe : le même dossier donne toujours les mêmes octets. */
 const DATE_ZIP = new Date(2026, 0, 1, 0, 0, 0);
 const VALIDITE_DEPOT_SEC = 600;
@@ -76,7 +82,40 @@ export async function zipDeMaquetteDemo(dossier: string, dep: { lireDossier?: (c
   }
   const gardes = lus.filter((f) => f.nom !== FICHIER_EXCLU && f.nom.length > 0 && !/[\\/]/.test(f.nom) && f.nom !== "." && f.nom !== "..");
   if (gardes.length === 0) throw new ErreurStudio("RESERVE_MAQUETTE", "Cette maquette de démonstration est vide.");
-  return creerZip(gardes.map((f) => ({ nom: f.nom, donnees: f.donnees, date: DATE_ZIP })));
+  const sortie = gardes.map((f) => ({ nom: f.nom, donnees: f.donnees, date: DATE_ZIP }));
+
+  // La garde refuse tout chemin qui sort du dossier : la charte et la police entrent DANS le zip (sous `charte/`), les
+  // liens sont réécrits par remplacement littéral. Rien n'est ajouté sans ce remplacement ; charte ou police absente : refus.
+  const index = sortie.find((f) => f.nom === "index.html");
+  if (index) {
+    const html = new TextDecoder("utf-8").decode(index.donnees);
+    if (html.includes(LIEN_CHARTE_SOURCE)) {
+      const dossierCharte = path.join(process.cwd(), ...RACINE_CHARTE);
+      const lireCharte = dep.lireDossier ?? lireDossierParDefaut;
+      let charte: { nom: string; donnees: Uint8Array }[];
+      try {
+        charte = await lireCharte(dossierCharte);
+      } catch {
+        throw new ErreurStudio("RESERVE_MAQUETTE", "La charte des maquettes de démonstration n'a pas pu être lue.");
+      }
+      const css = charte.find((f) => f.nom === "charte.css");
+      let police = charte.find((f) => f.nom === POLICE);
+      if (!police) {
+        try {
+          police = (await lireCharte(path.join(process.cwd(), "src", "app", "polices"))).find((f) => f.nom === POLICE);
+        } catch {
+          police = undefined;
+        }
+      }
+      if (!css || !police) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte ou la police des maquettes de démonstration est introuvable.");
+      const texteCss = new TextDecoder("utf-8").decode(css.donnees);
+      if (!texteCss.includes(POLICE_SOURCE)) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte des maquettes de démonstration n'a pas la forme attendue.");
+      index.donnees = new TextEncoder().encode(html.split(LIEN_CHARTE_SOURCE).join(LIEN_CHARTE_ZIP));
+      sortie.push({ nom: "charte/charte.css", donnees: new TextEncoder().encode(texteCss.split(POLICE_SOURCE).join(POLICE_ZIP)), date: DATE_ZIP });
+      sortie.push({ nom: `charte/${POLICE}`, donnees: police.donnees, date: DATE_ZIP });
+    }
+  }
+  return creerZip(sortie);
 }
 
 export interface DependancesMaquetteDemo {
@@ -113,6 +152,7 @@ const enCours = new Map<string, Promise<{ fichierId: string }>>();
  * SANS session. Rend `source.fichierId` s'il existe et que le Fichier est « pret » ; sinon fabrique le zip, le dépose au
  * stockage, enregistre le Fichier (origine « depot », statut « pret », même forme que `terminerEnvoi`) et le note sur l'élément.
  * Stockage sans dépôt signé (simulation) : `ErreurStudio("RESERVE_STOCKAGE")` ; rien n'est écrit.
+ * Ne JAMAIS l'appeler sous `sousVerrou` : elle prend elle-même le verrou (note du fichier) et fait des envois réseau longs.
  */
 export async function fichierDeMaquetteDemo(e: ElementReserve, dep: DependancesMaquetteDemo = {}): Promise<{ fichierId: string }> {
   if (e.source.type !== "maquette-demo" || !dossierConnu(e.source.dossier)) throw new ErreurStudio("RESERVE_MAQUETTE", "Cet élément n'est pas une maquette de démonstration.");
@@ -132,6 +172,7 @@ async function fabriquer(e: ElementReserve, dep: DependancesMaquetteDemo): Promi
     if (existant && existant.statut === "pret" && existant.origine === "depot") return { fichierId: existant.id };
   }
 
+  if (!dossierConnu(source.dossier)) throw new ErreurStudio("RESERVE_MAQUETTE", "Cet élément n'est pas une maquette de démonstration.");
   const octets = await (dep.zip ?? ((d: string) => zipDeMaquetteDemo(d)))(source.dossier);
   if (octets.length > TAILLE_ZIP_MAX) throw new ErreurStudio("RESERVE_MAQUETTE", "Cette maquette de démonstration est trop grosse.");
   const stockage = await (dep.stockage ?? (() => fournisseur("stockage")))();
