@@ -53,6 +53,10 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     expect(r).toMatchObject({ regards: 2, refaites: 1 });
     expect(m.refaire).toHaveBeenCalledTimes(1);
     expect(m.refaire).toHaveBeenCalledWith(fiche, [3]);
+    const refaite = await m.refaire.mock.results[0].value;
+    expect(refaite).not.toBe(fiche);
+    expect(m.regarder.mock.calls[1][0]).toBe(refaite);
+    expect(r.fiche).toBe(refaite);
     expect(dit(r.fiche)).toBe(dit(fiche));
     expect(m.voix).not.toHaveBeenCalled();
   });
@@ -102,6 +106,7 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     const m = monter([verdict(["texte-coupe", "page-3"]), new Error("2e regard en panne")]);
     const r = await boucleDuRegard(fiche, m.ports);
     expect(r).toMatchObject({ refaites: 1, arret: "second-regard-en-panne" });
+    expect(r.fiche).toBe(await m.refaire.mock.results[0].value);
     expect(m.refaire).toHaveBeenCalledTimes(1);
   });
 
