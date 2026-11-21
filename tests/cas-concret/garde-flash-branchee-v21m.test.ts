@@ -84,6 +84,7 @@ describe("mesurerFlashs lit habillageCommun", () => {
     const m = mesurerFlashs(habille(scenes, Object.fromEntries(scenes.map((s) => [s.id, { entree: "flash-ivoire" }]))));
     expect(m.flashs).toBe(4);
     expect(m.reserves[0]).toMatch(/^À vérifier : 4 flashs en 1 s/);
+    expect(m.debutFenetreMs).toBe(0); // l'entrée est lue sur debutMs, jamais sur finMs
     const sortie = mesurerFlashs(habille([scene("t1", 0, 1000)], { t1: { sortie: "reflet-entree" } }));
     expect(sortie.flashs).toBe(1);
     expect(sortie.debutFenetreMs).toBe(800);
@@ -104,6 +105,7 @@ describe("planScenesCasConcret : remarque FLASH", () => {
     const r = await planScenesCasConcret({ groupes: [GROUPE], habillage: { actif: true, graine: "v-flash" } });
     const f = flashs(r);
     expect(f.length).toBeGreaterThan(0);
+    expect(f).toHaveLength(Object.keys(r.tranches).length); // CHAQUE tranche habillée est mesurée (le double pose la rafale sur toutes)
     expect(f[0]!.message).toMatch(/^À vérifier : 4 flashs en 1 s/);
     // Exactement : remarques du plan d'abord (ni retirées, ni doublées, ni passées après), puis les FLASH, rien d'autre.
     expect(r.remarques).toEqual([...base.remarques, ...f]);
@@ -123,6 +125,18 @@ describe("planScenesCasConcret : remarque FLASH", () => {
     const rejoue = await planScenesCasConcret({ groupes: [GROUPE], memo: r.memo, habillage: { actif: true, graine: "v-flash" } });
     expect(flashs(rejoue)).toHaveLength(f.length);
     expect(rejoue.remarques).toEqual(r.remarques);
+  });
+  it("plusieurs groupes : toutes les FLASH sont en fin de remarques, après celles du plan", async () => {
+    etat.remarqueDuPlan = true;
+    const groupes = [GROUPE, grandGroupe("bis")];
+    const base = await planScenesCasConcret({ groupes, habillage: { actif: true, graine: "v-flash" } });
+    etat.rafale = 4;
+    const r = await planScenesCasConcret({ groupes, habillage: { actif: true, graine: "v-flash" } });
+    const premiere = r.remarques.findIndex((x) => x.code === "FLASH");
+    expect(premiere).toBeGreaterThan(0);
+    expect(r.remarques.slice(premiere).every((x) => x.code === "FLASH")).toBe(true);
+    expect(r.remarques.slice(0, premiere)).toEqual(base.remarques);
+    expect(r.remarques).toHaveLength(base.remarques.length + Object.keys(r.tranches).length);
   });
   it("3 flashs en 1 s : aucune remarque", async () => {
     etat.rafale = 3;
