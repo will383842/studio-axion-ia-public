@@ -70,12 +70,22 @@ export function changerTextePlaquette(elements: readonly ElementV4Plan[], uid: s
   });
 }
 
-/** Décale le début et la fin d'une plaquette du même temps (secondes) ; jamais avant 0 s, jamais de 0 s ni de valeur absurde (au plus 30 s). */
+/** Décale début, fin ET instants internes datés (`lignes[].a`, `instants[]`, `verdict.a`) du même temps : le rendu les place relativement au début. Jamais avant 0 s, jamais de 0 s ni de valeur absurde (au plus 30 s). */
 export function decalerPlaquette(elements: readonly ElementV4Plan[], uid: string, decalageSec: number): ModificationPlaquette {
   return remplacer(elements, uid, (e) => {
     if (!Number.isFinite(decalageSec) || decalageSec === 0 || Math.abs(decalageSec) > 30) return "Dites de combien de secondes décaler la plaquette (30 au plus).";
     if (e.debut + decalageSec < 0) return "La plaquette ne peut pas commencer avant le début de la vidéo.";
-    return { ...e, debut: e.debut + decalageSec, fin: e.fin + decalageSec };
+    const d = decalageSec;
+    const internes = [...(e.lignes ?? []).map((l) => l.a), ...(e.instants ?? []), ...(e.verdict ? [e.verdict.a] : [])];
+    if (internes.some((t) => t + d < 0)) return "La plaquette ne peut pas commencer avant le début de la vidéo.";
+    return {
+      ...e,
+      debut: e.debut + d,
+      fin: e.fin + d,
+      ...(e.lignes ? { lignes: e.lignes.map((l) => ({ ...l, a: l.a + d })) } : {}),
+      ...(e.instants ? { instants: e.instants.map((t) => t + d) } : {}),
+      ...(e.verdict ? { verdict: { ...e.verdict, a: e.verdict.a + d } } : {}),
+    };
   });
 }
 

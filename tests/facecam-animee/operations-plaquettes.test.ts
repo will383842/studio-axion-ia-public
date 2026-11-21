@@ -122,6 +122,29 @@ describe("S-15-a-v20l : changer le texte, décaler, variante en données", () =>
     expect(decalerPlaquette(liste, "zzz", 1)).toEqual({ ok: false, raison: "Cette plaquette n'existe plus dans le plan." });
   });
 
+  it("c2) décaler : les instants INTERNES (lignes[].a, instants[], verdict.a) suivent du même temps et restent dans [debut, fin]", () => {
+    const e: ElementV4Plan = { id: "duel", debut: 12, fin: 14, lignes: [{ texte: "a", a: 12.5 }, { texte: "b", a: 13.5 }], instants: [13], verdict: { gagnant: "A", a: 13.8 } };
+    const liste: ElementV4Plan[] = [{ id: "chiffre", debut: 1, fin: 3, nombre: 40 }, e];
+    for (const d of [-5, 2, 0.5]) {
+      const r = decalerPlaquette(liste, uidDe(liste, 1), d);
+      expect(r.ok, String(d)).toBe(true);
+      if (!r.ok) continue;
+      const n = r.element;
+      expect(n.debut).toBeCloseTo(12 + d);
+      expect(n.fin).toBeCloseTo(14 + d);
+      expect(n.lignes?.map((l) => l.a)).toEqual([12.5 + d, 13.5 + d]);
+      expect(n.instants).toEqual([13 + d]);
+      expect(n.verdict).toEqual({ gagnant: "A", a: 13.8 + d });
+      for (const t of [...(n.lignes ?? []).map((l) => l.a), ...(n.instants ?? []), n.verdict?.a ?? n.debut]) {
+        expect(t).toBeGreaterThanOrEqual(n.debut);
+        expect(t).toBeLessThanOrEqual(n.fin);
+      }
+    }
+    expect(e.lignes?.map((l) => l.a)).toEqual([12.5, 13.5]);
+    expect(e.instants).toEqual([13]);
+    expect(e.verdict?.a).toBe(13.8);
+  });
+
   it("d) décaler sur une plaquette identique à une autre : refus (deux noms identiques)", () => {
     const e: ElementV4Plan = { id: "chiffre", debut: 1, fin: 3, nombre: 5 };
     const f: ElementV4Plan = { id: "chiffre", debut: 4, fin: 6, nombre: 5 };
