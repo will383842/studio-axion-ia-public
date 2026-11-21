@@ -105,7 +105,7 @@ describe("constantes et interrupteur", () => {
   });
 
   it("recensée « eteint » dans l'inventaire", () => {
-    expect(readFileSync("tests/usine/interrupteurs-inventaire.test.ts", "utf8")).toMatch(/"mesures\.lecture_par_liste": "eteint"/);
+    expect(readFileSync("tests/usine/inventaire/publication-et-mesures.test.ts", "utf8")).toMatch(/"mesures\.lecture_par_liste": "eteint"/);
   });
 
   it("réglage absent, ou valeur autre que true : aucune lecture de liste", async () => {
