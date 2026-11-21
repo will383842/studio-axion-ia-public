@@ -6,7 +6,7 @@ import { definirVideoLongueActiveAction } from "@/app/(studio)/reglages/actions-
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { notifier } from "@/components/ui/Toast";
 
-export const DETAIL_VIDEO_LONGUE = "Éteint : rien n'est écrit ni fabriqué. Allumé : vous pouvez lancer une vidéo longue ; avec voix, chaque vidéo demande votre accord et reste sous 10 $.";
+export const DETAIL_VIDEO_LONGUE = "Éteint : rien n'est écrit ni fabriqué. Allumé : vous pouvez lancer une vidéo longue ; avec voix, chaque vidéo demande votre accord et reste sous le plafond prévu.";
 
 export function InterrupteurVideoLongue({ actif }: { actif: boolean }) {
   const router = useRouter();

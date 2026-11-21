@@ -9,10 +9,9 @@ export async function definirVideoLongueActiveAction(valeur: unknown): Promise<R
   await exigerSession();
   return essayer(async () => {
     if (valeur !== true && valeur !== false) throw new ErreurStudio("CHOIX_INCONNU", "Ce choix n'existe pas.");
-    if ((await lireVideoLongueActif()) !== valeur) {
-      await ecrireVideoLongueActif(valeur);
-      await journaliser("reglages", `Vidéo longue ${valeur ? "allumée" : "éteinte"}`);
-    }
+    const avant = await lireVideoLongueActif();
+    await ecrireVideoLongueActif(valeur);
+    if (avant !== valeur) await journaliser("reglages", `Vidéo longue ${valeur ? "allumée" : "éteinte"}`);
     revalidatePath("/reglages");
     revalidatePath("/videos/longue");
     return { valeur };
