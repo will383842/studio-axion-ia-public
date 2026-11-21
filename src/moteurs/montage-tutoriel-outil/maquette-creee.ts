@@ -172,6 +172,9 @@ function etatDeZone(z: ZoneDecrite): ZoneCarte["etat"] {
   return "les-deux";
 }
 
+/** Le chiffre tel que l'écran le montre (valeur « exemple », jamais le libellé) : la garde du scénariste ne connaît que lui. */
+const chiffreAffiche = (x: DonneeExemple): string => (typeof x.valeur === "number" ? String(x.valeur).replace(".", ",") : x.valeur).slice(0, 60);
+
 export function carteDepuisDescription(d: DescriptionMaquette): { ok: true; carte: CarteZones } | { ok: false; erreurs: string[] } {
   try {
     const zones = toutesZones(d);
@@ -187,7 +190,7 @@ export function carteDepuisDescription(d: DescriptionMaquette): { ok: true; cart
         etat: etatDeZone(z),
         gestes: [...GESTES_PAR_TYPE[z.type]],
         prouve: `Montre : ${z.libelle}`,
-        chiffres: [...new Set(z.donnees.filter(estChiffree).map((x) => x.libelle))].slice(0, 12),
+        chiffres: [...new Set(z.donnees.filter(estChiffree).map(chiffreAffiche))].slice(0, 12),
       })),
       manques: [],
     };
