@@ -43,6 +43,7 @@ export function capaciteRefaireVoix(format: string): CapaciteRefaireVoix {
   return Object.hasOwn(CAPACITE_REFAIRE_VOIX, format) ? CAPACITE_REFAIRE_VOIX[format] : "impossible";
 }
 
+/** Tarif, plafond et déjà engagé sont dans la MÊME monnaie (le tarif du code est en centimes USD, heygen/voix.ts:26) : injecter un tarif en USD contre un plafond en euros sur-estime (sens prudent), l'inverse sous-estimerait. */
 export interface DemandeRefaireVoix {
   format: string;
   /** Texte entier lu par la voix. */
@@ -75,7 +76,7 @@ const nombreValide = (n: number) => Number.isFinite(n) && n >= 0;
 export function estimerRefaireVoix(d: DemandeRefaireVoix): EstimationRefaireVoix {
   const capacite = capaciteRefaireVoix(d.format);
   if (capacite === "impossible") return refus("format-impossible");
-  if (!nombreValide(d.tarifCentimesParCaractere)) return refus("tarif-illisible");
+  if (!nombreValide(d.tarifCentimesParCaractere) || d.tarifCentimesParCaractere <= 0) return refus("tarif-illisible"); // tarif 0 ou −0 : estimation gratuite, le plafond ne refuserait plus jamais
   if (!nombreValide(d.plafondCentimes) || !nombreValide(d.dejaEngageCentimes)) return refus("plafond-illisible");
   const visees = d.phrasesVisees.map((p) => p.trim()).filter(Boolean);
   if (!visees.length) return refus("rien-a-refaire");
