@@ -11,7 +11,7 @@ const RACINE = resolve(__dirname, "../..");
 const CHEMIN = ["..", "..", "outils", "zoom-gratuit", "planche.mts"].join("/");
 type Video = { nom: string; genre: "classique" | "avocat"; dureeSec: number; plans: unknown[] };
 type Case = { reglage: string; instant: "debut" | "milieu" | "fin"; t: number; cameraMax: number; echelle: number };
-type Module = { casesPlanche: () => Case[]; cellulesPlanche: () => { nom: string; echelle: number }[]; rapportComptage: (v: Video[]) => string[] };
+type Module = { casesPlanche: () => Case[]; cellulesPlanche: () => { nom: string; echelle: number }[]; rapportComptage: (v: Video[]) => string[]; lireArguments: (a: string[]) => { sortie?: string; fichierVideos?: string } };
 const mod = (await import(/* @vite-ignore */ CHEMIN)) as Module;
 
 describe("cellulesPlanche", () => {
@@ -90,5 +90,19 @@ describe("garde", () => {
     marche(join(RACINE, "src"));
     marche(join(RACINE, "studio-rendu"));
     expect(vus).toEqual([]);
+  });
+});
+
+describe("lireArguments (FIX-OUTIL-ZOOM-GRATUIT : le dossier de sortie sans --videos)", () => {
+  it("dossier seul : la sortie est le premier argument", () => {
+    expect(mod.lireArguments(["sortie"])).toEqual({ sortie: "sortie", fichierVideos: undefined });
+  });
+  it("--videos avant ou après le dossier", () => {
+    expect(mod.lireArguments(["--videos", "f.json", "sortie"])).toEqual({ sortie: "sortie", fichierVideos: "f.json" });
+    expect(mod.lireArguments(["sortie", "--videos", "f.json"])).toEqual({ sortie: "sortie", fichierVideos: "f.json" });
+  });
+  it("sans dossier : pas de sortie (l'outil affiche l'usage)", () => {
+    expect(mod.lireArguments([]).sortie).toBeUndefined();
+    expect(mod.lireArguments(["--videos", "f.json"]).sortie).toBeUndefined();
   });
 });

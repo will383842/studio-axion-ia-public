@@ -13,15 +13,15 @@
  * sur un seul serveur ; avec plusieurs processus, il faudra une écriture conditionnelle (comparaison avant écriture) sur l'état.
  * Le vrai appel payant de la 2e proposition passera par `payerUneFois` (clé : vidéo + proposition 2), plafond vérifié avant l'appel.
  *
- * // en attendant V2-08 : l'état « pièce créée » de l'équipe n'est pas encore sur master. Interface minimale `EtatPieceCreee`,
- * rangée dans `parametres.pieceCreee` du travail de fabrication de la vidéo, derrière le dépôt injectable `DepotPiece`.
- * V2-08 remplacera `depotParDefaut` par `EtatEquipe.pieceCreee` ; les gestes ci-dessous ne changent pas.
+ * La pièce vit dans `parametres.tutoriel.equipe.pieceCreee` du travail de fabrication de la vidéo (`PieceCreee` de l'équipe,
+ * V2-08), derrière le dépôt injectable `DepotPiece`. L'écran en garde une vue (`EtatPieceCreee`) ; les gestes ne changent pas.
  */
 import "server-only";
 import { appliquerRelecture, chiffresARelire, type ChiffreARelire, type DecisionChiffre } from "@/briques/donnees-video/relecture-chiffres";
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { nombresAffirmes } from "@/domaine/nombres-fr";
 import type { Fichier } from "@/domaine/types";
+import type { PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { lireDescriptionMaquette, type DescriptionMaquette, type DonneeExemple } from "@/moteurs/montage-tutoriel-outil/description-maquette";
 import {
   controlerTextesCrees,
@@ -272,21 +272,71 @@ async function enFile<T>(videoId: string, f: () => Promise<T>): Promise<T> {
 const AUTRE_EN_ATTENTE = "Une autre proposition se prépare : attendez-la.";
 const autreEnAttente = (e: EtatPieceCreee) => e.aRelancer === true && e.proposition >= 2 && e.statut === "a-construire";
 
+/** Ce que l'équipe range sous `parametres.tutoriel.equipe` (seuls les champs lus ici). */
+interface EquipeRangee {
+  pieceCreee?: PieceCreee;
+  demande?: { phrase?: string };
+  appels?: { maquettiste?: number };
+}
+
+/** Vue de l'écran depuis la pièce de l'équipe. `null` : rien à voir (pas de pièce, un flux, une pièce « à revoir »). Pure. */
+export function etatEcranDepuisPiece(equipe: EquipeRangee | null | undefined): EtatPieceCreee | null {
+  const p = equipe?.pieceCreee;
+  if (!equipe || !p || typeof p !== "object" || p.genre !== "maquette" || p.statut === "a-revoir") return null;
+  const proposition = p.proposition === 2 ? 2 : 1;
+  const etat: EtatPieceCreee = {
+    phrase: equipe.demande?.phrase ?? "",
+    cas: "tableau-de-bord",
+    proposition,
+    statut: p.statut,
+    description: p.contenu,
+    empreinte: p.empreinte,
+  };
+  if (p.apercu) etat.apercu = p.apercu;
+  if (p.gardee) etat.gardee = p.gardee;
+  if (proposition === 2 && p.statut === "a-construire" && (equipe.appels?.maquettiste ?? 0) < 2) etat.aRelancer = true;
+  return etat;
+}
+
+/** Pièce de l'équipe depuis la vue de l'écran (`aRelancer` n'est pas rangé : il se déduit). Pure. */
+export function pieceDepuisEtatEcran(x: EtatPieceCreee): PieceCreee {
+  const p: PieceCreee = {
+    genre: "maquette",
+    proposition: x.proposition === 2 ? 2 : 1,
+    contenu: x.description as PieceCreee["contenu"],
+    empreinte: x.empreinte,
+    statut: x.statut,
+  };
+  if (x.apercu) p.apercu = x.apercu;
+  if (x.gardee) p.gardee = x.gardee;
+  return p;
+}
+
 async function depotParDefaut(): Promise<DepotPiece> {
   const { depots } = await import("./_commun");
   const travailDe = async (videoId: string) => {
     const liste = await depots().travaux.lister((t) => t.cibleId === videoId && t.type === "fabrication");
     return liste.sort((a, b) => b.creeLe.localeCompare(a.creeLe))[0] ?? null;
   };
+  const tutorielDe = (parametres: Record<string, unknown> | undefined) => {
+    const t = parametres?.tutoriel;
+    return t && typeof t === "object" ? (t as Record<string, unknown>) : null;
+  };
+  const equipeDe = (parametres: Record<string, unknown> | undefined) => {
+    const e = tutorielDe(parametres)?.equipe;
+    return e && typeof e === "object" ? (e as Record<string, unknown> & EquipeRangee) : null;
+  };
   return {
     async lire(videoId) {
-      const brut = (await travailDe(videoId))?.parametres?.pieceCreee;
-      return brut && typeof brut === "object" ? (brut as EtatPieceCreee) : null;
+      return etatEcranDepuisPiece(equipeDe((await travailDe(videoId))?.parametres));
     },
     async ecrire(videoId, etat) {
       const t = await travailDe(videoId);
-      if (!t) return;
-      await depots().travaux.modifier(t.id, { parametres: { ...(t.parametres ?? {}), pieceCreee: etat } });
+      const equipe = equipeDe(t?.parametres);
+      if (!t || !equipe) return;
+      await depots().travaux.modifier(t.id, {
+        parametres: { ...t.parametres, tutoriel: { ...tutorielDe(t.parametres), equipe: { ...equipe, pieceCreee: pieceDepuisEtatEcran(etat) } } },
+      });
     },
   };
 }

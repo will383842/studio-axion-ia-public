@@ -35,6 +35,8 @@ export interface EntreeApercu extends EntreeFiche {
   lienSource?: string;
   /** Nom du compte visé (deux LinkedIn, deux Facebook) ; absent : aucune ligne. */
   canalNom?: string;
+  /** RAP · adresse de la publication chez le diffuseur, si elle est connue ; n'est montrée que si `adresseDiffuseurSure` l'accepte. */
+  lienDiffuseur?: string;
   /** Essai borné : vrai sur la seule entrée couverte par l'essai (pastille « Essai »). */
   essai?: boolean;
   /** Essai borné échu (fenêtre de retrait seulement) : la pastille dit « Essai (expiré) ». */
@@ -192,8 +194,24 @@ const reprise = (p: Pick<PublicationApercu, "via" | "rapatrieeLe" | "videoId" | 
 /** RAP-3 · le déplacement se fait chez le diffuseur : pas de bouton « Déplacer » ni de champ date pour une rapatriée. */
 export const PHRASE_DEPLACER_CHEZ_DIFFUSEUR = "Pour changer la date, déplacez-la chez le diffuseur : le calendrier suivra.";
 
+/** RAP · phrase de la fiche d'une publication reprise : lecture seule. */
+export const PHRASE_LECTURE_SEULE_DIFFUSEUR = "Cette publication vient du diffuseur : elle se modifie et se déplace chez lui.";
+
 /** RAP-3 · adresse (du Studio) de la miniature d'une rapatriée. */
 export const adresseMiniature = (publicationId: string): string => `/api/calendrier/miniature/${encodeURIComponent(publicationId)}`;
+
+/** RAP · l'adresse n'est montrée que si elle est en https et sur l'hôte du diffuseur (ou l'un de ses sous-domaines). */
+export function adresseDiffuseurSure(url: string | null | undefined): string | null {
+  if (typeof url !== "string") return null;
+  try {
+    const u = new URL(url);
+    const hote = u.hostname.toLowerCase();
+    if (u.protocol !== "https:" || u.username || u.password || u.port) return null;
+    return hote === "zernio.com" || hote.endsWith(".zernio.com") ? u.href : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Une publication du calendrier → l'entrée de l'aperçu. Jour et heure sont ceux de Paris. */
 export function entreeDepuisPublication(p: PublicationApercu): EntreeApercu {

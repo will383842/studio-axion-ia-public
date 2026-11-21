@@ -58,3 +58,6 @@ retraits-buffer-*.csv
 *.jsonl
 cles-imp*.json
 journal-import*.json
+
+# sorties d'essai
+/.vitest/

@@ -32,6 +32,23 @@ const retenirParDefaut: NonNullable<ProprietesCarteProposition["retenir"]> = asy
   return retenirSujetSemaineAction(debut, cle);
 };
 
+const TITRE_REPLI = "Sujet proposé par l'Usine";
+const net = (v?: string): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+
+/** Titre montré sur la carte : `titre` de la ligne, sinon le sujet, sinon la douleur, sinon une phrase fixe. Jamais vide. */
+export function titreProposition(entree: Pick<EntreeCarte, "titre">, sujet?: IdeeUsine): string {
+  return net(entree.titre) ?? net(sujet?.sujet) ?? net(sujet?.douleur) ?? TITRE_REPLI;
+}
+
+/** Ligne courte de contexte : métier, sinon « Actualité » (nouveauté), sinon le cas d'usage. Absente si elle répète le titre. */
+function contexteProposition(sujet: IdeeUsine | undefined, titre: string): string | undefined {
+  if (!sujet) return undefined;
+  const actualite = typeof sujet.parts?.actualite === "string" && sujet.parts.actualite.trim() ? "Actualité" : undefined;
+  const cas = net(sujet.casUsage)?.split(" · ")[0]?.slice(0, 120);
+  const ligne = net(sujet.metier) ?? actualite ?? cas;
+  return ligne && ligne !== titre ? ligne : undefined;
+}
+
 /**
  * Proposition de l'équipe IA : carte pointillée avec le libellé « Proposée » (le réseau et le type se lisent aussi par le texte et
  * l'icône, jamais par la couleur seule). Le Studio ne la programme, ne la valide ni ne la refuse : un seul lien mène à l'écran
@@ -69,6 +86,8 @@ export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, d
   const heure = heureLisible(entree.heure);
   const raison = pourquoi?.trim();
   const proche = ressembleA?.trim();
+  const titre = titreProposition(entree, sujet);
+  const contexte = contexteProposition(sujet, titre);
   const libelle = ["Proposée", nomReseau(entree.reseau), type.libelle, heure].filter(Boolean).join(", ");
   return (
     <div data-proposition={entree.cle} data-reseau={entree.reseau} style={styleReseau(entree.reseau)} aria-label={libelle} role="group" className={cn("flex w-full flex-col gap-1 rounded-[9px] border-[1.5px] border-dashed border-trait-fort border-l-[5px] border-l-[color:var(--c)] bg-surface-1 px-1.5 py-1 text-left", className)}>
@@ -77,6 +96,10 @@ export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, d
         {heure && <span className="text-sm font-extrabold tabular-nums text-texte">{heure}</span>}
         <span className="ml-auto rounded-full border border-dashed border-trait-fort px-1.5 text-xs font-bold text-texte">Proposée</span>
       </span>
+      <span data-titre-proposition title={titre} className="line-clamp-2 break-words text-sm font-bold text-texte">
+        {titre}
+      </span>
+      {contexte && <span className="text-xs text-texte-doux">{contexte}</span>}
       <span className="flex items-center gap-1 text-xs font-semibold text-texte-doux">
         <Icone nom={type.icone} size={12} />
         {type.libelle}

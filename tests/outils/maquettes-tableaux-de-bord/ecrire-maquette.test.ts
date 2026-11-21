@@ -9,8 +9,11 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { empreinteDescription, lireApercu } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { lireDescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
+import { empreinteFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
+import { lireFluxAutomatisation, VERSION_FLUX, type FluxAutomatisation } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import {
   apercuPiece,
+  apercuPieceFlux,
   CODE_EMPREINTE,
   CODE_ENVIRONNEMENT,
   CODE_OK,
@@ -333,6 +336,142 @@ describe("ecrireMaquette (dossier temporaire, capteur en double)", () => {
     const dir = temp();
     const { dep } = sans();
     expect(ecrireMaquette(["--description", ecrireDescription(dir), "--sortie", join(dir, "s"), "--apercu"], { ...dep, lancerCapteur: () => ({ status: null }) })).toBe(1);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* V2-04b · un FLUX créé (cas 3)                                        */
+/* ------------------------------------------------------------------ */
+
+function fluxBrut(): Record<string, unknown> {
+  return {
+    version: VERSION_FLUX,
+    avant: { vue: "boite", etat: "avant", surMot: "Chaque" },
+    declencheur: { vue: "boite", etat: "nouveau", surMot: "arrive" },
+    etapes: [
+      { id: "lecture", vue: "boite", etat: "ouvert", acteur: "ia", libelleSchema: "Lecture du message", surMot: "lit" },
+      { id: "classement", vue: "boite", etat: "etiquete", acteur: "automatisation", libelleSchema: "Classement", surMot: "range" },
+      { id: "brouillon", vue: "boite", etat: "brouillon", acteur: "ia", libelleSchema: "Brouillon de réponse", surMot: "brouillon" },
+      { id: "relecture", vue: "boite", etat: "brouillon", acteur: "humain", libelleSchema: "Votre relecture", surMot: "relisez" },
+      { id: "prevenu", vue: "messagerie", etat: "notification", acteur: "automatisation", libelleSchema: "Message à l'équipe", surMot: "prévenue" },
+    ],
+    moments: ["classement", "brouillon", "relecture"],
+    resultat: { vue: "messagerie", etat: "tache-creee", surMot: "sereine" },
+    contenus: {
+      boite: {
+        messages: [{ id: "m1", de: "Client exemple", objet: "Demande de rendez-vous", adresse: "contact@exemple.invalid", corps: "Bonjour, pouvez-vous me rappeler cette semaine", dossier: "d1" }],
+        nouveau: "m1",
+        dossiers: [{ id: "d1", nom: "Demandes" }],
+        brouillon: { texte: "Bonjour, merci de votre message" },
+      },
+      messagerie: {
+        fil: [{ de: "Équipe exemple", texte: "Bonjour à tous" }],
+        notification: { de: "Automatisation", texte: "Un brouillon attend votre relecture" },
+        tache: { titre: "Relire le brouillon", responsable: "Vous" },
+      },
+    },
+  };
+}
+
+const luFlux = (b: unknown): FluxAutomatisation => {
+  const l = lireFluxAutomatisation(b);
+  if (!l.ok) throw new Error(l.erreurs.join(" | "));
+  return l.flux;
+};
+
+describe("ecrireMaquette : un flux (V2-04b)", () => {
+  const FICHIERS_FLUX = ["index.html", "styles.css", "etats.js", "app.js", "demo-data.js"];
+
+  it("écrit les 5 fichiers, les données du flux et la charte, sans aperçu ni navigateur", () => {
+    const dir = temp();
+    const { dep, appels } = capteurDouble();
+    const sortie = join(dir, "s");
+    expect(ecrireMaquette(["--description", ecrireDescription(dir, fluxBrut()), "--sortie", sortie], { ...sans().dep, ...dep })).toBe(CODE_OK);
+    for (const nom of FICHIERS_FLUX) expect(existsSync(join(sortie, "maquette", nom)), nom).toBe(true);
+    for (const nom of NOMS_FICHIERS) expect(existsSync(join(sortie, "maquette", nom)), nom).toBe(true);
+    const donnees = readFileSync(join(sortie, "maquette/demo-data.js"), "utf8");
+    expect(donnees.startsWith("window.DONNEES_ECRANS = ")).toBe(true);
+    expect(donnees).toContain("Demande de rendez-vous");
+    expect(donnees).toContain("Un brouillon attend votre relecture");
+    expect(existsSync(join(sortie, "charte/charte.css"))).toBe(true);
+    expect(JSON.parse(readFileSync(join(sortie, "rapport.json"), "utf8"))).toMatchObject({ ok: true, code: 0 });
+    expect(existsSync(join(sortie, "apercu-piece.json"))).toBe(false);
+    expect(appels).toEqual([]);
+  });
+
+  it("avec --apercu : apercu-piece.json relu par lireApercu, empreinte du flux, une image avant et une maintenant", () => {
+    const dir = temp();
+    const { dep, appels } = capteurDouble();
+    const sortie = join(dir, "s");
+    expect(ecrireMaquette(["--description", ecrireDescription(dir, fluxBrut()), "--sortie", sortie, "--apercu"], { ...sans().dep, ...dep })).toBe(CODE_OK);
+    expect(appels).toHaveLength(1);
+    const scenario = JSON.parse(readFileSync(join(sortie, "apercu-scenario.json"), "utf8")) as { etapes: { aller: string }[] };
+    expect(scenario.etapes.map((e) => e.aller)).toEqual(["declencheur", "lecture", "classement", "brouillon", "relecture", "prevenu", "resultat"]);
+    const lu = lireApercu(JSON.parse(readFileSync(join(sortie, "apercu-piece.json"), "utf8")));
+    if (!lu.ok) throw new Error(lu.erreurs.join(" | "));
+    expect(lu.apercu.empreinteDescription).toBe(empreinteFlux(luFlux(fluxBrut())));
+    expect(lu.apercu.images.map((i) => i.ecranId)).toEqual(scenario.etapes.map((e) => e.aller));
+    expect(lu.apercu.images.filter((i) => i.etat === "avant")).toHaveLength(1);
+    expect(lu.apercu.images.filter((i) => i.etat === "maintenant").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("apercuPieceFlux : sans image prise, aucune image (le lecteur refusera)", () => {
+    expect(apercuPieceFlux(luFlux(fluxBrut()), [], { ok: true, defauts: [] }).images).toEqual([]);
+  });
+
+  it("est déterministe : le même flux deux fois donne les mêmes fichiers", () => {
+    const lire2 = () => {
+      const dir = temp();
+      const sortie = join(dir, "s");
+      expect(ecrireMaquette(["--description", ecrireDescription(dir, fluxBrut()), "--sortie", sortie], sans().dep)).toBe(CODE_OK);
+      return [...FICHIERS_FLUX.map((n) => readFileSync(join(sortie, "maquette", n), "utf8")), readFileSync(join(sortie, "charte/charte.css"), "utf8")];
+    };
+    expect(lire2()).toEqual(lire2());
+  });
+
+  it("--attendue fausse : code 7 et aucun fichier de maquette ; --attendue exacte : code 0", () => {
+    const dir = temp();
+    const desc = ecrireDescription(dir, fluxBrut());
+    const faux = join(dir, "faux");
+    expect(ecrireMaquette(["--description", desc, "--sortie", faux, "--attendue", "pas-la-bonne"], sans().dep)).toBe(CODE_EMPREINTE);
+    expect(existsSync(join(faux, "maquette"))).toBe(false);
+    expect(JSON.parse(readFileSync(join(faux, "rapport.json"), "utf8"))).toMatchObject({ ok: false, code: 7 });
+    const bon = join(dir, "bon");
+    expect(ecrireMaquette(["--description", desc, "--sortie", bon, "--attendue", empreinteFlux(luFlux(fluxBrut()))], sans().dep)).toBe(CODE_OK);
+    expect(existsSync(join(bon, "maquette/index.html"))).toBe(true);
+  });
+
+  it("refuse (code 4, rapport.json) un flux sans étape humaine, un courriel réel, un nom réel", () => {
+    const sansHumain = fluxBrut();
+    (sansHumain.etapes as { acteur: string }[]).forEach((e) => {
+      if (e.acteur === "humain") e.acteur = "ia";
+    });
+    const courrielReel = fluxBrut();
+    ((courrielReel.contenus as { boite: { messages: { adresse: string }[] } }).boite.messages[0]!).adresse = "contact@entreprise-reelle.fr";
+    const nomReel = fluxBrut();
+    ((nomReel.contenus as { boite: { messages: { de: string }[] } }).boite.messages[0]!).de = "Dupont Menuiserie";
+    for (const [nom, flux] of [["sans étape humaine", sansHumain], ["courriel réel", courrielReel], ["nom réel", nomReel]] as const) {
+      const dir = temp();
+      const sortie = join(dir, "s");
+      expect(ecrireMaquette(["--description", ecrireDescription(dir, flux), "--sortie", sortie], sans().dep), nom).toBe(CODE_REFUSE);
+      const rapport = JSON.parse(readFileSync(join(sortie, "rapport.json"), "utf8")) as { ok: boolean; code: number; erreurs: string[] };
+      expect(rapport, nom).toMatchObject({ ok: false, code: 4 });
+      expect(rapport.erreurs.length, nom).toBeGreaterThan(0);
+      expect(existsSync(join(sortie, "maquette")), nom).toBe(false);
+    }
+  });
+
+  it("un code du capteur non nul est renvoyé tel quel", () => {
+    const dir = temp();
+    expect(ecrireMaquette(["--description", ecrireDescription(dir, fluxBrut()), "--sortie", join(dir, "s"), "--apercu"], { ...sans().dep, lancerCapteur: () => ({ status: 5 }) })).toBe(5);
+  });
+
+  it("régression : une description de maquette donne toujours les 4 fichiers d'avant, sans etats.js ni charte jointe", () => {
+    const dir = temp();
+    const sortie = join(dir, "s");
+    expect(ecrireMaquette(["--description", ecrireDescription(dir), "--sortie", sortie], sans().dep)).toBe(CODE_OK);
+    expect(readdirSync(join(sortie, "maquette")).sort()).toEqual([...NOMS_FICHIERS].sort());
+    expect(existsSync(join(sortie, "charte"))).toBe(false);
   });
 });
 

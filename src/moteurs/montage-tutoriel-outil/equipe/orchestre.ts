@@ -269,11 +269,15 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): Pas
   const piece = phraseOuverte && !dossier ? manquePiece(cahier) : undefined;
   if (piece) {
     const p = e.pieceCreee;
-    if (!p) {
-      // Une seule proposition à la fois ; un refus déjà noté ne se rejoue pas tout seul (aucune reprise automatique).
-      if (appelsFaits(e, "maquettiste") >= 1 && (e.remarques?.maquettiste?.length ?? 0) > 0) return bloquee();
+    // Proposition demandée : 1 au départ ; 2 quand l'écran a noté « En proposer une autre » (pièce n° 2 « à construire »).
+    const numero: 1 | 2 = p?.proposition === 2 ? 2 : 1;
+    const refusNote = (e.remarques?.maquettiste?.length ?? 0) > 0;
+    // Un refus déjà noté pour cette proposition ne se rejoue pas tout seul (aucune reprise automatique).
+    if (p && numero === 2 && refusNote && appelsFaits(e, "maquettiste") >= 2) return bloquee();
+    if (!p || (numero === 2 && p.statut === "a-construire" && appelsFaits(e, "maquettiste") < 2)) {
+      if (appelsFaits(e, "maquettiste") >= numero && refusNote) return bloquee();
       // en attendant T-EXT-25b : le manque « flux-automatisation » n'existe pas encore dans MANQUES_MAQUETTISTE.
-      const entree = entreeMaquettiste(piece as ManqueMaquettiste, contextePiece(e, 1));
+      const entree = entreeMaquettiste(piece as ManqueMaquettiste, contextePiece(e, numero));
       return { faire: "maquettiste", payant: true, entree: avecRemarques(e, "maquettiste", entree), empreinteEntree: empreinteDe("maquettiste", avecRemarques(e, "maquettiste", entree)) };
     }
     const r = pasPieceCreee(p);

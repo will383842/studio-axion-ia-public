@@ -2215,7 +2215,10 @@ export interface ScriptMaitre extends EntiteBase {
   version: number;
   parentId?: Id;
   /** Idées de l'usine : codes de la ligne d'où vient le sujet (signature + parts). Absent hors usine. */
-  origineUsine?: { signature: string; parts: Record<string, string | null>; typeContenu: "video" | "carrousel" | "image" | "texte" | "story" };
+  origineUsine?: { signature: string; parts: Record<string, string | null>; typeContenu: "video" | "carrousel" | "image" | "texte" | "story";
+    /** Date (ISO) de la réponse réussie de l'Usine à « retenir » ; absente tant que l'Usine n'a pas confirmé. */
+    prevenueLe?: string;
+  };
   brief: {
     idee: string;
     /** FACULTATIVE ; devient une Matière. */

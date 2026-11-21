@@ -102,5 +102,6 @@ export async function ecrireSujetDeLUsine(
   const jugee = await d.ideesJugees.trouver((x) => x.signature === idee.signature && !x.utiliseeLe);
   if (jugee) await d.ideesJugees.modifier(jugee.id, { utiliseeLe: maintenant() });
   const prevenue = await retenirSujetUsine(origine, sujet.id);
+  if (prevenue) await d.scriptsMaitres.modifier(sujet.id, { origineUsine: { ...origine, prevenueLe: maintenant() } });
   return { id: sujet.id, rappelUsine: !prevenue };
 }

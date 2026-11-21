@@ -181,6 +181,7 @@ Profil neutre : rien de neuf. Le format garde sa vidéo d'aujourd'hui.
 - `motion` — profil neutre : rien de neuf
 - `podcast` — profil neutre : rien de neuf
 - `selfie` — profil neutre : rien de neuf
+- `tableau-de-bord` — profil neutre : rien de neuf
 - `ugc` — profil neutre : rien de neuf
 - `video-longue` — profil neutre : rien de neuf
 
@@ -208,6 +209,7 @@ Tous les réglages sont éteints dans le code : seule la valeur `true` allume. C
 | `podcast` | `bibliothequeVideo.podcast` |
 | `selfie` | `bibliothequeVideo.selfie` |
 | `tableau-anime` | `bibliothequeVideo.tableau-anime` |
+| `tableau-de-bord` | `bibliothequeVideo.tableau-de-bord` |
 | `tutoriel-outil` | `bibliothequeVideo.tutoriel-outil` |
 | `ugc` | `bibliothequeVideo.ugc` |
 | `video-longue` | `bibliothequeVideo.video-longue` |

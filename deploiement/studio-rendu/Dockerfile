@@ -68,6 +68,7 @@ COPY --chown=rendu:rendu src/briques/tableau-scene /app/src/briques/tableau-scen
 COPY --chown=rendu:rendu src/briques/schema-motion /app/src/briques/schema-motion
 # Plan de scènes (lot C) : composition `PlanDeScenes` (briques pures, jetons de la charte, police Manrope).
 COPY --chown=rendu:rendu src/briques/plan-scenes /app/src/briques/plan-scenes
+COPY --chown=rendu:rendu src/briques/plan-scenes-donnees /app/src/briques/plan-scenes-donnees
 COPY --chown=rendu:rendu src/briques/jetons-motion.ts /app/src/briques/jetons-motion.ts
 COPY --chown=rendu:rendu src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff2
 COPY --chown=rendu:rendu src/domaine/facecam-animee/plan.ts /app/src/domaine/facecam-animee/plan.ts

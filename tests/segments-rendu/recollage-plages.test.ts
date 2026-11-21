@@ -73,9 +73,11 @@ describe("recollage-plages : garde « éteint » (texte)", () => {
     const t = readFileSync(join(racine, "operations/recollage-plages.ts"), "utf8");
     expect(t).not.toMatch(/from\s+["'][^"']*(remotion-lambda|@remotion\/lambda)/);
   });
-  it("n'est citée dans aucun fichier d'aiguillage", () => {
-    for (const f of ["contrat.ts", "index.ts"]) expect(readFileSync(join(racine, f), "utf8")).not.toMatch(/recollage-plages/);
-    expect(readFileSync(join(__dirname, "../../src/fournisseurs/types.ts"), "utf8")).not.toMatch(/recollage-plages/);
+  it("est déclarée exactement là où elle doit l'être (contrat : type + OPERATIONS, types, index)", () => {
+    const compte = (texte: string) => (texte.match(/recollage-plages/g) ?? []).length;
+    expect(compte(readFileSync(join(racine, "contrat.ts"), "utf8"))).toBe(2);
+    expect(compte(readFileSync(join(__dirname, "../../src/fournisseurs/types.ts"), "utf8"))).toBe(1);
+    expect(compte(readFileSync(join(racine, "index.ts"), "utf8"))).toBe(3);
   });
 });
 

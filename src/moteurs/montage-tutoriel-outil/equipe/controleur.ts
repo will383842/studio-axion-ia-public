@@ -15,6 +15,7 @@ import type { EtapeCalee } from "../calage-scenario";
 import type { CarteZones } from "./analyste";
 import { DUREE_CIBLE_SEC, type CahierVideo } from "./chef-de-projet";
 import { controlesDiffusion, type EntreeDiffusion } from "../diffusion-tutoriel";
+import { controlerNettete, type RapportNettete } from "../nettete";
 import { controlerMarque, type TexteControle } from "./controle-marque";
 import type { ParcoursTutoriel } from "./realisateur";
 import { MOTS_ENTREPRISE, verifierVersion, type PhraseChoisie, type PropositionScripts, type ScriptChoisi, type VersionScript } from "./scenariste";
@@ -296,10 +297,12 @@ export interface EntreeVideoEssai {
   noms?: string[];
   chiffresAffiches?: boolean;
   mentionExemple?: boolean;
+  /** T-EXT-54c : netteté par étape (54d) et mesures sur tout le fichier (54a : noir, figé). Absent = verdict inchangé, aucun contrôle de netteté. */
+  nettete?: { rapport: RapportNettete; mesures: Partial<MesuresExport> };
 }
 
 export function controlerVideoEssai(e: EntreeVideoEssai): VerdictControleur {
-  const finie = controlerVideoFinie({ mesures: e.mesures, miseEnPage: e.miseEnPage, ratio: e.ratio, reseaux: e.reseaux, couleursRendues: e.couleursRendues, policesRendues: e.policesRendues });
+  const finie = controlerVideoFinie({ mesures: e.nettete ? { ...e.mesures, ...e.nettete.mesures } : e.mesures, miseEnPage: e.miseEnPage, ratio: e.ratio, reseaux: e.reseaux, couleursRendues: e.couleursRendues, policesRendues: e.policesRendues });
   const image: ResultatControleTutoriel[] = finie.image.controles.map((c) => ({ id: `IMAGE-${c.id}`, libelle: c.libelle, etat: c.etat, bloquant: c.bloquant, details: [c.raison] }));
   const charte: ResultatControleTutoriel[] = finie.charte.map((c) => ({ id: `IMAGE-${c.id}`, libelle: c.libelle, etat: c.etat, bloquant: c.bloquant, details: c.details.length ? c.details : [c.raison] }));
   /* Couleurs et police : jugées une seule fois, sur ce qui est réellement rendu (pièce commune). */
@@ -311,5 +314,5 @@ export function controlerVideoEssai(e: EntreeVideoEssai): VerdictControleur {
     chiffresAffiches: e.chiffresAffiches ?? false,
     mentionExemple: e.mentionExemple ?? false,
   }).filter((c) => c.id !== "MARQUE-COULEURS" && c.id !== "MARQUE-POLICE");
-  return etablirVerdict([...image, ...charte, ...marque]);
+  return etablirVerdict([...image, ...charte, ...marque, ...(e.nettete ? controlerNettete(e.nettete.rapport) : [])]);
 }

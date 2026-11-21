@@ -28,6 +28,7 @@ export const RENDU_COULEUR: Record<string, RenduCouleur> = {
   "image-video": NEUTRE_DESSINE,
   "tutoriel-outil": NEUTRE_DESSINE,
   "video-longue": NEUTRE_DESSINE,
+  "tableau-de-bord": NEUTRE_DESSINE,
   podcast: { lut: null, intensite: 60, nature: "filme" },
   "createur-b": NEUTRE_FILME,
   "ecran-partage": NEUTRE_FILME,

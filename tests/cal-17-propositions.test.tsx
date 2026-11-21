@@ -56,5 +56,9 @@ describe("CAL-17 · dans la semaine", () => {
     expect(html).not.toContain("data-glissable");
     expect(html).not.toContain("<button");
   });
-  it("sans lien vers « À valider », aucune carte n'est montrée (pas de cul-de-sac)", () => expect(rendre({ propositions: [{ entree: prop() }] })).not.toContain("data-proposition"));
+  it("sans lien vers « À valider », la carte est montrée, sans lien (l'adresse est facultative)", () => {
+    const html = rendre({ propositions: [{ entree: prop() }] });
+    expect(html).toContain("data-proposition");
+    expect(html).not.toContain("Voir dans À valider");
+  });
 });
