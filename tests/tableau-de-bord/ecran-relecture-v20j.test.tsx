@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import { ETAT_VIDE, VueRelectureTableau, type EtatEcran } from "../../src/components/formats/tableau-de-bord/EcranRelectureTableau";
+import { describe, expect, it, vi } from "vitest";
+import { EcranRelectureTableau, ETAT_VIDE, VueRelectureTableau, type EtatEcran } from "../../src/components/formats/tableau-de-bord/EcranRelectureTableau";
+
+import { attendre, monter } from "../aides/crochets-factices";
+
+vi.mock("react", async (o) => ({ ...(await o<typeof import("react")>()), ...(await import("../aides/crochets-factices")).crochets }));
 
 const image = { base64: "AAAA", type: "image/png" as const, largeur: 100, hauteur: 50 };
 const aRelire = [
@@ -58,5 +62,46 @@ describe("G4-08-b2 · écran de relecture (vue)", () => {
     expect(source).not.toMatch(/relecture-chiffres/);
     expect(source).not.toMatch(/\d+\s*(€|eur|usd|\$)/i);
     expect(source).not.toMatch(/@\/services|@\/fournisseurs|server-only/);
+  });
+
+  describe("conteneur (crochets factices)", () => {
+    type Props = Record<string, (...a: unknown[]) => unknown>;
+    const monterEcran = (ouvrir: () => Promise<unknown>, valider: () => Promise<unknown>) => {
+      (globalThis as Record<string, unknown>).createImageBitmap = async () => ({ width: 100, height: 50 });
+      (globalThis as Record<string, unknown>).document = { createElement: () => ({ getContext: () => ({ drawImage() {} }), toDataURL: () => "data:image/png;base64,AAAA" }) };
+      const m = monter(EcranRelectureTableau as never, { ouvrir, valider } as never);
+      return () => (m.rendre() as unknown as { props: Props }).props;
+    };
+
+    it("lecture réussie, toutes les décisions, puis « Valider les chiffres » : valider est appelé 1 fois avec le brouillon de l'ouverture", async () => {
+      const brouillon = { id: "brouillon-1" };
+      const ouvrir = vi.fn(async () => ({ etape: "relecture" as const, brouillon, aRelire }));
+      const valider = vi.fn(async () => ({ ok: true as const }));
+      const props = monterEcran(ouvrir, valider);
+      await props().onChoisir(new File(["x"], "c.png", { type: "image/png" }));
+      await attendre();
+      await props().onEnvoyer();
+      await attendre();
+      expect(ouvrir).toHaveBeenCalledTimes(1);
+      for (const c of aRelire) props().onDecider(c.cle, { type: "valide" });
+      await props().onValider();
+      await attendre();
+      expect(valider).toHaveBeenCalledTimes(1);
+      expect((valider.mock.calls[0] as unknown[])[0]).toBe(brouillon);
+    });
+
+    it("deux envois de suite, puis un envoi après la lecture : ouvrir n'est appelé qu'une fois", async () => {
+      const ouvrir = vi.fn(async () => ({ etape: "relecture" as const, brouillon: {}, aRelire }));
+      const props = monterEcran(ouvrir, async () => ({ ok: true }));
+      await props().onChoisir(new File(["x"], "c.png", { type: "image/png" }));
+      await attendre();
+      const envoi = props().onEnvoyer;
+      await Promise.all([envoi(), envoi()]);
+      await attendre();
+      expect(ouvrir).toHaveBeenCalledTimes(1);
+      await props().onEnvoyer();
+      await attendre();
+      expect(ouvrir).toHaveBeenCalledTimes(1);
+    });
   });
 });

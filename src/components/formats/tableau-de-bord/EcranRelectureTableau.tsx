@@ -129,11 +129,13 @@ export function EcranRelectureTableau({
   }
 
   async function envoyer() {
-    if (enCours.current || !etat.image) return;
+    if (enCours.current || !etat.image || etat.ouverture) return;
     enCours.current = true;
     maj({ envoi: true, erreurs: [] });
     try {
-      maj({ ouverture: await ouvrir(etat.image), envoi: false });
+      const ouverture = await ouvrir(etat.image);
+      enCours.current = false;
+      maj({ ouverture, envoi: false });
     } catch {
       enCours.current = false;
       maj({ envoi: false, erreurs: ["La lecture n'a pas abouti. Réessaie dans un instant."] });
