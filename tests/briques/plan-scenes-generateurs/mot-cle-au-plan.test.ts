@@ -1,5 +1,6 @@
 /** BR-MOT-CLE-a : pose du mot-clé de recherche au plan (fonction pure, sans appelant, éteint). */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { poserMotCleAuPlan, DUREE_MOT_CLE_MS } from "@/briques/plan-scenes-generateurs/mot-cle-au-plan";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
@@ -57,6 +58,18 @@ describe("BR-MOT-CLE-a · poserMotCleAuPlan", () => {
     const p = plan([legende("a", 1500, 3000, 3, 6, "devis sans stress")]);
     expect(poserMotCleAuPlan(p, MOTS, SUJET)).toBe(p);
   });
+  it("bornée par la durée : plan sans scène de 1900 ms, mot à 800 → rien (sans la borne, la scène irait à 2000, au-delà de la vidéo)", () => {
+    const p = { ...plan([]), dureeMs: 1900 };
+    expect(poserMotCleAuPlan(p, MOTS, SUJET)).toBe(p);
+  });
+  it("finMs = max(finMot, debutMs + 1200) : mot long 800→2400, plan 9000 ms sans scène → scène posée jusqu'à 2400", () => {
+    const longs: MotMinute[] = [mot("Voici", 0), mot("comment", 400), mot("relancer", 800, 2400), mot("un", 2500), mot("devis", 2900)];
+    const p = plan([]);
+    const [s] = ajoutee(p, poserMotCleAuPlan(p, longs, SUJET));
+    expect(s).toBeDefined();
+    expect(s!.debutMs).toBe(800);
+    expect(s!.finMs).toBe(2400);
+  });
   it("mot de plus de 24 lettres : rien", () => {
     const long = "anticonstitutionnellement";
     const p = plan();
@@ -79,5 +92,11 @@ describe("BR-MOT-CLE-a · poserMotCleAuPlan", () => {
     const src = readFileSync("src/briques/plan-scenes-generateurs/mot-cle-au-plan.ts", "utf8");
     expect(src).not.toMatch(/MOT_CLE_RECHERCHE_ACTIF[^\n]*(if|\?|&&)/);
     expect(src.replace(/\/\*[\s\S]*?\*\//, "")).not.toContain("MOT_CLE_RECHERCHE_ACTIF");
+  });
+  it("aucun importeur : aucun fichier de src ne cite mot-cle-au-plan hors lui-même", () => {
+    const fichiers: string[] = [];
+    const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
+    parcourir("src");
+    expect(fichiers.filter((f) => !f.endsWith("mot-cle-au-plan.ts") && readFileSync(f, "utf8").includes("mot-cle-au-plan"))).toEqual([]);
   });
 });
