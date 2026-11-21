@@ -202,14 +202,14 @@ async function videoFabriquee() {
 const OPERATION = [{ type: "changer-phrase", ecranId: "e06", avant: "notre annonce", apres: "notre petite annonce" }];
 
 /** Retouche menée au bout : textes lus par la voix, textes écrits des écrans, aperçu. */
-async function retouche(plus: Record<string, unknown> | null) {
+async function retouche(plus: Record<string, unknown> | null, operation: unknown[] = OPERATION) {
   const { b, c, parent } = await videoFabriquee();
   const commande = plus ? { ...c, entrees: { ...c.entrees, ...plus } } : c;
-  const apercu = estimerRetoucheCasConcret(commande, OPERATION, parent);
+  const apercu = estimerRetoucheCasConcret(commande, operation, parent);
   const lus = b.d.lus.length;
-  const t = await b.moteur.retoucher({ commande, contexte: ctx("t-2"), planIds: [], consigne: "Refaire la phrase", operations: ops(OPERATION), parent });
+  const t = await b.moteur.retoucher({ commande, contexte: ctx("t-2"), planIds: [], consigne: "Refaire la phrase", operations: ops(operation), parent });
   const fin = await avancerJusqua(b.moteur, commande, t);
-  expect(fin.travail.statut).toBe("termine");
+  if (fin.travail.statut !== "termine") throw new Error(JSON.stringify(fin.travail.erreur ?? fin.travail.etapes.filter((e) => e.statut === "echec")));
   const projet = fin.resultat!.projetMontage.casConcret as { fiche: { ecrans: { id: string; texteDit: string }[] } };
   return { lus: b.d.lus.slice(lus), ecrits: projet.fiche.ecrans.map((e) => `${e.id}:${e.texteDit}`), apercu: JSON.stringify(apercu), sousTitres: JSON.stringify(fin.resultat!.projetMontage.sousTitres ?? null) };
 }
@@ -221,11 +221,26 @@ describe("S2-16-b-v21p : le cas concret lit `prononciationsRetouche` pour la ret
     expect(sans.lus.join(" ")).toContain("notre petite annonce");
     expect(avec.lus.join(" ")).toContain("notre petite a-nonce");
     expect(avec.lus.join(" ")).not.toContain("petite annonce");
+    // Voix de départ de la retouche à la même prononciation : les fins (qui ne disent pas le mot) sont reprises, rien n'est relu en plus.
+    expect(avec.lus).toHaveLength(sans.lus.length);
     expect(avec.ecrits).toEqual(sans.ecrits);
     expect(avec.ecrits.join(" ")).toContain("notre petite annonce");
     expect(avec.sousTitres).toEqual(sans.sousTitres);
     // L'aperçu (réservation de la retouche) compte aussi le texte lu à jour.
     expect(avec.apercu).not.toEqual(sans.apercu);
+  });
+
+  it("(b) seule la prononciation change (le texte écrit est le même) : la prise qui dit le mot est relue en plus, avec la prononciation à jour", async () => {
+    // « Changer le mot » ne relit que les fins ; le corps (qui dit « annonce ») est repris tel quel sans prononciation neuve.
+    const mot = [{ type: "changer-mot", mot: "RDV", motDit: "R.D.V." }];
+    const sans = await retouche(null, mot);
+    expect(sans.lus.join(" ")).not.toContain("notre annonce");
+    const avec = await retouche({ prononciationsRetouche: [{ mot: "annonce", prononciation: "a-nonce" }] }, mot);
+    // Avec la prononciation à jour, la prise du corps n'est plus la même : elle est relue, avec « a-nonce ».
+    expect(avec.lus.filter((t) => t.includes("notre a-nonce"))).toHaveLength(1);
+    expect(avec.lus.join(" ")).not.toContain("notre annonce");
+    expect(avec.lus.length).toBe(sans.lus.length + 1);
+    expect(avec.ecrits).toEqual(sans.ecrits);
   });
 
   it("(e) sans `prononciationsRetouche` (ou pas un tableau) : retouche identique au caractère près ; entrées mal formées ignorées", async () => {
