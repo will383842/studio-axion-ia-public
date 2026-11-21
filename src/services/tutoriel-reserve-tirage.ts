@@ -27,7 +27,7 @@ import {
 } from "@/domaine/tutoriel-reserve";
 import { usdVersEur } from "@/lib/montants";
 import type { StatutVideo, TypeNotification } from "@/domaine/types";
-import { creerVerrou, depots, ErreurStudio, lireParametre, maintenant as maintenantReel } from "./_commun";
+import { creerVerrou, ErreurStudio, lireParametre, maintenant as maintenantReel } from "./_commun";
 import { avecOrigineFournisseur } from "./plafond-fournisseur";
 import type { IssueLancementReserve } from "./tutoriel-reserve-lancement";
 import { changerEtatReserve, lireElementReserve, lireReglagesReserve, lireTirageReserve, listerReserve, noterVideoDuTirage, prendreSuivantReserve } from "./tutoriel-reserve";
@@ -98,8 +98,7 @@ export interface DependancesTirage {
 /** Seul `true` exact allume ; une lecture qui lève éteint. Seules deux clés sont lues : l'équipe et le devis avant dépense. */
 async function interrupteurParDefaut(cle: string): Promise<boolean> {
   try {
-    // Lecture directe du dépôt : `tutoriel.equipe` n'est pas classée par le filet des interrupteurs (RES-1 la possède).
-    if (cle === PARAM_EQUIPE_TUTORIEL) return (await depots().parametres.obtenir(PARAM_EQUIPE_TUTORIEL))?.valeur === true;
+    if (cle === PARAM_EQUIPE_TUTORIEL) return (await lireParametre<unknown>(PARAM_EQUIPE_TUTORIEL, false)) === true;
     if (cle === CLE_DEVIS_AVANT_DEPENSE) return (await lireParametre<unknown>(CLE_DEVIS_AVANT_DEPENSE, false)) === true;
     return false;
   } catch {
@@ -114,8 +113,7 @@ async function interrupteursParDefaut(): Promise<InterrupteursTutoriel> {
 
 async function plafondVideoParDefautUsd(e: ElementReserve): Promise<number> {
   const { PARAM_PLAFOND_TUTORIEL, plafondTutorielParDefautUsd, plafondTutorielPhraseUsd } = await import("./tutoriel-claude");
-  // Lecture directe du dépôt (la clé `tutoriel.plafondClaudeUsd` est lue par la chaîne du tutoriel, pas classée par ce fichier).
-  const regle = (await depots().parametres.obtenir(PARAM_PLAFOND_TUTORIEL))?.valeur;
+  const regle = await lireParametre<unknown>(PARAM_PLAFOND_TUTORIEL, null);
   if (typeof regle === "number" && Number.isFinite(regle) && regle > 0) return regle;
   return e.source.type === "idee" ? plafondTutorielPhraseUsd() : plafondTutorielParDefautUsd();
 }
@@ -138,6 +136,7 @@ async function sousPlafondUsineParDefaut(besoin: number): Promise<boolean> {
 /** RES-2 (`fichierDeMaquetteDemo`) peut ne pas être encore sur cette branche : son absence rend l'élément « à revoir », jamais une dépense. */
 async function fichierDemoParDefaut(e: ElementReserve): Promise<{ fichierId: string }> {
   try {
+    // TODO : passer en import statique au rebase après RES-2.
     // Spécificateur en deux morceaux constants : tsc ne résout pas le module (RES-2 n'est pas encore sur cette branche), le
     // bundler le résout une fois RES-2 présente (signature figée au plan § 4.3). Absent : erreur attrapée plus bas.
     const m = (await import("./tutoriel-reserve-" + "maquettes")) as { fichierDeMaquetteDemo: (e: ElementReserve) => Promise<{ fichierId: string }> };

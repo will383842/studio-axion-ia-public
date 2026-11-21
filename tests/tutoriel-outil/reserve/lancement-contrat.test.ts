@@ -21,6 +21,7 @@ async function entreesDuDepot(demande: Parameters<typeof deposerTutoriel>[0]): P
   let recu: Record<string, unknown> | undefined;
   await deposerTutoriel(demande, {
     interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
+    equipe: async () => true,
     fichier: async (id) => ({ id, nom: "mon-dossier.zip", taille: 10, cleStockage: "k" }),
     octets: async () => new Uint8Array(1),
     extraire: async () => ({ ok: true }) as never,

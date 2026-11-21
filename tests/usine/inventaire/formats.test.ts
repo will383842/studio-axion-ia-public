@@ -24,6 +24,8 @@ export const DOMAINE: Domaine = {
       motif: /lireReglagesReserveBrut\(await lireParametre<unknown>\(PARAM_RESERVE_REGLAGES, null\)\)/,
       aussi: [["src/domaine/tutoriel-reserve.ts", /REGLAGES_RESERVE_DEFAUT: ReglagesReserve = \{\s*actif: false/]],
     },
+    // RES-3 : équipe de rôles, lue par le tirage de la réserve ; éteinte, seul `true` exact allume (même lecture que `equipeTutorielActive`).
+    { cle: "tutoriel.equipe", etat: "eteint", appel: "src/services/tutoriel-reserve-tirage.ts", declare: "src/services/tutoriel-equipe.ts", motif: /lireParametre<unknown>\(PARAM_EQUIPE_TUTORIEL, false\)\) === true/ },
     { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
     { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
     { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
@@ -106,6 +108,7 @@ export const DOMAINE: Domaine = {
     "tutoriel.reserve.index": "memoire", // RES-1 : index FIFO de la réserve (données, pas un interrupteur)
     "tutoriel.reserve.historique": "memoire", // RES-1 : historique des tirages
     "facecam.plafondVersionUsd": "valeur",
+    "tutoriel.plafondClaudeUsd": "valeur", // RES-3 : plafond Claude d'une vidéo (nombre > 0 sinon défaut du mode), lu par le tirage
     "moteur.*": "valeur",
   },
   parExpression: {
@@ -130,6 +133,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 10, parExpression: 18, env: 0 },
+  nombre: { litterales: 8, constantes: 21, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 18, env: 0 },
   retirees: [],
 };
