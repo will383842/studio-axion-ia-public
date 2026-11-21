@@ -17,7 +17,7 @@ import type { Fichier } from "@/domaine/types";
 import type { StockageFichiers } from "@/fournisseurs/types";
 import { lireZip } from "@/lib/zip";
 import { MAQUETTES_DEMO, fichierDeMaquetteDemo, zipDeMaquetteDemo } from "@/services/tutoriel-reserve-maquettes";
-import { ajouterElementReserve, lireElementReserve } from "@/services/tutoriel-reserve";
+import { ajouterElementReserve, changerEtatReserve, lireElementReserve } from "@/services/tutoriel-reserve";
 import { extraireZipSur, type PortsZip } from "@/services/zip-tutoriel";
 
 const PORTS_OUVERTS: PortsZip = { lireParametre: async () => true, inflate: (d, max) => inflateRawSync(d, { maxOutputLength: max }), journaliser: async () => {} };
@@ -98,6 +98,7 @@ const nouvelElement = () => ajouterElementReserve({ id: "demo-05-stocks", titre:
 describe("fichierDeMaquetteDemo", () => {
   it("deux appels (séquentiels ou simultanés) : un seul dépôt, même fichier, noté sur l'élément", async () => {
     const e = await nouvelElement();
+    await changerEtatReserve(e.id, "pris"); // la note du fichier n'est permise que sur un élément pris (RES-1)
     const { compte, dep } = banc();
     const [a, b] = await Promise.all([fichierDeMaquetteDemo(e, dep), fichierDeMaquetteDemo(e, dep)]);
     const c = await fichierDeMaquetteDemo(e, dep); // `e` périmé : l'élément relu fait foi
@@ -108,7 +109,7 @@ describe("fichierDeMaquetteDemo", () => {
     expect(f).toMatchObject({ origine: "depot", statut: "pret", mime: "application/zip", taille: 3 });
     expect(f.cleStockage?.split("/").slice(2, 4)).toEqual(["entree", "tutoriel-reserve"]);
     const lu = (await lireElementReserve("demo-05-stocks")) as ElementReserve;
-    expect(lu.etat).toBe("en_reserve");
+    expect(lu.etat).toBe("pris");
     expect(lu.source).toMatchObject({ type: "maquette-demo", fichierId: a.fichierId });
   });
   it("stockage sans dépôt signé (simulation) : RESERVE_STOCKAGE, rien n'est écrit", async () => {

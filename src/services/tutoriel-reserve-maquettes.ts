@@ -12,14 +12,14 @@
 import "server-only";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
-import { cleElementReserve, type ElementReserve } from "@/domaine/tutoriel-reserve";
+import type { ElementReserve } from "@/domaine/tutoriel-reserve";
 import type { Fichier } from "@/domaine/types";
 import type { StockageFichiers } from "@/fournisseurs/types";
 import { creerZip } from "@/lib/zip";
 import { nouvelId } from "@/lib/ids";
 import { TAILLE_ZIP_MAX } from "@/moteurs/montage-tutoriel-outil/securite-entrees";
-import { depots, ecrireParametre, ErreurStudio, fournisseur, horodatage, sousVerrou } from "./_commun";
-import { lireElementReserve } from "./tutoriel-reserve";
+import { depots, ErreurStudio, fournisseur, horodatage } from "./_commun";
+import { lireElementReserve, noterFichierDemoReserve } from "./tutoriel-reserve";
 
 export interface MaquetteDemo {
   id: `demo-0${1 | 2 | 3 | 4 | 5 | 6 | 7}-${string}`;
@@ -136,13 +136,9 @@ async function televerserParDefaut(adresse: string, octets: Uint8Array, mime: st
   if (!r.ok) throw new ErreurStudio("RESERVE_STOCKAGE", "La maquette de démonstration n'a pas pu être déposée au stockage.");
 }
 
-/** Ne touche que `source.fichierId` d'une maquette de démo, sous le verrou ; l'état et les passages restent intacts. */
+/** Ne touche que `source.fichierId` d'une maquette de démo : écriture protégée de la réserve (RES-1), état et passages intacts. */
 async function noterParDefaut(elementId: string, fichierId: string): Promise<void> {
-  await sousVerrou(async () => {
-    const e = await lireElementReserve(elementId);
-    if (!e || e.source.type !== "maquette-demo") return;
-    await ecrireParametre(cleElementReserve(elementId), { ...e, source: { ...e.source, fichierId } });
-  });
+  await noterFichierDemoReserve(elementId, fichierId);
 }
 
 /** Un seul dépôt à la fois par élément (deux appels simultanés partagent le même travail). */
@@ -152,7 +148,7 @@ const enCours = new Map<string, Promise<{ fichierId: string }>>();
  * SANS session. Rend `source.fichierId` s'il existe et que le Fichier est « pret » ; sinon fabrique le zip, le dépose au
  * stockage, enregistre le Fichier (origine « depot », statut « pret », même forme que `terminerEnvoi`) et le note sur l'élément.
  * Stockage sans dépôt signé (simulation) : `ErreurStudio("RESERVE_STOCKAGE")` ; rien n'est écrit.
- * Ne JAMAIS l'appeler sous `sousVerrou` : elle prend elle-même le verrou (note du fichier) et fait des envois réseau longs.
+ * Ne JAMAIS l'appeler sous `sousVerrou` ni `sousVerrouCredits` : elle prend le verrou de la réserve (note du fichier, RES-1) et fait des envois réseau longs.
  */
 export async function fichierDeMaquetteDemo(e: ElementReserve, dep: DependancesMaquetteDemo = {}): Promise<{ fichierId: string }> {
   if (e.source.type !== "maquette-demo" || !dossierConnu(e.source.dossier)) throw new ErreurStudio("RESERVE_MAQUETTE", "Cet élément n'est pas une maquette de démonstration.");
