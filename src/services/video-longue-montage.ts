@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 import type { CommandeFabrication, MotHorodate } from "@/domaine/types";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
+import { ErreurRendu } from "@/fournisseurs/rendu/client";
 import type { SegmentCale } from "@/briques/plan-scenes-generateurs/adaptateur";
 import { donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
 import { COMPOSITION_VIDEO_LONGUE, type DependancesVideoLongue } from "@/moteurs/montage-video-longue/chaine";
@@ -66,6 +67,8 @@ const empreinte = (v: unknown): string => createHash("sha256").update(JSON.strin
 const idSur = (v: string): string => v.replace(/[^A-Za-z0-9_.:-]/g, "_");
 /** Identifiant d'un morceau/collage : borné à 120 caractères (le début est haché si le tout est trop long). */
 const idBorne = (v: string): string => (v.length <= 100 ? v : `${v.slice(0, 60)}-${createHash("sha256").update(v).digest("hex").slice(0, 24)}`);
+/** Erreurs réessayables consécutives de lecture d'état tolérées avant d'échouer la plage. */
+const MAX_ERREURS_ETAT_DE_SUITE = 5;
 const attendreParDefaut = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Segments d'un chapitre, calés sur le temps des mots, en temps de la vidéo ENTIÈRE. PUR. */
@@ -103,14 +106,25 @@ export function chapitresPourPlan(ctx: Contexte): ChapitrePourPlan[] {
 /** Soumet une demande et attend sa fin ; `inconnu` = le conteneur a redémarré : même demande, soumise à nouveau. */
 async function soumettreEtAttendre(demande: DemandeRendu, ports: PortsMontageVideoLongue, signal: AbortSignal): Promise<{ sortieCle: string }> {
   const attendre = ports.attendre ?? attendreParDefaut;
+  const intervalle = ports.intervalleMs ?? INTERVALLE_ETAT_RENDU_MS;
   await ports.rendu.soumettre(demande);
+  let erreursDeSuite = 0;
   for (;;) {
     if (signal.aborted) throw new Error("délai dépassé");
-    const e = await ports.rendu.etat(demande.idRendu);
+    let e: Awaited<ReturnType<ServiceRendu["etat"]>>;
+    try {
+      e = await ports.rendu.etat(demande.idRendu);
+      erreursDeSuite = 0;
+    } catch (err) {
+      // Une lecture d'état qui échoue (réseau, service redémarré) ne perd pas la plage : quelques essais espacés d'abord.
+      if (!(err instanceof ErreurRendu) || !err.reessayable || ++erreursDeSuite >= MAX_ERREURS_ETAT_DE_SUITE) throw err;
+      await attendre(intervalle);
+      continue;
+    }
     if (e.statut === "termine") return { sortieCle: e.sortieCle || demande.sortie.cle };
     if (e.statut === "echec") throw new Error(`Le rendu a échoué : ${e.erreur.message}`);
     if (e.statut === "inconnu") await ports.rendu.soumettre(demande);
-    else await attendre(ports.intervalleMs ?? INTERVALLE_ETAT_RENDU_MS);
+    await attendre(intervalle); // y compris après un renvoi : pas de boucle serrée sur un service qui répond « inconnu »
   }
 }
 
