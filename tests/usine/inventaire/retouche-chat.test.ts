@@ -19,13 +19,14 @@ export const DOMAINE: Domaine = {
     "retoucheChat.facecamAnimee": "eteint",
     "retoucheChat.tutorielOutil": "eteint",
     "retoucheChat.videoLongue": "eteint",
+    "retoucheChat.demoFacecam": "eteint",
   },
   exclusCles: {},
   parExpression: {
     "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },
-    "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 5 de CLES_REGLAGE_RETOUCHE
+    "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 6 de CLES_REGLAGE_RETOUCHE
   },
   env: [],
-  nombre: { litterales: 1, constantes: 2, gabarits: 0, planScenes: 0, retouche: 5, exclusCles: 0, parExpression: 2, env: 0 },
+  nombre: { litterales: 1, constantes: 2, gabarits: 0, planScenes: 0, retouche: 6, exclusCles: 0, parExpression: 2, env: 0 },
   retirees: [],
 };
