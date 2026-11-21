@@ -322,7 +322,8 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (cameras) image.cameras = cameras;
   if (e.planScenes && e.planScenesSousTexte !== true) image.planScenes = e.planScenes;
   // C10-04b : fond flouté sous le carton magazine, posé seulement s'il y a un carton (sinon, paramètres identiques).
-  { const f = fondFlouObjets(image.planScenes); if (f.length) image.fondFlouCartes = f; }
+  // FOND-FLOU-C10-04-c : ni flou quand la piste du double couvre le décor (vraie prise filmée, look réel, fond uni) : `opaque`.
+  { const f = fondFlouObjets(image.planScenes); if (f.length && !opaque) image.fondFlouCartes = f; }
   // BR-TABLEAU-RACCORDS-b : fondus entre scènes, seulement si la commande porte `raccordsTableau === true` (jamais une chaîne).
   if ((c.entrees as Record<string, unknown> | undefined)?.raccordsTableau === true) { const r = raccordsStyleMontage(image.plans, "fondu"); if (r.length) image.raccords = r; }
 
