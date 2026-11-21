@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { plagesARerendre, planRecollage } from "../../../src/briques/rendu-par-plages";
+import { demandesRecollage, ENTREE_AVANT, ENTREE_VOIX, plagesARerendre, planRecollage } from "../../../src/briques/rendu-par-plages";
 import { avecEmpreintes } from "../../../src/briques/plan-scenes/empreinte";
 import type { PlanDeScenes, ScenePlan } from "../../../src/briques/plan-scenes/schema";
 import { VERSION_PLAN_SCENES } from "../../../src/briques/plan-scenes/schema";
@@ -90,6 +90,36 @@ describe("planRecollage", () => {
     expect(planRecollage(e)).toEqual(planRecollage(e));
     expect(planRecollage({ ...e, dureeTotaleImages: 0 }).segments).toEqual([]);
   });
+});
+
+describe("demandesRecollage (T-EXT-52c)", () => {
+  const plan = planRecollage({ plages: [{ debut: 180, fin: 269 }], dureeTotaleImages: 500, fichierAvant: "a.mp4", voixAvant: "v.mp3" });
+  const p = demandesRecollage(plan, { fps: 25, dureeTotaleImages: 500 });
+  it("segments contigus en secondes (image fin comprise = (fin + 1) / 25), plage nommée, durée totale", () => {
+    expect(p.segments).toEqual([
+      { source: "avant", debutSec: 0, finSec: 7.2 },
+      { source: "plage", entree: "plage-0", dureeSec: 3.6 },
+      { source: "avant", debutSec: 10.8, finSec: 20 },
+    ]);
+    expect(p.dureeSec).toBe(20);
+    // Les segments « avant » et « plage » couvrent exactement la durée : 7,2 + 3,6 + (20 − 10,8).
+    expect(7.2 + 3.6 + (20 - 10.8)).toBeCloseTo(p.dureeSec, 9);
+  });
+  it("conversion images → secondes à 25 i/s", () => {
+    const r = demandesRecollage(planRecollage({ plages: [{ debut: 25, fin: 49 }], dureeTotaleImages: 100, fichierAvant: "a.mp4" }), { fps: 25, dureeTotaleImages: 100 });
+    expect(r.segments).toEqual([
+      { source: "avant", debutSec: 0, finSec: 1 },
+      { source: "plage", entree: "plage-0", dureeSec: 1 },
+      { source: "avant", debutSec: 2, finSec: 4 },
+    ]);
+  });
+  it("voix posée : nommée quand le plan la pose, absente sinon ; le fichier d'avant est toujours nommé", () => {
+    expect(p.voix).toBe(ENTREE_VOIX);
+    expect(p.avant).toBe(ENTREE_AVANT);
+    const sans = demandesRecollage(planRecollage({ plages: [{ debut: 5, fin: 9 }], dureeTotaleImages: 50, fichierAvant: "a.mp4" }), { fps: 25, dureeTotaleImages: 50 });
+    expect("voix" in sans).toBe(false);
+  });
+  it("même entrée = même sortie", () => expect(demandesRecollage(plan, { fps: 25, dureeTotaleImages: 500 })).toEqual(p));
 });
 
 describe("pureté de la brique", () => {

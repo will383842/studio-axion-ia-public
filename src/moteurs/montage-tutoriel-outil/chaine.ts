@@ -30,6 +30,8 @@ import type { AudioMaitre } from "@/briques/voix-maitre/types";
 import { horodaterTexte } from "@/domaine/derivations";
 import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorodate, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
 import { empreinteEffetsFilm, empreinteFormat, filmReutilisable, formatsARefaire, type FilmTutoriel } from "./rendu-partiel";
+import { demandesRecollage, ENTREE_AVANT, ENTREE_VOIX, entreePlage, plagesARerendre, planRecollage, type PlageImages } from "@/briques/rendu-par-plages";
+import { TRANSITION_MAX_MS } from "@/briques/plan-scenes/zones";
 import { ErreurRendu, suivreRendu } from "@/fournisseurs/rendu/client";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { hautBandeSousTitresPct } from "../../briques/plan-scenes/tutoriel/motion-film";
@@ -43,7 +45,7 @@ import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
 import { ENTREE_TUTORIEL, estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { finDuTutoriel, type FinDuTutoriel } from "./fin";
-import { COMPOSITION_TUTORIEL, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
+import { COMPOSITION_TUTORIEL, dureeImagesTutoriel, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
@@ -660,6 +662,96 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
   };
 }
 
+/**
+ * T-EXT-52c : retouche par plages. Réglage allumé, finitions éteintes et SEUL le plan a changé (voix, effets du film et fin
+ * identiques à la version d'avant : preuve par l'empreinte du format d'avant recalculée avec le nouveau reste) : les plages d'images
+ * des scènes touchées. Sinon (ou « entier » / « aucun ») : `undefined`, le rendu est celui d'aujourd'hui.
+ * Les images clés du fichier d'avant ne sont pas connues ici (le rendu du tutoriel ne les fixe pas) : `imagesCle` n'est pas passé,
+ * et l'opération de recollage refuse toute borne qui n'est pas une image clé (alors : rendu entier, voir `pasRenduRecollage`).
+ */
+function choixPlages(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel): { plages: PlageImages[]; avant: string; voix: string; total: number } | undefined {
+  const p = etat.parent;
+  const plan = etat.plan?.plan;
+  const sortieAvant = p?.rendus?.[ratio];
+  const voixAvant = p?.audio?.fichierCle;
+  if (outils.retouchePartielle !== true || outils.finitions?.actif || !p?.plan || !plan || !sortieAvant || !voixAvant || !p.empreintesFormats?.[ratio]) return undefined;
+  if (!etat.audio || etat.audio.fichierCle !== voixAvant || !p.audio?.empreinte || p.audio.empreinte !== etat.audio.empreinte) return undefined;
+  if (p.plan.dureeMs !== plan.dureeMs) return undefined;
+  if (empreinteDuFormat({ ...etat, plan: { ...etat.plan!, plan: p.plan } }, ratio, commande, outils) !== p.empreintesFormats[ratio]) return undefined;
+  const avant = planPourRatio(p.plan, ratio);
+  const apres = planPourRatio(plan, ratio);
+  const memesScenes = avant.scenes.length === apres.scenes.length && avant.scenes.every((s, i) => s.id === apres.scenes[i]!.id && s.debutMs === apres.scenes[i]!.debutMs && s.finMs === apres.scenes[i]!.finMs);
+  if (!memesScenes) return undefined;
+  const total = dureeImagesTutoriel({ plan: apres, finMs: finRetenue(etat, commande, outils).finMs });
+  if (Math.abs(sortieAvant.dureeSec * apres.format.fps - total) > 1) return undefined;
+  const r = plagesARerendre(apres, scenesARerendre(avant, apres), { fps: 25, dureeTotaleImages: total, transitionMaxMs: TRANSITION_MAX_MS });
+  return r.mode === "plages" ? { plages: r.plages, avant: sortieAvant.fichierCle, voix: voixAvant, total } : undefined;
+}
+
+/** Une demande `composition` en `mode: "plage"`, MUETTE (aucune entrée « audio »), mêmes propriétés complètes que le rendu d'origine. */
+async function demandePlage(etat: EtatTutoriel, ratio: Ratio, i: number, plage: PlageImages, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<DemandeRendu> {
+  const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}-plage${i}.mp4`);
+  const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  const signe = await outils.rendu.signer(nav ? { filmNavigation: nav.videoCle } : {}, { cle, mime: "video/mp4" });
+  return {
+    idRendu: `${travailId}-${nomRatio(ratio)}-plage${i}-0`,
+    operation: "composition",
+    file: "longue",
+    entrees: signe.lectures,
+    sortie: { urlDepot: signe.urlDepot, cle },
+    parametres: {
+      composition: COMPOSITION_TUTORIEL,
+      proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav, commande),
+      mode: "plage",
+      debut: plage.debut,
+      fin: plage.fin,
+      recollable: true,
+    },
+  };
+}
+
+/** La demande `recollage-plages` : fichier d'avant + morceaux muets + VOIX D'AVANT. `avecAdresses` faux : forme seulement (adresses signées au moment d'envoyer). */
+async function demandeRecollage(etat: EtatTutoriel, ratio: Ratio, ch: NonNullable<ReturnType<typeof choixPlages>>, outils: OutilsTutoriel, travailId: string, avecAdresses: boolean): Promise<DemandeRendu> {
+  const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}.mp4`);
+  const parametres = demandesRecollage(planRecollage({ plages: ch.plages, dureeTotaleImages: ch.total, fichierAvant: ch.avant, voixAvant: ch.voix }), { fps: 25, dureeTotaleImages: ch.total });
+  const lectures: Record<string, string> = { [ENTREE_AVANT]: ch.avant, [ENTREE_VOIX]: ch.voix, ...Object.fromEntries(ch.plages.map((_, i) => [entreePlage(i), outils.rendu.cle(`tutoriel-${nomRatio(ratio)}-plage${i}.mp4`)])) };
+  const signe = avecAdresses ? await outils.rendu.signer(lectures, { cle, mime: "video/mp4" }) : { lectures: {}, urlDepot: "" };
+  void etat;
+  return { idRendu: `${travailId}-${nomRatio(ratio)}-recollage-0`, operation: "recollage-plages", file: "longue", entrees: signe.lectures, sortie: { urlDepot: signe.urlDepot, cle }, parametres: { ...parametres } };
+}
+
+/** Le suivi d'un format rendu par plages : plages muettes, puis recollage. Tout refus ou échec : rendu entier comme aujourd'hui (+ réserve). */
+async function pasRenduRecollage(etat: EtatTutoriel, ratio: Ratio, courant: RenduTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<EtatTutoriel> {
+  const service = outils.rendu.service();
+  const remplacer = (r: RenduTutoriel): EtatTutoriel => ({ ...etat, rendus: [...etat.rendus.filter((x) => x.ratio !== ratio), r] });
+  const entier = async (): Promise<EtatTutoriel> => {
+    const demande = await demandeRendu(etat, ratio, 0, commande, outils, travailId);
+    await service.soumettre(demande);
+    const reserve = `Le format ${ratio} a été refait en entier (le rendu par morceaux n'a pas pu servir).`;
+    return { ...remplacer({ ratio, demande, essai: 0 }), reserves: etat.reserves.includes(reserve) ? etat.reserves : [...etat.reserves, reserve] };
+  };
+  const ch = choixPlages(etat, ratio, commande, outils);
+  if (!ch || courant.aSoumettre) return entier();
+  if (courant.aEnvoyer) {
+    const demandes = await Promise.all(ch.plages.map((p, i) => demandePlage(etat, ratio, i, p, commande, outils, travailId)));
+    const suivis = await Promise.all(demandes.map((d) => suivreRendu(service, d)));
+    if (suivis.some((e) => e.statut === "echec")) return entier();
+    if (suivis.some((e) => e.statut !== "termine")) return etat;
+    const demande = await demandeRecollage(etat, ratio, ch, outils, travailId, true);
+    await service.soumettre(demande);
+    const { aEnvoyer: _e, ...envoye } = courant;
+    void _e;
+    return remplacer({ ...envoye, demande });
+  }
+  const e = await suivreRendu(service, courant.demande);
+  if (e.statut === "echec") return entier();
+  if (e.statut !== "termine") return etat;
+  const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : ch.total / 25;
+  // La demande gardée prend la forme d'un rendu entier (jamais soumise) : le regard et les dimensions du résultat la lisent.
+  const forme = await demandeRendu(etat, ratio, 0, commande, outils, travailId);
+  return remplacer({ ratio, demande: forme, essai: 0, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
+}
+
 /** Un pas de rendu d'un ratio : soumettre, suivre, ressoumettre après un échec passager. */
 async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<EtatTutoriel> {
   const service = outils.rendu.service();
@@ -668,11 +760,19 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
   const courant = etat.rendus.find((r) => r.ratio === ratio);
   const remplacer = (r: RenduTutoriel) => ({ ...etat, rendus: [...etat.rendus.filter((x) => x.ratio !== ratio), r] });
   if (!courant) {
+    // T-EXT-52c : seules les scènes touchées sont rendues (muettes), puis recollées dans le fichier d'avant. Éteint : jamais ici.
+    const ch = choixPlages(etat, ratio, commande, outils);
+    if (ch) {
+      const plages = await Promise.all(ch.plages.map((p, i) => demandePlage(etat, ratio, i, p, commande, outils, travailId)));
+      for (const d of plages) await service.soumettre(d);
+      return remplacer({ ratio, demande: await demandeRecollage(etat, ratio, ch, outils, travailId, false), essai: 0, aEnvoyer: true });
+    }
     const demande = await demandeRendu(etat, ratio, 0, commande, outils, travailId);
     await service.soumettre(demande);
     return remplacer({ ratio, demande, essai: 0 });
   }
   if (courant.sortie) return etat;
+  if (courant.demande.operation === "recollage-plages") return pasRenduRecollage(etat, ratio, courant, commande, outils, travailId);
   // T-EXT-45b : une demande inscrite mais pas encore soumise est soumise telle quelle (même identifiant), AVANT tout calcul de série neuve.
   // Si `soumettre` lève après acceptation (réponse perdue), l'état gardé porte cette demande : le « Réessayer » suivant la ressoumet sous le même identifiant.
   if (courant.aEnvoyer) {
