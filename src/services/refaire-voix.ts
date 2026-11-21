@@ -47,7 +47,6 @@ async function allume(): Promise<boolean> {
 export async function dejaEngageRefaireVoixCentimes(videoId: Id, taux: number): Promise<number> {
   const d = depots();
   const travaux = new Set((await d.retouches.lister((r) => r.videoId === videoId)).flatMap((r) => (r.travailId ? [r.travailId] : [])));
-  if (!travaux.size) return 0;
   const depense = (await d.depenses.lister((x) => !!x.travailId && travaux.has(x.travailId))).flatMap((x) => x.lignes ?? []).filter((l) => l.unite === "caractere").reduce((s, l) => s + l.total.centimes, 0);
   const reserve = (await d.reservations.lister((r) => r.statut === "active" && !!r.travailId && travaux.has(r.travailId) && r.fournisseur === "heygen")).reduce((s, r) => s + (r.devise === "EUR" ? r.centimes : r.centimes * taux), 0);
   return depense + reserve;

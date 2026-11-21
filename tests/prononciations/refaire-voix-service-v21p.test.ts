@@ -162,6 +162,13 @@ describe("S2-16-b-v21p : service « refaire la voix »", () => {
     expect(rv.PLAFOND_REFAIRE_VOIX_CENTIMES_EUR).toBe(60);
   });
 
+  it("sans session : refus avant toute lecture, rien n'est lancé", async () => {
+    await preparer();
+    reinitialiserRequete();
+    await expect(refaire()).rejects.toThrow();
+    expect(lance.appels).toHaveLength(0);
+  });
+
   it("(d) format « impossible » (face caméra) : refus clair, rien n'est lancé", async () => {
     await preparer({ formatId: "facecam" });
     const r = await refaire();
