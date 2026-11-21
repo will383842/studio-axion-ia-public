@@ -44,9 +44,13 @@ COPY src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff
 RUN mkdir -p /app/outils/maquettes-tableaux-de-bord/maquette /app/outils/maquettes-tableaux-de-bord/charte /entree /sortie \
   && chown pwuser:pwuser /sortie
 
+# UN SEUL uid : celui de `pwuser` (1001 : l'image Playwright part d'ubuntu:noble, qui a déjà `ubuntu` = 1000). Le même
+# que `user:` du compose (tests/deploiement/studio-capture.test.ts) ; la construction échoue si l'image change d'uid.
+RUN test "$(id -u pwuser)" = "1001" && test "$(id -g pwuser)" = "1001"
+
 # Vérification à la construction : la construction ÉCHOUE si le poste n'est pas bon (verifier-poste sort 0 seulement
 # si Playwright 1.63.0, Chromium, FFmpeg >= 6 et ses filtres, la police et l'espace libre sont bons). Ne lance pas le navigateur.
-USER pwuser
+USER 1001:1001
 RUN node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction
 
 # Durée bornée à 15 min (SIGTERM, puis SIGKILL 30 s après) : le compose n'a pas de limite de durée.

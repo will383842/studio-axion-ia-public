@@ -76,6 +76,51 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
     expect(service).toMatch(/^\s+- no-new-privileges:true\s*$/m);
     expect(service).not.toMatch(/privileged|cap_add|pid: host|network_mode: host/);
   });
+  it("un SEUL uid : celui de `user:` du compose = celui de l'utilisateur de l'image (pwuser)", () => {
+    const u = /^\s+user: "?(\d+):(\d+)"?\s*$/m.exec(service);
+    expect(u).not.toBeNull();
+    expect(u![2]).toBe(u![1]);
+    const dernier = dockerfileCode.split("\n").filter((l) => /^USER\s/.test(l)).pop() ?? "";
+    expect(dernier).toBe(`USER ${u![1]}:${u![2]}`);
+    // la construction contrôle que pwuser a bien cet uid (sinon elle échoue)
+    expect(dockerfileCode).toContain(`test "$(id -u pwuser)" = "${u![1]}"`);
+    expect(Number(u![1])).toBeGreaterThan(1000); // ni root ni l'uid 1000 d'ubuntu
+  });
+  it("CPU bornée, init: true, tmpfs /tmp noexec,nosuid,nodev", () => {
+    expect(service).toMatch(/^\s+cpus: "?[0-9.]+"?\s*$/m);
+    expect(service).toMatch(/^\s+cpu_shares: \d+\s*$/m);
+    expect(service).toMatch(/^\s+init: true\s*$/m);
+    const tmp = service.split("\n").find((l) => /^\s+- \/tmp:/.test(l)) ?? "";
+    for (const o of ["noexec", "nosuid", "nodev"]) expect(tmp).toMatch(new RegExp(`[:,]${o}(,|\\s*$)`));
+  });
+  it("entrée et sortie par défaut HORS du dépôt cloné", () => {
+    const vols = service.split("\n").filter((l) => /:\/(entree|sortie)(:ro)?\s*$/.test(l));
+    expect(vols).toHaveLength(2);
+    for (const l of vols) expect(l).toMatch(/:-\/opt\/studio-axion-ia\/capture-/);
+  });
+  it("aucune porte dérobée : pas de privileged, unconfined, docker.sock, ipc/pid/userns host, devices, cap_add, --no-sandbox", () => {
+    expect(service).not.toMatch(/privileged/);
+    expect(service).not.toMatch(/seccomp[:=]\s*unconfined/i);
+    expect(service).not.toMatch(/apparmor[:=]\s*unconfined/i);
+    expect(service).not.toMatch(/systempaths[:=]\s*unconfined/i);
+    expect(service).not.toMatch(/docker\.sock|\/var\/run|\/run\//);
+    expect(service).not.toMatch(/^\s+ipc:\s*"?host/m);
+    expect(service).not.toMatch(/^\s+pid:\s*"?host/m);
+    expect(service).not.toMatch(/^\s+userns_mode:/m);
+    expect(service).not.toMatch(/^\s+(devices|cap_add|cgroup_parent):/m);
+    expect(service).not.toMatch(/--no-sandbox|chromiumSandbox/);
+    expect(dockerfileCode).not.toMatch(/--no-sandbox|chromiumSandbox/);
+    // security_opt : exactement no-new-privileges
+    const opts = service.split("\n").filter((l) => /^\s+- (no-new-privileges|seccomp|apparmor|label|systempaths)/.test(l));
+    expect(opts.map((l) => l.trim())).toEqual(["- no-new-privileges:true"]);
+    // le commentaire du service rappelle les interdits
+    expect(compose).toMatch(/NE JAMAIS ajouter : privileged/);
+  });
+  it("commande documentée : préparation des dossiers (chown de l'uid) et --calage", () => {
+    const u = /^\s+user: "?(\d+)/m.exec(service)![1];
+    expect(compose).toContain(`chown ${u}:${u} /opt/studio-axion-ia/capture-sortie`);
+    expect(compose).toMatch(/#\s+--calage \/entree\/calage\.json --sortie \/sortie/);
+  });
   it("aucune variable d'environnement, donc aucun secret", () => {
     expect(service).not.toMatch(/^\s+(environment|env_file):/m);
     expect(service).not.toMatch(/_CLE|_KEY|_SECRET|TOKEN|PASSWORD/i);
