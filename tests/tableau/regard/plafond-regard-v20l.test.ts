@@ -1,5 +1,5 @@
 /**
- * S-10-PLAFOND-v20l : le regard du tableau a son PROPRE plafond par vidéo (« tbreg », 0,65 $) et ne mange plus le plafond
+ * S-10-PLAFOND-v20l : le regard du tableau a son PROPRE plafond par vidéo (« tbreg », 0,72 $ = 0,65 €) et ne mange plus le plafond
  * des textes de publication (0,30 $). Dépôts mémoire, vrai module de dépense, faux `fetch`, aucun appel réseau ni à Claude.
  */
 import { readFileSync } from "node:fs";
@@ -119,16 +119,16 @@ describe("S-10-PLAFOND-v20l · plafond propre du regard du tableau (« tbreg »)
     await expect(dcv.executerRolePourVideo(v.id, roleRegard, entree24(), { etape: "Autre chose", plafondPropre: PLAFOND_REGARD_TABLEAU })).rejects.toThrow(/mal nommée/);
   });
 
-  it("e) l'objet est sans conversion de type, à 0,65 $ ; les autres plafonds ne bougent pas (0,3 / 1,5 / 0,6 / 0,6)", async () => {
-    expect(PLAFOND_REGARD_TABLEAU).toMatchObject({ id: "tbreg", parametre: "tableau.plafondRegardUsd", defautUsd: 0.65, prefixeEtape: dcv.PREFIXE_ETAPE_REGARD_TABLEAU });
-    expect(PLAFOND_REGARD_TABLEAU_USD).toBe(0.65);
+  it("e) l'objet est sans conversion de type, à 0,72 $ (0,65 €) ; les autres plafonds ne bougent pas (0,3 / 1,5 / 0,6 / 0,6)", async () => {
+    expect(PLAFOND_REGARD_TABLEAU).toMatchObject({ id: "tbreg", parametre: "tableau.plafondRegardUsd", defautUsd: 0.72, prefixeEtape: dcv.PREFIXE_ETAPE_REGARD_TABLEAU });
+    expect(PLAFOND_REGARD_TABLEAU_USD).toBe(0.72);
     expect(PARAM_PLAFOND_REGARD_TABLEAU).toBe("tableau.plafondRegardUsd");
     expect(ETAPE.startsWith(dcv.PREFIXE_ETAPE_REGARD_TABLEAU)).toBe(true);
     expect(dcv.PLAFOND_KIT_USD).toBe(0.3);
     expect(await dcv.plafondFacecamVersionUsd()).toBe(1.5);
     expect(dcv.PLAFOND_DECOUPAGE_TABLEAU).toMatchObject({ defautUsd: 0.6 });
     expect(dcv.PLAFOND_VIDEOS_FA_USD).toBe(0.6);
-    expect(await dcv.valeurPlafondPropre(PLAFOND_REGARD_TABLEAU)).toBe(0.65);
+    expect(await dcv.valeurPlafondPropre(PLAFOND_REGARD_TABLEAU)).toBe(0.72);
   });
 
   it("f) deux regards à 24 images au pire passent sur le plafond du regard ; avec 62 ¢ déjà engagés, un troisième est refusé en mode bloquant (Usine), rien n'est parti", async () => {
@@ -141,7 +141,7 @@ describe("S-10-PLAFOND-v20l · plafond propre du regard du tableau (« tbreg »)
     const un = await dcv.executerRolePourVideo(v.id, roleRegard, entree24(), { etape: ETAPE, plafondPropre: PLAFOND_REGARD_TABLEAU, origine: "usine" });
     expect(un, JSON.stringify(un)).toMatchObject({ ok: true });
     expect(appels).toHaveLength(1);
-    // 62 ¢ de dollar déjà dépensés par les deux regards : le troisième dépasse 0,65 $ et l'Usine s'arrête.
+    // 62 ¢ de dollar déjà dépensés par les deux regards : le troisième dépasse 0,72 $ (0,65 €) et l'Usine s'arrête.
     await depense(v.id, ETAPE, 56);
     const refus = await dcv.executerRolePourVideo(v.id, roleRegard, entree24(), { etape: ETAPE, plafondPropre: PLAFOND_REGARD_TABLEAU, origine: "usine" });
     expect(refus).toMatchObject({ ok: false, arret: "plafond-video" });
