@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
 import { EcranValidationTutoriel } from "@/components/formats/tutoriel-outil/EcranValidationTutoriel";
 import { EtatVide } from "@/components/ui/EtatVide";
+import { DeposerFilm } from "@/components/formats/tutoriel-outil/DeposerFilm";
+import { filmAttendu } from "@/services/tutoriel-film";
 import { vueValidationTutoriel } from "@/services/tutoriel-validation-ecran";
 
 export const metadata: Metadata = { title: "Valider le tutoriel" };
@@ -15,8 +17,10 @@ export default async function PageValiderTutoriel({ params }: { params: Promise<
   const { videoId } = await params;
   const id = decodeURIComponent(videoId);
   const dossier = await vueValidationTutoriel(id);
+  const film = await filmAttendu(id);
   return (
     <GabaritCreation entete={{ titre: "Valider le tutoriel", retour: { href: "/tutoriel-outil", libelle: "Tutoriel d'outil" } }}>
+      {film ? <DeposerFilm videoId={id} /> : null}
       {dossier ? <EcranValidationTutoriel videoId={id} dossier={dossier} /> : <EtatVide icone="film" titre="Rien à valider pour l'instant" phrase="Le tutoriel n'est pas encore prêt à être relu." />}
     </GabaritCreation>
   );
