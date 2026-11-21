@@ -42,7 +42,10 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
       setMessage({ ok: r.ok, texte: r.message });
     });
 
+  const estFlux = vue.genre === "flux";
   const touchable = (vue.statut === "a-valider" || vue.statut === "a-construire") && !vue.autreEnAttente && !vue.nomsIllisibles;
+  // Une proposition « à revoir » ne se garde ni ne se corrige : on en demande une autre, ou on arrête.
+  const autrePossible = (touchable || vue.statut === "a-revoir") && !vue.autreEnAttente && !vue.nomsIllisibles && vue.propositionsRestantes === 1;
   const peutGarder = vue.statut === "a-valider" && vue.defauts.length === 0 && !vue.nomsIllisibles;
   const tousLesTextes = vue.textes.flatMap((e) => e.textes.map((t) => ({ ecranId: e.ecranId, titre: e.titre, texte: t })));
   const choisi = tousLesTextes.find((t) => `${t.ecranId}|${t.texte}` === cible);
@@ -55,7 +58,8 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
         <p className="mt-3 text-[15px] text-texte-doux">
           Le Studio a compris : {PHRASE_CAS[vue.cas]}. Si ce n&apos;est pas cela, arrêtez et reformulez votre phrase.
         </p>
-        {vue.statut === "gardee" && <p className="mt-3 text-[15px] font-semibold text-texte">Vous avez gardé cette maquette.</p>}
+        {vue.statut === "gardee" && <p className="mt-3 text-[15px] font-semibold text-texte">Vous avez gardé {estFlux ? "cette automatisation" : "cette maquette"}.</p>}
+        {vue.message && <p className="mt-3 text-[15px] font-semibold text-texte">{vue.message}</p>}
         {vue.statut === "refusee" && <p className="mt-3 text-[15px] font-semibold text-texte">Vous avez arrêté : rien n&apos;a été fabriqué.</p>}
       </Carte>
 
@@ -65,7 +69,24 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
         </p>
       )}
 
-      <Section id="apercu" titre="Aperçu" sousTitre="Chaque écran, avant puis maintenant. Rien n'est filmé ni dit avant que vous gardiez la maquette.">
+      {estFlux && vue.etapes.length > 0 && (
+        <Section id="etapes" titre="Le déroulé" sousTitre="Du déclencheur au résultat, étape par étape : ce que l'automatisation fera.">
+          <ol className="space-y-2" aria-label="Étapes de l'automatisation">
+            {vue.etapes.map((e) => (
+              <li key={e.id} className="rounded-champ border border-trait bg-surface-1 p-3 text-[15px] text-texte">
+                <span className="font-semibold">{e.libelle}</span>
+                <span className="block text-sm text-texte-doux">
+                  {e.acteur ? `${e.acteur} · ` : ""}
+                  {e.ecran}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      )}
+
+      {vue.statut !== "a-revoir" && (
+      <Section id="apercu" titre="Aperçu" sousTitre={`Chaque écran, avant puis maintenant. Rien n'est filmé ni dit avant que vous gardiez ${estFlux ? "l'automatisation" : "la maquette"}.`}>
         {vue.apercu.length > 0 ? (
           <ul className="grid gap-4 sm:grid-cols-2" aria-label="Images d'aperçu">
             {vue.apercu.map((a) => (
@@ -98,6 +119,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
           </div>
         )}
       </Section>
+      )}
 
       {vue.defauts.length > 0 && (
         <Section id="defauts" titre="À revoir">
@@ -109,7 +131,8 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
         </Section>
       )}
 
-      <Section id="textes" titre="Tous les textes" sousTitre="Mot pour mot, écran par écran : ce que la maquette montrera.">
+      {vue.textes.length > 0 && (
+      <Section id="textes" titre="Tous les textes" sousTitre={`Mot pour mot, écran par écran : ce que ${estFlux ? "l'automatisation" : "la maquette"} montrera.`}>
         <div className="space-y-4">
           {vue.textes.map((e) => (
             <div key={e.ecranId}>
@@ -122,7 +145,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
             </div>
           ))}
         </div>
-        {touchable && tousLesTextes.length > 0 && (
+        {touchable && !estFlux && tousLesTextes.length > 0 && (
           <div className="mt-6 space-y-3 border-t border-trait pt-4">
             <div>
               <label htmlFor="texte-a-corriger" className="mb-1.5 block text-sm font-semibold text-texte-doux">
@@ -144,6 +167,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
           </div>
         )}
       </Section>
+      )}
 
       {vue.chiffres.length > 0 && (
         <Section id="chiffres" titre="Chiffres d'exemple" sousTitre="Inventés pour la démonstration : gardez-les, changez-les ou retirez-les.">
@@ -184,9 +208,9 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
 
       <div className="flex flex-wrap items-center gap-3">
         <Bouton variante="principal" disabled={attente || !peutGarder} onClick={() => lance(() => gestes.garder(videoId, vue.empreinte, Object.keys(decisions).length ? decisions : undefined))}>
-          Garder cette maquette
+          {estFlux ? "Garder cette automatisation" : "Garder cette maquette"}
         </Bouton>
-        <Bouton variante="secondaire" disabled={attente || !touchable || vue.propositionsRestantes === 0} onClick={() => lance(() => gestes.autre(videoId))}>
+        <Bouton variante="secondaire" disabled={attente || !autrePossible} onClick={() => lance(() => gestes.autre(videoId))}>
           En proposer une autre
         </Bouton>
         <Bouton variante="danger" disabled={attente || vue.statut === "refusee" || vue.statut === "gardee"} onClick={() => lance(() => gestes.arreter(videoId))}>

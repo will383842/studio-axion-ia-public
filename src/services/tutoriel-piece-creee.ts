@@ -8,6 +8,9 @@
  *    repassé par Claude. « Une autre proposition » ne fait que noter la demande et relancer le travail : l'appel payant passe
  *    par l'orchestre (V2-08), sous le plafond de V2-07.
  *  - Aucun montant n'est rendu.
+ *  - Une pièce est une maquette OU un flux d'automatisation (`genre`) : le flux se lit de bout en bout (déclencheur, actions, résultat),
+ *    se garde, se refait (une autre proposition) ou s'arrête comme une maquette ; ses textes ne se corrigent pas un à un.
+ *    Une pièce « à revoir » (règles non respectées) s'affiche avec ses raisons ; seuls « une autre proposition » et « arrêter » restent.
  *
  * POUR V2-08 : le verrou `enFile` ne vaut que dans UN SEUL processus Studio. La garantie « une seule relance payée » repose donc
  * sur un seul serveur ; avec plusieurs processus, il faudra une écriture conditionnelle (comparaison avant écriture) sur l'état.
@@ -21,7 +24,9 @@ import { appliquerRelecture, chiffresARelire, type ChiffreARelire, type Decision
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { nombresAffirmes } from "@/domaine/nombres-fr";
 import type { Fichier } from "@/domaine/types";
-import type { PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { MESSAGE_PIECE_A_REVOIR, type PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { controlerFluxCree, empreinteFlux, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
+import { lireFluxAutomatisation, type ActeurFlux, type FluxAutomatisation, type VueEcran } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { lireDescriptionMaquette, type DescriptionMaquette, type DonneeExemple } from "@/moteurs/montage-tutoriel-outil/description-maquette";
 import {
   controlerTextesCrees,
@@ -41,18 +46,23 @@ export const NOM_FICHIER_APERCU = "apercu-piece.json";
 /** 14 images + le fichier d'aperçu. */
 export const FICHIERS_APERCU_MAX = IMAGES_APERCU_MAX + 1;
 
-export type StatutPiece = "a-construire" | "a-valider" | "gardee" | "refusee";
+export type StatutPiece = "a-revoir" | "a-construire" | "a-valider" | "gardee" | "refusee";
+export type GenrePiece = "maquette" | "flux";
 export type CasPiece = "tableau-de-bord" | "automatisation";
 
-/** en attendant V2-08 : forme minimale de `EtatEquipe.pieceCreee`. */
+/** Vue de l'écran sur la pièce créée de l'équipe (`PieceCreee`, V2-08) : une maquette ou un flux, y compris « à revoir ». */
 export interface EtatPieceCreee {
   phrase: string;
   cas: CasPiece;
   /** 1 = première proposition, 2 = « l'autre proposition » (la dernière permise). */
   proposition: number;
   statut: StatutPiece;
-  /** Description `description-maquette.v1` déjà relue (V2-02) : les textes sont ceux que Williams voit. */
+  /** Absent = maquette (états d'avant). `flux` : `description` porte un `flux-automatisation.v1`. */
+  genre?: GenrePiece;
+  /** `description-maquette.v1` déjà relue (V2-02) ou `flux-automatisation.v1` (V2-06) : les textes sont ceux que Williams voit. */
   description: unknown;
+  /** Raisons du « à revoir » (rangées avec la pièce, seulement tant qu'elle est « à revoir »). */
+  erreurs?: string[];
   empreinte: string;
   apercu?: ApercuPiece;
   gardee?: { empreinte: string; le: string };
@@ -96,9 +106,26 @@ export interface ApercuVue {
   etat: "avant" | "maintenant";
 }
 
+/** Une ligne du déroulé d'un flux : déclencheur, puis chaque action, puis le résultat. */
+export interface EtapeFluxVue {
+  id: string;
+  nature: "declencheur" | "etape" | "resultat";
+  /** Texte lisible de l'étape. */
+  libelle: string;
+  /** Qui agit (étapes seulement) : « L'automatisation », « L'IA » ou « Vous ». */
+  acteur?: string;
+  /** Écran du bureau exemple où cela se passe, en mots simples. */
+  ecran: string;
+}
+
 export interface VuePieceCreee {
   phrase: string;
   cas: CasPiece;
+  genre: GenrePiece;
+  /** Le flux, lisible de bout en bout (vide pour une maquette). */
+  etapes: EtapeFluxVue[];
+  /** Phrase d'accueil quand la pièce est « à revoir » (sinon null). */
+  message: string | null;
   empreinte: string;
   apercu: ApercuVue[];
   textes: { ecranId: string; titre: string; textes: string[] }[];
@@ -279,14 +306,15 @@ interface EquipeRangee {
   appels?: { maquettiste?: number };
 }
 
-/** Vue de l'écran depuis la pièce de l'équipe. `null` : rien à voir (pas de pièce, un flux, une pièce « à revoir »). Pure. */
+/** Vue de l'écran depuis la pièce de l'équipe (maquette ou flux, « à revoir » compris). `null` : rien à voir (pas de pièce). Pure. */
 export function etatEcranDepuisPiece(equipe: EquipeRangee | null | undefined): EtatPieceCreee | null {
   const p = equipe?.pieceCreee;
-  if (!equipe || !p || typeof p !== "object" || p.genre !== "maquette" || p.statut === "a-revoir") return null;
+  if (!equipe || !p || typeof p !== "object" || (p.genre !== "maquette" && p.genre !== "flux")) return null;
   const proposition = p.proposition === 2 ? 2 : 1;
   const etat: EtatPieceCreee = {
     phrase: equipe.demande?.phrase ?? "",
-    cas: "tableau-de-bord",
+    cas: p.genre === "flux" ? "automatisation" : "tableau-de-bord",
+    genre: p.genre,
     proposition,
     statut: p.statut,
     description: p.contenu,
@@ -294,6 +322,7 @@ export function etatEcranDepuisPiece(equipe: EquipeRangee | null | undefined): E
   };
   if (p.apercu) etat.apercu = p.apercu;
   if (p.gardee) etat.gardee = p.gardee;
+  if (p.statut === "a-revoir" && Array.isArray(p.erreurs)) etat.erreurs = p.erreurs.filter((x): x is string => typeof x === "string");
   if (proposition === 2 && p.statut === "a-construire" && (equipe.appels?.maquettiste ?? 0) < 2) etat.aRelancer = true;
   return etat;
 }
@@ -301,12 +330,13 @@ export function etatEcranDepuisPiece(equipe: EquipeRangee | null | undefined): E
 /** Pièce de l'équipe depuis la vue de l'écran (`aRelancer` n'est pas rangé : il se déduit). Pure. */
 export function pieceDepuisEtatEcran(x: EtatPieceCreee): PieceCreee {
   const p: PieceCreee = {
-    genre: "maquette",
+    genre: x.genre === "flux" ? "flux" : "maquette",
     proposition: x.proposition === 2 ? 2 : 1,
     contenu: x.description as PieceCreee["contenu"],
     empreinte: x.empreinte,
     statut: x.statut,
   };
+  if (x.statut === "a-revoir" && x.erreurs) p.erreurs = x.erreurs;
   if (x.apercu) p.apercu = x.apercu;
   if (x.gardee) p.gardee = x.gardee;
   return p;
@@ -360,6 +390,26 @@ function descriptionDe(etat: EtatPieceCreee, d: DependancesPiece): DescriptionMa
   return r.ok ? r.description : null;
 }
 
+const estFlux = (etat: EtatPieceCreee): boolean => etat.genre === "flux";
+
+function fluxDe(etat: EtatPieceCreee): FluxAutomatisation | null {
+  const r = lireFluxAutomatisation(etat.description);
+  return r.ok ? r.flux : null;
+}
+
+const NOM_VUE: Record<VueEcran, string> = { boite: "Boîte de réception", agenda: "Agenda", tableur: "Tableur", crm: "Clients", messagerie: "Messages" };
+const NOM_ACTEUR: Record<ActeurFlux, string> = { automatisation: "L'automatisation", ia: "L'IA", humain: "Vous" };
+
+/** Le flux dans l'ordre où il se déroule : déclencheur, chaque action, résultat. Aucune phrase inventée : seuls les textes du flux et des mots fixes. */
+function etapesDuFlux(f: FluxAutomatisation): EtapeFluxVue[] {
+  const parId = new Map(textesDuFlux(f).map((t) => [t.etapeId, t.textes.join(" · ")]));
+  return [
+    { id: "declencheur", nature: "declencheur", libelle: parId.get("declencheur") || "Ce qui déclenche l'automatisation", ecran: NOM_VUE[f.declencheur.vue] },
+    ...f.etapes.map((e) => ({ id: e.id, nature: "etape" as const, libelle: e.libelleSchema, acteur: NOM_ACTEUR[e.acteur], ecran: NOM_VUE[e.vue] })),
+    { id: "resultat", nature: "resultat", libelle: parId.get("resultat") || "Ce que vous obtenez", ecran: NOM_VUE[f.resultat.vue] },
+  ];
+}
+
 const maintenant = (d: DependancesPiece) => (d.maintenant ?? (() => new Date().toISOString()))();
 
 function sansAperceu(etat: EtatPieceCreee): EtatPieceCreee {
@@ -386,20 +436,34 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
   if (avec) d = avec;
   const etat = await (await deposDe(d)).lire(videoId);
   if (!etat) return null;
-  const description = descriptionDe(etat, d);
-  if (!description) return null;
-  const titres = new Map(description.ecrans.map((e) => [e.id, e.titre]));
+  const flux = estFlux(etat);
+  const description = flux ? null : descriptionDe(etat, d);
+  const fluxLu = flux ? fluxDe(etat) : null;
+  // Une pièce illisible ne se montre que « à revoir » (avec ses raisons) ou pendant l'attente d'une autre proposition.
+  if (!description && !fluxLu && etat.statut !== "a-revoir" && !autreEnAttente(etat)) return null;
+  const titres = new Map<string, string>(description ? description.ecrans.map((e) => [e.id, e.titre]) : []);
+  if (fluxLu) {
+    titres.set("avant", "Avant");
+    titres.set("declencheur", "Déclencheur");
+    titres.set("resultat", "Résultat");
+    for (const e of fluxLu.etapes) titres.set(e.id, e.libelleSchema);
+  }
   const ids = (etat.apercu?.images ?? []).map((i) => i.cle);
   const urls = ids.length ? await (d.urls ?? (await import("./fichiers")).urlsFichiers)(ids) : {};
-  const tableau = tableauDepuisDescription(description, maintenant(d).slice(0, 10));
-  const defauts = [...(etat.apercu?.controle.defauts ?? []), ...controlerTextesCrees(description, d.nomsPermis ?? []), ...(nomsIllisibles ? [MESSAGE_NOMS] : [])];
+  const tableau = description ? tableauDepuisDescription(description, maintenant(d).slice(0, 10)) : null;
+  const defautsPiece = description ? controlerTextesCrees(description, d.nomsPermis ?? []) : fluxLu ? controlerFluxCree(fluxLu, d.nomsPermis ?? []) : [];
+  const defauts = [...(etat.apercu?.controle.defauts ?? []), ...defautsPiece, ...(etat.statut === "a-revoir" ? (etat.erreurs ?? []) : []), ...(nomsIllisibles ? [MESSAGE_NOMS] : [])];
+  const textes = description ? textesDeLaMaquette(description) : fluxLu ? textesDuFlux(fluxLu).map((t) => ({ ecranId: t.etapeId, textes: t.textes })) : [];
   return {
     phrase: etat.phrase,
     cas: etat.cas,
+    genre: flux ? "flux" : "maquette",
+    etapes: fluxLu ? etapesDuFlux(fluxLu) : [],
+    message: etat.statut === "a-revoir" ? MESSAGE_PIECE_A_REVOIR : null,
     empreinte: etat.empreinte,
     apercu: (etat.apercu?.images ?? []).flatMap((i) => (urls[i.cle] ? [{ url: urls[i.cle]!, ecranId: i.ecranId, titre: titres.get(i.ecranId) ?? i.ecranId, etat: i.etat }] : [])),
-    textes: textesDeLaMaquette(description).map((t) => ({ ...t, titre: titres.get(t.ecranId) ?? t.ecranId })),
-    chiffres: tableau.ok ? chiffresARelire(tableau.donnee).filter((c) => c.cle.startsWith("indicateur:")) : [],
+    textes: textes.map((t) => ({ ...t, titre: titres.get(t.ecranId) ?? t.ecranId })),
+    chiffres: tableau?.ok ? chiffresARelire(tableau.donnee).filter((c) => c.cle.startsWith("indicateur:")) : [],
     defauts: [...new Set(defauts)],
     propositionsRestantes: etat.proposition >= PROPOSITIONS_PIECE_MAX ? 0 : 1,
     statut: etat.statut,
@@ -536,11 +600,23 @@ async function garderPieceSeul(videoId: string, demande: DemandeGarder, d: Depen
   const depot = await deposDe(d);
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
+  if (etat.statut === "a-revoir") return refus("Cette proposition est à revoir : demandez-en une autre.");
   if (etat.statut !== "a-valider" || !etat.apercu) return refus("Il n'y a pas encore d'aperçu à garder.");
   if (unSeulBlocDeTexte(demande?.empreinte) !== etat.empreinte || etat.apercu.empreinteDescription !== etat.empreinte) {
     return refus("Cette maquette a changé depuis que vous l'avez ouverte. Rechargez la page pour la revoir.");
   }
   if (!etat.apercu.controle.ok) return refus("L'aperçu a des défauts : corrigez les textes concernés ou demandez une autre proposition.");
+  if (estFlux(etat)) {
+    // Un flux ne montre aucun chiffre : seul l'aperçu et le contrôle des textes comptent. Les décisions de chiffres sont ignorées.
+    const flux = fluxDe(etat);
+    if (!flux) return refus("Le flux de l'automatisation est illisible.");
+    const defaut = controlerFluxCree(flux, d.nomsPermis ?? [])[0];
+    if (defaut) return refus(`Cette automatisation a des points à revoir : ${defaut}`);
+    if (empreinteFlux(flux) !== etat.empreinte) return refus("Cette automatisation a changé depuis que vous l'avez ouverte. Rechargez la page pour la revoir.");
+    await depot.ecrire(videoId, { ...etat, statut: "gardee", gardee: { empreinte: etat.empreinte, le: maintenant(d) }, aRelancer: true });
+    await d.relancer?.(videoId);
+    return { ok: true, message: "Automatisation gardée. La fabrication de votre vidéo peut continuer.", statut: "gardee" };
+  }
   const description = descriptionDe(etat, d);
   if (!description) return refus("La description de la maquette est illisible.");
   const decisions = demande.chiffres && typeof demande.chiffres === "object" ? demande.chiffres : {};
@@ -604,6 +680,8 @@ async function corrigerTexteSeul(videoId: string, demande: DemandeCorrection, d:
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
   if (etat.statut === "gardee" || etat.statut === "refusee") return refus("Cette maquette n'est plus modifiable.");
+  if (etat.statut === "a-revoir") return refus("Cette proposition est à revoir : demandez-en une autre.");
+  if (estFlux(etat)) return refus("Les textes d'une automatisation ne se corrigent pas ici : demandez une autre proposition.");
   if (autreEnAttente(etat)) return refus(AUTRE_EN_ATTENTE);
   const avant = unSeulBlocDeTexte(demande?.avant);
   const apres = unSeulBlocDeTexte(demande?.apres);

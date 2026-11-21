@@ -11,11 +11,10 @@
  * RÉGLAGES : jamais écrits ; ils ne sont « allumés » que dans le lecteur injecté de cet essai.
  *
  * PONT « EN ATTENDANT » (dans ce fichier seulement ; il tient la place d'un raccord absent de master) : les ponts 1 (chaîne : option
- * `phraseOuverte`) et 2 (écran : dépôt de la pièce) sont retirés, leurs maillons étant corrigés sur master ; le bloc « maillons » en bas
+ * `phraseOuverte`), 2 (écran : dépôt de la pièce) et 3 (écran : flux) sont retirés, leurs maillons étant corrigés sur master ; le bloc « maillons » en bas
  * de fichier prouve la chaîne et l'écran sans pont.
- *  - PONT 3 (cas 3, reste) : ni le poste (`ecrire-maquette.mts`) ni l'écran ne savent encore lire ni garder un flux. Le double de
- *    Williams garde le flux en écrivant lui-même « gardée » dans l'état de l'équipe, après avoir vu chaque texte (`textesDuFlux`).
- *    Il tombera avec la fiche « V2-09b » (à écrire : `tutoriel-piece-creee.ts` pour un `flux-automatisation.v1`).
+ *  - PONT 3 (cas 3) : RETIRÉ (V2-09b). L'écran lit et garde un flux comme une maquette ; seul reste, pour le flux, le fichier d'aperçu
+ *    posé par le test, car le poste (`ecrire-maquette.mts`) ne fabrique pas encore l'aperçu d'un flux.
  *
  * Règle de la fiche : si un maillon casse, le test reste ROUGE avec le nom du maillon ; aucune correction de production ici.
  */
@@ -494,9 +493,25 @@ describe("V2-10 · « je veux un tri d'e-mails » (cas 3), le même chemin avec 
     const vus = textesDuFlux(flux);
     expect(vus.flatMap((t) => t.textes).filter((t) => /\p{Nd}/u.test(t))).toEqual([]);
 
-    /* ---- PONT 3 (en attendant un poste et un écran qui lisent un flux) : le double de Williams garde le flux qu'il a vu ---- */
+    /* ---- Écran « Votre maquette » (V2-09b) : l'aperçu est déposé, Williams voit le flux et chaque texte, puis le garde ---- */
     const p = e.pieceCreee!;
-    await m.ecrireEquipe({ ...e, pieceCreee: { ...p, statut: "gardee", apercu: { version: VERSION_APERCU, empreinteDescription: p.empreinte, images: [{ ecranId: flux.etapes[0]!.id, etat: "maintenant", cle: "apercu/01-fixe.png" }], controle: { ok: true, defauts: [] } }, gardee: { empreinte: p.empreinte, le: T_ISO } } });
+    // Le poste (`ecrire-maquette.mts`) ne sait pas encore fabriquer l'aperçu d'un flux : le test pose le fichier d'aperçu et son image fixe.
+    const racineApercu = mkdtempSync(join(tmpdir(), "essai-phrase-flux-"));
+    dossiersTemporaires.push(racineApercu);
+    writeFileSync(join(racineApercu, NOM_FICHIER_APERCU), JSON.stringify({ version: VERSION_APERCU, empreinteDescription: p.empreinte, images: [{ ecranId: flux.etapes[0]!.id, etat: "maintenant", cle: "apercu/01-fixe.png" }], controle: { ok: true, defauts: [] } }));
+    const depose = await m.deposerApercu(racineApercu);
+    if (!depose.ok) maillon("écran « Votre maquette » (dépôt de l'aperçu du flux)", depose.message);
+    await m.mener();
+    expect(await m.pause()).toBe(CODE_PIECE_A_VALIDER);
+    expect([m.journal.voix.length, m.journal.rendus.length]).toEqual([0, 0]);
+    const vue = await vuePieceCreee(VIDEO, m.ecran);
+    if (!vue) maillon("écran « Votre maquette » (vue du flux)", "rien à voir alors que l'aperçu du flux est déposé");
+    expect(vue).toMatchObject({ genre: "flux", cas: "automatisation", defauts: [], chiffres: [] });
+    expect(vue.etapes.filter((x) => x.nature === "etape").map((x) => x.id)).toEqual(flux.etapes.map((x) => x.id));
+    expect(vue.textes.map((t) => t.textes)).toEqual(vus.map((t) => t.textes));
+    const garde = await garderPiece(VIDEO, { empreinte: vue.empreinte }, m.ecran);
+    expect(garde).toMatchObject({ ok: true, statut: "gardee" });
+    expect(m.appels).toHaveLength(1);
 
     await m.mener();
     e = await m.equipe();
