@@ -16,6 +16,7 @@ vi.mock("@/services/auth", () => ({
   }),
 }));
 
+import type { Travail } from "@/domaine/types";
 import { ENTREE_DEVIS_TUTORIEL, lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
 import type { RegistreTextes } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
 import { VERSION_SCRIPTS, type PropositionScripts } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
@@ -104,9 +105,10 @@ describe("seulement en pause de validation du script", () => {
     ["termine", { statut: "termine" }],
     ["echec", { statut: "echec" }],
     ["annule", { statut: "annule" }],
-    ["en_cours", { statut: "en_cours" }],
     ["en_file sans pause", { statut: "en_file", sansPause: true }],
     ["en_file, autre code de pause", { statut: "en_file", code: "TO_SCRIPT_ABSENT" }],
+    ["en_cours sans pause", { statut: "en_cours", sansPause: true }],
+    ["en_cours, autre code de pause", { statut: "en_cours", code: "TO_SCRIPT_ABSENT" }],
   ];
   for (const [nom, mod] of cas) {
     it(`${nom} : les 5 gestes refusent, rien n'est écrit`, async () => {
@@ -260,6 +262,33 @@ describe("l'accord du devis est écrit par la validation", () => {
     expect((video.entrees as Record<string, unknown>).tutorielOutil).toEqual({ fin: "aucune" });
     expect((ver.commande.entrees as Record<string, unknown>).tutorielOutil).toEqual({ fin: "aucune" });
   });
+  it("verrou : un tour de boucle lu entre l'écriture de la version et celle du travail attend la fin de la validation", async () => {
+    const { sousVerrou } = await import("@/services/_commun");
+    await installer();
+    await allumer();
+    await a.choisirVersionAction("v1", "A");
+    const ordre: string[] = [];
+    let tour: Promise<unknown> = Promise.resolve();
+    const versions = depots().versions;
+    const vraieVersion = versions.modifier.bind(versions);
+    vi.spyOn(versions, "modifier").mockImplementation(async (...args: Parameters<typeof vraieVersion>) => {
+      const r = await vraieVersion(...args);
+      ordre.push("version");
+      tour = sousVerrou(async () => void ordre.push("lecture"));
+      await new Promise((fin) => setTimeout(fin, 5));
+      return r;
+    });
+    const travaux = depots().travaux;
+    const vraiTravail = travaux.modifier.bind(travaux);
+    vi.spyOn(travaux, "modifier").mockImplementation(async (...args: Parameters<typeof vraiTravail>) => {
+      ordre.push("travail");
+      return vraiTravail(...args);
+    });
+    expect((await a.validerTutorielAction("v1", { empreinteDevis: "abc123" })).ok).toBe(true);
+    await tour;
+    vi.restoreAllMocks();
+    expect(ordre).toEqual(["version", "travail", "lecture"]);
+  });
   it("sans empreinte : aucune entrée de devis ; empreinte invalide : refus, rien d'écrit", async () => {
     await installer();
     await allumer();
@@ -313,4 +342,30 @@ describe("0 € et conformité", () => {
       expect(src).toMatch(new RegExp(`export async function ${nom}\\([^\\n]*\\{\\n  return geste\\(`));
     }
   });
+});
+
+describe("par la vraie boucle (lireTravauxAAvancer + moteur.avancer + ecrireAvancement)", () => {
+  it("la pause de validation est enregistrée « en_cours » (jamais remise « en_file ») : les gestes agissent et la validation passe", async () => {
+    const { lireTravauxAAvancer, ecrireAvancement } = await import("@/services/travaux");
+    await installer();
+    await allumer();
+    // Départ réel : le travail est en file, sans pause ; le moteur rend, comme le vrai (index.ts), `en_file` + la pause du script.
+    const t0 = await travail();
+    const { pause: _p, ...sansPause } = t0.parametres ?? {};
+    void _p;
+    await depots().travaux.modifier("t1", { parametres: sansPause });
+    const { creerMoteurTutorielOutil } = await import("@/moteurs/montage-tutoriel-outil");
+    const moteur = {
+      ...creerMoteurTutorielOutil({ outils: async () => { throw new Error("aucun outil : le moteur est doublé"); } }),
+      avancer: async (t: Travail) => ({ travail: { ...t, statut: "en_file" as const, parametres: { ...t.parametres, pause: { code: "TO_SCRIPT_A_VALIDER", message: "x" } } } }),
+    };
+    for (const lu of await lireTravauxAAvancer(Date.now(), () => moteur as never)) await ecrireAvancement(lu, await moteur.avancer(lu.travail));
+    const enPause = await travail();
+    expect(enPause.statut).toBe("en_cours");
+    expect((enPause.parametres?.pause as { code: string }).code).toBe("TO_SCRIPT_A_VALIDER");
+    expect(await a.choisirVersionAction("v1", "A")).toEqual({ ok: true, donnees: { statut: "ok", phrase: expect.any(String) } });
+    const r = await a.validerTutorielAction("v1", { empreinteDevis: "abc" });
+    expect(r).toMatchObject({ ok: true, donnees: { statut: "ok" } });
+    expect((await travail()).parametres?.pause).toBeUndefined();
+  }, 30_000);
 });
