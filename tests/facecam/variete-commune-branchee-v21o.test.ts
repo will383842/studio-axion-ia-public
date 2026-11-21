@@ -12,7 +12,8 @@ const reglages: Record<string, unknown> = {};
 let versionsEnPanne = false;
 let videosEnPanne = false;
 let voisinesEnPanne = false;
-const voisinesRendues: { videoId: string; formatId: string; le: string; axes: { objets: string[] } }[] = [];
+const voisinesRendues: { videoId: string; formatId: string; le: string; axes: { objets: string[]; ouverture?: string[] } }[] = [];
+const demandesVoisines: { reseau: string; videoIdEnCours?: string }[] = [];
 
 vi.mock("@/services/_commun", async (original) => ({
   ...(await original<Record<string, unknown>>()),
@@ -33,9 +34,11 @@ vi.mock("@/services/_commun", async (original) => ({
   }),
 }));
 vi.mock("@/services/variete-commune/voisines", () => ({
-  voisinesDuReseau: async () => {
+  // Double fidèle : la vraie lecture exclut la vidéo en cours (`videoIdEnCours`).
+  voisinesDuReseau: async (d: { reseau: string; videoIdEnCours?: string }) => {
+    demandesVoisines.push(d);
     if (voisinesEnPanne) throw new Error("voisines illisibles");
-    return voisinesRendues.map((e) => ({ version: "1", ...e }));
+    return voisinesRendues.filter((e) => e.videoId !== d.videoIdEnCours).map((e) => ({ version: "1", ...e }));
   },
 }));
 
@@ -62,6 +65,7 @@ describe("face caméra : mémoire des cartes commune (BR-VARIETE-FACECAM-v21o)",
     versionsSimulees.length = 0;
     videosSimulees.length = 0;
     voisinesRendues.length = 0;
+    demandesVoisines.length = 0;
     for (const k of Object.keys(reglages)) delete reglages[k];
     versionsEnPanne = videosEnPanne = voisinesEnPanne = false;
     versionsSimulees.push(version("v1", "2026-01-01", ["m1", "m2"]));
@@ -82,6 +86,35 @@ describe("face caméra : mémoire des cartes commune (BR-VARIETE-FACECAM-v21o)",
     expect(r.dejaServis).toEqual(expect.arrayContaining(["m1", "m2", "chiffre", "liste"]));
     expect(r.ouverturePrecedente).toBeDefined();
     expect(r).not.toEqual(propre);
+  });
+
+  it("b1) allumé, voisine avec ouverture X et objets X, Y, mémoire propre SANS ouverture : ouverturePrecedente = X (la carte qui a ouvert la voisine)", async () => {
+    reglages.varieteCommune = true;
+    versionsSimulees.length = 0;
+    voisinesRendues.length = 0;
+    voisinesRendues.push({ videoId: "av1", formatId: "avocat", le: "2026-11-02", axes: { ouverture: ["autre:cartes:X"], objets: ["autre:cartes:X", "autre:cartes:Y"] } });
+    expect(await memoireCartesFacecam("en-cours")).toEqual({ dejaServis: [] });
+    expect(await appeler()).toEqual({ dejaServis: ["X", "Y"], ouverturePrecedente: "X" });
+    expect(demandesVoisines.map((d) => d.reseau)).toEqual(["linkedin"]);
+  });
+
+  it("b2) même voisine, mémoire propre avec ouverture m1 : ouverturePrecedente reste m1 (limite connue : une voisine plus récente ne la remplace pas, faute de ouvertureDuJourLe)", async () => {
+    reglages.varieteCommune = true;
+    voisinesRendues.length = 0;
+    voisinesRendues.push({ videoId: "av1", formatId: "avocat", le: "2026-11-02", axes: { ouverture: ["autre:cartes:X"], objets: ["autre:cartes:X", "autre:cartes:Y"] } });
+    const r = await appeler();
+    expect(r.ouverturePrecedente).toBe("m1");
+    expect(r.dejaServis).toEqual(expect.arrayContaining(["m1", "m2", "X", "Y"]));
+  });
+
+  it("b3) la vidéo en cours est transmise (videoIdEnCours) et sa propre empreinte n'est pas comptée parmi ses voisines", async () => {
+    reglages.varieteCommune = true;
+    voisinesRendues.length = 0;
+    voisinesRendues.push({ videoId: "en-cours", formatId: "facecam", le: "2026-11-03", axes: { ouverture: ["autre:cartes:Z"], objets: ["autre:cartes:Z"] } });
+    const r = await appeler();
+    expect(demandesVoisines).toEqual([expect.objectContaining({ reseau: "linkedin", videoIdEnCours: "en-cours" })]);
+    expect(r.dejaServis).not.toContain("Z");
+    expect(r).toEqual(await memoireCartesFacecam("en-cours"));
   });
 
   it("c) allumé, vidéo sans réseau ou absente des dépôts → identique à la mémoire propre", async () => {
