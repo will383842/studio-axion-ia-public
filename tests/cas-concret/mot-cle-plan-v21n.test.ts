@@ -2,8 +2,26 @@
  * BR-MOT-CLE-b (X1-18) · option `motCle?` de `planScenesCasConcret` : éteinte = plan identique ; `actif: true` pose le mot-clé
  * (BR-MOT-CLE-a) puis revalide. Aucun appel Claude (stock seulement), 0 €.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Espion de passage : validerPlan reste le vrai ; on compte les appels qui reçoivent un plan portant la légende mot-clé.
+const appelsAvecMot: unknown[] = [];
+vi.mock("@/briques/plan-scenes/validateur", async (orig) => {
+  const vrai = await orig<typeof import("@/briques/plan-scenes/validateur")>();
+  return {
+    ...vrai,
+    validerPlan: (brut: { scenes?: { piece?: string; position?: string; parametres?: { style?: string } }[] }, ctx?: unknown) => {
+      if (brut?.scenes?.some((x) => x.piece === "legende" && x.position === "haut" && x.parametres?.style === "etiquette")) appelsAvecMot.push(brut);
+      return vrai.validerPlan(brut, ctx as never);
+    },
+  };
+});
 import { planScenesCasConcret, type GroupePourPlan } from "@/moteurs/montage-cas-concret/plan-scenes";
+import { avecEmpreintes, empreinteScene } from "@/briques/plan-scenes/empreinte";
+import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { poserMotCleAuPlan } from "@/briques/plan-scenes-generateurs/mot-cle-au-plan";
+import { tranchePlan } from "@/briques/plan-scenes-generateurs/tranche";
+import { FORMAT_PLAN_CAS_CONCRET } from "@/moteurs/montage-cas-concret/plan-scenes";
 import { DIX_SCRIPTS } from "../briques/faits-script/dix-scripts";
 
 function groupe(id: string, texte: string): GroupePourPlan {
@@ -51,6 +69,42 @@ describe("planScenesCasConcret · motCle", () => {
     }
     expect(base.tranches["g0/e1"]).toBeUndefined();
     expect(pose).toBeGreaterThan(0);
+  });
+  it("actif:true : le plan posé est REVALIDÉ (plan-scenes.ts:67) : tranches = validerPlan(pose) tranché, empreintes recalculées, aucune remarque neuve", async () => {
+    let controles = 0;
+    for (const g of GROUPES) {
+      const sans = await planScenesCasConcret({ groupes: [g] });
+      const plan = sans.memo[g.id]?.plan;
+      if (!plan) continue;
+      for (const sujet of g.ecrans[0]!.texteDit.split(/\s+/).filter((m) => m.length > 4)) {
+        const pose = poserMotCleAuPlan(plan, plan.mots, sujet, []);
+        if (pose === plan) continue;
+        const v = validerPlan(pose, { mots: plan.mots, format: FORMAT_PLAN_CAS_CONCRET, facecam: false, dureeMs: plan.dureeMs });
+        expect(v.remarques).toEqual([]);
+        // Limite écrite : le contexte `mots` de validerPlan ne change aucune scène ici (une légende d'un mot dit : la mutation « mots: [] » n'est pas distinguable) ; seuls facecam et format le sont, et ils rougissent.
+        const r = await planScenesCasConcret({ groupes: [g], motCle: { actif: true, sujet, motsInterdits: [] } });
+        for (const e of g.ecrans) {
+          const attendu = tranchePlan(v.plan, e.debutMs, e.finMs);
+          expect(r.tranches[`${g.id}/${e.id}`] ?? null).toEqual(attendu);
+          for (const sc of attendu?.scenes ?? []) {
+            controles++;
+            expect(sc.empreinte).toBe(empreinteScene(sc, attendu!));
+          }
+        }
+        // le plan posé et revalidé porte une empreinte par scène, égale à celle de avecEmpreintes
+        expect(v.plan).toEqual(avecEmpreintes(v.plan));
+      }
+    }
+    expect(controles).toBeGreaterThan(0);
+  });
+  it("actif:true : validerPlan est réellement appelé sur le plan posé (plan-scenes.ts:67) ; éteint : jamais sur un plan portant le mot", async () => {
+    appelsAvecMot.length = 0;
+    await planScenesCasConcret({ groupes: GROUPES });
+    await planScenesCasConcret({ groupes: GROUPES, motCle: { actif: false, sujet: "devis", motsInterdits: [] } });
+    expect(appelsAvecMot).toHaveLength(0);
+    const r = await planScenesCasConcret({ groupes: GROUPES, motCle: { actif: true, sujet: "devis", motsInterdits: [] } });
+    expect(mots(r).length).toBeGreaterThan(0);
+    expect(appelsAvecMot.length).toBeGreaterThanOrEqual(mots(r).length);
   });
   it("aucun mot commun avec le sujet : plan identique", async () => {
     const base = await planScenesCasConcret({ groupes: GROUPES });
