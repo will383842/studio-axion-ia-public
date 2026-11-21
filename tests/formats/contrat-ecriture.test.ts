@@ -15,6 +15,8 @@ import {
 
 /** Date injectée : jamais l'horloge réelle (le test ne doit pas devenir instable). */
 const AUJOURDHUI = "2026-10-19";
+/** T-EXT-29 : le tutoriel est excepté depuis le 20/11/2026 ; le registre réel se vérifie à cette date (les fins restent à venir). */
+const AUJOURDHUI_REGISTRE = "2026-11-20";
 const lireRepo = (chemin: string): string | null => (existsSync(join(process.cwd(), chemin)) ? readFileSync(join(process.cwd(), chemin), "utf8") : null);
 
 const complet = { recetteCommune: true, memoire: true, controles: true, debitMesure: true };
@@ -140,10 +142,10 @@ describe("recevabilité des dates d'exception (par la fonction elle-même)", () 
 describe("registre réel", () => {
   const formats = listerFormats({ inclureMasques: true }).map((f) => ({ id: f.id, statut: f.statut, ouvertDansLaNavigation: f.ouvertDansLaNavigation }));
   it("tous les formats actifs sont en règle", () => {
-    expect(verifierContratEcriture(formats, CONTRATS_ECRITURE, EXCEPTIONS_ECRITURE, { aujourdhui: AUJOURDHUI, portees: PORTEE_CONTRAT })).toEqual([]);
+    expect(verifierContratEcriture(formats, CONTRATS_ECRITURE, EXCEPTIONS_ECRITURE, { aujourdhui: AUJOURDHUI_REGISTRE, portees: PORTEE_CONTRAT })).toEqual([]);
   });
-  it("les exceptions sont datées et visent exactement facecam (2 : débit + périmètre), tableau-anime, cas-concret, facecam-animee, image-video", () => {
-    expect(EXCEPTIONS_ECRITURE.map((e) => e.formatId).sort()).toEqual(["cas-concret", "facecam", "facecam", "facecam-animee", "image-video", "tableau-anime"]);
+  it("les exceptions sont datées et visent exactement facecam (2 : débit + périmètre), tableau-anime, cas-concret, facecam-animee, image-video, tutoriel-outil", () => {
+    expect(EXCEPTIONS_ECRITURE.map((e) => e.formatId).sort()).toEqual(["cas-concret", "facecam", "facecam", "facecam-animee", "image-video", "tableau-anime", "tutoriel-outil"]);
     for (const e of EXCEPTIONS_ECRITURE) {
       expect(e.depuis).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(e.raison.length).toBeGreaterThan(10);
@@ -156,6 +158,19 @@ describe("registre réel", () => {
       expect((e.levee ?? "").length, e.formatId).toBeGreaterThan(10);
     }
   });
+  it("tutoriel-outil : ouvert dans la navigation, exception datée, motivée, avec levage ; elle échoue le lendemain de sa fin", () => {
+    const e = EXCEPTIONS_ECRITURE.find((x) => x.formatId === "tutoriel-outil")!;
+    expect(e.depuis).toBe("2026-11-20");
+    expect(e.jusquAu).toBe("2027-02-20");
+    expect((e.levee ?? "").length).toBeGreaterThan(10);
+    expect([...(e.pieces ?? [])].sort()).toEqual(["controles", "debitMesure", "memoire", "recetteCommune"]);
+    expect(CONTRATS_ECRITURE["tutoriel-outil"]).toBeUndefined();
+    const sans = EXCEPTIONS_ECRITURE.filter((x) => x.formatId !== "tutoriel-outil");
+    expect(verifierContratEcriture(formats, CONTRATS_ECRITURE, sans, { aujourdhui: AUJOURDHUI_REGISTRE, portees: PORTEE_CONTRAT }).map((v) => v.formatId)).toEqual(["tutoriel-outil"]);
+    const fin = (d: string) => verifierContratEcriture(formats, CONTRATS_ECRITURE, EXCEPTIONS_ECRITURE.filter((x) => x.formatId === "tutoriel-outil" || x.jusquAu! >= "2027-03-01"), { aujourdhui: d, portees: PORTEE_CONTRAT }).filter((v) => v.formatId === "tutoriel-outil");
+    expect(fin("2027-02-20")).toEqual([]);
+    expect(fin("2027-02-21")).toHaveLength(1);
+  });
   it("une exception dépassée fait échouer la règle (date injectée)", () => {
     const formats = [{ id: "ancien", statut: "actif" }];
     const ex = [{ formatId: "ancien", depuis: "2026-10-18", jusquAu: "2026-12-31", levee: "brancher la recette", raison: "format antérieur au lot C1" }];
@@ -166,7 +181,7 @@ describe("registre réel", () => {
   });
   it("les exceptions réelles ne sont pas échues à la date injectée, et le seraient après leur fin", () => {
     const formats = listerFormats({ inclureMasques: true }).map((f) => ({ id: f.id, statut: f.statut, ouvertDansLaNavigation: f.ouvertDansLaNavigation }));
-    expect(verifierContratEcriture(formats, CONTRATS_ECRITURE, EXCEPTIONS_ECRITURE, { aujourdhui: AUJOURDHUI, portees: PORTEE_CONTRAT })).toEqual([]);
+    expect(verifierContratEcriture(formats, CONTRATS_ECRITURE, EXCEPTIONS_ECRITURE, { aujourdhui: AUJOURDHUI_REGISTRE, portees: PORTEE_CONTRAT })).toEqual([]);
     const fin = EXCEPTIONS_ECRITURE.map((e) => e.jusquAu!).sort().at(-1)!;
     const apres = new Date(Date.parse(fin) + 86_400_000).toISOString().slice(0, 10);
     expect(verifierContratEcriture(formats, CONTRATS_ECRITURE, EXCEPTIONS_ECRITURE, { aujourdhui: apres, portees: PORTEE_CONTRAT }).length).toBeGreaterThan(0);
@@ -189,7 +204,7 @@ describe("registre réel", () => {
   it("face caméra : contrat « chaîne courte seulement », exception à périmètre grande + equipe, sans laquelle la règle échoue", () => {
     expect(PORTEE_CONTRAT["facecam"]).toBe("chaîne courte seulement");
     const sans = EXCEPTIONS_ECRITURE.filter((e) => !(e.formatId === "facecam" && e.perimetre));
-    const v = verifierContratEcriture(formats, CONTRATS_ECRITURE, sans, { aujourdhui: AUJOURDHUI, portees: PORTEE_CONTRAT });
+    const v = verifierContratEcriture(formats, CONTRATS_ECRITURE, sans, { aujourdhui: AUJOURDHUI_REGISTRE, portees: PORTEE_CONTRAT });
     expect(v).toEqual([expect.objectContaining({ formatId: "facecam", manque: ["recetteCommune", "memoire", "controles"] })]);
     const e = EXCEPTIONS_ECRITURE.find((x) => x.formatId === "facecam" && x.perimetre)!;
     expect(e.perimetre).toMatch(/grande/);
@@ -202,7 +217,7 @@ describe("registre réel", () => {
     expect(v.some((x) => x.formatId === "facecam" && x.message.includes("périmètre"))).toBe(true);
   });
   it("un contrat déclaré pour un format absent du registre est refusé", () => {
-    const v = verifierContratEcriture(formats, { ...CONTRATS_ECRITURE, fantome: complet }, EXCEPTIONS_ECRITURE, { aujourdhui: AUJOURDHUI, portees: PORTEE_CONTRAT });
+    const v = verifierContratEcriture(formats, { ...CONTRATS_ECRITURE, fantome: complet }, EXCEPTIONS_ECRITURE, { aujourdhui: AUJOURDHUI_REGISTRE, portees: PORTEE_CONTRAT });
     expect(v).toEqual([expect.objectContaining({ formatId: "fantome", manque: [] })]);
   });
   it("chaque preuve du registre réel nomme le module écrivain du format", () => {

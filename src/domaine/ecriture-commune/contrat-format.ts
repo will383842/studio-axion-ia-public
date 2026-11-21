@@ -146,6 +146,15 @@ export const EXCEPTIONS_ECRITURE: readonly ExceptionEcriture[] = [
     levee: "brancher la recette, la mémoire (source à lire côté image-video, TODO C4), les contrôles et le débit mesuré, puis déclarer son contrat",
     raison: "format en service (masqué mais ouvert dans la navigation) ; n'importe ni la recette, ni la mémoire, ni la ressemblance communes",
   },
+  {
+    // T-EXT-29 : relevé au 20/11/2026, aucun module du tutoriel n'importe la recette, la mémoire ni les contrôles communs ; débit jamais relevé.
+    formatId: "tutoriel-outil",
+    depuis: "2026-11-20",
+    jusquAu: "2027-02-20",
+    pieces: ["recetteCommune", "memoire", "controles", "debitMesure"],
+    levee: "brancher la recette, la mémoire et les contrôles communs dans l'écriture du tutoriel (scénariste, contrôleur), relever le débit réel sur de vrais essais, puis déclarer son contrat avec ses preuves",
+    raison: "format ouvert dans la navigation (masqué) ; recette, mémoire, contrôles et débit mesuré non branchés",
+  },
 ];
 
 const dateValide = (d: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
