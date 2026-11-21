@@ -16,8 +16,11 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { demandeExpliciteScript } from "./comprendre";
 import type { EntreeRenduPartiel, PortsRetoucheChat, SortieRenduPartiel } from "./service";
 
-export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue"] as const;
+export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue", "demo-facecam"] as const;
 export type IdGenerateurRetouche = (typeof GENERATEURS_RETOUCHE)[number];
+
+/** Clé du réglage de la démo facecam : inscrite par N-26-a, éteinte (seul `true` l'allume ; Williams, après planche C7-25). */
+export const CLE_REGLAGE_DEMO_FACECAM = "retoucheChat.demoFacecam";
 
 export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
   avocat: "retoucheChat.avocat",
@@ -25,6 +28,7 @@ export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
   "facecam-animee": "retoucheChat.facecamAnimee",
   "tutoriel-outil": "retoucheChat.tutorielOutil",
   "video-longue": "retoucheChat.videoLongue",
+  "demo-facecam": CLE_REGLAGE_DEMO_FACECAM,
 };
 
 /** Générateurs dont la voix est une prise filmée : elle ne se réécrit jamais (`modifier-script` toujours écarté). */
@@ -34,9 +38,6 @@ export const voixEstPriseFilmee = (g: string): boolean => (GENERATEURS_VOIX_PRIS
 /** Générateurs dont le texte lu est le script validé par Williams : `modifier-script` toujours écarté, texte à l'écran seulement s'il l'a écrit. */
 export const GENERATEURS_SCRIPT_VALIDE = ["tutoriel-outil", "video-longue"] as const;
 export const scriptEstValide = (g: string): boolean => (GENERATEURS_SCRIPT_VALIDE as readonly string[]).includes(g);
-
-/** Clé du réglage de la démo facecam : déclarée ici, éteinte, lue nulle part tant que N-26 n'inscrit pas la démo. */
-export const CLE_REGLAGE_DEMO_FACECAM = "retoucheChat.demoFacecam";
 
 export const estGenerateurRetouche = (g: unknown): g is IdGenerateurRetouche => (GENERATEURS_RETOUCHE as readonly unknown[]).includes(g);
 
@@ -100,6 +101,12 @@ export const ADAPTATEURS_RETOUCHE: Record<IdGenerateurRetouche, AdaptateurRetouc
     nom: "Vidéo longue",
     operations: COMMUNES,
     consigne: `Vidéo « Vidéo longue » (16:9, découpée en chapitres, chaque chapitre est un groupe de scènes). Une retouche vise UN seul chapitre, celui que l'utilisateur a choisi : les scènes des autres chapitres ne se touchent pas. Retouchable : texte à l'écran, pièces, zooms, transitions, dynamisme. ${REGLE_SCRIPT_VALIDE}`,
+  },
+  "demo-facecam": {
+    id: "demo-facecam",
+    nom: "Démo face caméra",
+    operations: COMMUNES,
+    consigne: `Vidéo « Démo face caméra » (écran divisé : prise de Williams + écran de démonstration). Retouchable : texte à l'écran, pièces, zooms, transitions, dynamisme. Rien devant le visage. ${REGLE_PRISE_FILMEE}`,
   },
 };
 

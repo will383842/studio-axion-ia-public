@@ -9,6 +9,8 @@ import { preparerMotDePasse } from "../helpers/g1a";
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 
+import { lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
+
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { depots } = await import("@/services/_commun");
 const auth = await import("@/services/auth");
@@ -33,6 +35,7 @@ function banc() {
   const compte = { gardes: 0, abandons: [] as string[] };
   const dep: import("@/services/tutoriel-depot").DependancesDepotTutoriel = {
     interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
+    equipe: async () => true,
     lancer: async (id) => {
       compte.gardes++;
       await construireCommande(id);
@@ -57,6 +60,23 @@ describe("dépôt du tutoriel : brouillon lançable", () => {
     expect(compte.abandons).toEqual([]);
     const commande = await construireCommande(r.videoId);
     expect(commande.distribution.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("sans voix avec la distribution par défaut : la VRAIE garde de fabrication passe, la commande est sansVoix", async () => {
+    const { compte, dep } = banc();
+    let sansVoix = false;
+    const r = await d.deposerTutoriel({ ...phrase, modeVoix: "sans-voix" }, {
+      ...dep,
+      lancer: async (id) => {
+        compte.gardes++;
+        const commande = await construireCommande(id);
+        sansVoix = lireEntreesTutoriel(commande.entrees).sansVoix === true;
+        return { statut: "lancee", travailId: "t-simule" };
+      },
+    });
+    expect(r.statut).toBe("lancee");
+    expect(compte.gardes).toBe(1);
+    expect(sansVoix).toBe(true);
   });
 
   it("aucune personne disponible : refus lisible, aucun brouillon créé, rien n'est lancé", async () => {

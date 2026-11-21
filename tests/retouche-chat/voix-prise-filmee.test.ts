@@ -28,7 +28,7 @@ describe("voix = prise filmée : modifier-script toujours écarté", () => {
     expect(voixEstPriseFilmee("avocat")).toBe(false);
     expect(voixEstPriseFilmee("image-video")).toBe(false);
     expect(CLE_REGLAGE_DEMO_FACECAM).toBe("retoucheChat.demoFacecam");
-    expect([...GENERATEURS_RETOUCHE]).toEqual(["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue"]);
+    expect([...GENERATEURS_RETOUCHE]).toEqual(["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue", "demo-facecam"]);
   });
 
   it("facecam animée : écarté avec demande explicite, une seule remarque", () => {
