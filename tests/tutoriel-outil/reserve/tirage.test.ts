@@ -42,13 +42,19 @@ function banc(surcharge: Partial<DependancesTirage> = {}): Banc {
     reglages: async () => ACTIF,
     interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
     interrupteur: async () => true,
+    equipe: async () => true,
+    tauxUsdEur: async () => 0.9,
     plafondVideoUsd: async () => 1,
     plafondMoisAtteint: async () => false,
     accordSansClic: async () => true,
     sousPlafondUsine: async () => true,
+    // Comme l'adaptateur réel : la vidéo est notée sur l'élément AVANT le lancement.
     lancer: async (_e, o) => {
-      b.lancements.push({ ...o, origine: origineFournisseurCourante() });
-      return { statut: "lancee", videoId: `v-${b.lancements.length}` };
+      const { noterBrouillon, ...options } = o;
+      const videoId = `v-${b.lancements.length + 1}`;
+      await noterBrouillon(videoId);
+      b.lancements.push({ ...options, origine: origineFournisseurCourante() });
+      return { statut: "lancee", videoId };
     },
     notifier: async (n) => void b.cloches.push(`${n.titre} ${n.message ?? ""}`),
     ...surcharge,
@@ -80,6 +86,35 @@ describe("tirerSuivantReserve", () => {
     const r2 = await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep);
     expect(r2).toMatchObject({ etat: "pris", deja: true, elementId: "res-premier1", videoId: "v-1" });
     expect(b.lancements).toHaveLength(1);
+  });
+
+  it("rejeu d'une clé dont la fiche porte une vidéo : toujours « pris, déjà », même si l'élément a changé d'état", async () => {
+    for (const vers of ["fait", "a_revoir", "en_reserve"] as const) {
+      magasin.clear();
+      await ajouterElementReserve(nouveau("res-premier1"));
+      const b = banc();
+      await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep);
+      const { changerEtatReserve } = await import("@/services/tutoriel-reserve");
+      await changerEtatReserve("res-premier1", vers, { patch: { prise: undefined } });
+      expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep)).toMatchObject({ etat: "pris", deja: true, elementId: "res-premier1", videoId: "v-1" });
+      expect(b.lancements).toHaveLength(1);
+    }
+  });
+
+  it("ARGENT : la note de la vidéo échoue ou n'est pas relue : refus, vidéo jamais lancée, rien n'est payé", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    const b = banc({ noterVideo: async () => { throw new Error("base"); } });
+    const r = await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep);
+    expect(r).toMatchObject({ etat: "echec", retourEnReserve: true });
+    expect(b.lancements).toHaveLength(0);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("en_reserve");
+
+    // Note « réussie » mais qui ne se relit pas (écriture perdue) : même refus.
+    magasin.clear();
+    await ajouterElementReserve(nouveau("res-second01"));
+    const b2 = banc({ noterVideo: async () => undefined });
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-02" }, b2.dep)).toMatchObject({ etat: "echec" });
+    expect(b2.lancements).toHaveLength(0);
   });
 
   it("interrupteur de la réserve éteint : « eteint », rien n'est écrit ni lancé ; l'essai passe quand même les conditions", async () => {
@@ -117,7 +152,9 @@ describe("tirerSuivantReserve", () => {
     { raison: "entree_fermee", surcharge: () => ({ interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: false }) }) },
     { raison: "entree_fermee", element: nouveau("res-dossier1", { type: "dossier", fichierId: "f1", nomFichier: "a.zip", attestationImages: true }), surcharge: () => ({ interrupteurs: async () => ({ formulaire: true, dossier: false, phrase: true }) }) },
     { raison: "entree_fermee", element: nouveau("res-demo0001", { type: "maquette-demo", dossier: "01-courriels" }), surcharge: () => ({ interrupteurs: async () => ({ formulaire: true, dossier: false, phrase: true }) }) },
-    { raison: "equipe_eteinte", surcharge: () => ({ interrupteur: async () => false }) },
+    { raison: "equipe_eteinte", surcharge: () => ({ equipe: async () => false }) },
+    { raison: "equipe_eteinte", surcharge: () => ({ equipe: async () => { throw new Error("illisible"); } }) },
+    { raison: "plafond_video", surcharge: () => ({ plafondVideoUsd: async () => 1.38, tauxUsdEur: async () => 0.95 }) },
     { raison: "voix_sans_devis", reglages: { ...ACTIF, voix: true }, surcharge: () => ({ interrupteur: async (cle: string) => cle !== "tutoriel.devisAvantDepense" }) },
     { raison: "plafond_video", surcharge: () => ({ plafondVideoUsd: async () => 5 }) },
     { raison: "plafond_video", surcharge: () => ({ plafondVideoUsd: async () => { throw new Error("illisible"); } }) },
@@ -140,8 +177,29 @@ describe("tirerSuivantReserve", () => {
 
   it("un script collé dispense de l'équipe", async () => {
     await ajouterElementReserve(nouveau("res-premier1", undefined, "Un texte déjà écrit."));
-    const b = banc({ interrupteur: async () => false });
+    const b = banc({ equipe: async () => false });
     expect((await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep)).etat).toBe("pris");
+  });
+
+  it("équipe : même règle que deposerTutoriel (tutoriel.equipe ET tutoriel.claude), lue dans les réglages", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    const el = (await lireElementReserve("res-premier1"))!;
+    const sansEquipe = { ...banc().dep, equipe: undefined };
+    magasin.set("tutoriel.equipe", true);
+    expect(await conditionsTirage(el, ACTIF, sansEquipe)).toMatchObject({ raison: "equipe_eteinte" });
+    magasin.set("tutoriel.claude", true);
+    expect(await conditionsTirage(el, ACTIF, sansEquipe)).toBeNull();
+  });
+
+  it("taux $→€ : le plus haut du défaut (0,9) et du réglage ; réglage plus bas ou illisible : défaut", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    const el = (await lireElementReserve("res-premier1"))!;
+    // 1,38 $ : 125 c€ au taux 0,9 (égalité acceptée), 132 c€ au taux 0,95 (refus).
+    const avec = (taux: () => Promise<number>) => banc({ plafondVideoUsd: async () => 1.38, tauxUsdEur: taux }).dep;
+    expect(await conditionsTirage(el, ACTIF, avec(async () => 0.95))).toMatchObject({ raison: "plafond_video" });
+    expect(await conditionsTirage(el, ACTIF, avec(async () => 0.5))).toBeNull();
+    expect(await conditionsTirage(el, ACTIF, avec(async () => { throw new Error("illisible"); }))).toBeNull();
+    expect(await conditionsTirage(el, ACTIF, avec(async () => Number.NaN))).toBeNull();
   });
 
   it("plafond par vidéo : l'égalité est acceptée (1,25 € = 125 centimes)", async () => {

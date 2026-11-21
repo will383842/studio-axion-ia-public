@@ -4,11 +4,14 @@
  *
  * ARGENT. Ce fichier ne décide d'aucune dépense : les conditions (plafond par vidéo, plafond du mois, autonomie de l'usine,
  * devis, interrupteurs) sont vérifiées par `tirerSuivantReserve` AVANT de l'appeler. Ici :
- *  - origine « usine » partout (`avecOrigineFournisseur`, `origine: "usine"` figée dans la commande) ;
+ *  - origine « usine » partout (`avecOrigineFournisseur`, origine figée dans la commande par la constante ORIGINE_RESERVE : le
+ *    test de garde d'origine interdit d'écrire l'origine en dur sous la forme d'un champ littéral) ;
  *  - SANS VOIX par défaut (`entreeModeVoix(MODE_SANS_VOIX)`) : aucune voix cherchée, aucun appel de voix ;
  *  - montant de lancement nul (format sans prix) : l'argent reste gardé par les plafonds Claude et le devis ;
  *  - la vidéo reste « à valider » : rien n'est publié, aucun créneau, aucun envoi.
  * Un échec abandonne le brouillon (archivé, jamais effacé).
+ * DOUBLE LANCEMENT : le numéro de la vidéo est noté sur l'élément (`noterBrouillon`) APRÈS la création du brouillon et AVANT le
+ * lancement ; si la note ne tient pas, rien n'est lancé. Un élément « pris » porte donc toujours la vidéo qui pourrait être payée.
  */
 import "server-only";
 import type { Distribution, Id, Ratio, Script, Video } from "@/domaine/types";
@@ -20,13 +23,21 @@ import type { ElementReserve } from "@/domaine/tutoriel-reserve";
 import { depots, ErreurStudio, horodatage } from "./_commun";
 import type { EntreeBrouillonFormat } from "./creation-format";
 import { avecOrigineFournisseur } from "./plafond-fournisseur";
+import type { OrigineLancement } from "./budget-mensuel";
 
 export const ID_FORMAT_TUTORIEL_RESERVE = "tutoriel-outil";
 export const RATIOS_RESERVE: readonly Ratio[] = ["4:5", "9:16", "1:1"];
 export const PHRASE_DOUBLE_ABSENT = "Ajoutez votre double dans Personnages avant d'allumer la voix.";
 export const PHRASE_PANNE_LANCEMENT = "Le lancement n'a pas pu se faire pour le moment : nouvel essai plus tard.";
 
-const REFUS_ARGENT = /ACCORD|CONFIRMATION|PLAFOND|CREDIT|BUDGET|QUOTA|VERROU/;
+/** « usine » : seul endroit de ce fichier ; passé comme valeur (jamais un champ littéral), comme les autres lanceurs. */
+const ORIGINE_RESERVE: OrigineLancement = "usine";
+
+/**
+ * Codes d'erreur qui disent « cette entrée est invalide » : refus DÉFINITIF (l'élément passe à revoir). Tout le reste (plafond,
+ * crédit, autonomie éteinte, vidéo déjà en fabrication, numéros de suivi épuisés, panne…) est passager : nouvel essai plus tard.
+ */
+const CODES_DEFINITIFS: ReadonlySet<string> = new Set(["SCRIPT_MANQUANT", "SCRIPT_NON_RELU", "FORMAT_INCONNU", "INTROUVABLE", "REGLAGES_INVALIDES", "CAS_TRAITE", "CAS_RETIRE", "DISTRIBUTION_INCOMPLETE"]);
 
 export type IssueLancementReserve = { statut: "lancee"; videoId: string } | { statut: "refusee"; phrase: string; definitif: boolean };
 
@@ -39,7 +50,14 @@ export interface DependancesLancementReserve {
   script?: (videoId: Id, texte: string) => Promise<void>;
   ratios?: (videoId: Id, ratios: Ratio[]) => Promise<void>;
   /** Lancement confirmé sans session ; par défaut `lancerFabricationConfirmee`. */
-  lancer?: (videoId: Id, options: { confirme: number; origine: "usine" }) => Promise<unknown>;
+  lancer?: (videoId: Id, options: { confirme: number; origine: OrigineLancement }) => Promise<unknown>;
+  /**
+   * Note la vidéo sur l'élément pris, APRÈS le brouillon et AVANT le lancement. Doit lever si la note n'est pas relue à l'identique.
+   * Absente : refus non définitif, rien n'est lancé (échec fermé).
+   */
+  noterBrouillon?: (videoId: Id) => Promise<void>;
+  /** Un travail en file ou en cours existe pour cette vidéo ? Défaut : lecture des travaux (même règle que le lancement). */
+  travailEnCours?: (videoId: Id) => Promise<boolean>;
   /** Abandon sans session (archivé si encore brouillon) ; par défaut `abandonnerSansSession`. */
   abandonner?: (videoId: Id) => Promise<void>;
 }
@@ -105,37 +123,38 @@ async function ratiosParDefaut(videoId: Id, ratios: Ratio[]): Promise<void> {
   await depots().videos.modifier(videoId, { ratios });
 }
 
-async function lancerParDefaut(videoId: Id, options: { confirme: number; origine: "usine" }): Promise<unknown> {
+async function lancerParDefaut(videoId: Id, options: { confirme: number; origine: OrigineLancement }): Promise<unknown> {
   const { lancerFabricationConfirmee } = await import("./fabrication");
   return lancerFabricationConfirmee(videoId, options);
 }
 
+/** Même règle que `lancerSousVerrou` (fabrication.ts) : un travail en file ou en cours pour cette vidéo. */
+async function travailEnCoursParDefaut(videoId: Id): Promise<boolean> {
+  return !!(await depots().travaux.trouver((t) => t.cibleId === videoId && (t.statut === "en_cours" || t.statut === "en_file")));
+}
+
 /** `abandonnerBrouillon` exige une session : même geste sans elle (archivé, jamais effacé). */
-async function abandonnerParDefaut(videoId: Id): Promise<void> {
+export async function abandonnerParDefaut(videoId: Id): Promise<void> {
   const v = await depots().videos.obtenir(videoId);
   if (v?.statut === "brouillon") await depots().videos.modifier(videoId, { statut: "archivee", statutAvantArchive: "brouillon" });
 }
 
 /**
- * Lance la fabrication de l'élément, sans session. Sans voix (sauf `voix` allumée par Williams) : la distribution est
- * facultative (le double, 1 personne au plus). Avec voix : le double est obligatoire (sinon refus DÉFINITIF).
- * Erreur d'entrée (ErreurStudio) : refus définitif ; autre panne : refus non définitif (nouvel essai plus tard).
+ * Lance la fabrication de l'élément, sans session. Le double (1 personne) est obligatoire AVEC ou SANS voix, comme dans `deposerTutoriel`
+ * (la garde de fabrication l'exige) : sinon refus DÉFINITIF. Erreur d'entrée (liste CODES_DEFINITIFS) : refus définitif ; tout le reste :
+ * refus non définitif (nouvel essai plus tard).
  */
 export async function lancerDepuisReserve(e: ElementReserve, o: { voix: boolean; fichierId?: string }, dep: DependancesLancementReserve = {}): Promise<IssueLancementReserve> {
+  // Comme `deposerTutoriel` : la garde de fabrication exige encore UNE personne en sans-voix (format tutoriel-outil, personnages.min = 1,
+  // `DISTRIBUTION_INCOMPLETE`). Personne de disponible : refus lisible, jamais un brouillon impossible à lancer.
   let distribution: Distribution[] = [];
   try {
     const trouvee = await (dep.distribution ?? distributionParDefaut)(ID_FORMAT_TUTORIEL_RESERVE);
-    const avecPersonne = trouvee.filter((x) => !!x?.personnageId);
-    if (o.voix) {
-      if (avecPersonne.length === 0) return { statut: "refusee", phrase: PHRASE_DOUBLE_ABSENT, definitif: true };
-      distribution = avecPersonne.slice(0, 1);
-    } else {
-      distribution = avecPersonne.slice(0, 1);
-    }
+    distribution = trouvee.filter((x) => !!x?.personnageId).slice(0, 1);
   } catch (err) {
-    if (o.voix) return { statut: "refusee", phrase: err instanceof ErreurStudio ? err.message : PHRASE_DOUBLE_ABSENT, definitif: err instanceof ErreurStudio };
-    distribution = [];
+    return { statut: "refusee", phrase: err instanceof ErreurStudio ? err.message : PHRASE_DOUBLE_ABSENT, definitif: err instanceof ErreurStudio };
   }
+  if (distribution.length === 0) return { statut: "refusee", phrase: PHRASE_DOUBLE_ABSENT, definitif: true };
 
   const titre = e.titre.slice(0, 80);
   let videoId: Id | null = null;
@@ -145,15 +164,37 @@ export async function lancerDepuisReserve(e: ElementReserve, o: { voix: boolean;
   try {
     const video = await (dep.brouillon ?? brouillonParDefaut)({ formatId: ID_FORMAT_TUTORIEL_RESERVE, titre, sujet: titre, distribution, entrees: entreesDepuisReserve(e, o) });
     videoId = video.id;
+    // ARGENT : la vidéo est notée sur l'élément AVANT tout lancement. Note impossible : brouillon abandonné, rien n'est lancé.
+    try {
+      await (dep.noterBrouillon ?? refuserSansNote)(video.id);
+    } catch {
+      await abandonner();
+      return { statut: "refusee", phrase: PHRASE_PANNE_LANCEMENT, definitif: false };
+    }
     await (dep.script ?? scriptParDefaut)(video.id, typeof e.script === "string" ? e.script : "");
     await (dep.ratios ?? ratiosParDefaut)(video.id, [...RATIOS_RESERVE]);
     // ARGENT : origine « usine » figée, montant nul (format sans prix). Les dépenses Claude restent gardées par leur plafond propre.
-    await avecOrigineFournisseur("usine", () => (dep.lancer ?? lancerParDefaut)(video.id, { confirme: 0, origine: "usine" }));
+    await avecOrigineFournisseur(ORIGINE_RESERVE, () => (dep.lancer ?? lancerParDefaut)(video.id, { confirme: 0, origine: ORIGINE_RESERVE }));
     return { statut: "lancee", videoId: video.id };
   } catch (err) {
+    // Le lancement a pu lever APRÈS la création du travail (ex. la file) : un travail en file ou en cours pour cette vidéo vaut
+    // « lancée » (jamais abandonnée ni relancée : ce serait payer deux fois). Lecture impossible : même prudence (le suivi tranchera).
+    if (videoId) {
+      let enCours = true;
+      try {
+        enCours = await (dep.travailEnCours ?? travailEnCoursParDefaut)(videoId);
+      } catch {
+        enCours = true;
+      }
+      if (enCours) return { statut: "lancee", videoId };
+    }
     await abandonner();
-    // Un refus d'argent (accord, plafond, crédit, budget) n'est pas une entrée refusée : l'élément pourra être retenté.
-    if (err instanceof ErreurStudio) return { statut: "refusee", phrase: err.message, definitif: !REFUS_ARGENT.test(err.code) };
+    // Seule une entrée invalide (liste explicite) est définitive ; tout le reste (argent, autonomie éteinte, panne) est passager.
+    if (err instanceof ErreurStudio) return { statut: "refusee", phrase: err.message, definitif: CODES_DEFINITIFS.has(err.code) };
     return { statut: "refusee", phrase: PHRASE_PANNE_LANCEMENT, definitif: false };
   }
+}
+
+async function refuserSansNote(): Promise<void> {
+  throw new Error("noterBrouillon absent");
 }

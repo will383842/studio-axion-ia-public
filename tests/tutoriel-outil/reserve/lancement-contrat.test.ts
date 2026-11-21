@@ -46,8 +46,12 @@ describe("entreesDepuisReserve : contrat avec deposerTutoriel", () => {
     const attendu = await entreesDuDepot({ mode: "phrase", phrase: "Un tableau de bord pour un atelier", fin: "prendre-rendez-vous" });
     expect(entreesDepuisReserve(idee, { voix: true })).toEqual(attendu);
   });
-  // À activer au rebase après AUD-2 (modeVoix « sans-voix » et script collé dans deposerTutoriel) : comparer `entreesDepuisReserve(e, { voix: false })`.
-  it.todo("dossier et phrase sans voix : même forme que deposerTutoriel (AUD-2)");
+  it("dossier et phrase sans voix : même forme que deposerTutoriel (AUD-2)", async () => {
+    expect(entreesDepuisReserve(dossier, { voix: false })).toEqual(await entreesDuDepot({ mode: "dossier", fichierId: "f-1", attestationImages: true, fin: "aucune", modeVoix: "sans-voix" }));
+    expect(entreesDepuisReserve({ ...idee, script: "Texte." }, { voix: false })).toEqual(
+      await entreesDuDepot({ mode: "phrase", phrase: "Un tableau de bord pour un atelier", fin: "prendre-rendez-vous", modeVoix: "sans-voix", script: "Texte." }),
+    );
+  });
 
   it("sans voix : modeVoix « sans-voix » ; avec voix : aucune clé modeVoix", () => {
     const sv = entreesDepuisReserve(dossier, { voix: false }).tutorielOutil as Record<string, unknown>;
@@ -66,16 +70,25 @@ describe("entreesDepuisReserve : contrat avec deposerTutoriel", () => {
 });
 
 function banc(surcharge: Partial<DependancesLancementReserve> = {}) {
-  const j = { brouillons: [] as unknown[], scripts: [] as string[], ratios: [] as string[][], lancements: [] as { options: unknown; origine: string }[], abandons: [] as string[] };
+  const j = { brouillons: [] as unknown[], scripts: [] as string[], ratios: [] as string[][], lancements: [] as { options: unknown; origine: string }[], abandons: [] as string[], notes: [] as string[], ordre: [] as string[] };
   const dep: DependancesLancementReserve = {
     distribution: async () => double,
     brouillon: async (e) => {
       j.brouillons.push(e);
+      j.ordre.push("brouillon");
       return { id: "v-1" };
     },
+    noterBrouillon: async (id) => {
+      j.notes.push(id);
+      j.ordre.push("note");
+    },
+    travailEnCours: async () => false,
     script: async (_id, texte) => void j.scripts.push(texte),
     ratios: async (_id, r) => void j.ratios.push(r),
-    lancer: async (_id, options) => void j.lancements.push({ options, origine: origineFournisseurCourante() }),
+    lancer: async (_id, options) => {
+      j.ordre.push("lancer");
+      j.lancements.push({ options, origine: origineFournisseurCourante() });
+    },
     abandonner: async (id) => void j.abandons.push(id),
     ...surcharge,
   };
@@ -97,14 +110,24 @@ describe("lancerDepuisReserve", () => {
     await lancerDepuisReserve(idee, { voix: false }, dep);
     expect(j.scripts).toEqual([""]);
   });
-  it("sans voix : distribution vide admise", async () => {
+  it("sans voix : comme deposerTutoriel, la garde de fabrication exige une personne : refus définitif, rien n'est créé", async () => {
     const { j, dep } = banc({ distribution: async () => [] });
-    expect((await lancerDepuisReserve(idee, { voix: false }, dep)).statut).toBe("lancee");
-    expect(j.brouillons[0]).toMatchObject({ distribution: [] });
+    expect(await lancerDepuisReserve(idee, { voix: false }, dep)).toMatchObject({ statut: "refusee", definitif: true });
+    expect(j.brouillons).toHaveLength(0);
+    expect(j.lancements).toHaveLength(0);
   });
-  it("sans voix : distribution lue en échec, le lancement continue sans personne", async () => {
-    const { dep } = banc({ distribution: async () => { throw new Error("base"); } });
+  it("sans voix : une seule personne (celle qui a un personnage) est gardée", async () => {
+    const { j, dep } = banc({ distribution: async () => [{ role: "x", source: "double" }, ...double, ...double] });
     expect((await lancerDepuisReserve(idee, { voix: false }, dep)).statut).toBe("lancee");
+    expect(j.brouillons[0]).toMatchObject({ distribution: double });
+  });
+  it("distribution lue en échec : refus (définitif seulement si l'erreur est lisible), rien n'est créé", async () => {
+    const { ErreurStudio } = await import("@/services/_commun");
+    const { j, dep } = banc({ distribution: async () => { throw new Error("base"); } });
+    expect(await lancerDepuisReserve(idee, { voix: false }, dep)).toMatchObject({ statut: "refusee", definitif: false });
+    expect(j.brouillons).toHaveLength(0);
+    const b2 = banc({ distribution: async () => { throw new ErreurStudio("X", "Pas de double."); } });
+    expect(await lancerDepuisReserve(idee, { voix: false }, b2.dep)).toMatchObject({ statut: "refusee", definitif: true });
   });
   it("avec voix : sans double, refus définitif et rien n'est créé", async () => {
     const { j, dep } = banc({ distribution: async () => [] });
@@ -118,6 +141,10 @@ describe("lancerDepuisReserve", () => {
       [new Error("réseau"), false],
       [new ErreurStudio("SCRIPT_MANQUANT", "Script manquant."), true],
       [new ErreurStudio("USINE_PLAFOND_ATTEINT", "Plafond."), false],
+      [new ErreurStudio("AUTONOMIE_ETEINTE", "L'Usine n'est pas en automatique."), false],
+      [new ErreurStudio("EN_FABRICATION", "Déjà en fabrication."), false],
+      [new ErreurStudio("NUMEROS_SUIVI_EPUISES", "Plus de numéro."), false],
+      [new ErreurStudio("CODE_INCONNU", "Autre."), false],
     ] as const) {
       const { j, dep } = banc({ lancer: async () => { throw erreur; } });
       expect(await lancerDepuisReserve(idee, { voix: false }, dep)).toMatchObject({ statut: "refusee", definitif });
@@ -128,5 +155,33 @@ describe("lancerDepuisReserve", () => {
     const { j, dep } = banc({ brouillon: async () => { throw new Error("base"); } });
     expect(await lancerDepuisReserve(idee, { voix: false }, dep)).toMatchObject({ statut: "refusee", definitif: false });
     expect(j.abandons).toHaveLength(0);
+  });
+  it("ARGENT : la vidéo est notée APRÈS le brouillon et AVANT le lancement", async () => {
+    const { j, dep } = banc();
+    await lancerDepuisReserve(idee, { voix: false }, dep);
+    expect(j.notes).toEqual(["v-1"]);
+    expect(j.ordre).toEqual(["brouillon", "note", "lancer"]);
+  });
+  it("ARGENT : note qui échoue (ou absente) : `lancer` jamais appelé, brouillon abandonné, refus non définitif", async () => {
+    const { j, dep } = banc({ noterBrouillon: async () => { throw new Error("base"); } });
+    expect(await lancerDepuisReserve(idee, { voix: false }, dep)).toMatchObject({ statut: "refusee", definitif: false });
+    expect(j.lancements).toHaveLength(0);
+    expect(j.abandons).toEqual(["v-1"]);
+    const sans = banc({ noterBrouillon: undefined });
+    expect(await lancerDepuisReserve(idee, { voix: false }, sans.dep)).toMatchObject({ statut: "refusee", definitif: false });
+    expect(sans.j.lancements).toHaveLength(0);
+  });
+  it("lancement qui lève APRÈS la création du travail : « lancée », jamais abandonnée ; sans travail : refusée", async () => {
+    const levee = async () => { throw new Error("file"); };
+    const avec = banc({ lancer: levee, travailEnCours: async () => true });
+    expect(await lancerDepuisReserve(idee, { voix: false }, avec.dep)).toEqual({ statut: "lancee", videoId: "v-1" });
+    expect(avec.j.abandons).toHaveLength(0);
+    const sans = banc({ lancer: levee, travailEnCours: async () => false });
+    expect(await lancerDepuisReserve(idee, { voix: false }, sans.dep)).toMatchObject({ statut: "refusee", definitif: false });
+    expect(sans.j.abandons).toEqual(["v-1"]);
+    // Lecture des travaux impossible : par prudence « lancée » (le suivi tranchera), jamais relancée.
+    const illisible = banc({ lancer: levee, travailEnCours: async () => { throw new Error("base"); } });
+    expect(await lancerDepuisReserve(idee, { voix: false }, illisible.dep)).toMatchObject({ statut: "lancee" });
+    expect(illisible.j.abandons).toHaveLength(0);
   });
 });

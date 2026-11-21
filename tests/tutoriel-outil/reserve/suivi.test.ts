@@ -84,6 +84,24 @@ describe("suivreElementsPris", () => {
     expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
   });
 
+  it("vidéo restée brouillon depuis plus de 15 min : brouillon archivé, élément en échec (jamais relancé ici)", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z", "v-1");
+    const archives: string[] = [];
+    const s = dep("brouillon");
+    expect(await suivreElementsPris({ ...s.dep, abandonner: async (id) => void archives.push(id) })).toEqual({ faits: 0, echecs: 1 });
+    expect(archives).toEqual(["v-1"]);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
+  });
+
+  it("vidéo brouillon depuis moins de 15 min : on attend ; archivage en échec : l'élément reste pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:50:00.000Z", "v-1");
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => undefined })).toEqual({ faits: 0, echecs: 0 });
+    magasin.clear();
+    await pris("res-second01", "cle-suivi-002", "2026-11-21T09:30:00.000Z", "v-2");
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-second01"))?.etat).toBe("pris");
+  });
+
   it("un tirage réussi puis le suivi : le même élément passe de pris à fait", async () => {
     await ajouterElementReserve(nouveau("res-premier1"));
     const r = await tirerSuivantReserve(
@@ -93,11 +111,16 @@ describe("suivreElementsPris", () => {
         reglages: async () => ({ ...REGLAGES_RESERVE_DEFAUT, actif: true }),
         interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
         interrupteur: async () => true,
+        equipe: async () => true,
+        tauxUsdEur: async () => 0.9,
         plafondVideoUsd: async () => 1,
         plafondMoisAtteint: async () => false,
         accordSansClic: async () => true,
         sousPlafondUsine: async () => true,
-        lancer: async () => ({ statut: "lancee", videoId: "v-9" }),
+        lancer: async (_e, o) => {
+          await o.noterBrouillon("v-9");
+          return { statut: "lancee", videoId: "v-9" };
+        },
         notifier: async () => undefined,
       },
     );

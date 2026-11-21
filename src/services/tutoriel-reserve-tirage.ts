@@ -4,7 +4,8 @@
  *
  * ARGENT. Le tirage est une fabrication automatique : origine « usine » partout. AUCUN chemin ne lance une vidéo sans
  * avoir passé `conditionsTirage` (toutes avant la prise, donc avant toute dépense) :
- *  formulaire ouvert, entrée du type ouverte, script collé OU équipe allumée, aucun élément déjà pris, voix allumée ⇒ devis
+ *  formulaire ouvert, entrée du type ouverte, script collé OU équipe active (même règle que `deposerTutoriel` : tutoriel.equipe ET
+ *  tutoriel.claude), aucun élément déjà pris, voix allumée ⇒ devis
  *  avant dépense allumé, plafond Claude par vidéo ≤ limite de la réserve (1,25 € par défaut), plafond du mois non atteint,
  *  autonomie de l'usine allumée et sous son plafond. Tout est lu en ÉCHEC FERMÉ (une lecture qui lève = condition non remplie).
  * Sans voix par défaut, fin « à valider », jamais de publication, aucun créneau, aucun envoi. Le devis n'est jamais contourné.
@@ -25,7 +26,7 @@ import {
   type ReglagesReserve,
   type TirageReserve,
 } from "@/domaine/tutoriel-reserve";
-import { usdVersEur } from "@/lib/montants";
+import { TAUX_USD_EUR_PAR_DEFAUT, usdVersEur } from "@/lib/montants";
 import type { StatutVideo, TypeNotification } from "@/domaine/types";
 import { creerVerrou, ErreurStudio, lireParametre, maintenant as maintenantReel } from "./_commun";
 import { avecOrigineFournisseur } from "./plafond-fournisseur";
@@ -33,7 +34,7 @@ import type { IssueLancementReserve } from "./tutoriel-reserve-lancement";
 import { changerEtatReserve, lireElementReserve, lireReglagesReserve, lireTirageReserve, listerReserve, noterVideoDuTirage, prendreSuivantReserve } from "./tutoriel-reserve";
 import type { InterrupteursTutoriel } from "./tutoriel-depot";
 import { CLE_DEVIS_AVANT_DEPENSE } from "./tutoriel-console";
-import { PARAM_EQUIPE_TUTORIEL } from "./tutoriel-equipe";
+import { fichierDeMaquetteDemo } from "./tutoriel-reserve-maquettes";
 
 export interface DemandeTirage {
   declencheur: DeclencheurTirage;
@@ -71,8 +72,12 @@ export interface DependancesTirage {
   maintenant?: () => string;
   reglages?: () => Promise<ReglagesReserve>;
   interrupteurs?: () => Promise<InterrupteursTutoriel>;
-  /** Interrupteur booléen (`tutoriel.equipe`, `tutoriel.devisAvantDepense`) : seul `true` exact allume, une lecture qui lève éteint. */
+  /** Interrupteur booléen (`tutoriel.devisAvantDepense`) : seul `true` exact allume, une lecture qui lève éteint. */
   interrupteur?: (cle: string) => Promise<boolean>;
+  /** Équipe de rôles active : `equipeTutorielActive()` (tutoriel.equipe ET tutoriel.claude), comme `deposerTutoriel` ; une lecture qui lève éteint. */
+  equipe?: () => Promise<boolean>;
+  /** Taux € pour 1 $ (réglage `taux.usdEur`) ; le plus haut de ce taux et du défaut est retenu (jamais sous-compter). Lecture en échec : défaut. */
+  tauxUsdEur?: () => Promise<number>;
   /** Plafond Claude d'UNE vidéo de ce type, en dollars (réglage `tutoriel.plafondClaudeUsd`, sinon le défaut du mode). */
   plafondVideoUsd?: (e: ElementReserve) => Promise<number>;
   plafondMoisAtteint?: () => Promise<boolean>;
@@ -85,9 +90,9 @@ export interface DependancesTirage {
   prendre?: typeof prendreSuivantReserve;
   changerEtat?: typeof changerEtatReserve;
   noterVideo?: typeof noterVideoDuTirage;
-  /** RES-2 : fichier stocké d'une maquette de démo. Par défaut : import dynamique de `fichierDeMaquetteDemo` (absent : élément à revoir). */
+  /** RES-2 : fichier stocké d'une maquette de démo. Par défaut : `fichierDeMaquetteDemo` (RES-2). */
   fichierDemo?: (e: ElementReserve) => Promise<{ fichierId: string }>;
-  lancer?: (e: ElementReserve, o: { voix: boolean; fichierId?: string }) => Promise<IssueLancementReserve>;
+  lancer?: (e: ElementReserve, o: { voix: boolean; fichierId?: string; noterBrouillon: (videoId: string) => Promise<void> }) => Promise<IssueLancementReserve>;
   notifier?: (n: NotificationReserve) => Promise<void>;
 }
 
@@ -95,15 +100,27 @@ export interface DependancesTirage {
 /* Valeurs par défaut (paresseuses : aucun import lourd à la charge)   */
 /* ------------------------------------------------------------------ */
 
-/** Seul `true` exact allume ; une lecture qui lève éteint. Seules deux clés sont lues : l'équipe et le devis avant dépense. */
+/** Seul `true` exact allume ; une lecture qui lève éteint. Une seule clé est lue ici : le devis avant dépense. */
 async function interrupteurParDefaut(cle: string): Promise<boolean> {
   try {
-    if (cle === PARAM_EQUIPE_TUTORIEL) return (await lireParametre<unknown>(PARAM_EQUIPE_TUTORIEL, false)) === true;
     if (cle === CLE_DEVIS_AVANT_DEPENSE) return (await lireParametre<unknown>(CLE_DEVIS_AVANT_DEPENSE, false)) === true;
     return false;
   } catch {
     return false;
   }
+}
+
+/** Même règle que `deposerTutoriel` : équipe ET Claude allumés (elle attrape elle-même une lecture en échec : éteint). */
+async function equipeParDefaut(): Promise<boolean> {
+  try {
+    return await (await import("./tutoriel-equipe")).equipeTutorielActive();
+  } catch {
+    return false;
+  }
+}
+
+async function tauxParDefaut(): Promise<number> {
+  return lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT);
 }
 
 async function interrupteursParDefaut(): Promise<InterrupteursTutoriel> {
@@ -133,23 +150,20 @@ async function sousPlafondUsineParDefaut(besoin: number): Promise<boolean> {
   return (await jugerSousPlafondUsine({ besoin })).ok;
 }
 
-/** RES-2 (`fichierDeMaquetteDemo`) peut ne pas être encore sur cette branche : son absence rend l'élément « à revoir », jamais une dépense. */
+/** Fichier stocké d'une maquette de démo (RES-2). Toute panne autre qu'une erreur lisible devient une phrase sans détail. */
 async function fichierDemoParDefaut(e: ElementReserve): Promise<{ fichierId: string }> {
   try {
-    // TODO : passer en import statique au rebase après RES-2.
-    // Spécificateur en deux morceaux constants : tsc ne résout pas le module (RES-2 n'est pas encore sur cette branche), le
-    // bundler le résout une fois RES-2 présente (signature figée au plan § 4.3). Absent : erreur attrapée plus bas.
-    const m = (await import("./tutoriel-reserve-" + "maquettes")) as { fichierDeMaquetteDemo: (e: ElementReserve) => Promise<{ fichierId: string }> };
-    return await m.fichierDeMaquetteDemo(e);
+    return await fichierDeMaquetteDemo(e);
   } catch (err) {
     if (err instanceof ErreurStudio) throw err;
     throw new ErreurStudio("RESERVE_STOCKAGE", PHRASE_ECHEC_DEMO);
   }
 }
 
-async function lancerParDefaut(e: ElementReserve, o: { voix: boolean; fichierId?: string }): Promise<IssueLancementReserve> {
+async function lancerParDefaut(e: ElementReserve, o: { voix: boolean; fichierId?: string; noterBrouillon: (videoId: string) => Promise<void> }): Promise<IssueLancementReserve> {
   const { lancerDepuisReserve } = await import("./tutoriel-reserve-lancement");
-  return lancerDepuisReserve(e, o);
+  const { noterBrouillon, ...options } = o;
+  return lancerDepuisReserve(e, options, { noterBrouillon });
 }
 
 async function notifierParDefaut(n: NotificationReserve): Promise<void> {
@@ -169,7 +183,15 @@ async function plafondVideoCentimes(e: ElementReserve, dep: DependancesTirage): 
   try {
     const usd = await (dep.plafondVideoUsd ?? plafondVideoParDefautUsd)(e);
     if (typeof usd !== "number" || !Number.isFinite(usd) || usd <= 0) return null;
-    return Math.ceil(usdVersEur(usd * 100).centimes);
+    // Taux : le plus haut du défaut et du réglage `taux.usdEur` (un taux plus bas ferait sous-compter) ; illisible : le défaut.
+    let taux = TAUX_USD_EUR_PAR_DEFAUT;
+    try {
+      const lu = await (dep.tauxUsdEur ?? tauxParDefaut)();
+      if (typeof lu === "number" && Number.isFinite(lu) && lu > 0) taux = Math.max(TAUX_USD_EUR_PAR_DEFAUT, lu);
+    } catch {
+      taux = TAUX_USD_EUR_PAR_DEFAUT;
+    }
+    return Math.ceil(usdVersEur(usd * 100, taux).centimes);
   } catch {
     return null;
   }
@@ -194,7 +216,7 @@ export async function conditionsTirage(e: ElementReserve, r: ReglagesReserve, de
 
   const lireInterrupteur = dep.interrupteur ?? interrupteurParDefaut;
   const aScript = typeof e.script === "string" && e.script.trim() !== "";
-  if (!aScript && !(await faux(() => lireInterrupteur(PARAM_EQUIPE_TUTORIEL), false))) return attente("equipe_eteinte");
+  if (!aScript && !(await faux(dep.equipe ?? equipeParDefaut, false))) return attente("equipe_eteinte");
 
   const liste = await faux(dep.lister ?? listerReserve, null as ElementReserve[] | null);
   if (liste === null || liste.filter((x) => x.etat === "pris").length >= MAX_EN_COURS) return attente("deja_en_cours");
@@ -237,8 +259,10 @@ async function echouer(e: ElementReserve, phrase: string, definitif: boolean, de
 const enSerie = creerVerrou();
 
 function issueRejouee(t: TirageReserve, e: ElementReserve | null): IssueTirage {
+  // Contrat § 6.3 : une clé dont la fiche porte une vidéo rend TOUJOURS « pris, déjà », quel que soit l'état de l'élément depuis.
+  if (t.videoId) return { etat: "pris", deja: true, elementId: t.elementId, videoId: t.videoId, titre: e?.titre ?? "" };
   const priseCourante = !!e && (e.etat === "pris" || e.etat === "fait") && e.prise?.cle === t.cle;
-  if (priseCourante || (!e && t.videoId)) return { etat: "pris", deja: true, elementId: t.elementId, ...(t.videoId ? { videoId: t.videoId } : {}), titre: e?.titre ?? "" };
+  if (priseCourante) return { etat: "pris", deja: true, elementId: t.elementId, titre: e?.titre ?? "" };
   // Tirage déjà tenté puis échoué : rien n'est repris sous cette clé (une autre clé fera un autre essai).
   return { etat: "echec", elementId: t.elementId, phrase: e?.motif ?? PHRASE_ECHEC_LANCEMENT, retourEnReserve: e?.etat === "en_reserve" };
 }
@@ -311,20 +335,22 @@ async function tirer(d: DemandeTirage, dep: DependancesTirage): Promise<IssueTir
   }
 
   // 6. Lancement sans clic : origine « usine », sans voix sauf si Williams l'a allumée (devis exigé plus haut).
+  // ARGENT : la vidéo est notée sur la fiche du tirage ET sur l'élément AVANT le lancement, puis relue : sans cela, un crash après le
+  // lancement laisserait un élément « pris » sans vidéo, remis en réserve après 15 min, relancé et payé deux fois.
+  const noterBrouillon = async (videoId: string): Promise<void> => {
+    await (dep.noterVideo ?? noterVideoDuTirage)(d.cle, element.id, videoId);
+    const prise = (await lireElement(element.id))?.prise;
+    if (!prise || prise.cle !== d.cle || prise.videoId !== videoId) throw new ErreurStudio("RESERVE_NOTE", PHRASE_ECHEC_LANCEMENT);
+  };
   let issue: IssueLancementReserve;
   try {
-    issue = await avecOrigineFournisseur("usine", () => (dep.lancer ?? lancerParDefaut)(element, { voix: reglages.voix === true, ...(fichierId ? { fichierId } : {}) }));
+    issue = await avecOrigineFournisseur("usine", () => (dep.lancer ?? lancerParDefaut)(element, { voix: reglages.voix === true, ...(fichierId ? { fichierId } : {}), noterBrouillon }));
   } catch {
     return echouer(element, PHRASE_ECHEC_LANCEMENT, false, dep);
   }
 
   // 7. Issue.
   if (issue.statut === "refusee") return echouer(element, issue.phrase, issue.definitif, dep);
-  try {
-    await (dep.noterVideo ?? noterVideoDuTirage)(d.cle, element.id, issue.videoId);
-  } catch {
-    /* la vidéo est lancée : le suivi retrouvera son état ; on ne relance jamais */
-  }
   try {
     await (dep.notifier ?? notifierParDefaut)({ type: "info", titre: "Un tutoriel de la réserve est en fabrication", lien: "/tutoriel-outil" });
   } catch {
@@ -344,6 +370,13 @@ export interface DependancesSuivi {
   statutVideo?: (videoId: string) => Promise<StatutVideo | null>;
   changerEtat?: typeof changerEtatReserve;
   notifier?: (n: NotificationReserve) => Promise<void>;
+  /** Archive une vidéo restée brouillon (jamais effacée). Défaut : même geste que l'abandon du lancement. */
+  abandonner?: (videoId: string) => Promise<void>;
+}
+
+async function abandonnerParDefaut(videoId: string): Promise<void> {
+  const { abandonnerParDefaut: archiver } = await import("./tutoriel-reserve-lancement");
+  await archiver(videoId);
 }
 
 async function statutVideoParDefaut(videoId: string): Promise<StatutVideo | null> {
@@ -353,7 +386,8 @@ async function statutVideoParDefaut(videoId: string): Promise<StatutVideo | null
 
 /**
  * À chaque tour de minuterie : un élément `pris` dont la vidéo est `prete` devient `fait` (cloche « à valider ») ; vidéo en
- * échec, annulée, archivée ou absente : échec ; `pris` sans vidéo depuis plus de 15 min : retour en réserve (tentative + 1).
+ * échec, annulée, archivée ou absente : échec ; `pris` sans vidéo depuis plus de 15 min : retour en réserve (tentative + 1) ; vidéo
+ * restée `brouillon` depuis plus de 15 min (le lancement n'a jamais abouti) : brouillon archivé puis échec.
  * Aucun lancement, aucune dépense.
  */
 export async function suivreElementsPris(dep: DependancesSuivi = {}): Promise<{ faits: number; echecs: number }> {
@@ -381,6 +415,14 @@ export async function suivreElementsPris(dep: DependancesSuivi = {}): Promise<{ 
           await (dep.notifier ?? notifierParDefaut)({ type: "video-prete", titre: PHRASE_FAIT, lien: `/tutoriel-outil/suivi/${videoId}` });
         } catch {
           /* une cloche manquée ne défait pas le suivi */
+        }
+      } else if (statut === "brouillon") {
+        const depuis = Date.parse(e.prise?.le ?? "");
+        if (!Number.isFinite(depuis) || maintenant - depuis > DELAI_PRIS_SANS_VIDEO_MS) {
+          // Archivé D'ABORD : si l'archivage échoue, l'élément reste « pris » et le tour suivant réessaie.
+          await (dep.abandonner ?? abandonnerParDefaut)(videoId);
+          await echouer(e, PHRASE_PRIS_SANS_VIDEO, false, { changerEtat: changer });
+          echecs++;
         }
       } else if (statut === null || statut === "echec" || statut === "annulee" || statut === "archivee") {
         await echouer(e, PHRASE_VIDEO_ECHEC, false, { changerEtat: changer });
