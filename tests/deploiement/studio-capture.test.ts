@@ -437,7 +437,9 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
   });
   it("procédure côté hôte : aucun conteneur, /sortie NEUF (umount, mkfs.ext4 sur fichier neuf, mount loop, chown 1001), copie sans lien hors de capture-sortie, contrôle, montage de la copie", () => {
     const cmd = (re: RegExp) => expect(compose, String(re)).toMatch(re);
-    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` ET `docker ps --filter label=com\.docker\.compose\.service=studio-capture`$/m);
+    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE \(sinon ARRÊT : ne rien faire\),$/m);
+    cmd(/^\s*#\s+ET `docker ps --filter label=com\.docker\.compose\.service=studio-capture` doit être VIDE \(sinon ARRÊT : ne rien faire\)\.$/m);
+    expect(compose).not.toMatch(/sinon continuer/i);
     cmd(/^\s*#\s+sudo umount \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
     cmd(/^\s*#\s+sudo rm -f \/opt\/studio-axion-ia\/capture-sortie\.img && sudo fallocate -l 3G \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
     cmd(/^\s*#\s+sudo mkfs\.ext4 -q -m 0 \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
@@ -453,11 +455,35 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     const D = "\\/opt\\/studio-axion-ia";
     const L = (re: string) => new RegExp(`^\\s*#\\s+${re}\\s*$`, "m");
     const srcFind = L(`sudo find ${D}\\/capture-sortie\\/maquette ! -type f ! -type d`);
-    const srcReal = L(`realpath -e ${D}\\/capture-sortie\\/maquette\\/<dossier>`);
-    const neuf = L(`sudo mkdir -p ${D}\\/capture-maquettes && test ! -e ${D}\\/capture-maquettes\\/<id>`);
+    const srcReal = L(`sudo realpath -e ${D}\\/capture-sortie\\/maquette\\/<dossier>`);
+    const neuf = L(`sudo mkdir -p ${D}\\/capture-maquettes && test ! -e ${D}\\/capture-maquettes\\/<id> && test ! -L ${D}\\/capture-maquettes\\/<id>`);
     const cp = L(`sudo cp -r --no-dereference ${D}\\/capture-sortie\\/maquette\\/<dossier> ${D}\\/capture-maquettes\\/<id>`);
     const copFind = L(`sudo find ${D}\\/capture-maquettes\\/<id> ! -type f ! -type d`);
-    const copReal = L(`realpath -e ${D}\\/capture-maquettes\\/<id>`);
+    const copReal = L(`sudo realpath -e ${D}\\/capture-maquettes\\/<id>`);
+    // chaque critère est écrit sur la ligne qui PRÉCÈDE immédiatement la commande qu'il vise
+    const avant = (critere: string, commande: RegExp) =>
+      new RegExp(`^\\s*#\\s+${critere}[^\\n]*\\n${commande.source.replace(/^\^/, "")}`, "m");
+    const critere = [
+      avant("Critère 1 : [^\\n]*doit afficher RIEN", srcFind),
+      avant("Critère 2 : [^\\n]*doit être ÉGAL", srcReal),
+      avant("Critère 3 : <id> doit être NEUF", neuf),
+      avant("Critère 4 : [^\\n]*doit afficher RIEN[^\\n]*ÉGAL", copFind),
+    ];
+    critere.forEach((re, i) => expect(compose, `critère ${i + 1} juste avant sa commande`).toMatch(re));
+    expect(compose).toMatch(/^\s*#\s+ne monter rien|au moindre écart : ARRÊT, ne rien monter\./m);
+    expect(compose.search(/au moindre écart : ARRÊT, ne rien monter\./)).toBeGreaterThan(compose.indexOf("4. CONTRÔLER LA SOURCE"));
+    expect(compose.search(/au moindre écart : ARRÊT, ne rien monter\./)).toBeLessThan(compose.search(srcFind));
+    // la copie est suivie de son realpath, directement après son find
+    expect(compose).toMatch(new RegExp(`${copFind.source.replace(/^\^/, "").replace(/\$$/, "")}\\n${copReal.source.replace(/^\^/, "")}`, "m"));
+    // étape 5 : refaire le contrôle docker ps JUSTE AVANT de lancer
+    const e5 = compose.indexOf("5. Refaire l'étape 2");
+    const rappel = compose.indexOf("JUSTE AVANT de lancer, refaire le contrôle `docker ps` de l'étape 1");
+    const lance = compose.indexOf("STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id> docker compose");
+    expect(e5).toBeGreaterThan(0);
+    expect(rappel).toBeGreaterThan(e5);
+    expect(lance).toBeGreaterThan(rappel);
+    // `test ! -L` : un lien cassé ne passe pas `test ! -e`
+    expect(compose).toMatch(/test ! -e [^\n]*<id> && test ! -L [^\n]*<id>/);
     const pos = [srcFind, srcReal, neuf, cp, copFind, copReal].map((re) => compose.search(re));
     expect(pos.every((n) => n >= 0), JSON.stringify(pos)).toBe(true);
     expect([...pos].sort((x, y) => x - y)).toEqual(pos); // source, source, id neuf, cp, copie, copie : dans cet ordre
@@ -468,7 +494,8 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     // exactement 2 contrôles `! -type f ! -type d` (source, copie), 2 `realpath -e`, jamais `-type l` seul ni `ls`
     expect(compose.match(/! -type f ! -type d/g)).toHaveLength(2);
     expect(compose.match(/^\s*#\s+(sudo )?find /gm)).toHaveLength(2);
-    expect(compose.match(/^\s*#\s+realpath -e /gm)).toHaveLength(2);
+    expect(compose.match(/^\s*#\s+sudo realpath -e /gm)).toHaveLength(2);
+    expect(compose.match(/realpath -e /g)).toHaveLength(2);
     expect(compose).not.toMatch(/-type l\b/);
     expect(compose).not.toMatch(/^\s*#\s+(sudo )?ls /m);
     // l'ancienne règle « monter la maquette prise dans capture-sortie » n'existe plus

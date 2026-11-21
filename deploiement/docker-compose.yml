@@ -359,8 +359,8 @@ services:
   # PROCÉDURE CÔTÉ HÔTE, dans cet ordre, pour CHAQUE client. Un Chromium compromis peut poser des liens symboliques dans
   # /sortie, et docker SUIT sur l'hôte un lien placé dans la source d'un montage (essai réel : un lien vers un dossier
   # contenant .env a donné son contenu au conteneur) :
-  #  1. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` ET `docker ps --filter label=com.docker.compose.service=studio-capture`
-  #     doivent être VIDES (sinon ARRÊT : ne rien faire).
+  #  1. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire),
+  #     ET `docker ps --filter label=com.docker.compose.service=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire).
   #     OBLIGATOIRE : `umount` (étape 2) RÉUSSIT même si un conteneur garde /sortie ouvert (le montage disparaît de l'hôte, pas du conteneur) ;
   #     sans ce contrôle, un conteneur resté en vie pourrait encore écrire dans l'ancien /sortie.
   #  2. Un /sortie NEUF POUR CHAQUE CLIENT (jamais de décompression et de capture en même temps sur le même /sortie) :
@@ -372,19 +372,20 @@ services:
   #  3. Décompresser (commande ci-dessus), puis refaire l'étape 1 (le conteneur est supprimé).
   #  4. CONTRÔLER LA SOURCE, puis COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root que le conteneur
   #     ne monte pas. Chaque commande se copie telle quelle ; au moindre écart : ARRÊT, ne rien monter.
-  #     La source doit ne contenir que des fichiers et des dossiers : cette commande doit afficher RIEN (liens, FIFO, sockets, périphériques) :
+  #     Critère 1 : la source ne contient que des fichiers et des dossiers, cette commande doit afficher RIEN (liens, FIFO, sockets, périphériques) :
   #       sudo find /opt/studio-axion-ia/capture-sortie/maquette ! -type f ! -type d
-  #     Le chemin réel doit être ÉGAL au chemin exact écrit (aucun lien, ni sur `maquette`, ni sur `<dossier>`) :
-  #       realpath -e /opt/studio-axion-ia/capture-sortie/maquette/<dossier>
-  #     <id> doit être NEUF (cette commande doit réussir) :
-  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes && test ! -e /opt/studio-axion-ia/capture-maquettes/<id>
+  #     Critère 2 : le chemin réel doit être ÉGAL au chemin exact écrit (aucun lien, ni sur `maquette`, ni sur `<dossier>`) :
+  #       sudo realpath -e /opt/studio-axion-ia/capture-sortie/maquette/<dossier>
+  #     Critère 3 : <id> doit être NEUF (ni fichier, ni dossier, ni lien, même cassé ; cette commande doit réussir) :
+  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes && test ! -e /opt/studio-axion-ia/capture-maquettes/<id> && test ! -L /opt/studio-axion-ia/capture-maquettes/<id>
   #     Copier (ou `rsync --no-links` à la place de `cp`), donner la copie à root :
   #       sudo cp -r --no-dereference /opt/studio-axion-ia/capture-sortie/maquette/<dossier> /opt/studio-axion-ia/capture-maquettes/<id>
   #       sudo chown -R root:root /opt/studio-axion-ia/capture-maquettes/<id> && sudo chmod -R a+rX,go-w /opt/studio-axion-ia/capture-maquettes/<id>
-  #     CONTRÔLER LA COPIE de la même façon (RIEN affiché ; chemin égal) :
+  #     Critère 4 : CONTRÔLER LA COPIE de la même façon, cette commande doit afficher RIEN, et le chemin réel doit être ÉGAL au chemin écrit :
   #       sudo find /opt/studio-axion-ia/capture-maquettes/<id> ! -type f ! -type d
-  #       realpath -e /opt/studio-axion-ia/capture-maquettes/<id>
-  #  5. Refaire l'étape 2 (un /sortie neuf pour la capture), puis capturer en montant la COPIE contrôlée :
+  #       sudo realpath -e /opt/studio-axion-ia/capture-maquettes/<id>
+  #  5. Refaire l'étape 2 (un /sortie neuf pour la capture), puis, JUSTE AVANT de lancer, refaire le contrôle `docker ps` de l'étape 1
+  #     (par nom ET par label, VIDES, sinon ARRÊT), puis capturer en montant la COPIE contrôlée :
   #       STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id> docker compose --profile capture run -d --name studio-capture-<id> studio-capture …
   # Le film sort dans /sortie ; l'envoi au stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens
   # symboliques, fichiers énormes : lstat, O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
