@@ -1,15 +1,15 @@
 /**
- * GV2-55 — Le plan de scènes est ALLUMÉ par défaut pour le cas concret et le face caméra : seul le booléen exact `false`
+ * GV2-55 puis ALLUMER-PLAN-FA-v21m — Le plan de scènes est ALLUMÉ par défaut pour le cas concret, le face caméra et la face caméra animée : seul le booléen exact `false`
  * l'éteint (coupe-circuit). Aucune base lue : la lecture est un double injecté.
  */
 import { describe, expect, it } from "vitest";
 import { ALLUME_PAR_DEFAUT, CLES_REGLAGE_PLAN_SCENES, planScenesActif, type IdGenerateurPlan } from "@/briques/plan-scenes-generateurs/reglage";
 
-const ALLUMES: IdGenerateurPlan[] = ["cas-concret", "facecam"];
+const ALLUMES: IdGenerateurPlan[] = ["cas-concret", "facecam", "facecam-animee"];
 
-describe("plan de scènes : réglage allumé par défaut (cas concret et face caméra)", () => {
+describe("plan de scènes : réglage allumé par défaut (les trois générateurs)", () => {
   it("les défauts déclarés sont ceux attendus", () => {
-    expect(ALLUME_PAR_DEFAUT).toEqual({ "cas-concret": true, facecam: true, "facecam-animee": false });
+    expect(ALLUME_PAR_DEFAUT).toEqual({ "cas-concret": true, facecam: true, "facecam-animee": true });
   });
 
   it("la lecture se fait avec la bonne clé et la valeur par défaut true", async () => {
@@ -40,11 +40,11 @@ describe("plan de scènes : réglage allumé par défaut (cas concret et face ca
     }
   });
 
-  it("chaque générateur est indépendant des deux autres", async () => {
+  it("chaque générateur est indépendant des deux autres (la face caméra animée reste allumée quand un autre est coupé)", async () => {
     for (const g of ALLUMES) {
       const seulCoupe = async (id: string, defaut: unknown) => (id === CLES_REGLAGE_PLAN_SCENES[g] ? false : defaut);
       for (const autre of ALLUMES) expect(await planScenesActif(autre, seulCoupe)).toBe(autre !== g);
-      expect(await planScenesActif("facecam-animee", seulCoupe)).toBe(false);
+      if (g !== "facecam-animee") expect(await planScenesActif("facecam-animee", seulCoupe)).toBe(true);
     }
   });
 });
