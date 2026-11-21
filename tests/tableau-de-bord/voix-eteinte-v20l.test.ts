@@ -72,6 +72,21 @@ describe("voix du tableau de bord (G4-09c-a, éteinte)", () => {
     }
   });
 
+  it("h) l'arrondi est au-dessus (⌈ ⌉) : 1 115 car. × 3 lectures = 102 (et non 99), refusé sous un plafond de 100, ni lecture ni réservation", async () => {
+    expect(prixVoixCentimes(1115, 3, tarif)).toBe(102); // 33,45 → 34 ; un arrondi au plus proche donnerait 33 → 99
+    const { lire, reserver, voix } = faire({ plafond: 100 });
+    await expect(voix.lire(texte(1115))).rejects.toThrow(/plafond/);
+    expect(lire).not.toHaveBeenCalled();
+    expect(reserver).not.toHaveBeenCalled();
+  });
+
+  it("i) deux lire() simultanés : réservé une seule fois, lu deux fois", async () => {
+    const { lire, reserver, voix } = faire();
+    await Promise.all([voix.lire(texte(100)), voix.lire(texte(100))]);
+    expect(reserver).toHaveBeenCalledTimes(1);
+    expect(lire).toHaveBeenCalledTimes(2);
+  });
+
   it("e) plafond proposé : 100 centimes, marqué non accepté", () => {
     expect(PLAFOND_VOIX_TDB_CENTIMES_PROPOSE).toBe(100);
     const source = readFileSync(join(__dirname, "..", "..", "src", "services", "tableau-de-bord-voix.ts"), "utf8");
