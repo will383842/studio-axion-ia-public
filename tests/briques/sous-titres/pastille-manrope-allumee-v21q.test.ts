@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { elementDe, PASTILLE_AXION, PASTILLE_AXION_ARDOISE, PASTILLE_EN_MANROPE, pastilleEnManrope, sceneAuTemps, type DonneesCalque } from "@/briques/sous-titres";
+import { tailleQuiTient } from "@/briques/sous-titres/mesure";
 import { GABARITS } from "@/briques/sous-titres/style";
 
 const segment = { id: "g1", debutSec: 1, finSec: 2.4, mots: [{ mot: "Voici", debutSec: 1, finSec: 1.4 }, { mot: "comment", debutSec: 1.45, finSec: 1.9 }, { mot: "faire.", debutSec: 1.95, finSec: 2.4 }], style: "base" as const, position: "auto" as const };
@@ -24,6 +25,24 @@ describe("ALLUMER-PASTILLE-MANROPE-v21q", () => {
     expect(el.police).toBe("Manrope Bold");
     expect(el.pastille?.poids).toBe(700);
     expect(el.taillePx).toBeGreaterThanOrEqual(52);
+  });
+  it("la place manque : la taille est MESURÉE en Manrope Bold, la police même qui est dessinée (pas celle du gabarit)", () => {
+    const d: DonneesCalque = { ...base, largeurMaxPx: 680, pastille: PASTILLE_AXION };
+    const el = elementDe(d, segment, 1.6);
+    const mots = segment.mots.map((m) => m.mot);
+    const options = { majuscules: false, chiffresTabulaires: true, espaceMotsEm: PASTILLE_AXION.espaceMotsEm };
+    const libre = 680 - 2 * PASTILLE_AXION.margeX * 1080;
+    const enBold = tailleQuiTient(mots, "Manrope Bold", PASTILLE_AXION.taillePx, libre, options);
+    const enGabarit = tailleQuiTient(mots, GABARITS.karaoke.police, PASTILLE_AXION.taillePx, libre, options);
+    // Le cas est utile : la taille est réduite sous la taille voulue ET les deux polices ne donnent pas la même.
+    expect(enBold).toBeLessThan(PASTILLE_AXION.taillePx);
+    expect(enBold).toBeGreaterThan(PASTILLE_AXION.tailleMinPx);
+    expect(enBold).not.toBe(enGabarit);
+    expect(el.police).toBe("Manrope Bold");
+    expect(el.taillePx).toBe(enBold);
+    const eteint = elementDe({ ...d, pastille: { ...PASTILLE_AXION, enManrope: false } }, segment, 1.6);
+    expect(eteint.taillePx).toBe(enGabarit);
+    expect(el.taillePx).not.toBe(eteint.taillePx);
   });
   it("le reste du dessin (couleurs du mot dit, pastille) est celui de la police du gabarit", () => {
     const eteint = elementDe({ ...base, pastille: { ...PASTILLE_AXION, enManrope: false } }, segment, 1.6);
