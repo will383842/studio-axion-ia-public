@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import type { CommandeFabrication, MotHorodate } from "@/domaine/types";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import type { SegmentCale } from "@/briques/plan-scenes-generateurs/adaptateur";
-import { fabriquerSousTitres } from "@/briques/sous-titres";
+import { donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
 import { COMPOSITION_VIDEO_LONGUE, type DependancesVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { planVideoLongue, type ChapitrePourPlan, type FormatVideoLongue } from "@/moteurs/montage-video-longue/plan";
@@ -135,7 +135,9 @@ export async function monterVideoLongue(commande: CommandeFabrication, travailId
   const plan = await planVideoLongue(chapitresPourPlan(ctx));
   if (!plan.valide) throw new ErreurMontageVideoLongue(`Le plan de la vidéo n'a pas pu être préparé : ${plan.problemes.join(" ")}`, plan.problemes);
 
-  const sousTitres = fabriquerSousTitres({ texte: ctx.mots.map((m) => m.mot).join(" "), dureeSec: ctx.dureeSec, mots: ctx.mots, ratio: "16:9" });
+  // Données du calque que la composition dessine (`proprietes.sousTitres`, UI-5) ; 16:9, style par défaut.
+  const segmentsSousTitres = fabriquerSousTitres({ texte: ctx.mots.map((m) => m.mot).join(" "), dureeSec: ctx.dureeSec, mots: ctx.mots, ratio: "16:9" });
+  const sousTitres = donneesCalque({ segments: segmentsSousTitres, base: "karaoke", ratio: "16:9" });
 
   // Reprise : seules les plages notées avec la MÊME empreinte (même plan, mêmes bornes, mêmes sous-titres) sont gardées.
   const notees = await ports.lirePlages(videoId);

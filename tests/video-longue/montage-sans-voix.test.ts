@@ -37,7 +37,7 @@ const branchementsReelsSansVoix = vi.fn(async (videoId: string) => ({
 }));
 vi.mock("@/services/tableau-outils", () => ({ branchementsReels, branchementsReelsSansVoix }));
 vi.mock("@/fournisseurs/heygen/voix", async (orig) => ({ ...(await orig<object>()), fournisseurVoixHeygen: interdit }));
-vi.mock("@/fournisseurs/elevenlabs/voix", () => ({ default: interdit, fournisseurVoixElevenLabs: interdit }), { });
+vi.mock("@/fournisseurs/elevenlabs/voix", () => ({ default: interdit, fournisseurVoixElevenLabs: interdit }));
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
