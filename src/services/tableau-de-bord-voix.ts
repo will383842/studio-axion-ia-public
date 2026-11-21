@@ -34,11 +34,15 @@ export function voixTableauDeBord(o: OptionsVoixTableauDeBord): { lire: (texte: 
   return {
     async lire(texte) {
       const caracteres = texte.length;
+      // Réglages illisibles ou absurdes : refus AVANT toute lecture et toute réservation (sans montant dans le message).
+      if (!(Number.isFinite(o.tarifCentimesParCaractere) && o.tarifCentimesParCaractere > 0)) throw new Error("Voix du tableau de bord refusée : tarif illisible.");
+      if (!(Number.isFinite(o.plafondCentimes) && o.plafondCentimes >= 0)) throw new Error("Voix du tableau de bord refusée : plafond illisible.");
+      if (!Number.isFinite(o.lecturesMax)) throw new Error("Voix du tableau de bord refusée : nombre de lectures illisible.");
       const lecturesMax = Math.max(0, Math.floor(o.lecturesMax));
       if (lectures >= lecturesMax) throw new Error(`Voix du tableau de bord : ${lecturesMax} lecture${lecturesMax > 1 ? "s" : ""} au plus.`);
       if (reservation === null) {
         const prix = prixVoixCentimes(caracteres, lecturesMax, o.tarifCentimesParCaractere);
-        if (!(prix <= o.plafondCentimes)) throw new Error(`Voix du tableau de bord refusée : ${prix} centimes au-dessus du plafond de ${o.plafondCentimes}.`);
+        if (!(prix <= o.plafondCentimes)) throw new Error("Voix du tableau de bord refusée : prix au-dessus du plafond.");
         caracteresReserves = caracteres;
         lectures += 1;
         reservation = Promise.resolve(o.reserver({ caracteres: caracteres * lecturesMax, lectures: lecturesMax, centimes: prix }));

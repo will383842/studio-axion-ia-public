@@ -55,6 +55,23 @@ describe("voix du tableau de bord (G4-09c-a, éteinte)", () => {
     expect(lire).not.toHaveBeenCalled();
   });
 
+  it("g) tarif 0, -0, négatif, NaN, Infinity ; plafond NaN ou négatif ; lecturesMax NaN : refusé, ni lecture ni réservation, message sans montant", async () => {
+    const cas: Array<Partial<{ tarif: number; plafond: number; lecturesMax: number }>> = [
+      { tarif: 0 }, { tarif: -0 }, { tarif: -0.03 }, { tarif: Number.NaN }, { tarif: Number.POSITIVE_INFINITY },
+      { plafond: Number.NaN }, { plafond: -1 }, { lecturesMax: Number.NaN }, { lecturesMax: Number.POSITIVE_INFINITY },
+    ];
+    for (const c of cas) {
+      const lire = vi.fn(async () => rendue);
+      const reserver = vi.fn(async () => {});
+      const voix = voixTableauDeBord({ lire, reserver, lecturesMax: c.lecturesMax ?? 3, plafondCentimes: c.plafond ?? 100, tarifCentimesParCaractere: c.tarif ?? tarif });
+      const erreur = await voix.lire(texte(5000)).then(() => null, (e: Error) => e);
+      expect(erreur, JSON.stringify(c)).not.toBeNull();
+      expect(erreur!.message).not.toMatch(/\d|centime/);
+      expect(lire).not.toHaveBeenCalled();
+      expect(reserver).not.toHaveBeenCalled();
+    }
+  });
+
   it("e) plafond proposé : 100 centimes, marqué non accepté", () => {
     expect(PLAFOND_VOIX_TDB_CENTIMES_PROPOSE).toBe(100);
     const source = readFileSync(join(__dirname, "..", "..", "src", "services", "tableau-de-bord-voix.ts"), "utf8");
