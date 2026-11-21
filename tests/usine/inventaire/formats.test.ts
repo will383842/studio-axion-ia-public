@@ -15,6 +15,15 @@ export const DOMAINE: Domaine = {
     "videoLongue.actif": "eteint",
   },
   constantes: [
+    // Réserve de tutoriels (RES-1) : éteinte ; seul `actif === true` allume (échec fermé), le défaut est le réglage éteint.
+    {
+      cle: "tutoriel.reserve.reglages",
+      etat: "eteint",
+      appel: "src/services/tutoriel-reserve.ts",
+      declare: "src/domaine/tutoriel-reserve.ts",
+      motif: /lireReglagesReserveBrut\(await lireParametre<unknown>\(PARAM_RESERVE_REGLAGES, null\)\)/,
+      aussi: [["src/domaine/tutoriel-reserve.ts", /REGLAGES_RESERVE_DEFAUT: ReglagesReserve = \{\s*actif: false/]],
+    },
     { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
     { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
     { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
@@ -117,6 +126,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 19, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 8, parExpression: 16, env: 0 },
+  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 8, parExpression: 16, env: 0 },
   retirees: [],
 };
