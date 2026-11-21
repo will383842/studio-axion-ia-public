@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
+import { AccepterDevis } from "@/components/formats/tutoriel-outil/AccepterDevis";
 import { EcranValidationTutoriel } from "@/components/formats/tutoriel-outil/EcranValidationTutoriel";
 import { EtatVide } from "@/components/ui/EtatVide";
+import { lireDevisAAccepter } from "@/services/tutoriel-devis";
 import { vueValidationTutoriel } from "@/services/tutoriel-validation-ecran";
 
 export const metadata: Metadata = { title: "Valider le tutoriel" };
@@ -15,9 +17,12 @@ export default async function PageValiderTutoriel({ params }: { params: Promise<
   const { videoId } = await params;
   const id = decodeURIComponent(videoId);
   const dossier = await vueValidationTutoriel(id);
+  // AUD-7 : un devis qui attend l'accord (pause TO_DEVIS_*) se montre et s'accepte ici, même avant que le dossier soit prêt.
+  const devis = await lireDevisAAccepter(id);
   return (
     <GabaritCreation entete={{ titre: "Valider le tutoriel", retour: { href: "/tutoriel-outil", libelle: "Tutoriel d'outil" } }}>
-      {dossier ? <EcranValidationTutoriel videoId={id} dossier={dossier} /> : <EtatVide icone="film" titre="Rien à valider pour l'instant" phrase="Le tutoriel n'est pas encore prêt à être relu." />}
+      {devis && <div className="mb-6"><AccepterDevis videoId={id} phrases={devis.phrases} empreinte={devis.empreinte} /></div>}
+      {dossier ? <EcranValidationTutoriel videoId={id} dossier={dossier} /> : devis ? null : <EtatVide icone="film" titre="Rien à valider pour l'instant" phrase="Le tutoriel n'est pas encore prêt à être relu." />}
     </GabaritCreation>
   );
 }
