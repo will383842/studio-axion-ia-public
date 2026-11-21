@@ -465,6 +465,8 @@ describe("gardes testées seules (une par une)", () => {
   it("sortie = racine du disque : refusée en français (sous-dossier demandé)", () => {
     expect(() => decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), "/")).toThrow(/SOUS-DOSSIER/);
   });
+  // Sous root, le parent « / » est inscriptible : c'est le contrôle du POINT DE MONTAGE qui refuse. Hors root (CI), « / » n'est pas
+  // inscriptible : c'est le contrôle d'écriture qui refuse en premier. Dans les deux cas : famille « sortie », message français, sous-dossier demandé.
   it.skipIf(process.platform !== "linux" || !existsSync("/proc/self"))("sortie = point de montage (/proc) : refusée en français, rien n'est tenté", () => {
     let err: unknown;
     try {
@@ -474,7 +476,7 @@ describe("gardes testées seules (une par une)", () => {
     }
     expect(err).toBeInstanceOf(ErreurZip);
     expect((err as ErreurZip).famille).toBe("sortie");
-    expect((err as ErreurZip).message).toMatch(/point de montage.*SOUS-DOSSIER/);
+    expect((err as ErreurZip).message).toMatch(process.getuid?.() === 0 ? /point de montage.*SOUS-DOSSIER/ : /pas inscriptible.*SOUS-DOSSIER/);
     expect(readdirSync("/").some((n) => n.startsWith(".decompression-"))).toBe(false);
   });
   it.skipIf(process.getuid?.() === 0)("parent de la sortie non inscriptible : refusé en français (code 4 par le lanceur)", () => {
@@ -576,16 +578,18 @@ describe("vrais formats", () => {
     expect([...readFileSync(join(sortie, "img/p.png"))]).toEqual([137, 80, 78, 71, 0]);
   });
   it("data descriptor : un CRC faux dans le central reste refusé", () => refuse(zip([{ nom: "a.txt", donnees: "bonjour", descripteur: true, crc: 99 }]), "format", /CRC32/));
-  it.skipIf(spawnSync("zip", ["-v"]).error !== undefined)("vrai zip d'Info-ZIP en flux (`zip -r -`, bit 3) : accepté, identique à la source", () => {
-    const src = join(racine, "src");
-    mkdirSync(join(src, "sous"), { recursive: true });
-    writeFileSync(join(src, "index.html"), "<h1>é</h1>".repeat(100));
-    writeFileSync(join(src, "sous", "r\u0065\u0301sume\u0301.css"), "a{}");
-    const r = spawnSync("zip", ["-q", "-r", "-", "."], { cwd: src, maxBuffer: 10_000_000 });
-    expect(r.status).toBe(0);
-    const z = Buffer.from(r.stdout);
-    expect(z.readUInt16LE(6) & 0x8).toBe(0x8);
-    decompresserZip(z, sortie);
+  // Octets FIGÉS d'un vrai flux Info-ZIP 3.0 (`zip -q -r - . | cat`, sortie non positionnable : data descriptors, bit 3), générés avec le
+  // vrai `zip` : index.html (« <h1>é</h1> » x 100), sous/ (dossier explicite), sous/résumé.css en NFD (e + U+0301), contenu « a{} ».
+  // Aucun binaire `zip` requis : le test est identique sur toutes les machines.
+  const FLUX_INFOZIP = "UEsDBBQACAAIAO2GdV0AAAAAAAAAAEwEAAAKABwAaW5kZXguaHRtbFVUCQAD/cwBa/3MAWt1eAsAAQQAAAAABAAAAACzyTC0O7zSRh9I2YwyR5mjzFEmuUwAUEsHCJgkn9sWAAAATAQAAFBLAwQKAAAAAADthnVdAAAAAAAAAAAAAAAABQAcAHNvdXMvVVQJAAP9zAFr/cwBa3V4CwABBAAAAAAEAAAAAFBLAwQUAAgACADthnVdAAAAAAAAAAADAAAAEwAcAHNvdXMvcmXMgXN1bWXMgS5jc3NVVAkAA/3MAWv9zAFrdXgLAAEEAAAAAAQAAAAAS6yuBQBQSwcIudUrVAUAAAADAAAAUEsBAh4DFAAIAAgA7YZ1XZgkn9sWAAAATAQAAAoAGAAAAAAAAQAAAKSBAAAAAGluZGV4Lmh0bWxVVAUAA/3MAWt1eAsAAQQAAAAABAAAAABQSwECHgMKAAAAAADthnVdAAAAAAAAAAAAAAAABQAYAAAAAAAAABAA7UFqAAAAc291cy9VVAUAA/3MAWt1eAsAAQQAAAAABAAAAABQSwECHgMUAAgACADthnVdudUrVAUAAAADAAAAEwAYAAAAAAABAAAApIGpAAAAc291cy9yZcyBc3VtZcyBLmNzc1VUBQAD/cwBa3V4CwABBAAAAAAEAAAAAFBLBQYAAAAAAwADAPQAAAALAQAAAAA=";
+  it("vrai flux Info-ZIP figé (bit 3, dossier explicite, nom NFD) : accepté, identique à la source", () => {
+    const z = Buffer.from(FLUX_INFOZIP, "base64");
+    expect(z.length).toBe(533);
+    expect(z.readUInt32LE(0)).toBe(0x04034b50);
+    expect(z.readUInt16LE(6) & 0x8).toBe(0x8); // data descriptor : tailles et CRC locaux à 0
+    expect(z.readUInt32LE(14)).toBe(0);
+    const r = decompresserZip(z, sortie);
+    expect(r.fichiers).toBe(2);
     expect(readFileSync(join(sortie, "index.html"), "utf8")).toBe("<h1>é</h1>".repeat(100));
     expect(readFileSync(join(sortie, "sous", "r\u0065\u0301sume\u0301.css"), "utf8")).toBe("a{}");
   });
