@@ -27,6 +27,8 @@ export interface DemandeFormulaireTutoriel {
   fin: "aucune" | "prendre-rendez-vous";
   gabarit?: string;
   ratios: string[];
+  modeVoix?: "sans-voix";
+  script?: string;
 }
 export type IssueFormulaireTutoriel = { statut: "lancee"; videoId: string } | { statut: "refusee"; phrase: string; rapport?: { refus: string[] } };
 export type ResultatFormulaireTutoriel = { ok: true; donnees: IssueFormulaireTutoriel } | { ok: false; message: string };
@@ -47,6 +49,8 @@ const PARCOURS: { valeur: string; libelle: string }[] = [
   { valeur: "G-Reponse", libelle: "Le client écrit à 2 h du matin" },
   { valeur: "G-Flux", libelle: "Une automatisation de bout en bout" },
 ];
+/** Même plafond que le dépôt serveur (`SCRIPT_COLLE_MAX`, recopié : pas d'import serveur ici). */
+const SCRIPT_COLLE_MAX = 8000;
 const FORMATS = ["4:5", "9:16", "1:1"] as const;
 
 /**
@@ -68,6 +72,8 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
   const [fin, setFin] = useState<"aucune" | "prendre-rendez-vous">("aucune");
   const [gabarit, setGabarit] = useState("");
   const [ratios, setRatios] = useState<string[]>([...FORMATS]);
+  const [sansVoix, setSansVoix] = useState(false);
+  const [scriptColle, setScriptColle] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [refus, setRefus] = useState<string[]>([]);
   const [enCours, setEnCours] = useState(false);
@@ -113,6 +119,8 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
         fin,
         ...(gabarit ? { gabarit } : {}),
         ratios: FORMATS.filter((x) => ratios.includes(x)),
+        ...(sansVoix ? { modeVoix: MODE_SANS_VOIX } : {}),
+        ...(scriptColle.trim() ? { script: scriptColle.trim() } : {}),
       });
       if (!r.ok) setMessage(r.message);
       else if (r.donnees.statut === "lancee") setVideoId(r.donnees.videoId);
@@ -177,6 +185,15 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
           </div>
         )}
         {mode === "phrase" && <ZoneTexte libelle="Votre phrase" aide={`De ${PHRASE_DEPOT_MIN} à ${PHRASE_DEPOT_MAX} caractères.`} longueurMax={PHRASE_DEPOT_MAX} value={phrase} onChange={(e) => setPhrase(e.target.value)} />}
+      </section>
+
+      <section aria-labelledby="bloc-son" className="space-y-2">
+        <h2 id="bloc-son" className="text-lg font-semibold">
+          Son et script
+        </h2>
+        <CaseACocher libelle={LIBELLE_MODE_SANS_VOIX} coche={sansVoix} onChange={setSansVoix} />
+        {sansVoix && <p className="text-sm text-texte-doux">{AIDE_MODE_SANS_VOIX}</p>}
+        <ZoneTexte libelle="Script à utiliser tel quel (facultatif)" aide="Collez-le : il fait foi. Sans script, le studio en écrit un que vous relirez avant de valider." longueurMax={SCRIPT_COLLE_MAX} value={scriptColle} onChange={(e) => setScriptColle(e.target.value)} />
       </section>
 
       <section aria-labelledby="bloc-fin" className="space-y-2">
