@@ -9,12 +9,13 @@
 export type CapaciteRefaireVoix = "phrase" | "voix-entiere" | "impossible";
 
 /**
- * Table FERMÉE par format (tout format du registre des codes y figure). Cas concret : la relecture phrase par phrase
- * existe en module pur (`prises-phrases`). Tableau : la voix est lue en une prise (voix entière + scènes). Face caméra,
+ * Table FERMÉE par format (tout format du registre des codes y figure). Cas concret : la voix réelle est lue en UNE prise
+ * (`voixDeRetouche`, une prise dont l'empreinte change est relue EN ENTIER) ; la relecture phrase par phrase existe en
+ * module pur (`prises-phrases`) mais n'est PAS branchée : une fiche future repassera à "phrase" quand elle le sera. Tableau : la voix est lue en une prise (voix entière + scènes). Face caméra,
  * avocat, avatar, image → vidéo : refaire la voix referait le visage ou n'a pas de moteur → impossible.
  */
 export const CAPACITE_REFAIRE_VOIX: Readonly<Record<string, CapaciteRefaireVoix>> = Object.freeze({
-  "cas-concret": "phrase",
+  "cas-concret": "voix-entiere",
   "tableau-anime": "voix-entiere",
   avocat: "impossible",
   podcast: "impossible",

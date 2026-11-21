@@ -20,9 +20,9 @@ describe("table des capacités", () => {
     const dossiers = readdirSync(join(RACINE, "src/formats")).filter((f) => statSync(join(RACINE, "src/formats", f)).isDirectory() && !f.startsWith("_") && f !== "familles");
     for (const d of dossiers) expect(Object.keys(CAPACITE_REFAIRE_VOIX), d).toContain(d);
   });
-  it("valeurs fermées ; cas concret = phrase, tableau = voix entière ; visage et avatar = impossible", () => {
-    expect(new Set(Object.values(CAPACITE_REFAIRE_VOIX))).toEqual(new Set(["phrase", "voix-entiere", "impossible"]));
-    expect(capaciteRefaireVoix("cas-concret")).toBe("phrase");
+  it("valeurs fermées ; cas concret et tableau = voix entière (prise unique relue en entier) ; visage et avatar = impossible", () => {
+    for (const v of Object.values(CAPACITE_REFAIRE_VOIX)) expect(["phrase", "voix-entiere", "impossible"]).toContain(v);
+    expect(capaciteRefaireVoix("cas-concret")).toBe("voix-entiere");
     expect(capaciteRefaireVoix("tableau-anime")).toBe("voix-entiere");
     for (const f of ["facecam", "facecam-animee", "avocat", "image-video", "selfie", "ugc"]) expect(capaciteRefaireVoix(f), f).toBe("impossible");
   });
@@ -33,16 +33,20 @@ describe("table des capacités", () => {
   });
 });
 
-const refus100 = () => estimerRefaireVoix({ ...base, format: "cas-concret", phrasesVisees: ["a".repeat(100)] });
+const refus100 = () => estimerRefaireVoix({ ...base, format: "cas-concret", texteLu: "a".repeat(100) });
 
 describe("estimation au pire cas", () => {
-  it("phrase : seuls les caractères de la phrase visée", () => {
+  it("cas concret : une phrase visée = TOUT le texte lu est relu et compté (voix en une prise)", () => {
     const r = estimerRefaireVoix({ ...base, format: "cas-concret" });
-    expect(r).toEqual({ ok: true, capacite: "phrase", caracteres: 28, centimes: 1 });
+    expect(r).toEqual({ ok: true, capacite: "voix-entiere", caracteres: base.texteLu.length, centimes: Math.ceil(base.texteLu.length * TARIF) });
   });
-  it("plusieurs phrases visées s'additionnent", () => {
+  it("cas concret, 1 phrase visée de 20 caractères dans un texte lu de 300 : 300 caractères (jamais 20)", () => {
+    const r = estimerRefaireVoix({ ...base, format: "cas-concret", texteLu: "a".repeat(300), phrasesVisees: ["b".repeat(20)] });
+    expect(r).toEqual({ ok: true, capacite: "voix-entiere", caracteres: 300, centimes: 9 });
+  });
+  it("plusieurs phrases visées : le coût reste celui du texte lu entier", () => {
     const r = estimerRefaireVoix({ ...base, format: "cas-concret", phrasesVisees: ["Première phrase.", "Troisième."] });
-    expect(r).toMatchObject({ ok: true, caracteres: 26 });
+    expect(r).toMatchObject({ ok: true, caracteres: base.texteLu.length });
   });
   it("voix entière : UNE phrase visée = tout le texte lu est relu et compté", () => {
     const r = estimerRefaireVoix({ ...base, format: "tableau-anime" });
@@ -50,9 +54,9 @@ describe("estimation au pire cas", () => {
     if (r.ok) expect(r.centimes).toBe(Math.ceil(base.texteLu.length * TARIF));
   });
   it("arrondi au centime SUPÉRIEUR (jamais en dessous du coût)", () => {
-    const r = estimerRefaireVoix({ ...base, format: "cas-concret", phrasesVisees: ["a".repeat(1000)] });
+    const r = estimerRefaireVoix({ ...base, format: "cas-concret", texteLu: "a".repeat(1000) });
     expect(r).toMatchObject({ ok: true, caracteres: 1000, centimes: 30 });
-    const r2 = estimerRefaireVoix({ ...base, format: "cas-concret", phrasesVisees: ["a".repeat(1001)] });
+    const r2 = estimerRefaireVoix({ ...base, format: "cas-concret", texteLu: "a".repeat(1001) });
     expect(r2).toMatchObject({ ok: true, centimes: 31 });
     // 100 × 0,03 vaut 3,0000000000000004 en flottant : pas un centime de plus pour une erreur d'arrondi machine.
     expect(refus100()).toMatchObject({ ok: true, caracteres: 100, centimes: 3 });
@@ -68,8 +72,10 @@ describe("refus, avant tout appel, sans montant", () => {
   it("plafond dépassé (en comptant l'engagé)", () => {
     const r = refus({ plafondCentimes: 10, dejaEngageCentimes: 10 });
     expect(r).toMatchObject({ ok: false, code: "plafond-depasse" });
-    expect(refus({ plafondCentimes: 11, dejaEngageCentimes: 10 }).ok).toBe(true);
-    expect(refus({ plafondCentimes: 1, dejaEngageCentimes: 0 }).ok).toBe(true);
+    expect(refus({ plafondCentimes: 11, dejaEngageCentimes: 10 })).toMatchObject({ ok: false, code: "plafond-depasse" });
+    expect(refus({ plafondCentimes: 12, dejaEngageCentimes: 10 }).ok).toBe(true);
+    expect(refus({ plafondCentimes: 1, dejaEngageCentimes: 0 })).toMatchObject({ ok: false, code: "plafond-depasse" });
+    expect(refus({ plafondCentimes: 2, dejaEngageCentimes: 0 }).ok).toBe(true);
     expect(refus({ plafondCentimes: 0, dejaEngageCentimes: 0 })).toMatchObject({ ok: false, code: "plafond-depasse" });
   });
   it("rien à refaire (aucune phrase, phrases vides, texte vide)", () => {
