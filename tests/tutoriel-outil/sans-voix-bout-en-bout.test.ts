@@ -1,5 +1,5 @@
 /**
- * UI-1 · TEST OBLIGATOIRE « 0 HeyGen / 0 ElevenLabs » du tutoriel d'outil. Dépôt (mode « Mon script » + « Sans voix »)
+ * UI-1 · TEST OBLIGATOIRE « 0 HeyGen / 0 ElevenLabs » du tutoriel d'outil. Dépôt (phrase ou dossier + script collé facultatif + « Sans voix »)
  * → vraie commande de fabrication → moteur avancé pas à pas avec les outils RÉELS du Studio (`brancherServicesTutoriel`),
  * dont seul le rendu est un double. Les modules HeyGen et ElevenLabs sont des pièges qui LÈVENT s'ils sont appelés ;
  * `branchementsReels` (le chemin avec voix) lève aussi : seul `branchementsReelsSansVoix` peut servir. 0 €, aucun appel réel.
@@ -83,10 +83,17 @@ beforeEach(async () => {
   await auth.seConnecter(MDP, false);
 });
 
-async function deposer(modeVoix?: "sans-voix") {
+const PHRASE = "Un tableau de bord pour un atelier";
+type Cas = "phrase+script" | "dossier+script";
+async function deposer(cas: Cas, modeVoix?: "sans-voix") {
   const commandes: Awaited<ReturnType<typeof construireCommande>>[] = [];
-  const r = await d.deposerTutoriel({ mode: "script", script: SCRIPT, ...(modeVoix ? { modeVoix } : {}) }, {
-    interrupteurs: async () => ({ formulaire: true, dossier: false, phrase: false }),
+  const entree = cas === "phrase+script" ? { mode: "phrase" as const, phrase: PHRASE } : { mode: "dossier" as const, fichierId: "f1", attestationImages: true };
+  const r = await d.deposerTutoriel({ ...entree, script: SCRIPT, ...(modeVoix ? { modeVoix } : {}) }, {
+    interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
+    equipe: async () => true,
+    fichier: async (id) => ({ id, nom: "a.zip", taille: 10, cleStockage: "k" }),
+    octets: async () => new Uint8Array([1]),
+    extraire: async () => ({ ok: true, fichiers: new Map(), rapport: { refus: [], ignores: [], masques: [], imagesEcartees: [] } }),
     lancer: async (id) => {
       commandes.push(await construireCommande(id));
       return { statut: "lancee", travailId: "t-simule" };
@@ -97,8 +104,8 @@ async function deposer(modeVoix?: "sans-voix") {
 }
 
 describe("tutoriel sans voix : 0 appel HeyGen, 0 appel ElevenLabs", () => {
-  it("dépôt « Mon script » + « Sans voix » → vidéo rendue 4:5, 9:16 et 1:1, sans étape ni coût de voix", async () => {
-    const commande = await deposer("sans-voix");
+  it.each<Cas>(["phrase+script", "dossier+script"])("dépôt %s + « Sans voix » → vidéo rendue 4:5, 9:16 et 1:1, sans étape ni coût de voix", async (cas) => {
+    const commande = await deposer(cas, "sans-voix");
     expect(commande.entrees.tutorielOutil).toMatchObject({ scriptColle: true, modeVoix: "sans-voix" });
 
     const t0 = await moteurMontageTutorielOutil.lancer(commande, { travailId: "t-sv", versionId: "ver-1", titre: "Tuto", maintenant: T0 });
@@ -130,7 +137,7 @@ describe("tutoriel sans voix : 0 appel HeyGen, 0 appel ElevenLabs", () => {
   });
 
   it("le défaut (sans choix) reste AVEC voix : l'étape « voix » existe, aucune clé modeVoix", async () => {
-    const commande = await deposer();
+    const commande = await deposer("phrase+script");
     expect("modeVoix" in (commande.entrees.tutorielOutil as Record<string, unknown>)).toBe(false);
     const t0 = await moteurMontageTutorielOutil.lancer(commande, { travailId: "t-av", versionId: "ver-1", titre: "Tuto", maintenant: T0 });
     expect(t0.etapes.map((e) => e.cle)).toEqual(["script", "voix", "calage", "plan", "montage", "exports"]);

@@ -10,11 +10,11 @@
  * Aucun appel payant, aucun montant écrit ni montré.
  */
 import "server-only";
-import { entreeModeVoix, lireModeVoix } from "@/formats/tutoriel-outil/mode-sans-voix";
 import type { Distribution, Fichier, Id, Ratio, Video } from "@/domaine/types";
 import { ENTREE_TUTORIEL, PHRASE_DEPOT_MAX, PHRASE_DEPOT_MIN, type DepotTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import type { IdGabarit } from "@/moteurs/montage-tutoriel-outil/sortie-usine";
 import { TAILLE_ZIP_MAX } from "@/moteurs/montage-tutoriel-outil/securite-entrees";
+import { entreeModeVoix, lireModeVoix, MODE_SANS_VOIX, type ModeVoixTutoriel } from "@/formats/tutoriel-outil/mode-sans-voix";
 import { depots, ErreurStudio, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import type { IssueLancement } from "./creation-format";
@@ -27,6 +27,8 @@ export const ID_FORMAT_TUTORIEL = "tutoriel-outil";
 export const PHRASE_TUTORIEL_FERME = "Le tutoriel n'est pas encore ouvert : votre demande n'est pas envoyée.";
 export const PHRASE_PHRASE_FERMEE = "L'entrée par une phrase n'est pas ouverte pour le moment.";
 export const PHRASE_PERSONNE_ABSENTE = "Aucune personne n'est disponible pour parler dans la vidéo : ajoutez d'abord votre double dans Personnages, puis recommencez.";
+export const PHRASE_EQUIPE_FERMEE = "L'équipe qui écrit le script n'est pas ouverte pour le moment : collez votre propre script pour lancer la vidéo.";
+export const SCRIPT_COLLE_MAX = 8000;
 export const PHRASE_AUCUNE_ENTREE = "Aucune entrée n'est ouverte pour le moment.";
 
 /** Fin de la vidéo (mêmes valeurs que `FinChoisie` du chef de projet, recopiées : ce fichier n'importe pas l'équipe). */
@@ -35,9 +37,6 @@ export const FINS_PROPOSEES: readonly FinChoisie[] = ["aucune", "prendre-rendez-
 export const GABARITS_PROPOSES: readonly IdGabarit[] = ["G-Journee", "G-Decision", "G-Reponse", "G-Flux"];
 export const RATIOS_PROPOSES: readonly Ratio[] = ["4:5", "9:16", "1:1"];
 export const RATIO_PRINCIPAL: Ratio = "4:5";
-/** Mode « Mon script » : bornes du texte donné (aucun appel payant : le texte est celui de l'utilisateur). */
-export const SCRIPT_DEPOT_MIN = 10;
-export const SCRIPT_DEPOT_MAX = 5000;
 
 export interface InterrupteursTutoriel {
   formulaire: boolean;
@@ -64,11 +63,7 @@ export async function exigerTutorielAllume(lire?: (id: string, defaut: unknown) 
 }
 
 export interface DemandeDepotTutoriel {
-  mode: "dossier" | "phrase" | "script";
-  /** Script : le texte de la vidéo (10 à 5000 caractères), repris tel quel. */
-  script?: string;
-  /** Son de la vidéo : seul `"sans-voix"` exact compte (aucune voix, aucun appel HeyGen) ; tout le reste = avec voix. */
-  modeVoix?: unknown;
+  mode: "dossier" | "phrase";
   /** Dossier : le fichier déjà envoyé (`typeEntite: "entree"`). */
   fichierId?: string;
   /** Dossier : la case « aucune donnée personnelle n'est visible ». Seul `true` exact compte. */
@@ -81,6 +76,10 @@ export interface DemandeDepotTutoriel {
   gabarit?: unknown;
   /** Défaut : les trois formats ; le format principal 4:5 doit en faire partie. */
   ratios?: unknown;
+  /** « sans-voix » seulement si exact ; tout le reste = avec voix (le défaut). */
+  modeVoix?: unknown;
+  /** Script collé (facultatif) : texte tel quel, il fait foi (`scriptColle: true`). */
+  script?: unknown;
 }
 
 export type IssueDepotTutoriel = { statut: "lancee"; videoId: Id } | { statut: "refusee"; phrase: string; rapport?: RapportEntree };
@@ -88,12 +87,14 @@ export type IssueDepotTutoriel = { statut: "lancee"; videoId: Id } | { statut: "
 export interface DependancesDepotTutoriel {
   interrupteurs?: () => Promise<InterrupteursTutoriel>;
   fichier?: (fichierId: string) => Promise<Pick<Fichier, "id" | "nom" | "taille" | "cleStockage">>;
+  /** Équipe ouverte = `equipeTutorielActive()` (réglages `tutoriel.equipe` ET `tutoriel.claude`, lecture seule : jamais allumés ici) ; absent = lu dans les réglages, éteint si la lecture échoue. */
+  equipe?: () => Promise<boolean>;
   /** Octets du fichier envoyé (en mémoire, jamais écrits sur le disque). */
   octets?: (fichier: Pick<Fichier, "id" | "cleStockage" | "taille">) => Promise<Uint8Array>;
   extraire?: (octets: Uint8Array, options: { attestationImages: boolean }) => Promise<ResultatZip>;
   /** Distribution par défaut (le double de Williams) ; liste vide ou sans personne : le dépôt est refusé. */
   distribution?: (formatId: string) => Promise<Distribution[]>;
-  brouillon?: (e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown>; script?: string }) => Promise<Pick<Video, "id">>;
+  brouillon?: (e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown> }) => Promise<Pick<Video, "id">>;
   ratios?: (videoId: Id, ratios: Ratio[]) => Promise<void>;
   /** Lancement commun (format sans prix : montant nul). */
   lancer?: (videoId: Id) => Promise<IssueLancement>;
@@ -128,12 +129,21 @@ async function distributionParDefautDuTutoriel(formatId: string): Promise<Distri
   return distributionParDefaut(formatId);
 }
 
-async function brouillonParDefaut({ script, ...e }: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown>; script?: string }) {
+async function equipeParDefaut(): Promise<boolean> {
+  // Import DYNAMIQUE : l'équipe tire l'orchestre et le client Claude, qui n'ont rien à faire dans le dépôt. La règle est celle
+  // de la chaîne (tutoriel.equipe ET tutoriel.claude) ; elle attrape elle-même une lecture en échec (éteint).
+  try {
+    return await (await import("./tutoriel-equipe")).equipeTutorielActive();
+  } catch {
+    return false;
+  }
+}
+
+async function brouillonParDefaut(e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown>; script?: string }) {
   const [{ nouveauBrouillonFormat }, { enregistrerScriptDuBrouillon }] = await Promise.all([import("./creation-format"), import("./videos")]);
   const video = await nouveauBrouillonFormat({ formatId: ID_FORMAT_TUTORIEL, ...e });
-  // Le lancement commun exige un script rattaché : le texte de l'utilisateur (mode « Mon script »), sinon un bloc vide
-  // (le moteur du tutoriel écrit le texte lui-même).
-  await enregistrerScriptDuBrouillon(video.id, [{ id: `${video.id}-b1`, blocRecette: "corps", segments: [{ id: `${video.id}-s1`, texte: script ?? "" }] }]);
+  // Le lancement commun exige un script rattaché : un bloc vide (le moteur du tutoriel écrit le texte lui-même).
+  await enregistrerScriptDuBrouillon(video.id, [{ id: `${video.id}-b1`, blocRecette: "corps", segments: [{ id: `${video.id}-s1`, texte: e.script ?? "" }] }]);
   return video;
 }
 
@@ -152,8 +162,8 @@ async function abandonnerParDefaut(videoId: Id): Promise<void> {
   await abandonnerBrouillon(videoId);
 }
 
-function titreDe(depot: DepotTutoriel | undefined, nomFichier?: string, script?: string): string {
-  const brut = script !== undefined ? script : depot?.mode === "phrase" ? depot.phrase : (nomFichier ?? "").replace(/\.zip$/i, "").replace(/[-_]+/g, " ");
+function titreDe(depot: DepotTutoriel, nomFichier?: string): string {
+  const brut = depot.mode === "phrase" ? depot.phrase : (nomFichier ?? "").replace(/\.zip$/i, "").replace(/[-_]+/g, " ");
   const propre = brut.replace(/\s+/g, " ").trim();
   return (propre || "Tutoriel d'outil").slice(0, 80);
 }
@@ -174,7 +184,7 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   await exigerSession();
   const sw = await (dep.interrupteurs ?? (() => lireInterrupteursTutoriel()))();
   if (!sw.formulaire) return refus(PHRASE_TUTORIEL_FERME);
-  if (demande?.mode !== "dossier" && demande?.mode !== "phrase" && demande?.mode !== "script") return refus("Choisissez ce que vous donnez : un dossier, une phrase ou votre script.");
+  if (demande?.mode !== "dossier" && demande?.mode !== "phrase") return refus("Choisissez ce que vous donnez : un dossier ou une phrase.");
 
   const fin: FinChoisie | null = demande.fin === undefined || demande.fin === null || demande.fin === "" ? "aucune" : FINS_PROPOSEES.find((f) => f === demande.fin) ?? null;
   if (!fin) return refus("Cette fin n'est pas proposée : choisissez « Aucune » ou « Prendre rendez-vous ».");
@@ -182,8 +192,18 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   const ratios = ratiosChoisis(demande.ratios);
   if (!ratios) return refus("Choisissez au moins le format 4:5, parmi 4:5, 9:16 et 1:1.");
 
-  let depot: DepotTutoriel | undefined;
+  const modeVoix: ModeVoixTutoriel = lireModeVoix({ modeVoix: demande.modeVoix });
   let script: string | undefined;
+  if (demande.script !== undefined && demande.script !== null) {
+    if (typeof demande.script !== "string") return refus("Votre script n'a pas pu être lu : recollez-le.");
+    const texte = demande.script.trim();
+    if (texte.length > SCRIPT_COLLE_MAX) return refus(`Votre script dépasse ${SCRIPT_COLLE_MAX} caractères : raccourcissez-le.`);
+    if (texte) script = texte;
+  }
+  // Sans script collé, c'est l'équipe qui l'écrit : éteinte, la vidéo resterait en pause pour toujours (TO_SCRIPT_ABSENT).
+  if (!script && !(await (dep.equipe ?? equipeParDefaut)())) return refus(PHRASE_EQUIPE_FERMEE);
+
+  let depot: DepotTutoriel;
   let nomFichier: string | undefined;
   if (demande.mode === "dossier") {
     if (!sw.dossier) return refus(MESSAGE_ZIP_FERME);
@@ -208,11 +228,6 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
     if (!resultat.ok) return refus("Votre dossier n'a pas pu être utilisé.", resultat.rapport);
     // Rien d'extrait n'est gardé : la chaîne ré-extrait le même fichier par la même fonction.
     depot = { mode: "dossier", fichierId: fichier.id, attestationImages };
-  } else if (demande.mode === "script") {
-    // Mon script : ouvert dès que le formulaire l'est ; le texte est celui de l'utilisateur, aucun appel payant.
-    const texte = typeof demande.script === "string" ? demande.script.trim() : "";
-    if (texte.length < SCRIPT_DEPOT_MIN || texte.length > SCRIPT_DEPOT_MAX) return refus(`Votre script doit faire de ${SCRIPT_DEPOT_MIN} à ${SCRIPT_DEPOT_MAX} caractères.`);
-    script = texte;
   } else {
     if (!sw.phrase) return refus(PHRASE_PHRASE_FERMEE);
     const phrase = typeof demande.phrase === "string" ? demande.phrase.trim() : "";
@@ -221,18 +236,18 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   }
 
   // Qui parle : le double par défaut. Personne de disponible : refus lisible, jamais un brouillon impossible à lancer.
-  let distribution: Distribution[];
+  // Valable aussi sans voix : la garde de fabrication exige encore une personne (format tutoriel-outil, personnages.min = 1).
+  let distribution: Distribution[] = [];
   try {
     distribution = await (dep.distribution ?? distributionParDefautDuTutoriel)(ID_FORMAT_TUTORIEL);
   } catch (e) {
     return refus(e instanceof ErreurStudio ? e.message : PHRASE_PERSONNE_ABSENTE);
   }
+  if (modeVoix === MODE_SANS_VOIX) distribution = distribution.filter((d) => d?.personnageId).slice(0, 1);
   if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
 
-  const titre = titreDe(depot, nomFichier, script);
-  // Son de la vidéo : « sans-voix » n'est écrit que s'il est choisi (valeur exacte) ; le défaut reste avec voix.
-  const modeVoix = lireModeVoix({ modeVoix: demande.modeVoix });
-  const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees: { [ENTREE_TUTORIEL]: { ...(depot ? { depot } : { scriptColle: true }), fin, ...(gabarit ? { gabarit } : {}), ...entreeModeVoix(modeVoix) } }, ...(script !== undefined ? { script } : {}) });
+  const titre = titreDe(depot, nomFichier);
+  const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees: { [ENTREE_TUTORIEL]: { depot, fin, ...(gabarit ? { gabarit } : {}), ...entreeModeVoix(modeVoix), ...(script ? { scriptColle: true } : {}) } }, ...(script ? { script } : {}) });
   const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
   try {
     await (dep.ratios ?? ratiosParDefaut)(video.id, ratios);

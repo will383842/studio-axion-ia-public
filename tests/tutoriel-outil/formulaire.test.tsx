@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => mockNavigation);
 const { FormulaireTutorielOutil } = await import("@/components/formats/vitrines/FormulaireTutorielOutil");
 
 const deposer = vi.fn(async () => ({ ok: true as const, donnees: { statut: "lancee" as const, videoId: "v1" } }));
-const rendre = (interrupteurs?: { formulaire: boolean; dossier: boolean; phrase: boolean }) => renderToStaticMarkup(createElement(FormulaireTutorielOutil, (interrupteurs ? { interrupteurs, deposer } : {}) as never));
+const rendre = (interrupteurs?: { formulaire: boolean; dossier: boolean; phrase: boolean; devis?: boolean }) => renderToStaticMarkup(createElement(FormulaireTutorielOutil, (interrupteurs ? { interrupteurs, deposer } : {}) as never));
 /** Le texte VISIBLE : balises et attributs retirés. */
 const visible = (html: string) => html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 
@@ -43,14 +43,36 @@ describe("allumé : les quatre blocs, dans l'ordre", () => {
   const html = rendre(TOUT);
   const t = visible(html);
   it("« Ce que vous donnez », « Fin de la vidéo », « Parcours », « Formats », puis la phrase fixe et le bouton", () => {
-    const ordre = ["Ce que vous donnez", "Un dossier (.zip)", "Une phrase", "Mon script", "Son de la vidéo", "Avec voix", "Sans voix", "Fin de la vidéo", "Aucune", "Prendre rendez-vous", "Parcours", "Choisi par le Studio", "Formats", "4:5", "9:16", "1:1", "Rien n'est dépensé avant votre accord", "Préparer la vidéo"];
+    const ordre = ["Ce que vous donnez", "Un dossier (.zip)", "Une phrase", "Fin de la vidéo", "Aucune", "Prendre rendez-vous", "Parcours", "Choisi par le Studio", "Formats", "4:5", "9:16", "1:1", "Rien n'est dépensé avant votre accord", "Préparer la vidéo"];
     let depuis = 0;
     for (const x of ordre) {
       const i = t.indexOf(x, depuis);
       expect(i, x).toBeGreaterThanOrEqual(depuis);
       depuis = i;
     }
-    expect(t).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.");
+    // Devis éteint (défaut) : on ne promet pas un devis qui n'existe pas.
+    expect(t).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours et le script.");
+    expect(t).not.toContain("le devis");
+  });
+  it("le devis n'est annoncé que si le réglage est allumé (`true` exact)", () => {
+    expect(visible(rendre({ ...TOUT, devis: true }))).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.");
+    expect(visible(rendre({ ...TOUT, devis: "true" as never }))).not.toContain("le devis");
+  });
+  it("un seul contrôle du son (pastilles « Avec voix » par défaut / « Sans voix ») et une seule zone de script", () => {
+    const pastilles = [...html.matchAll(/<button[^>]*role="radio"[^>]*aria-checked="(true|false)"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => ({ coche: m[1] === "true", texte: visible(m[2]) }));
+    expect(pastilles).toHaveLength(2);
+    expect(pastilles[0]).toEqual({ coche: true, texte: "Avec voix" });
+    expect(pastilles[1].coche).toBe(false);
+    expect(pastilles[1].texte).toContain("Sans voix");
+    expect(html).not.toMatch(/type="checkbox"[^>]*>\s*(?:<[^>]+>\s*)*Sans voix/);
+    expect((t.match(/Son de la vidéo/g) ?? []).length).toBe(1);
+    expect((html.match(/<textarea/g) ?? []).length).toBe(1);
+    expect((t.match(/Script à utiliser tel quel \(facultatif\)/g) ?? []).length).toBe(1);
+    expect(t).not.toContain("Mon script");
+  });
+  it("le bloc du son est annoncé une seule fois : titre « Son et script » relié à sa section, sans libellé doublon", () => {
+    expect(html).toMatch(/<section aria-labelledby="bloc-son"[^>]*>\s*<h2 id="bloc-son"[^>]*>\s*Son et script/);
+    expect(html).not.toMatch(/<section[^>]*aria-label="Son de la vidéo"/);
   });
   it("« Aucune » est cochée par défaut, « Prendre rendez-vous » non ; aucune autre option de fin", () => {
     expect(cases(html, "fin")).toEqual([{ valeur: "aucune", coche: true }, { valeur: "prendre-rendez-vous", coche: false }]);
@@ -91,37 +113,17 @@ describe("entrées ouvertes une à une", () => {
     const t = visible(html);
     expect(t).toContain("Un dossier (.zip)");
     expect(t).not.toContain("Une phrase");
-    expect(cases(html, "mode")).toEqual([{ valeur: "dossier", coche: true }, { valeur: "script", coche: false }]);
+    expect(html).not.toContain('name="mode"');
   });
-  it("les trois ouvertes : un choix entre les trois, le dossier d'abord, « Mon script » en dernier", () => {
+  it("les deux ouvertes : un choix entre les deux, le dossier d'abord", () => {
     const html = rendre(TOUT);
-    expect(cases(html, "mode")).toEqual([{ valeur: "dossier", coche: true }, { valeur: "phrase", coche: false }, { valeur: "script", coche: false }]);
+    expect(cases(html, "mode")).toEqual([{ valeur: "dossier", coche: true }, { valeur: "phrase", coche: false }]);
   });
-  it("les deux entrées éteintes, formulaire allumé : « Mon script » reste proposé et choisi, le bouton est là", () => {
-    const html = rendre({ formulaire: true, dossier: false, phrase: false });
-    const t = visible(html);
-    expect(cases(html, "mode")).toEqual([{ valeur: "script", coche: true }]);
-    expect(t).toContain("Votre script");
-    expect(t).toContain("Préparer la vidéo");
-    expect(t).not.toContain("Aucune entrée n'est ouverte");
-  });
-  it("PHRASE_AUCUNE_ENTREE_OUVERTE reste exportée (plus atteinte)", async () => {
-    const m = await import("@/components/formats/vitrines/FormulaireTutorielOutil");
-    expect(m.PHRASE_AUCUNE_ENTREE_OUVERTE).toBe("Aucune entrée n'est ouverte pour le moment.");
-  });
-});
-
-describe("Son de la vidéo", () => {
-  const html = rendre(TOUT);
-  it("« Avec voix » est le choix par défaut ; « Sans voix » est proposé avec son aide", () => {
-    const t = visible(html);
-    expect(t).toContain("Son de la vidéo");
-    expect(t).toContain("Sans voix (sous-titres et texte à l'écran)");
-    const pastilles = [...html.matchAll(/<button[^>]*role="radio"[^>]*aria-checked="(true|false)"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => ({ coche: m[1] === "true", texte: visible(m[2]) }));
-    expect(pastilles).toHaveLength(2);
-    expect(pastilles[0]).toEqual({ coche: true, texte: "Avec voix" });
-    expect(pastilles[1].coche).toBe(false);
-    expect(pastilles[1].texte).toContain("Sans voix");
+  it("les deux éteintes, formulaire allumé : seulement « Aucune entrée n'est ouverte pour le moment. »", () => {
+    const t = visible(rendre({ formulaire: true, dossier: false, phrase: false }));
+    expect(t).toContain("Aucune entrée n'est ouverte pour le moment.");
+    expect(t).not.toContain("Préparer la vidéo");
+    expect(t).not.toContain("Ce que vous donnez");
   });
 });
 

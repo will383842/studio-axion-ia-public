@@ -20,7 +20,7 @@ import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
-import { relancerRendusTombes } from "./reprise";
+import { bilanReprise, relancerRendusTombes } from "./reprise";
 import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
@@ -490,7 +490,10 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
       void _e;
       // T-EXT-45b : un rendu tombé repart en série neuve (« Réessayer » le redemande vraiment) ; un rendu fini n'est jamais touché.
       const repris = enEchec.has("montage") || enEchec.has("exports") ? avecEtat(reste as Travail, relancerRendusTombes(lireEtat(travail))) : reste;
-      return { ...repris, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
+      // Fiche 45 point 5 : la phrase « ce qui est refait, ce qui est gardé » est rangée dans les paramètres du travail, où le suivi la lit.
+      const bilan = bilanReprise(lireEtat(travail), [...enEchec]);
+      const avecBilan = { ...repris, parametres: { ...repris.parametres, bilanReprise: { phrase: bilan.phrase, refait: bilan.refait, garde: bilan.garde } } };
+      return { ...avecBilan, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
     },
     retoucher: async ({ commande, contexte, parent, operations }) => {
       const ctx = { ...contexte, type: "retouche" as const };
