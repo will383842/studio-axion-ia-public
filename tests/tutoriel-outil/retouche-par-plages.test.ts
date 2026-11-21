@@ -9,6 +9,7 @@ import type { EtatRendu, ServiceRendu } from "@/fournisseurs/types";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
 import { avecEmpreintes, scenesARerendre } from "@/briques/plan-scenes/empreinte";
 import { avancerEtape, sortieGardee } from "@/moteurs/montage-tutoriel-outil/chaine";
+import { relancerRendusTombes } from "@/moteurs/montage-tutoriel-outil/reprise";
 import { creerMoteurTutorielOutil, type EtatTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { commandeTutoriel, outilsDoubles, une, type Journal } from "./doubles";
 
@@ -77,14 +78,15 @@ async function premiere(partielle: boolean | undefined) {
  * plan retouché (scènes `touchees` changées) est le plan courant, avec ses scènes touchées calculées comme `pasPlanClassique`.
  * (Par `moteur.retoucher` + opération `planScenes`, `etatDepuisParent` remplace déjà le plan d'avant : voir la PR, HORS PERIMETRE.)
  */
-async function retoucher(avant: EtatTutoriel, c: CommandeFabrication, partielle: boolean | undefined, touchees: number[], variante: { empreinteVoixAvant?: string; refuserRecollage?: boolean } = {}) {
+function preparer(avant: EtatTutoriel, partielle: boolean | undefined, touchees: number[], variante: { empreinteVoixAvant?: string; refuserRecollage?: boolean; echouerPlage?: boolean } = {}) {
   const j = journalVide();
   const base = outils(j, partielle);
   const service: ServiceRendu = {
     soumettre: (d) => base.rendu.service().soumettre(d),
     async etat(id): Promise<EtatRendu> {
       const e = await base.rendu.service().etat(id);
-      const refus = variante.refuserRecollage && j.rendus.find((x) => x.idRendu === id)?.operation === "recollage-plages" && e.statut === "termine";
+      const d = j.rendus.find((x) => x.idRendu === id);
+      const refus = (variante.refuserRecollage && d?.operation === "recollage-plages" && e.statut === "termine") || (variante.echouerPlage && d?.parametres.mode === "plage" && e.statut === "termine");
       return refus ? { statut: "echec", erreur: { code: "refuse", reessayable: false, message: "borne hors image clé" } as never } : e;
     },
   };
@@ -93,7 +95,7 @@ async function retoucher(avant: EtatTutoriel, c: CommandeFabrication, partielle:
   for (const k of touchees) brut.scenes[k].parametres = { ...(brut.scenes[k].parametres as Record<string, unknown>), titre: `Tableaux ${k + 1}` } as never;
   const plan = avecEmpreintes(brut);
   const rendusAvant = Object.fromEntries(avant.rendus.map((r) => [r.ratio, sortieGardee(r)]));
-  let etat: EtatTutoriel = {
+  const etat: EtatTutoriel = {
     ...avant,
     rendus: [],
     reserves: [],
@@ -102,6 +104,12 @@ async function retoucher(avant: EtatTutoriel, c: CommandeFabrication, partielle:
     plan: { ...avant.plan!, plan, scenesTouchees: scenesARerendre(avant.plan!.plan, plan) },
     parent: { plan: avant.plan!.plan, audio: variante.empreinteVoixAvant ? { ...avant.audio!, empreinte: variante.empreinteVoixAvant } : avant.audio, rendus: rendusAvant, empreintesFormats: avant.empreintesFormats, fin: avant.fin },
   };
+  return { j, o, etat };
+}
+
+async function retoucher(avant: EtatTutoriel, c: CommandeFabrication, partielle: boolean | undefined, touchees: number[], variante: { empreinteVoixAvant?: string; refuserRecollage?: boolean; echouerPlage?: boolean } = {}) {
+  const { j, o, etat: depart } = preparer(avant, partielle, touchees, variante);
+  let etat = depart;
   for (const cle of ["montage", "exports"] as const) {
     for (let i = 0; i < 200; i++) {
       const pas = await avancerEtape(cle, etat, c, o, "t-r");
@@ -193,5 +201,81 @@ describe("tutoriel d'outil : retouche par plages (52c)", () => {
     expect(entieres(r.j).map((d) => d.idRendu).sort()).toEqual(["t-r-1x1-0", "t-r-4x5-0", "t-r-9x16-0"]);
     expect(r.etat.reserves.filter((x) => x.includes("refait en entier"))).toHaveLength(3);
     expect(r.etat.rendus.every((x) => x.sortie?.fichierCle.endsWith(".mp4"))).toBe(true);
+  });
+
+  it("plage en échec : rendu entier du format, réserve posée, jamais d'erreur", async () => {
+    const { etat: avant, c } = await premiere(true);
+    const r = await retoucher(avant, c, true, [2], { echouerPlage: true });
+    expect(recollages(r.j)).toHaveLength(0);
+    expect(entieres(r.j).map((d) => d.idRendu).sort()).toEqual(["t-r-1x1-0", "t-r-4x5-0", "t-r-9x16-0"]);
+    expect(r.etat.reserves.filter((x) => x.includes("refait en entier"))).toHaveLength(3);
+    expect(r.etat.rendus.every((x) => x.sortie?.fichierCle.endsWith(".mp4"))).toBe(true);
+  });
+
+  describe("« Réessayer » (aSoumettre) pendant la retouche par plages : on suit d'abord l'ancienne demande (T-EXT-45b)", () => {
+    const pas = async (e: EtatTutoriel, o: OutilsTutoriel, c: CommandeFabrication) => (await avancerEtape("montage", e, c, o, "t-r")).etat;
+    const rendu4x5 = (e: EtatTutoriel) => e.rendus.find((x) => x.ratio === "4:5")!;
+    /** Mène le format maître jusqu'à ce que son recollage soit soumis (non fini). */
+    async function jusquAuRecollage(variante: { refuserRecollage?: boolean } = {}) {
+      const { etat: avant, c } = await premiere(true);
+      const p = preparer(avant, true, [2], variante);
+      let e = p.etat;
+      for (let i = 0; i < 10 && recollages(p.j).length === 0; i++) e = await pas(e, p.o, c);
+      expect(recollages(p.j)).toHaveLength(1);
+      expect(rendu4x5(e).demande.operation).toBe("recollage-plages");
+      return { ...p, etat: e, c };
+    }
+
+    it("recollage en cours : aucun rendu entier, l'attente reprend, puis sa sortie est gardée", async () => {
+      const p = await jusquAuRecollage();
+      let e = relancerRendusTombes(p.etat);
+      expect(rendu4x5(e).aSoumettre).toBe(true);
+      e = await pas(e, p.o, p.c);
+      expect(entieres(p.j)).toHaveLength(0);
+      expect(rendu4x5(e).aSoumettre).toBeUndefined();
+      expect(rendu4x5(e).demande.operation).toBe("recollage-plages");
+      e = await pas(e, p.o, p.c);
+      expect(entieres(p.j)).toHaveLength(0);
+      expect(rendu4x5(e).sortie?.fichierCle).toBe(recollages(p.j)[0]!.sortie.cle);
+    });
+
+    it("recollage déjà fini : sa sortie est gardée, 0 rendu entier", async () => {
+      const p = await jusquAuRecollage();
+      const id = recollages(p.j)[0]!.idRendu;
+      await p.o.rendu.service().etat(id); // en cours
+      expect((await p.o.rendu.service().etat(id)).statut).toBe("termine");
+      let e = relancerRendusTombes(p.etat);
+      e = await pas(e, p.o, p.c);
+      expect(entieres(p.j)).toHaveLength(0);
+      expect(rendu4x5(e).sortie?.fichierCle).toBe(recollages(p.j)[0]!.sortie.cle);
+      expect(rendu4x5(e).aSoumettre).toBeUndefined();
+    });
+
+    it("recollage en échec : rendu entier sous la série de « Réessayer », inscrit dans l'état AVANT l'envoi", async () => {
+      const p = await jusquAuRecollage({ refuserRecollage: true });
+      const id = recollages(p.j)[0]!.idRendu;
+      await p.o.rendu.service().etat(id); // en cours
+      let e = relancerRendusTombes(p.etat);
+      e = await pas(e, p.o, p.c);
+      expect(entieres(p.j)).toHaveLength(0); // inscrit, pas encore envoyé
+      expect(rendu4x5(e)).toMatchObject({ aEnvoyer: true, serie: 1 });
+      expect(rendu4x5(e).demande.idRendu).toBe("t-r-4x5-r1-0");
+      expect(e.reserves.filter((x) => x.includes("refait en entier"))).toHaveLength(1);
+      e = await pas(e, p.o, p.c);
+      expect(entieres(p.j).map((d) => d.idRendu)).toEqual(["t-r-4x5-r1-0"]);
+    });
+
+    it("plages encore en cours : on les attend, aucun rendu entier", async () => {
+      const { etat: avant, c } = await premiere(true);
+      const p = preparer(avant, true, [2]);
+      let e = await pas(p.etat, p.o, c);
+      expect(rendu4x5(e).aEnvoyer).toBe(true);
+      e = relancerRendusTombes(e);
+      e = await pas(e, p.o, c);
+      expect(entieres(p.j)).toHaveLength(0);
+      expect(rendu4x5(e).aSoumettre).toBeUndefined();
+      expect(rendu4x5(e).aEnvoyer).toBe(true);
+      expect(recollages(p.j)).toHaveLength(0);
+    });
   });
 });

@@ -724,28 +724,31 @@ async function demandeRecollage(etat: EtatTutoriel, ratio: Ratio, ch: NonNullabl
 async function pasRenduRecollage(etat: EtatTutoriel, ratio: Ratio, courant: RenduTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<EtatTutoriel> {
   const service = outils.rendu.service();
   const remplacer = (r: RenduTutoriel): EtatTutoriel => ({ ...etat, rendus: [...etat.rendus.filter((x) => x.ratio !== ratio), r] });
+  // T-EXT-45b : le rendu entier de repli est inscrit dans l'état AVANT d'être envoyé (`aEnvoyer`, le pas suivant le soumet), sous la série de « Réessayer ».
   const entier = async (): Promise<EtatTutoriel> => {
-    const demande = await demandeRendu(etat, ratio, 0, commande, outils, travailId);
-    await service.soumettre(demande);
+    const demande = await demandeRendu(etat, ratio, 0, commande, outils, travailId, courant.serie);
     const reserve = `Le format ${ratio} a été refait en entier (le rendu par morceaux n'a pas pu servir).`;
-    return { ...remplacer({ ratio, demande, essai: 0 }), reserves: etat.reserves.includes(reserve) ? etat.reserves : [...etat.reserves, reserve] };
+    return { ...remplacer({ ratio, demande, essai: 0, ...(courant.serie ? { serie: courant.serie } : {}), aEnvoyer: true }), reserves: etat.reserves.includes(reserve) ? etat.reserves : [...etat.reserves, reserve] };
   };
   const ch = choixPlages(etat, ratio, commande, outils);
-  if (!ch || courant.aSoumettre) return entier();
+  if (!ch) return entier();
+  // « Réessayer » (`aSoumettre`) : on suit TOUJOURS les plages / le recollage d'avant ; le rendu entier n'est soumis que s'ils sont en échec.
+  const { aSoumettre: _s, ...sansReprise } = courant;
+  void _s;
   if (courant.aEnvoyer) {
     const demandes = await Promise.all(ch.plages.map((p, i) => demandePlage(etat, ratio, i, p, commande, outils, travailId)));
     const suivis = await Promise.all(demandes.map((d) => suivreRendu(service, d)));
     if (suivis.some((e) => e.statut === "echec")) return entier();
-    if (suivis.some((e) => e.statut !== "termine")) return etat;
+    if (suivis.some((e) => e.statut !== "termine")) return courant.aSoumettre ? remplacer(sansReprise) : etat;
     const demande = await demandeRecollage(etat, ratio, ch, outils, travailId, true);
     await service.soumettre(demande);
-    const { aEnvoyer: _e, ...envoye } = courant;
+    const { aEnvoyer: _e, ...envoye } = sansReprise;
     void _e;
     return remplacer({ ...envoye, demande });
   }
   const e = await suivreRendu(service, courant.demande);
   if (e.statut === "echec") return entier();
-  if (e.statut !== "termine") return etat;
+  if (e.statut !== "termine") return courant.aSoumettre ? remplacer(sansReprise) : etat;
   const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : ch.total / 25;
   // La demande gardée prend la forme d'un rendu entier (jamais soumise) : le regard et les dimensions du résultat la lisent.
   const forme = await demandeRendu(etat, ratio, 0, commande, outils, travailId);
@@ -772,7 +775,7 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai: 0 });
   }
   if (courant.sortie) return etat;
-  if (courant.demande.operation === "recollage-plages") return pasRenduRecollage(etat, ratio, courant, commande, outils, travailId);
+  if (courant.demande?.operation === "recollage-plages") return pasRenduRecollage(etat, ratio, courant, commande, outils, travailId);
   // T-EXT-45b : une demande inscrite mais pas encore soumise est soumise telle quelle (même identifiant), AVANT tout calcul de série neuve.
   // Si `soumettre` lève après acceptation (réponse perdue), l'état gardé porte cette demande : le « Réessayer » suivant la ressoumet sous le même identifiant.
   if (courant.aEnvoyer) {
