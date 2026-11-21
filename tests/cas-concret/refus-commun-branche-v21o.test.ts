@@ -194,6 +194,14 @@ describe("X2-11b-c · refus commun branché dans le cas concret", { timeout: 120
     expect((await fabriquerSurFicheFournie(IDS[0], panne))?.tirage).toBeDefined();
   });
 
+  it("(e) allumé : la vidéo en cours est exclue de ses propres voisines (videoId transmis à lireVoisines)", async () => {
+    const voisin = tirer({ videoId: "v-voisine", canaux: RESEAUX, historique: [] });
+    await poserVoisine(voisin);
+    await ecrireParametre("varieteCommune", true);
+    const refus = await outilsVarieteDuStudio().refusCommun!({ videoId: "v-voisine", reseaux: RESEAUX });
+    expect(refus?.(voisin) ?? null).toBeNull();
+  });
+
   it("(d) tirage déjà au journal ou hérité : inchangé, refusCommun jamais appelé", async () => {
     const espion = vi.fn(async () => () => "refus");
     const base = sansRefus();
