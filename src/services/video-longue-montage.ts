@@ -20,7 +20,10 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { planVideoLongue, type ChapitrePourPlan, type FormatVideoLongue } from "@/moteurs/montage-video-longue/plan";
 import { rendreChapitres, type DemandePlage, type MorceauRendu, type PortRenduPlage } from "@/moteurs/montage-video-longue/rendu-chapitres";
 
-export const NOM_FICHIER_VIDEO_LONGUE_16X9 = "video-longue-16x9.mp4";
+/** Nom du fichier final, PROPRE À CHAQUE TRAVAIL : une retouche n'écrase jamais la version précédente. */
+export const nomFichierVideoLongue16x9 = (travailId: string): string => `video-longue-${idSur(travailId)}-16x9.mp4`;
+/** Tolérance (ms) sur la borne de début d'un chapitre : un mot qui commence un peu avant reste dans le chapitre. */
+export const TOLERANCE_DEBUT_CHAPITRE_MS = 50;
 /** Paramètre où sont notées les plages rendues, par vidéo (reprise après redémarrage). */
 export const cleParametrePlages = (videoId: string): string => `videoLongue.plages.${videoId}`;
 /** Attente entre deux lectures de l'état d'un rendu. */
@@ -45,6 +48,8 @@ export interface PortsMontageVideoLongue {
   /** Attente entre deux lectures d'état (tests : rien). */
   attendre?: (ms: number) => Promise<void>;
   intervalleMs?: number;
+  /** Relit le réglage `videoLongue.actif` (sans cache) : appelé avant CHAQUE plage ; faux = arrêt net, rien de plus ne part. */
+  actif?: () => Promise<boolean>;
   delaiCollageMs?: number;
 }
 
@@ -57,6 +62,10 @@ export class ErreurMontageVideoLongue extends Error {
 }
 
 const empreinte = (v: unknown): string => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 24);
+/** Caractères admis par studio-rendu pour un idRendu : `[A-Za-z0-9_.:-]`, 120 au plus. */
+const idSur = (v: string): string => v.replace(/[^A-Za-z0-9_.:-]/g, "_");
+/** Identifiant d'un morceau/collage : borné à 120 caractères (le début est haché si le tout est trop long). */
+const idBorne = (v: string): string => (v.length <= 100 ? v : `${v.slice(0, 60)}-${createHash("sha256").update(v).digest("hex").slice(0, 24)}`);
 const attendreParDefaut = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Segments d'un chapitre, calés sur le temps des mots, en temps de la vidéo ENTIÈRE. PUR. */
@@ -84,7 +93,9 @@ export function chapitresPourPlan(ctx: Contexte): ChapitrePourPlan[] {
     const debutMs = Math.round(c.debutSec * 1000);
     const finMs = Math.round(c.finSec * 1000);
     const dernier = i === ctx.chapitres.length - 1;
-    const mots = ctx.mots.filter((m) => m.debutSec * 1000 >= debutMs - 1 && (dernier || m.debutSec * 1000 < finMs));
+    // Même tolérance des deux côtés de la frontière : un mot n'est jamais perdu ni compté dans deux chapitres.
+    const tol = TOLERANCE_DEBUT_CHAPITRE_MS;
+    const mots = ctx.mots.filter((m) => (i === 0 || m.debutSec * 1000 >= debutMs - tol) && (dernier || m.debutSec * 1000 < finMs - tol));
     return { id: `c${i + 1}`, debutMs, finMs, segments: segmentsDuChapitre(mots, debutMs, finMs) };
   });
 }
@@ -107,6 +118,8 @@ async function soumettreEtAttendre(demande: DemandeRendu, ports: PortsMontageVid
 function portRenduPlage(commande: CommandeFabrication, ports: PortsMontageVideoLongue): PortRenduPlage {
   return {
     async rendre(d: DemandePlage) {
+      // Le réglage peut avoir été éteint pendant un long montage : relu avant chaque plage.
+      if (ports.actif && (await ports.actif()) !== true) throw new Error("La vidéo longue a été éteinte : le montage s'arrête, rien de plus n'est lancé.");
       const cle = ports.cle(commande, `video-longue-plages/${d.idRendu}.mp4`);
       const signe = await ports.signer({}, [{ cle, mime: "video/mp4" }]);
       const demande: DemandeRendu = { idRendu: d.idRendu, operation: "composition", file: d.file, entrees: {}, sortie: { urlDepot: signe.depots[cle], cle }, parametres: d.parametres };
@@ -149,11 +162,14 @@ export async function monterVideoLongue(commande: CommandeFabrication, travailId
     const planChapitre = c.plan ?? planVide(plan.format, c.finMs);
     const empreinteChapitre = empreinte({ plan: planChapitre, debutMs: c.debutMs, finMs: c.finMs, sousTitres });
     const dejaRendus: Record<string, string> = {};
-    for (const [id, n] of Object.entries(notees)) if (n.empreinte === empreinteChapitre && id.startsWith(`${travailId}-${c.id}-p`)) dejaRendus[id] = n.sortieCle;
+    // L'empreinte du contenu entre dans l'identifiant : un contenu modifié a d'autres identifiants (le serveur de rendu ignore
+    // un idRendu déjà connu et garde son résultat 24 h) ; le MÊME contenu garde les mêmes (relance parallèle sans doublon).
+    const idVideo = idBorne(`${idSur(videoId)}-${empreinteChapitre.slice(0, 10)}`);
+    for (const [id, n] of Object.entries(notees)) if (n.empreinte === empreinteChapitre && id.startsWith(`${idVideo}-${c.id}-p`)) dejaRendus[id] = n.sortieCle;
     morceaux.push(
       ...(await rendreChapitres(
         {
-          idVideo: travailId,
+          idVideo,
           composition: COMPOSITION_VIDEO_LONGUE,
           proprietes: { plan: planChapitre, sousTitres },
           chapitres: [{ id: c.id, debutMs: c.debutMs, finMs: c.finMs }],
@@ -170,10 +186,10 @@ export async function monterVideoLongue(commande: CommandeFabrication, travailId
 
   // Collage : sans voix, aucune piste son.
   const { noms, parametres } = parametresCollage(morceaux.length, false);
-  const sortieCle = ports.cle(commande, NOM_FICHIER_VIDEO_LONGUE_16X9);
+  const sortieCle = ports.cle(commande, nomFichierVideoLongue16x9(travailId));
   const signe = await ports.signer(Object.fromEntries(noms.map((n, i) => [n, morceaux[i].sortieCle])), [{ cle: sortieCle, mime: "video/mp4" }]);
   const demande: DemandeRendu = {
-    idRendu: `${travailId}-collage`,
+    idRendu: idBorne(`${idSur(videoId)}-collage-${empreinte({ travailId, morceaux: morceaux.map((m) => m.idRendu) }).slice(0, 16)}`),
     operation: "collage-chapitres",
     file: "longue",
     entrees: Object.fromEntries(noms.map((n) => [n, signe.lectures[n]])),

@@ -17,6 +17,15 @@ const branchementsReels = vi.fn(async () => {
 const interdit = vi.fn(() => {
   throw new Error("fournisseur de voix interdit");
 });
+const hotesInterdits: string[] = [];
+vi.spyOn(globalThis, "fetch").mockImplementation(async (entree) => {
+  const url = String(typeof entree === "object" && "url" in entree ? entree.url : entree);
+  if (/heygen|elevenlabs/i.test(url)) {
+    hotesInterdits.push(url);
+    throw new Error(`appel réseau interdit : ${url}`);
+  }
+  throw new Error(`réseau interdit : ${url}`);
+});
 const rendu = {
   soumettre: async (d: { idRendu: string }) => (demandes.push(d as never), { idRendu: d.idRendu }),
   etat: async (id: string) => ({ statut: "termine" as const, sortieCle: ((demandes.find((d) => d.idRendu === id) as { sortie: { cle: string } }).sortie.cle) }),
@@ -36,8 +45,9 @@ const branchementsReelsSansVoix = vi.fn(async (videoId: string) => ({
   videoId,
 }));
 vi.mock("@/services/tableau-outils", () => ({ branchementsReels, branchementsReelsSansVoix }));
-vi.mock("@/fournisseurs/heygen/voix", async (orig) => ({ ...(await orig<object>()), fournisseurVoixHeygen: interdit }));
-vi.mock("@/fournisseurs/elevenlabs/voix", () => ({ default: interdit, fournisseurVoixElevenLabs: interdit }));
+// Vrais modules de voix : toute construction ou lecture lève.
+vi.mock("@/fournisseurs/heygen/voix", async (orig) => ({ ...(await orig<object>()), creerFournisseurVoixHeygen: interdit }));
+vi.mock("@/fournisseurs/credits/elevenlabs", async (orig) => ({ ...(await orig<object>()), creerLecteurElevenLabs: interdit }));
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
@@ -106,9 +116,10 @@ describe("UI-4 : montage sans voix", () => {
     expect(p.morceaux).toHaveLength(plages.length);
     expect(p).not.toHaveProperty("voix");
     expect(Object.keys(collages[0].entrees as object)).toEqual(p.morceaux);
-    expect(fin.resultat!.sorties.map((s) => `${s.ratio} ${s.resolution} ${s.fichierCle}`)).toEqual([expect.stringMatching(/^16:9 1920x1080 .*video-longue-16x9\.mp4$/)]);
+    expect(fin.resultat!.sorties.map((s) => `${s.ratio} ${s.resolution} ${s.fichierCle}`)).toEqual([expect.stringMatching(/^16:9 1920x1080 .*video-longue-.+-16x9\.mp4$/)]);
     expect(branchementsReels).not.toHaveBeenCalled();
     expect(interdit).not.toHaveBeenCalled();
+    expect(hotesInterdits).toEqual([]);
     expect(fin.resultat!.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
   });
 

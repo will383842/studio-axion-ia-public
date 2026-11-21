@@ -28,7 +28,7 @@ import type { CommandeFabrication, MotHorodate, Ratio } from "@/domaine/types";
 import { CENTIMES_USD_PAR_CARACTERE_HEYGEN } from "@/fournisseurs/heygen/voix";
 import { decouperScript, type LectureMorceau, type MorceauVoix } from "@/briques/voix-longue";
 import { lireEntreesVideoLongue } from "@/moteurs/montage-video-longue/entrees";
-import { creerMoteurVideoLongue, moteurMontageVideoLongue } from "@/moteurs/montage-video-longue";
+import { creerMoteurVideoLongue, moteurMontageVideoLongue, DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
 import type { DependancesVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 
 /** Réglage de dépenses : seul `true` exact allume. */
@@ -44,7 +44,7 @@ export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
 export type LectureGardee = LectureMorceau & { fichierCle?: string; copieEnAttente?: { adresse: string; idDemande: string; idExterne?: string } };
 
 /** Pourquoi rien n'est parti. */
-export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix" | "sans-personnage";
+export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix" | "sans-personnage" | "duree-depassee";
 
 export class ErreurVideoLongue extends Error {
   constructor(readonly motif: MotifRefusVideoLongue, message: string) {
@@ -111,6 +111,7 @@ const PHRASES: Record<MotifRefusVideoLongue, string> = {
   "montage-non-relie": "Le montage de la vidéo longue n'est pas encore relié : aucune voix n'est lue, rien n'est payé.",
   "sans-voix": "Mode sans voix : aucune voix n'est lue, rien n'est payé pour la voix.",
   "sans-personnage": "Choisissez qui parle : rien n'est parti, rien n'est payé.",
+  "duree-depassee": "La vidéo dépasse la durée maximale prévue (20 minutes) : rien n'a été monté, rien n'est payé. Raccourcissez le script.",
   fournisseur: "La voix n'a pas pu être lue : vous pouvez réessayer, ce qui est déjà fait est conservé.",
 };
 const refus = (m: MotifRefusVideoLongue): ErreurVideoLongue => new ErreurVideoLongue(m, PHRASES[m]);
@@ -178,6 +179,8 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
     },
     async monter(ratio, ctx) {
       await garder();
+      // Durée trop longue : refus net AVANT tout rendu (le mode sans voix n'a pas d'accord qui la borne).
+      if (ctx.dureeSec > DUREE_MAX_SEC) throw refus("duree-depassee");
       if (!ports.monter || !(await ports.montagePret())) throw refus("montage-non-relie");
       return ports.monter(ratio, ctx);
     },
@@ -222,6 +225,7 @@ async function portsReels(commande: CommandeFabrication, travailId: string): Pro
         rendu: montage.rendu(),
         signer: montage.signer,
         cle: montage.cle,
+        actif: async () => (await lireParametre<unknown>("videoLongue.actif", false)) === true,
         lirePlages: async (v) => (await lireParametre<Record<string, { sortieCle: string; empreinte: string }> | null>(cleParametrePlages(v), null)) ?? {},
         ecrirePlages: (v, plages) => ecrireParametre(cleParametrePlages(v), plages),
       });

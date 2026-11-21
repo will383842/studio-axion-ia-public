@@ -18,7 +18,7 @@ export const ID_MOTEUR_VIDEO_LONGUE = "montage-video-longue";
 export const PHRASE_PAUSE_VIDEO_LONGUE = "La fabrication de la vidéo longue n'est pas reliée : votre script est gardé, rien n'a échoué et rien n'est payé.";
 
 /** 1920×1080, 20 min au plus (au-delà de 12 min : une remarque, jamais un refus). */
-const DUREE_MAX_SEC = 1200;
+export const DUREE_MAX_SEC = 1200;
 
 export function definitionVideoLongue(dependances: (commande: CommandeFabrication) => DependancesVideoLongue | null): DefinitionGabarit<EntreesVideoLongue, EtatVideoLongue, DependancesVideoLongue, RepriseVideoLongue> {
   return {
