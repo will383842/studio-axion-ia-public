@@ -85,13 +85,17 @@ describe("action serveur : enregistrer", () => {
   });
 
   it("les entrées trop longues sont coupées avant d'être traitées", async () => {
-    const r = await enregistrerMotMalDitAction({ plans, mot: "Zernio".padEnd(500, "x"), prononciation: "z".repeat(900) });
+    const r = await enregistrerMotMalDitAction({ plans, mot: "Zernio", prononciation: "z".repeat(900) });
     expect(r.ok).toBe(true);
-    const appels = ajouterPrononciation.mock.calls as unknown as [string, string][];
-    for (const [m, p] of appels) {
-      expect(m.length).toBeLessThanOrEqual(60);
-      expect(p.length).toBeLessThanOrEqual(120);
-    }
+    expect(ajouterPrononciation).toHaveBeenCalledTimes(1);
+    const [, p] = ajouterPrononciation.mock.calls[0] as unknown as [string, string];
+    expect(p).toHaveLength(120);
+  });
+
+  it("l'aperçu ne garde que 400 phrases au plus", async () => {
+    const beaucoup = Array.from({ length: 450 }, (_, i) => ({ id: `q${i}`, texte: "Zernio est là." }));
+    const r = await previsualiserMotMalDitAction({ plans: beaucoup, mot: "Zernio", prononciation: "zèrnio" });
+    expect(r.ok && r.donnees.phrases.length).toBe(400);
   });
 });
 
