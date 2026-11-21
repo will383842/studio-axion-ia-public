@@ -174,8 +174,8 @@ const CACHE_DOSSIER_OCTETS_MAX = 64 * 1024 * 1024;
 const CACHE_DOSSIER_DUREE_MS = 10 * 60 * 1000;
 const cacheDossier = new Map<string, { fichiers: ReadonlyMap<string, Uint8Array>; octets: number; expire: number }>();
 
-/** Vide le cache du dossier extrait (tests, purge manuelle). */
-export function purgerCacheDossier(): void {
+/** Vide le cache du dossier extrait (tests, vidage manuel). */
+export function viderCacheDossier(): void {
   cacheDossier.clear();
 }
 
@@ -193,6 +193,7 @@ function ranger(cle: string, fichiers: ReadonlyMap<string, Uint8Array>, maintena
   let octets = 0;
   for (const v of fichiers.values()) octets += v.byteLength;
   if (octets > CACHE_DOSSIER_OCTETS_MAX) return; // trop gros : jamais gardé
+  for (const [k, v] of cacheDossier) if (v.expire <= maintenant) cacheDossier.delete(k);
   cacheDossier.delete(cle);
   cacheDossier.set(cle, { fichiers, octets, expire: maintenant + CACHE_DOSSIER_DUREE_MS });
   let total = 0;
@@ -208,14 +209,19 @@ function ranger(cle: string, fichiers: ReadonlyMap<string, Uint8Array>, maintena
 async function fichiersParDefaut(fichierId: string, attestationImages: boolean): Promise<ReadonlyMap<string, Uint8Array> | null> {
   const { fichierEnvoye } = await import("./fichiers");
   const { fournisseur } = await import("./_commun");
-  const { extraireZipSur } = await import("./zip-tutoriel");
+  const { extraireZipSur, entreeZipAllumee } = await import("./zip-tutoriel");
   // La lecture du fichier (droits, existence) est refaite à chaque appel : seul le téléchargement + l'extraction sont gardés.
   const fichier = await fichierEnvoye(fichierId, "entree");
   const stockage = await fournisseur("stockage");
   const cle = fichier.cleStockage ?? "";
   const cleCache = `${fichierId}\u0000${cle}\u0000${attestationImages ? 1 : 0}`;
-  const deja = lireCacheDossier(cleCache, Date.now());
-  if (deja) return deja;
+  // L'interrupteur passe avant le cache : éteint, le cache est vidé et `extraireZipSur` refuse.
+  if (await entreeZipAllumee()) {
+    const deja = lireCacheDossier(cleCache, Date.now());
+    if (deja) return deja;
+  } else {
+    viderCacheDossier();
+  }
   const adresse = stockage.urlLectureDuree ? await stockage.urlLectureDuree(cle, 300) : await stockage.urlLecture(cle);
   if (!adresse) return null;
   const r = await fetch(adresse);
