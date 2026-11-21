@@ -3,6 +3,7 @@
  * Aucun docker, aucun réseau, aucun navigateur, aucune IA.
  */
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -115,9 +116,8 @@ describe("T-EXT-51b · service studio-capture du compose", () => {
     expect(service).not.toMatch(/^\s+(devices|cap_add|cgroup_parent):/m);
     expect(service).not.toMatch(/--no-sandbox|chromiumSandbox/);
     expect(dockerfileCode).not.toMatch(/--no-sandbox|chromiumSandbox/);
-    // security_opt : exactement no-new-privileges
-    const opts = service.split("\n").filter((l) => /^\s+- (no-new-privileges|seccomp|apparmor|label|systempaths)/.test(l));
-    expect(opts.map((l) => l.trim())).toEqual(["- no-new-privileges:true"]);
+    // security_opt : exactement no-new-privileges et le profil seccomp du dépôt (jamais unconfined)
+    expect(liste("security_opt")).toEqual(["- no-new-privileges:true", "- seccomp=./studio-capture/seccomp.json"]);
     // le commentaire du service rappelle les interdits
     expect(compose).toMatch(/NE JAMAIS ajouter : privileged/);
   });
@@ -378,7 +378,7 @@ describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", 
     expect(cases).toEqual(["capturer", "decompresser"]);
   });
   it("la commande de décompression est documentée : même service, zip en /entree :ro, sortie /sortie, pas de --entrypoint", () => {
-    expect(compose).toMatch(/run --rm studio-capture decompresser --zip \/entree\/<fichier>\.zip --sortie \/sortie\/maquette\s*$/m);
+    expect(compose).toMatch(/^\s*#\s+decompresser --zip \/entree\/<fichier>\.zip --sortie \/sortie\/maquette\s*$/m);
     expect(compose).not.toMatch(/decompresser \/entree/);
     expect(compose).toMatch(/lecture seule\) sur \/entree|lecture seule sur \/entree/);
     expect(compose).toMatch(/dans CE conteneur[^\n]*jamais sur l'hôte/);
@@ -397,14 +397,14 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     expect(Number(/max-file: "(\d+)"/.exec(service)![1])).toBeLessThanOrEqual(5);
     expect(service).not.toMatch(/logging:\s*\*/);
   });
-  it("réserve 2 : PAS d'init (timeout doit être PID 1, insensible à SIGSTOP) ; lancer.sh fait `exec timeout` dans les deux modes", () => {
-    expect(service).not.toMatch(/^\s+init:/m);
+  it("réserve 2 : `init: false` EN CLAIR (timeout doit être PID 1, insensible à SIGSTOP ; ni init: true ni clé absente) ; lancer.sh fait `exec timeout` dans les deux modes", () => {
+    expect(service.split("\n").filter((l) => /^\s+init:/.test(l))).toEqual(["    init: false"]);
     const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
     expect(execs).toHaveLength(2);
     for (const l of execs) expect(l).toMatch(/^\s*exec timeout /);
     expect(lancer.match(/\bexec\b/g)).toHaveLength(2); // aucun autre exec (ex. `exec "$@"`) ailleurs que sur ces deux lignes
     expect(compose).toMatch(/PAS d'`init: true`/);
-    expect(compose).toMatch(/timeout 960 docker compose --profile capture run/);
+    expect(compose).toMatch(/`init: false` ÉCRIT EN CLAIR/);
   });
   it("interdits en plus : storage_opt, ulimits, stop_signal, CMD, et tout RUN après le USER final hors verifier-poste", () => {
     expect(service).not.toMatch(/^\s+(storage_opt|ulimits|stop_signal|stop_grace_period|command|entrypoint):/m);
@@ -425,13 +425,84 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     expect(lock.packages[""].dependencies).toEqual(pkg.dependencies);
     for (const [nom, v] of Object.entries(pkg.dependencies)) expect(lock.packages[`node_modules/${nom}`].version).toBe(v);
   });
-  it("PASSAGE décompression -> capture décrit : maquette à monter et contrôles côté hôte", () => {
-    for (const t of ["PASSAGE décompression -> capture", "STUDIO_CAPTURE_MAQUETTE", "capture-sortie/maquette/<dossier>"])
-      expect(compose).toContain(t);
+  it("échéance côté hôte qui TUE le conteneur : run -d --name, docker wait borné à 960 s sinon docker kill, docker rm -f", () => {
+    expect(compose).toMatch(/^\s*#\s+docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode>\s*$/m);
+    expect(compose).toMatch(/^\s*#\s+timeout 960 docker wait studio-capture-<id> \|\| docker kill studio-capture-<id>\s*$/m);
+    expect(compose).toMatch(/^\s*#\s+docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>\s*$/m);
+    // l'ancienne forme (qui ne tuait pas le conteneur) est interdite
+    expect(compose).not.toMatch(/timeout 960 docker compose/);
   });
-  it("décompression : sous-dossier de /sortie, règles /sortie neuf par client, refus des liens symboliques (realpath)", () => {
-    for (const t of ["/sortie/maquette", "NEUF", "JAMAIS de", "find <dossier>", "-type l", "realpath -e", "SUIT sur l'hôte"])
-      expect(compose.toLowerCase()).toContain(t.toLowerCase());
+  it("procédure côté hôte : aucun conteneur, /sortie NEUF (umount, mkfs.ext4 sur fichier neuf, mount loop, chown 1001), copie sans lien hors de capture-sortie, contrôle, montage de la copie", () => {
+    const cmd = (re: RegExp) => expect(compose, String(re)).toMatch(re);
+    cmd(/^\s*#\s+1\. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE \(sinon ARRÊT/m);
+    cmd(/^\s*#\s+sudo umount \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
+    cmd(/^\s*#\s+sudo rm -f \/opt\/studio-axion-ia\/capture-sortie\.img && sudo fallocate -l 3G \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
+    cmd(/^\s*#\s+sudo mkfs\.ext4 -q -m 0 \/opt\/studio-axion-ia\/capture-sortie\.img\s*$/m);
+    cmd(/^\s*#\s+sudo mount -o loop,nodev,nosuid,noexec \/opt\/studio-axion-ia\/capture-sortie\.img \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
+    cmd(/^\s*#\s+sudo chown 1001:1001 \/opt\/studio-axion-ia\/capture-sortie\s*$/m);
+    cmd(/COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root/);
+    cmd(/^\s*#\s+sudo cp -r --no-dereference \/opt\/studio-axion-ia\/capture-sortie\/maquette\/<dossier> \/opt\/studio-axion-ia\/capture-maquettes\/<id>\s*$/m);
+    cmd(/rsync --no-links/);
+    cmd(/sudo chown -R root:root \/opt\/studio-axion-ia\/capture-maquettes\/<id>/);
+    cmd(/CONTRÔLER LA COPIE/);
+    cmd(/STUDIO_CAPTURE_MAQUETTE=\/opt\/studio-axion-ia\/capture-maquettes\/<id> docker compose --profile capture run -d --name studio-capture-<id>/);
+    // l'ordre : 1 (aucun conteneur) avant 2 (/sortie neuf) avant 4 (copie) avant 5 (capture)
+    const ordre = ["1. AUCUN conteneur", "2. Un /sortie NEUF", "3. Décompresser", "4. COPIER", "5. Refaire"].map((t) => compose.indexOf(t));
+    expect(ordre.every((n) => n >= 0)).toBe(true);
+    expect([...ordre].sort((a, b) => a - b)).toEqual(ordre);
+    // les contrôles de l'hôte ne sont écrits qu'UNE fois (plus de doublon)
+    expect(compose.match(/-type l/g)).toHaveLength(1);
+    expect(compose.match(/realpath -e/g)).toHaveLength(1);
+    // l'ancienne règle « monter la maquette prise dans capture-sortie » n'existe plus
+    expect(compose).not.toMatch(/STUDIO_CAPTURE_MAQUETTE=\/opt\/studio-axion-ia\/capture-sortie/);
+    expect(compose).toMatch(/docker SUIT sur l'hôte un lien/);
+  });
+});
+
+describe("T-EXT-51c · profil seccomp du service (ptrace du PID 1 interdit)", () => {
+  const brut = lire("deploiement/studio-capture/seccomp.json");
+  const profil = JSON.parse(brut);
+  // Référence : profil par défaut de Docker 29.10.0, à l'identique (commit moby 06db173) :
+  // https://github.com/moby/moby/blob/docker-v29.10.0/vendor/github.com/moby/profiles/seccomp/default.json
+  const SHA256_REFERENCE = "6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6";
+  const RETIRES = ["ptrace", "process_vm_readv", "process_vm_writev"];
+  /** Reconstruit la référence : remet les 3 noms retirés, dans leurs règles et à leurs places d'origine. */
+  function reference() {
+    const p = JSON.parse(brut);
+    const regle = p.syscalls.find((r: { names: string[] }) => r.names.includes("process_madvise") && r.names.includes("kcmp"));
+    regle.names.push("process_vm_readv", "process_vm_writev", "ptrace");
+    p.syscalls.splice(1, 0, {
+      names: ["process_vm_readv", "process_vm_writev", "ptrace"],
+      action: "SCMP_ACT_ALLOW",
+      includes: { minKernel: "4.8" },
+    });
+    return p;
+  }
+  it("le service charge ce profil, par le chemin relatif au compose, et le fichier existe à cet endroit", () => {
+    expect(liste("security_opt")).toContain("- seccomp=./studio-capture/seccomp.json");
+    expect(() => lire("deploiement/studio-capture/seccomp.json")).not.toThrow();
+  });
+  it("jamais unconfined, ni profil par défaut implicite", () => {
+    for (const l of liste("security_opt")) expect(l).not.toMatch(/unconfined/i);
+    expect(liste("security_opt").some((l) => /^- seccomp=/.test(l))).toBe(true);
+    expect(brut).not.toMatch(/unconfined/i);
+  });
+  it("defaultAction SCMP_ACT_ERRNO ; aucun des 3 appels système dans une règle, ALLOW ou autre", () => {
+    expect(profil.defaultAction).toBe("SCMP_ACT_ERRNO");
+    for (const r of profil.syscalls as { names: string[]; action: string }[])
+      for (const n of RETIRES) expect(r.names, `${r.action} ${n}`).not.toContain(n);
+    expect(brut).not.toMatch(/"(ptrace|process_vm_readv|process_vm_writev)"/);
+  });
+  it("IDENTIQUE au profil par défaut de Docker 29.10.0 moins ces 3 noms : la référence reconstruite a l'empreinte figée", () => {
+    const reconstruit = JSON.stringify(reference(), null, "\t");
+    expect(createHash("sha256").update(reconstruit).digest("hex")).toBe(SHA256_REFERENCE);
+  });
+  it("seul le retrait est permis : aucune règle ajoutée, aucun nom ajouté", () => {
+    const ref = reference();
+    expect(profil.syscalls.length).toBe(ref.syscalls.length - 1);
+    const noms = (p: { syscalls: { names: string[] }[] }) => p.syscalls.flatMap((r) => r.names);
+    expect(noms(profil).filter((n) => !noms(ref).includes(n))).toEqual([]);
+    expect(noms(ref).length - noms(profil).length).toBe(RETIRES.length * 2);
   });
 });
 

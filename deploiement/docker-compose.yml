@@ -343,23 +343,39 @@ services:
   #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json \
   #     --calage /entree/calage.json --sortie /sortie
   # (mode « capturer », par défaut ; sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4).
+  # LANCER (toujours ainsi, capturer ou decompresser) : avec `-d`, l'échéance côté hôte tue VRAIMENT le conteneur (tuer
+  # seulement le client `docker compose run` ne lui transmet aucun signal : il continuerait de tourner et garderait /sortie
+  # monté en écriture). Avec `-d`, il n'y a plus de `--rm` : le `docker rm -f` final le remplace. <id> = un nom unique :
+  #   docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode>
+  #   timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
+  #   docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>
+  # (960 s = 900 s du `timeout` de lancer.sh + sa marge de 30 s + 30 s.) Les <arguments du mode> sont ceux de la commande de
+  # capture ci-dessus (`--maquette … --sortie /sortie`, à la place du `run --rm`).
   # DÉCOMPRESSION d'un .zip client : dans CE conteneur (même service, même durcissement), jamais sur l'hôte. Le zip est
   # posé dans capture-entree (monté en lecture seule sur /entree), la sortie va dans /sortie (bornée) ; les options
-  # exactes sont celles de outils/maquettes-tableaux-de-bord/capture/decompresser.mts (lot « zip ») :
-  #   docker compose --profile capture run --rm studio-capture decompresser --zip /entree/<fichier>.zip --sortie /sortie/maquette
+  # exactes sont celles de outils/maquettes-tableaux-de-bord/capture/decompresser.mts (lot « zip »). <arguments du mode> :
+  #   decompresser --zip /entree/<fichier>.zip --sortie /sortie/maquette
   # (--sortie est un SOUS-DOSSIER, /sortie/maquette : la racine d'un ext4 contient lost+found, donc n'est jamais vide, et un
-  # point de montage ne se renomme pas.) Ensuite, côté hôte, pour filmer cette maquette :
-  #   STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-sortie/maquette/<dossier> docker compose --profile capture run ...
-  # PASSAGE décompression -> capture : la maquette à monter est CE dossier décompressé, celui qui contient l'index de la
-  # maquette (/opt/studio-axion-ia/capture-sortie/maquette/<dossier>), passé à STUDIO_CAPTURE_MAQUETTE (montée en lecture
-  # seule). Contrôles côté hôte AVANT de le monter, dans cet ordre : (1) `find` sans lien symbolique, (2) `realpath -e` égal au
-  # chemin attendu, (3) rien n'a pu le modifier depuis la décompression (aucun lancement entre-temps sur ce /sortie).
-  # RÈGLES de /sortie : un /sortie NEUF (système de fichiers en boucle recréé par mkfs) POUR CHAQUE CLIENT ; jamais de
-  # décompression et de capture en même temps sur le même /sortie ; un Chromium compromis peut y poser des liens symboliques.
-  # AVANT de monter une maquette décompressée côté hôte : refuser tout lien symbolique dans le chemin source (`find <dossier>
-  # -type l` doit être vide ET `realpath -e <dossier>` doit être égal au chemin attendu), car docker SUIT sur l'hôte un lien
-  # placé dans la source d'un montage (essai réel : un lien vers un dossier contenant .env a donné son contenu au conteneur).
-  # ÉCHÉANCE CÔTÉ HÔTE (en plus du `timeout` de lancer.sh) : lancer par `timeout 960 docker compose --profile capture run ...`.
+  # point de montage ne se renomme pas.)
+  # PROCÉDURE CÔTÉ HÔTE, dans cet ordre, pour CHAQUE client. Un Chromium compromis peut poser des liens symboliques dans
+  # /sortie, et docker SUIT sur l'hôte un lien placé dans la source d'un montage (essai réel : un lien vers un dossier
+  # contenant .env a donné son contenu au conteneur) :
+  #  1. AUCUN conteneur ne doit tourner : `docker ps --filter name=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire).
+  #  2. Un /sortie NEUF POUR CHAQUE CLIENT (jamais de décompression et de capture en même temps sur le même /sortie) :
+  #       sudo umount /opt/studio-axion-ia/capture-sortie
+  #       sudo rm -f /opt/studio-axion-ia/capture-sortie.img && sudo fallocate -l 3G /opt/studio-axion-ia/capture-sortie.img
+  #       sudo mkfs.ext4 -q -m 0 /opt/studio-axion-ia/capture-sortie.img
+  #       sudo mount -o loop,nodev,nosuid,noexec /opt/studio-axion-ia/capture-sortie.img /opt/studio-axion-ia/capture-sortie
+  #       sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie
+  #  3. Décompresser (commande ci-dessus), puis refaire l'étape 1 (le conteneur est supprimé).
+  #  4. COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root que le conteneur ne monte pas :
+  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes
+  #       sudo cp -r --no-dereference /opt/studio-axion-ia/capture-sortie/maquette/<dossier> /opt/studio-axion-ia/capture-maquettes/<id>
+  #       sudo chown -R root:root /opt/studio-axion-ia/capture-maquettes/<id> && sudo chmod -R a+rX,go-w /opt/studio-axion-ia/capture-maquettes/<id>
+  #     (ou `rsync --no-links` à la place de `cp`.) Puis CONTRÔLER LA COPIE : `find /opt/studio-axion-ia/capture-maquettes/<id>
+  #     -type l` doit être vide ET `realpath -e /opt/studio-axion-ia/capture-maquettes/<id>` doit être égal à ce chemin.
+  #  5. Refaire l'étape 2 (un /sortie neuf pour la capture), puis capturer en montant la COPIE contrôlée :
+  #       STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id> docker compose --profile capture run -d --name studio-capture-<id> studio-capture …
   # Le film sort dans /sortie ; l'envoi au stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens
   # symboliques, fichiers énormes : lstat, O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
   # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h : uniquement le dossier décompressé
@@ -379,6 +395,9 @@ services:
     restart: "no"
     network_mode: none
     read_only: true
+    init: false
+    # `init: false` ÉCRIT EN CLAIR (jamais `init: true`, jamais la clé absente : sans clé, le démon applique SA valeur par
+    # défaut, et `"init": true` dans daemon.json ou `dockerd --init` remettrait un autre PID 1 que `timeout`).
     # PAS d'`init: true` (changement de garde VOULU par l'audit de #1611) : sans init, lancer.sh fait `exec timeout ...`,
     # donc `timeout` est le PID 1 du conteneur, et le noyau IGNORE tout SIGSTOP envoyé à un PID 1 depuis l'intérieur de
     # son espace de noms (preuve réelle : `kill -STOP 1` est sans effet et le conteneur s'arrête à l'échéance, code 124).
@@ -395,8 +414,15 @@ services:
     # UN SEUL uid : celui de `pwuser` dans l'image (Dockerfile : USER 1001:1001, contrôlé à la construction).
     user: "1001:1001"
     cap_drop: [ALL]
+    # seccomp : le profil par défaut de Docker (v29.10.0) à l'IDENTIQUE, SAUF `ptrace`, `process_vm_readv` et
+    # `process_vm_writev` retirés (plus strict, jamais plus large) : sans cela, un processus du conteneur (même uid 1001 que
+    # `timeout`, PID 1) le gelait par PTRACE_SEIZE + PTRACE_INTERRUPT et échappait à la durée bornée. Référence :
+    # https://github.com/moby/moby/blob/docker-v29.10.0/vendor/github.com/moby/profiles/seccomp/default.json (commit 06db173,
+    # sha256 6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6) ; le test reconstruit cette référence. Chemin
+    # relatif AU FICHIER COMPOSE. Changer de version de Docker : reprendre le profil au nouveau tag, mêmes 3 retraits.
     security_opt:
       - no-new-privileges:true
+      - seccomp=./studio-capture/seccomp.json
     # Limite de mémoire par `deploy.resources.limits` (et non `mem_limit`) : le budget mémoire du serveur
     # (tests/v5-serveur-scripts.test.ts) ne compte que les services qui tournent en permanence ; celui-ci est inactif.
     deploy:
