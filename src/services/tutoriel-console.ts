@@ -77,9 +77,9 @@ export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
   { cle: CLE_REGARDEUR, libelle: "Regard de Claude sur les images", phraseEteint: `Éteint : Claude ne regarde pas les images (nécessite aussi « Écriture et relecture par Claude ») ; ${ANNONCE_PAYANT}` },
   { cle: CLE_PIECE_CREEE_CLAUDE, libelle: "Pièce créée par Claude", phraseEteint: `Éteint : Claude ne crée aucune pièce (nécessite aussi « Entrée par une phrase » et « Équipe de rôles ») ; ${ANNONCE_PAYANT}` },
   { cle: CLE_RETOUCHE_PARTIELLE, libelle: "Retouche partielle", phraseEteint: "Éteint : une retouche refait toute la vidéo." },
-  { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis (n'agit que si l'équipe tourne)." },
+  { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis (n'agit que si l'équipe tourne ; léger surcoût de l'appel du stratège, sous le plafond par vidéo)." },
   { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
-  { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = une retouche relance une fabrication (rendu), sans appel Claude." },
+  { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = chaque retouche relance un rendu payant (la voix et le script sont repris ; si le regard de Claude est allumé, un appel Claude de plus, sous le plafond par vidéo)." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
 ];
 

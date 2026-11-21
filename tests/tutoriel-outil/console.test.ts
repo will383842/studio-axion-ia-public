@@ -332,6 +332,12 @@ describe("clés ajoutées par AUD-3", () => {
     for (const r of c.REGLAGES_TUTORIEL.filter((x) => nouvelles.includes(x.cle))) {
       expect(/appels Claude payants, sous le plafond par vidéo/.test(r.phraseEteint)).toBe(payants.includes(r.cle));
     }
+    // La retouche par le chat n'appelle pas Claude par elle-même mais relance un rendu payant : elle doit l'annoncer.
+    const chat = c.REGLAGES_TUTORIEL.find((x) => x.cle === "retoucheChat.tutorielOutil");
+    expect(chat?.phraseEteint).toMatch(/chaque retouche relance un rendu payant/);
+    expect(chat?.phraseEteint).toMatch(/sous le plafond par vidéo/);
+    const perf = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.performance");
+    expect(perf?.phraseEteint).toMatch(/léger surcoût de l'appel du stratège, sous le plafond par vidéo/);
   });
   it("le libellé périmé « (plus tard) » a disparu", () => {
     for (const r of c.REGLAGES_TUTORIEL) expect(r.libelle).not.toMatch(/plus tard/i);
@@ -363,7 +369,7 @@ describe("aucun allumage par le code", () => {
   const nomsConstantes = {
     test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
   };
-  const PREFIXE_CONSTRUIT = /["'`](?:tutoriel|mentionIA)\.(?:["'`]\s*\+|\$\{)|["'`]tutoriel\.?["'`]\s*\+/;
+  const PREFIXE_CONSTRUIT = /["'`](?:tutoriel|mentionIA|retoucheChat)\.(?:["'`]\s*\+|\$\{)|["'`](?:tutoriel|mentionIA|retoucheChat)\.?["'`]\s*\+/;
   const ECRITURE = /\becrireParametre\b|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
   it("la détection voit les constantes CLE_* / PARAM_* et parametres.enregistrer", () => {
     expect(constantes).toEqual(expect.arrayContaining(["CLE_FORMULAIRE", "CLE_FINITIONS", "CLE_MENTION_TUTORIEL"]));
@@ -380,6 +386,8 @@ describe("aucun allumage par le code", () => {
     expect(nomsConstantes.test(`ecrireParametre(r.cle, true); REGLAGES_TUTORIEL.map((r) => ecrireParametre(r.cle, true))`)).toBe(true);
     expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("tutoriel." + "claude", true)`)).toBe(true);
     expect(PREFIXE_CONSTRUIT.test("const n = 1; ecrireParametre(`tutoriel.${n}`, true)")).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("retoucheChat." + "tutorielOutil", true)`)).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test("ecrireParametre(`retoucheChat.${g}`, true)")).toBe(true);
     expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("tutoriel.claude", true)`)).toBe(false);
     // Homonyme local (autre sens) : pas une écriture de la clé du tutoriel.
     expect(nomsConstantes.test(`const CLE_FORMULAIRE = /^[a-z]+$/; ecrireParametre(x, true)`)).toBe(false);
