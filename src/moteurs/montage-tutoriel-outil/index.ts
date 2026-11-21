@@ -36,7 +36,7 @@ export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine"
 
 export const ID_MOTEUR_TUTORIEL_OUTIL = "montage-tutoriel-outil";
 export const CODE_OUTILS_NON_RELIES = "TO_OUTILS_NON_RELIES";
-export const PHRASE_OUTILS_NON_RELIES = "Le tutoriel d'outil attend ses outils de fabrication (voix, rendu) : votre demande est gardée, rien n'a échoué.";
+export const PHRASE_OUTILS_NON_RELIES = "Le tutoriel d'outil attend ses outils de fabrication : votre demande est gardée, rien n'a échoué.";
 export const CODE_DEVIS_A_ACCEPTER = "TO_DEVIS_A_ACCEPTER";
 export const PHRASE_DEVIS_A_ACCEPTER = "Le devis de cette vidéo attend votre accord : ouvrez l'écran de validation.";
 export const CODE_DEVIS_ATTEINT = "TO_DEVIS_ATTEINT";

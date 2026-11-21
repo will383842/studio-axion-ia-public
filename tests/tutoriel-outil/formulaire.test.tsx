@@ -10,7 +10,8 @@ import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 
-const { FormulaireTutorielOutil } = await import("@/components/formats/vitrines/FormulaireTutorielOutil");
+const { AIDE_MODE_SANS_VOIX } = await import("@/formats/tutoriel-outil/mode-sans-voix");
+const { FormulaireTutorielOutil, phraseRienDepense, PHRASE_RIEN_DEPENSE, PHRASE_RIEN_DEPENSE_SANS_DEVIS, PHRASE_RIEN_DEPENSE_SCRIPT, PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS } = await import("@/components/formats/vitrines/FormulaireTutorielOutil");
 
 const deposer = vi.fn(async () => ({ ok: true as const, donnees: { statut: "lancee" as const, videoId: "v1" } }));
 const rendre = (interrupteurs?: { formulaire: boolean; dossier: boolean; phrase: boolean; devis?: boolean }) => renderToStaticMarkup(createElement(FormulaireTutorielOutil, (interrupteurs ? { interrupteurs, deposer } : {}) as never));
@@ -58,12 +59,24 @@ describe("allumé : les quatre blocs, dans l'ordre", () => {
     expect(visible(rendre({ ...TOUT, devis: true }))).toContain("Rien n'est dépensé avant votre accord : vous verrez d'abord le parcours, le script et le devis.");
     expect(visible(rendre({ ...TOUT, devis: "true" as never }))).not.toContain("le devis");
   });
+  it("la phrase « Rien n'est dépensé » suit le script collé : pas de relecture ni de devis promis à tort", () => {
+    expect(phraseRienDepense(false, "")).toBe(PHRASE_RIEN_DEPENSE_SANS_DEVIS);
+    expect(phraseRienDepense(true, "  ")).toBe(PHRASE_RIEN_DEPENSE);
+    expect(phraseRienDepense(false, "Mon texte")).toBe(PHRASE_RIEN_DEPENSE_SCRIPT);
+    expect(PHRASE_RIEN_DEPENSE_SCRIPT).toContain("part directement au rendu avec votre script");
+    expect(PHRASE_RIEN_DEPENSE_SCRIPT).not.toMatch(/devis|relu|le script et/);
+    expect(phraseRienDepense(true, "Mon texte")).toBe(PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS);
+    expect(PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS).not.toContain("script");
+  });
   it("un seul contrôle du son (pastilles « Avec voix » par défaut / « Sans voix ») et une seule zone de script", () => {
     const pastilles = [...html.matchAll(/<button[^>]*role="radio"[^>]*aria-checked="(true|false)"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => ({ coche: m[1] === "true", texte: visible(m[2]) }));
     expect(pastilles).toHaveLength(2);
     expect(pastilles[0]).toEqual({ coche: true, texte: "Avec voix" });
     expect(pastilles[1].coche).toBe(false);
-    expect(pastilles[1].texte).toContain("Sans voix");
+    // Pastille courte : la longue explication ne va jamais DANS la pastille (390 px) mais dans un <p> sous le sélecteur.
+    expect(pastilles[1].texte).toBe("Sans voix (sous-titres)");
+    expect(pastilles[1].texte.length).toBeLessThanOrEqual(30);
+    expect(t).not.toContain(AIDE_MODE_SANS_VOIX);
     expect(html).not.toMatch(/type="checkbox"[^>]*>\s*(?:<[^>]+>\s*)*Sans voix/);
     expect((t.match(/Son de la vidéo/g) ?? []).length).toBe(1);
     expect((html.match(/<textarea/g) ?? []).length).toBe(1);

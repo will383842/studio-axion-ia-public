@@ -143,7 +143,7 @@ describe("formulaire : sans voix et script collé", () => {
   const html = renderToStaticMarkup(createElement(FormulaireTutorielOutil, { interrupteurs: { formulaire: true, dossier: true, phrase: true }, deposer } as never));
   const texte = html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/\s+/g, " ");
   it("propose le choix « Sans voix » en pastilles (« Avec voix » par défaut) et la zone « script »", () => {
-    expect(texte).toContain("Sans voix (sous-titres et texte à l'écran)");
+    expect(texte).toContain("Sans voix (sous-titres)");
     expect(texte).toContain("Script à utiliser tel quel (facultatif)");
     const pastilles = [...html.split("bloc-son").slice(1).join(" ").matchAll(/<button[^>]*role="radio"[^>]*aria-checked="(true|false)"/g)].map((m) => m[1]);
     expect(pastilles).toEqual(["true", "false"]);
