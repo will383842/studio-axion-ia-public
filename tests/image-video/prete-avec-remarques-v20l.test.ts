@@ -82,6 +82,10 @@ describe("même référence quand rien ne se reclasse", () => {
     const b = verdict([longue([echec("Q08bis"), echec(code)])]);
     expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
   });
+  it.each(["Q01", "Q03", "Q04", "Q05", "Q05bis", "Q06", "Q07", "Q08", "Q08bis", "Q09", "Q10", "Q11", "CHIFFRES", "Q16", "Q17", "Q18", "FIN"] as const)("une ligne de RESTE_BLOQUANT (%s) seule à côté d’une faute RECLASSABLE : verdict d’origine", (code) => {
+    const b = verdict([longue([echec("Q19"), echec(code)])]);
+    expect(assouplirVerdictIV(b, entree([longue([])]))).toBe(b);
+  });
   it("Q24 « image noire » et Q26 qui voit une fin absente ou une phrase non choisie", () => {
     const a = verdict([longue([echec("Q24", ["image noire de 2 s (0,5 s au plus)."])])]);
     expect(assouplirVerdictIV(a, entree([longue([])]))).toBe(a);
