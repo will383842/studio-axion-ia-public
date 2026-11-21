@@ -15,8 +15,6 @@ export interface ProprietesCarteProposition {
   pourquoi?: string;
   /** Publication proche déjà au calendrier ; absente ou vide : la ligne « Ressemble à » n'est pas montrée. */
   ressembleA?: string;
-  /** Écran « À valider » de l'usine : l'UNIQUE lieu de validation (décision Q4). */
-  lienAValider?: string;
   /** Lundi de la semaine proposée : avec `cle`, c'est tout ce que le navigateur envoie au serveur pour retenir. Absent : pas de bouton. */
   debut?: string;
   /** Le sujet que l'Usine propose (champ `sujet` de la proposition). Absent : la carte n'a pas de bouton « Retenir ce sujet ». Repris de `entree` s'il y est. */
@@ -51,11 +49,11 @@ function contexteProposition(sujet: IdeeUsine | undefined, titre: string): strin
 
 /**
  * Proposition de l'équipe IA : carte pointillée avec le libellé « Proposée » (le réseau et le type se lisent aussi par le texte et
- * l'icône, jamais par la couleur seule). Le Studio ne la programme, ne la valide ni ne la refuse : un seul lien mène à l'écran
- * « À valider » de l'usine. Seul bouton, et seulement si l'Usine a donné le sujet : « Retenir ce sujet » (écrit le sujet, rien d'autre :
+ * l'icône, jamais par la couleur seule). Le Studio ne la programme, ne la valide ni ne la refuse : le seul lien, montré une fois le sujet
+ * retenu, mène à l'écran « Écrire » du Studio (liste « Vos sujets »). Seul bouton, et seulement si l'Usine a donné le sujet : « Retenir ce sujet » (écrit le sujet, rien d'autre :
  * aucun créneau, aucune fabrication, rien chez le diffuseur).
  */
-export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, debut, sujet: sujetDonne, retenir = retenirParDefaut, className }: ProprietesCarteProposition) {
+export function CarteProposition({ entree, pourquoi, ressembleA, debut, sujet: sujetDonne, retenir = retenirParDefaut, className }: ProprietesCarteProposition) {
   const sujet = sujetDonne ?? (entree as { sujet?: IdeeUsine }).sujet;
   const [etat, setEtat] = useState<"libre" | "en-cours" | "retenu">("libre");
   const [message, setMessage] = useState<string | null>(null);
@@ -124,9 +122,9 @@ export function CarteProposition({ entree, pourquoi, ressembleA, lienAValider, d
           {message}
         </span>
       )}
-      {lienAValider && (
-        <Link href={lienAValider} className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
-          Voir dans « À valider »
+      {etat === "retenu" && (
+        <Link href="/ecrire" className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
+          Voir dans « Écrire »
         </Link>
       )}
     </div>

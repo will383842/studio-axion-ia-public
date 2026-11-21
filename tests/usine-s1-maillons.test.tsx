@@ -68,6 +68,15 @@ describe("le bouton « Proposer la semaine »", () => {
     const texte = texteDe(m.rendre());
     expect(texte).toContain("TikTok n'est pas proposé : aucun compte actif.");
   });
+  it("l'en-tête dit de retenir les sujets, qui apparaissent dans « Écrire » (plus « À valider »)", async () => {
+    const proposer = vi.fn(async () => donnees());
+    const m = monter(BoutonProposerSemaine, { debutSemaine: LUNDI, proposer });
+    await (trouver(m.rendre(), (e) => e.type === "button")[0]!.props.onClick as () => void)();
+    await attendre();
+    const texte = texteDe(m.rendre());
+    expect(texte).toContain("retenez les sujets qui vous conviennent ; ils apparaissent dans « Écrire »");
+    expect(texte).not.toContain("À valider");
+  });
   it("sans adresse « À valider » : la semaine s'affiche, sans lien « Voir dans À valider »", async () => {
     const proposer = vi.fn(async () => donnees());
     const m = monter(BoutonProposerSemaine, { debutSemaine: LUNDI, proposer });
@@ -80,7 +89,7 @@ describe("le bouton « Proposer la semaine »", () => {
 describe("la grille transmet le sujet à la carte", () => {
   const idee: IdeeUsine = { signature: "s", parts: { metier: "m" }, metier: "M", taille: "TPE", douleur: "d", casUsage: "c" };
   const entree = { cle: "p1", jour: "2026-12-15", reseau: "linkedin", type: "video", etat: "propose" } as const;
-  const rendre = (sujet?: IdeeUsine) => renderToStaticMarkup(<GrilleSemaine semaineDu={LUNDI} aujourdhui={LUNDI} entrees={[]} propositions={[{ entree: { ...entree }, ...(sujet ? { sujet } : {}) }]} lienAValider="/a-valider" />);
+  const rendre = (sujet?: IdeeUsine) => renderToStaticMarkup(<GrilleSemaine semaineDu={LUNDI} aujourdhui={LUNDI} entrees={[]} propositions={[{ entree: { ...entree }, ...(sujet ? { sujet } : {}) }]} />);
   it("avec sujet : le bouton « Retenir ce sujet » apparaît ; sans sujet, non", () => {
     expect(rendre(idee)).toContain("Retenir ce sujet");
     expect(rendre()).not.toContain("Retenir ce sujet");
