@@ -74,7 +74,7 @@ describe("constantes", () => {
     expect(BUDGET_REQUETES_PAR_PASSAGE).toBe(51);
   });
   it("recensé « eteint » ; clé en littéral, défaut false, jugée par === true", () => {
-    expect(readFileSync("tests/usine/interrupteurs-inventaire.test.ts", "utf8")).toMatch(/"mesures\.relecture_automatique": "eteint"/);
+    expect(readFileSync("tests/usine/inventaire/publication-et-mesures.test.ts", "utf8")).toMatch(/"mesures\.relecture_automatique": "eteint"/);
     expect(readFileSync("src/services/mesures-automatiques.ts", "utf8")).toMatch(/lireParametre<boolean>\("mesures\.relecture_automatique", false\)/);
   });
   it("la boucle lance la relecture hors du tour (une ligne)", () => {
