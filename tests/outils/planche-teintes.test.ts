@@ -4,12 +4,14 @@
  * projet tsc : chemin CALCULÉ + type local (PIEGE-REMOTION-TSC.md).
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { LUTS_AXION } from "../../src/donnees/luts-axion";
 import { LUTS_AXION_SUPPLEMENTAIRES } from "../../src/donnees/luts-axion-supplementaires";
+import { lireCube } from "../../src/lib/lut3d";
+import { ecrireCube, melangerAvecIdentite } from "../../src/lib/qc-lut";
 import { argumentsFfmpegPlanche, dispositionXstack, estDansLeDepot, grapheDePlanche, lireArgumentsPlanche, teintesDeLaPlanche, texteTuile } from "../../outils/planche-teintes/planche-teintes";
 
 const RACINE = resolve(__dirname, "../..");
@@ -25,6 +27,16 @@ describe("teintes de la planche", () => {
     expect(t[0]).toMatchObject({ nom: "Sans teinte", fichier: null });
     expect(t.slice(1).map((x) => x.fichier)).toEqual([...LUTS_AXION, ...LUTS_AXION_SUPPLEMENTAIRES].map((l) => l.fichier));
     expect(t.slice(1).every((x) => x.intensite > 0 && x.intensite <= 1)).toBe(true);
+  });
+  it("chaque tuile porte l'intensité par défaut de SA teinte (intensiteParDefaut / 100) ; 0 pour le témoin", () => {
+    const t = teintesDeLaPlanche();
+    expect(t[0].intensite).toBe(0);
+    const luts = [...LUTS_AXION, ...LUTS_AXION_SUPPLEMENTAIRES];
+    luts.forEach((l, i) => {
+      expect(l.intensiteParDefaut, l.nom).toBeLessThanOrEqual(100);
+      expect(t[i + 1].nom).toBe(l.nom);
+      expect(t[i + 1].intensite, l.nom).toBe(l.intensiteParDefaut / 100);
+    });
   });
   it("chaque fichier de teinte existe dans public/luts", () => {
     for (const t of teintesDeLaPlanche().slice(1)) expect(existsSync(join(RACINE, "public/luts", t.fichier as string))).toBe(true);
@@ -112,4 +124,38 @@ describe.skipIf(!ffmpegPresent)("essai réel (image de synthèse, ffmpeg)", () =
     expect(readdirSync(AILLEURS).filter((f) => f.endsWith(".cube"))).toEqual([]);
     rmSync(AILLEURS, { recursive: true, force: true });
   }, 60_000);
+});
+
+describe.skipIf(!ffmpegPresent)("mélange à l'intensité par défaut (essai réel, couleur moyenne de chaque tuile)", () => {
+  /** Couleur moyenne (R, G, B) de la sortie d'une chaîne de filtres appliquée à `entree`. */
+  const moyenne = (entree: string, filtres: string, cwd?: string): number[] => [...execFileSync("ffmpeg", ["-hide_banner", "-v", "error", "-i", entree, "-vf", `${filtres},scale=1:1:flags=area,format=rgb24`, "-frames:v", "1", "-f", "rawvideo", "-"], { cwd })];
+  it("la tuile de chaque teinte à moins de 100 % est plus proche du rendu mélangé que de la LUT pleine", async () => {
+    const dossier = mkdtempSync(join(tmpdir(), "teintes-melange-"));
+    try {
+      const image = join(dossier, "prise-synthese.png");
+      execFileSync("ffmpeg", ["-hide_banner", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=1", "-frames:v", "1", image]);
+      const planche = join(dossier, "planche.jpg");
+      const mod = (await import(/* @vite-ignore */ CHEMIN_MTS)) as { fabriquerPlanche: (i: string, s: string) => void };
+      mod.fabriquerPlanche(image, planche);
+      const teintes = teintesDeLaPlanche();
+      let verifiees = 0;
+      teintes.forEach((t, i) => {
+        if (!t.fichier || t.intensite >= 1) return;
+        const lut = lireCube(readFileSync(join(RACINE, "public/luts", t.fichier), "utf8"));
+        writeFileSync(join(dossier, "melange.cube"), ecrireCube(melangerAvecIdentite(lut, t.intensite)));
+        writeFileSync(join(dossier, "pleine.cube"), ecrireCube(lut));
+        const tuile = moyenne(planche, `crop=480:200:${(i % 4) * 480}:${Math.floor(i / 4) * 270}`);
+        const reference = (cube: string) => moyenne(image, `scale=480:-2,format=gbrp,lut3d=file=${cube}:interp=tetrahedral,format=rgb24,crop=480:200:0:0`, dossier);
+        const dist = (a: number[], b: number[]) => Math.hypot(...a.map((v, k) => v - b[k]));
+        const mixte = reference("melange.cube");
+        const pleine = reference("pleine.cube");
+        expect(dist(mixte, pleine), `${t.nom} : le mélange doit se voir`).toBeGreaterThan(2);
+        expect(dist(tuile, mixte), t.nom).toBeLessThan(dist(tuile, pleine));
+        verifiees++;
+      });
+      expect(verifiees).toBeGreaterThan(0);
+    } finally {
+      rmSync(dossier, { recursive: true, force: true });
+    }
+  }, 120_000);
 });
