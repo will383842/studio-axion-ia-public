@@ -64,6 +64,8 @@ import { dosageActif } from "@/briques/dosage-motion/reglage";
 import { resumeCarteYoutube } from "@/components/reglages/youtube-logique";
 import { vueYoutubeZernio } from "@/services/youtube-zernio";
 import { RUBRIQUES } from "./rubriques";
+import { InterrupteurVideoLongue } from "@/components/reglages/InterrupteurVideoLongue";
+import { lireVideoLongueActif } from "@/services/reglage-video-longue";
 
 export const metadata: Metadata = { title: "Réglages" };
 export const dynamic = "force-dynamic";
@@ -150,7 +152,7 @@ export default async function PageReglages() {
   const aPublierAllumee = await pageAPublierAllumee();
   const chaine = await lireChaineReglee();
   const gardeSujets = await lireGardeSujets();
-  const interrupteursEcriture = await lireInterrupteursEcriture();
+  const [interrupteursEcriture, videoLongueActive] = await Promise.all([lireInterrupteursEcriture(), lireVideoLongueActif()]);
   const autonomieUsine = await vueAutonomieUsine();
   const youtube = await vueYoutubeZernio();
   const infos = aPropos();
@@ -241,6 +243,11 @@ export default async function PageReglages() {
                 <span className="flex-1">Ouvrir les réglages du tutoriel</span>
                 <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
               </Link>
+            </CartePliante>
+          </Apparition>
+          <Apparition index={3}>
+            <CartePliante id="video-longue" icone="baguette" titre="Vidéo longue" resume="Éteinte par défaut.">
+              <InterrupteurVideoLongue actif={videoLongueActive} />
             </CartePliante>
           </Apparition>
           {/* X3-10b-c : « Animations par défaut », seulement si dosageMotion.actif vaut true. */}
