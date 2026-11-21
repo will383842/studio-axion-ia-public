@@ -31,7 +31,7 @@ import type { StatutVideo, TypeNotification } from "@/domaine/types";
 import { creerVerrou, ErreurStudio, lireParametre, maintenant as maintenantReel } from "./_commun";
 import { avecOrigineFournisseur } from "./plafond-fournisseur";
 import type { IssueLancementReserve } from "./tutoriel-reserve-lancement";
-import { changerEtatReserve, lireElementReserve, lireReglagesReserve, lireTirageReserve, listerReserve, noterVideoDuTirage, prendreSuivantReserve } from "./tutoriel-reserve";
+import { changerEtatReserve, lireElementReserve, lireReglagesReserve, lireTirageReserve, listerReserve, noterEchecDuTirage, noterVideoDuTirage, prendreSuivantReserve } from "./tutoriel-reserve";
 import type { InterrupteursTutoriel } from "./tutoriel-depot";
 import { CLE_DEVIS_AVANT_DEPENSE } from "./tutoriel-console";
 import { fichierDeMaquetteDemo } from "./tutoriel-reserve-maquettes";
@@ -90,6 +90,8 @@ export interface DependancesTirage {
   prendre?: typeof prendreSuivantReserve;
   changerEtat?: typeof changerEtatReserve;
   noterVideo?: typeof noterVideoDuTirage;
+  /** Marque la fiche du tirage comme échouée (le rejeu rend « échec »). */
+  noterEchec?: typeof noterEchecDuTirage;
   /** RES-2 : fichier stocké d'une maquette de démo. Par défaut : `fichierDeMaquetteDemo` (RES-2). */
   fichierDemo?: (e: ElementReserve) => Promise<{ fichierId: string }>;
   lancer?: (e: ElementReserve, o: { voix: boolean; fichierId?: string; noterBrouillon: (videoId: string) => Promise<void> }) => Promise<IssueLancementReserve>;
@@ -239,7 +241,9 @@ export async function conditionsTirage(e: ElementReserve, r: ReglagesReserve, de
 /* ------------------------------------------------------------------ */
 
 /** Échec : moins de `TENTATIVES_MAX` échecs et non définitif → retour en réserve à sa place ; sinon « à revoir ». */
-async function echouer(e: ElementReserve, phrase: string, definitif: boolean, dep: DependancesTirage): Promise<Extract<IssueTirage, { etat: "echec" }>> {
+async function echouer(e: ElementReserve, phrase: string, definitif: boolean, dep: DependancesTirage, cleTirage?: string): Promise<Extract<IssueTirage, { etat: "echec" }>> {
+  // Lancement refusé après la note de la vidéo : la fiche est marquée échouée AVANT le retour en réserve (jamais « pris » au rejeu).
+  if (cleTirage) await (dep.noterEchec ?? noterEchecDuTirage)(cleTirage).catch(() => undefined);
   const tentatives = e.tentatives + 1;
   const retourEnReserve = !definitif && tentatives < TENTATIVES_MAX;
   const vers: EtatElementReserve = retourEnReserve ? "en_reserve" : "a_revoir";
@@ -259,7 +263,10 @@ async function echouer(e: ElementReserve, phrase: string, definitif: boolean, de
 const enSerie = creerVerrou();
 
 function issueRejouee(t: TirageReserve, e: ElementReserve | null): IssueTirage {
-  // Contrat § 6.3 : une clé dont la fiche porte une vidéo rend TOUJOURS « pris, déjà », quel que soit l'état de l'élément depuis.
+  // Contrat § 6.3 : une clé dont la fiche porte une vidéo rend « pris, déjà », quel que soit l'état de l'élément depuis, SAUF si la
+  // fiche porte le marqueur `echec` (lancement refusé après la note de la vidéo : rien n'a été lancé). RÈGLE CÔTÉ ARGENT : sans marqueur
+  // (y compris marqueur non écrit, panne), on rend « pris » : jamais de relance sous cette clé ; au pire un état faux, jamais une dépense.
+  if (t.echec) return { etat: "echec", elementId: t.elementId, phrase: e?.motif ?? PHRASE_ECHEC_LANCEMENT, retourEnReserve: e?.etat === "en_reserve" };
   if (t.videoId) return { etat: "pris", deja: true, elementId: t.elementId, videoId: t.videoId, titre: e?.titre ?? "" };
   const priseCourante = !!e && (e.etat === "pris" || e.etat === "fait") && e.prise?.cle === t.cle;
   if (priseCourante) return { etat: "pris", deja: true, elementId: t.elementId, titre: e?.titre ?? "" };
@@ -346,11 +353,11 @@ async function tirer(d: DemandeTirage, dep: DependancesTirage): Promise<IssueTir
   try {
     issue = await avecOrigineFournisseur("usine", () => (dep.lancer ?? lancerParDefaut)(element, { voix: reglages.voix === true, ...(fichierId ? { fichierId } : {}), noterBrouillon }));
   } catch {
-    return echouer(element, PHRASE_ECHEC_LANCEMENT, false, dep);
+    return echouer(element, PHRASE_ECHEC_LANCEMENT, false, dep, d.cle);
   }
 
   // 7. Issue.
-  if (issue.statut === "refusee") return echouer(element, issue.phrase, issue.definitif, dep);
+  if (issue.statut === "refusee") return echouer(element, issue.phrase, issue.definitif, dep, d.cle);
   try {
     await (dep.notifier ?? notifierParDefaut)({ type: "info", titre: "Un tutoriel de la réserve est en fabrication", lien: "/tutoriel-outil" });
   } catch {
@@ -372,6 +379,13 @@ export interface DependancesSuivi {
   notifier?: (n: NotificationReserve) => Promise<void>;
   /** Archive une vidéo restée brouillon (jamais effacée). Défaut : même geste que l'abandon du lancement. */
   abandonner?: (videoId: string) => Promise<void>;
+  /** Un travail en file ou en cours pour cette vidéo ? Défaut : même règle que la garde de fabrication. Lecture qui lève : on ne touche à rien. */
+  travailEnCours?: (videoId: string) => Promise<boolean>;
+}
+
+async function travailEnCoursParDefaut(videoId: string): Promise<boolean> {
+  const { travailEnCoursParDefaut: lire } = await import("./tutoriel-reserve-lancement");
+  return lire(videoId);
 }
 
 async function abandonnerParDefaut(videoId: string): Promise<void> {
@@ -391,6 +405,11 @@ async function statutVideoParDefaut(videoId: string): Promise<StatutVideo | null
  * Aucun lancement, aucune dépense.
  */
 export async function suivreElementsPris(dep: DependancesSuivi = {}): Promise<{ faits: number; echecs: number }> {
+  // Même verrou local que le tirage : aucun suivi ne tourne pendant un tirage (lancement lent) dans ce processus. `tirer` n'appelle pas le suivi.
+  return enSerie(() => suivre(dep));
+}
+
+async function suivre(dep: DependancesSuivi): Promise<{ faits: number; echecs: number }> {
   const maintenant = Date.parse((dep.maintenant ?? maintenantReel)());
   const changer = dep.changerEtat ?? changerEtatReserve;
   let faits = 0;
@@ -419,6 +438,14 @@ export async function suivreElementsPris(dep: DependancesSuivi = {}): Promise<{ 
       } else if (statut === "brouillon") {
         const depuis = Date.parse(e.prise?.le ?? "");
         if (!Number.isFinite(depuis) || maintenant - depuis > DELAI_PRIS_SANS_VIDEO_MS) {
+          // ARGENT : un travail en file ou en cours (lancement abouti mais lent) ou une lecture qui lève : on ne touche à rien.
+          let travail: boolean;
+          try {
+            travail = await (dep.travailEnCours ?? travailEnCoursParDefaut)(videoId);
+          } catch {
+            continue;
+          }
+          if (travail) continue;
           // Archivé D'ABORD : si l'archivage échoue, l'élément reste « pris » et le tour suivant réessaie.
           await (dep.abandonner ?? abandonnerParDefaut)(videoId);
           await echouer(e, PHRASE_PRIS_SANS_VIDEO, false, { changerEtat: changer });

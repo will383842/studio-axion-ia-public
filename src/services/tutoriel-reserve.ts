@@ -249,6 +249,18 @@ export async function noterVideoDuTirage(cle: string, elementId: string, videoId
 }
 
 /**
+ * Marque la fiche de tirage `cle` comme échouée (lancement refusé après la note de la vidéo) : le rejeu de cette clé rend alors
+ * « échec » et jamais « pris ». Sous `sousVerrouReserve`. Fiche absente : rien. N'écrit rien d'autre.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ */
+export async function noterEchecDuTirage(cle: string): Promise<void> {
+  await sousVerrouReserve(async () => {
+    const tirage = await lireTirageReserve(cle);
+    if (tirage && !tirage.echec) await ecrireParametre(cleTirageReserve(cle), { ...tirage, echec: true });
+  });
+}
+
+/**
  * Note `source.fichierId` (fichier de la maquette démo déposée) sur un élément `maquette-demo` à l'état `pris`. Sous `sousVerrouReserve`
  * (base relue avant la lecture de l'élément). Absent → RESERVE_INTROUVABLE ; autre type de source ou état ≠ `pris` → RESERVE_ELEMENT.
  * Déjà égal → rend l'élément tel quel, sans écrire. Sinon n'écrit que `source.fichierId`.

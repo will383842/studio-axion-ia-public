@@ -101,6 +101,16 @@ describe("tirerSuivantReserve", () => {
     }
   });
 
+  it("ARGENT : lancer note la vidéo puis refuse : 1er appel échec, rejeu même échec, lancer appelé une seule fois", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    let appels = 0;
+    const b = banc({ lancer: async (_e, o) => { appels++; await o.noterBrouillon("v-9"); return { statut: "refusee", phrase: "Panne passagère.", definitif: false }; } });
+    const un = await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep);
+    expect(un).toMatchObject({ etat: "echec", elementId: "res-premier1", retourEnReserve: true });
+    expect(await tirerSuivantReserve({ declencheur: "usine", cle: "cle-usine-01" }, b.dep)).toEqual(un);
+    expect(appels).toBe(1);
+  });
+
   it("ARGENT : la note de la vidéo échoue ou n'est pas relue : refus, vidéo jamais lancée, rien n'est payé", async () => {
     await ajouterElementReserve(nouveau("res-premier1"));
     const b = banc({ noterVideo: async () => { throw new Error("base"); } });

@@ -88,7 +88,7 @@ describe("suivreElementsPris", () => {
     await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z", "v-1");
     const archives: string[] = [];
     const s = dep("brouillon");
-    expect(await suivreElementsPris({ ...s.dep, abandonner: async (id) => void archives.push(id) })).toEqual({ faits: 0, echecs: 1 });
+    expect(await suivreElementsPris({ ...s.dep, abandonner: async (id) => void archives.push(id), travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 1 });
     expect(archives).toEqual(["v-1"]);
     expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
   });
@@ -98,8 +98,39 @@ describe("suivreElementsPris", () => {
     expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => undefined })).toEqual({ faits: 0, echecs: 0 });
     magasin.clear();
     await pris("res-second01", "cle-suivi-002", "2026-11-21T09:30:00.000Z", "v-2");
-    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => { throw new Error("base"); }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
     expect((await lireElementReserve("res-second01"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : brouillon > 15 min avec un travail en file, ou lecture des travaux qui lève : ni archivage ni échec, élément toujours pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    const abandonner = async (id: string) => void archives.push(id);
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => true })).toEqual({ faits: 0, echecs: 0 });
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : un suivi lancé pendant un tirage qui n'a pas rendu attend sa fin (n'archive rien)", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    await ajouterElementReserve(nouveau("res-second01"));
+    let liberer!: () => void;
+    const bloque = new Promise<void>((r) => (liberer = r));
+    let entre!: () => void;
+    const enCours = new Promise<void>((r) => (entre = r));
+    const tirage = tirerSuivantReserve({ declencheur: "usine", cle: "cle-lent-0001" }, { reglages: async () => ({ ...REGLAGES_RESERVE_DEFAUT, actif: true }), lister: async () => { entre(); await bloque; return []; } });
+    await enCours;
+    const archives: string[] = [];
+    let fini = false;
+    const suivi = suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => void archives.push(id), travailEnCours: async () => false }).then((r) => { fini = true; return r; });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fini).toBe(false);
+    expect(archives).toEqual([]);
+    liberer();
+    await tirage;
+    await suivi;
+    expect(fini).toBe(true);
   });
 
   it("un tirage réussi puis le suivi : le même élément passe de pris à fait", async () => {

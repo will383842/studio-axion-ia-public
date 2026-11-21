@@ -129,7 +129,7 @@ async function lancerParDefaut(videoId: Id, options: { confirme: number; origine
 }
 
 /** Même règle que `lancerSousVerrou` (fabrication.ts) : un travail en file ou en cours pour cette vidéo. */
-async function travailEnCoursParDefaut(videoId: Id): Promise<boolean> {
+export async function travailEnCoursParDefaut(videoId: Id): Promise<boolean> {
   return !!(await depots().travaux.trouver((t) => t.cibleId === videoId && (t.statut === "en_cours" || t.statut === "en_file")));
 }
 
