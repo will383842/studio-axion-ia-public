@@ -164,6 +164,40 @@ describe("prendreSuivantReserve", () => {
     expect((await lireElementReserve("res-bbbbbb"))?.etat).toBe("en_reserve");
   });
 
+  it("changerEtatReserve sur copie périmée : le « pris » d'une autre machine n'est pas écrasé (transition refusée après relecture)", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    const copiePerimee = structuredClone([...magasin]);
+    baseCommune = new Map(structuredClone([...magasin]));
+    await prendreSuivantReserve({ cle: "cle-machine-a1", declencheur: "usine" }); // machine A
+    magasin.clear();
+    for (const [k, v] of copiePerimee) magasin.set(k, v); // machine B : élément encore « en_reserve »
+    await expect(changerEtatReserve("res-aaaaaa", "pris")).rejects.toMatchObject({ code: "RESERVE_TRANSITION" });
+    expect((await lireElementReserve("res-aaaaaa"))?.prise?.cle).toBe("cle-machine-a1");
+    expect((await lireElementReserve("res-aaaaaa"))?.etat).toBe("pris");
+  });
+
+  it("10 ajouts simultanés : l'index les contient tous, sans doublon", async () => {
+    const ids = Array.from({ length: 10 }, (_, i) => `res-ajout${i}`);
+    await Promise.all(ids.map((id) => ajouterElementReserve(nouveau(id))));
+    const index = magasin.get("tutoriel.reserve.index") as string[];
+    expect([...index].sort()).toEqual([...ids].sort());
+  });
+
+  it("appel réentrant depuis l'intérieur de la réserve : erreur claire au lieu d'un interblocage", async () => {
+    await ajouterElementReserve(nouveau("res-aaaaaa"));
+    // Un appel de la réserve lancé depuis l'intérieur d'un de ses verrous : refusé, sans bloquer.
+    const interne = prendreSuivantReserve(
+      { cle: "cle-reentrante", declencheur: "usine" },
+      {
+        prendreBail: async (...a) => {
+          await expect(ajouterElementReserve(nouveau("res-bbbbbb"))).rejects.toMatchObject({ code: "RESERVE_REENTRANT" });
+          return prendreBail(...a);
+        },
+      },
+    );
+    await expect(interne).resolves.toMatchObject({ deja: false });
+  });
+
   it("un échec de rendreBail après des écritures réussies ne fait pas lever la prise", async () => {
     await ajouterElementReserve(nouveau("res-aaaaaa"));
     const rendre = vi.fn(async (cle: string, titulaire: string) => {
