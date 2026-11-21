@@ -18,8 +18,8 @@
  *    qui n'est pas déjà fait est payé.
  *  - Rien n'est payé tant que le montage n'est pas prêt (les voix ne partent pas pour rien).
  *
- * Pas encore branché (dit clairement) : le montage réel (plan, rendu par chapitres, collage : l'opération de collage attend sa
- * déclaration dans le contrat de `studio-rendu`, zone de will-dc) ; l'aligneur réel (HeyGen rend déjà l'horodatage des mots).
+ * Montage réel (UI-4) : `video-longue-montage.ts`, relié pour le mode SANS voix seulement (`MONTAGE_AVEC_VOIX_RELIE` faux :
+ * avec voix, pause et rien n'est payé). Pas encore branché : l'aligneur réel (HeyGen rend déjà l'horodatage des mots).
  * Tant que le montage n'est pas relié, `montagePret()` est faux : AUCUNE voix n'est lue, rien n'est payé.
  */
 import "server-only";
@@ -33,8 +33,10 @@ import type { DependancesVideoLongue } from "@/moteurs/montage-video-longue/chai
 
 /** Réglage de dépenses : seul `true` exact allume. */
 export const PARAM_VIDEO_LONGUE_ACTIF = "videoLongue.actif";
-/** Montage réel relié ? Faux tant que l'opération de collage n'est pas déclarée dans le contrat de rendu (zone will-dc). Faux = PAUSE, jamais un échec. */
-export const MONTAGE_VIDEO_LONGUE_RELIE = false;
+/** Montage réel relié (plan, plages, collage : `video-longue-montage.ts`) ? Faux = PAUSE, jamais un échec. */
+export const MONTAGE_VIDEO_LONGUE_RELIE = true;
+/** Voix posée au collage ? Pas encore : seul le mode SANS voix est relié ; avec voix, pause et rien n'est payé (aucune voix lue pour rien). */
+export const MONTAGE_AVEC_VOIX_RELIE = false;
 /** Plafond par vidéo : 10 $ (décision du 18/11), en centimes de dollar. */
 export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
 
@@ -209,7 +211,21 @@ async function portsReels(commande: CommandeFabrication, travailId: string): Pro
     actif: async () => (await lireParametre<unknown>("videoLongue.actif", false)) === true,
     registre,
     // Montage réel pas encore relié (collage de chapitres : déclaration du contrat de rendu, zone de will-dc) : rien n'est lu.
-    montagePret: async () => MONTAGE_VIDEO_LONGUE_RELIE,
+    montagePret: async () => MONTAGE_VIDEO_LONGUE_RELIE && (lireEntreesVideoLongue(commande).sansVoix || MONTAGE_AVEC_VOIX_RELIE),
+    // Montage : rendu et stockage seulement (`branchementsReelsSansVoix`), jamais HeyGen, même quand la commande a une voix.
+    monter: async (_ratio, ctx) => {
+      const { branchementsReelsSansVoix } = await import("./tableau-outils");
+      const { montage } = await branchementsReelsSansVoix(commande.videoId);
+      const { monterVideoLongue, cleParametrePlages } = await import("./video-longue-montage");
+      const { ecrireParametre } = await import("./_commun");
+      return monterVideoLongue(commande, travailId, ctx, {
+        rendu: montage.rendu(),
+        signer: montage.signer,
+        cle: montage.cle,
+        lirePlages: async (v) => (await lireParametre<Record<string, { sortieCle: string; empreinte: string }> | null>(cleParametrePlages(v), null)) ?? {},
+        ecrirePlages: (v, plages) => ecrireParametre(cleParametrePlages(v), plages),
+      });
+    },
     idVoix: async () => (await branchements()).voix.idVoix,
     reserver: async (e) => {
       const { verifierEtReserverSelonOrigine } = await import("./credits");
@@ -260,6 +276,7 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
   if (!etatActif.vu) return null;
   // Pause (jamais un échec) tant que le montage réel n'est pas relié, et tant que l'accord de CETTE vidéo manque.
   if (!MONTAGE_VIDEO_LONGUE_RELIE) return null;
+  if (!lireEntreesVideoLongue(commande).sansVoix && !MONTAGE_AVEC_VOIX_RELIE) return null;
   if (!lireEntreesVideoLongue(commande).sansVoix && !lireAccordVideoLongue(commande)) return null;
   let ports: Promise<PortsVideoLongue> | undefined;
   const p = (): Promise<PortsVideoLongue> => (ports ??= portsReels(commande, travailId));
@@ -275,6 +292,7 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
     reserver: async (e) => (await p()).reserver(e),
     lireMorceau: async (t) => (await p()).lireMorceau(t),
     idVoix: async () => (await p()).idVoix?.() ?? "",
+    monter: async (r, c) => (await p()).monter!(r, c),
   };
   return creerDependancesVideoLongue(commande, paresseux);
 }
