@@ -23,7 +23,9 @@ describe("profils par format (C1-U3)", () => {
   it("rien de neuf permis : permis => prod ; ni coulisse ni absent inscrit (§ 3.4)", () => {
     for (const p of TOUS) for (const [id, r] of regles(p)) {
       const etat = etatCapacite(id);
-      if (r.permis) expect(etat, `${p.id} ${id}`).toBe("prod");
+      // ALLUMER-OBJETS-TABLEAU-v20g : seules les 3 capacités objet du tableau animé sont permises à l'état « prevu » (décision Williams 20/11).
+      const objetTableau = p.id === "tableau-anime/1" && ["objet.chiffre", "objet.etape", "objet.marque"].includes(id);
+      if (r.permis) expect(etat, `${p.id} ${id}`).toBe(objetTableau ? "prevu" : "prod");
       expect(["coulisse", "absent"], `${p.id} ${id}`).not.toContain(etat);
     }
   });
