@@ -150,6 +150,68 @@ describe("voix : réservation, plafond par appel et CUMULÉ par vidéo", () => {
   });
 });
 
+describe("voix : le cumul RÉEL est lu dans les dépôts (sans port `engage`)", () => {
+  const ligne = (etape: string, nature: string, centimes: number) => ({ etape, nature, total: { centimes } });
+  const depense = (videoId: string, lignes: ReturnType<typeof ligne>[]) => ({ videoId, lignes });
+  const reservation = (videoId: string, travailId: string | undefined, statut: string, centimes: number) => ({ videoId, travailId, statut, centimes });
+  function fauxDepots(depenses: unknown[], reservations: unknown[]) {
+    vi.resetModules();
+    vi.doMock("@/services/_commun", () => ({
+      depots: () => ({
+        depenses: { lister: async (f: (x: never) => boolean) => depenses.filter((x) => f(x as never)) },
+        reservations: { lister: async (f: (x: never) => boolean) => reservations.filter((x) => f(x as never)) },
+      }),
+    }));
+  }
+  afterEach(() => {
+    vi.doUnmock("@/services/_commun");
+    vi.resetModules();
+  });
+  // 800 caractères × 0,03 = 24 ¢ × 2 lectures = 48 ¢.
+  const TEXTE = "a".repeat(800);
+  const sansEngage = (d: ReturnType<typeof double>) => {
+    const reste: PortsTableauDeBord = { ...d.ports };
+    delete reste.engage;
+    return dependancesDonnees(commande(), { voixActive: true }, reste)!;
+  };
+
+  it("(a) 50 ¢ réels (ligne « Voix tableau de bord · lecture ») + 30 ¢ réservés tbvoix- = 80 engagés : 48 ¢ demandés sont refusés avant réservation et lecture", async () => {
+    const d = double();
+    fauxDepots([depense("v-test", [ligne("Voix tableau de bord · lecture", "reel", 50)])], [reservation("v-test", "tbvoix-v-test-abc", "active", 30)]);
+    await expect(sansEngage(d).voix!.lire(TEXTE)).rejects.toThrow(/plafond/);
+    expect(d.reserverCredits).not.toHaveBeenCalled();
+    expect(d.lire).not.toHaveBeenCalled();
+  });
+
+  it("(a bis) 50 ¢ réels seuls : 98 ¢ au total, la voix passe (le cumul n'est pas exagéré)", async () => {
+    const d = double();
+    fauxDepots([depense("v-test", [ligne("Voix tableau de bord · lecture", "reel", 50)])], []);
+    await sansEngage(d).voix!.lire(TEXTE);
+    expect(d.reserverCredits).toHaveBeenCalledTimes(1);
+    expect(d.lire).toHaveBeenCalledTimes(1);
+  });
+
+  it("(b) ne comptent PAS : autre vidéo, autre préfixe, nature estime, réservation libérée ou consommée, travailId sans tbvoix-", async () => {
+    const d = double();
+    fauxDepots(
+      [
+        depense("autre-video", [ligne("Voix tableau de bord · lecture", "reel", 90)]),
+        depense("v-test", [ligne("Narration · lecture", "reel", 90), ligne("Voix tableau de bord · lecture", "estime", 90)]),
+      ],
+      [
+        reservation("v-test", "tbvoix-v-test-a", "liberee", 90),
+        reservation("v-test", "tbvoix-v-test-b", "consommee", 90),
+        reservation("v-test", "autre-travail", "active", 90),
+        reservation("v-test", undefined, "active", 90),
+        reservation("autre-video", "tbvoix-autre-a", "active", 90),
+      ],
+    );
+    await sansEngage(d).voix!.lire(TEXTE);
+    expect(d.reserverCredits).toHaveBeenCalledTimes(1);
+    expect(d.lire).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("narration et chaîne", () => {
   it("narration appelée une fois ; null ⇒ texte gratuit, la chaîne réussit avec la voix réservée une fois", async () => {
     const d = double();
