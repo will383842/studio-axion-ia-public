@@ -1,10 +1,12 @@
 /** POSTE-3 : boîte côté Studio, lecture HOSTILE de la réponse. Dossier temporaire réel ; aucun navigateur, 0 appel payant. */
+import { spawnSync } from "node:child_process";
+import * as nodeFs from "node:fs";
 import { linkSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, truncateSync, writeFileSync, existsSync, lstatSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BORNES } from "../../../src/moteurs/montage-tutoriel-outil/capture-auto/contrat";
-import { ErreurBoite, demandeEnVol, ecrireDemande, effacerReponse, etatBoite, lireReponse, noterEchec, tentatives } from "../../../src/services/tutoriel-capture-boite";
+import { ErreurBoite, type SystemeFichiers, demandeEnVol, ecrireDemande, effacerReponse, etatBoite, lireReponse, noterEchec, tentatives } from "../../../src/services/tutoriel-capture-boite";
 
 const ID = "essai-0123456789ab";
 const NOM = `film-zip--${ID}`;
@@ -106,6 +108,15 @@ describe("ecrireDemande", () => {
     symlinkSync("/tmp", join(racine, "demandes", `.prep-${ID}`));
     expect(() => ecrireDemande(racine, "film-zip", ID, demandeOk())).toThrow();
   });
+  it("refuse si une demande d'un AUTRE id est en vol (dossier ou .prep-*), sans rien créer", () => {
+    mkdirSync(join(racine, "demandes", "film-zip--autre-0123456789"));
+    expect(() => ecrireDemande(racine, "film-zip", ID, demandeOk())).toThrow(/déjà en cours/);
+    expect(readdirSync(join(racine, "demandes"))).toEqual(["film-zip--autre-0123456789"]);
+    rmSync(join(racine, "demandes", "film-zip--autre-0123456789"), { recursive: true });
+    mkdirSync(join(racine, "demandes", ".prep-autre-0123456789"));
+    expect(() => ecrireDemande(racine, "film-zip", ID, demandeOk())).toThrow(/déjà en cours/);
+    expect(readdirSync(join(racine, "demandes"))).toEqual([".prep-autre-0123456789"]);
+  });
   it("attendue.txt doit être une empreinte", () => {
     const f = { "description.json": Buffer.from("{}"), "attendue.txt": Buffer.from("PAS UNE EMPREINTE") };
     expect(() => ecrireDemande(racine, "apercu", ID, f)).toThrow();
@@ -204,6 +215,98 @@ describe("lireReponse (réponse hostile)", () => {
       symlinkSync(tmpdir(), join(d(), "apercu"));
       refuse(() => lireReponse(racine, "apercu", ID));
     });
+  });
+});
+
+describe("lecture avec un fs simulé", () => {
+  it("refuse « fichier remplacé » quand fstat rend un autre ino", () => {
+    reponseOk();
+    const fs: SystemeFichiers = {
+      ...nodeFs,
+      fstatSync: ((fd: number) => {
+        const st = nodeFs.fstatSync(fd);
+        return Object.assign(Object.create(Object.getPrototypeOf(st)), st, { ino: st.ino + 1 });
+      }) as typeof nodeFs.fstatSync,
+    };
+    expect(() => lireReponse(racine, "film-zip", ID, fs)).toThrow(/remplacé/);
+    refuse(() => lireReponse(racine, "film-zip", ID, fs));
+  });
+  it("refuse une lecture courte (fichier raccourci entre fstat et read)", () => {
+    reponseOk();
+    let appels = 0;
+    const fs: SystemeFichiers = {
+      ...nodeFs,
+      readSync: ((fd: number, b: Buffer, off: number, len: number, pos: number) => (appels++ === 0 ? nodeFs.readSync(fd, b, off, Math.min(len, 3), pos) : 0)) as typeof nodeFs.readSync,
+    };
+    expect(() => lireReponse(racine, "film-zip", ID, fs)).toThrow(/modifié pendant la lecture/);
+  });
+  it("un readdir qui lève (ENOTDIR) donne FILM_INVALIDE, pas une erreur brute", () => {
+    reponseOk();
+    const fs: SystemeFichiers = {
+      ...nodeFs,
+      readdirSync: (() => {
+        throw Object.assign(new Error("ENOTDIR"), { code: "ENOTDIR" });
+      }) as unknown as typeof nodeFs.readdirSync,
+    };
+    refuse(() => lireReponse(racine, "film-zip", ID, fs));
+  });
+  it("un readdir qui lève dans apercu/ donne FILM_INVALIDE", () => {
+    const d = join(racine, "reponses", `apercu--${ID}`);
+    mkdirSync(join(d, "apercu"), { recursive: true });
+    writeFileSync(join(d, "etat.txt"), "ok\nOK\n");
+    writeFileSync(join(d, "apercu-piece.json"), "{}");
+    let n = 0;
+    const fs: SystemeFichiers = {
+      ...nodeFs,
+      readdirSync: ((p: string) => {
+        if (n++ === 0) return nodeFs.readdirSync(p);
+        throw new Error("ENOTDIR");
+      }) as unknown as typeof nodeFs.readdirSync,
+    };
+    refuse(() => lireReponse(racine, "apercu", ID, fs));
+  });
+});
+
+describe("noms hostiles dans les messages", () => {
+  it("un nom avec séquence d'échappement et 200 caractères est neutralisé", () => {
+    const hostile = `\u001b[31m${"x".repeat(200)}`;
+    reponseOk((d) => writeFileSync(join(d, hostile), "x"));
+    try {
+      lireReponse(racine, "film-zip", ID);
+      throw new Error("aurait dû refuser");
+    } catch (e) {
+      const m = (e as Error).message;
+      expect(m).not.toContain("\u001b");
+      expect(m).not.toContain("x".repeat(100));
+      expect(m.length).toBeLessThan(160);
+    }
+  });
+  it("un nom d'image hostile aussi", () => {
+    const d = join(racine, "reponses", `apercu--${ID}`);
+    mkdirSync(join(d, "apercu"), { recursive: true });
+    writeFileSync(join(d, "etat.txt"), "ok\nOK\n");
+    writeFileSync(join(d, "apercu-piece.json"), "{}");
+    writeFileSync(join(d, "apercu", "\u001b[2Jpirate.png"), "x");
+    expect(() => lireReponse(racine, "apercu", ID)).toThrow(expect.objectContaining({ message: expect.not.stringContaining("\u001b") }));
+  });
+});
+
+describe("noterEchec durci", () => {
+  it("crée echecs/ s'il est absent (0700)", () => {
+    rmSync(join(racine, "echecs"), { recursive: true });
+    expect(noterEchec(racine, ID)).toBe(1);
+    expect(tentatives(racine, ID)).toBe(1);
+    expect(lstatSync(join(racine, "echecs")).mode & 0o777).toBe(0o700);
+  });
+  it("refuse echecs/ s'il est un lien", () => {
+    rmSync(join(racine, "echecs"), { recursive: true });
+    symlinkSync(tmpdir(), join(racine, "echecs"));
+    expect(() => noterEchec(racine, ID)).toThrow(ErreurBoite);
+  });
+  it("une FIFO posée à echecs/<id>.json ne bloque pas : l'ouverture échoue", () => {
+    const fifo = join(racine, "echecs", `${ID}.json`);
+    expect(spawnSync("mkfifo", [fifo]).status).toBe(0);
+    expect(() => noterEchec(racine, ID)).toThrow(ErreurBoite);
   });
 });
 
