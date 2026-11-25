@@ -2,11 +2,11 @@
  * PETITS OBJETS — schémas reliés (C9-16) : étoile (centre + satellites), icônes reliées en ligne, rangée d'agents reliés à un globe.
  * Pièces pures, NON inscrites (rien ne les importe). Liens et anneaux tracés par `TraceSvg`, apparition en cascade par `phaseObjet`.
  * Icônes par `iconeObjet(rôle)` ; le globe n'existe pas dans la table (rôle `globe` = null) : c'est ici une forme géométrique du schéma, pas une icône.
- * Textes en Manrope (`FAMILLE_CSS`), ≤ 4 mots ; aucun filtre. Imports relatifs seulement (dossier lu par le rendu).
+ * Textes en Manrope (`PILE_CSS`), ≤ 4 mots ; aucun filtre. Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
 import { createElement } from "react";
-import { FAMILLE_CSS, GRAISSES } from "../../charte/axion-2026";
+import { PILE_CSS, GRAISSES } from "../../charte/axion-2026";
 import { MOTS_MAX, SURFACE_MAX, type DefinitionObjet, type ProprietesObjet, type ZoneObjet } from "./contrat";
 import { iconeObjet } from "./icones-objets";
 import { phaseObjet } from "./progres";
@@ -172,7 +172,7 @@ function Icone({ role, c, r, couleur }: { role: string; c: Point; r: number; cou
 function Etiquette({ texte, c, r, fond }: { texte?: string; c: Point; r: number; fond: ProprietesObjet<unknown>["fond"] }): JSX.Element | null {
   if (!texte) return null;
   return (
-    <text x={f(c.x)} y={f(c.y + r + 40)} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={GRAISSES.appui} fontSize={34} fill={couleurDuTon("neutre", fond)}>
+    <text x={f(c.x)} y={f(c.y + r + 40)} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={GRAISSES.appui} fontSize={34} fill={couleurDuTon("neutre", fond)}>
       {texte}
     </text>
   );
@@ -247,7 +247,7 @@ function Globe({ c, r, rang, pr, etiquette }: { c: Point; r: number; rang: numbe
       <TraceSvg d={`M ${f(c.x - r)} ${f(c.y)} L ${f(c.x + r)} ${f(c.y)}`} t={t} ton={ton} fond={pr.fond} epaisseur={4} />
       <TraceSvg d={`M ${f(c.x)} ${f(c.y - r)} A ${f(r * 0.45)} ${f(r)} 0 0 1 ${f(c.x)} ${f(c.y + r)} A ${f(r * 0.45)} ${f(r)} 0 0 1 ${f(c.x)} ${f(c.y - r)}`} t={t} ton={ton} fond={pr.fond} epaisseur={4} />
       {etiquette ? (
-        <text x={f(c.x + r + 24)} y={f(c.y + 12)} fontFamily={FAMILLE_CSS} fontWeight={GRAISSES.appui} fontSize={34} fill={couleurDuTon("neutre", pr.fond)}>
+        <text x={f(c.x + r + 24)} y={f(c.y + 12)} fontFamily={PILE_CSS} fontWeight={GRAISSES.appui} fontSize={34} fill={couleurDuTon("neutre", pr.fond)}>
           {etiquette}
         </text>
       ) : null}

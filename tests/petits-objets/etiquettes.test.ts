@@ -9,6 +9,9 @@ import { couleursSur } from "../../src/briques/jetons-motion";
 import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { IMAGES_SORTIE } from "../../src/briques/motion/petits-objets/progres";
 
+/** POLICES-P2-b : la pile entière de la charte, telle que la rend `renderToStaticMarkup` (plus forte que l'ancien nom seul). */
+const PILE_ATTENDUE = 'font-family="&quot;Axion Manrope&quot;, &quot;Manrope&quot;, sans-serif"';
+
 const CHEMIN = new URL("../../src/briques/motion/petits-objets/etiquettes.tsx", import.meta.url);
 const DEFS = [DEF_PASTILLE_ICONE, DEF_ETIQUETTE_ICONE, DEF_BADGE, DEF_TAMPON] as unknown as DefinitionObjet<unknown>[];
 const TONS: TonObjet[] = ["neutre", "accent", "valide", "erreur"];
@@ -88,7 +91,7 @@ describe("C9-11 rendu", () => {
     }
   });
   it("texte en Manrope (FAMILLE_CSS)", () => {
-    for (const d of DEFS) expect(rendre(d, entree(d), 30)).toContain('font-family="Axion Manrope"');
+    for (const d of DEFS) expect(rendre(d, entree(d), 30)).toContain(PILE_ATTENDUE);
   });
   it("entrée invalide : rendu vide sans exception", () => {
     for (const d of DEFS) expect(() => rendre(d, null, 10)).not.toThrow();
