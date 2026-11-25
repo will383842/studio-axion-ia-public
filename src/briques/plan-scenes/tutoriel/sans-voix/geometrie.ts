@@ -33,8 +33,12 @@
  * Règles de mouvement :
  *  - ENTRE DEUX SCÈNES : la sortante s'efface en 130 ms (elle glisse de 14 px vers le haut et recule à 0,96), PUIS l'entrante
  *    monte du bas et apparaît (de +130 à +330 ms) : aucun texte superposé à une opacité > 0,15 ;
- *  - CAMÉRA : un léger mouvement global (échelle 1 → 1,035, dérive ≤ 12 px, courbes douces) s'applique à TOUT le groupe de la
- *    scène ; la mise en page garde la marge pour qu'il ne sorte jamais du contenu ;
+ *  - CAMÉRA : un léger mouvement global (échelle 1 → 1,035, dérive ≤ 12 px, courbes douces) s'applique à TOUT le groupe des scènes
+ *    simples ; la scène ÉCRAN a une caméra dirigée par ZONES (cartes, liste, Historique, alerte : recadrage de 900 ms, échelle 1 ↔ 1,055,
+ *    cibles bornées d'avance sur une enveloppe FIXE, voir `cameraEcran`) ; les `focus` n'agissent pas sur la caméra ;
+ *  - CHANGEMENTS DE PLAN (tour 12) : au tri les lignes glissent (450 ms) vers leur rang ; à l'Historique la liste se replie en bande
+ *    (≤ 25 %) et l'Historique prend ≥ 70 % de la fenêtre ; à l'alerte l'Historique se referme et la liste revient pleine largeur ;
+ *    la tuile citée domine (1,08, fond terracotta ≤ 0,12, les autres à OPACITE_ATTENUEE) ;
  *  - ÉCRAN : la fenêtre (≥ 95 % de la largeur et ≥ 90 % de la hauteur du contenu) se construit en ≈ 1,5 s (cartes avec leurs
  *    libellés en cascade, titre et lignes squelettes de la liste), puis chaque partie s'ILLUMINE au mot qui la cite ; dans les
  *    creux entre deux mots, des colonnes de mini-graphique (squelette) se posent une à une : jamais plus de ~1,5 s sans
@@ -795,12 +799,22 @@ function groupeDe(id: string): "cartes" | "liste" | "panneau" | "alerte" | null 
   return null;
 }
 
+/** Fenêtre de l'écran : un peu plus petite que le contenu (2 %, tous formats) pour laisser de la marge à la caméra. Utilisée par la mise en page ET par la caméra (enveloppe FIXE). */
+const fenetreEcran = (C: RectPx): RectPx => fenetreDe(C, 0.02);
+
+/** Instants-clés de la scène écran : le clic réel et l'ouverture réelle de l'Historique (jamais avant 500 ms après le clic). */
+function instantsEcran(sc: Extract<SceneSansVoix, { genre: "ecran" }>): { tClic: number; tP: number } {
+  const evClic = trouver(sc.evenements, "clic");
+  const evPanneau = trouver(sc.evenements, "panneau");
+  const tClic = evClic ? Math.max(evClic.aMs, sc.debutMs + 1600) : Infinity;
+  return { tClic, tP: evPanneau ? Math.max(evPanneau.aMs, tClic + 500) : Infinity };
+}
+
 function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pose[] {
   const { T, s, C, pf } = c;
   const { els, add } = nouveau();
   const ev = sc.evenements;
-  // Tour 11 : la fenêtre de l'écran est un peu plus petite (2 % de la zone) : la caméra dirigée a de la marge pour zoomer.
-  const W = fenetreDe(C, C.hauteur < 760 * s ? 0 : 0.02); // formats compacts (1:1, 16:9) : pas de réduction, les textes gardent leur plancher
+  const W = fenetreEcran(C);
   const compact = C.hauteur < 760 * s; // 1:1 et 16:9 : fenêtre moins haute, marges resserrées
   let barH = Math.round((compact ? 64 : 92) * s);
   const P = Math.round((compact ? 8 : 18) * s);
@@ -827,7 +841,7 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const naturel = ajuster(s, evAlerte.texte, 44 * s, 100 * espace, 1, 600, 40 * s).w + fixeT;
     const motLong = Math.max(...jetons(evAlerte.texte).map((m) => larg(m, 40 * s, 600))) + fixeT;
     // Le TITRE garde sa largeur naturelle (40 px) ; le toast reçoit le reste (au plus sa largeur d'une ligne, au moins son plus long mot).
-    const titreNat = ajuster(s, sc.titreFenetre, 40 * s, 100 * espace, 1, 700, 40 * s).w;
+    const titreNat = ajuster(s, sc.titreFenetre, 40 * s, 100 * espace, 1, 800, 40 * s).w;
     // Largeur minimale pour afficher le toast COMPLET sur deux lignes à ≥ 40 px (le titre est raccourci avant le toast).
     let w2 = motLong;
     while (w2 < naturel) {
@@ -837,7 +851,7 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     }
     reserve = Math.min(0.7 * espace, Math.max(w2, Math.min(naturel, espace - 26 * s - titreNat)));
   }
-  const tf = ajusterMini(s, sc.titreFenetre, (evAlerte ? 40 : 44) * s, Math.max(60 * s, espace - (evAlerte ? 26 * s + reserve : 8 * s)), 1, 700, 40 * s);
+  const tf = ajusterMini(s, sc.titreFenetre, (evAlerte ? 40 : 44) * s, Math.max(60 * s, espace - (evAlerte ? 26 * s + reserve : 8 * s)), 1, 800, 40 * s);
   let toast: { bt: Ajuste; bw: number; bh: number; pad: number; padV: number; ico: number; gap: number } | null = null;
   if (evAlerte) {
     const pad = padT;
@@ -885,19 +899,18 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   const evPanneau = trouver(ev, "panneau");
   // La fenêtre est « visible » dès la fin de la sortie de la scène précédente : toute la construction part de là.
   const tS = sc.debutMs + DUREES_MS.sortieScene;
-  const tClic = evClic ? Math.max(evClic.aMs, sc.debutMs + 1600) : Infinity;
   // L'historique ne s'ouvre jamais avant 500 ms APRÈS le clic : la ligne s'enfonce et son anneau terracotta se voient d'abord.
-  // Tour 10 : la liste se rétrécit PENDANT que le panneau entre (`tP`, à partir de 500 ms après le clic) : les textes du panneau
-  // n'apparaissent qu'une fois le tiroir presque posé, donc jamais sur un texte de la liste.
-  const DUREE_RETRECI = 300;
-  const tP = evPanneau ? Math.max(evPanneau.aMs, tClic + 500) : Infinity;
-  // Tour 10 : la liste se rétrécit (300 ms adoucis) PENDANT que le panneau glisse depuis la droite : aucun saut (le panneau est ouvert 500 ms après le clic).
-  const tRetreci = tP;
+  const { tClic, tP } = instantsEcran(sc);
+  // Tour 12 : CHANGEMENT DE PLAN. À `tP` la liste se replie en une bande (≤ 25 % de la fenêtre, seule la ligne sélectionnée reste lisible)
+  // pendant que l'Historique (≥ 70 % de la fenêtre) glisse depuis la droite ; à l'alerte (`tF`) l'Historique se referme (glisse à droite,
+  // 500 ms) et la liste revient pleine largeur.
+  const DUREE_RETRECI = 450;
 
   /* Alerte en DEUX temps : à `aMs` (la condition) l'écran MONTRE la condition (carte qui pulse, ligne la plus urgente (rang 1) qui
      vire au terracotta) ; à `tDecl` (le déclencheur) le toast part (glisse, la cloche s'agite) et RESTE à pleine opacité
      jusqu'à la sortie de la scène (il ne disparaît qu'avec tout l'écran). */
   const aAl = evAlerte ? evAlerte.aMs : Infinity;
+  const tF = evAlerte && evPanneau ? Math.max(aAl, tP + 1500) : Infinity;
   const tDecl = evAlerte
     ? borne(evAlerte.declencheurAMs ?? aAl + 0.6 * Math.max(0, sc.finMs - aAl), aAl, Math.max(aAl, sc.finMs - 500))
     : Infinity;
@@ -915,7 +928,7 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   for (let k = 0; k < 3; k++) {
     add({ id: `fenetre/point-${k + 1}`, genre: "forme", rect: { x: W.x + x0P + k * pasP, y: W.y + barH / 2 - 9 * s, largeur: 18 * s, hauteur: 18 * s }, opacite: 0.5, icone: "point", couleur: "grisTexte", parentId: "fenetre" });
   }
-  poserTexte(add, "fenetre/titre", tf, tx, W.y + (barH - tf.h) / 2, W.largeur, { graisse: 700, couleur: "noir", parentId: "fenetre", opacite: 1 });
+  poserTexte(add, "fenetre/titre", tf, tx, W.y + (barH - tf.h) / 2, W.largeur, { graisse: 800, couleur: "noir", parentId: "fenetre", opacite: 1 });
   add({ id: "fenetre/filet", genre: "forme", rect: { x: W.x + 2 * s, y: W.y + barH, largeur: W.largeur - 4 * s, hauteur: 2 * s }, remplissage: "gris", parentId: "fenetre" });
 
   /* ---- Cartes-chiffres : libellés 42 px, en cascade dès l'entrée ; disposition changée avant de couper un mot ---- */
@@ -963,11 +976,18 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   const lx = ix;
   const ly = iy + cardsH + g2;
   const lh = iy + ih - ly;
-  const pw = Math.floor(0.55 * W.largeur);
-  const glisse = 64 * s;
-  const pOuv = evPanneau ? avancement(T, tRetreci, DUREE_RETRECI, adoucir) : 0;
-  const lwMin = evPanneau ? iw - (pw + g) : iw;
+  // Tour 12 : l'Historique prend 74 % de la largeur de la fenêtre ; la liste repliée est une bande (≈ 20 %).
+  const pw = Math.floor(0.74 * W.largeur);
+  const glisse = Math.round(0.4 * pw);
+  const fermeture = Number.isFinite(tF) ? avancement(T, tF, 500, adoucir) : 0;
+  const pOuv = evPanneau ? avancement(T, tP, DUREE_RETRECI, adoucir) * (1 - fermeture) : 0;
+  const lwMin = iw;
   const lw = iw - pOuv * (pw + g);
+  // Éléments de la liste qui s'effacent pendant le repli (titre, étiquette : dès 25 % du repli) ou restent seules (lignes 2..N : 33 %).
+  const fTitre = 1 - borne(pOuv * 4, 0, 1);
+  const fLignes = 1 - borne(pOuv * 3, 0, 1);
+  // Mini-barres des lignes : supprimées dès que la liste fait moins de 50 % de la largeur de la fenêtre (elles s'effacent avant).
+  const fMini = borne((lw - 0.5 * W.largeur) / (0.1 * W.largeur), 0, 1);
   const padL = Math.round((compact ? 12 : 18) * s);
   const gapR = (lh < 330 * s ? 8 : 12) * s;
   const rowMin = (compact ? 30 : 40) * s;
@@ -1002,7 +1022,9 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   const rowFin = dFin.h;
   const slotAvant: number[] = [];
   if (evTri) {
-    const ordre = Array.from({ length: N }, (_, i) => i).sort((a, b) => ((a * 5 + 3) % 11) - ((b * 5 + 3) % 11));
+    let ordre = Array.from({ length: N }, (_, i) => i).sort((a, b) => ((a * 5 + 3) % 11) - ((b * 5 + 3) % 11));
+    // Jamais déjà trié au départ : sinon le tri ne se verrait pas (le glissé fait bouger ≥ 1 ligne pour au moins 2 lignes).
+    if (ordre.every((v, k) => v === k)) ordre = ordre.reverse();
     ordre.forEach((item, rang) => (slotAvant[item] = rang));
   } else for (let i = 0; i < N; i++) slotAvant[i] = i;
   const pTri = evTri ? avancement(T, evTri.aMs, DUREES_MS.tri, adoucir) : 0;
@@ -1014,36 +1036,43 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   /* ---- Mesure de l'historique (ne dépend pas du temps) : sert aux jalons du calendrier (seules les rubriques MONTRÉES comptent) ---- */
   const PM = evPanneau
     ? (() => {
-        const th = ajuster(s, evPanneau.titre, 44 * s, pw - 2 * padL - 54 * s, 1, 700, 40 * s);
+        const th = ajuster(s, evPanneau.titre, 44 * s, pw - 2 * padL - 54 * s - 100 * s, 1, 700, 40 * s);
         // Rubriques : libellés ≥ 40 px si la place le permet ; sinon 1 ligne, puis sans mini-graphique, puis moins de rubriques.
         const wFull = pw - 2 * padL;
-        const colW = 16 * s;
-        const colG = 8 * s;
+        const colW = 22 * s;
+        const colG = 10 * s;
         const chartW = 6 * colW + 5 * colG;
         const rub = evPanneau.rubriques;
         const dispoH = ly + lh - padL - (ly + padL + th.h + 14 * s);
-        const sepL = 10 * s;
+        const sepL = 8 * s;
         const mesure = (lignesMax: number, cible = 44) => rub.map((r) => ajuster(s, r.libelle, cible * s, wFull, lignesMax, 600, 36 * s));
         const enLigne = (f: Ajuste) => f.lignes.length === 1 && f.w + 20 * s + chartW <= wFull;
-        const hauteurR = (f: Ajuste, ch: number) => (ch <= 0 ? f.h : enLigne(f) ? Math.max(f.h, ch) : f.h + sepL + ch);
-        const gpDe = (ch: number) => (ch >= 34 ? 14 : 8) * s;
-        const total = (lf: Ajuste[], ch: number, m: number) => lf.slice(0, m).reduce((a, f) => a + hauteurR(f, ch * s), 0) + Math.max(0, m - 1) * gpDe(ch);
+        // Tour 12 : la dernière rubrique (k % 3 === 2) porte la frise de rupture (12 px d'épaisseur) sous son graphique.
+        const FRISE = 20 * s;
+        const hauteurR = (f: Ajuste, ch: number, k = 0) => (ch <= 0 ? f.h : (enLigne(f) ? Math.max(f.h, ch) : f.h + sepL + ch) + (k % 3 === 2 ? FRISE : 0));
+        const gpDe = (ch: number) => (ch >= 34 ? 10 : 8) * s;
+        const total = (lf: Ajuste[], ch: number, m: number) => lf.slice(0, m).reduce((a, f, k) => a + hauteurR(f, ch * s, k), 0) + Math.max(0, m - 1) * gpDe(ch);
         let lf = mesure(2);
         let chartH = 0;
         let montrees = rub.length;
         let trouve = false;
         // Tailles visées 44 puis 40 puis 36 px (jamais moins) : la hauteur manque d'abord → on rapetisse un peu AVANT de retirer une rubrique.
-        for (const cible of [44, 40, 36]) {
-          for (const lm of [2, 1]) {
-            lf = mesure(lm, cible);
-            // Jamais de libellé sous 36 px pour gagner de la hauteur : une ligne plus petite n'est pas une option.
-            if (lf.some((f) => f.taille < 36 * s - 0.01)) continue;
-            for (const ch of lm === 2 ? [84, 66, 52, 40, 32, 26, 0] : [84, 66, 52, 40, 32, 26]) {
-              if (total(lf, ch, rub.length) <= dispoH) {
-                chartH = ch * s;
-                trouve = true;
-                break;
+        // Tour 12 : d'abord des colonnes de ≥ 52 px (lisibles : ≥ 44 px à l'écran), quitte à rapetisser un peu les libellés (≥ 36 px) ; sinon l'échelle d'avant.
+        for (const chMin of [52, 0]) {
+          for (const cible of [44, 40, 36]) {
+            for (const lm of [2, 1]) {
+              lf = mesure(lm, cible);
+              // Jamais de libellé sous 36 px pour gagner de la hauteur : une ligne plus petite n'est pas une option.
+              if (lf.some((f) => f.taille < 36 * s - 0.01)) continue;
+              for (const ch of lm === 2 ? [84, 66, 52, 40, 32, 26, 0] : [84, 66, 52, 40, 32, 26]) {
+                if (ch < chMin && !(chMin === 0)) continue;
+                if (total(lf, ch, rub.length) <= dispoH) {
+                  chartH = ch * s;
+                  trouve = true;
+                  break;
+                }
               }
+              if (trouve) break;
             }
             if (trouve) break;
           }
@@ -1075,6 +1104,17 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   // Carte de l'alerte : dès la condition (`aAl`), son SEUL contour est `pulse-carte` (3 px terracotta) ; le contour `allume` s'efface (jamais de double bordure).
   const kPulse = evAlerte && T >= aAl && evAlerte.cartePulse !== undefined && evAlerte.cartePulse >= 0 && evAlerte.cartePulse < n ? evAlerte.cartePulse : -1;
   const cadreCartes: RectPx[] = [];
+  // Tour 12 : TUILE CITÉE DOMINANTE. De (aMs − 300 ms) jusqu'à l'aMs de la suivante (la dernière : jusqu'à la fin du focus « cartes » qui la
+  // contient, sinon jusqu'à la liste), la tuile citée passe à l'échelle 1,08 avec un fond terracotta très léger (≤ 0,12) ; les autres
+  // tombent à OPACITE_ATTENUEE. Montée sur 300 ms avant l'aMs, descente sur les 300 ms qui précèdent la fin (ease, sans rebond).
+  const finCitees = (k: number): number => {
+    if (k + 1 < cartes.length) return cartes[k + 1].aMs;
+    const foc = ev.find((e): e is Extract<EvenementEcran, { genre: "focus" }> => e.genre === "focus" && e.cible === "cartes" && e.aMs <= cartes[k].aMs + 50 && e.finMs > cartes[k].aMs);
+    if (foc) return foc.finMs;
+    return evListe ? evListe.aMs : cartes[k].aMs + 2500;
+  };
+  const mCitee = cartes.map((cc, k) => avancement(T, cc.aMs - 300, 300, adoucir) * (1 - avancement(T, finCitees(k) - 300, 300, adoucir)));
+  const mMax = mCitee.length ? Math.max(...mCitee) : 0;
   for (let k = 0; k < n; k++) {
     const R = rectCarte(k);
     const i0Carte = els.length;
@@ -1092,6 +1132,8 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     };
     const carte = fy(add({ id, genre: "forme", rect: { ...R }, remplissage: "ivoire", contour: "gris", rayonPx: 20 * s }));
     cadreCartes.push(carte.rect);
+    const mK = mCitee[k] ?? 0;
+    if (mK > 0.002) fy(add({ id: `${id}/teinte`, genre: "forme", rect: { ...R }, opacite: 0.1 * mK, remplissage: "terracotta", rayonPx: 20 * s, parentId: id }));
     const ax = R.x + padC;
     const ay = R.y + padC;
     const accent: RectPx = enLignes ? { x: ax, y: ay, largeur: stripH, hauteur: R.hauteur - 2 * padC } : { x: ax + icoW, y: ay + (topH - stripH) / 2, largeur: 56 * s, hauteur: stripH };
@@ -1141,27 +1183,36 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     }
     const retour = evAlerte ? 1 - avancement(T, aAl, 300) : 1;
     if (p * retour > 0.001 && k !== kPulse) fy(add({ id: `${id}/allume`, genre: "forme", rect: { ...R }, opacite: p * retour, contour: "terracotta", rayonPx: 20 * s, parentId: id }));
-    if (bosse > 0) {
-      const cc = { x: R.x + R.largeur / 2, y: R.y + R.hauteur / 2 };
-      for (const e of els.slice(i0Carte)) reduire(e, cc, 1 + 0.05 * bosse);
+    // Les autres tuiles s'atténuent (la plus citée des AUTRES commande) ; la citée grandit à 1,08 autour de son centre.
+    const autres = Math.max(0, ...mCitee.filter((_, j) => j !== k));
+    const fa = 1 - (1 - OPACITE_ATTENUEE) * autres;
+    // Croissance bornée par la marge intérieure de la fenêtre (1,8 × P de chaque côté) : 1,08 en formats hauts, moins en lignes pleine largeur.
+    const ech = 1 + Math.min(0.08, (1.8 * P) / R.largeur, (1.8 * P) / R.hauteur) * mK;
+    const cc = { x: R.x + R.largeur / 2, y: R.y + R.hauteur / 2 };
+    for (const e of els.slice(i0Carte)) {
+      if (ech !== 1) reduire(e, cc, ech);
+      e.opacite *= fa;
     }
   }
 
   /* ---- Liste ---- */
   const lIn = avancement(T, tListe, 170);
   add({ id: "liste", genre: "forme", rect: { x: lx, y: ly, largeur: lw, hauteur: lh }, opacite: lIn, remplissage: "ivoire", contour: "gris", rayonPx: 22 * s });
-  if (titreL) {
-    poserTexte(add, "liste/titre", titreL, lx + padL, ly + padL + 0, lw, { graisse: 700, couleur: "noir", parentId: "liste", opacite: lIn });
-  } else {
+  // Le titre et l'étiquette ne s'affichent que tant qu'ils TIENNENT dans la liste qui se replie (jamais un texte qui déborde de son parent).
+  const fTitreT = titreL ? fTitre * borne((lw - 2 * padL - titreL.w) / (24 * s), 0, 1) : fTitre;
+  const fPill = pill ? fTitre * borne((lw - 2 * padL - (pill.w + 32 * s)) / (24 * s), 0, 1) : 0;
+  if (titreL && fTitreT > 0.001) {
+    poserTexte(add, "liste/titre", titreL, lx + padL, ly + padL + 0, lw, { graisse: 700, couleur: "noir", parentId: "liste", opacite: lIn * fTitreT });
+  } else if (!titreL) {
     add({ id: "liste/fantome-titre", genre: "forme", rect: { x: lx + padL, y: ly + padL, largeur: Math.min(lw - 2 * padL, lw * 0.4), hauteur: 22 * s }, opacite: 0.22 * lIn, remplissage: "grisTexte", rayonPx: 11 * s, parentId: "liste" });
   }
-  if (pill && evTri) {
+  if (pill && evTri && fPill > 0.001) {
     const pq = avancement(T, evTri.aMs + 300, 350);
     const pwid = pill.w + 32 * s;
     const px = lx + padL;
     const py = ly + lh - padL - pillH;
-    add({ id: "liste/etiquette", genre: "forme", rect: { x: px, y: py + (1 - pq) * 8 * s, largeur: pwid, hauteur: pillH }, opacite: pq, remplissage: "gris", rayonPx: pillH / 2, parentId: "liste" });
-    poserTexte(add, "liste/etiquette/texte", pill, px + 16 * s, py + (pillH - pill.h) / 2 + (1 - pq) * 8 * s, pwid, { graisse: 600, couleur: "noir", parentId: "liste/etiquette", opacite: pq });
+    add({ id: "liste/etiquette", genre: "forme", rect: { x: px, y: py + (1 - pq) * 8 * s, largeur: pwid, hauteur: pillH }, opacite: pq * fPill, remplissage: "gris", rayonPx: pillH / 2, parentId: "liste" });
+    poserTexte(add, "liste/etiquette/texte", pill, px + 16 * s, py + (pillH - pill.h) / 2 + (1 - pq) * 8 * s, pwid, { graisse: 600, couleur: "noir", parentId: "liste/etiquette", opacite: pq * fPill });
   }
   // UNE SEULE ligne sélectionnée à la fois : la ligne 1 au clic ; dès la condition de l'alerte (`aMs`) elle se désélectionne et seule la ligne concernée s'allume.
   const litP = evClic ? avancement(T, tClic, 250) * (1 - avancement(T, aAl, 250)) : 0;
@@ -1170,18 +1221,22 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const pos = slotPos(i);
     const R = rowRect(pos);
     const rIn = avancement(T, tLigne(slotAvant[i]), 150);
+    // Seule la ligne 1 (sélectionnée) reste lisible quand la liste se replie en bande.
+    const fR = i === 0 ? 1 : fLignes;
+    if (fR <= 0.001) continue;
+    const rO = rIn * fR;
     const aRow = evListe ? evListe.aMs + 120 + slotAvant[i] * 130 : Infinity;
     const pr = Number.isFinite(aRow) ? avancement(T, aRow, 380) : 0;
     const dy = (1 - rIn) * Math.min(14 * s, padL * 0.8);
     const id = `rang-${i + 1}`;
-    add({ id, genre: "forme", rect: { ...R, y: R.y + dy }, opacite: lIn * rIn, remplissage: "blanc", contour: "gris", rayonPx: rayonRang, parentId: "liste" });
+    add({ id, genre: "forme", rect: { ...R, y: R.y + dy }, opacite: lIn * rO, remplissage: "blanc", contour: "gris", rayonPx: rayonRang, parentId: "liste" });
     const ps = Math.min(R.hauteur * 0.46, 28 * s);
     const bx = R.x + 16 * s + ps + 16 * s;
     const shortW = R.largeur * 0.14;
     const dispo = Math.max(0, R.largeur - (bx - R.x) - 16 * s - shortW - 16 * s);
     const bh = Math.min(R.hauteur * 0.3, 18 * s);
-    const urg = N > 1 ? 1 - (0.65 * i) / (N - 1) : 1;
-    add({ id: `${id}/pastille`, genre: "forme", rect: { x: R.x + 16 * s, y: R.y + (R.hauteur - ps) / 2 + dy, largeur: ps, hauteur: ps }, opacite: rIn * (0.22 + pr * (urg - 0.22)), icone: "pastille", couleur: "terracotta", parentId: id });
+    const urg = N > 1 ? 1 - (0.75 * i) / (N - 1) : 1;
+    add({ id: `${id}/pastille`, genre: "forme", rect: { x: R.x + 16 * s, y: R.y + (R.hauteur - ps) / 2 + dy, largeur: ps, hauteur: ps }, opacite: rO * (0.22 + pr * (urg - 0.22)), icone: "pastille", couleur: "terracotta", parentId: id });
     // Barres des lignes DESSINÉES dès l'entrée de la fenêtre, en gris foncé À PLEINE OPACITÉ (des lignes lisibles, pas des fantômes) ;
     // la pastille d'urgence s'allume au mot de la liste. Une fois posées, les barres VIVENT (± 5 % de longueur, déphasées d'une ligne à l'autre).
     const qb = avancement(T, tLigne(slotAvant[i]) + 60, 400, adoucir);
@@ -1191,10 +1246,10 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const L0 = dispo * [0.78, 0.62, 0.7, 0.5][i % 4];
     const cond = evAlerte && i === 0 && T >= aAl;
     const dec = cond ? avancement(T, aAl, Math.min(1600, Math.max(600, tDecl - aAl)), (x) => borne(x, 0, 1)) : 0;
-    add({ id: `${id}/barre`, genre: "forme", rect: { x: bx, y: R.y + (R.hauteur - bh) / 2 + dy, largeur: L0 * qb * (cond ? (1 + 0.05 * Math.sin((2 * Math.PI * (aAl - tS)) / 2400 + i * 1.3)) * (1 - 0.59 * dec) : 1 + 0.05 * vie), hauteur: bh }, opacite: qb > 0 ? Math.min(1, qb * 6) * rIn : 0, remplissage: "grisTexte", rayonPx: bh / 2, progression: qb, parentId: id });
+    add({ id: `${id}/barre`, genre: "forme", rect: { x: bx, y: R.y + (R.hauteur - bh) / 2 + dy, largeur: L0 * qb * (cond ? (1 + 0.05 * Math.sin((2 * Math.PI * (aAl - tS)) / 2400 + i * 1.3)) * (1 - 0.59 * dec) : 1 + 0.05 * vie), hauteur: bh }, opacite: qb > 0 ? Math.min(1, qb * 6) * rO : 0, remplissage: "grisTexte", rayonPx: bh / 2, progression: qb, parentId: id });
     if (cond) {
       const mq = avancement(T, aAl, 250);
-      add({ id: `${id}/seuil`, genre: "forme", rect: { x: bx + L0 * 0.55 - 2 * s, y: R.y + R.hauteur * 0.12 + dy, largeur: 4 * s, hauteur: R.hauteur * 0.76 }, opacite: mq * rIn, remplissage: "terracotta", rayonPx: 2 * s, progression: mq, parentId: id });
+      add({ id: `${id}/seuil`, genre: "forme", rect: { x: bx + L0 * 0.55 - 2 * s, y: R.y + R.hauteur * 0.12 + dy, largeur: 4 * s, hauteur: R.hauteur * 0.76 }, opacite: mq * rO, remplissage: "terracotta", rayonPx: 2 * s, progression: mq, parentId: id });
     }
     // Micro-graphique de la ligne : même flux que celui des cartes (une colonne neuve à droite toutes les 0,8 s, les autres glissent à gauche).
     const nC = 5;
@@ -1207,14 +1262,14 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const mC = T >= tVie ? Math.floor((T - tVie) / 800) : 0;
     const phC = T >= tVie ? adoucir(((T - tVie) % 800) / 800) : 0;
     const hMax = Math.min(R.hauteur * 0.62, 30 * s);
-    for (let j = 0; j <= nC; j++) {
+    for (let j = 0; j <= nC && fMini > 0.001; j++) {
       const qj = j < nC ? qb : T >= tVie ? 1 : 0;
       const x0c = Math.max(0, (j - phC) * pasC);
       const x1c = Math.min(wC, (j - phC) * pasC + cW);
       if (qj <= 0 || x1c - x0c < 1) continue;
       const hv = HAUTEURS_CARTE[(mC + j + 2 * i) % HAUTEURS_CARTE.length];
       const hh = hMax * (0.35 + 0.65 * hv) * qj * (j === nC ? 0.15 + 0.85 * phC : 1);
-      add({ id: `${id}/mini-${mC + j + 1}`, genre: "forme", rect: { x: xC + x0c, y: R.y + (R.hauteur + hMax) / 2 - hh + dy, largeur: x1c - x0c, hauteur: hh }, opacite: Math.min(1, qj * 6) * (j === nC ? Math.min(1, qb * 6) : 1) * 0.7 * Math.min(1, (x1c - x0c) / cW) * rIn, remplissage: "grisTexte", rayonPx: Math.min(3 * s, cW / 2), progression: qj, parentId: id });
+      add({ id: `${id}/mini-${mC + j + 1}`, genre: "forme", rect: { x: xC + x0c, y: R.y + (R.hauteur + hMax) / 2 - hh + dy, largeur: x1c - x0c, hauteur: hh }, opacite: Math.min(1, qj * 6) * (j === nC ? Math.min(1, qb * 6) : 1) * 0.7 * Math.min(1, (x1c - x0c) / cW) * rO * fMini, remplissage: "grisTexte", rayonPx: Math.min(3 * s, cW / 2), progression: qj, parentId: id });
     }
   }
   const slot0 = rowRect(0);
@@ -1237,7 +1292,11 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
 
   /* ---- Panneau « Historique » : un tiroir qui glisse depuis la droite (≥ 60 px) dans la fenêtre ---- */
   if (evPanneau) {
-    const pp = avancement(T, tP, DUREES_MS.panneau, adoucir);
+    const pp = avancement(T, tP, DUREES_MS.panneau, adoucir) * (1 - fermeture);
+    // Fermeture : textes et colonnes s'effacent en 200 ms, puis le tiroir glisse à droite (500 ms) et s'efface.
+    // Le titre de l'Historique n'apparaît qu'une fois le titre de la liste effacé (jamais deux titres superposés).
+    const pTitre = avancement(T, tP + 280, 220) * (Number.isFinite(tF) ? 1 - avancement(T, tF, 200) : 1);
+    const fermeTxt = Number.isFinite(tF) ? 1 - avancement(T, tF, 200) : 1;
     const dxP = (1 - pp) * glisse;
     const px = ix + iw - pw;
     const droite = px + pw;
@@ -1245,26 +1304,49 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const idP = "panneau";
     add({ id: idP, genre: "forme", rect: { x: px + dxP, y: ly, largeur: pw - dxP, hauteur: lh }, opacite: pp, remplissage: "blanc", contour: "gris", rayonPx: 22 * s, ombre: true });
     const { th, wFull, chartW, colW, colG, rub, lf, chartH, montrees, gp, enLigne, hauteurR, sepL } = PM!;
-    add({ id: `${idP}/horloge`, genre: "forme", rect: { x: px + padL, y: ly + padL + (th.h - 40 * s) / 2, largeur: 40 * s, hauteur: 40 * s }, opacite: pp, icone: "horloge", couleur: "terracotta", progression: HORLOGE_FIXE, parentId: idP });
-    poserTexte(add, `${idP}/titre`, th, px + padL + 54 * s, ly + padL, pw, { graisse: 700, couleur: "noir", parentId: idP, opacite: pp });
+    add({ id: `${idP}/horloge`, genre: "forme", rect: { x: px + padL, y: ly + padL + (th.h - 40 * s) / 2, largeur: 40 * s, hauteur: 40 * s }, opacite: pp * pTitre, icone: "horloge", couleur: "terracotta", progression: HORLOGE_FIXE, parentId: idP });
+    poserTexte(add, `${idP}/titre`, th, px + padL + 54 * s, ly + padL, pw, { graisse: 700, couleur: "noir", parentId: idP, opacite: pp * pTitre });
 
+    // Flux d'en-tête : 5 colonnes qui défilent (une neuve toutes les 0,8 s) à droite du titre : l'Historique reste vivant pendant que les
+    // rubriques se construisent (jamais plus de 1,5 s sans élément nouveau).
+    {
+      const nF = 5;
+      const cwF = 9 * s;
+      const cgF = 6 * s;
+      const pasF = cwF + cgF;
+      const wTot = nF * cwF + (nF - 1) * cgF;
+      const t0F = tP + DUREES_MS.panneau;
+      const mF = T >= t0F ? Math.floor((T - t0F) / 800) : 0;
+      const phF = T >= t0F ? adoucir(((T - t0F) % 800) / 800) : 0;
+      const hF = Math.min(th.h * 0.75, 34 * s);
+      const xF = px + pw - padL - wTot;
+      for (let j = 0; j <= nF && T >= t0F; j++) {
+        const x0c = Math.max(0, (j - phF) * pasF);
+        const x1c = Math.min(wTot, (j - phF) * pasF + cwF);
+        if (x1c - x0c < 1) continue;
+        const hv = HAUTEURS_CARTE[(mF + j + 3) % HAUTEURS_CARTE.length];
+        const hh = hF * (0.35 + 0.65 * hv) * (j === nF ? 0.15 + 0.85 * phF : 1);
+        add({ id: `${idP}/flux-${mF + j + 1}`, genre: "forme", rect: { x: xF + x0c, y: ly + padL + (th.h + hF) / 2 - hh, largeur: x1c - x0c, hauteur: hh }, opacite: pp * pTitre * 0.5 * Math.min(1, (x1c - x0c) / cwF), remplissage: "grisTexte", rayonPx: Math.min(3 * s, cwF / 2), parentId: idP });
+      }
+    }
     let yy = ly + padL + th.h + 14 * s;
     rub.slice(0, montrees).forEach((r, k) => {
       const f = lf[k];
       const inline = enLigne(f);
-      const hr = hauteurR(f, chartH);
+      const hr = hauteurR(f, chartH, k);
+      const ex = chartH > 0 && k % 3 === 2 ? 20 * s : 0;
       // Une rubrique n'apparaît jamais avant son panneau : libellés grisés dès la fin du glissé (tP + durée - 200 ms), rubrique allumée à son mot.
       // Tour 10 : le panneau entre DÉJÀ REMPLI (libellés grisés et squelettes de barres bas), chaque rubrique s'ALLUME (noir, barres qui
       // poussent) sur son mot, jamais avant la fin du glissé.
       const t0 = Math.max(r.aMs, tP + 600);
       const pr = avancement(T, t0, 400);
-      const pre = avancement(T, tP + DUREES_MS.panneau - 200, 300);
+      const pre = avancement(T, tP + DUREES_MS.panneau - 200, 300) * fermeTxt;
       const dy = 0;
       const idR = `${idP}/rubrique-${k + 1}`;
-      poserTexte(add, `${idR}/libelle`, f, px + padL, yy + dy + (chartH > 0 && inline ? (hr - f.h) / 2 : 0), wFull, { graisse: 600, couleur: T >= t0 ? "noir" : "grisTexte", parentId: idP, opacite: pre });
+      poserTexte(add, `${idR}/libelle`, f, px + padL, yy + dy + (chartH > 0 && inline ? (hr - ex - f.h) / 2 : 0), wFull, { graisse: 600, couleur: T >= t0 ? "noir" : "grisTexte", parentId: idP, opacite: pre });
       if (chartH > 0) {
         const cx = inline ? px + pw - padL - chartW : px + padL;
-        const base = inline ? yy + (hr + chartH) / 2 : yy + f.h + sepL + chartH;
+        const base = inline ? yy + (hr - ex + chartH) / 2 : yy + f.h + sepL + chartH;
         const fr = HAUTEURS_COLONNES[k % 3];
         for (let j = 0; j < 6; j++) {
           const q = avancement(T, t0 + 150 + j * 90, 600, adoucir);
@@ -1276,11 +1358,11 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
       // Tour 11 : la date de rupture GLISSE sur une petite frise sous la dernière rubrique graphique (à son mot).
       if (chartH > 0 && k % 3 === 2) {
         const cxF = inline ? px + pw - padL - chartW : px + padL;
-        const baseF = inline ? yy + (hr + chartH) / 2 : yy + f.h + sepL + chartH;
+        const baseF = inline ? yy + (hr - ex + chartH) / 2 : yy + f.h + sepL + chartH;
         const qf = avancement(T, t0 + 100, 900, adoucir);
         const wF = 6 * colW + 5 * colG;
-        add({ id: `${idR}/colonne-frise`, genre: "forme", rect: { x: cxF, y: baseF + 2 * s, largeur: wF, hauteur: 3 * s }, opacite: pre * 0.5, remplissage: "gris", rayonPx: 1.5 * s, parentId: idP });
-        if (qf > 0) add({ id: `${idR}/colonne-repere`, genre: "forme", rect: { x: cxF + (wF - 8 * s) * qf, y: baseF + 0.5 * s, largeur: 8 * s, hauteur: 6 * s }, opacite: pre * Math.min(1, qf * 6), remplissage: "terracotta", rayonPx: 3 * s, parentId: idP });
+        add({ id: `${idR}/colonne-frise`, genre: "forme", rect: { x: cxF, y: baseF + 4 * s, largeur: wF, hauteur: 12 * s }, opacite: pre * 0.6, remplissage: "gris", rayonPx: 6 * s, parentId: idP });
+        if (qf > 0) add({ id: `${idR}/colonne-repere`, genre: "forme", rect: { x: cxF + (wF - 18 * s) * qf, y: baseF + 1 * s, largeur: 18 * s, hauteur: 18 * s }, opacite: pre * Math.min(1, qf * 6), remplissage: "terracotta", rayonPx: 9 * s, parentId: idP });
       }
       yy += hr + gp;
     });
@@ -1332,8 +1414,8 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const dep = Math.max(sc.debutMs, tClic - 900);
     const cible = { x: slot0.x + slot0.largeur * 0.45, y: slot0.y + slot0.hauteur * 0.55 };
     // Départ juste en dessous et à droite de la cible (≈ 250 px), arrivée PAR EN DESSOUS : le trajet ne passe sur aucun libellé.
-    const dep0 = { x: Math.min(cible.x + 200 * s, W.x + W.largeur - 70 * s), y: Math.min(cible.y + 150 * s, C.y + C.hauteur - 95 * s) };
-    poserCurseur(add, s, T, dep, tClic, dep0, cible, "ligne-1", 1500, 30 * s);
+    const dep0 = { x: Math.min(cible.x + 200 * s, W.x + W.largeur - 70 * s), y: Math.min(cible.y + 150 * s, W.y + W.hauteur - 95 * s) };
+    poserCurseur(add, s, T, dep, tClic, dep0, cible, "ligne-1", 1100, 30 * s);
   }
 
   /* ---- Toast d'alerte : il part au déclencheur (glisse depuis la droite, la cloche s'agite) puis RESTE. Il a son emplacement dans
@@ -1396,7 +1478,7 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     }
     const marge = (cible === "ensemble" ? 0 : 8) * s;
     const pulse = 0.8 + 0.2 * Math.sin((2 * Math.PI * (T - foc.aMs)) / 800);
-    add({ id: "focus-cadre", genre: "forme", rect: rectEnveloppe(cadre, marge), opacite: kMax * pulse, contour: "terracotta", rayonPx: 26 * s });
+    add({ id: "focus-cadre", genre: "forme", rect: rectEnveloppe(cadre, marge), opacite: kMax * pulse * (cible === "cartes" ? 1 - mMax : 1), contour: "terracotta", rayonPx: 26 * s });
   }
 
   /* ---- Entrée de la fenêtre (montée + fondu) ---- */
@@ -1427,83 +1509,93 @@ function construire(c: Ctx, sc: SceneSansVoix): Pose[] {
   }
 }
 
-/** Zoom maximal de la caméra dirigée (avant bornage par l'enveloppe) et durée de ses glissés. */
-const ZOOM_DIRIGE = 0.075;
-const GLISSE_CAMERA_MS = 800;
+/** Durée des recadrages de la caméra de l'écran (ms) : glissé net mais doux (courbe « smoothstep », vitesse bornée). */
+const GLISSE_CAMERA_MS = 900;
 
-/** Part (0 → 1) de la caméra dirigée à l'instant T : glissé de 800 ms (ease, sans rebond) vers la cible pendant chaque `focus` (cartes,
- *  liste) et à l'ouverture du panneau Historique, puis retour. Renvoie aussi la cible dominante (moyenne pondérée au croisement). */
-function dirigee(sc: Extract<SceneSansVoix, { genre: "ecran" }>, T: number, poses: Pose[]): { a: number; foyer: { x: number; y: number } } | null {
-  const fenetres: { a0: number; a1: number; rects: RectPx[] }[] = [];
-  const rectsDe = (ok: (id: string) => boolean) => poses.filter((p) => ok(p.id)).map((p) => p.rect);
-  for (const e of sc.evenements) {
-    if (e.genre !== "focus") continue;
-    if (e.cible === "cartes") fenetres.push({ a0: e.aMs, a1: e.finMs, rects: rectsDe((id) => /^carte-\d+$/.test(id)) });
-    else if (e.cible === "liste") fenetres.push({ a0: e.aMs, a1: e.finMs, rects: rectsDe((id) => id === "liste") });
-  }
-  const pan = trouver(sc.evenements, "panneau");
-  if (pan) {
-    const al = trouver(sc.evenements, "alerte");
-    const fin = Math.min(pan.aMs + 3600, al ? al.aMs - GLISSE_CAMERA_MS : Infinity);
-    fenetres.push({ a0: pan.aMs, a1: Math.max(fin, pan.aMs + GLISSE_CAMERA_MS), rects: rectsDe((id) => id === "panneau") });
-  }
-  let somme = 0;
-  let amax = 0;
-  let fx = 0;
-  let fy = 0;
-  for (const f of fenetres) {
-    if (f.rects.length === 0) continue;
-    const a = avancement(T, f.a0, GLISSE_CAMERA_MS, adoucir) * (1 - avancement(T, f.a1, GLISSE_CAMERA_MS, adoucir));
-    if (a <= 0) continue;
-    const x0 = Math.min(...f.rects.map((r) => r.x));
-    const y0 = Math.min(...f.rects.map((r) => r.y));
-    const x1 = Math.max(...f.rects.map((r) => r.x + r.largeur));
-    const y1 = Math.max(...f.rects.map((r) => r.y + r.hauteur));
-    somme += a;
-    amax = Math.max(amax, a);
-    fx += (a * (x0 + x1)) / 2;
-    fy += (a * (y0 + y1)) / 2;
-  }
-  return somme > 0 ? { a: amax, foyer: { x: fx / somme, y: fy / somme } } : null;
+/** Courbe des recadrages : smoothstep (vitesse de pointe 1,5 × Δ / durée, accélération 6 × Δ / durée²), sans rebond. */
+const lisse = (x: number): number => {
+  const u = borne(x, 0, 1);
+  return u * u * (3 - 2 * u);
+};
+
+/** Échelle visée par zone : plan serré (cartes, Historique) puis plan large (liste, alerte) : l'échelle et le centre changent à chaque zone. */
+const ECHELLE_ZONE = { cartes: 1.055, liste: 1, panneau: 1.055, alerte: 1 } as const;
+
+interface EtatCamera {
+  e: number;
+  dx: number;
+  dy: number;
 }
 
-/** Caméra d'une scène : échelle 1 → 1,035 (en cloche, période ≤ 9 s) et dérive lente. Scène écran : push-in continu (1 → 1,03) PLUS caméra
- *  dirigée (zoom jusqu'à ≈ 1,075 et glissé vers la cible), BORNÉE par l'enveloppe des éléments : échelle et translation sont limitées pour que
- *  tout reste dans la zone de contenu (jamais hors cadre, jamais sur la bande des sous-titres). */
-function camera(sc: SceneSansVoix, T: number, s: number, poses: Pose[], C: RectPx, dyScene: number): { e: number; dx: number; dy: number } {
+/**
+ * Caméra de la scène ÉCRAN, dirigée par ZONES : chaque changement de zone (cartes → liste → Historique → alerte, aux instants des
+ * événements du plan) déclenche un recadrage de 900 ms (échelle 1 ↔ 1,055 et déplacement vertical ≥ 40 px de la fenêtre, vers le haut pour la
+ * liste et l'Historique, vers le bas pour les cartes et l'alerte).
+ *  - Les CIBLES (échelle, déplacement) sont BORNÉES d'avance contre une enveloppe FIXE (la fenêtre + 4 px de marge, jamais recalculée d'après
+ *    les éléments) : la caméra les atteint ensuite par une courbe douce ; aucun bornage dur après l'adoucissement, donc ni saut de
+ *    vitesse ni demi-tour (les bornes sont linéaires en l'échelle : l'interpolation de deux cibles admissibles reste admissible) ;
+ *  - les `focus` ne pilotent PAS la caméra (ils éclairent et atténuent seulement : « cartes », « liste », « panneau », « alerte »,
+ *    « ensemble ») : plus de zoom enchaîné, plus de dézoom entre deux focus voisins ;
+ *  - pas de dérive : la scène écran n'a que ces recadrages (le reste de l'image bouge par ses propres éléments).
+ */
+function cameraEcran(sc: Extract<SceneSansVoix, { genre: "ecran" }>, T: number, s: number, C: RectPx): EtatCamera {
+  const W = fenetreEcran(C);
+  const marge = 3 * s;
+  const env = rectEnveloppe(W, marge);
+  const cx = C.x + C.largeur / 2;
+  const cy = C.y + C.hauteur / 2;
+  const mg = 2 * s;
+  const eMax = Math.min((C.largeur - 2 * mg) / env.largeur, (C.hauteur - 2 * mg) / env.hauteur);
+  const { tP } = instantsEcran(sc);
+  const evCartes = trouver(sc.evenements, "cartes-chiffres");
+  const evListe = trouver(sc.evenements, "liste");
+  const evAlerte = trouver(sc.evenements, "alerte");
+  const zones: { t: number; zone: keyof typeof ECHELLE_ZONE; haut: boolean }[] = [];
+  if (evCartes) zones.push({ t: evCartes.aMs, zone: "cartes", haut: true });
+  if (evListe) zones.push({ t: evListe.aMs, zone: "liste", haut: false });
+  if (Number.isFinite(tP)) zones.push({ t: tP, zone: "panneau", haut: false });
+  if (evAlerte) zones.push({ t: evAlerte.aMs, zone: "alerte", haut: true });
+  zones.sort((a, b) => a.t - b.t);
+  const etats: { t: number; etat: EtatCamera }[] = [];
+  let tPrec = -Infinity;
+  zones.forEach((z, i) => {
+    const t = Math.max(z.t, tPrec + GLISSE_CAMERA_MS);
+    tPrec = t;
+    const e = Math.min(ECHELLE_ZONE[z.zone], eMax);
+    // Déplacement vertical admissible à l'échelle e (enveloppe mise à l'échelle autour du centre, 2 px de marge) ; la sortie de scène
+    // glisse de 14 px vers le haut : la DERNIÈRE cible garde cette réserve au-dessus.
+    const lo = C.y + mg - (cy + (env.y - cy) * e) + (i === zones.length - 1 ? DUREES_MS.glisseTransitionPx * s : 0);
+    const hi = C.y + C.hauteur - mg - (cy + (env.y + env.hauteur - cy) * e);
+    const dy = lo <= hi ? (z.haut ? 0.98 * hi : 0.98 * lo) : (lo + hi) / 2;
+    const lox = C.x + mg - (cx + (env.x - cx) * e);
+    const hix = C.x + C.largeur - mg - (cx + (env.x + env.largeur - cx) * e);
+    etats.push({ t, etat: { e, dx: lox <= hix ? borne(0, lox, hix) : (lox + hix) / 2, dy: borne(dy, Math.min(lo, hi), Math.max(lo, hi)) } });
+  });
+  // Départ : plan large, fenêtre cadrée vers le haut (comme la zone « liste ») : le premier recadrage (cartes) est ainsi aussi net que les suivants.
+  const lo0 = C.y + mg - (cy + (env.y - cy));
+  const hi0 = C.y + C.hauteur - mg - (cy + (env.y + env.hauteur - cy));
+  let cur: EtatCamera = { e: 1, dx: 0, dy: lo0 <= hi0 ? 0.95 * lo0 : (lo0 + hi0) / 2 };
+  for (const { t, etat } of etats) {
+    if (T < t) break;
+    const u = lisse((T - t) / GLISSE_CAMERA_MS);
+    cur = { e: cur.e + (etat.e - cur.e) * u, dx: cur.dx + (etat.dx - cur.dx) * u, dy: cur.dy + (etat.dy - cur.dy) * u };
+    if (u < 1) break;
+  }
+  return cur;
+}
+
+/** Caméra d'une scène : échelle 1 → 1,035 (en cloche, période ≤ 9 s) et dérive lente ; la scène écran a sa caméra dirigée (`cameraEcran`). */
+function camera(sc: SceneSansVoix, T: number, s: number, C: RectPx): EtatCamera {
+  if (sc.genre === "ecran") return cameraEcran(sc, T, s, C);
   const duree = Math.max(1, sc.finMs - sc.debutMs);
   const periode = Math.min(2 * duree, CAMERA.periodeMs);
   const dt = Math.max(0, T - sc.debutMs);
   const k = 0.5 - 0.5 * Math.cos((2 * Math.PI * dt) / periode);
-  const e0 = sc.genre === "ecran" ? 1 + 0.03 * borne(dt / duree, 0, 1) : 1 + CAMERA.echelleMax * k;
-  let dx = CAMERA.deriveXPx * s * Math.sin((2 * Math.PI * dt) / 7300);
-  let dy = CAMERA.deriveYPx * s * Math.sin((2 * Math.PI * dt) / 5300 + 1);
-  if (sc.genre !== "ecran" || poses.length === 0) return { e: e0, dx, dy };
-  const cx = C.x + C.largeur / 2;
-  const cy = C.y + C.hauteur / 2;
-  const dir = dirigee(sc, T, poses);
-  let e = e0 * (1 + ZOOM_DIRIGE * (dir ? dir.a : 0));
-  // Enveloppe de TOUS les éléments (visibles ou non), puis échelle maximale admissible (marge 2 px, plus le glissé d'entrée de la scène).
-  const x0 = Math.min(...poses.map((p) => p.rect.x));
-  const y0 = Math.min(...poses.map((p) => p.rect.y));
-  const x1 = Math.max(...poses.map((p) => p.rect.x + p.rect.largeur));
-  const y1 = Math.max(...poses.map((p) => p.rect.y + p.rect.hauteur));
-  const mg = 2 * s;
-  const eMax = Math.min((C.largeur - 2 * mg) / Math.max(1, x1 - x0), (C.hauteur - 2 * mg - 2 * Math.abs(dyScene)) / Math.max(1, y1 - y0));
-  e = Math.max(e0, Math.min(e, eMax));
-  if (dir) {
-    // Glissé vers la cible : on ramène le foyer vers le centre du contenu (jusqu'à 70 %), proportionnellement à la part de caméra dirigée.
-    dx += -(dir.foyer.x - cx) * e * 0.7 * dir.a;
-    dy += -(dir.foyer.y - cy) * e * 0.7 * dir.a;
-  }
-  // Bornage de la translation : l'enveloppe mise à l'échelle autour du centre puis décalée reste dans le contenu.
-  const lox = C.x + mg - (cx + (x0 - cx) * e);
-  const hix = C.x + C.largeur - mg - (cx + (x1 - cx) * e);
-  const loy = C.y + mg - (cy + (y0 - cy) * e) - Math.min(0, dyScene);
-  const hiy = C.y + C.hauteur - mg - (cy + (y1 - cy) * e) - Math.max(0, dyScene);
-  dx = lox <= hix ? borne(dx, lox, hix) : (lox + hix) / 2;
-  dy = loy <= hiy ? borne(dy, loy, hiy) : (loy + hiy) / 2;
-  return { e, dx, dy };
+  return {
+    e: 1 + CAMERA.echelleMax * k,
+    dx: CAMERA.deriveXPx * s * Math.sin((2 * Math.PI * dt) / 7300),
+    dy: CAMERA.deriveYPx * s * Math.sin((2 * Math.PI * dt) / 5300 + 1),
+  };
 }
 
 export function imageSansVoixA(plan: PlanComposeSansVoix, tMs: number): ImageSansVoix {
@@ -1543,7 +1635,7 @@ export function imageSansVoixA(plan: PlanComposeSansVoix, tMs: number): ImageSan
     const cx = C.x + C.largeur / 2;
     const cy = C.y + C.hauteur / 2;
     const poses = construire(ctx, sc);
-    const cam = camera(sc, T, s, poses, C, dy);
+    const cam = camera(sc, T, s, C);
     const e = cam.e * recul;
     for (const p of poses) {
       const r = p.rect;

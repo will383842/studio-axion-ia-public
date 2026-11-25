@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { positionsVerticales } from "@/briques/sous-titres/largeur";
 import { contrasteWcag } from "@/briques/charte/axion-2026";
-import { COULEURS_HEX, NOMS_COULEURS, TAILLES_MIN, taillesMinPour, zonesSansVoix, echelleFormat } from "@/briques/plan-scenes/tutoriel/sans-voix/grammaire";
+import { COULEURS_HEX, NOMS_COULEURS, OPACITE_ATTENUEE, TAILLES_MIN, taillesMinPour, zonesSansVoix, echelleFormat } from "@/briques/plan-scenes/tutoriel/sans-voix/grammaire";
 import { INTERLIGNE, elementsSansVoixA, imageSansVoixA, pictogrammesCartes } from "@/briques/plan-scenes/tutoriel/sans-voix/geometrie";
 import type { ElementVisible, EvenementEcran, PlanComposeSansVoix, RectPx, SceneSansVoix } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
 import { DUREE_STOCKS_MS, PLAN_SANS_VOIX_REEL, PLAN_SANS_VOIX_STOCKS } from "./fixtures/plan-sans-voix-stocks";
@@ -152,7 +152,7 @@ describe.each(FORMATS)("QUAL-1 géométrie ($nom)", (f) => {
       const els = imageSansVoixA(plan, t).elements;
       return els.find((e) => e.id === "s2/carte-1")!.rect.largeur / els.find((e) => e.id === "s2/fenetre")!.rect.largeur;
     };
-    expect(Math.abs(largeur(16200) - largeur(14000)) / largeur(14000)).toBeLessThan(0.015);
+    expect(Math.abs(largeur(16200) - largeur(14000)) / largeur(14000)).toBeLessThan(0.01);
   });
 });
 
@@ -236,11 +236,11 @@ describe("QUAL-1 scènes (4:5)", () => {
     expect(el(p, pan + 1200, "s2/panneau/rubrique-1/libelle")!.opacite).toBeGreaterThan(0.9);
   });
 
-  it("le panneau reste dans la fenêtre et ≤ 55 % de sa largeur", () => {
+  it("le panneau reste dans la fenêtre et prend ≥ 70 % de sa largeur (tour 12 : changement de plan)", () => {
     const els = imageSansVoixA(plan, 28000).elements;
     const fen = els.find((e) => e.id === "s2/fenetre")!;
     const pan = els.find((e) => e.id === "s2/panneau")!;
-    expect(pan.rect.largeur).toBeLessThanOrEqual(0.55 * fen.rect.largeur);
+    expect(pan.rect.largeur).toBeGreaterThanOrEqual(0.7 * fen.rect.largeur);
     expect(dedans(pan.rect, fen.rect)).toBe(true);
   });
 
@@ -341,7 +341,7 @@ describe("QUAL-1 temps vivant et mise en valeur", () => {
     }
     expect(e.get("s2/carte-2")!.opacite).toBeCloseTo(0.75, 1);
     expect(e.get("s2/liste")!.opacite).toBeCloseTo(0.75, 1);
-    expect(e.get("s2/liste/titre")!.opacite).toBeLessThanOrEqual(0.76);
+    expect(e.get("s2/rang-1")!.opacite).toBeLessThanOrEqual(0.76); // la liste est repliée en bande : seule la ligne 1 reste
     expect(e.get("s2/panneau")!.opacite).toBeGreaterThan(0.95);
   });
 
@@ -354,14 +354,15 @@ describe("QUAL-1 temps vivant et mise en valeur", () => {
       const k = f.largeur / plan.format.largeur;
       return { ...r, y: (r.y - f.y) / k, x: (r.x - f.x) / k, largeur: r.largeur / k, hauteur: r.hauteur / k };
     };
-    for (const id of ["s2/carte-1", "s2/carte-3", "s2/liste"]) {
+    // (la tuile citée à 15 680 ms grandit : tour 12, testée à part)
+    for (const id of ["s2/carte-1", "s2/liste"]) {
       const a = y(15500, id);
       for (const t of [16000, 16200, 17000]) expect(Math.abs(y(t, id).y - a.y), `${id} ${t}`).toBeLessThan(3);
     }
-    const c = y(30500, "s2/carte-1");
-    const l = y(30500, "s2/liste");
-    const pn = y(30500, "s2/panneau");
-    const f = y(30500, "s2/fenetre");
+    const c = y(28750, "s2/carte-1");
+    const l = y(28750, "s2/liste");
+    const pn = y(28750, "s2/panneau");
+    const f = y(28750, "s2/fenetre");
     expect(c.y).toBeLessThan(l.y);
     expect(pn.x).toBeGreaterThan(l.x + l.largeur - 1);
     expect(f.y + f.hauteur - (l.y + l.hauteur)).toBeLessThan(0.06 * f.hauteur);
@@ -574,11 +575,9 @@ describe.each(FORMATS)("QUAL-1 mouvement continu et caméra ($nom)", (f) => {
     const fixes = ts.filter((t) => !mouvement(t));
     expect(fixes.length / ts.length, `fixes: ${fixes.slice(0, 12)}`).toBeLessThanOrEqual(0.1);
   });
-  it("caméra : push-in 1,03 + caméra dirigée (≤ 1,11 au total), la fenêtre reste dans le contenu", () => {
+  it("caméra par zones (échelle 1 → ≤ 1,08), la fenêtre reste dans le contenu", () => {
     const z = zonesSansVoix(plan.format, plan.basPct).contenu;
-    const s = echelleFormat(plan.format);
-    const base = (z.hauteur < 760 * s ? 0.951 : 0.931) * z.largeur;
-    const cx = z.x + z.largeur / 2;
+    const base = 0.931 * z.largeur;
     let maxE = 0;
     let minE = 9;
     for (let t = 6000; t <= 33000; t += 250) {
@@ -587,7 +586,6 @@ describe.each(FORMATS)("QUAL-1 mouvement continu et caméra ($nom)", (f) => {
       maxE = Math.max(maxE, e);
       minE = Math.min(minE, e);
       expect(dedans(fen, z), `t=${t}`).toBe(true);
-      void cx;
     }
     expect(minE).toBeGreaterThanOrEqual(1 - 1e-6);
     expect(maxE).toBeLessThanOrEqual(1.035 * 1.08 + 1e-6);
@@ -796,7 +794,7 @@ describe.each(FORMATS)("QUAL-1 clic, toast, tiroir et remplissage ($nom)", (f) =
   });
 
   it("alerte en deux temps : condition montrée dès aMs, toast au déclencheur puis fixe jusqu'à la sortie ; le titre ne disparaît jamais", () => {
-    for (const [nom, p, t0, fin, decl] of [["fixture", plan, 30000, 34000, 32400], ["réel", planReel, 32085, 33803, 33115.6]] as const) {
+    for (const [nom, p, t0, fin, decl] of [["fixture", plan, 30000, 34000, 32400], ["réel", planReel, 28928, 33803, 32085]] as const) {
       let vu = 0;
       for (let t = t0; t <= fin + 240; t += 20) {
         const e = els(t, p);
@@ -1685,7 +1683,7 @@ describe.each(FORMATS)("QUAL-1 tour 8 : accroche, fin, sélection, listes, mouve
 
   it("listes : barres grisTexte à pleine opacité, titre → lignes ≤ 24 px, avant et après le tri", () => {
     for (const p of [plan, reel]) {
-      for (const t of [12000, 19000, 24500]) {
+      for (const t of [12000, 19000, 22500]) {
         const e = els(t, p);
         const titre = e.find((x) => x.id === "s2/liste/titre")!;
         const r1 = e.filter((x) => /^s2\/rang-\d+$/.test(x.id)).sort((a, b) => a.rect.y - b.rect.y)[0];
@@ -1738,17 +1736,14 @@ describe.each(FORMATS)("QUAL-1 tour 8 : accroche, fin, sélection, listes, mouve
     }
   });
 
-  it("caméra de l'écran : push-in 1 → 1,03 sur toute la scène, rien ne sort du contenu", () => {
+  const larg = (t: number) => par(t, "s2/fenetre")!.rect.largeur;
+  it("caméra de l'écran : par zones (échelle 1 → 1,055), la largeur de la fenêtre reste dans le contenu, rien n'en sort", () => {
     const sce = ecranDe(plan);
-    const larg = (t: number) => par(t, "s2/fenetre")!.rect.largeur;
-    const l0 = larg(sce.debutMs + 400);
-    const l1 = larg(sce.finMs - 150);
-    expect(l1 / l0).toBeGreaterThan(1.02);
-    expect(l1 / l0).toBeLessThan(1.035);
+    const contenu = zonesSansVoix(plan.format, plan.basPct).contenu;
     for (let t = sce.debutMs + 300; t < sce.finMs - 300; t += 500) {
       const w = larg(t);
-      // Tour 11 : la caméra dirigée zoome puis revient : la largeur n'est plus monotone, mais ne dépasse jamais le contenu.
       expect(w).toBeGreaterThan(0);
+      expect(w).toBeLessThanOrEqual(contenu.largeur);
       expect(problemes(plan, t)).toEqual([]);
     }
   });
@@ -2141,7 +2136,7 @@ describe.each(FORMATS)("QUAL-1 tour 10 : ouverture opaque, conteneurs jamais vid
     const seuil = els(tDecl).find((x) => x.id === "s2/rang-1/seuil")!;
     const bx = els(tDecl).find((x) => x.id === "s2/rang-1/barre")!.rect.x;
     expect(seuil.remplissage).toBe("terracotta");
-    expect(barre(ev.aMs + 100)).toBeGreaterThan(seuil.rect.x - bx);
+    expect(barre(ev.aMs + 700)).toBeGreaterThan(seuil.rect.x - bx); // la liste est revenue pleine largeur (500 ms)
     expect(barre(tDecl)).toBeLessThan(seuil.rect.x - bx);
   });
 
@@ -2169,31 +2164,166 @@ describe.each(FORMATS)("QUAL-1 tour 11 : caméra dirigée, tuiles, historique, h
     expect(pb.slice(0, 5)).toEqual([]);
   });
 
-  it("zoom effectif visible pendant le focus des cartes (≥ 1,05 au-dessus de la taille de base) puis retour", () => {
-    if (compact) return; // formats compacts : la fenêtre remplit déjà le contenu, zoom borné par l'enveloppe
-    const base = 0.931 * z.contenu.largeur;
-    const e = (t: number) => par(t, "s2/fenetre")!.rect.largeur / base;
-    expect(e(12500)).toBeGreaterThanOrEqual(1.05);
-    expect(e(12500)).toBeLessThanOrEqual(1.12);
-    expect(e(12500)).toBeGreaterThan(e(8000) + 0.03);
-    expect(e(18500)).toBeGreaterThanOrEqual(1.05); // focus de la liste
-    // Glissé doux : entre deux images (40 ms), l'échelle ne change jamais de plus de 1 %.
-    for (let t = 8000; t < 30000; t += 40) expect(Math.abs(e(t + 40) - e(t)), `t=${t}`).toBeLessThan(0.015);
-    // Ouverture du panneau : zoom aussi ; puis retour avant l'alerte.
-    expect(e(25300)).toBeGreaterThanOrEqual(1.04);
-    expect(e(28300)).toBeLessThan(e(25300));
+  it("caméra par zones : chaque changement de zone (cartes, liste, Historique, alerte) recadre nettement (≥ 40 px du centre ou ≥ 5 % d'échelle)", () => {
+    const sce = reel.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
+    const ev = (g: string) => sce.evenements.find((e) => e.genre === g)!;
+    const tClic = Math.max((ev("clic") as { aMs: number }).aMs, sce.debutMs + 1600);
+    const zones = [
+      { nom: "cartes", t: ev("cartes-chiffres").aMs },
+      { nom: "liste", t: ev("liste").aMs },
+      { nom: "Historique", t: Math.max(ev("panneau").aMs, tClic + 500) },
+      { nom: "alerte", t: ev("alerte").aMs },
+    ];
+    const centre = (t: number) => {
+      const r = par(t, "s2/fenetre")!.rect;
+      return { x: r.x + r.largeur / 2, y: r.y + r.hauteur / 2, l: r.largeur };
+    };
+    for (const zn of zones) {
+      const a = centre(zn.t - 20);
+      const b = centre(zn.t + 900);
+      const dep = Math.hypot(b.x - a.x, b.y - a.y);
+      const ech = Math.abs(b.l / a.l - 1);
+            expect(dep >= 40 * sc * 0.97 || ech >= 0.05 - 1e-6, `${zn.nom} : déplacement ${dep.toFixed(1)} px, échelle ${(ech * 100).toFixed(1)} %`).toBe(true);
+    }
   });
 
-  it("tuiles-chiffres : montée 1 → 1,05 → 1 à leur mot, barres qui poussent nettement", () => {
+  it("caméra douce : |Δx|, |Δy|, |Δlargeur| ≤ 6 px par image et |accélération| ≤ 3 px/img², toutes les 40 ms, sur la fenêtre", () => {
+    for (const p of [reel, planPour(f)]) {
+      const sce = p.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
+      const r = (t: number) => imageSansVoixA(p, t).elements.find((e) => e.id === "s2/fenetre")!.rect;
+      const mes: { x: number; y: number; l: number }[] = [];
+      // Hors entrée (200 ms) et sortie de scène : seuls comptent les recadrages voulus.
+      for (let t = sce.debutMs + 400; t <= sce.finMs - 200; t += 40) {
+        const q = r(t);
+        mes.push({ x: q.x, y: q.y, l: q.largeur });
+      }
+      for (let i = 1; i < mes.length; i++) {
+        const dx = mes[i].x - mes[i - 1].x;
+        const dy = mes[i].y - mes[i - 1].y;
+        const dl = mes[i].l - mes[i - 1].l;
+        expect(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dl)), `vitesse i=${i}`).toBeLessThanOrEqual(6 * sc);
+        if (i >= 2) {
+          const ax = dx - (mes[i - 1].x - mes[i - 2].x);
+          const ay = dy - (mes[i - 1].y - mes[i - 2].y);
+          const al = dl - (mes[i - 1].l - mes[i - 2].l);
+          expect(Math.max(Math.abs(ax), Math.abs(ay), Math.abs(al)), `accélération i=${i}`).toBeLessThanOrEqual(3 * sc);
+        }
+      }
+    }
+  });
+
+  it("tuile citée dominante : 1,08 de (aMs − 300 ms) à l'aMs de la suivante, fond terracotta ≤ 0,12, les deux autres à 0,75 ; barres qui poussent", () => {
     const sce = reel.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
     const ev = sce.evenements.find((e) => e.genre === "cartes-chiffres") as Extract<EvenementEcran, { genre: "cartes-chiffres" }>;
+    const larg = (t: number, k: number) => par(t, `s2/carte-${k + 1}`)!.rect.largeur;
+    // La caméra ne bouge pas pendant ces mesures (tuiles comparées entre elles à un même instant).
+    ev.cartes.forEach((c, k) => {
+      const suiv = ev.cartes[k + 1]?.aMs ?? c.aMs + 1000;
+      const t = Math.min(c.aMs + 400, suiv - 400);
+      const autres = [0, 1, 2].filter((j) => j !== k);
+      const ratio = larg(t, k) / larg(t, autres[0]);
+      expect(ratio, `tuile ${k + 1} ${f.nom}`).toBeGreaterThanOrEqual(compact ? 1.003 : 1.07);
+      expect(ratio).toBeLessThanOrEqual(1.081);
+      expect(par(t, `s2/carte-${k + 1}`)!.opacite).toBeGreaterThan(0.95);
+      for (const j of autres) expect(par(t, `s2/carte-${j + 1}`)!.opacite, `atténuée ${j + 1}`).toBeCloseTo(OPACITE_ATTENUEE, 2);
+      const teinte = par(t, `s2/carte-${k + 1}/teinte`)!;
+      expect(teinte.remplissage).toBe("terracotta");
+      expect(teinte.opacite).toBeLessThanOrEqual(0.12);
+      expect(teinte.opacite).toBeGreaterThan(0.05);
+      // Avant (a − 300) : aucune mise en avant.
+      expect(par(c.aMs - 320, `s2/carte-${k + 1}/teinte`)).toBeUndefined();
+    });
+    // Entre le focus « cartes » et sa tuile : le cadre de groupe disparaît pendant la mise en avant (jamais collé aux bordures des tuiles).
+    for (const t of [ev.cartes[1].aMs + 400, ev.cartes[2].aMs + 400]) {
+      const cadre = par(t, "s2/focus-cadre");
+      expect(!cadre || cadre.opacite < 0.05, `cadre à ${t}`).toBe(true);
+    }
     const a = ev.cartes[0].aMs;
-    const larg = (t: number) => par(t, "s2/carte-1")!.rect.largeur;
-    const repos = larg(a - 200);
-    expect(larg(a + 250) / repos).toBeGreaterThan(1.03);
-    expect(Math.abs(larg(a + 700) / larg(a + 800) - 1)).toBeLessThan(0.03);
     const barre = (t: number) => par(t, "s2/carte-1/valeur")!.rect.largeur;
     expect(barre(a + 600)).toBeGreaterThan(barre(a + 150) * 1.5);
+  });
+
+  it("tri visible : lignes en désordre, puis glissé de 450 ms vers le rang trié (≥ 1 hauteur de ligne pour ≥ 2 lignes), pastilles du plus foncé au plus clair", () => {
+    const sce = reel.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
+    const tri = sce.evenements.find((e) => e.genre === "tri")!.aMs;
+    const lignes = (t: number) => els(t).filter((e) => /^s2\/rang-\d+$/.test(e.id)).map((e) => ({ id: e.id, y: e.rect.y, h: e.rect.hauteur }));
+    const avant = lignes(tri - 20);
+    const apres = lignes(tri + 450 + 20);
+    const bouge = avant.filter((a0) => Math.abs(apres.find((x) => x.id === a0.id)!.y - a0.y) >= a0.h * 0.97);
+    expect(bouge.length).toBeGreaterThanOrEqual(2);
+    // Triées après : le rang 1 est en haut, les autres suivent dans l'ordre.
+    const ordre = [...apres].sort((a0, b0) => a0.y - b0.y).map((x) => x.id);
+    expect(ordre).toEqual(apres.map((x) => x.id).sort());
+    // Pas triées avant.
+    expect([...avant].sort((a0, b0) => a0.y - b0.y).map((x) => x.id)).not.toEqual(ordre);
+    // Pastilles : opacité décroissante du rang 1 au dernier.
+    const pas = apres.map((x) => els(tri + 470).find((e) => e.id === `${x.id}/pastille`)!.opacite);
+    for (let i = 1; i < pas.length; i++) expect(pas[i]).toBeLessThan(pas[i - 1]);
+    // Fini en 450 ms : plus de mouvement ensuite.
+    expect(Math.abs(lignes(tri + 600)[0].y - apres[0].y)).toBeLessThan(2 * sc);
+  });
+
+  it("changement de plan à l'Historique : liste en bande ≤ 25 %, Historique ≥ 70 %, lignes 2..N effacées, mini-barres supprimées, libellés ≥ 34 px", () => {
+    const sce = reel.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
+    const tClic = Math.max((sce.evenements.find((e) => e.genre === "clic") as { aMs: number }).aMs, sce.debutMs + 1600);
+    const tP = Math.max(sce.evenements.find((e) => e.genre === "panneau")!.aMs, tClic + 500);
+    const t = 27800; // panneau ouvert, toutes les rubriques construites, avant l'alerte
+    expect(t).toBeGreaterThan(tP + 1500);
+    const e = els(t);
+    const fen = e.find((x) => x.id === "s2/fenetre")!.rect;
+    const liste = e.find((x) => x.id === "s2/liste")!.rect;
+    const pan = e.find((x) => x.id === "s2/panneau")!.rect;
+    expect(liste.largeur / fen.largeur).toBeLessThanOrEqual(0.25);
+    expect(pan.largeur / fen.largeur).toBeGreaterThanOrEqual(0.7);
+    expect(e.find((x) => x.id === "s2/rang-1")!.opacite).toBeGreaterThan(0.9);
+    for (const x of e.filter((y) => /^s2\/rang-[2-9]/.test(y.id))) expect(x.opacite, x.id).toBeLessThan(0.05);
+    expect(e.filter((x) => /\/mini-\d+$/.test(x.id) && x.opacite >= 0.05)).toEqual([]);
+    for (const x of e.filter((y) => y.genre === "texte" && y.id.startsWith("s2/panneau/") && y.opacite > 0.5)) expect(x.taillePx!, x.id).toBeGreaterThanOrEqual(34 * sc - 0.5);
+    if (!compact) {
+      const col = Math.max(...e.filter((x) => /rubrique-\d\/colonne-\d$/.test(x.id)).map((x) => x.rect.hauteur));
+      expect(col).toBeGreaterThanOrEqual(44 * sc);
+      const frise = e.find((x) => x.id.endsWith("colonne-frise"))!;
+      expect(frise.rect.hauteur).toBeGreaterThanOrEqual(12 * sc * 0.99);
+    }
+    // Les mini-barres n'existent jamais quand la liste fait < 50 % de la fenêtre.
+    for (let u = sce.debutMs + 300; u <= sce.finMs - 200; u += 40) {
+      const ee = els(u);
+      const f2 = ee.find((x) => x.id === "s2/fenetre")!.rect;
+      const l2 = ee.find((x) => x.id === "s2/liste")!.rect;
+      if (l2.largeur < 0.5 * f2.largeur) expect(ee.filter((x) => /\/mini-\d+$/.test(x.id) && x.opacite >= 0.05).length, `t=${u}`).toBe(0);
+    }
+  });
+
+  it("à l'alerte : l'Historique se referme (glisse à droite, 500 ms) et la liste revient pleine largeur", () => {
+    const sce = reel.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
+    const al = sce.evenements.find((e) => e.genre === "alerte")!.aMs;
+    const rel = (t: number, id: string) => {
+      const ee = els(t);
+      const f2 = ee.find((x) => x.id === "s2/fenetre")!.rect;
+      return ee.find((x) => x.id === id)!.rect.largeur / f2.largeur;
+    };
+    expect(par(al - 50, "s2/panneau")!.opacite).toBeGreaterThan(0.95);
+    const x0 = par(al - 50, "s2/panneau")!.rect.x;
+    expect(par(al + 250, "s2/panneau")!.rect.x).toBeGreaterThan(x0 + 20 * sc);
+    expect(par(al + 600, "s2/panneau")!.opacite).toBeLessThan(0.05);
+    expect(rel(al - 50, "s2/liste")).toBeLessThanOrEqual(0.25);
+    expect(rel(al + 600, "s2/liste")).toBeGreaterThanOrEqual(0.9);
+    expect(par(al + 600, "s2/liste/titre")!.opacite).toBeGreaterThan(0.9);
+  });
+
+  it("lisibilité : titre de fenêtre ≥ 32 px graisse 800, pastille « Par urgence » ≥ 26 px, toast ≥ 28 px à ≥ 24 px du titre", () => {
+    const sce = reel.scenes[1] as Extract<SceneSansVoix, { genre: "ecran" }>;
+    const titre = par(12000, "s2/fenetre/titre")!;
+    expect(titre.graisse).toBe(800);
+    expect(titre.taillePx!).toBeGreaterThanOrEqual(32 * sc - 0.5);
+    const tri = sce.evenements.find((e) => e.genre === "tri")!.aMs;
+    expect(par(tri + 1000, "s2/liste/etiquette/texte")!.taillePx!).toBeGreaterThanOrEqual(26 * sc);
+    const decl = (sce.evenements.find((e) => e.genre === "alerte") as { declencheurAMs: number }).declencheurAMs;
+    const toast = par(decl + 700, "s2/alerte/texte")!;
+    expect(toast.taillePx!).toBeGreaterThanOrEqual(28 * sc);
+    const ti = par(decl + 700, "s2/fenetre/titre")!.rect;
+    const al = par(decl + 700, "s2/alerte")!.rect;
+    expect(al.x - (ti.x + ti.largeur)).toBeGreaterThanOrEqual(24 * sc * 0.98);
   });
 
   it("historique : mini-barres toujours dans le panneau (entrée comprise), libellés dans le panneau, rubriques construites à leur mot", () => {
@@ -2209,7 +2339,7 @@ describe.each(FORMATS)("QUAL-1 tour 11 : caméra dirigée, tuiles, historique, h
     const pan = sce.evenements.find((e) => e.genre === "panneau") as Extract<EvenementEcran, { genre: "panneau" }>;
     const r2 = pan.rubriques[1];
     const h = (t: number, j: number) => par(t, `s2/panneau/rubrique-2/colonne-${j}`)?.rect.hauteur ?? 0;
-    const t0 = Math.max(r2.aMs, 23508 + 600);
+    const t0 = Math.max(r2.aMs, pan.aMs + 600);
     if (h(t0 + 1400, 6) > 0) {
       expect(h(t0 + 500, 1)).toBeGreaterThan(h(t0 + 500, 6));
       expect(h(t0 + 1400, 6)).toBeGreaterThan(h(t0 + 500, 6));

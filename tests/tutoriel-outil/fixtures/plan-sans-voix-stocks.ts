@@ -3,6 +3,7 @@
  * QUAL-3 (dessin) et QUAL-5 (chaîne). Tous les textes sont des suites contiguës du script, la phrase titre ou le libellé
  * de fin ; aucun chiffre.
  */
+import T11 from "./plan-sans-voix-t11.json";
 import type { PlanComposeSansVoix } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
 
 export const SCRIPT_STOCKS =
@@ -260,4 +261,9 @@ const REEL_BRUT = {
 } as unknown as PlanComposeSansVoix;
 
 /** Mêmes scènes, identifiants normalisés en s1..s4 (comme la fixture à la main). */
-export const PLAN_SANS_VOIX_REEL: PlanComposeSansVoix = { ...REEL_BRUT, scenes: REEL_BRUT.scenes.map((sc, i) => ({ ...sc, id: `s${i + 1}` })) };
+/** Ancien plan réel (tour 10) : alerte sans déclencheur distinct. */
+export const PLAN_SANS_VOIX_REEL_ANCIEN: PlanComposeSansVoix = { ...REEL_BRUT, scenes: REEL_BRUT.scenes.map((sc, i) => ({ ...sc, id: `s${i + 1}` })) };
+
+/** PLAN RÉEL du tour 11 (alerte à 28 928 ms, déclencheur à 32 085 ms, cartes citées à 11 289 / 13 292 / 15 680 ms), identifiants normalisés en s1..s4. */
+const REEL_T11 = T11 as unknown as PlanComposeSansVoix;
+export const PLAN_SANS_VOIX_REEL: PlanComposeSansVoix = { ...REEL_T11, scenes: REEL_T11.scenes.map((sc, i) => ({ ...sc, id: `s${i + 1}` })) };
