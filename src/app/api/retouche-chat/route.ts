@@ -77,6 +77,11 @@ export async function POST(requete: NextRequest) {
     if (c.action === "apercu") return NextResponse.json(await apercevoirRetoucheTutoriel(c.videoId, c.demande, ports, film));
     return NextResponse.json(await appliquerRetoucheTutoriel(c.videoId, { demande: c.demande, operations: c.operations, ...(c.reglagesFilm !== undefined ? { reglagesFilm: c.reglagesFilm } : {}) }, ports, film));
   }
+  // N-26 / D4-F3 : la démo face caméra LANCE sa retouche, seulement gratuite (reprise + planScenes + estimation 0) ; le chat n'écrit aucune version.
+  if (c.action === "appliquer" && c.generateur === "demo-facecam") {
+    const [{ appliquerRetoucheDemo }, { lancerRetoucheDemo }, { depsLancerDemoStudio }] = await Promise.all([import("@/services/retouche-chat/appliquer-demo"), import("@/services/retouche-chat/lancer-demo"), import("@/services/retouche-chat/deps-demo-studio")]);
+    return NextResponse.json(await appliquerRetoucheDemo(c.videoId, { demande: c.demande, operations: c.operations }, ports, (d) => lancerRetoucheDemo(d, depsLancerDemoStudio(d.videoId, d.versionId))));
+  }
   if (c.action === "apercu") return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, ports));
   if (c.action === "appliquer") return NextResponse.json(await appliquerRetouche(c.videoId, { demande: c.demande, operations: c.operations }, ports));
   if (c.action === "retablir" && cible !== null) {

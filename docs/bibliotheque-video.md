@@ -83,7 +83,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `son.pose` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `etalonnage.lut` | prevu | E2 (G2-02, G2-03) |  | générique : lit ses alias par format |
 | `texte.marques-au-mot` | eteint | 11 |  | branchée, porte éteinte |
-| `texte.selectif` | prevu | 11 |  | porte éteinte, calque sans importeur |
+| `texte.selectif` | eteint | 11 |  | branchée (porte texte.selectif), éteinte |
 | `texte.mode-carte` | prevu | 11 |  | porte éteinte |
 | `texte.effets` | prevu | 11 |  | livrée, non branchée |
 | `texte.accents-role` | prevu | 11 |  | porte éteinte, rien ne l'importe |

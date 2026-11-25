@@ -78,7 +78,7 @@ const HORS_OBJET_MASTER = [
   "etalonnage.lut|prevu",
   // CATALOGUE-C10-C11-v21p
   "texte.marques-au-mot|eteint",
-  "texte.selectif|prevu",
+  "texte.selectif|eteint",
   "texte.mode-carte|prevu",
   "texte.effets|prevu",
   "texte.accents-role|prevu",
