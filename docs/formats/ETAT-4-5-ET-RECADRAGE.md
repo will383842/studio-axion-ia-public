@@ -19,6 +19,7 @@ Tests déjà présents (cités, non dupliqués) :
 
 | Générateur | Déclaration | Chemin et ligne |
 |---|---|---|
+| gabarit (modèle, non inscrit) | `ratios: ["9:16"]` | src/formats/_gabarit/index.ts:39 |
 | avocat | `ratios: ["9:16", "4:5", "1:1"]` | src/formats/avocat/index.ts:133 |
 | cas concret | `ratios: ["9:16"]` | src/formats/cas-concret/index.ts:112 |
 | démo face caméra | `ratios: ["9:16"]` | src/formats/demo-facecam/index.ts:30 |
@@ -27,7 +28,9 @@ Tests déjà présents (cités, non dupliqués) :
 | image vidéo | `ratios: ["9:16"]` | src/formats/image-video/index.ts:61 |
 | podcast | `ratios: ["16:9", "9:16"]` | src/formats/podcast/index.ts:27 |
 | tableau animé | `ratios: ["9:16"]` | src/formats/tableau-anime/index.ts:62 |
+| tableau de bord | `ratios: ["4:5", "9:16", "1:1", "16:9"]` | src/formats/tableau-de-bord/index.ts:29 |
 | tutoriel outil | `ratios: ["4:5", "9:16", "1:1"]` | src/formats/tutoriel-outil/index.ts:31 |
+| vidéo longue | `ratios: ["16:9"]` | src/formats/video-longue/index.ts:30 |
 
 Remarque : le face caméra déclare le 9:16 seul dans son générateur, mais ses déclinaisons 4:5, 1:1 et 16:9 passent par la brique `formats-facecam` et `entrees.facecamFormats`, pas par cette déclaration.
 
