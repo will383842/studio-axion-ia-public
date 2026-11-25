@@ -61,8 +61,13 @@ function rendreToile(b: BlocToile, t: number, avecVariete = true): string {
  * Caméra (17/10, bloc entier sur son mot) : seule la toile b06 de la carte F change (la caméra ne quitte plus n09
  * avant son mot : n08 surgit 0,31 s et n10 0,17 s après leur mot, décalage existant ≤ 0,6 s ; trajectoire et bruitage
  * de caméra suivent).
+ * MAJ 25/11 (FIX-ROUGES-APPARITION-v21t, voulue, à relire) : l'ancienne valeur 09542bc8… n'a jamais été reproductible (même sur 55d99567, la
+ * version du 23/10, on reçoit 2332d320…) ; remplacée par la valeur calculée sur master, identique sur deux `npm ci` à froid. Changements voulus
+ * depuis le 23/10 : 2ba329dd #30 tempo de la voix ; 5b4efdf3 #42 4:5 (empreintes 9:16 recalculées) ; 4b27b662 #120 blocs déjà vus ;
+ * 34a4203d #130 jamais un bloc coupé ; 083d531e #241 charte Manrope ; 4e9445f7 #280 correctif de charte (tableau : journal/FIX-ROUGES-APPARITION-v21t.md).
+ * L'invariant testé reste : sans variété et APP-A + MAT-A donnent la MÊME empreinte.
  */
-const EMPREINTE_TOILE_REFERENCE = "09542bc8cbf0158882df2a00343389dbc0aab6690c8b609cbc89522f86bfb2ab";
+const EMPREINTE_TOILE_REFERENCE = "3ffc05c694f575d36a4165323f81026e93cf90220a807f66a756dfbf03845e93";
 
 function empreinteToiles(variete?: RecetteVarieteIV): string {
   const h = createHash("sha256");
