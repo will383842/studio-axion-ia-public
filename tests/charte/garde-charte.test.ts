@@ -123,6 +123,20 @@ describe("garde charte Axion 2026", () => {
     expect(readdirSync(tmp)).toHaveLength(noms.length);
     expect(lireRestantes(tmp)).toEqual(lireRestantes(tmp));
     expect(premier in lireRestantes(tmp)).toBe(false);
+    // Une clé dont TOUTES les entrées partent : son fichier reste, vide, `{}\n` (jamais supprimé).
+    const sansRacine = Object.fromEntries(Object.entries(origine).filter(([f]) => cleDossier(f) !== "racine"));
+    expect(Object.keys(sansRacine).length).toBeLessThan(Object.keys(origine).length);
+    ecrireRestantes(tmp, sansRacine);
+    expect(readFileSync(join(tmp, "racine.json"), "utf8")).toBe("{}\n");
+    expect(readdirSync(tmp)).toHaveLength(noms.length);
+  });
+
+  it("(f) une clé en double entre deux fichiers : erreur", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "doubles-"));
+    writeFileSync(join(tmp, "a.json"), '{ "x.ts": 1 }\n');
+    writeFileSync(join(tmp, "b.json"), '{ "x.ts": 2 }\n');
+    expect(() => lireRestantes(tmp)).toThrow(/deux fichiers/);
+    expect(() => lirePolicesRestantes(tmp)).toThrow(/deux fichiers/);
   });
 
   it("(e) polices restantes : un fichier par source", () => {
