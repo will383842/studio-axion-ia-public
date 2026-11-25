@@ -61,6 +61,47 @@ export type CleEtapeTutoriel = (typeof ETAPES_TUTORIEL)[number];
 /** Nouvelles demandes au rendu après un échec passager, avant de rendre l'étape en échec (réessayable). */
 export const ESSAIS_RENDU_TUTORIEL = 3;
 
+/**
+ * Nombre de pas CONSÉCUTIFS où la lecture de l'état d'un rendu déjà soumis peut rester sans réponse (coupure réseau, service
+ * qui se fige à la fin d'un rendu long) avant d'échouer comme avant. Une lecture réussie remet le compte à zéro. À une
+ * relecture par seconde environ, 120 pas laissent environ deux minutes au service pour revenir ; le « Réessayer » relit ensuite
+ * l'ancienne demande avant d'en soumettre une neuve (T-EXT-45b).
+ */
+export const ATTENTES_RESEAU_MAX = 120;
+
+type SuiviLu = { e?: Awaited<ReturnType<typeof suivreRendu>>; panne?: ErreurRendu };
+
+/**
+ * Suit une demande DÉJÀ soumise. Une `ErreurRendu` réessayable levée par la LECTURE de l'état (pas par une soumission) n'est
+ * pas un échec : `panne` est rendue, l'appelant garde l'état tel quel et relira au pas suivant. Jamais de nouvel identifiant.
+ */
+async function suivreSansEchec(service: ServiceRendu, demande: DemandeRendu): Promise<SuiviLu> {
+  let panne: ErreurRendu | undefined;
+  const lecteur: ServiceRendu = {
+    soumettre: (d) => service.soumettre(d),
+    async etat(id) {
+      try {
+        return await service.etat(id);
+      } catch (err) {
+        if (err instanceof ErreurRendu && err.reessayable) {
+          panne = err;
+          return { statut: "en_cours", progression: 0 };
+        }
+        throw err;
+      }
+    },
+  };
+  const e = await suivreRendu(lecteur, demande);
+  return panne ? { panne } : { e };
+}
+
+/** Compte d'attente suivant ; au-delà de la borne, la panne est levée telle quelle (échec réessayable, comme avant). */
+function attenteSuivante(avant: number | undefined, panne: ErreurRendu): number {
+  const n = (avant ?? 0) + 1;
+  if (n > ATTENTES_RESEAU_MAX) throw panne;
+  return n;
+}
+
 /* ------------------------------------------------------------------ */
 /* Outils injectés (services réels, ou doubles des tests)               */
 /* ------------------------------------------------------------------ */
@@ -165,6 +206,8 @@ export interface FinitionTutoriel<R> {
   demande?: DemandeRendu;
   essai: number;
   resultat?: R | "echec";
+  /** Pas consécutifs sans réponse du suivi (coupure réseau) ; remis à zéro dès qu'une lecture réussit. */
+  attentesReseau?: number;
 }
 
 export interface RenduTutoriel {
@@ -180,6 +223,8 @@ export interface RenduTutoriel {
   aSoumettre?: true;
   /** T-EXT-45b : la demande est déjà inscrite dans l'état mais pas encore soumise ; le pas suivant la soumet SOUS CE MÊME identifiant (idempotent chez `studio-rendu`). */
   aEnvoyer?: true;
+  /** Pas consécutifs où le suivi n'a pas eu de réponse (coupure réseau) : on relit au pas suivant ; remis à zéro dès qu'une lecture réussit. */
+  attentesReseau?: number;
   /** T-EXT-31 : son mesuré du mp4 rendu. */
   mesure?: FinitionTutoriel<MesureSon>;
   /** T-EXT-31 : vignette produite (clé du .jpg). */
@@ -195,6 +240,8 @@ export interface SonMixeTutoriel {
   essai: number;
   fini: boolean;
   echec?: boolean;
+  /** Pas consécutifs sans réponse du suivi du mixage (coupure réseau) ; remis à zéro dès qu'une lecture réussit. */
+  attentesReseau?: number;
 }
 
 /** T-EXT-52b : le fichier rendu d'un format, gardé pour être repris par la version suivante (jamais recopié sous une autre clé). */
@@ -736,22 +783,29 @@ async function pasRenduRecollage(etat: EtatTutoriel, ratio: Ratio, courant: Rend
   const ch = choixPlages(etat, ratio, commande, outils);
   if (!ch) return entier();
   // « Réessayer » (`aSoumettre`) : on suit TOUJOURS les plages / le recollage d'avant ; le rendu entier n'est soumis que s'ils sont en échec.
-  const { aSoumettre: _s, ...sansReprise } = courant;
+  const { aSoumettre: _s, attentesReseau: _r, ...sansReprise } = courant;
   void _s;
+  void _r;
   if (courant.aEnvoyer) {
     const demandes = await Promise.all(ch.plages.map((p, i) => demandePlage(etat, ratio, i, p, commande, outils, travailId)));
-    const suivis = await Promise.all(demandes.map((d) => suivreRendu(service, d)));
+    const lus = await Promise.all(demandes.map((d) => suivreSansEchec(service, d)));
+    const panneLue = lus.find((l) => l.panne)?.panne;
+    // Coupure réseau pendant le suivi : on relit au pas suivant (jamais un rendu de repli ni un nouvel identifiant).
+    if (panneLue) return remplacer({ ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, panneLue) });
+    const suivis = lus.map((l) => l.e!);
     if (suivis.some((e) => e.statut === "echec")) return entier();
-    if (suivis.some((e) => e.statut !== "termine")) return courant.aSoumettre ? remplacer(sansReprise) : etat;
+    if (suivis.some((e) => e.statut !== "termine")) return courant.aSoumettre ? remplacer(sansReprise) : remplacer({ ...sansAttente(courant) });
     const demande = await demandeRecollage(etat, ratio, ch, outils, travailId, true);
     await service.soumettre(demande);
     const { aEnvoyer: _e, ...envoye } = sansReprise;
     void _e;
     return remplacer({ ...envoye, demande });
   }
-  const e = await suivreRendu(service, courant.demande);
+  const lu = await suivreSansEchec(service, courant.demande);
+  if (lu.panne) return remplacer({ ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, lu.panne) });
+  const e = lu.e!;
   if (e.statut === "echec") return entier();
-  if (e.statut !== "termine") return courant.aSoumettre ? remplacer(sansReprise) : etat;
+  if (e.statut !== "termine") return courant.aSoumettre ? remplacer(sansReprise) : remplacer(sansAttente(courant));
   const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : ch.total / 25;
   // La demande gardée prend la forme d'un rendu entier (jamais soumise) : le regard et les dimensions du résultat la lisent.
   const forme = await demandeRendu(etat, ratio, 0, commande, outils, travailId);
@@ -791,7 +845,11 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
   const serie = courant.serie ? { serie: courant.serie } : {};
   // T-EXT-45b : « Réessayer » a pu remettre à zéro un rendu qui tourne encore (ou est déjà fini) chez `studio-rendu` : on suit TOUJOURS
   // l'ancienne demande avant d'en soumettre une neuve. Une demande neuve (identifiant neuf) n'est soumise que si l'ancienne est en échec.
-  const e = courant.demande ? await suivreRendu(service, courant.demande) : undefined;
+  const lu = courant.demande ? await suivreSansEchec(service, courant.demande) : undefined;
+  // Coupure réseau pendant le suivi d'une demande déjà soumise : l'état est rendu tel quel, on relira au pas suivant (borne : `ATTENTES_RESEAU_MAX`).
+  if (lu?.panne) return remplacer({ ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, lu.panne) });
+  if (courant.attentesReseau) etat = remplacer(sansAttente(courant));
+  const e = lu?.e;
   if (courant.aSoumettre && (!e || e.statut === "echec")) {
     // La demande neuve est inscrite dans l'état AVANT d'être payée ; le pas suivant la soumet (verdict Opus c23c27a4).
     const demande = await demandeRendu(etat, ratio, courant.essai, commande, outils, travailId, courant.serie);
@@ -805,12 +863,20 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
     return remplacer({ ratio, demande, essai, ...serie, aEnvoyer: true });
   }
   // L'ancienne demande est en file, en cours ou finie : on la garde (plus de « à soumettre »), rien n'est payé deux fois.
-  const { aSoumettre: _a, ...suivi } = courant;
+  const { aSoumettre: _a, attentesReseau: _b, ...suivi } = courant;
   void _a;
+  void _b;
   if (e.statut !== "termine") return courant.aSoumettre ? remplacer(suivi) : etat;
   const dureeAttendue = (etat.plan!.plan.dureeMs + finRetenue(etat, commande, outils).finMs) / 1000;
   const dureeSec = typeof e.mesures?.dureeSec === "number" ? e.mesures.dureeSec : dureeAttendue;
   return remplacer({ ...suivi, sortie: { fichierCle: e.sortieCle, dureeSec, taille: typeof e.mesures?.taille === "number" ? e.mesures.taille : 0 } });
+}
+
+/** Le rendu sans son compte d'attente réseau (une lecture vient de réussir). */
+function sansAttente(r: RenduTutoriel): RenduTutoriel {
+  const { attentesReseau: _n, ...reste } = r;
+  void _n;
+  return reste;
 }
 
 type SuiteFinition<R> = { f: FinitionTutoriel<R>; fini: boolean };
@@ -818,11 +884,22 @@ type SuiteFinition<R> = { f: FinitionTutoriel<R>; fini: boolean };
 /** Suit une finition : après un échec passager, une nouvelle demande (au plus `ESSAIS_RENDU_TUTORIEL`) ; sinon échec définitif, jamais une erreur. */
 async function suivreFinition<R>(service: ServiceRendu, f: FinitionTutoriel<R>, refaire: (essai: number) => Promise<DemandeRendu>, lire: (e: Extract<Awaited<ReturnType<typeof suivreRendu>>, { statut: "termine" }>) => R | null): Promise<SuiteFinition<R>> {
   if (f.resultat !== undefined) return { f, fini: true };
-  let e;
+  let lu: SuiviLu;
   try {
-    e = await suivreRendu(service, f.demande!);
+    lu = await suivreSansEchec(service, f.demande!);
   } catch {
     return { f: { ...f, resultat: "echec" }, fini: true };
+  }
+  if (lu.panne) {
+    // Coupure réseau : on relit au pas suivant ; au-delà de la borne, l'échec définitif d'avant (la vidéo est livrée).
+    if ((f.attentesReseau ?? 0) + 1 > ATTENTES_RESEAU_MAX) return { f: { ...f, resultat: "echec" }, fini: true };
+    return { f: { ...f, attentesReseau: (f.attentesReseau ?? 0) + 1 }, fini: false };
+  }
+  const e = lu.e!;
+  if (f.attentesReseau) {
+    const { attentesReseau: _n, ...net } = f;
+    void _n;
+    f = net;
   }
   if (e.statut === "echec") {
     const essai = f.essai + 1;
@@ -904,13 +981,22 @@ async function pasMixage(etat: EtatTutoriel, commande: CommandeFabrication, outi
     return { etat: { ...etat, reserves, sonMixe: { fichierCle: c?.fichierCle ?? voix, ...(c?.demande ? { demande: c.demande } : {}), essai: c?.essai ?? 0, fini: true, echec: true } }, fini: true };
   };
   try {
-    const courant = etat.sonMixe;
+    let courant = etat.sonMixe;
     if (!courant) {
       const demande = await demander(0);
       await service.soumettre(demande);
       return { etat: { ...etat, sonMixe: { fichierCle: demande.sortie.cle, demande, essai: 0, fini: false } }, fini: false };
     }
-    const e = await suivreRendu(service, courant.demande!);
+    const lu = await suivreSansEchec(service, courant.demande!);
+    // Coupure réseau : on relit au pas suivant ; au-delà de la borne, `attenteSuivante` lève et la voix brute est gardée (abandon, comme avant).
+    if (lu.panne) return { etat: { ...etat, sonMixe: { ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, lu.panne) } }, fini: false };
+    const e = lu.e!;
+    if (courant.attentesReseau) {
+      const { attentesReseau: _n, ...net } = courant;
+      void _n;
+      courant = net;
+      etat = { ...etat, sonMixe: courant };
+    }
     if (e.statut === "echec") {
       const essai = courant.essai + 1;
       if (!e.erreur.reessayable || essai >= ESSAIS_RENDU_TUTORIEL) return abandon();

@@ -12,6 +12,12 @@ import { refusRenduSansCle } from "@/lib/demarrage";
 
 export const DELAI_RENDU_MS = 30_000;
 
+/**
+ * Attentes (ms) avant chaque nouvelle tentative d'une LECTURE d'état qui n'a pas eu de réponse (connexion coupée,
+ * refusée, délai dépassé). Sans effet de bord côté serveur : on peut relire sans risque. Les soumissions n'en ont pas.
+ */
+export const ATTENTES_LECTURE_MS: readonly number[] = [1_000, 3_000];
+
 export class ErreurRendu extends Error {
   constructor(public readonly erreur: ErreurFournisseur) {
     super(erreur.message);
@@ -22,18 +28,32 @@ export class ErreurRendu extends Error {
   }
 }
 
-export function creerServiceRenduHttp(adresse: string, options: { fetch?: typeof fetch; cle?: string } = {}): ServiceRendu {
+export function creerServiceRenduHttp(adresse: string, options: { fetch?: typeof fetch; cle?: string; attentesLectureMs?: readonly number[]; attendre?: (ms: number) => Promise<void> } = {}): ServiceRendu {
   const base = adresse.replace(/\/+$/, "");
   const appeler = options.fetch ?? fetch;
   const entetes: Record<string, string> = { "content-type": "application/json" };
   if (options.cle) entetes["x-studio-rendu-cle"] = options.cle;
 
-  async function requete(chemin: string, init: RequestInit = {}): Promise<Response> {
-    try {
-      return await appeler(`${base}${chemin}`, { ...init, headers: { ...entetes, ...(init.headers as Record<string, string> | undefined) }, signal: AbortSignal.timeout(DELAI_RENDU_MS) });
-    } catch (e) {
-      console.warn(`[rendu] ${chemin} : pas de réponse (${(e as Error).message})`);
-      throw new ErreurRendu({ code: "indisponible", reessayable: true, message: "Le service de rendu ne répond pas." });
+  const attendre = options.attendre ?? ((ms: number) => new Promise<void>((fin) => setTimeout(fin, ms)));
+  const attentes = options.attentesLectureMs ?? ATTENTES_LECTURE_MS;
+
+  /** Cause lisible d'une erreur réseau (`ECONNRESET`…), jamais une adresse. */
+  const cause = (e: unknown): string => {
+    const c = (e as { cause?: { code?: unknown } } | undefined)?.cause?.code;
+    return typeof c === "string" ? c : (e as Error)?.name === "TimeoutError" ? "delai" : "inconnue";
+  };
+
+  /** `relire` : lecture d'état (GET, sans effet) ; une ou deux nouvelles tentatives courtes avant de lever. */
+  async function requete(chemin: string, init: RequestInit = {}, relire = false): Promise<Response> {
+    for (let tentative = 0; ; tentative++) {
+      try {
+        return await appeler(`${base}${chemin}`, { ...init, headers: { ...entetes, ...(init.headers as Record<string, string> | undefined) }, signal: AbortSignal.timeout(DELAI_RENDU_MS) });
+      } catch (e) {
+        const reste = relire && tentative < attentes.length;
+        console.warn(`[rendu] ${chemin} : pas de réponse (cause : ${cause(e)})${reste ? ", nouvelle lecture" : ""}`);
+        if (!reste) throw new ErreurRendu({ code: "indisponible", reessayable: true, message: "Le service de rendu ne répond pas." });
+        await attendre(attentes[tentative]!);
+      }
     }
   }
 
@@ -42,12 +62,18 @@ export function creerServiceRenduHttp(adresse: string, options: { fetch?: typeof
       const r = await requete("/rendus", { method: "POST", body: JSON.stringify(demande) });
       if (!r.ok) console.warn(`[rendu] envoi d'un rendu : réponse ${r.status}`);
       if (r.status >= 500 || r.status === 429) throw new ErreurRendu({ code: "indisponible", reessayable: true, message: "Le service de rendu est momentanément indisponible." });
+      if (r.status === 409) {
+        // Même identifiant, demande différente : rien n'a été rendu pour cette demande, la vidéo doit être relancée.
+        const detail = await r.json().then((c: { erreur?: unknown }) => (typeof c?.erreur === "string" ? c.erreur : ""), () => "");
+        const lisible = detail && !/https?:\/\//i.test(detail) ? ` (${detail})` : "";
+        throw new ErreurRendu({ code: "refuse", reessayable: false, message: `Le service de rendu a déjà un rendu différent sous cet identifiant : la vidéo doit être relancée.${lisible}` });
+      }
       if (!r.ok) throw new ErreurRendu({ code: "refuse", reessayable: false, message: "Le service de rendu a refusé la demande." });
       const corps = (await r.json()) as { idRendu?: string };
       return { idRendu: corps.idRendu ?? demande.idRendu };
     },
     async etat(idRendu) {
-      const r = await requete(`/rendus/${encodeURIComponent(idRendu)}`);
+      const r = await requete(`/rendus/${encodeURIComponent(idRendu)}`, {}, true);
       if (r.status === 404) return { statut: "inconnu" };
       if (!r.ok) {
         console.warn(`[rendu] état d'un rendu : réponse ${r.status}`);
