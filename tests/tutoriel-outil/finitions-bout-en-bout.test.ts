@@ -120,7 +120,8 @@ describe("tutoriel d'outil : finitions (T-EXT-31)", () => {
     expect(rq.verifie.son).toBe(false);
     const a = rq.alertes.find((x) => x.message.includes("niveau mesuré"));
     expect(a?.gravite).toBe("attention");
-    expect(rq.note).toBe(90);
+    // QUAL-4 : sans contrôle de composition passé (−8) et avec les remarques de plan en « attention », la note est plus basse qu'avant (90).
+    expect(rq.note).toBeLessThan(90);
     expect(resultat.noteQualite.globale).toBeLessThan(100);
   });
 
@@ -152,8 +153,9 @@ describe("tutoriel d'outil : finitions (T-EXT-31)", () => {
     const rq = resultat.sorties[0].rapportQualite;
     expect(rq.verifie.son).toBe(false);
     expect(rq.alertes.find((a) => a.message.includes("sans voix"))?.gravite).toBe("info");
-    expect(rq.alertes.filter((a) => a.gravite === "attention")).toEqual([]);
-    expect(rq.note).toBe(100);
+    // QUAL-4 : seules les remarques de plan (« Plan · … ») sont « attention » ; jamais 100 sans contrôle de composition passé.
+    expect(rq.alertes.filter((a) => a.gravite === "attention").every((a) => a.message.startsWith("Plan · "))).toBe(true);
+    expect(rq.note).toBeLessThanOrEqual(92);
   });
 
   it("7b. vidéo muette : même note allumé et éteint", async () => {
