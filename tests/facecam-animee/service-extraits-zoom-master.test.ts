@@ -52,7 +52,9 @@ describe("FA-SERVICE-INV-v20h : 3 réglages éteints", () => {
     for (const valeur of [undefined, "true", 1, false, null]) {
       reglages(valeur === undefined ? {} : { [CLES.extraitsMaison]: valeur, [CLES.zoomGratuit]: valeur, [CLES.garderMaster]: valeur });
       const { outils, demande } = await rendre();
-      for (const k of ["extraitsMaison", "zoomGratuit", "garderMaster"]) expect(k in outils, `${String(valeur)} : ${k}`).toBe(false);
+      // ALLUMER-MASTER-G11-09-v20j : `garderMaster` absent = allumé (défaut) ; les autres valeurs restent éteintes.
+      for (const k of ["extraitsMaison", "zoomGratuit"]) expect(k in outils, `${String(valeur)} : ${k}`).toBe(false);
+      expect("garderMaster" in outils, `${String(valeur)} : garderMaster`).toBe(valeur === undefined);
       expect(Object.keys(demande.parametres).sort()).toEqual(["gardes", "mode", "plan", "vignette"]);
       expect(empreinte(demande)).toBe(EMPREINTE_DEMANDE_RENDRE);
     }
@@ -73,7 +75,8 @@ describe("FA-SERVICE-INV-v20h : 3 réglages éteints", () => {
     reglages({ [CLES.extraitsMaison]: true });
     const { outils, demande } = await rendre();
     expect(outils.extraitsMaison).toBe(true);
-    expect("zoomGratuit" in outils || "garderMaster" in outils).toBe(false);
+    expect("zoomGratuit" in outils).toBe(false);
+    expect(outils.garderMaster).toBe(true); // défaut allumé (ALLUMER-MASTER-G11-09-v20j)
     expect(empreinte(demande)).toBe(EMPREINTE_DEMANDE_RENDRE);
   });
 

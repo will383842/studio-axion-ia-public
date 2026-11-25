@@ -193,6 +193,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   let extraitsMaison = false;
   let zoomGratuit = false;
   let garderMaster = false;
+  // G11-09d : ALLUMÉ par défaut depuis ALLUMER-MASTER-G11-09-v20j (Q21, 20/11) ; `false` écrit en base l'éteint.
   try {
     extraitsMaison = (await lireParametre<unknown>(PARAM_EXTRAITS_MAISON_FA, false)) === true;
   } catch {
@@ -204,7 +205,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     zoomGratuit = false;
   }
   try {
-    garderMaster = (await lireParametre<unknown>(PARAM_GARDER_MASTER_FA, false)) === true;
+    garderMaster = (await lireParametre<unknown>(PARAM_GARDER_MASTER_FA, true)) === true;
   } catch {
     garderMaster = false;
   }
