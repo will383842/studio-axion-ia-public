@@ -7,7 +7,7 @@ import { CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES } from "../commun
  *
  * Part d'un script collé, ou d'un titre / d'une idée dont le studio écrit un script lisible et modifiable avant validation.
  * L'outil est montré en plein écran par du motion design (curseur, clics, zooms, frappe, légendes), sur la voix HeyGen
- * épinglée. Aucun visage. Une voix : le double de Williams. Lot I : le rendu est branché (`moteurs/montage-tutoriel-outil`) ; le format reste `masque`
+ * épinglée, ou sans voix. Aucun visage. Une voix : le double de Williams. Lot I : le rendu est branché (`moteurs/montage-tutoriel-outil`) ; le format reste `masque`
  * jusqu'à la décision de Williams de le passer `actif`.
  */
 export const ID_FORMAT_TUTORIEL_OUTIL = "tutoriel-outil";
@@ -19,10 +19,11 @@ export const formatTutorielOutil: DefinitionFormat = {
   nom: "Tutoriel d'outil",
   nomCourt: "Tutoriel d'outil",
   accroche: "Un outil montré à l'écran, pas à pas",
-  description: "Votre script ou une idée : le studio montre l'outil en plein écran (curseur, clics, zooms, frappe, légendes) sur une voix HeyGen. Pas de visage.",
+  description: "Votre script ou une idée : le studio montre l'outil en plein écran (curseur, clics, zooms, frappe, légendes), avec votre voix ou sans voix. Pas de visage.",
   icone: "appareils",
   adresseCreation: "/tutoriel-outil",
   statut: "masque",
+  ouvertDansLaNavigation: true,
   famille: "motion",
   codeClassement: CODE_FORMAT_TUTORIEL_OUTIL,
   declinaison: "aucune",

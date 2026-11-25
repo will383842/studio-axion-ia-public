@@ -20,7 +20,7 @@ import { PauseVitrine, RemarquesFiche } from "./RemarquesFiche";
 
 /** Ce que le formulaire envoie au serveur (même forme que `DemandeDepotTutoriel`, recopiée : pas d'import serveur ici). */
 export interface DemandeFormulaireTutoriel {
-  mode: "dossier" | "phrase";
+  mode: "dossier" | "phrase" | "script";
   fichierId?: string;
   attestationImages?: boolean;
   phrase?: string;
@@ -38,17 +38,34 @@ export interface InterrupteursFormulaire {
   formulaire: boolean;
   dossier: boolean;
   phrase: boolean;
-  /** Réglage `tutoriel.devisAvantDepense` : seul `true` exact annonce un devis (absent = éteint). */
+  /** Réglage `tutoriel.devisAvantDepense` : seul `true` exact annonce l'estimation (absent = éteint). */
   devis?: boolean;
 }
+type ModeEntree = "dossier" | "phrase" | "script";
 
-export const PHRASE_AUCUNE_ENTREE_OUVERTE = "Aucune entrée n'est ouverte pour le moment.";
-export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord le devis, puis le parcours et le script.";
-/** Même promesse quand le devis est éteint : on ne parle pas d'un devis qui n'existe pas. */
+/** Libellé et aide de la zone de script : « Mon script » la rend obligatoire ; la phrase et le dossier aussi si l'équipe est fermée. */
+export function textesScript(mode: ModeEntree, equipeOuverte: boolean): { libelle: string; aide: string } {
+  if (mode === "script") return { libelle: "Votre script", aide: `Collez-le : il fait foi. ${SCRIPT_MIN} caractères au moins.` };
+  if (equipeOuverte) return { libelle: "Script à utiliser tel quel (facultatif)", aide: "Collez-le : il fait foi. Sans script, le studio en écrit un que vous relirez avant de valider." };
+  return { libelle: "Script à utiliser tel quel (obligatoire)", aide: PHRASE_AIDE_EQUIPE_FERMEE };
+}
+
+/** Le script suffit-il pour envoyer ? « Mon script » : 40 caractères au moins ; phrase ou dossier, équipe fermée : non vide ; équipe ouverte : facultatif. */
+export function scriptSuffisant(mode: ModeEntree, equipeOuverte: boolean, script: string): boolean {
+  const n = script.trim().length;
+  if (mode === "script") return n >= SCRIPT_MIN;
+  return equipeOuverte || n > 0;
+}
+
+/** Même minimum que le dépôt serveur (`SCRIPT_COLLE_MIN`, recopié : pas d'import serveur ici). */
+export const SCRIPT_MIN = 40;
+export const PHRASE_AIDE_EQUIPE_FERMEE = "L'équipe qui écrit le script n'est pas ouverte : collez votre script.";
+export const PHRASE_RIEN_DEPENSE = "Rien n'est dépensé avant votre accord : vous verrez d'abord l'estimation, puis le parcours et le script.";
+/** Même promesse quand l'estimation est éteinte : on n'en annonce pas une qui n'existe pas. */
 export const PHRASE_RIEN_DEPENSE_SANS_DEVIS = "Le studio prépare le parcours et le script dès l'envoi ; rien n'est lu ni rendu avant que vous validiez le script.";
 /** Avec un script collé, il fait foi : pas de relecture du script ; sans devis, la vidéo part au rendu dès l'envoi. */
 export const PHRASE_RIEN_DEPENSE_SCRIPT = "Rien n'est dépensé avant votre accord : la vidéo part au rendu dès l'envoi avec votre script.";
-export const PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS = "Rien n'est dépensé avant votre accord : vous verrez d'abord le devis.";
+export const PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS = "Rien n'est dépensé avant votre accord : vous verrez d'abord l'estimation.";
 /** La phrase « Rien n'est dépensé… » juste selon le devis et la présence d'un script collé (`scriptColle` déjà nettoyé). */
 export function phraseRienDepense(devis: boolean, scriptColle: string): string {
   if (scriptColle.trim()) return devis ? PHRASE_RIEN_DEPENSE_SCRIPT_DEVIS : PHRASE_RIEN_DEPENSE_SCRIPT;
@@ -71,14 +88,21 @@ const FORMATS = ["4:5", "9:16", "1:1"] as const;
  * Écran d'entrée « Tutoriel d'outil ». ÉTEINT (aucun interrupteur donné, ou `formulaire` différent de `true`) : la vitrine
  * d'aujourd'hui, mot pour mot. ALLUMÉ : le vrai formulaire (un dossier ou une phrase, la fin, le parcours, les formats).
  */
-export function FormulaireTutorielOutil({ interrupteurs, deposer }: { interrupteurs?: InterrupteursFormulaire; deposer?: (demande: DemandeFormulaireTutoriel) => Promise<ResultatFormulaireTutoriel> } = {}) {
-  if (interrupteurs?.formulaire === true && deposer) return <FormulaireOuvert interrupteurs={interrupteurs} deposer={deposer} />;
+export function FormulaireTutorielOutil({ interrupteurs, deposer, equipeOuverte }: { interrupteurs?: InterrupteursFormulaire; deposer?: (demande: DemandeFormulaireTutoriel) => Promise<ResultatFormulaireTutoriel>; equipeOuverte?: boolean } = {}) {
+  // La page passe toujours l'état lu côté serveur (lecture en échec = `false`). Seul `false` explicite ferme : un appel qui ne dit rien garde l'écran d'avant (script facultatif), et le dépôt serveur refuse de toute façon sans script équipe fermée.
+  if (interrupteurs?.formulaire === true && deposer) return <FormulaireOuvert interrupteurs={interrupteurs} deposer={deposer} equipeOuverte={equipeOuverte !== false} />;
   return <VitrineTutorielOutil />;
 }
 
-function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: InterrupteursFormulaire; deposer: (demande: DemandeFormulaireTutoriel) => Promise<ResultatFormulaireTutoriel> }) {
-  const premier: "dossier" | "phrase" | null = interrupteurs.dossier ? "dossier" : interrupteurs.phrase ? "phrase" : null;
-  const [mode, setMode] = useState<"dossier" | "phrase" | null>(premier);
+function FormulaireOuvert({ interrupteurs, deposer, equipeOuverte }: { interrupteurs: InterrupteursFormulaire; deposer: (demande: DemandeFormulaireTutoriel) => Promise<ResultatFormulaireTutoriel>; equipeOuverte: boolean }) {
+  // « Mon script » est toujours proposé (formulaire ouvert) ; en tête si l'équipe est fermée, sinon après les entrées ouvertes.
+  const modes: { valeur: ModeEntree; libelle: string }[] = [
+    ...(interrupteurs.dossier ? [{ valeur: "dossier" as const, libelle: "Un dossier (.zip)" }] : []),
+    ...(interrupteurs.phrase ? [{ valeur: "phrase" as const, libelle: "Une phrase" }] : []),
+  ];
+  const mesModes: { valeur: ModeEntree; libelle: string }[] = equipeOuverte ? [...modes, { valeur: "script", libelle: "Mon script" }] : [{ valeur: "script", libelle: "Mon script" }, ...modes];
+  const premier: ModeEntree = mesModes[0]!.valeur;
+  const [mode, setMode] = useState<ModeEntree>(premier);
   const [envoye, setEnvoye] = useState<{ fichierId: string; nom: string; taille: number } | null>(null);
   const [progression, setProgression] = useState<number | null>(null);
   const [attestation, setAttestation] = useState(false);
@@ -93,8 +117,6 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
   const [enCours, setEnCours] = useState(false);
   const [videoId, setVideoId] = useState<string | null>(null);
   const [cible] = useState(() => `tuto-${Math.random().toString(36).slice(2, 12)}`);
-
-  if (!premier) return <PauseVitrine phrase={PHRASE_AUCUNE_ENTREE_OUVERTE} />;
 
   async function recevoir(fichiers: File[]) {
     const f = fichiers[0];
@@ -118,18 +140,21 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
     }
   }
 
-  const pret = mode === "dossier" ? envoye !== null : mode === "phrase" ? phrase.trim().length >= PHRASE_DEPOT_MIN && phrase.trim().length <= PHRASE_DEPOT_MAX : false;
+  // Équipe fermée : personne n'écrit le script, il est exigé pour la phrase et le dossier comme pour « Mon script ».
+  const scriptOk = scriptSuffisant(mode, equipeOuverte, scriptColle);
+  const entreeOk = mode === "dossier" ? envoye !== null : mode === "phrase" ? phrase.trim().length >= PHRASE_DEPOT_MIN && phrase.trim().length <= PHRASE_DEPOT_MAX : true;
+  const pret = entreeOk && scriptOk;
   const formatsOk = ratios.includes("4:5");
 
   async function envoyer() {
-    if (!mode || enCours) return;
+    if (enCours) return;
     setEnCours(true);
     setMessage(null);
     setRefus([]);
     try {
       const r = await deposer({
         mode,
-        ...(mode === "dossier" ? { fichierId: envoye?.fichierId, attestationImages: attestation } : { phrase: phrase.trim() }),
+        ...(mode === "dossier" ? { fichierId: envoye?.fichierId, attestationImages: attestation } : mode === "phrase" ? { phrase: phrase.trim() } : {}),
         fin,
         ...(gabarit ? { gabarit } : {}),
         ratios: FORMATS.filter((x) => ratios.includes(x)),
@@ -160,6 +185,8 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
     );
   }
 
+  const { libelle: libelleScript, aide: aideScript } = textesScript(mode, equipeOuverte);
+
   return (
     <form
       className="space-y-6"
@@ -172,20 +199,15 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
         <h2 id="bloc-donnez" className="text-lg font-semibold">
           Ce que vous donnez
         </h2>
-        {interrupteurs.dossier && interrupteurs.phrase && (
-          <div role="radiogroup" aria-label="Ce que vous donnez" className="flex flex-wrap gap-4">
-            <label className="flex min-h-11 items-center gap-2">
-              <input type="radio" name="mode" value="dossier" checked={mode === "dossier"} onChange={() => setMode("dossier")} />
-              Un dossier (.zip)
+        <div role="radiogroup" aria-label="Ce que vous donnez" className="flex flex-wrap gap-4">
+          {mesModes.map((m) => (
+            <label key={m.valeur} className="flex min-h-11 items-center gap-2">
+              <input type="radio" name="mode" value={m.valeur} checked={mode === m.valeur} onChange={() => setMode(m.valeur)} />
+              {m.libelle}
             </label>
-            <label className="flex min-h-11 items-center gap-2">
-              <input type="radio" name="mode" value="phrase" checked={mode === "phrase"} onChange={() => setMode("phrase")} />
-              Une phrase
-            </label>
-          </div>
-        )}
-        {interrupteurs.dossier && !interrupteurs.phrase && <p className="font-semibold">Un dossier (.zip)</p>}
-        {!interrupteurs.dossier && interrupteurs.phrase && <p className="font-semibold">Une phrase</p>}
+          ))}
+        </div>
+        {!equipeOuverte && <p className="text-sm text-texte-doux">{PHRASE_AIDE_EQUIPE_FERMEE}</p>}
         {mode === "dossier" && (
           <div className="space-y-3">
             <ZoneDepot libelle="Choisir votre dossier" detail="50 Mo au plus" accepte=".zip,application/zip" multiple={false} onFichiers={(f) => void recevoir(f)} essai={false} />
@@ -215,7 +237,7 @@ function FormulaireOuvert({ interrupteurs, deposer }: { interrupteurs: Interrupt
           ]}
         />
         {sansVoix && <p className="text-sm text-texte-doux">{AIDE_MODE_SANS_VOIX}</p>}
-        <ZoneTexte libelle="Script à utiliser tel quel (facultatif)" aide="Collez-le : il fait foi. Sans script, le studio en écrit un que vous relirez avant de valider." longueurMax={SCRIPT_COLLE_MAX} value={scriptColle} onChange={(e) => setScriptColle(e.target.value)} />
+        <ZoneTexte libelle={libelleScript} aide={aideScript} longueurMax={SCRIPT_COLLE_MAX} value={scriptColle} onChange={(e) => setScriptColle(e.target.value)} />
       </section>
 
       <section aria-labelledby="bloc-fin" className="space-y-2">
@@ -323,6 +345,9 @@ function VitrineTutorielOutil() {
         Préparer le tutoriel
       </Bouton>
       {valide && <PauseVitrine phrase="Le tutoriel d'outil n'est pas encore branché : votre demande est gardée, rien n'a échoué." />}
+      <Link href="/reglages/tutoriel-outil" className="flex min-h-11 items-center font-semibold underline underline-offset-4">
+        Ouvrir les réglages du tutoriel
+      </Link>
     </form>
   );
 }

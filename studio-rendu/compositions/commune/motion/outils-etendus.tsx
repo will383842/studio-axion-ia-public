@@ -13,7 +13,7 @@ import captureExemple from "./exemples/capture-tableau-de-bord.png";
 export function texteValeur(valeur: number, unite?: string, decimales = 0): string {
   const n = formaterNombre(valeur, decimales);
   if (!unite) return n;
-  return unite === "%" ? `${n} %` : `${n} ${unite}`;
+  return unite === "%" ? `${n} %` : `${n} ${unite}`;
 }
 
 /** Unité d'un graphique (camembert sans unité : « % »). */

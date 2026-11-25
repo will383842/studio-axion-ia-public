@@ -11,7 +11,8 @@ import type { LireReglageNoteInteret, Moment, NoteMoment, ResultatTri, SeuilsNot
 import { momentsParles, contexteDeNote } from "@/briques/archive-extraits/moments-parles";
 import { trierVideo } from "@/briques/archive-extraits/tri-video";
 import { lireEntreesDemo } from "@/moteurs/montage-demo-facecam/entrees";
-import { reporterGestes } from "@/briques/archive-extraits/inscription";
+import { reporterGestes, SEUIL_RECOUVREMENT } from "@/briques/archive-extraits/inscription";
+import { EPS } from "@/lib/tolerance";
 
 type MomentNote = Moment & NoteMoment;
 
@@ -46,8 +47,6 @@ export function plagesDepuisTri(tri: ResultatTri): PlageExtrait[] {
 }
 
 // Même appariement que `reporterGestes` : même id, ou même texte et recouvrement d'au moins 80 %.
-const SEUIL_RECOUVREMENT = 0.8;
-const EPS = 1e-9;
 
 function recouvre(a: PlageExtrait, b: PlageExtrait): boolean {
   const commun = Math.min(a.finSec, b.finSec) - Math.max(a.debutSec, b.debutSec);

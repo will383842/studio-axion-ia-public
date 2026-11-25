@@ -36,10 +36,10 @@ export function ombre(fond: FondAxion): string {
   return fond === "noir" ? "0 18px 50px rgba(20, 20, 19, 0.45)" : "0 18px 50px rgba(20, 20, 19, 0.10)";
 }
 
-/** Nombre à la française (virgule décimale, espace fine des milliers), sans `Intl` : identique partout. */
+/** Nombre à la française (virgule décimale, espace insécable U+00A0 des milliers), sans `Intl` : identique partout. */
 export function nombreFr(v: number, decimales: number): string {
   const [ent, dec] = Math.abs(v).toFixed(decimales).split(".");
-  const groupes = ent!.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const groupes = ent!.replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
   return `${v < 0 ? "−" : ""}${groupes}${dec ? `,${dec}` : ""}`;
 }
 

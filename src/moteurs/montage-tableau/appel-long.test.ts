@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { remettreEnForme } from "./decoupage";
 import type { FicheTableau } from "./fiche";
 import { mettreEnPage } from "./mise-en-page";
+import { PALETTE } from "@/briques/charte/axion-2026";
 
 const brute = JSON.parse(readFileSync(join(process.cwd(), "tests", "tableau", "temoins", "fiche-temoin-v-667edcd8e3a8-reference-3.json"), "utf8")) as FicheTableau;
 const temoin = remettreEnForme(brute, { motsDouleur: ["mails", "temps"] });
@@ -23,8 +24,8 @@ function avecAppel(demande: string): FicheTableau {
   return { ...temoin, styleTableau: "tableau-blanc", scenes } as FicheTableau;
 }
 
-/** Couleur du bouton d'appel (`fondBouton` des trois styles). */
-const FOND_BOUTON = "#B44F29";
+/** Couleur du bouton d'appel (`fondBouton` des trois styles = terracotta de la charte 2026). */
+const FOND_BOUTON = PALETTE.terracotta;
 
 const derniere = (f: FicheTableau) => mettreEnPage(f, {}).pages.at(-1)!;
 

@@ -37,7 +37,7 @@ function Volume({ c, lb, D, base, tailleValeur, tailleLegende }: { c: Colonne; l
         <div style={{ position: "absolute", left: 0, top: base - c.h - D / 2, width: lb, height: D, background: dessus, transform: "rotateX(90deg)", filter: "brightness(1.15)" }} />
       </FlouFort>
       {/* Valeur au-dessus de la colonne, dans le plan de la face avant. */}
-      <div style={{ position: "absolute", left: -lb * 0.4, width: lb * 1.8, top: base - c.h - tailleValeur * 1.22, textAlign: "center", transform: `translateZ(${(D / 2).toFixed(1)}px)`, fontWeight: 900, fontSize: tailleValeur, letterSpacing: "-0.04em", lineHeight: 1, color: c.orange ? COULEURS.orangeVif : COULEURS.creme, fontVariantNumeric: "tabular-nums", textShadow: `0 ${8 * u}px ${30 * u}px ${avecOpacite(COULEURS.fondProfond, 0.8)}` }}>
+      <div style={{ position: "absolute", left: -lb * 0.4, width: lb * 1.8, top: base - c.h - tailleValeur * 1.22, textAlign: "center", transform: `translateZ(${(D / 2).toFixed(1)}px)`, fontWeight: 800, fontSize: tailleValeur, letterSpacing: "-0.04em", lineHeight: 1, color: c.orange ? COULEURS.orangeVif : COULEURS.creme, fontVariantNumeric: "tabular-nums", textShadow: `0 ${8 * u}px ${30 * u}px ${avecOpacite(COULEURS.fondProfond, 0.8)}` }}>
         {formaterNombre(c.valeur, Number.isInteger(c.val.valeur) ? 0 : 1)}
         <span style={{ fontSize: "0.5em", marginLeft: "0.1em", color: c.orange ? COULEURS.orangeVif : COULEURS.cremeAttenuee }}>{c.val.unite}</span>
       </div>
@@ -99,7 +99,7 @@ function Contenu({ d }: { d: DonneesAvantApres }) {
     <>
       {d.titre && (
         <div style={{ position: "absolute", left: z.x, width: z.largeur, top: z.y }}>
-          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tailleTitre} graisse={900} alignement="center" largeurMax={z.largeur} effet="ecrase" />
+          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tailleTitre} graisse={800} alignement="center" largeurMax={z.largeur} effet="ecrase" />
         </div>
       )}
       {/* Scène 3D : sol lumineux et deux volumes. */}
@@ -116,7 +116,7 @@ function Contenu({ d }: { d: DonneesAvantApres }) {
       {ecart && t >= tEcart && (
         <div style={{ position: "absolute", left: largeur / 2, top: yPastille, transform: `translate(-50%, -50%) scale(${(mP * (1 + 0.22 * rP)).toFixed(4)}, ${(mP * (1 - 0.22 * rP)).toFixed(4)}) rotate(${((1 - pastille) * -12).toFixed(2)}deg)`, opacity: borne((t - tEcart) / 0.1) }}>
           <FlouFort dy={(1 - pastille) * 30 * u}>
-            <div style={{ position: "relative", padding: `${14 * u}px ${34 * u}px`, borderRadius: 999, background: `linear-gradient(180deg, ${COULEURS.surfaceHaute}, ${COULEURS.fond})`, boxShadow: `0 0 0 ${3 * u}px ${COULEURS.orangeVif}, 0 ${16 * u}px ${50 * u}px ${avecOpacite(COULEURS.fondProfond, 0.7)}, 0 0 ${60 * u}px ${avecOpacite(COULEURS.orangeVif, 0.5)}`, fontSize: taille("corps") * 1.2, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden" }}>
+            <div style={{ position: "relative", padding: `${14 * u}px ${34 * u}px`, borderRadius: 999, background: `linear-gradient(180deg, ${COULEURS.surfaceHaute}, ${COULEURS.fond})`, boxShadow: `0 0 0 ${3 * u}px ${COULEURS.orangeVif}, 0 ${16 * u}px ${50 * u}px ${avecOpacite(COULEURS.fondProfond, 0.7)}, 0 0 ${60 * u}px ${avecOpacite(COULEURS.orangeVif, 0.5)}`, fontSize: taille("corps") * 1.2, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden" }}>
               <MotCle mot={ecart} t={t} arrivee={tEcart + 0.3} balayage={tEcart + 0.55} u={u} />
             </div>
           </FlouFort>

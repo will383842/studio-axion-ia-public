@@ -1,5 +1,5 @@
 /**
- * T-EXT-36 · Panneau du tutoriel dans la console. Dépôt mémoire, aucun appel réel, 0 €. Tout éteint par défaut.
+ * T-EXT-36 · Panneau du tutoriel dans la console. Dépôt mémoire, aucun appel réel, 0 €. Éteint par défaut sauf Claude et son regard (décision 21/11 07:20).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -61,13 +61,16 @@ describe("clés partagées avec les modules créateurs", () => {
 });
 
 describe("interrupteurs", () => {
-  it("clés absentes : tout éteint ; la chaîne \"true\" : éteint", async () => {
+  it("clés absentes : éteint sauf Claude et son regard (allumés par défaut, décision 21/11 07:20) ; la chaîne \"true\" : éteint pour les autres", async () => {
+    const parDefaut = ["tutoriel.claude", "tutoriel.regardeur"];
     const m = memoire();
-    expect((await c.lireReglagesTutoriel(m.ports)).every((r) => !r.allume)).toBe(true);
+    expect((await c.lireReglagesTutoriel(m.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual(parDefaut);
     const faux = memoire(Object.fromEntries(c.REGLAGES_TUTORIEL.map((r) => [r.cle, "true"])));
-    expect((await c.lireReglagesTutoriel(faux.ports)).every((r) => !r.allume)).toBe(true);
+    expect((await c.lireReglagesTutoriel(faux.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual(parDefaut);
     const vrai = memoire({ [c.CLE_FORMULAIRE]: true });
-    expect((await c.lireReglagesTutoriel(vrai.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual([c.CLE_FORMULAIRE]);
+    expect((await c.lireReglagesTutoriel(vrai.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual([c.CLE_FORMULAIRE, ...parDefaut]);
+    const coupes = memoire({ "tutoriel.claude": false, "tutoriel.regardeur": false });
+    expect((await c.lireReglagesTutoriel(coupes.ports)).every((r) => !r.allume)).toBe(true);
   });
 
   it("refuse une clé hors liste, le plafond, un non-booléen : rien n'est écrit", async () => {
@@ -123,7 +126,7 @@ describe("interrupteurs", () => {
     expect(lire("src/formats/tutoriel-outil/index.ts")).toContain(`ID_FORMAT_TUTORIEL_OUTIL = "${c.FORMAT_TUTORIEL}"`);
     expect(c.CLE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.actif");
     expect(c.CLE_TEXTE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.texte");
-    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "tutoriel.captureAuto", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
   });
 });
 
@@ -322,11 +325,12 @@ describe("clé de la fin commune (26a)", () => {
 describe("clés ajoutées par AUD-3", () => {
   const payants = ["tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude"];
   const nouvelles = [...payants, "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil"];
-  it("les sept clés sont dans la console, éteintes par défaut", async () => {
+  it("les sept clés sont dans la console, éteintes par défaut sauf `tutoriel.regardeur` (allumée par défaut, décision 21/11 07:20)", async () => {
     const m = memoire();
     const lignes = await c.lireReglagesTutoriel(m.ports);
-    for (const k of nouvelles) expect(lignes.find((l) => l.cle === k)?.allume).toBe(false);
-    expect(lignes.some((l) => l.allume)).toBe(false);
+    for (const k of nouvelles.filter((x) => x !== "tutoriel.regardeur")) expect(lignes.find((l) => l.cle === k)?.allume).toBe(false);
+    expect(lignes.find((l) => l.cle === "tutoriel.regardeur")?.allume).toBe(true);
+    expect(lignes.filter((l) => l.allume).map((l) => l.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur"]);
   });
   it("les réglages payants annoncent la dépense, pas les autres", () => {
     for (const r of c.REGLAGES_TUTORIEL.filter((x) => nouvelles.includes(x.cle))) {
@@ -338,6 +342,38 @@ describe("clés ajoutées par AUD-3", () => {
     expect(chat?.phraseEteint).toMatch(/sous le plafond par vidéo/);
     const perf = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.performance");
     expect(perf?.phraseEteint).toMatch(/léger surcoût de l'appel du stratège, sous le plafond par vidéo/);
+  });
+  it("FIN-6 : « Écriture et relecture par Claude » annonce que Claude est payant", () => {
+    const claude = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.claude");
+    expect(claude?.phraseEteint).toContain("appels Claude payants, sous le plafond par vidéo");
+  });
+  it("FIN-6 : une phrase ou un dossier sans script citent l'« Équipe de rôles »", () => {
+    for (const k of ["tutoriel.entreePhrase", "tutoriel.entreeZip"]) {
+      expect(c.REGLAGES_TUTORIEL.find((x) => x.cle === k)?.phraseEteint).toContain("Équipe de rôles");
+    }
+  });
+  it("FIN-10 : la phrase du formulaire est vraie aujourd'hui (« Mon script » dès que le formulaire est allumé)", () => {
+    const f = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.formulaire")?.phraseEteint ?? "";
+    expect(f).toBe("Éteint : le formulaire n'est pas proposé. Allumé : vous pouvez coller votre script (« Mon script ») ; avec votre script et sans voix, rien n'est payé si Claude reste éteint. Pour envoyer un dossier ou une phrase seule, ouvrez aussi « Envoi d'un dossier » ou « Entrée par une phrase ».");
+    expect(f).not.toContain("il faut aussi");
+    expect(f).not.toContain("Allumé seul");
+  });
+  it("FIN-10 : la phrase du formulaire garde « Mon script », « sans voix » et les deux entrées", () => {
+    const f = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.formulaire")?.phraseEteint ?? "";
+    expect(f).toContain("« Mon script »");
+    expect(f).toContain("sans voix");
+    expect(f).toContain("« Envoi d'un dossier »");
+    expect(f).toContain("« Entrée par une phrase »");
+  });
+  it("FIN-6 : « Écriture et relecture par Claude » ne promet pas « sans rien payer » en général", () => {
+    const claude = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.claude")?.phraseEteint ?? "";
+    expect(claude).toContain("avec votre script et sans voix");
+    expect(claude).toContain("sans appel à Claude");
+    expect(claude).not.toMatch(/sans rien payer/);
+  });
+  it("FIN-6 : la retouche du lecteur par Claude n'a pas d'interrupteur ici", () => {
+    // tant qu'il n'est branché nulle part (P24), un bouton sans effet serait trompeur
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).not.toContain("retoucheChat.tutorielLecteurClaude");
   });
   it("le libellé périmé « (plus tard) » a disparu", () => {
     for (const r of c.REGLAGES_TUTORIEL) expect(r.libelle).not.toMatch(/plus tard/i);
@@ -447,5 +483,29 @@ describe("T-EXT-36 · liens du panneau vers des pages qui existent", () => {
     expect(panneau).toContain('href="/tutoriel-outil/scenes"');
     expect(statSync(join(process.cwd(), "src/app/(studio)/tutoriel-outil/scenes/page.tsx")).isFile()).toBe(true);
     expect(statSync(join(process.cwd(), "src/app/(studio)/tutoriel-outil/suivi/[videoId]/page.tsx")).isFile()).toBe(true);
+  });
+});
+
+describe("interrupteur « Capture automatique du film » (POSTE-5)", () => {
+  const ligne = () => c.REGLAGES_TUTORIEL.find((r) => r.cle === "tutoriel.captureAuto");
+  it("est dans la liste, avec libellé et phrase d'extinction", () => {
+    expect(ligne()?.libelle).toBe("Capture automatique du film");
+    expect(ligne()?.phraseEteint).toMatch(/^Éteint : /);
+    expect(ligne()?.phraseEteint).toContain(".zip");
+  });
+  it("sa clé est celle que lit tutoriel-capture-auto.ts", () => {
+    expect(c.CLE_CAPTURE_AUTO).toBe("tutoriel.captureAuto");
+    expect(lire("src/services/tutoriel-capture-auto.ts")).toContain(`PARAM_CAPTURE_AUTO = "${c.CLE_CAPTURE_AUTO}"`);
+  });
+  it("reste éteinte quand la clé est absente, \"true\" ou 1, et ne s'allume que sur true", async () => {
+    for (const v of [undefined, "true", 1]) {
+      const lignes = await c.lireReglagesTutoriel({ lire: (async (id: string, d: unknown) => (id === "tutoriel.captureAuto" && v !== undefined ? v : d)) as never });
+      expect(lignes.find((l) => l.cle === "tutoriel.captureAuto")?.allume).toBe(false);
+    }
+    const lignes = await c.lireReglagesTutoriel({ lire: (async (id: string, d: unknown) => (id === "tutoriel.captureAuto" ? true : d)) as never });
+    expect(lignes.find((l) => l.cle === "tutoriel.captureAuto")?.allume).toBe(true);
+  });
+  it("aucun mot de prix ni montant dans sa phrase", () => {
+    expect(`${ligne()?.libelle} ${ligne()?.phraseEteint}`).not.toMatch(/€|\$|euro|dollar|co[uû]t|prix|budget|plafond|tarif|devis|\d/i);
   });
 });

@@ -43,7 +43,7 @@ function Contenu({ d }: { d: DonneesDeuxColonnes }) {
           <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle at 40% 35%, ${avecOpacite(COULEURS.creme, 0.1)}, ${avecOpacite(COULEURS.creme, 0.03)} 70%)`, boxShadow: `inset 0 0 0 ${Math.max(4, 5 * u)}px ${avecOpacite(COULEURS.creme, 0.8)}, 0 0 ${40 * u}px ${avecOpacite(COULEURS.creme, 0.15)}, 0 ${30 * u}px ${70 * u}px ${avecOpacite(COULEURS.fondProfond, 0.6)}`, backfaceVisibility: "hidden" }} />
           <div style={{ position: "absolute", left: R + xTexte - R * 0.55, width: R * 1.1, top: R * 0.52, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 * u, textAlign: "center" }}>
             {c.icone && <IconeSpec nom={c.icone} taille={taille("titre") * 0.95} debut={debut + 0.35} />}
-            <div style={{ fontSize: Math.round(taille("corps") * 0.98), fontWeight: 900, lineHeight: 1.05, letterSpacing: "-0.02em" }}>{c.titre}</div>
+            <div style={{ fontSize: Math.round(taille("corps") * 0.98), fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.02em" }}>{c.titre}</div>
           </div>
         </FlouFort>
       </div>
@@ -72,7 +72,7 @@ function Contenu({ d }: { d: DonneesDeuxColonnes }) {
     <>
       {d.titre && (
         <div style={{ position: "absolute", left: z.x, width: z.largeur, top: y0 }}>
-          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tailleTitre} graisse={900} alignement="center" largeurMax={z.largeur} effet="ecrase" />
+          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tailleTitre} graisse={800} alignement="center" largeurMax={z.largeur} effet="ecrase" />
         </div>
       )}
       {disque("gauche")}
@@ -97,7 +97,7 @@ function Contenu({ d }: { d: DonneesDeuxColonnes }) {
       {colonnePoints("droite", tDroite)}
       <div style={{ position: "absolute", left: z.x, width: z.largeur, top: yCommun, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 * u }}>
         {d.commun.titre && t >= tCommun + 0.25 && (
-          <div style={{ fontSize: tailleLegende, fontWeight: 900, letterSpacing: "0.16em" }}>
+          <div style={{ fontSize: tailleLegende, fontWeight: 800, letterSpacing: "0.16em" }}>
             <MotCle mot={d.commun.titre.toUpperCase()} t={t} arrivee={tCommun + 0.3} balayage={tCommun + 0.7} u={u} />
           </div>
         )}

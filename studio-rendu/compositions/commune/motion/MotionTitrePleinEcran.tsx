@@ -62,7 +62,7 @@ function Contenu({ d }: { d: DonneesTitrePleinEcran }) {
         return (
           <div key={i} style={{ position: "absolute", left: zone.x - 10 * u, top: haut + hSur + i * hLigne, width: zone.largeur + 40 * u, height: hLigne + tg * 0.12, overflow: "hidden" }}>
             <FlouMouvement dy={deplacementObturateur(y, t)} style={{ transform: `translateY(${y(t).toFixed(2)}px)`, paddingLeft: 10 * u }}>
-              <div style={{ fontSize: tg, fontWeight: 900, lineHeight: INTERLIGNE_GEANT, letterSpacing: `${APPROCHE}em`, whiteSpace: "nowrap", textShadow: `0 ${10 * u}px ${50 * u}px ${avecOpacite(COULEURS.fondProfond, 0.7)}` }}>
+              <div style={{ fontSize: tg, fontWeight: 800, lineHeight: INTERLIGNE_GEANT, letterSpacing: `${APPROCHE}em`, whiteSpace: "nowrap", textShadow: `0 ${10 * u}px ${50 * u}px ${avecOpacite(COULEURS.fondProfond, 0.7)}` }}>
                 {ligne.map((m, j) => (
                   <span key={j} style={{ color: m.cle ? COULEURS.orangeVif : COULEURS.creme, marginRight: j < ligne.length - 1 ? "0.24em" : 0 }}>
                     {m.mot}

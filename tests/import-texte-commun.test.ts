@@ -36,8 +36,8 @@ describe("BoutonImporterTexte", () => {
 describe("Tableau animé : « J'ai déjà mon texte » peut importer un fichier", () => {
   const src = SRC("src/components/formats/tableau-anime/NouvelleVideoTableau.tsx");
 
-  it("le bouton suit la zone « Le texte dit » et remplace le champ", () => {
-    expect(src).toMatch(/<BoutonImporterTexte onTexte=\{\(t\) => changer\(\{ texte: t \}\)\} \/>/);
+  it("le bouton suit la zone « Le texte dit », remplace le champ, puis note l'origine « import »", () => {
+    expect(src).toMatch(/<BoutonImporterTexte onTexte=\{\(t\) => \{ changer\(\{ texte: t \}\); setOrigine\(\(o\) => origineApresSaisie\(o, "import", t, referenceClaude\)\); \}\} \/>/);
     expect(src.indexOf("<BoutonImporterTexte")).toBeGreaterThan(src.indexOf('libelle="Le texte dit"'));
   });
 
@@ -53,7 +53,7 @@ describe("Face caméra animée : « Ajouter ce que vous dites » peut importer u
   it("le bouton passe par texteDitDuScript (20 000 caractères, coupé au mot, avis si raccourci)", () => {
     expect(src).toMatch(/<BoutonImporterTexte/);
     expect(src).toMatch(/texteDitDuScript\(/);
-    expect(src).not.toMatch(/@\/services\//);
+    expect(src.split("\n").filter((l) => /@\/services\//.test(l) && !/^import type \{[^}]*\} from "@\/services\/[^"]+";$/.test(l.trim()))).toEqual([]);
   });
 
   it("texteDitDuScript est une fonction pure importable côté écran, et le service la ré-exporte", async () => {
