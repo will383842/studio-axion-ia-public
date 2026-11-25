@@ -59,6 +59,7 @@ import { avecRegistreFige, fauxPort } from "../equipe-doubles";
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { avancerCapturesTutoriel } = await import("@/services/tutoriel-capture-auto");
+const { dureeFilmAttendueMs } = await import("@/moteurs/montage-tutoriel-outil/capture-auto/contrat");
 
 const T0 = Date.UTC(2026, 10, 19, 9);
 const ZIP = Buffer.from("PK-zip-de-test");
@@ -88,7 +89,7 @@ const stockage = {
 };
 
 /** Mène le moteur (équipe simulée, SANS voix) jusqu'à la pause du film, puis installe vidéo, version et travail dans les dépôts. */
-async function installerPauseFilm(dims?: { largeur: number; hauteur: number }) {
+async function installerPauseFilm(dims?: { largeur: number; hauteur: number }, dureeVoixMs?: number) {
   const j: Journal = { voix: [], claude: [], rendus: [] };
   const eq = fauxPort();
   const moteur = creerMoteurTutorielOutil({ outils: une({ ...outilsDoubles(j), equipe: eq.port } as OutilsTutoriel) });
@@ -109,6 +110,12 @@ async function installerPauseFilm(dims?: { largeur: number; hauteur: number }) {
   expect(etat.audio?.fournisseur).toBe("aucune");
   // Essai réel : le film du chef est celui de la maquette 05-stocks (1080 × 1350) ; le scénario de la chaîne en prend les dimensions.
   if (dims) Object.assign(etat.equipe!.parcours!.scenario, dims);
+  // Essai réel : la voix de la chaîne prend la durée de voix du film de l'essai (le contrat compare navigation.dureeVoixMs au calage de la DEMANDE).
+  if (dureeVoixMs && etat.audio) {
+    const k = dureeVoixMs / (etat.audio.dureeSec * 1000);
+    etat.audio.mots = etat.audio.mots.map((m: Record<string, unknown>) => ({ ...m, ...(typeof m.debutSec === "number" ? { debutSec: m.debutSec * k } : {}), ...(typeof m.finSec === "number" ? { finSec: m.finSec * k } : {}) })) as never;
+    etat.audio.dureeSec = dureeVoixMs / 1000;
+  }
   const le = "2026-11-21T08:00:00.000Z";
   await depots().videos.enregistrer({ id: "v-to", titre: "Mon tutoriel", formatId: "tutoriel-outil", statut: "en_fabrication", entrees: c.entrees, creeLe: le, modifieLe: le } as never);
   await depots().versions.enregistrer({ id: "ver-1", videoId: "v-to", numero: 1, statut: "en_fabrication", commande: c, creeLe: le, modifieLe: le } as never);
@@ -130,6 +137,7 @@ const dep = (extra: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
+  delete (globalThis as Record<symbol, unknown>)[Symbol.for("studio-axion-ia.capture-auto")]; // mémoire du processus remise à zéro
   reinitialiserDepots();
   puts.clear();
   cloches.length = 0;
@@ -152,24 +160,15 @@ afterEach(() => {
 });
 
 /** Joue le rôle du veilleur : prend la demande et rend une réponse (faux film conforme, ou le vrai dossier de l'essai). */
-function repondre(reel?: string, corrigerZones = false): { dureeVoixMs: number } {
+function repondre(reel?: string, zonesHorsBornes = false): { dureeVoixMs: number } {
   const [nom] = readdirSync(join(boite, "demandes"));
   const calage = JSON.parse(readFileSync(join(boite, "demandes", nom!, "calage.json"), "utf8")) as { dureeVoixMs: number; etapes: { id: string; debutMs: number; finMs: number }[] };
   const scenario = JSON.parse(readFileSync(join(boite, "demandes", nom!, "scenario.json"), "utf8")) as { maquette: string; largeur: number; hauteur: number };
   rmSync(join(boite, "demandes", nom!), { recursive: true });
   const cible = join(boite, "reponses", nom!);
   if (reel) {
+    // La réponse réelle est rangée TELLE QUELLE (aucune retouche) : son navigation.json passe la lecture stricte.
     cpSync(reel, cible, { recursive: true });
-    if (corrigerZones) {
-      // CONSTAT de l'essai réel : `capturer.mts` rend des zones qui dépassent 100 % (ex. x 27,96 + largeur 81,8) et `lireNavigationFilmee` les refuse.
-      // Ici, les zones sont ramenées dans l'image pour montrer la chaîne ; le correctif appartient à la capture, pas à ce lot.
-      const nav = JSON.parse(readFileSync(join(cible, "navigation.json"), "utf8")) as { cibles: { zonePct?: { x: number; largeur: number; y: number; hauteur: number } }[] };
-      for (const c of nav.cibles) if (c.zonePct) {
-        c.zonePct.largeur = Math.min(c.zonePct.largeur, 100 - c.zonePct.x);
-        c.zonePct.hauteur = Math.min(c.zonePct.hauteur, 100 - c.zonePct.y);
-      }
-      writeFileSync(join(cible, "navigation.json"), JSON.stringify(nav));
-    }
     return { dureeVoixMs: JSON.parse(readFileSync(join(cible, "navigation.json"), "utf8")).dureeVoixMs };
   }
   mkdirSync(cible);
@@ -179,23 +178,23 @@ function repondre(reel?: string, corrigerZones = false): { dureeVoixMs: number }
     join(cible, "navigation.json"),
     JSON.stringify({
       version: "navigation-filmee.v1", maquette: scenario.maquette, largeur: scenario.largeur, hauteur: scenario.hauteur, debutFilmMs: 0, dureeVoixMs: calage.dureeVoixMs,
-      cibles: calage.etapes.map((e) => ({ etapeId: e.id, instantMs: e.debutMs + 600, finMs: e.finMs, zonePct: { x: 10, y: 10, largeur: 30, hauteur: 10 } })),
+      cibles: calage.etapes.map((e) => ({ etapeId: e.id, instantMs: e.debutMs + 600, finMs: e.finMs, zonePct: zonesHorsBornes ? { x: 90, y: 10, largeur: 30, hauteur: 10 } : { x: 10, y: 10, largeur: 30, hauteur: 10 } })),
     }),
   );
   writeFileSync(
     join(cible, "ffprobe.json"),
-    JSON.stringify({ streams: [{ codec_type: "video", codec_name: "h264", width: scenario.largeur * 2, height: scenario.hauteur * 2 }], format: { duration: String((calage.dureeVoixMs + 500) / 1000) } }),
+    JSON.stringify({ streams: [{ codec_type: "video", codec_name: "h264", width: scenario.largeur * 2, height: scenario.hauteur * 2 }], format: { duration: String(dureeFilmAttendueMs(calage.dureeVoixMs) / 1000) } }),
   );
   return { dureeVoixMs: calage.dureeVoixMs };
 }
 
-async function reprendre(options: { reel?: string; corrigerZones?: boolean; refuse?: boolean } = {}) {
-  const { moteur } = await installerPauseFilm(options.reel ? { largeur: 1080, hauteur: 1350 } : undefined);
+async function reprendre(options: { reel?: string; zonesHorsBornes?: boolean; refuse?: boolean } = {}) {
+  const dureeReelle = options.reel ? (JSON.parse(readFileSync(join(options.reel, "navigation.json"), "utf8")) as { dureeVoixMs: number }).dureeVoixMs : undefined;
+  const { moteur } = await installerPauseFilm(options.reel ? { largeur: 1080, hauteur: 1350 } : undefined, dureeReelle);
   await avancerCapturesTutoriel(dep()); // écrit la demande
   expect(readdirSync(join(boite, "demandes"))).toHaveLength(1);
-  const { dureeVoixMs } = repondre(options.reel, options.corrigerZones);
-  const attendu = options.reel ? { attendu: (a: { dureeMs: number }) => ({ ...a, dureeMs: dureeVoixMs + 500 }) } : {};
-  await avancerCapturesTutoriel(dep(attendu)); // relit, range, efface
+  repondre(options.reel, options.zonesHorsBornes);
+  await avancerCapturesTutoriel(dep()); // relit, range, efface
   expect(readdirSync(join(boite, "reponses"))).toEqual([]);
   if (options.refuse) return { t: (await depots().travaux.obtenir("t-to"))!, plan: false, puts: [...puts.values()] };
   const apres = (await depots().travaux.obtenir("t-to"))!;
@@ -221,16 +220,19 @@ describe("reprise de la chaîne après la capture automatique", () => {
     expect(pieges.appels).toEqual([]);
   });
 
-  it.skipIf(!REEL || !existsSync(REEL ?? ""))("RÉEL (ESSAI_REPONSE_CAPTURE) : le vrai film de l'essai du chef est rangé, la chaîne arrive au plan de scènes", async () => {
-    const r = await reprendre({ reel: REEL, corrigerZones: true });
+  it.skipIf(!REEL || !existsSync(REEL ?? ""))("RÉEL (ESSAI_REPONSE_CAPTURE) : la vraie réponse du poste est rangée SANS retouche (navigation.json passe la lecture stricte), la chaîne arrive au plan de scènes", async () => {
+    const { lireNavigationFilmee } = await import("@/briques/plan-scenes/tutoriel/navigation-filmee");
+    const brut = JSON.parse(readFileSync(join(REEL!, "navigation.json"), "utf8")) as Record<string, unknown>;
+    expect(lireNavigationFilmee({ ...brut, videoCle: "controle.mp4" }).ok).toBe(true);
+    const r = await reprendre({ reel: REEL });
     expect(r.plan).toBe(true);
     expect(r.t.erreur).toBeUndefined();
     expect(r.puts.some((o) => o.equals(readFileSync(join(REEL!, "navigation.mp4"))))).toBe(true);
     expect(pieges.appels).toEqual([]);
   });
 
-  it.skipIf(!REEL || !existsSync(REEL ?? ""))("RÉEL tel quel : zones au-delà de 100 % refusées par la lecture stricte → rien rangé, panne en phrase claire, la pause reste", async () => {
-    const r = await reprendre({ reel: REEL, refuse: true });
+  it("zones hors bornes (> 100 %) dans navigation.json : rien rangé, panne en phrase claire, la pause reste", async () => {
+    const r = await reprendre({ zonesHorsBornes: true, refuse: true });
     expect(r.puts).toEqual([]);
     expect((r.t.parametres?.pause as { code: string; message: string }).code).toBe("TO_FILM_A_CAPTURER");
     expect(cloches.map((c) => c.message)).toEqual(["Le film rendu par le poste de capture n'a pas passé les contrôles : déposez le film à la main."]);

@@ -4,7 +4,7 @@
  * Aucun appel HeyGen / ElevenLabs / Claude (modules piégés). 0 €.
  */
 import { createHash } from "node:crypto";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, truncateSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,10 +74,17 @@ const commande = (): CommandeFabrication =>
     entrees: { tutorielOutil: { depot: { mode: "dossier", fichierId: "f-dossier1", attestationImages: true }, fin: "aucune", modeVoix: "sans-voix" } },
   } as never);
 
+const supprimes: string[] = [];
+/** Appelé à la confirmation du dépôt (avant `deposerFilmNavigation`) : simule un changement d'état survenu pendant le dépôt. */
+let pendantLeDepot: (() => Promise<void>) | null = null;
 const stockage = {
   mode: "simulation",
+  supprimer: async (cle: string) => {
+    supprimes.push(cle);
+  },
   preparerDepot: async (d: { fichierId: string; entiteId: string }) => ({ cleStockage: `studio/dev/entree/${d.entiteId}/${d.fichierId}.mp4`, urlDepot: "" }),
   confirmerDepot: async (cle: string) => {
+    await pendantLeDepot?.();
     const o = puts.get(`https://depot.test/${cle}`);
     return o ? { ok: true, sha256: createHash("sha256").update(o).digest("hex"), taille: o.length } : { ok: false };
   },
@@ -128,7 +135,21 @@ const dep = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+/** Vide la mémoire du processus de l'orchestrateur : simule un redémarrage du Studio (seul le journal et la boîte survivent). */
+const viderMemoire = () => {
+  delete (globalThis as Record<symbol, unknown>)[Symbol.for("studio-axion-ia.capture-auto")];
+};
+/** Avance l'horloge (journal compris : `maintenant()` du Studio lit `Date`) et rafraîchit le pouls du poste. */
+const avancer = (ms: number) => {
+  vi.setSystemTime(Date.now() + ms);
+  writeFileSync(join(boite, "pouls"), new Date().toISOString() + "\n");
+};
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  viderMemoire(); // les tests ne dépendent pas de leur ordre : même scénario = même id partout
+  pendantLeDepot = null;
+  supprimes.length = 0;
   reinitialiserDepots();
   puts.clear();
   cloches.length = 0;
@@ -138,6 +159,7 @@ beforeEach(() => {
   writeFileSync(join(boite, "PRET"), "");
   writeFileSync(join(boite, "pouls"), new Date().toISOString() + "\n");
   vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+    if (init?.signal?.aborted) throw init.signal.reason; // un délai dépassé coupe l'appel
     if (init?.method === "PUT") {
       puts.set(url, Buffer.from(init.body as Uint8Array));
       return new Response(null, { status: 200 });
@@ -146,6 +168,8 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   rmSync(boite, { recursive: true, force: true });
 });
@@ -183,7 +207,7 @@ function repondre(reel?: string, corrigerZones = false): { dureeVoixMs: number }
   );
   writeFileSync(
     join(cible, "ffprobe.json"),
-    JSON.stringify({ streams: [{ codec_type: "video", codec_name: "h264", width: scenario.largeur * 2, height: scenario.hauteur * 2 }], format: { duration: String((calage.dureeVoixMs + 500) / 1000) } }),
+    JSON.stringify({ streams: [{ codec_type: "video", codec_name: "h264", width: scenario.largeur * 2, height: scenario.hauteur * 2 }], format: { duration: String((calage.dureeVoixMs + MARGE_FIN_FILM_MS) / 1000) } }),
   );
   return { dureeVoixMs: calage.dureeVoixMs };
 }
@@ -192,7 +216,9 @@ const { lienSuivi } = await import("@/services/tutoriel-suivi");
 const { deposerFilmNavigation } = await import("@/services/tutoriel-film");
 const { lireEntreesTutoriel } = await import("@/moteurs/montage-tutoriel-outil/entrees");
 const { PHRASES_CODE, PHRASE_POSTE_ETEINT, PHRASE_BOITE_NON_PRETE, PHRASE_SANS_REPONSE } = await import("@/moteurs/montage-tutoriel-outil/capture-auto/contrat");
-const { lienCapture, DELAI_PRISE_MS, DELAI_REPONSE_MS } = await import("@/services/tutoriel-capture-auto");
+const { lienCapture, DELAI_PRISE_MS, DELAI_REPONSE_MS, DELAI_LECTURE_ZIP_MS, DELAI_DEPOT_FILM_MS } = await import("@/services/tutoriel-capture-auto");
+const { BORNES, MARGE_FIN_FILM_MS, idFilm } = await import("@/moteurs/montage-tutoriel-outil/capture-auto/contrat");
+const sha256 = (o: Uint8Array) => createHash("sha256").update(o).digest("hex");
 
 const tour = (extra: Record<string, unknown> = {}) => avancerCapturesTutoriel(dep(extra));
 const demandes = () => readdirSync(join(boite, "demandes"));
@@ -219,6 +245,35 @@ describe("demande", () => {
     await tour();
     expect(demandes()).toEqual([nom]);
     expect(pieges.appels).toEqual([]);
+  });
+
+  it("l'id de la demande = `idFilm` des octets EXACTS de scenario.json et calage.json relus dans la boîte (formule unique, celle du script d'essai)", async () => {
+    await installerPauseFilm();
+    await tour();
+    const [nom] = demandes();
+    const scenario = readFileSync(join(boite, "demandes", nom!, "scenario.json"));
+    const calage = readFileSync(join(boite, "demandes", nom!, "calage.json"));
+    expect(nom).toBe(`film-zip--${idFilm("v-to", scenario, calage, sha256)}`);
+    // l'ancienne formule (chaînes collées, sans l'octet 0x0A) donnerait un autre id
+    expect(nom).not.toBe(`film-zip--v-to-${sha256(Buffer.concat([scenario, calage])).slice(0, 12)}`);
+    // le script d'essai du poste relié et l'orchestrateur appellent la MÊME fonction du contrat
+    const script = readFileSync("outils/maquettes-tableaux-de-bord/essai-reel/essai-poste-relie.mts", "utf8");
+    const source = readFileSync("src/services/tutoriel-capture-auto.ts", "utf8");
+    expect(script).toMatch(/\bidFilm\(/);
+    expect(source).toMatch(/\bidFilm\(/);
+    expect(source).not.toMatch(/\bidDemande\(|MARGE_FILM_MS|\+ 500/);
+  });
+
+  it("le film attendu dure `dureeFilmAttendueMs` (voix + MARGE_FIN_FILM_MS du contrat) : une durée hors de la tolérance de 1 s autour de cette valeur est refusée", async () => {
+    await installerPauseFilm();
+    await tour();
+    const { dureeVoixMs } = repondre();
+    const nom = reponses()[0]!;
+    const ffprobe = JSON.parse(readFileSync(join(boite, "reponses", nom, "ffprobe.json"), "utf8"));
+    ffprobe.format.duration = String((dureeVoixMs + MARGE_FIN_FILM_MS + 1500) / 1000);
+    writeFileSync(join(boite, "reponses", nom, "ffprobe.json"), JSON.stringify(ffprobe));
+    await tour();
+    expect(cloches.map((c) => c.message)).toEqual([PHRASES_CODE.FILM_INVALIDE]);
   });
 
   it("une demande d'une autre vidéo en vol bloque la seconde", async () => {
@@ -313,7 +368,8 @@ describe("réponses forgées : rien n'est rangé, panne lisible", () => {
     rmSync(join(d, "navigation.mp4"));
     symlinkSync("/etc/hostname", join(d, "navigation.mp4"));
   }));
-  it("un film trop gros", () => attendreRefus((d) => writeFileSync(join(d, "navigation.mp4"), Buffer.concat([MP4, Buffer.alloc(500 * 1024 * 1024)]))));
+  // Fichier CREUX : `truncate` allonge sans écrire 500 Mio sur le disque.
+  it("un film trop gros", () => attendreRefus((d) => truncateSync(join(d, "navigation.mp4"), BORNES.film + 1)));
   it("une signature qui n'est pas celle d'un MP4", () => attendreRefus((d) => writeFileSync(join(d, "navigation.mp4"), Buffer.alloc(300, 1))));
   it("un relevé ffprobe faux (durée)", () => attendreRefus((d) => reecrire(d, "ffprobe.json", (o) => ({ ...o, format: { duration: "99" } }))));
   it("un relevé ffprobe faux (dimensions)", () => attendreRefus((d) => reecrire(d, "ffprobe.json", (o) => ({ ...o, streams: [{ ...o.streams[0], width: 10 }] }))));
@@ -359,17 +415,310 @@ describe("pannes", () => {
     expect(demandes()).toEqual([]);
   });
 
-  it("demande prise mais sans réponse 45 minutes après : panne « ne répond plus » (redémarrage du studio compris)", async () => {
+  it("le délai « en cours » dépasse TimeoutStartSec=3300 s du veilleur (70 min), celui de « non prise » vaut 60 min", () => {
+    expect(DELAI_PRISE_MS).toBe(60 * 60 * 1000);
+    expect(DELAI_REPONSE_MS).toBe(70 * 60 * 1000);
+    expect(DELAI_REPONSE_MS).toBeGreaterThan(3300 * 1000);
+  });
+
+  it("demande prise mais sans réponse : pas de panne à +69 min, panne « ne répond plus » à +71 min (mémoire du processus)", async () => {
     await installerPauseFilm();
-    let maintenant = Date.now();
-    await tour({ maintenant: () => maintenant });
+    await tour();
     rmSync(join(boite, "demandes", demandes()[0]!), { recursive: true }); // le veilleur l'a prise
-    await tour({ maintenant: () => maintenant });
+    await tour(); // la prise est vue : la mémoire note l'instant
+    avancer(69 * 60_000);
+    await tour();
     expect(cloches).toEqual([]);
-    maintenant += DELAI_REPONSE_MS + 60_000;
-    writeFileSync(join(boite, "pouls"), new Date(maintenant).toISOString() + "\n");
-    await tour({ maintenant: () => maintenant });
+    avancer(2 * 60_000);
+    await tour();
     expect(cloches.map((c) => c.message)).toEqual([PHRASE_SANS_REPONSE]);
+  });
+
+  it("REDÉMARRAGE (mémoire vidée entre la prise et l'échéance) : l'attente est relue dans le journal ; +69 min rien, +71 min panne", async () => {
+    await installerPauseFilm();
+    await tour();
+    rmSync(join(boite, "demandes", demandes()[0]!), { recursive: true });
+    viderMemoire(); // le Studio redémarre : il n'a pas vu la prise
+    avancer(69 * 60_000);
+    await tour();
+    expect(cloches).toEqual([]);
+    expect(demandes()).toEqual([]); // et aucune seconde demande pendant l'attente
+    viderMemoire();
+    avancer(2 * 60_000);
+    await tour();
+    expect(cloches.map((c) => c.message)).toEqual([PHRASE_SANS_REPONSE]);
+  });
+
+  it("REDÉMARRAGE avec la demande encore dans demandes/ (mtime ancien) : panne « ne répond plus » après 60 min", async () => {
+    await installerPauseFilm();
+    await tour();
+    viderMemoire();
+    avancer(DELAI_PRISE_MS + 60_000);
+    const [nom] = demandes();
+    const vieux = new Date(Date.now() - DELAI_PRISE_MS - 60_000);
+    utimesSync(join(boite, "demandes", nom!), vieux, vieux);
+    await tour();
+    expect(cloches.map((c) => c.message)).toEqual([PHRASE_SANS_REPONSE]);
+    expect(demandes()).toEqual([]);
+  });
+
+  it("la panne est close au journal : plus comptée comme envoyée", async () => {
+    await installerPauseFilm();
+    await tour();
+    etatReponse("refus", "ZIP_REFUSE");
+    await tour();
+    const messages = await journal();
+    expect(messages.filter((m) => /demande terminée/.test(m))).toHaveLength(1);
+  });
+
+  describe("délais sur les appels au stockage", () => {
+    const espionner = (couper: (ms: number) => boolean) => {
+      const reel = AbortSignal.timeout.bind(AbortSignal);
+      const vus: number[] = [];
+      vi.spyOn(AbortSignal, "timeout").mockImplementation((ms: number) => {
+        vus.push(ms);
+        return couper(ms) ? AbortSignal.abort(new DOMException("délai dépassé", "TimeoutError")) : reel(ms);
+      });
+      return vus;
+    };
+
+    it("la lecture du zip et le dépôt du film portent un AbortSignal.timeout (120 s et 600 s)", async () => {
+      const vus = espionner(() => false);
+      await installerPauseFilm();
+      await tour();
+      repondre();
+      await tour();
+      expect(vus).toContain(DELAI_LECTURE_ZIP_MS);
+      expect(vus).toContain(DELAI_DEPOT_FILM_MS);
+      expect([DELAI_LECTURE_ZIP_MS, DELAI_DEPOT_FILM_MS]).toEqual([120_000, 600_000]);
+      expect(cloches).toEqual([]);
+    });
+
+    it("lecture du zip qui cale : panne lisible, aucune demande écrite, un essai noté, l'annexe n'est pas bloquée", async () => {
+      espionner((ms) => ms === DELAI_LECTURE_ZIP_MS);
+      await installerPauseFilm();
+      await tour();
+      expect(demandes()).toEqual([]);
+      expect(cloches).toHaveLength(1);
+      expect(cloches[0]!.message).toMatch(/Le stockage n'a pas répondu à temps/);
+      expect(tentativesNotees()).toHaveLength(1);
+    });
+
+    it("dépôt du film qui cale : panne lisible, film non gardé (objet supprimé, aucun Fichier, pause gardée), réponse effacée", async () => {
+      espionner((ms) => ms === DELAI_DEPOT_FILM_MS);
+      await installerPauseFilm();
+      await tour();
+      repondre();
+      await tour();
+      expect(cloches).toHaveLength(1);
+      expect(cloches[0]!.message).toMatch(/Le stockage n'a pas répondu à temps/);
+      expect(supprimes).toHaveLength(1);
+      expect(await depots().fichiers.lister((f) => f.nom === "navigation.mp4")).toEqual([]);
+      expect(reponses()).toEqual([]);
+      expect(((await depots().travaux.obtenir("t-to"))!.parametres?.pause as { code: string }).code).toBe("TO_FILM_A_CAPTURER");
+    });
+  });
+});
+
+describe("refus de deposerFilmNavigation après le dépôt au stockage", () => {
+  it.each([
+    ["vidéo arrêtée entre-temps", async () => void (await depots().travaux.modifier("t-to", { statut: "annule" })), /Cette vidéo est arrêtée/],
+    [
+      "film déposé à la main entre-temps",
+      async () => {
+        const t = (await depots().travaux.obtenir("t-to"))!;
+        const { pause: _p, ...parametres } = t.parametres ?? {};
+        void _p;
+        await depots().travaux.modifier("t-to", { parametres });
+      },
+      /n'attend pas de film/,
+    ],
+  ])("%s : la phrase du refus est reprise (pas « n'a pas passé les contrôles »), Fichier « refuse », objet supprimé", async (_n, changer, phrase) => {
+    await installerPauseFilm();
+    await tour();
+    repondre();
+    pendantLeDepot = changer;
+    await tour();
+    expect(cloches).toHaveLength(1);
+    expect(cloches[0]!.message).toMatch(phrase);
+    expect(cloches[0]!.message).not.toContain(PHRASES_CODE.FILM_INVALIDE);
+    expect(await journal()).toContainEqual(expect.stringMatching(phrase));
+    const fichiers = await depots().fichiers.lister((f) => f.nom === "navigation.mp4");
+    expect(fichiers).toHaveLength(1);
+    expect(fichiers[0]!.statut).toBe("refuse");
+    expect(supprimes).toEqual([fichiers[0]!.cleStockage]);
+    expect(lireEntreesTutoriel((await depots().videos.obtenir("v-to"))!.entrees as Record<string, unknown>).navigationFilmee).toBeUndefined();
+    expect(lireEntreesTutoriel((await depots().versions.obtenir("ver-1"))!.commande.entrees as Record<string, unknown>).navigationFilmee).toBeUndefined();
+    expect(reponses()).toEqual([]);
+  });
+
+  it("une phrase qui citerait les erreurs de navigation.json (donnée variable) n'est jamais reprise telle quelle", async () => {
+    const source = readFileSync("src/services/tutoriel-capture-auto.ts", "utf8");
+    expect(source).toMatch(/startsWith\("Le fichier navigation\.json n'est pas valable"\)/);
+  });
+});
+
+describe("clôture après un rangement réussi", () => {
+  it("la demande est close au journal ; la MÊME vidéo remise en pause avec le même état reçoit une NOUVELLE demande, sans cloche", async () => {
+    await installerPauseFilm();
+    await tour();
+    const [nom] = demandes();
+    repondre();
+    await tour();
+    expect(reponses()).toEqual([]);
+    expect((await journal()).filter((m) => /demande terminée/.test(m))).toHaveLength(1);
+    // remise en pause identique, bien après le délai de l'ancienne demande
+    const t = (await depots().travaux.obtenir("t-to"))!;
+    await depots().travaux.modifier("t-to", { parametres: { ...t.parametres, pause: { code: "TO_FILM_A_CAPTURER", message: "x" } } });
+    avancer(DELAI_REPONSE_MS + 10 * 60_000);
+    await tour();
+    expect(demandes()).toEqual([nom]);
+    expect(cloches).toEqual([]);
+    expect(tentativesNotees()).toEqual([]);
+  });
+});
+
+describe("une seule demande en vol AU TOTAL côté Studio", () => {
+  async function ajouterSecondeVideo() {
+    const t = (await depots().travaux.obtenir("t-to"))!;
+    const v = (await depots().videos.obtenir("v-to"))!;
+    const ver = (await depots().versions.obtenir("ver-1"))!;
+    await depots().videos.enregistrer({ ...v, id: "v-to2", titre: "Second tutoriel", creeLe: "2026-11-21T09:00:00.000Z" } as never);
+    await depots().versions.enregistrer({ ...ver, id: "ver-2", videoId: "v-to2" } as never);
+    await depots().travaux.enregistrer({ ...t, id: "t-to2", cibleId: "v-to2", versionId: "ver-2", creeLe: "2026-11-21T09:00:00.000Z" } as never);
+  }
+
+  it("la demande de A PRISE par le veilleur (retirée de demandes/, sans réponse) bloque B : aucune demande pour B, aucune cloche, tant que A n'est pas rangée", async () => {
+    await installerPauseFilm();
+    await ajouterSecondeVideo();
+    await tour();
+    const [nomA] = demandes();
+    expect(nomA).toMatch(/^film-zip--v-to-/);
+    const copie = mkdtempSync(join(tmpdir(), "poste4-copie-"));
+    cpSync(join(boite, "demandes", nomA!), join(copie, nomA!), { recursive: true });
+    rmSync(join(boite, "demandes", nomA!), { recursive: true }); // prise : `.veilleur/` est invisible du studio
+    await tour();
+    await tour();
+    expect(demandes()).toEqual([]);
+    expect(cloches).toEqual([]);
+    // le veilleur répond pour A : A est rangée, la clôture libère B (dans le même tour)
+    cpSync(join(copie, nomA!), join(boite, "demandes", nomA!), { recursive: true });
+    rmSync(copie, { recursive: true, force: true });
+    repondre();
+    await tour();
+    expect(reponses()).toEqual([]);
+    expect(demandes()).toHaveLength(1);
+    expect(demandes()[0]).toMatch(/^film-zip--v-to2-/);
+    expect(cloches).toEqual([]);
+  });
+
+  it("après un redémarrage (mémoire vidée), la demande de A reste comptée au journal : B n'écrit rien", async () => {
+    await installerPauseFilm();
+    await ajouterSecondeVideo();
+    await tour();
+    rmSync(join(boite, "demandes", demandes()[0]!), { recursive: true });
+    viderMemoire();
+    await tour();
+    expect(demandes()).toEqual([]);
+  });
+});
+
+describe("nettoyage de la boîte (sans suivre un seul lien)", () => {
+  const vieillir = (chemin: string, ms: number) => {
+    const d = new Date(Date.now() - ms);
+    utimesSync(chemin, d, d);
+  };
+  const marquerEnvoyee = (videoId: string, id: string) => depots().evenements.enregistrer({ id: `ev-${id}`, type: "fabrication", message: `Capture automatique : demande envoyée au poste de capture (${id}).`, entite: "video", entiteId: videoId, date: new Date().toISOString(), creeLe: "x", modifieLe: "x" } as never);
+
+  it("une réponse qu'aucun candidat ne réclame (film déposé à la main, vidéo arrêtée) est effacée, et sa demande close au journal", async () => {
+    await installerPauseFilm();
+    await tour();
+    repondre(); // réponse de la demande en vol
+    // Williams dépose le film à la main : la vidéo n'est plus candidate
+    const t = (await depots().travaux.obtenir("t-to"))!;
+    const { pause: _p, ...parametres } = t.parametres ?? {};
+    void _p;
+    await depots().travaux.modifier("t-to", { parametres });
+    expect(reponses()).toHaveLength(1);
+    await tour();
+    expect(reponses()).toEqual([]);
+    expect((await journal()).filter((m) => /demande terminée/.test(m))).toHaveLength(1);
+    expect(puts.size).toBe(0);
+    expect(cloches).toEqual([]);
+  });
+
+  it("une réponse orpheline qui est un LIEN : le lien est retiré, jamais sa cible", async () => {
+    await installerPauseFilm();
+    const cible = mkdtempSync(join(tmpdir(), "poste4-cible-"));
+    writeFileSync(join(cible, "precieux.txt"), "ne pas toucher");
+    try {
+      symlinkSync(cible, join(boite, "reponses", "film-zip--orphelin-0123456789ab"));
+      await tour();
+      expect(reponses()).toEqual([]);
+      expect(existsSync(join(cible, "precieux.txt"))).toBe(true);
+    } finally {
+      rmSync(cible, { recursive: true, force: true });
+    }
+  });
+
+  it("une réponse orpheline sans candidat du tout (liste vide) est aussi effacée", async () => {
+    mkdirSync(join(boite, "reponses", "film-zip--orphelin-0123456789ab"));
+    writeFileSync(join(boite, "reponses", "film-zip--orphelin-0123456789ab", "etat.txt"), "ok\nOK\n");
+    await tour();
+    expect(reponses()).toEqual([]);
+  });
+
+  it("une demande orpheline de plus de 60 min est retirée et libère la vidéo suivante ; une jeune continue de bloquer", async () => {
+    await installerPauseFilm();
+    mkdirSync(join(boite, "demandes", "film-zip--orphelin-0123456789ab"));
+    await tour();
+    expect(demandes()).toEqual(["film-zip--orphelin-0123456789ab"]);
+    vieillir(join(boite, "demandes", "film-zip--orphelin-0123456789ab"), DELAI_PRISE_MS + 60_000);
+    await tour();
+    expect(demandes()).toHaveLength(1);
+    expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
+    expect(cloches).toEqual([]);
+  });
+
+  it("un `.prep-*` laissé par un Studio tué, de plus de 60 min, est retiré ; jeune, il bloque", async () => {
+    await installerPauseFilm();
+    mkdirSync(join(boite, "demandes", ".prep-v-to-0123456789ab"));
+    writeFileSync(join(boite, "demandes", ".prep-v-to-0123456789ab", "dossier.zip"), "x");
+    await tour();
+    expect(demandes()).toEqual([".prep-v-to-0123456789ab"]);
+    vieillir(join(boite, "demandes", ".prep-v-to-0123456789ab"), DELAI_PRISE_MS + 60_000);
+    await tour();
+    expect(demandes()).toHaveLength(1);
+    expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
+  });
+
+  it("une demande close par le nettoyage ne compte plus comme envoyée (journal)", async () => {
+    await installerPauseFilm();
+    await marquerEnvoyee("v-autre", "orphelin-0123456789ab");
+    mkdirSync(join(boite, "demandes", "film-zip--orphelin-0123456789ab"));
+    avancer(DELAI_PRISE_MS + 60_000);
+    vieillir(join(boite, "demandes", "film-zip--orphelin-0123456789ab"), DELAI_PRISE_MS + 120_000);
+    await tour();
+    expect((await depots().evenements.lister((e) => e.entiteId === "v-autre")).map((e) => e.message)).toContain("Capture automatique : demande terminée (orphelin-0123456789ab).");
+    expect(demandes()).toHaveLength(1);
+    expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
+  });
+
+  it("une demande envoyée dont la boîte n'a plus rien (veilleur arrêté) et qu'aucune vidéo ne réclame : cloche unique « ne répond plus » après 60 min, libérée après 130 min", async () => {
+    await installerPauseFilm();
+    await marquerEnvoyee("v-autre", "orphelin-0123456789ab");
+    await tour();
+    expect(demandes()).toEqual([]); // en vol : la vidéo attend
+    expect(cloches).toEqual([]);
+    avancer(DELAI_PRISE_MS + 60_000);
+    await tour();
+    await tour();
+    expect(cloches.map((c) => c.message)).toEqual([PHRASE_SANS_REPONSE]); // UNE cloche dédoublonnée
+    expect(demandes()).toEqual([]);
+    avancer(DELAI_REPONSE_MS); // 60 + 1 + 70 = 131 min depuis l'envoi
+    await tour();
+    expect(demandes()).toHaveLength(1);
+    expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
   });
 });
 
