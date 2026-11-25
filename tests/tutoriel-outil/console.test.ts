@@ -348,12 +348,18 @@ describe("clés ajoutées par AUD-3", () => {
       expect(c.REGLAGES_TUTORIEL.find((x) => x.cle === k)?.phraseEteint).toContain("Équipe de rôles");
     }
   });
-  it("FIN-6 : la phrase du formulaire est vraie aujourd'hui (il faut aussi une entrée ouverte)", () => {
+  it("FIN-10 : la phrase du formulaire est vraie aujourd'hui (« Mon script » dès que le formulaire est allumé)", () => {
     const f = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.formulaire")?.phraseEteint ?? "";
+    expect(f).toBe("Éteint : le formulaire n'est pas proposé. Allumé : vous pouvez coller votre script (« Mon script ») ; avec votre script et sans voix, rien n'est payé si Claude reste éteint. Pour envoyer un dossier ou une phrase seule, ouvrez aussi « Envoi d'un dossier » ou « Entrée par une phrase ».");
+    expect(f).not.toContain("il faut aussi");
+    expect(f).not.toContain("Allumé seul");
+  });
+  it("FIN-10 : la phrase du formulaire garde « Mon script », « sans voix » et les deux entrées", () => {
+    const f = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.formulaire")?.phraseEteint ?? "";
+    expect(f).toContain("« Mon script »");
+    expect(f).toContain("sans voix");
     expect(f).toContain("« Envoi d'un dossier »");
     expect(f).toContain("« Entrée par une phrase »");
-    expect(f).toContain("sans voix");
-    expect(f).not.toContain("Allumé seul");
   });
   it("FIN-6 : « Écriture et relecture par Claude » ne promet pas « sans rien payer » en général", () => {
     const claude = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.claude")?.phraseEteint ?? "";
