@@ -3,7 +3,7 @@
  * fichiers que l'aperçu du navigateur (`src/briques/sous-titres/polices/`, licence SIL OFL 1.1).
  * Le rendu attend leur chargement (`delayRender`) : jamais une image avec une police de secours.
  */
-import { continueRender, delayRender } from "remotion";
+import { cancelRender, continueRender, delayRender } from "remotion";
 import type { NomPolice } from "../../../src/briques/sous-titres/mesure";
 import manropeBold from "../../../src/briques/sous-titres/polices/Manrope-Bold.ttf";
 import manropeExtraBold from "../../../src/briques/sous-titres/polices/Manrope-ExtraBold.ttf";
@@ -41,7 +41,14 @@ export function chargerPolices(noms: readonly NomPolice[] = ["Manrope Medium", "
         const face = new FontFace(FAMILLES[nom], `url(${FICHIERS[nom]})`);
         await face.load();
         document.fonts.add(face);
-      })().then(() => continueRender(attente)),
+      })().then(
+        () => continueRender(attente),
+        (e: unknown) => {
+          const err = new Error(`Police illisible (${FAMILLES[nom]}) : ${e instanceof Error ? e.message : String(e)}`);
+          cancelRender(err);
+          throw err;
+        },
+      ),
     );
   }
 }
@@ -58,5 +65,12 @@ export function chargerPoliceVariable(): void {
     const face = new FontFace(FAMILLE_VARIABLE, `url(${manropeVariable})`, { weight: "200 800" });
     await face.load();
     document.fonts.add(face);
-  })().then(() => continueRender(attente));
+  })().then(
+    () => continueRender(attente),
+    (e: unknown) => {
+      const err = new Error(`Police illisible (${FAMILLE_VARIABLE}) : ${e instanceof Error ? e.message : String(e)}`);
+      cancelRender(err);
+      throw err;
+    },
+  );
 }
