@@ -629,7 +629,8 @@ Minutage des mots (indice, texte, début ms, fin ms) :
 Faits du script (type, mots, valeurs) :
 nombre	2-3	{"texte":"deux heures","valeur":2,"unite":"h","surMot":2}
 passage	19-23	{"texte":"2 heures à 20 minutes","avant":{"valeur":2,"unite":"h","surMot":19},"apres":{"valeur":20,"unite":"min","surMot":22}}
-etapes	31-36	{"texte":"d'abord trier, ensuite répondre, enfin classer","elements":[{"texte":"trier","surMot":32},{"texte":"répondre","surMot":34},{"texte":"classer","surMot":36}]}",
+etapes	31-36	{"texte":"d'abord trier, ensuite répondre, enfin classer","elements":[{"texte":"trier","surMot":32},{"texte":"répondre","surMot":34},{"texte":"classer","surMot":36}]}
+Accroche du script (dite avant 2 s, mots 2-3) : nombre	deux heures",
   "systeme": [
     "Vous composez le PLAN DE SCÈNES d'une vidéo Axion IA : des animations de données et d'interface, calées au mot près.
 Le script du fondateur fait foi : ne changez aucun mot, ne retirez aucune phrase.

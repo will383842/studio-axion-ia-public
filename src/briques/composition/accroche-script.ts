@@ -1,15 +1,15 @@
 /**
  * ACCROCHE TIRÉE DU SCRIPT (C10-01) : choisit UN fait dit dans les 2 premières secondes
  * (nombre hors argent, passage, question), sinon « rien ».
- * Pur : aucun service, aucun réglage, aucune dépendance au rendu. Non branché.
+ * Pur : aucun service, aucun réglage, aucune dépendance au rendu. Lue par `plan-scenes/generateur.ts` (C10-15-b1).
  * Honnêteté : le texte rendu est celui des mots dits, jamais reformulé ni inventé.
  * Argent exclu (D4-17) : aucun montant ni prix à l'écran.
  */
 import { faitsDuScript } from "../faits-script/extraire";
 import { familleUnite, type Fait, type MotFait } from "../faits-script/types";
 
-/** Éteint par défaut : seul `true` allume. */
-export const ACCROCHE_SCRIPT_ACTIVE = false;
+/** ALLUMER-ACCROCHE-SCRIPT-v21r (décisions du 21/11 07:20 et 17:40 : fini, vérifié, dans les plafonds) : allumée par défaut ; un appelant l'éteint en passant `accroche: false`. */
+export const ACCROCHE_SCRIPT_ACTIVE = true;
 /** Fenêtre d'accroche : le premier mot du fait doit commencer avant 2 s. */
 export const FENETRE_ACCROCHE_MS = 2000;
 

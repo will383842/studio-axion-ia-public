@@ -14,8 +14,8 @@ const rapide = (s: string) => motsHorodates(s, 100);
 const suite = (mots: readonly MotFait[]) => mots.map((m) => m.texte).join(" ");
 
 describe("accroche tirée du script (C10-01)", () => {
-  it("est éteinte par défaut, fenêtre de 2 s", () => {
-    expect(ACCROCHE_SCRIPT_ACTIVE).toBe(false);
+  it("est allumée par défaut (ALLUMER-ACCROCHE-SCRIPT-v21r), fenêtre de 2 s", () => {
+    expect(ACCROCHE_SCRIPT_ACTIVE).toBe(true);
     expect(FENETRE_ACCROCHE_MS).toBe(2000);
   });
 

@@ -1,4 +1,4 @@
-/** C10-15-b1 : l'accroche du script est branchée à la requête du plan de scènes, ÉTEINTE par défaut. Aucun appel réel. */
+/** C10-15-b1 : l'accroche du script est branchée à la requête du plan de scènes, ALLUMÉE par défaut (ALLUMER-ACCROCHE-SCRIPT-v21r). Aucun appel réel. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { accrocheDuScript } from "@/briques/composition/accroche-script";
@@ -14,13 +14,13 @@ const lignesAccroche = (r: RequeteClaude) => message(r).split("\n").filter((l) =
 const RAPIDE = "On passe de 3 h à 20 min sur les mails.";
 const MONTANT = "500 € par mois seulement.";
 
-describe("C10-15-b1 · accroche dans la requête du plan (éteint par défaut)", () => {
-  it("(a) éteint = identique pour les 10 scripts (absent, false, « true » texte)", () => {
+describe("C10-15-b1 · accroche dans la requête du plan (allumé par défaut)", () => {
+  it("(a) éteint = `accroche: false` : aucune ligne pour les 10 scripts, « true » texte = false ; absent = allumé", () => {
     for (const s of DIX_SCRIPTS) {
-      const ref = construireRequetePlan(entree(s));
-      expect(construireRequetePlan(entree(s, { accroche: false }))).toEqual(ref);
+      const ref = construireRequetePlan(entree(s, { accroche: false }));
       expect(construireRequetePlan(entree(s, { accroche: "true" as unknown as boolean }))).toEqual(ref);
       expect(lignesAccroche(ref)).toEqual([]);
+      expect(construireRequetePlan(entree(s))).toEqual(construireRequetePlan(entree(s, { accroche: true })));
     }
   });
 

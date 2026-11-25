@@ -38,7 +38,7 @@ export interface EntreeGenerateurPlan {
   piecesRecentes?: string[];
   /** Ids des pièces de la famille objet permises (porte C9-33) ; absent ou vide : aucune. */
   objetsPermis?: readonly string[];
-  /** C10-15-b1 : seul `true` allume ; absent = ACCROCHE_SCRIPT_ACTIVE (false). */
+  /** C10-15-b1 : absent = ACCROCHE_SCRIPT_ACTIVE (true depuis ALLUMER-ACCROCHE-SCRIPT) ; `false` éteint. */
   accroche?: boolean;
 }
 

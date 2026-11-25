@@ -71,7 +71,7 @@ describe("consigne du plan de scènes (GV2-48)", () => {
     const attendus = faitsDuScript(mots);
     expect(attendus.length).toBeGreaterThan(0);
     const m = texteUtilisateur(vus[0]!);
-    const bloc = m.split("Faits du script (type, mots, valeurs) :\n")[1]!.split("\nPièces récentes à éviter")[0]!.split("\nMinutage")[0]!;
+    const bloc = m.split("Faits du script (type, mots, valeurs) :\n")[1]!.split("\nPièces récentes à éviter")[0]!.split("\nMinutage")[0]!.split("\nAccroche du script")[0]!;
     const lignes = bloc.split("\n").filter(Boolean);
     expect(lignes.length).toBe(attendus.length);
     attendus.forEach((f, i) => expect(lignes[i]!.startsWith(f.type)).toBe(true));
