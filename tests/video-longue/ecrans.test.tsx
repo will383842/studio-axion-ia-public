@@ -216,9 +216,9 @@ describe("VL-06 sécurité, argent et périmètre", () => {
     expect(source("src/app/(studio)/nouvelle/page.tsx")).not.toMatch(/videos\/longue/);
     expect(source("src/components/coquille/navigation.ts")).not.toMatch(/videos\/longue/);
     expect(source("src/formats/video-longue/index.ts")).toContain('statut: "masque"');
-    // Master (#1223) a retiré l'adresse de création du format : aucune carte n'est branchée,
-    // l'écran reste joignable seulement par /videos/longue.
-    expect(source("src/formats/video-longue/index.ts")).not.toContain("adresseCreation:");
+    // FIN-5 (demande du fondateur) remet l'adresse de création du format : la carte « Nouvelle vidéo » pointe
+    // sur /videos/longue (valeur exacte). AUTORISATION PERMANENTE (b) : attente calculée, plus « absente ».
+    expect(source("src/formats/video-longue/index.ts")).toContain('adresseCreation: "/videos/longue"');
   });
 });
 

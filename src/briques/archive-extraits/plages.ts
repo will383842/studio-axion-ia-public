@@ -5,6 +5,7 @@
 import { PLAGES_MAX_PAR_FICHE, type PlageExtrait } from "../../domaine/archive-extraits";
 import type { MotHorodate } from "../../domaine/types";
 import { motsClesDe } from "./mots-cles";
+import { EPS } from "../../lib/tolerance";
 
 export const DUREE_PLAGE_MIN_SEC = 1.5;
 export const DUREE_PLAGE_MAX_SEC = 6;
@@ -24,7 +25,6 @@ export interface ContexteDecoupe {
   interdits?: IntervalleInterdit[];
 }
 
-const EPS = 1e-9;
 const MONTANT = /€|euros?|prix|tarif|co[uû]te|\d+\s?[kK]?\s?€/i;
 
 /** Aplatit les segments, trie par début, retire les doublons d'instant. */

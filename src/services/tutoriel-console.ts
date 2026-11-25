@@ -65,7 +65,7 @@ export interface ReglageTutoriel {
 
 /** Liste FERMÉE des interrupteurs du panneau (ordre d'affichage). Le plafond n'y est pas. */
 export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
-  { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé. Allumé, il faut aussi « Envoi d'un dossier » ou « Entrée par une phrase » ; avec votre script collé et sans voix, rien n'est payé si Claude reste éteint." },
+  { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé. Allumé : vous pouvez coller votre script (« Mon script ») ; avec votre script et sans voix, rien n'est payé si Claude reste éteint. Pour envoyer un dossier ou une phrase seule, ouvrez aussi « Envoi d'un dossier » ou « Entrée par une phrase »." },
   { cle: CLE_ENTREE_ZIP, libelle: "Envoi d'un dossier", phraseEteint: "Éteint : aucun dossier ne peut être envoyé. Allumé, un dossier sans script a besoin de l'« Équipe de rôles » (appels Claude payants) ; ne pas l'ouvrir aux dossiers de clients avant le poste de capture." },
   { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase", phraseEteint: "Éteint : pas d'entrée par une phrase. Sans script collé, une phrase a besoin de l'« Équipe de rôles » (appels Claude payants)." },
   { cle: PARAM_CLAUDE_TUTORIEL, libelle: "Écriture et relecture par Claude", phraseEteint: `Éteint : Claude n'écrit ni ne relit rien ; avec votre script et sans voix, la vidéo se fait quand même sans appel à Claude ; ${ANNONCE_PAYANT}` },
