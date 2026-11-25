@@ -11,7 +11,7 @@ import type { ResultatControleComposition } from "../../src/briques/plan-scenes/
 import type { DonneesCalque } from "../../src/briques/sous-titres/scene";
 import { noterTutoriel, type EntreeGrille } from "../../src/moteurs/montage-tutoriel-outil/grille-qualite";
 import { imagesPlanValideA, rectsSousTitresA } from "../../src/moteurs/montage-tutoriel-outil/geometrie-plan-valide";
-import { alertesDe, noteSansGrille } from "../../src/moteurs/montage-tutoriel-outil/index";
+import { alertesCompositionSansDoublon, alertesDe, noteSansGrille } from "../../src/moteurs/montage-tutoriel-outil/index";
 import type { EtatTutoriel } from "../../src/moteurs/montage-tutoriel-outil/chaine";
 
 const avant = JSON.parse(readFileSync(join(__dirname, "fixtures/qual-repli-avant.json"), "utf8"))[0] as { plan: PlanValide; sousTitres: DonneesCalque };
@@ -56,6 +56,25 @@ describe("critère « Composition de l'image » de la grille", () => {
     expect(noterTutoriel(entree(defaut("bloquant"))).proposable).toBe(false);
   });
   it("défaut à corriger : échoue en à corriger", () => expect(critere(defaut("a-corriger"))).toMatchObject({ etat: "echoue", gravite: "a-corriger" }));
+  it("absent : « non fait » = à corriger (−8), jamais bloquant, jamais 100", () => {
+    for (const c of [undefined, null]) {
+      expect(critere(c)).toMatchObject({ etat: "non-fait", gravite: "a-corriger" });
+      const g = noterTutoriel(entree(c));
+      expect(g.criteres.filter((x) => x.gravite === "bloquant" && x.id === "composition")).toEqual([]);
+      expect(g.note).toBeLessThan(100);
+    }
+  });
+});
+
+describe("alertes de composition sans doublon avec la grille", () => {
+  it("avec une grille : aucune alerte de composition en plus", () => {
+    expect(alertesCompositionSansDoublon({ note: 90 }, undefined)).toEqual([]);
+    expect(alertesCompositionSansDoublon({ note: 90 }, defaut("bloquant"))).toEqual([]);
+  });
+  it("sans grille : les alertes de composition sont là", () => {
+    expect(alertesCompositionSansDoublon(undefined, undefined)).toHaveLength(1);
+    expect(alertesCompositionSansDoublon(undefined, defaut("bloquant")).length).toBeGreaterThan(0);
+  });
 });
 
 describe("alertes de plan : la fonction réelle `alertesDe`", () => {
