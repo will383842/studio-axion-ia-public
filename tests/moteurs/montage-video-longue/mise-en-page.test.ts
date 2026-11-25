@@ -185,7 +185,6 @@ describe("mise en page de la vidéo longue", () => {
       const debut = poserScene(s, s.debutMs + 1000);
       const cartes = fin.filter((e) => /:carte\d$/.test(e.id));
       expect(cartes).toHaveLength(s.elements.length);
-      expect(Math.max(...cartes.map((c) => c.rect.hauteur)) - Math.min(...cartes.map((c) => c.rect.hauteur)), s.id).toBeLessThanOrEqual(6);
       expect(debut.filter((e) => /:num\d$/.test(e.id)), s.id).toHaveLength(s.elements.length);
       expect(debut.some((e) => e.nature === "carte" && !/:(carte\d|progres)/.test(e.id) && !e.id.endsWith(":halo")), "aucun cadre vide").toBe(false);
       for (const c of cartes) {

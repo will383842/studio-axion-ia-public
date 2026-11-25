@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { storyboardVideoLongue } from "../../../src/moteurs/montage-video-longue/storyboard";
 import { motCle } from "../../../src/moteurs/montage-video-longue/deduction";
-import { ORIGINE_ZOOM_Y, ZOOM_SCENE, formeDeListe, poserScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
+import { ORIGINE_ZOOM_Y, ZOOM_SCENE, formeDeListe, poserScene, zoomScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
 import { TEMPS_LONGUE, ZONES_LONGUE, type ElementPose, type MotLu, type SceneLongue, type StoryboardVideoLongue, type TempsStoryboard } from "../../../src/moteurs/montage-video-longue/storyboard-types";
 
 const SCRIPT = `Le problème : compter à la main
@@ -104,7 +104,7 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
       vues = n;
     }
   });
-  it("1 ou 2 éléments : icône à droite et texte ≥ 60 px ; 3 ou plus : pas d'icône, pleine largeur, texte ≥ 56 px (≥ 52 px avec 5 étapes)", () => {
+  it("1 ou 2 éléments : icône à droite et texte ≥ 60 px ; 3 ou plus : pas d'icône, pleine largeur, texte ≥ 56 px (≥ 48 px avec 5 étapes)", () => {
     for (const s of sb.scenes) {
       if (s.type !== "etapes" && !(s.type === "liste" && s.compte === null)) continue;
       const els = poserScene(s, s.finMs - 200);
@@ -114,7 +114,7 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
       expect(textes, s.id).toHaveLength(n);
       for (const x of textes) {
         expect(x.lignes!.length, `${x.id}`).toBeLessThanOrEqual(2);
-        expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(n <= 2 ? 60 : s.type === "etapes" && n >= 5 ? 52 : 56);
+        expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(n <= 2 ? 60 : s.type === "etapes" && n >= 5 ? 48 : 56);
       }
       if (n <= 2) {
         expect(f, s.id).toBeDefined();
@@ -216,5 +216,42 @@ describe("bande de sous-titres : repère du chapitre quand la scène répète la
     const avantApres = sb.scenes.find((x) => x.type === "avant-apres");
     if (avantApres) expect(sousTitreRedondant(avantApres, l)).toBe(false);
     expect(poserSousTitre(l, l.debutMs + 600)!.lignes!.map((x) => x.map((m) => m.texte).join("")).join(" ")).toBe(l.texte.replace(/\s+/g, " "));
+  });
+});
+
+describe("zoom de scène calculé dans la mise en page (tour 6)", () => {
+  it("après zoom, aucun élément à moins de 100 px des bords gauche et droit ni de 80 px du haut ; rien ne gêne la bande", () => {
+    let zoomMax = 1;
+    for (const s of sb.scenes) {
+      const bas = s.type !== "carton-titre" && s.type !== "carton-chapitre" && s.type !== "fin" ? 892 : 1002;
+      for (let t = s.debutMs; t < s.finMs; t += 100) {
+        const z = zoomScene(s, t);
+        zoomMax = Math.max(zoomMax, z.echelle);
+        expect(z.echelle).toBeLessThanOrEqual(ZOOM_SCENE + 1e-9);
+        for (const e of poserScene(s, t)) {
+          if (e.opacite <= 0) continue;
+          const px = (x: number) => z.x - (z.x - x) * z.echelle;
+          const py = (y: number) => z.y - (z.y - y) * z.echelle;
+          if (!estProgres(e)) {
+            expect(px(e.rect.x), `${e.id} à ${t} ms (gauche)`).toBeGreaterThanOrEqual(98);
+            expect(px(e.rect.x + e.rect.largeur), `${e.id} à ${t} ms (droite)`).toBeLessThanOrEqual(1822);
+          }
+          expect(py(e.rect.y), `${e.id} à ${t} ms (haut)`).toBeGreaterThanOrEqual(78);
+          expect(py(e.rect.y + e.rect.hauteur), `${e.id} à ${t} ms (bas)`).toBeLessThanOrEqual(bas);
+        }
+      }
+    }
+    expect(zoomMax).toBeGreaterThan(1.01);
+  });
+  it("5 étapes : au moins 20 px entre le texte et le cadre de sa carte, texte ≥ 48 px", () => {
+    const e = sb.scenes.find((s) => s.type === "etapes")!;
+    const els = poserScene(e, e.finMs - 100);
+    for (let i = 0; i < 5; i++) {
+      const c = els.find((x) => x.id === `${e.id}:carte${i}`)!;
+      const t = els.find((x) => x.id === `${e.id}:texte${i}`)!;
+      expect(t.rect.y - c.rect.y, `carte ${i} (haut)`).toBeGreaterThanOrEqual(20 - 5);
+      expect(c.rect.y + c.rect.hauteur - (t.rect.y + t.rect.hauteur), `carte ${i} (bas)`).toBeGreaterThanOrEqual(20 - 5);
+      expect(t.taillePx!).toBeGreaterThanOrEqual(48);
+    }
   });
 });

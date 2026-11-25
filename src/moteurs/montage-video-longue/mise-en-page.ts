@@ -686,7 +686,8 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   const n = s.elements.length;
   const avecIcone = n <= 2;
   const d = n >= 4 ? 96 : 120;
-  const dispo = BAS_SCENE - HAUT_SCENE;
+  // 12 px de réserve : les numéros estompés des étapes à venir tournent sur un cercle de 16 px de rayon.
+  const dispo = BAS_SCENE - HAUT_SCENE - 20;
   const largeurZone = avecIcone ? colsL(8) : S.largeur;
   const xCarte = S.x + d + 32;
   const lCarte = largeurZone - d - 32;
@@ -697,29 +698,30 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
     if (t >= a) actif = i;
   });
   // Grille FIXE dès le début de la scène, cartes de MÊME hauteur : les positions finales sont connues, rien ne remonte.
-  // Texte 52 px au moins (56 et plus si possible, 60 et plus avec 1 ou 2 étapes), 1 à 2 lignes.
+  // Texte 48 px au moins (52 et plus si possible, 56 et plus avec 3 ou 4 étapes, 60 et plus avec 1 ou 2), 1 à 2 lignes,
+  // avec au moins 20 px d'air entre le texte et le cadre de sa carte (haut et bas). Chaque carte a la hauteur de ses lignes.
   const IL = 1.1;
-  const minH = n <= 2 ? 200 : n === 3 ? 170 : n === 4 ? 130 : 96;
+  const AIR = 40;
+  const minH = n <= 2 ? 200 : n === 3 ? 170 : n === 4 ? 130 : 0;
   const maxH = n <= 3 ? 280 : 200;
   const gap0 = n >= 5 ? 14 : 28;
-  const tailles = n <= 2 ? [64, 60, 56, 52] : n <= 4 ? [60, 58, 56, 52] : [56, 54, 52];
+  const tailles = n <= 2 ? [64, 60, 56, 52] : n <= 4 ? [60, 58, 56, 52] : [52, 50, 48];
   let taille = tailles[tailles.length - 1];
   let lignesDe: string[][][] = [];
-  let H = minH;
+  let hautes: number[] = [];
   for (const cand of tailles) {
     taille = cand;
     lignesDe = s.elements.map((e) => coupe(e.texte, cand, 600, lTexte));
-    const texteH = Math.max(...lignesDe.map((l) => hauteurLignes(l.length, cand, IL)));
-    const possible = (dispo - (n - 1) * 8) / n;
-    H = Math.min(maxH, possible, Math.max(minH, texteH + 16));
-    if (Math.max(...lignesDe.map((l) => l.length)) <= 2 && texteH + 6 <= H) break;
+    hautes = lignesDe.map((l) => Math.min(maxH, Math.max(minH, hauteurLignes(l.length, cand, IL) + AIR)));
+    if (Math.max(...lignesDe.map((l) => l.length)) <= 2 && hautes.reduce((a, b) => a + b, 0) + (n - 1) * 8 <= dispo) break;
   }
-  const hautes = s.elements.map(() => H);
+  const somme = hautes.reduce((a, b) => a + b, 0);
   let gap = gap0;
-  if (n > 1) gap = Math.min(60, Math.max(8, (dispo - n * H) / (n - 1)));
-  const total = n * H + (n - 1) * gap;
-  const y0 = HAUT_SCENE + (dispo - total) / 2;
-  const tops = s.elements.map((_e, i) => y0 + i * (H + gap));
+  if (n > 1) gap = Math.min(60, Math.max(8, (dispo - somme) / (n - 1)));
+  const total = somme + (n - 1) * gap;
+  const y0 = HAUT_SCENE + 10 + (dispo - total) / 2;
+  const tops: number[] = [];
+  hautes.reduce((acc, h, i) => ((tops[i] = acc), acc + h + gap), y0);
   const fond: CouleurLongue = p.fond === "noir" ? "noir" : "ivoire";
   s.elements.forEach((el, i) => {
     const fl = FLOTTE_CARTE_PX * souffle(tl, 3000 + i * 260, i * 1.7);
@@ -1098,6 +1100,67 @@ export const poserScene = (scene: SceneLongue, tMs: number): ElementPose[] => {
 
 /** Vrai si la scène a la bande de sous-titres (les cartons et la fin n'en ont pas). */
 export const sceneAvecBande = (type: string): boolean => type !== "carton-titre" && type !== "carton-chapitre" && type !== "fin";
+
+/* ------------------------------------------------------------------ */
+/* Zoom de scène (pur, partagé par le rendu et les tests)               */
+/* ------------------------------------------------------------------ */
+
+/** Marges après zoom : aucun élément de contenu à moins de 100 px des bords gauche et droit, ni de 80 px du haut. */
+const LIMITE_ZOOM = { gauche: 100, droite: 1820, haut: 80 } as const;
+export interface ZoomScene {
+  /** Échelle à l'instant demandé (1 → échelle finale, sur la durée de la scène). */
+  echelle: number;
+  /** Point fixe du zoom (px de l'image). */
+  x: number;
+  y: number;
+}
+const cacheZoom = new Map<string, { k: number; x: number; y: number }>();
+const estBarre = (e: ElementPose) => /:progres|:seg\d/.test(e.id);
+
+/**
+ * Zoom lent de la scène : de 1 à `ZOOM_SCENE` au plus, mais jamais au point de faire sortir le contenu des marges. L'échelle
+ * finale est la plus grande telle que la boîte englobante du contenu (toute la scène, flottements compris) reste dans la zone
+ * après zoom ; le point fixe est choisi au milieu de l'intervalle permis. Un contenu pleine largeur ne zoome donc presque pas.
+ */
+export function zoomScene(scene: SceneLongue, tMs: number): ZoomScene {
+  const cle = `${scene.id}|${scene.debutMs}|${scene.finMs}|${scene.type}`;
+  let z = cacheZoom.get(cle);
+  if (!z) {
+    if (cacheZoom.size > 400) cacheZoom.clear();
+    const bande = sceneAvecBande(scene.type);
+    const bas = bande ? 890 : 1000;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    const ajoute = (r: Rect, lateral: boolean) => {
+      if (lateral) {
+        x0 = Math.min(x0, r.x - 4);
+        x1 = Math.max(x1, r.x + r.largeur + 4);
+      }
+      y0 = Math.min(y0, r.y - 4);
+      y1 = Math.max(y1, r.y + r.hauteur + 4);
+    };
+    for (let t = scene.debutMs; ; t += 200) {
+      const tt = Math.min(t, scene.finMs - 1);
+      for (const e of poserScene(scene, tt)) if (e.opacite > 0) ajoute(e.rect, !estBarre(e));
+      if (t >= scene.finMs - 1) break;
+    }
+    if (scene.type === "fin") {
+      const lg = logoFin(scene);
+      ajoute({ x: lg.x, y: lg.y - 6, largeur: lg.largeur, hauteur: lg.hauteur + 12 }, true);
+    }
+    if (!isFinite(x0)) z = { k: 1, x: 960, y: 540 };
+    else {
+      const k = Math.max(1, Math.min(ZOOM_SCENE, (LIMITE_ZOOM.droite - LIMITE_ZOOM.gauche) / (x1 - x0), (bas - LIMITE_ZOOM.haut) / (y1 - y0)));
+      const point = (a0: number, a1: number, L: number, R: number, repli: number) => (k <= 1.0001 ? repli : ((a1 * k - R) / (k - 1) + (a0 * k - L) / (k - 1)) / 2);
+      z = { k, x: point(x0, x1, LIMITE_ZOOM.gauche, LIMITE_ZOOM.droite, 960), y: point(y0, y1, LIMITE_ZOOM.haut, bas, ORIGINE_ZOOM_Y) };
+    }
+    cacheZoom.set(cle, z);
+  }
+  const avance = prog(tMs, scene.debutMs, Math.max(1, scene.finMs - scene.debutMs));
+  return { echelle: 1 + (z.k - 1) * avance, x: z.x, y: z.y };
+}
 
 const normeTexte = (t: string) => t.toLocaleLowerCase("fr").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 

@@ -3,7 +3,7 @@
  * la bande des sous-titres et le sous-titre. Tout vient de `mise-en-page.ts` (le contrôle voit la même chose).
  */
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
-import { ORIGINE_ZOOM_Y, ZOOM_SCENE, poserScene, poserSousTitre, repereChapitre, sceneAvecBande, sousTitreRedondant, logoFin } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
+import { poserScene, poserSousTitre, repereChapitre, sceneAvecBande, sousTitreRedondant, logoFin, zoomScene } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
 import { COULEURS_LONGUE, TEMPS_LONGUE, ZONES_LONGUE, type ProprietesVideoLongue, type SceneLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
 import logo from "../../commune/fin/logo-axion-fond-sombre.png";
 import { DessinElement } from "./DessinElement";
@@ -14,14 +14,12 @@ const fondDe = (s: SceneLongue) => (s.fond === "noir" ? COULEURS_LONGUE.noir : C
 function Couche({ scene, t, style }: { scene: SceneLongue; t: number; style?: React.CSSProperties }) {
   const bande = sceneAvecBande(scene.type);
   const lg = scene.type === "fin" ? logoFin(scene) : { x: 0, y: 0, hauteur: 0, largeur: 0 };
-  // Zoom lent du groupe de scène (1 → 1,08 sur la durée de la scène) : jamais deux images identiques.
-  const avance = Math.min(1, Math.max(0, (t - scene.debutMs) / Math.max(1, scene.finMs - scene.debutMs)));
-  const zoom = 1 + (ZOOM_SCENE - 1) * avance;
-  const centreY = bande ? ORIGINE_ZOOM_Y : 540;
+  // Zoom lent du groupe de scène, calculé par la mise en page (jamais au point de sortir le contenu des marges).
+  const zoom = zoomScene(scene, t);
   const entreeLogo = Math.min(1, Math.max(0, (t - scene.debutMs) / 300));
   return (
     <AbsoluteFill style={{ background: fondDe(scene), overflow: "hidden", ...style }}>
-      <AbsoluteFill style={{ transform: `scale(${zoom})`, transformOrigin: `960px ${centreY}px` }}>
+      <AbsoluteFill style={{ transform: `scale(${zoom.echelle})`, transformOrigin: `${zoom.x}px ${zoom.y}px` }}>
         {poserScene(scene, t).map((el) => (
           <DessinElement key={el.id} el={el} tMs={t} />
         ))}
@@ -49,21 +47,27 @@ export function VideoLongue({ storyboard }: ProprietesVideoLongue) {
   const tl = t - s.debutMs;
   const p = Math.min(1, Math.max(0, tl / TEMPS_LONGUE.transitionMs));
   const prev = idx > 0 && p < 1 && s.entree !== "aucune" ? scenes[idx - 1] : null;
-  const e = 1 - (1 - p) ** 3;
   let contenu;
   if (!prev) contenu = <Couche scene={s} t={t} />;
   else if (s.entree === "fondu") {
+    // Fondu enchaîné sans superposition de texte : la scène sortante disparaît (0 → 200 ms), PUIS l'entrante apparaît (200 → 400 ms).
+    const sortie = 1 - Math.min(1, Math.max(0, tl / 200));
+    const entree = Math.min(1, Math.max(0, (tl - 200) / 200));
     contenu = (
       <>
-        <Couche scene={prev} t={t} />
-        <Couche scene={s} t={t} style={{ opacity: e }} />
+        <Couche scene={prev} t={t} style={{ opacity: sortie }} />
+        <Couche scene={s} t={t} style={{ opacity: entree }} />
       </>
     );
   } else if (s.entree === "glisse") {
+    // Même séquence, avec un glissement de 40 px seulement : aucune lettre n'atteint le bord de l'image.
+    const sortie = Math.min(1, Math.max(0, tl / 200));
+    const entree = Math.min(1, Math.max(0, (tl - 200) / 200));
+    const ee = 1 - (1 - entree) ** 3;
     contenu = (
       <>
-        <Couche scene={prev} t={t} style={{ transform: `translateX(${-80 * e}px)` }} />
-        <Couche scene={s} t={t} style={{ opacity: e, transform: `translateX(${80 * (1 - e)}px)` }} />
+        <Couche scene={prev} t={t} style={{ opacity: 1 - sortie, transform: `translateX(${-40 * sortie}px)` }} />
+        <Couche scene={s} t={t} style={{ opacity: ee, transform: `translateX(${40 * (1 - ee)}px)` }} />
       </>
     );
   } else {
@@ -86,6 +90,12 @@ export function VideoLongue({ storyboard }: ProprietesVideoLongue) {
   const sous = ligne && sceneAvecBande(s.type) ? poserSousTitre(ligne, t, repere) : null;
   return (
     <AbsoluteFill style={{ background: fondDe(s), overflow: "hidden" }}>
+      {/* La bande reste à sa place pendant un fondu entre deux scènes à bande (aucun trou quand les deux couches sont transparentes). */}
+      {prev && sceneAvecBande(prev.type) && sceneAvecBande(s.type) && (
+        <div style={{ position: "absolute", left: 0, top: ZONES_LONGUE.bandeSousTitres.y, width: 1920, height: ZONES_LONGUE.bandeSousTitres.hauteur, background: COULEURS_LONGUE.gris }}>
+          <div style={{ height: 4, background: COULEURS_LONGUE.terracotta }} />
+        </div>
+      )}
       {contenu}
       {sous && <DessinElement el={sous} tMs={t} />}
     </AbsoluteFill>
