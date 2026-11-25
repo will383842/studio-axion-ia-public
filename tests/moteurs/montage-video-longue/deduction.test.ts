@@ -82,14 +82,13 @@ describe("étapes", () => {
     expect(s.type).not.toBe("etapes");
   });
 
-  it("repartirEtapes : 5 au plus par scène (les étapes lues restent affichées), réparties à égalité", () => {
+  it("repartirEtapes : 3 au plus par scène (texte de 64 px et plus), réparties à égalité", () => {
     expect(repartirEtapes(2)).toEqual([2]);
     expect(repartirEtapes(3)).toEqual([3]);
-    expect(repartirEtapes(4)).toEqual([4]);
-    expect(repartirEtapes(5)).toEqual([5]);
+    expect(repartirEtapes(4)).toEqual([2, 2]);
+    expect(repartirEtapes(5)).toEqual([3, 2]);
     expect(repartirEtapes(6)).toEqual([3, 3]);
-    expect(repartirEtapes(7)).toEqual([4, 3]);
-    expect(repartirEtapes(9)).toEqual([5, 4]);
+    expect(repartirEtapes(7)).toEqual([3, 2, 2]);
   });
 
   it("numéros continus, apparition à la lecture de chaque étape, accent = nombre du texte", () => {

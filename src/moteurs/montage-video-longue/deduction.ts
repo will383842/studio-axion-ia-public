@@ -182,10 +182,10 @@ function etapesDe(run: PhraseLue[], numeroDepart: number): ScenePortee {
   return { scene: { type: "etapes", debutMs: run[0].debutMs, finMs: run[run.length - 1].finMs, numeroDepart, elements }, sources: run };
 }
 
-/** Étapes au plus par scène : les étapes déjà lues restent affichées (jusqu'à 5 sur une même scène). */
-export const ETAPES_PAR_SCENE_MAX = 5;
+/** Étapes au plus par scène : 3 (texte de 64 px et plus) ; les étapes déjà lues restent affichées dans leur scène. */
+export const ETAPES_PAR_SCENE_MAX = 3;
 
-/** Tailles des scènes d'étapes : 5 au plus, réparties à égalité (5 → 5, 6 → 3 + 3, 7 → 4 + 3, 9 → 5 + 4). */
+/** Tailles des scènes d'étapes : 3 au plus, réparties à égalité (4 → 2 + 2, 5 → 3 + 2, 7 → 3 + 2 + 2). */
 export function repartirEtapes(n: number): number[] {
   const k = Math.ceil(n / ETAPES_PAR_SCENE_MAX);
   const base = Math.floor(n / k);

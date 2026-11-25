@@ -150,10 +150,12 @@ describe("mise en page de la vidéo longue", () => {
     const val = (t: number) => poserScene(c, t).find((e) => e.id.endsWith(":nombre"))!.lignes![0][0].texte;
     expect(Number(val(c.debutMs + 700))).toBeGreaterThan(0);
     expect(val(c.debutMs + 1200)).toBe("12");
-    const blocs = (t: number) => poserScene(c, t).filter((e) => /:bloc\d+-plein$/.test(e.id)).length;
+    // 12 blocs au repos (gris), qui apparaissent un à un ; un seul bloc terracotta plein à la fois (celui de l'aiguille).
+    const visibles = (t: number) => poserScene(c, t).filter((e) => /:bloc\d+$/.test(e.id) && e.opacite > 0.5).length;
     expect(poserScene(c, c.finMs - 500).filter((e) => /:bloc\d+$/.test(e.id))).toHaveLength(12);
-    expect(blocs(c.finMs - 500)).toBe(12);
-    expect(blocs(c.debutMs + 500)).toBeLessThan(12);
+    expect(visibles(c.finMs - 500)).toBe(12);
+    expect(visibles(c.debutMs + 500)).toBeLessThan(12);
+    expect(poserScene(c, c.finMs - 500).filter((e) => /:bloc\d+-plein$/.test(e.id))).toHaveLength(1);
   });
 
   it("cartons de chapitre : une icône différente par chapitre", () => {

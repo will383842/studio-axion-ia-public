@@ -46,7 +46,7 @@ describe.skipIf(!AVEC_RENDU)("VideoLongue", () => {
     expect(h).toContain("tableur");
     expect(h).toContain("top:900px");
     expect(h).toContain("#E8E6DC");
-    expect(h).toContain("font-size:46px");
+    expect(h).toContain("font-size:56px");
     expect(h).toContain("tableur");
   });
 

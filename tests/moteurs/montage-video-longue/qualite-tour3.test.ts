@@ -92,20 +92,21 @@ describe("marges", () => {
   });
 });
 
-describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affichées", () => {
-  it("à la fin, les cinq cartes sont posées dans la zone", () => {
-    const e = sb.scenes.find((s) => s.type === "etapes")!;
-    const els = poserScene(e, e.finMs - 100);
-    expect(els.filter((x) => /:carte\d$/.test(x.id))).toHaveLength(5);
-    // Une fois lue, une étape ne disparaît plus.
-    let vues = 0;
-    for (let t = e.debutMs; t < e.finMs; t += 100) {
-      const n = poserScene(e, t).filter((x) => /:carte\d$/.test(x.id) && x.opacite > 0).length;
-      expect(n).toBeGreaterThanOrEqual(vues);
-      vues = n;
+describe("étapes : trois au plus par scène (3 + 2), texte ≥ 64 px", () => {
+  it("5 étapes = deux scènes (1 à 3, puis 4 à 5) ; une fois lue, une étape ne disparaît plus", () => {
+    const es = sb.scenes.filter((s) => s.type === "etapes");
+    expect(es.map((s) => (s.type === "etapes" ? [s.numeroDepart, s.elements.length] : []))).toEqual([[1, 3], [4, 2]]);
+    for (const e of es) {
+      expect(poserScene(e, e.finMs - 100).filter((x) => /:carte\d$/.test(x.id))).toHaveLength(e.type === "etapes" ? e.elements.length : 0);
+      let vues = 0;
+      for (let t = e.debutMs; t < e.finMs; t += 100) {
+        const n = poserScene(e, t).filter((x) => /:carte\d$/.test(x.id) && x.opacite > 0).length;
+        expect(n).toBeGreaterThanOrEqual(vues);
+        vues = n;
+      }
     }
   });
-  it("1 ou 2 éléments : icône à droite et texte ≥ 60 px ; 3 ou plus : pas d'icône, pleine largeur, texte ≥ 56 px (≥ 48 px avec 5 étapes)", () => {
+  it("étapes : texte ≥ 64 px (1 à 3 lignes) ; listes : ≥ 56 px, 2 lignes ; 1 ou 2 éléments : icône à droite ; 3 ou plus : pleine largeur sans icône", () => {
     for (const s of sb.scenes) {
       if (s.type !== "etapes" && !(s.type === "liste" && s.compte === null)) continue;
       const els = poserScene(s, s.finMs - 200);
@@ -114,8 +115,8 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
       const textes = els.filter((x) => /:texte\d$/.test(x.id));
       expect(textes, s.id).toHaveLength(n);
       for (const x of textes) {
-        expect(x.lignes!.length, `${x.id}`).toBeLessThanOrEqual(2);
-        expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(n <= 2 ? 60 : s.type === "etapes" && n >= 5 ? 48 : 56);
+        expect(x.lignes!.length, `${x.id}`).toBeLessThanOrEqual(s.type === "etapes" ? 3 : 2);
+        expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(s.type === "etapes" ? 64 : n <= 2 ? 60 : 56);
       }
       if (n <= 2) {
         expect(f, s.id).toBeDefined();
@@ -126,14 +127,22 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
       }
     }
   });
-  it("5 étapes : toutes entrées avant +1,5 s, numéros ≥ 72 px dans des disques ≥ 96 px, texte ≥ 52 px, marge haute", () => {
-    const e = sb.scenes.find((s) => s.type === "etapes")!;
-    const els = poserScene(e, e.debutMs + 1500);
-    expect(els.filter((x) => /:carte\d$/.test(x.id))).toHaveLength(5);
-    for (const x of els.filter((y) => /:num\d$/.test(y.id))) expect(x.taillePx!).toBeGreaterThanOrEqual(72);
-    for (const x of els.filter((y) => /:disque\d$/.test(y.id))) expect(x.rect.largeur).toBeGreaterThanOrEqual(86);
-    for (const x of els.filter((y) => /:texte\d$/.test(y.id))) expect(x.taillePx!).toBeGreaterThanOrEqual(52);
-    for (const x of poserScene(e, e.debutMs + 3000)) if (!/:progres/.test(x.id)) expect(x.rect.y).toBeGreaterThanOrEqual(90);
+  it("étapes : numéros ≥ 72 px dans des disques ≥ 96 px, marge haute ≥ 120 px, ≥ 24 px entre le disque et le cadre de la carte active", () => {
+    for (const e of sb.scenes.filter((s) => s.type === "etapes")) {
+      const els = poserScene(e, e.debutMs + 1500);
+      for (const x of els.filter((y) => /:num\d$/.test(y.id))) expect(x.taillePx!).toBeGreaterThanOrEqual(72);
+      for (const x of els.filter((y) => /:disque\d$/.test(y.id))) expect(x.rect.largeur).toBeGreaterThanOrEqual(96);
+      for (let t = e.debutMs + 1500; t < e.finMs; t += 100) {
+        const tout = poserScene(e, t);
+        for (const x of tout) if (!/:progres/.test(x.id)) expect(x.rect.y, x.id).toBeGreaterThanOrEqual(120);
+        const act = tout.find((x) => /:carte\d$/.test(x.id) && x.bordure === "terracotta");
+        if (act) {
+          const i = /(\d+)$/.exec(act.id)![1];
+          const d = tout.find((x) => x.id === `${e.id}:disque${i}`)!;
+          expect(act.rect.x - (d.rect.x + d.rect.largeur), `disque ${i} à ${t} ms`).toBeGreaterThanOrEqual(24);
+        }
+      }
+    }
   });
   it("deux scènes voisines n'ont jamais la même icône de liste ou d'étapes", () => {
     const formes = (s: SceneLongue) => poserScene(s, s.debutMs + 1000).find((x) => x.nature === "forme" && /:forme$/.test(x.id))?.forme;
@@ -246,19 +255,6 @@ describe("zoom de scène calculé dans la mise en page (tour 6)", () => {
     }
     expect(zoomMax).toBeGreaterThan(1.01);
   });
-  it("5 étapes : au moins 20 px entre le texte et le cadre de sa carte, pulsation comprise, texte ≥ 52 px", () => {
-    const e = sb.scenes.find((s) => s.type === "etapes")!;
-    for (let t = e.debutMs + 1500; t < e.finMs; t += 100) {
-    const els = poserScene(e, t);
-    for (let i = 0; i < 5; i++) {
-      const c = els.find((x) => x.id === `${e.id}:carte${i}`)!;
-      const t = els.find((x) => x.id === `${e.id}:texte${i}`)!;
-      expect(t.rect.y - c.rect.y, `carte ${i} (haut)`).toBeGreaterThanOrEqual(20);
-      expect(c.rect.y + c.rect.hauteur - (t.rect.y + t.rect.hauteur), `carte ${i} (bas)`).toBeGreaterThanOrEqual(20);
-      expect(t.taillePx!).toBeGreaterThanOrEqual(52);
-    }
-    }
-  });
 });
 
 describe("bande : repère vu par le contrôle, deux lignes au plus, jamais d'ellipse", () => {
@@ -273,15 +269,19 @@ describe("bande : repère vu par le contrôle, deux lignes au plus, jamais d'ell
     const c = controlerStoryboard(sb, { scene: poserScene, sousTitre: poseur });
     expect(c.alertes.filter((a) => a.critere === "lisibilite" || a.code === "hors-cadre")).toEqual([]);
   });
-  it("un repère très long est coupé au dernier mot entier qui tient (2 lignes, pas d'ellipse)", () => {
+  it("repère toujours sur UNE ligne : « 02 · titre complet » trop long → « 02 · » + partie avant « : », puis dernier mot entier, sans ellipse", () => {
     const l = { texte: "x", debutMs: 0, finMs: 3000 };
     const long = "02 · " + Array.from({ length: 40 }, (_, i) => `mot${i}`).join(" ");
     const e = poserSousTitre(l, 1000, long)!;
-    expect(e.lignes!.length).toBeLessThanOrEqual(2);
+    expect(e.lignes!.length).toBe(1);
     const texte = e.lignes!.map((x) => x.map((m) => m.texte).join("")).join(" ");
     expect(texte).not.toContain("…");
     expect(long.startsWith(texte)).toBe(true);
-    expect(e.taillePx!).toBeGreaterThanOrEqual(44);
+    expect(e.taillePx!).toBeGreaterThanOrEqual(52);
+    const titre = "02 · La solution : un tableau de bord qui se met à jour seul avec des mots en plus pour dépasser la ligne unique de la bande";
+    const e2 = poserSousTitre(l, 1000, titre)!;
+    expect(e2.lignes!.length).toBe(1);
+    expect(e2.lignes!.map((x) => x.map((m) => m.texte).join("")).join("")).toBe("02 · La solution");
   });
 });
 
@@ -308,15 +308,28 @@ describe("tour 8 : transitions sans superposition, carton de titre, frise du chi
     const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
     expect(Math.abs((haut + bas) / 2 - 540)).toBeLessThanOrEqual(20);
   });
-  it("chiffre : blocs de la frise tous de la même teinte, un seul accent qui balaie", () => {
+  it("chiffre : blocs au repos gris de la charte, un seul bloc terracotta plein, cadre centré sur lui (bloc + 8 px), 16 px entre blocs", () => {
     const c = sb.scenes.find((s) => s.type === "chiffre" && s.chiffres.length === 1 && s.chiffres[0].valeur === 12)!;
-    for (const dt of [2500, 3200, 4100]) {
+    for (const dt of [2500, 3200, 4100, 5000]) {
       const els = poserScene(c, c.debutMs + dt);
+      const blocs = els.filter((e) => /:bloc\d+$/.test(e.id));
+      expect(blocs).toHaveLength(12);
+      expect(new Set(blocs.map((e) => e.fond)), "gris de la charte").toEqual(new Set(["gris"]));
       const pleins = els.filter((e) => /:bloc\d+-plein$/.test(e.id));
-      expect(pleins).toHaveLength(12);
-      expect(new Set(pleins.map((e) => `${e.fond}|${e.couleur}`)).size).toBe(1);
-      expect(pleins.filter((e) => e.opacite > 0.55).length, "seuls les blocs proches de l'aiguille se distinguent").toBeLessThanOrEqual(3);
-      expect(els.filter((e) => /:bloc\d+$/.test(e.id))[0].rect.largeur).toBeGreaterThanOrEqual(90);
+      expect(pleins).toHaveLength(1);
+      expect(pleins[0].fond).toBe("terracotta");
+      expect(pleins[0].opacite).toBe(1);
+      const i = /bloc(\d+)-plein/.exec(pleins[0].id)![1];
+      const b = blocs.find((e) => e.id.endsWith(`:bloc${i}`))!;
+      const cur = els.find((e) => e.id.endsWith(":curseur"))!;
+      expect(cur.rect.largeur).toBeCloseTo(b.rect.largeur + 8, 0);
+      expect(cur.rect.x + cur.rect.largeur / 2).toBeCloseTo(b.rect.x + b.rect.largeur / 2, 0);
+      expect(cur.rect.y + cur.rect.hauteur / 2).toBeCloseTo(b.rect.y + b.rect.hauteur / 2, 0);
+      const tries = [...blocs].sort((x, y) => x.rect.x - y.rect.x);
+      for (let k = 1; k < tries.length; k++) expect(tries[k].rect.x - (tries[k - 1].rect.x + tries[k - 1].rect.largeur), "écart entre blocs").toBeGreaterThanOrEqual(16);
+      // Le cadre ne touche jamais le voisin.
+      for (const v of blocs) if (v !== b) expect(cur.rect.x + cur.rect.largeur <= v.rect.x || v.rect.x + v.rect.largeur <= cur.rect.x || cur.rect.y + cur.rect.hauteur <= v.rect.y || v.rect.y + v.rect.hauteur <= cur.rect.y, `cadre / ${v.id}`).toBe(true);
+      expect(blocs[0].rect.largeur).toBeGreaterThanOrEqual(90);
     }
   });
   it("carte active : le groupe grossit jusqu'à 1,04 (jamais sous sa taille de base) et le filet respire vers l'extérieur", () => {
@@ -376,5 +389,45 @@ describe("sous-titres de 56 px (52 px au plus bas), dans la bande, 2 lignes au p
         if (!repere) expect(e.taillePx!, "les lignes du story-board tiennent à 56 px").toBe(56);
       }
     }
+  });
+});
+
+describe("tour 10 : cartons de chapitre, tuiles, fin", () => {
+  it("carton de chapitre : titre ≥ 110 px, numéro + titre + barres en un bloc centré, icône qui se dessine puis respire", () => {
+    for (const c of sb.scenes.filter((s) => s.type === "carton-chapitre")) {
+      const els = poserScene(c, c.debutMs + 2200).filter((e) => e.opacite > 0 && !/:forme/.test(e.id));
+      expect(els.find((e) => e.id.endsWith(":titre"))!.taillePx!, c.id).toBeGreaterThanOrEqual(110);
+      const haut = Math.min(...els.map((e) => e.rect.y));
+      const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
+      expect(Math.abs((haut + bas) / 2 - 540), `${c.id} centré`).toBeLessThanOrEqual(25);
+      const titre = els.find((e) => e.id.endsWith(":titre"))!;
+      const seg = els.find((e) => /:seg\d/.test(e.id))!;
+      expect(seg.rect.y - (titre.rect.y + titre.rect.hauteur), "barres sous le titre").toBeLessThanOrEqual(80);
+      const tailles = [1600, 2800, 3400, 3700].map((dt) => poserScene(c, c.debutMs + dt).find((e) => e.id.endsWith(":forme"))!.rect.largeur);
+      expect(Math.max(...tailles) - Math.min(...tailles), "l'icône respire").toBeGreaterThan(5);
+    }
+  });
+  it("tuiles : icône 180 px, libellé ≥ 60 px, bloc icône + libellé centré dans la tuile", () => {
+    const l = sb.scenes.find((s) => s.type === "liste" && s.compte !== null && s.elements.length <= 4)!;
+    const els = poserScene(l, l.finMs - 200);
+    for (let i = 0; i < 3; i++) {
+      const tuile = els.find((e) => e.id.endsWith(`:tuile${i}`))!;
+      const ic = els.find((e) => e.id.endsWith(`:icone${i}`))!;
+      const tx = els.find((e) => e.id.endsWith(`:texte${i}`))!;
+      expect(ic.rect.largeur).toBeGreaterThanOrEqual(180);
+      expect(tx.taillePx!).toBeGreaterThanOrEqual(60);
+      const haut = ic.rect.y - tuile.rect.y;
+      const bas = tuile.rect.y + tuile.rect.hauteur - (tx.rect.y + tx.rect.hauteur);
+      expect(Math.abs(haut - bas), `tuile ${i} centrée verticalement`).toBeLessThanOrEqual(12);
+      expect(Math.abs(ic.rect.x + ic.rect.largeur / 2 - (tuile.rect.x + tuile.rect.largeur / 2))).toBeLessThanOrEqual(6);
+    }
+  });
+  it("fin : question ≥ 64 px, bloc centré verticalement", () => {
+    const f = sb.scenes.find((s) => s.type === "fin")!;
+    const els = poserScene(f, f.debutMs + 2000).filter((e) => !/:progres|:onde|:trait|:reflet/.test(e.id));
+    expect(els.find((e) => e.id.endsWith(":question"))!.taillePx!).toBeGreaterThanOrEqual(64);
+    const haut = Math.min(...els.map((e) => e.rect.y), 115);
+    const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
+    expect(Math.abs((haut + bas) / 2 - 540)).toBeLessThanOrEqual(40);
   });
 });
