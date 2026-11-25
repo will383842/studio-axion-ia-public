@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, mkdtempSync, rmSync, statSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { environnementAutorise } from "../../../outils/maquettes-tableaux-de-bord/capture/garde";
 import { lireArchive } from "../../../outils/maquettes-tableaux-de-bord/capture/decompresser-zip";
 import {
   RACINE_DEPOT,
@@ -97,9 +98,20 @@ describe("principal et --direct", () => {
     expect(readFileSync(join(boite, "reponses", reponses[0]!, "etat.txt"), "utf8")).toBe("refus\nDEMANDE_INVALIDE\n");
     expect(existsSync(r.dossier)).toBe(false);
   });
-  it("environnement réduit : PATH, HOME, variables du navigateur ; aucun secret", () => {
-    const e = environnementReduit({ PATH: "/bin", HOME: "/h", PLAYWRIGHT_BROWSERS_PATH: "/p", ANTHROPIC_API_KEY: "secret", DATABASE_URL: "x", CI: "true" });
-    expect(e).toEqual({ PATH: "/bin", HOME: "/h", PLAYWRIGHT_BROWSERS_PATH: "/p" });
+  it("environnement réduit : PATH, HOME, navigateur et indicateurs de la garde (CI gardé) ; secrets toujours retirés", () => {
+    const e = environnementReduit({ PATH: "/bin", HOME: "/h", PLAYWRIGHT_BROWSERS_PATH: "/p", SWIFTSHADER_THREADS: "0", ANTHROPIC_API_KEY: "secret", DATABASE_URL: "x", CI: "true" });
+    expect(e).toEqual({ PATH: "/bin", HOME: "/h", PLAYWRIGHT_BROWSERS_PATH: "/p", SWIFTSHADER_THREADS: "0", CI: "true" });
+  });
+  it("la garde de capture (celle de capturer.mts) rend le même verdict avant et après réduction, avec CI et avec CLAUDE_CODE_REMOTE", () => {
+    for (const env of [{ CI: "true" }, { CLAUDE_CODE_REMOTE: "true" }, {}] as Record<string, string>[]) {
+      const complet = { ...env, PATH: "/bin", ANTHROPIC_API_KEY: "secret" };
+      const reduit = environnementReduit(complet);
+      expect(reduit.ANTHROPIC_API_KEY).toBeUndefined();
+      expect(environnementAutorise(reduit, "linux", false)).toEqual(environnementAutorise(complet, "linux", false));
+    }
+    expect(environnementAutorise(environnementReduit({ CI: "true" }), "linux").ok).toBe(true);
+    expect(environnementAutorise(environnementReduit({ CLAUDE_CODE_REMOTE: "true" }), "linux").ok).toBe(true);
+    expect(environnementAutorise(environnementReduit({ CAPTURE_CONTENEUR: "true" }), "linux", true).ok).toBe(true);
   });
 });
 
