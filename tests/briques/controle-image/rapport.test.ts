@@ -18,7 +18,7 @@ describe("contrôle de l'image finale — rapport unique", () => {
   });
 
   it("un contrôle bloquant échoué : verdict bloqué", () => {
-    const r = controlerImageFinale({ mesures: { ...MESURES, dureeSec: 95 }, miseEnPage: PAGE, zone: ZONE });
+    const r = controlerImageFinale({ mesures: { ...MESURES, dureeSec: 200 }, miseEnPage: PAGE, zone: ZONE });
     expect(r).toMatchObject({ verdict: "bloque", resume: "Bloqué : 1 contrôle échoué" });
   });
 

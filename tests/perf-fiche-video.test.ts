@@ -73,7 +73,7 @@ describe("fiche vidéo · lecture ciblée", () => {
     await depots().travaux.enregistrer(travail("t-fab-echec", CIBLE, { statut: "echec" }, 301));
     await depots().travaux.enregistrer(travail("t-format", CIBLE, { type: "reexport", statut: "en_cours", parametres: { ratio: "9:16" } }, 302));
     const d = await videos.obtenirVideo(CIBLE);
-    expect(d?.travail?.id).toBe((await ancienne(CIBLE))?.id);
+    expect((await ancienne(CIBLE))?.id).toBe("t-format"); // l'Accueil masque l'échec périmé (travaux.ts:910-911), la fiche le montre
     expect(d?.travail?.id).toBe("t-fab-echec");
   });
 
