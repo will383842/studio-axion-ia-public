@@ -19,6 +19,7 @@
  * Rien n'est chargé à l'import (imports différés) : interrupteur éteint, aucun service, aucune base.
  */
 import { ErreurClaude, type RequeteClaude } from "./client";
+import type { OrigineLancement } from "@/services/budget-mensuel";
 import { marqueurArret, pireCasRequete, type MarqueurArret, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
 
 /** Étape inscrite sur la dépense (lignes de coût) : le suivi des dépenses retrouve la rédaction des guides. */
@@ -52,10 +53,12 @@ export function roleRedactionGuide(requete: RequeteClaude): DefinitionRole {
 
 /**
  * Appel gardé. `_cle` : gardé pour la signature historique (`DepsRedaction.appeler`) ; le compte qui répond est choisi
- * par `claudeActif`, comme pour tous les rôles (rotation des comptes comprise). Lève `RefusArgentRedaction` sur un refus
+ * par `claudeActif`, comme pour tous les rôles (rotation des comptes comprise). `origine` (OBLIGATOIRE) est celle de l'appelant
+ * réel (« studio » : geste d'une personne connectée ; « usine » : lancement automatique) : elle est transmise telle quelle à la
+ * brique Crédits, jamais écrite ici. Lève `RefusArgentRedaction` sur un refus
  * de la garde (aucun appel), ou l'erreur de Claude telle quelle (la dépense éventuelle est déjà enregistrée).
  */
-export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: string): Promise<{ texte: string; marqueur?: MarqueurArret }> {
+export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: string, origine: OrigineLancement): Promise<{ texte: string; marqueur?: MarqueurArret }> {
   const gc = await import("@/services/generation-claude");
   const credits = await import("@/services/credits");
   const commun = await import("@/services/_commun");
@@ -78,7 +81,7 @@ export async function appelerClaudeRedaction(requete: RequeteClaude, _cle: strin
     const engage = await gc.engageClaudeDuMoisCentimes();
     if (engage.depense + engage.reserve + demande > centimesDuPlafond(plafond)) return "plafond-mois";
     try {
-      await credits.verifierEtReserverSelonOrigine(undefined, { lignes, total: lignes[0]!.total }, false, "Cette rédaction de guide", { travailId: appelId });
+      await credits.verifierEtReserverSelonOrigine(origine, { lignes, total: lignes[0]!.total }, false, "Cette rédaction de guide", { travailId: appelId });
     } catch (e) {
       if (e instanceof commun.ErreurStudio && e.code === "CONFIRMATION_REQUISE") return "prix-a-confirmer";
       if (e instanceof commun.ErreurStudio && ["CREDIT_INSUFFISANT", "BUDGET_DEPASSE", "BUDGET_USINE_ABSENT", "BUDGET_MENSUEL_ATTEINT", "USINE_PLAFOND_ATTEINT"].includes(e.code)) return "credit";
