@@ -7,6 +7,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reinitialiserDepots } from "@/donnees/memoire";
 import { ecrireParametre } from "@/services/_commun";
 import { servicesTableau } from "@/moteurs/montage-tableau";
+import type { Travail } from "@/domaine/types";
+import type { ParametresDemandeComposition } from "@/briques/composition/scene";
+import { ficheDemonstration } from "../regles/exemples";
+import { banc } from "../moteur/doubles";
 import { PARAM_RACCORDS_TABLEAU } from "@/services/tableau-branchements";
 
 /** Les branchements réels (voix, R2, studio-rendu) sont doublés : seul ce que la chaîne lit pour les outils compte ici. */
@@ -21,6 +25,40 @@ async function outils() {
   await import("@/services/tableau-branchements");
   return (await servicesTableau().outils!(COMMANDE, "trav-raccords"))!;
 }
+
+/**
+ * Preuve par la FABRICATION : le réglage lu par le service passe par le moteur jusqu'à la composition soumise au rendu
+ * (outils du service pour `raccords`, doubles de la chaîne pour la voix et le rendu ; vrai moteur, vraie `fabriquerTableau`).
+ */
+describe("BR-TABLEAU-RACCORDS-c-v20j · le réglage atteint la fabrication", () => {
+  beforeEach(() => reinitialiserDepots());
+  const T0 = Date.UTC(2026, 9, 11, 9, 0, 0);
+
+  async function fabriquerAvecReglage() {
+    const reels = await outils();
+    const b = banc(ficheDemonstration, "raccords" in reels ? { raccords: reels.raccords } : {});
+    const c = b.commande(ficheDemonstration);
+    let t = await b.moteur.lancer(c, { travailId: "t-raccords", versionId: "ver-t-raccords", titre: "Essai", maintenant: T0 });
+    for (let n = 0; n < 200 && t.statut !== "termine" && t.statut !== "echec"; n++) {
+      t = (await b.moteur.avancer(JSON.parse(JSON.stringify(t)) as Travail, c, T0 + n * 1000)).travail;
+    }
+    expect(t.statut).toBe("termine");
+    return b.d.compositionsSoumises()[0].parametres as unknown as Extract<ParametresDemandeComposition, { mode: "complet" }>;
+  }
+
+  it("(a') réglage absent : la composition soumise n'a aucun raccord (comme master)", async () => {
+    expect((await fabriquerAvecReglage()).image.raccords).toBeUndefined();
+    await ecrireParametre(PARAM_RACCORDS_TABLEAU, "true");
+    expect((await fabriquerAvecReglage()).image.raccords).toBeUndefined();
+  });
+
+  it("(b') tableau.raccords = true : la fabrication reçoit l'option, des fondus (raccords non vides) sont soumis au rendu", async () => {
+    await ecrireParametre(PARAM_RACCORDS_TABLEAU, true);
+    const r = (await fabriquerAvecReglage()).image.raccords;
+    expect(r?.length).toBeGreaterThan(0);
+    expect(r!.every((x) => x.type === "fondu")).toBe(true);
+  });
+});
 
 describe("BR-TABLEAU-RACCORDS-c-v20j · réglage tableau.raccords", () => {
   beforeEach(() => reinitialiserDepots());
