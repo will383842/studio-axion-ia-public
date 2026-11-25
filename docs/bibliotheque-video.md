@@ -92,16 +92,16 @@ Le catalogue compte 105 capacités. L'état dit où elle en est : prod (déjà u
 | `ecran.grilles-archive` | prevu | 11 |  | inscrite, non branchée |
 | `ecran.ecrans-composes` | prevu | 11 |  | inscrite, non branchée |
 | `motion.titre-etape-montante` | prevu | 11 |  | inscrite, non branchée |
-| `texte.poids-variable` | prevu | X1 |  |  |
-| `texte.minimal-dynamique` | prevu | X1 |  |  |
+| `texte.poids-variable` | eteint | X1 |  |  |
+| `texte.minimal-dynamique` | eteint | X1 |  |  |
 | `ecran.fenetre-inclinee` | prevu | X1 |  |  |
-| `fond.verre-depoli` | prevu | X1 |  |  |
+| `fond.verre-depoli` | eteint | X1 |  |  |
 | `transition.zoom-mot` | prevu | X1 |  |  |
-| `transition.raccord-forme` | prevu | X1 |  |  |
-| `accroche.apercu-fin` | prevu | X1 |  |  |
-| `accroche.mot-cle` | prevu | X1 |  |  |
+| `transition.raccord-forme` | eteint | X1 |  |  |
+| `accroche.apercu-fin` | eteint | X1 |  |  |
+| `accroche.mot-cle` | eteint | X1 |  |  |
 | `mention.ia` | prevu | X1 |  |  |
-| `rythme.boucle` | prevu | X1 |  |  |
+| `rythme.boucle` | eteint | X1 |  |  |
 
 Résumé : 13 capacités `motion.v4-coulisse.*` en coulisse (préparées pour la v4, rien n'est visible) :
 

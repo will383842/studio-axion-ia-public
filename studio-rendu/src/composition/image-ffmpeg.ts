@@ -226,7 +226,7 @@ export function raccordsDesMorceaux(liste: Morceau[], raccords: ProprietesImageC
 
 export function argumentsImageFfmpeg(
   p: ProprietesImageComposition,
-  couleurs: Pick<ParametresCouleurs, "grainPct" | "grainTaillePx" | "vignettePct">,
+  couleurs: Pick<ParametresCouleurs, "grainPct" | "grainTaillePx" | "vignettePct" | "noirBlanc">,
   f: FichiersImage,
   dureeSec: number,
   sortie: string,
@@ -393,7 +393,7 @@ export function argumentsImageFfmpeg(
 
   // --- Couleurs (calque 6) puis son ---
   // Grain : source DU graphe (tirée à la demande) ; en entrée « lavfi », elle courait devant et s'empilait (≈ 1 Go).
-  const chaine = chaineCouleurs(couleurs, f.luts, { largeur: W, hauteur: H }, { entree: "[img]", grain: `${sourceGrain({ largeur: W, hauteur: H }, couleurs.grainTaillePx, fps, dureeSec + 2 / fps)},`, dejaRvb: true, dixBits: !!p.source10bits });
+  const chaine = chaineCouleurs(couleurs, f.luts, { largeur: W, hauteur: H }, { entree: "[img]", grain: `${sourceGrain({ largeur: W, hauteur: H }, couleurs.grainTaillePx, fps, dureeSec + 2 / fps)},`, dejaRvb: true, dixBits: !!p.source10bits, ...(couleurs.noirBlanc?.length ? { noirBlanc: couleurs.noirBlanc } : {}) });
   // Correcteur réel 2 : vraie fin, l'image s'éteint au noir et le son en fondu (absent : fin franche, comme avant).
   const fondu = p.fonduFinSec && p.fonduFinSec > 0 ? filtresFonduFin(dureeSec, p.fonduFinSec) : null;
   lignes.push(fondu ? chaine.replace(/\[v\]$/, `[vfin];[vfin]${fondu.video}[v]`) : chaine);
