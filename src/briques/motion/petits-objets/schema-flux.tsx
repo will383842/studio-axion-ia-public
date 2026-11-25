@@ -1,11 +1,11 @@
 /**
  * PETITS OBJETS — schéma de flux (C9-17) : 3 à 5 carrés arrondis reliés par un trait qui se trace, coche finale ; en ligne (16:9) ou en colonne (9:16).
  * Pièce pure, NON inscrite (rien ne l'importe). Carrés, liens et coche tracés par `TraceSvg`, apparition en cascade par `phaseObjet`.
- * Icônes facultatives par `iconeObjet(rôle)`. Textes en Manrope (`FAMILLE_CSS`), ≤ 4 mots ; aucun filtre. Imports relatifs seulement (dossier lu par le rendu).
+ * Icônes facultatives par `iconeObjet(rôle)`. Textes en Manrope (`PILE_CSS`), ≤ 4 mots ; aucun filtre. Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
 import { createElement } from "react";
-import { FAMILLE_CSS, GRAISSES } from "../../charte/axion-2026";
+import { PILE_CSS, GRAISSES } from "../../charte/axion-2026";
 import { MOTS_MAX, SURFACE_MAX, type DefinitionObjet, type ProprietesObjet, type ZoneObjet } from "./contrat";
 import { iconeObjet } from "./icones-objets";
 import { phaseObjet } from "./progres";
@@ -122,7 +122,7 @@ function Icone({ role, c, taille, couleur }: { role: string; c: Point; taille: n
 
 function Texte({ texte, x, y, ancre, fond }: { texte: string; x: number; y: number; ancre: "start" | "middle"; fond: Pr["fond"] }): JSX.Element {
   return (
-    <text x={f(x)} y={f(y)} textAnchor={ancre} fontFamily={FAMILLE_CSS} fontWeight={GRAISSES.appui} fontSize={30} fill={couleurDuTon("neutre", fond)}>
+    <text x={f(x)} y={f(y)} textAnchor={ancre} fontFamily={PILE_CSS} fontWeight={GRAISSES.appui} fontSize={30} fill={couleurDuTon("neutre", fond)}>
       {texte}
     </text>
   );
