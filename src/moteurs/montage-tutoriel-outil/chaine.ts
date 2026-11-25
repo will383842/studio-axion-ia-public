@@ -56,9 +56,10 @@ import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
 import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
 import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "./sous-titres-sans-voix";
 import { composerPlanSansVoix } from "./plan-sans-voix";
-import { imagesPlanValideA, rectsSousTitresA } from "./geometrie-plan-valide";
+import { rectsSousTitresA } from "./geometrie-plan-valide";
 import { controlerComposition } from "../../briques/plan-scenes/tutoriel/controle-composition";
-import { imageSansVoixA, zonesSansVoix } from "../../briques/plan-scenes/tutoriel/sans-voix/geometrie";
+import { zonesSansVoix } from "../../briques/plan-scenes/tutoriel/sans-voix/grammaire";
+import { imageSansVoixA } from "../../briques/plan-scenes/tutoriel/sans-voix/geometrie";
 import type { PlanComposeSansVoix, ResultatControleComposition } from "../../briques/plan-scenes/tutoriel/sans-voix/types";
 
 export const ETAPES_TUTORIEL = ["script", "voix", "calage", "plan", "montage", "exports"] as const;
@@ -645,22 +646,18 @@ async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: {
 }
 
 /**
- * QUAL-5 : contrôle objectif de la composition, une fois le plan rangé (0 €). Composé : la géométrie du plan composé et la
- * bande réservée ; avec voix et sans film : la géométrie du plan validé (sans bande). Avec film : non vérifié (le film n'est pas dessiné ici).
+ * QUAL-5 : contrôle objectif de la composition, une fois le plan rangé (0 €), seulement pour le plan composé : sa géométrie,
+ * les rectangles réels des sous-titres et la bande réservée.
  */
 function avecComposition(etat: EtatTutoriel, commande: CommandeFabrication, outils: Pick<OutilsTutoriel, "sousTitres" | "fin">): EtatTutoriel {
   const ratio = etat.ratios[0];
   const compose = etat.compose?.[ratio];
+  // Avec voix : non vérifié (la géométrie des plans Claude n'est pas assez sûre pour être posée en juge) ; la note le dit.
+  if (!compose) return etat;
   const props = proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, undefined, commande);
   const sousTitresA = props.sousTitres ? rectsSousTitresA(props.sousTitres) : () => [];
-  if (compose) {
-    const composition = controlerComposition({ format: compose.format, dureeMs: compose.dureeMs, imagesA: (t) => imageSansVoixA(compose, t), sousTitresA, bande: zonesSansVoix(compose.format, compose.basPct).bande });
-    return { ...etat, composition };
-  }
-  const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
-  if (nav || !etat.plan) return etat;
-  const plan = props.plan;
-  return { ...etat, composition: controlerComposition({ format: plan.format, dureeMs: plan.dureeMs, imagesA: imagesPlanValideA(plan), sousTitresA }) };
+  const composition = controlerComposition({ format: compose.format, dureeMs: compose.dureeMs, imagesA: (t) => imageSansVoixA(compose, t), sousTitresA, bande: zonesSansVoix(compose.format, compose.basPct).bande });
+  return { ...etat, composition };
 }
 
 /** Le plan au format d'un ratio (positions en %, revalidé : empreintes du format). */
@@ -1119,7 +1116,7 @@ async function pasRegarder(pas: PasTutoriel, outils: OutilsTutoriel): Promise<Pa
   if (!lecture) suite = { ...suite, reserves: [...suite.reserves, "À vérifier · Les images n'ont pas pu être relues."] };
   // Grille chiffrée : seulement si le contrôle de l'image et le verdict du contrôleur sont déjà dans l'état ; sinon pas de grille (rapport de master).
   const porte = suite as EtatTutoriel & { controleImage?: RapportControleImage; controleur?: VerdictControleur };
-  if (porte.controleImage && porte.controleur) suite = { ...suite, grille: noterTutoriel({ controleImage: porte.controleImage, controleur: porte.controleur, regardeur: verdict, dureeSec: maitre.sortie.dureeSec }) };
+  if (porte.controleImage && porte.controleur) suite = { ...suite, grille: noterTutoriel({ controleImage: porte.controleImage, controleur: porte.controleur, regardeur: verdict, dureeSec: maitre.sortie.dureeSec, ...(suite.composition ? { composition: suite.composition } : {}) }) };
   return { ...pas, etat: suite };
 }
 

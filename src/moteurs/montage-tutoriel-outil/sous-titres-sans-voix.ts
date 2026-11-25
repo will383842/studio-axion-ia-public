@@ -5,8 +5,8 @@
  * sur une bande de fond gris charte opaque, mot actif terracotta. Tout passe par les paramètres EXISTANTS de
  * `src/briques/sous-titres` (aucun fichier de cette brique n'est modifié).
  */
-import { donneesCalque, positionsVerticales, type BaseSousTitres, type DonneesCalque, type IntensiteSousTitres, type SegmentSousTitres } from "../../briques/sous-titres";
-import type { Ratio, ValeurStyleSousTitres } from "../../domaine/types";
+import { donneesCalque, positionsVerticales, type DonneesCalque } from "../../briques/sous-titres";
+import type { BaseSousTitres, IntensiteSousTitres, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "../../domaine/types";
 
 /** Couleurs de la charte (src/briques/jetons-motion.ts CHARTE_AXION) : noir, terracotta, ivoire, gris. */
 export const COULEURS_SANS_VOIX = { texte: "#141413", accent: "#B23F16", contour: "#FAF9F5", bande: "#E8E6DC" } as const;
