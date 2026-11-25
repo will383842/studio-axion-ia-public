@@ -120,6 +120,7 @@ describe("durée : la parole ET la fin dans le plan composé (tour 5)", () => {
     const { props } = await fabriquer("sans-voix");
     const appel = props[0].compositionSansVoix!.scenes.find((sc) => sc.genre === "appel");
     expect(appel && "site" in appel ? appel.site : undefined).toBe(CARTE_FIN_AXION.sousTitre);
+    expect(appel && "marque" in appel ? appel.marque : undefined).toBe(CARTE_FIN_AXION.titre);
   });
 
   it("le contrôle de composition juge TOUTE la durée montrée", async () => {

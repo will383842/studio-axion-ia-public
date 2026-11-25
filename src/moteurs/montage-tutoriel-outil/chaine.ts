@@ -612,12 +612,12 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
     // Le plan composé couvre la parole ET la fin (2,5 s) : la scène « appel » dure jusqu'au bout, le plan nu a la MÊME durée.
     // Fin « rendez-vous » : la scène « appel » porte le libellé de la carte de fin Axion (« axion-ia.com »), affiché sous le bouton après le clic.
     const site = fin === "rendez-vous" ? CARTE_FIN_AXION.sousTitre : undefined;
-    // TODO QUAL-5 (tour 7, point 3) : poser aussi `marque: CARTE_FIN_AXION.titre` dès que le type `appel` de QUAL-1 porte `marque?: string`
-    // (pas encore sur origin/tdb/QUAL-1 à cette date).
+    // … et la marque (« Axion IA »), affichée entre le bouton et le site.
+    const marque = fin === "rendez-vous" ? CARTE_FIN_AXION.titre : undefined;
     const dureeMs = (mots.at(-1)?.finMs ?? 0) + DUREE_CARTE_FIN_MS;
     for (const ratio of etat.ratios) {
       compose[ratio] = composerPlanSansVoix({ texte, mots, format: formatDuRatio(ratio), basPct: basPctSansVoix(ratio), dureeMs, ...(phraseTitre ? { phraseTitre } : {}), ...(fin ? { fin } : {}) }).plan;
-      if (site) compose[ratio] = { ...compose[ratio], scenes: compose[ratio].scenes.map((sc) => (sc.genre === "appel" ? { ...sc, site } : sc)) };
+      if (site) compose[ratio] = { ...compose[ratio], scenes: compose[ratio].scenes.map((sc) => (sc.genre === "appel" ? { ...sc, site, ...(marque ? { marque } : {}) } : sc)) };
     }
     const nu = planNu({ mots, format, facecam: false, dureeMs });
     return { statut: "faite", etat: { ...etat, compose, plan: { plan: nu, remarques: [], source: "compose", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };
