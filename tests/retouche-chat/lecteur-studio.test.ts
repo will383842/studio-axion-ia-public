@@ -295,7 +295,7 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
         return statSync(p).isDirectory() ? fichiers(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
       });
     // S-05-b-v21s (25/11, ÉLARGISSEMENT, seconde lecture du pilote) : la route du chat est le SEUL importeur permis (liste exacte).
-    expect(fichiers("src").filter((f) => !f.endsWith("lecteur-studio.ts") && /lecteur-studio/.test(readFileSync(f, "utf8")))).toEqual(["src/app/api/retouche-chat/route.ts"]);
+    expect(fichiers("src").filter((f) => !f.endsWith("lecteur-studio.ts") && /lecteur-studio/.test(readFileSync(f, "utf8")))).toEqual(["src/app/api/retouche-chat/route.ts", "src/services/modifications.ts"]); // S-06-b-v21s (25/11, ÉLARGISSEMENT, seconde lecture du pilote)
     const trouves = execSync(`git grep -l -E "retoucheChat\\..*Lecteur" -- src`, { encoding: "utf8" }).split("\n").filter(Boolean).sort();
     expect(trouves).toEqual(["src/services/retouche-chat/lecteur-generateurs.ts", "src/services/retouche-chat/lecteur-studio.ts", "src/services/tutoriel-claude.ts"]);
   });

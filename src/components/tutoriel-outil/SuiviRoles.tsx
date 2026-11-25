@@ -5,7 +5,8 @@ import { Carte } from "@/components/ui/Carte";
 import { Pastille } from "@/components/ui/Pastille";
 import type { Tonalite } from "@/domaine/libelles";
 import type { EtatRole } from "@/moteurs/montage-tutoriel-outil/journal-roles";
-import { lienDeSuivi, messageDePause, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { arretLisible, vueRoles, type LigneRole } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { CarteArret } from "./CarteArret";
 import { useTravaux } from "@/hooks/useTravaux";
 import type { VueTravail } from "@/services/vues";
 
@@ -59,21 +60,18 @@ export function MessagePause({ message, lienValidation }: { message: string; lie
   );
 }
 
-/** Le suivi rôle par rôle, rafraîchi tant que le travail avance. Le lien « Voir et valider » se calcule ici, sur le travail courant : il change avec la pause. */
+/** Le suivi rôle par rôle, rafraîchi tant que le travail avance. L'arrêt (cause et boutons) se calcule ici, sur le travail courant : il change avec la pause. */
 export function SuiviRoles({ initial, videoId }: { initial: VueTravail; videoId: string }) {
   const { travail } = useTravaux({ travailId: initial.id, initial: [initial] });
   const t = travail ?? initial;
-  const lignes = vueRoles(t);
-  const lien = lienDeSuivi(t, videoId);
-  const brut = messageDePause(t);
-  // Le message déjà lu sur une ligne (code inconnu, TO_CAS_V2) n'est pas répété dans le bandeau.
-  const message = brut && !lignes.some((l) => l.phrase === brut) ? brut : null;
-  // Un seul « Voir et valider » : le bandeau n'en porte pas quand une ligne qui attend Williams l'affiche déjà.
-  const lienBandeau = lignes.some((l) => l.attendWilliams) ? undefined : lien;
+  // La cause est dite une fois, sur la carte : les lignes gardent la phrase courte de leur rôle.
+  const lignes = vueRoles(t, { causeSurCarte: true });
+  const arret = arretLisible(t, videoId);
   return (
     <div className="space-y-3">
-      {message && <MessagePause message={message} lienValidation={lienBandeau} />}
-      <ListeRoles lignes={lignes} lienValidation={lien} />
+      {/* Un seul jeu de boutons : celui de l'arrêt (les lignes n'en portent plus). */}
+      {arret && <CarteArret arret={arret} />}
+      <ListeRoles lignes={lignes} />
     </div>
   );
 }

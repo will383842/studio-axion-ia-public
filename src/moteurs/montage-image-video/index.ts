@@ -459,7 +459,9 @@ export function creerMoteurMontageImageVideo(dep: DependancesMoteurImageVideo = 
         return { travail: { ...suivant(travail, etat, maintenant), statut: "echec", erreur: { code: "IV_NON_RELIE", reessayable: true, messagePourWill: `${message} Vous pouvez réessayer.` } } };
       }
       if (!outils) return { travail: { ...suivant(travail, etat, maintenant), statut: "echec", erreur: { code: "IV_NON_RELIE", reessayable: true, messagePourWill: NON_RELIE } } };
-      const apres = await avancerIV(etat, outils);
+      // S-13-g : réglage « prête, avec remarques » lu à la demande (éteint : seul `true` ; lecture en échec = éteint).
+      const avecRemarques = await import("../../services/prete-avec-remarques-iv").then((m) => m.preteAvecRemarquesIVActive()).catch(() => false);
+      const apres = await avancerIV(etat, avecRemarques ? { ...outils, preteAvecRemarques: true as const } : outils);
       const t = suivant(travail, apres, maintenant);
       return apres.etape === "prete" ? { travail: t, resultat: resultatDe(apres, maintenant) } : { travail: t };
     },

@@ -3,6 +3,7 @@ import type { RapportControleImage, ResultatControle } from "../../src/briques/c
 import type { DefautVu, VerdictRegard } from "../../src/briques/regardeur";
 import { DUREE_CIBLE_SEC } from "../../src/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
 import { etablirVerdict, type ResultatControleTutoriel, type VerdictControleur } from "../../src/moteurs/montage-tutoriel-outil/equipe/controleur";
+import type { ResultatControleComposition } from "../../src/briques/plan-scenes/tutoriel/sans-voix/types";
 import { alertesDeGrille, marqueReussie, noterTutoriel, type EntreeGrille } from "../../src/moteurs/montage-tutoriel-outil/grille-qualite";
 
 const IDS_IMAGE = ["volume", "crete", "image-noire", "image-figee", "duree", "zone-sure", "taille-texte", "contraste", "premiere-image"] as const;
@@ -13,7 +14,8 @@ const controleurOk = (sauf: Record<string, ResultatControleTutoriel["etat"]> = {
   etablirVerdict(["TUT-CHIFFRES", "TUT-REGISTRE", "TUT-MOMENTS", "MARQUE-MOTS", "MARQUE-COULEURS", "MARQUE-POLICE"].map((id) => tc(id, sauf[id] ?? "reussi", sauf[id] === "echoue" ? [`écart ${id}`] : ["ok"])));
 const defaut = (code: DefautVu["code"], instantSec: number): DefautVu => ({ code, nom: "i01", instantSec, partieId: null, detail: `détail ${code}`, bloquantSiSur: ["phrase-non-choisie", "fin-absente", "page-vide", "texte-coupe"].includes(code) });
 const regard = (defauts: DefautVu[] = [], relues = 6): VerdictRegard => ({ defauts, relues, nonRelues: 0, partiesFautives: [] });
-const base = (sur: Partial<EntreeGrille> = {}): EntreeGrille => ({ controleImage: imageOk(), controleur: controleurOk(), regardeur: regard(), dureeSec: 47, imageFixeMaxSec: 1, niveauSonoreLufs: -14, ...sur });
+const compoOk: ResultatControleComposition = { ok: true, defauts: [], mesures: { textePlusPetitPx: 60, videMaxMs: 0, echantillons: 10 } };
+const base = (sur: Partial<EntreeGrille> = {}): EntreeGrille => ({ composition: compoOk, controleImage: imageOk(), controleur: controleurOk(), regardeur: regard(), dureeSec: 47, imageFixeMaxSec: 1, niveauSonoreLufs: -14, ...sur });
 const critere = (e: EntreeGrille, id: string) => noterTutoriel(e).criteres.find((c) => c.id === id)!;
 
 describe("grille de qualité chiffrée", () => {
@@ -22,6 +24,18 @@ describe("grille de qualité chiffrée", () => {
     expect(g.note).toBe(100);
     expect(g.proposable).toBe(true);
     expect(g.criteres.every((c) => c.etat === "reussi")).toBe(true);
+  });
+
+  it("composition absente (undefined) ou null : « non fait », jamais 100 ; réussie : 100", () => {
+    for (const c of [undefined, null]) {
+      const g = noterTutoriel(base({ composition: c }));
+      const cr = g.criteres.find((x) => x.id === "composition")!;
+      expect(cr.etat).toBe("non-fait");
+      // un « non fait » bloquant compte « à corriger » : 100 − 8 = 92 exactement
+      expect(g.note).toBe(92);
+      expect(g.proposable).toBe(true);
+    }
+    expect(noterTutoriel(base()).note).toBe(100);
   });
 
   it("son : juste au seuil passe, juste à côté échoue (±0,5)", () => {

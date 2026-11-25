@@ -18,6 +18,7 @@ import type { DefinitionRole, EntreeRole } from "@/generateur/roles/types";
 import { formatDuRatio } from "../proprietes";
 import type { RegistrePaye } from "../reprise";
 import type { IdRole } from "../journal-roles";
+import { MESSAGE_EQUIPE_BLOQUEE } from "../vue-roles";
 import { carteParRegles, entreeAnalyste, GESTES_ZONE, lireCarteZones, roleAnalyste, TAILLE_MAX_FICHIERS, ZONES_MAX, type CarteZones, type FichierDossier } from "./analyste";
 import { classerParRegles, etablirCahier, lireDecisionChef, roleChefDeProjet, type CahierVideo, type DecisionChef, type DemandeTutoriel, type InventaireDossier } from "./chef-de-projet";
 import { controlerAvantValidation, resumePourWilliams, type VerdictControleur } from "./controleur";
@@ -157,7 +158,7 @@ export type PasEquipe =
   | { fini: true };
 
 export { MESSAGE_PLUS_DE_PROPOSITION };
-const MESSAGE_BLOQUEE = "Une étape de préparation n'a pas abouti : réessayez ou collez votre script.";
+const MESSAGE_BLOQUEE = MESSAGE_EQUIPE_BLOQUEE;
 const MESSAGE_A_VALIDER = "Relisez les deux scripts, choisissez l'un ou corrigez-le, puis validez : la vidéo se fabrique ensuite.";
 const MESSAGE_CONTROLE_BLOQUANT = "Le contrôle a relevé des points à revoir avant de valider (ils sont montrés sur l'écran) : choisissez, corrigez ou demandez une réécriture.";
 

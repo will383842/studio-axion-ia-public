@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { appliquerSousTitresAction, corrigerMotAction } from "@/app/(studio)/videos/actions";
+import { refaireVoixAllumeeAction } from "@/components/prononciations/actions-mot-mal-dit";
 import { FeuilleAjoutPrononciation } from "@/components/prononciations/FeuilleAjoutPrononciation";
+import { PanneauMotMalDit } from "@/components/prononciations/PanneauMotMalDit";
 import { plansDuMot, RefairePhrase, type PlanPhrase } from "@/components/prononciations/RefairePhrase";
 import { Bouton } from "@/components/ui/Bouton";
 import { Champ } from "@/components/ui/Champ";
@@ -27,7 +29,7 @@ function motSeul(mot: string): string {
  * sous-titres, l'ancienne est gardée). « Appliquer à la vidéo » n'apparaît que si le moteur de la vidéo sait recomposer
  * les sous-titres sans rien repayer (`recalquer`, lot M4). Export .srt / .vtt.
  * « Mal prononcé ? » (lot A1, prononciations n° 3) : depuis un mot touché, l'ajouter à la liste des prononciations en
- * un geste, puis refaire la phrase seule (retouche des plans qui contiennent le mot, coût affiché avant).
+ * un geste, puis refaire la phrase seule (retouche des plans qui contiennent le mot ; aucun montant à l'écran, la dépense part au clic).
  */
 export function OngletSousTitres({
   videoId,
@@ -52,6 +54,7 @@ export function OngletSousTitres({
   const [segments, setSegments] = useState(initiaux ?? []);
   const [cible, setCible] = useState<{ segmentId: string; index: number; mot: string; debutSec: number } | null>(null);
   const [malDit, setMalDit] = useState<{ mot: string; debutSec: number } | null>(null);
+  const [panneau, setPanneau] = useState(false);
   const [ajoute, setAjoute] = useState<{ mot: string; prononciation: string; debutSec: number } | null>(null);
   const [saisie, setSaisie] = useState("");
   const [corriges, setCorriges] = useState(0);
@@ -225,12 +228,16 @@ export function OngletSousTitres({
       )}
 
       <FeuilleAjoutPrononciation
-        ouverte={!!malDit}
+        ouverte={!!malDit && !panneau}
         onOuverteChange={(o) => !o && setMalDit(null)}
         initial={malDit ? { mot: malDit.mot } : undefined}
         source="video"
         onEnregistree={(r) => malDit && setAjoute({ mot: r.mot, prononciation: r.prononciation, debutSec: malDit.debutSec })}
       />
+
+      <FeuilleBas ouverte={!!malDit && panneau} onOuverteChange={(o) => !o && setMalDit(null)} titre="Mal prononcé ?">
+        {malDit && <PanneauMotMalDit videoId={videoId} plans={plans.map((p) => ({ id: p.id, texte: p.texte }))} mot={malDit.mot} />}
+      </FeuilleBas>
 
       <FeuilleBas
         ouverte={!!cible}
@@ -256,6 +263,8 @@ export function OngletSousTitres({
           onClick={() => {
             if (!cible) return;
             setMalDit({ mot: motSeul(cible.mot), debutSec: cible.debutSec });
+            // Réglage de la voix refaite : lu par une action du panneau (jamais une prop de la page) ; en échec = comme avant.
+            refaireVoixAllumeeAction().then(setPanneau, () => setPanneau(false));
             setCible(null);
           }}
           className="mt-3 flex min-h-12 w-full items-center gap-3 rounded-carte border border-trait bg-surface-2 px-3 text-left transition-colors hover:border-accent"
