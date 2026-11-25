@@ -123,7 +123,7 @@
     "commune/effets/EffetObjetMain.tsx": "a348859c06fb09dd5bda0bee5f8e798b6b6412a99367cdba64163f8bc54d7db7",
     "commune/effets/EffetTransition.tsx": "de3dd9583a78b7fddfeccab72d5eafd97058d60ed19efda435e70ad8b3732913",
     "commune/effets/Inscriptions.tsx": "1d71ed3058c6160527da39f9ad35c0531c10964a7cea4a27b36f19527313888a",
-    "commune/effets/ObjetSurPaume.tsx": "09ac900baf8796586f8aac37aadc88643632a3b18ef7fe11e11fbeab3ec91cb6",
+    "commune/effets/ObjetSurPaume.tsx": "611c3e6c3381924c3ae9d768093064c2f63fcca92111a33fedffc57f83243329",
     "commune/effets/PlateauEffets.tsx": "fddbae377312c241614f825f14b08e7491a99d99e99801fcdab017c14868457a",
     "commune/effets/PlateauPhoto.tsx": "0cef418db6da8b7179745dda9bba1cd4ac2407fb5c968b314fa437c22bd95f25",
     "commune/effets/index.ts": "52f883e6ce39ffe1a2c57a609038e039fd577f43a5119751fedd8ff5a25fa0c5",
