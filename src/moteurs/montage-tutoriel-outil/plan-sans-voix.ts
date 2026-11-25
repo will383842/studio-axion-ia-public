@@ -3,6 +3,10 @@
  * Règle d'or : tout texte du plan est une suite CONTIGUË de mots du script, la phrase titre saisie ou le libellé de fin ;
  * aucun nombre absent du script (les valeurs des cartes sont des squelettes). Les scènes PAVENT [0, dureeMs] sans trou.
  * Ordre des événements de l'écran : cartes-chiffres, liste, tri, clic, panneau, alerte, puis les `focus` (par instant).
+ * Extension avant le repère : le début du repère peut être repoussé jusqu'à 600 ms avant « une minute » / « une heure » ; la scène
+ * qui le précède (écran, titre ou carte-phrase, quelle qu'elle soit) est alors PROLONGÉE d'autant. Les `mots` du repère gardent
+ * toute sa phrase, même si son debutMs est postérieur au premier mot de cette phrase ; si dureeMs tombe dans cet intervalle,
+ * le repère est retiré et les mots déjà dits sont rattachés à la dernière scène (couverture exacte, voir tronquerA).
  * Les lexiques et le nettoyage des libellés vivent dans `plan-sans-voix-regles.ts`. Ne lève jamais.
  */
 import type { MotMinute } from "@/briques/plan-scenes/schema";
@@ -331,6 +335,16 @@ function estAppel(t: Tok[], p: Phrase): boolean {
   return false;
 }
 
+/** Verbe d'appel, « rendez-vous », « devis » ou « rdv » dans la phrase (un nom d'appel seul, « contact », n'en est pas un). */
+function appelFort(t: Tok[], p: Phrase): boolean {
+  for (let i = p.premier; i <= p.dernier; i++) {
+    const c = nu(t[i].texte.split("-")[0]);
+    if (VERBES_APPEL.has(t[i].m) || VERBES_APPEL.has(t[i].n) || VERBES_APPEL.has(c)) return true;
+    if (t[i].n.startsWith("rendez") || c === "rendez" || t[i].n === "devis" || t[i].n === "rdv") return true;
+  }
+  return false;
+}
+
 function positionDite(t: Tok[], p: Phrase): "cartes" | "liste" | "panneau" | null {
   for (const pos of POSITIONS_DITES.slice().sort((a, b) => b.mots.length - a.mots.length)) {
     if (suiteA(t, p.premier, pos.mots, p.dernier)) return pos.cible;
@@ -456,7 +470,9 @@ function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[]
     // Dernier mot de la dernière scène : le dernier mot qui COMMENCE avant dureeMs.
     let lim = dernier.mots.premier;
     for (let k = 0; k < t.length; k++) if (t[k].debut < dureeMs) lim = k;
-    if (dernier.mots.dernier > lim) dernier.mots = plageDe(dernier.mots.premier, Math.max(dernier.mots.premier, lim));
+    // Elle peut rétrécir (mots après dureeMs) ou GRANDIR : si le repère suivant est retiré (son début, repoussé, dépasse dureeMs)
+    // les mots déjà dits (« Vous décidez… ») doivent appartenir à la scène qui les couvre à l'écran.
+    if (dernier.mots.dernier !== lim) dernier.mots = plageDe(dernier.mots.premier, Math.max(dernier.mots.premier, lim));
   }
   for (const sc of scenes) {
     if (sc.genre === "appel" && sc.clicAMs > sc.finMs) sc.clicAMs = sc.finMs;
@@ -537,7 +553,8 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   // Les phrases finales sans sens (« Merci. ») ne comptent pas : l'appel est la dernière phrase significative.
   let nA = nP - 1;
   while (nA > 1 && (videDeSens(phrases[nA].texte) || politesseFinale(t, phrases[nA]))) nA--;
-  if (nA >= 1 && estAppel(t, phrases[nA])) {
+  // Un repère (« … en une minute au lieu d'une heure ») n'est jamais l'appel sur un simple nom (« restons en contact »).
+  if (nA >= 1 && estAppel(t, phrases[nA]) && (!reperes.has(nA) || appelFort(t, phrases[nA]))) {
     const q = nA - 1 >= 1 && phrases[nA - 1].question ? nA - 1 : null;
     appel = { premier: q ?? nA, appel: nA, question: q };
   }
