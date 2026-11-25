@@ -289,7 +289,7 @@ describe("film d'un dossier sans équipe", () => {
   it("retouche (nouvelle version) : film du dossier déjà dans les entrées, sans scénario retenu : plan nu, 0 appel Claude", async () => {
     await deDossierAuBout(SCRIPT_STOCKS);
     const version = (await depots().versions.obtenir("ver-1"))!;
-    expect(version.commande.entrees.tutorielOutil.navigationFilmee).toBeDefined();
+    expect((version.commande.entrees as { tutorielOutil: Record<string, unknown> }).tutorielOutil.navigationFilmee).toBeDefined();
     reinitialiserDepots();
     const m = await lancer(SCRIPT_STOCKS, undefined, { commande: version.commande });
     expect(m.etat().scenarioDossier).toBeUndefined();
