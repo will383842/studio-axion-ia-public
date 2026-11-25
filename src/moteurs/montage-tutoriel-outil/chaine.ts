@@ -46,7 +46,7 @@ import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
 import { ENTREE_TUTORIEL, estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { finDuTutoriel, type FinDuTutoriel } from "./fin";
-import { COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, dureeImagesTutoriel, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
+import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, dureeImagesTutoriel, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
@@ -610,10 +610,12 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
     const fin = entrees.fin;
     const compose: Record<string, PlanComposeSansVoix> = {};
     // Le plan composé couvre la parole ET la fin (2,5 s) : la scène « appel » dure jusqu'au bout, le plan nu a la MÊME durée.
-    // TODO(QUAL-5) : poser `site: CARTE_FIN_AXION.sousTitre` (« axion-ia.com ») sur la scène « appel » dès que le type `SceneSansVoix` (src/briques/plan-scenes/tutoriel/sans-voix/types.ts) porte ce champ facultatif : il n'existe pas encore dans QUAL-1.
+    // Fin « rendez-vous » : la scène « appel » porte le libellé de la carte de fin Axion (« axion-ia.com »), affiché sous le bouton après le clic.
+    const site = fin === "rendez-vous" ? CARTE_FIN_AXION.sousTitre : undefined;
     const dureeMs = (mots.at(-1)?.finMs ?? 0) + DUREE_CARTE_FIN_MS;
     for (const ratio of etat.ratios) {
       compose[ratio] = composerPlanSansVoix({ texte, mots, format: formatDuRatio(ratio), basPct: basPctSansVoix(ratio), dureeMs, ...(phraseTitre ? { phraseTitre } : {}), ...(fin ? { fin } : {}) }).plan;
+      if (site) compose[ratio] = { ...compose[ratio], scenes: compose[ratio].scenes.map((sc) => (sc.genre === "appel" ? { ...sc, site } : sc)) };
     }
     const nu = planNu({ mots, format, facecam: false, dureeMs });
     return { statut: "faite", etat: { ...etat, compose, plan: { plan: nu, remarques: [], source: "compose", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };

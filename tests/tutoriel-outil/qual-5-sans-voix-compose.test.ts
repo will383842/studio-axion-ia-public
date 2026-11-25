@@ -98,6 +98,11 @@ describe("durée : la parole ET la fin dans le plan composé (tour 5)", () => {
     // la scène « appel » dure jusqu'à la dernière image
     expect(p.compositionSansVoix!.scenes.at(-1)!.finMs).toBe(p.compositionSansVoix!.dureeMs);
   });
+  it("fin « rendez-vous » : la scène « appel » porte le libellé de la carte de fin Axion (« axion-ia.com »)", async () => {
+    const { props } = await fabriquer("sans-voix");
+    const appel = props[0].compositionSansVoix!.scenes.find((sc) => sc.genre === "appel");
+    expect(appel && "site" in appel ? appel.site : undefined).toBe(CARTE_FIN_AXION.sousTitre);
+  });
 
   it("le contrôle de composition juge TOUTE la durée montrée", async () => {
     const { etat, props } = await fabriquer("sans-voix");
