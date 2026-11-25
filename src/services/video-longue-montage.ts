@@ -352,7 +352,8 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
     return { enCours: { suivi: courant, fait: plages.length, total } };
   }
   const e = lu.etat;
-  if (e.statut === "termine") return { fini: { fichierCle: e.sortieCle || sortieCle } };
+  // La taille mesurée par le collage est transmise seulement si c'est un nombre positif (sinon : inconnue).
+  if (e.statut === "termine") return { fini: { fichierCle: e.sortieCle || sortieCle, ...(typeof e.mesures?.taille === "number" && e.mesures.taille > 0 ? { taille: e.mesures.taille } : {}) } };
   if (e.statut === "echec") throw new ErreurMontageVideoLongue(`Le collage de la vidéo a échoué : ${e.erreur.message}`, [], false);
   if (maintenant() - courant.collage.depuisMs > (ports.delaiCollageMs ?? DELAI_COLLAGE_MS)) throw new ErreurMontageVideoLongue("L'assemblage final prend trop de temps (délai dépassé), vous pouvez réessayer.", [], true);
   // « inconnu » : le collage repart (même identifiant) au pas suivant, pas dans celui-ci.

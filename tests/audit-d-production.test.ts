@@ -292,7 +292,7 @@ describe("studio-rendu · fichiers temporaires d'un arrêt brutal", () => {
     await mkdir(join(dossier, "remotion-v4-0-532-assets-xyz"));
     await mkdir(join(dossier, "autre-chose"));
     await writeFile(join(dossier, "garde.txt"), "garde");
-    const effaces = await nettoyerTemporairesOrphelins(dossier);
+    const effaces = await nettoyerTemporairesOrphelins(dossier, { ageMinimalMs: 0 });
     expect(effaces.sort()).toEqual(["remotion-v4-0-532-assets-xyz", "studio-rendu-abc123"]);
     expect((await readdir(dossier)).sort()).toEqual(["autre-chose", "garde.txt"]);
     // Dossier absent : aucune erreur.

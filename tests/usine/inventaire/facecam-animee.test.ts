@@ -10,7 +10,7 @@ export const DOMAINE: Domaine = {
     { cle: "facecamAnimee.finDouce", etat: "allume", appel: "src/services/facecam-animee.ts", motif: /PARAM_FIN_DOUCE_FA, true\)\) === true/ },
     { cle: "facecamAnimee.extraitsMaison", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/realisateur/consigne-extraits-maison.ts", motif: /PARAM_EXTRAITS_MAISON_FA, false\)\) === true/ },
     { cle: "facecamAnimee.zoomGratuit", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/zoom-gratuit-v4.ts", motif: /PARAM_ZOOM_GRATUIT_FA, false\)\) === true/ },
-    { cle: "facecamAnimee.garderMaster", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/master-v4.ts", motif: /PARAM_GARDER_MASTER_FA, false\)\) === true/ },
+    { cle: "facecamAnimee.garderMaster", etat: "allume", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/master-v4.ts", motif: /PARAM_GARDER_MASTER_FA, true\)\) === true/ }, // ALLUMER-MASTER-G11-09-v20j 20/11 (Q21) : allumé par défaut (false en base éteint)
     { cle: "facecamAnimee.accordEssaiReel", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /lireParametre<boolean>\(PARAM_ACCORD_ESSAI_FA, false\)/ },
     { cle: "facecamAnimee.plafondClaudeUsd", etat: "valeur", appel: "src/services/facecam-animee.ts", motif: /lireParametre<number>\(PARAM_PLAFOND_CLAUDE_FA, PLAFOND_CLAUDE_FA_USD\)/ },
     { cle: "facecamAnimee.plafondVideosUsd", etat: "valeur", appel: "src/services/depense-claude-video.ts", motif: /parametre: PARAM_PLAFOND_VIDEOS_FA, defautUsd: PLAFOND_VIDEOS_FA_USD/ },

@@ -606,7 +606,7 @@ export function FiligraneSpec({ texte, x, y, taille, debut = 0 }: { texte: strin
   const { t, u } = useSpec();
   const e = progres(t, debut, 1, "signature");
   return (
-    <div style={{ position: "absolute", left: x, top: y, transform: `translate(-50%, -50%) translateY(${(-t * 14 * u).toFixed(2)}px)`, fontSize: taille, fontWeight: 900, lineHeight: 0.8, color: "transparent", WebkitTextStroke: `${Math.max(3, 4 * u)}px ${avecOpacite(COULEURS.orange, 0.55)}`, opacity: 0.4 * e, letterSpacing: "-0.05em", whiteSpace: "nowrap" }}>
+    <div style={{ position: "absolute", left: x, top: y, transform: `translate(-50%, -50%) translateY(${(-t * 14 * u).toFixed(2)}px)`, fontSize: taille, fontWeight: 800, lineHeight: 0.8, color: "transparent", WebkitTextStroke: `${Math.max(3, 4 * u)}px ${avecOpacite(COULEURS.orange, 0.55)}`, opacity: 0.4 * e, letterSpacing: "-0.05em", whiteSpace: "nowrap" }}>
       {texte}
     </div>
   );

@@ -120,12 +120,12 @@ describe("GV2-34 · réglage facecamAnimee.finDouce", () => {
     expect("finDouce" in (await outilsAvec())).toBe(false);
     lire.mockImplementation(async (_id: string, defaut: unknown) => defaut);
     // Réglage absent (défaut) : finDouce allumé (ALLUMER-INV-GROUPE-v21p).
-    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "finDouce", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
+    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "finDouce", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
   });
 
   it("`false` écrit : la liste d'aujourd'hui, sans finDouce", async () => {
     lire.mockImplementation(async (id: string, defaut: unknown) => (id === PARAM_FIN_DOUCE_FA ? false : defaut));
-    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
+    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
   });
 });
 
