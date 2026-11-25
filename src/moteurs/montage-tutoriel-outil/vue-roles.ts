@@ -127,10 +127,23 @@ function roleBloque(travail: TravailPourVue): IdRole | null {
   return null;
 }
 
-/** La raison du réalisateur, entre parenthèses à la fin du message du moteur (le réalisateur ne note aucune ligne « à revoir » au journal). */
+/** Le message que le moteur pose quand l'équipe est arrêtée (partagé avec l'orchestre : un seul texte, jamais recopié). */
+export const MESSAGE_EQUIPE_BLOQUEE = "Une étape de préparation n'a pas abouti : réessayez ou collez votre script.";
+
+/** Tout ce qui ressemble à un montant (symbole, monnaie, centimes, nombre à virgule) : écarté de tout texte venu de Claude. */
+const MONTANT = /[€$¢]|\b(usd|eur|euros?|dollars?|centimes?|cts?)\b|\d[.,]\d/i;
+
+/**
+ * La raison du réalisateur : ce que le moteur ajoute après son message fixe, entre parenthèses (le réalisateur ne note aucune ligne
+ * « à revoir » au journal). On ôte le préfixe connu et la dernière parenthèse : la raison peut contenir ses propres parenthèses.
+ * Une raison qui contient un montant n'est pas reprise (le texte vient en partie de Claude).
+ */
 function raisonRealisateur(travail: TravailPourVue): string | undefined {
   const message = pauseDe(travail)?.message ?? "";
-  return /\(([^()]+)\)\s*$/.exec(message)?.[1]?.trim().replace(/[.\s]+$/, "") || undefined;
+  const debut = `${MESSAGE_EQUIPE_BLOQUEE} (`;
+  if (!message.startsWith(debut) || !message.endsWith(")")) return undefined;
+  const raison = message.slice(debut.length, -1).replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "");
+  return raison || undefined;
 }
 
 /** Le rôle dont la ligne porte l'arrêt de l'équipe : le réalisateur si sa raison est là, sinon celui du journal, sinon le chef de projet. */
@@ -141,7 +154,7 @@ function roleArrete(travail: TravailPourVue): IdRole {
 /** Ce qui s'est passé quand l'équipe est arrêtée, en une phrase simple. La raison du réalisateur, entre parenthèses dans le message du moteur, est reprise. */
 export function causeEquipeBloquee(travail: TravailPourVue): string {
   const raison = raisonRealisateur(travail);
-  if (raison) return `${CAUSE_PAR_ROLE.realisateur} Raison : ${raison}.${SUITE_BLOQUEE}`;
+  if (raison) return MONTANT.test(raison) ? `${CAUSE_PAR_ROLE.realisateur}${SUITE_BLOQUEE}` : `${CAUSE_PAR_ROLE.realisateur} Raison : ${raison}.${SUITE_BLOQUEE}`;
   const role = roleBloque(travail);
   const cause = role ? CAUSE_PAR_ROLE[role] : undefined;
   return cause ? `${cause}${SUITE_BLOQUEE}` : PHRASE_EQUIPE_BLOQUEE;
@@ -252,9 +265,6 @@ function aUnePiece(travail: TravailPourVue): boolean {
   const equipe = (travail.parametres as { tutoriel?: { equipe?: { pieceCreee?: unknown } } } | undefined)?.tutoriel?.equipe;
   return !!equipe && typeof equipe.pieceCreee === "object" && equipe.pieceCreee !== null;
 }
-
-/** Tout ce qui ressemble à un montant (symbole, monnaie, centimes, nombre à virgule) : écarté des remarques. */
-const MONTANT = /[€$¢]|\b(usd|eur|euros?|dollars?|centimes?|cts?)\b|\d[.,]\d/i;
 
 /** Remarques du rôle arrêté, nettoyées : textes seulement, jamais de montant, jamais d'objet. */
 function relevesDe(travail: TravailPourVue, role: IdRole | null): string[] {

@@ -3,7 +3,7 @@
  * L'état du premier test est celui du serveur lors de l'essai réel du pilote (vidéo v-ccf49e9fc34d, sans voix).
  */
 import { describe, expect, it } from "vitest";
-import { arretLisible, estEnPause, lienDeSuivi, PHRASE_EQUIPE_BLOQUEE, vueRoles, type TravailPourVue } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { arretLisible, estEnPause, lienDeSuivi, MESSAGE_EQUIPE_BLOQUEE, PHRASE_EQUIPE_BLOQUEE, vueRoles, type TravailPourVue } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 
 const VIDEO = "v-ccf49e9fc34d";
 const le = "2026-11-25T09:00:00.000Z";
@@ -104,6 +104,31 @@ describe("autres rôles arrêtés", () => {
     expect(l.find((x) => x.role === "realisateur")).toMatchObject({ etat: "a-revoir", phrase: expect.stringContaining("Le tableau n'a aucune ligne à montrer.") });
     expect(l.find((x) => x.role === "chef-de-projet")!.etat).toBe("fait");
     expect(l.find((x) => x.role === "chef-de-projet")!.phrase).not.toContain("découpage");
+  });
+
+  it("réalisateur : une raison qui contient elle-même une parenthèse (message réel du moteur) reste lue, sur la bonne ligne", () => {
+    const raison = "Zone kpi-1 hors champ : elle doit rester dans l'image (0 à 100 %, largeur et hauteur non nulles).";
+    const pause = { code: "TO_EQUIPE_BLOQUEE", message: `${MESSAGE_EQUIPE_BLOQUEE} (${raison})` };
+    const roles = [{ role: "chef-de-projet", etat: "fait", le }, { role: "scenariste", etat: "fait", le }];
+    const a = arretLisible(etatPilote({ roles, pause }), VIDEO)!;
+    expect(a.cause).toContain("Le découpage de la vidéo en scènes n'a pas pu se faire.");
+    expect(a.cause).toContain("Raison : Zone kpi-1 hors champ");
+    expect(a.cause).toContain("non nulles).");
+    expect(a.cause).not.toContain(").)");
+    const l = vueRoles(etatPilote({ roles, pause }));
+    expect(l.find((x) => x.role === "realisateur")!.etat).toBe("a-revoir");
+    expect(l.find((x) => x.role === "chef-de-projet")!.etat).toBe("fait");
+  });
+
+  it("réalisateur : une raison venue de Claude avec un montant n'est pas reprise (phrase sans « Raison : »)", () => {
+    const pause = { code: "TO_EQUIPE_BLOQUEE", message: `${MESSAGE_EQUIPE_BLOQUEE} (Phrase 2 : la zone kpi-12,50€ n'existe pas dans la carte.)` };
+    const roles = [{ role: "chef-de-projet", etat: "fait", le }, { role: "scenariste", etat: "fait", le }];
+    const a = arretLisible(etatPilote({ roles, pause }), VIDEO)!;
+    expect(a.cause).toContain("Le découpage de la vidéo en scènes n'a pas pu se faire.");
+    expect(a.cause).not.toMatch(/Raison|12|€/);
+    const l = vueRoles(etatPilote({ roles, pause }));
+    expect(l.find((x) => x.role === "realisateur")!.phrase).not.toMatch(/Raison|12|€/);
+    expect(l.find((x) => x.role === "chef-de-projet")!.etat).toBe("fait");
   });
 
   it("rôle inconnu : phrase de repli, jamais « réessayez »", () => {

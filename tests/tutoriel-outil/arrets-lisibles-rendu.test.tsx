@@ -17,7 +17,7 @@ import type { Travail } from "@/domaine/types";
 import { CarteArret } from "@/components/tutoriel-outil/CarteArret";
 import { ListeRoles, SuiviRoles } from "@/components/tutoriel-outil/SuiviRoles";
 import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
-import { arretLisible, vueRoles } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { arretLisible, MESSAGE_EQUIPE_BLOQUEE, vueRoles } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 
 const { depots, reinitialiserDepots } = await import("@/donnees/memoire");
 const PageMaquette = (await import("@/app/(studio)/tutoriel-outil/maquette/[videoId]/page")).default;
@@ -101,5 +101,20 @@ describe("la cause ne s'affiche qu'une fois", () => {
     if (code === "TO_EQUIPE_BLOQUEE") (t.parametres as Record<string, unknown>).pause = { code, message: "Une étape de préparation n'a pas abouti : réessayez ou collez votre script." };
     const html = renderToStaticMarkup(<SuiviRoles initial={t as never} videoId={VIDEO} />);
     expect(compter(html, texte)).toBe(1);
+  });
+});
+
+describe("raison du réalisateur venue de Claude : aucun montant affiché", () => {
+  it("zoneId = « kpi-12,50€ » : ni sur la carte du suivi, ni sur la page maquette", async () => {
+    const t = travailPilote();
+    (t.parametres as Record<string, unknown>).pause = { code: "TO_EQUIPE_BLOQUEE", message: `${MESSAGE_EQUIPE_BLOQUEE} (Phrase 2 : la zone kpi-12,50€ n'existe pas dans la carte.)` };
+    (t.parametres as Record<string, unknown>).tutoriel = { roles: [{ role: "chef-de-projet", etat: "fait", le: T }, { role: "scenariste", etat: "fait", le: T }] };
+    await depots().travaux.enregistrer(t);
+    const suivi = renderToStaticMarkup(<SuiviRoles initial={t as never} videoId={VIDEO} />);
+    const maquette = renderToStaticMarkup(await PageMaquette({ params: Promise.resolve({ videoId: VIDEO }) }));
+    for (const html of [suivi, maquette]) {
+      expect(html).toContain("Le découpage de la vidéo en scènes n&#x27;a pas pu se faire.");
+      expect(html).not.toMatch(/12,50|€|Raison/);
+    }
   });
 });
