@@ -160,3 +160,23 @@ describe("QUALL-8 : pour cent, ordinaux, décimales, heures, formules", () => {
     expect(valeurs("Mille clients.")).toEqual([1000]);
   });
 });
+
+describe("QUALL-9 : chiffres faux exclus", () => {
+  const vals = (t: string) => nombresEcrits(t).map((n) => n.valeur);
+  it("suffixe collé (10k, 3x, 2×, 5M) : jamais une valeur tronquée", () => {
+    expect(vals("Nous avons 10k abonnés")).toEqual([]);
+    expect(vals("Un gain de 3x et 2× puis 5M")).toEqual([]);
+    expect(vals("Nous avons 10 abonnés")).toEqual([10]);
+  });
+  it("fractions et dates exclues", () => {
+    expect(vals("1/3 des ventes")).toEqual([]);
+    expect(vals("Le 12/05 puis le 12/05/2026")).toEqual([]);
+  });
+  it("téléphone et références exclus", () => {
+    expect(vals("Appelez le 06 12 34 56 78")).toEqual([]);
+    expect(vals("La version 2.0 est là")).toEqual([]);
+    expect(vals("Voir page 12, article 5 et n° 7")).toEqual([]);
+    expect(vals("Voir la version trois")).toEqual([]);
+    expect(vals("Il y a 12 mois")).toEqual([12]);
+  });
+});

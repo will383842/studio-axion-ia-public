@@ -198,6 +198,11 @@ describe("avant / après", () => {
 });
 
 describe("chiffre", () => {
+  it("phrase négative : phrase-clé, jamais un chiffre en grand", () => {
+    for (const t of ["Pas cinq, mais trois.", "Il ne faut surtout pas croire que 90 % des clients reviennent.", "Ni quatre ni six."]) {
+      expect(un(t)[0].type, t).toBe("phrase-cle");
+    }
+  });
   it("uniquement quand la phrase contient un nombre écrit", () => {
     expect(un("Un clic sur un article montre son historique sur douze mois.")[0].type).toBe("chiffre");
     expect(un("Une journée entière à compter.")[0].type).toBe("phrase-cle");

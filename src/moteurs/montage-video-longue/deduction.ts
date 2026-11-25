@@ -291,7 +291,11 @@ function avantApresDe(p: PhraseLue, suivante?: PhraseLue): { portee: ScenePortee
 /* Chiffre                                                             */
 /* ------------------------------------------------------------------ */
 
+const RE_NEGATION = /(?<![\p{L}])(?:pas|ni|jamais|aucune?s?|ne)(?![\p{L}])|(?<![\p{L}])n['’]/iu;
+
 function chiffreDe(p: PhraseLue): ScenePortee | null {
+  // Phrase négative : un chiffre affiché en grand dirait l'inverse (« pas cinq »).
+  if (RE_NEGATION.test(p.texte)) return null;
   const ns = nombresEcrits(p.texte).slice(0, 2);
   if (!ns.length) return null;
   return {

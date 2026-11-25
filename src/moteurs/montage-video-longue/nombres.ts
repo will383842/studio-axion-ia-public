@@ -194,6 +194,10 @@ export function formaterNombre(valeur: number): string {
 
 const AVANT_NEUF_OK = new Set(["les", "ces", "ses", "nos", "vos", "leurs", "mes", "tes", "ou", "et", "de", "d", "environ", "plus", "moins", "près", "tous", "toutes", "quelque", "à", "a", "en", "sur", "par", "pour", "depuis", "dans", "avec", "sans", "vers", "jusqu"]);
 
+const RE_REFERENCE = /(?:(?<![\p{L}\d])(?:version|numéro|numero|page|article|v)|(?<![\p{L}])n\s?°)\s*$/iu;
+/** Téléphone : au moins 3 groupes de 2 chiffres séparés par des espaces ou des points. */
+const RE_TELEPHONE = /(?<![\d,.])\d{2}(?:[ .]\d{2}){2,}(?![\d])/g;
+
 /** Contextes où le nombre n'est pas une quantité (« tous les deux », « neuf » = nouveau). */
 function exclu(texte: string, debut: number, fin: number, valeur: number): boolean {
   const avant = texte.slice(0, debut);
@@ -202,6 +206,8 @@ function exclu(texte: string, debut: number, fin: number, valeur: number): boole
   if (valeur === 100 && /^cent$/i.test(texte.slice(debut, fin)) && /\bpour\s+$/i.test(avant)) return true;
   // « mille fois merci » : une formule, pas une quantité.
   if (valeur === 1000 && /^mille$/i.test(texte.slice(debut, fin)) && /^\s+fois\b/i.test(texte.slice(fin))) return true;
+  // « version 2.0 », « n° 12 », « page 3 », « article 5 » : une référence, pas une quantité.
+  if (RE_REFERENCE.test(avant)) return true;
   if (valeur === 9 && /^neuf$/i.test(texte.slice(debut, fin))) {
     const m = /(\p{L}+)['’]?\s*$/u.exec(avant);
     if (m && !AVANT_NEUF_OK.has(m[1].toLowerCase())) return true;
@@ -227,14 +233,19 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
     pris.push([m.index, fin]);
     res.push({ ecrit: m[0], valeur: parseInt(m[1], 10) + parseInt(m[2], 10) / 60, affiche: `${parseInt(m[1], 10)} h ${m[2]}`, debut: m.index, fin });
   }
+  for (let m = RE_TELEPHONE.exec(texte); m; m = RE_TELEPHONE.exec(texte)) pris.push([m.index, m.index + m[0].length]);
   for (let m = RE_CHIFFRES.exec(texte); m; m = RE_CHIFFRES.exec(texte)) {
     const fin0 = m.index + m[0].length;
     if (dejaPris(m.index, fin0)) continue;
+    // Fractions et dates (« 1/3 », « 12/05/2026 ») : jamais deux chiffres.
+    if (/^\/\d/.test(texte.slice(fin0)) || /\d\/$/.test(texte.slice(0, m.index))) continue;
     // « 1.200 » (trois décimales après un point) : séparateur de milliers ambigu, on ne devine pas.
     if (/\.\d{3}$/.test(m[1])) continue;
     const valeur = parseFloat(m[1].replace(/[\s\u00a0\u202f]/g, "").replace(",", "."));
     if (!Number.isFinite(valeur)) continue;
     if (!m[2] && RE_ORDINAL.test(texte.slice(fin0))) continue;
+    // Suffixe collé (« 10k », « 3x », « 2×», « 5M ») : valeur tronquée, jamais affichée.
+    if (!m[2] && /^[\p{L}×]/u.test(texte.slice(fin0))) continue;
     let fin = fin0;
     let affiche = m[0].replace(/[\u00a0\u202f]/g, " ").replace(/^([\d ]+)\.(\d+)/, "$1,$2");
     const pc = !m[2] ? RE_POUR_CENT.exec(texte.slice(fin0)) : null;
