@@ -103,7 +103,7 @@ describe("(a) fin douce : allumée par défaut (rien en base)", () => {
     await ecrireParametre(PARAM_FIN_DOUCE_FA, false);
     const o = await outilsFA();
     expect("finDouce" in o).toBe(false);
-    expect(Object.keys(o).sort()).toEqual(["appelerRealisateur", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
+    expect(Object.keys(o).sort()).toEqual(["appelerRealisateur", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
   });
 
   it.each([["'true'", "true"], ["1", 1]])("(b) valeur écrite %s : éteint (seul `true` exact allume)", async (_n, valeur) => {
