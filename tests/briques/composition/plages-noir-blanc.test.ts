@@ -39,6 +39,9 @@ describe("plagesNoirBlancDesFaits", () => {
     const r = plagesNoirBlancDesFaits(t, { actif: true, dureeSec: 120 });
     expect(r).toHaveLength(2);
     expect(r[0]![0]).toBeLessThan(r[1]![0]);
+    // Les 2 PREMIERS passages dans le temps (pas les 2 derniers) : débuts exacts du « 2 » (mot 3) et du « 5 » (mot 12), fins du « 20 » (mot 6) et du « 4 » (mot 15).
+    const s = (i: number) => t[i]!.debutMs / 1000;
+    expect(r).toEqual([[s(3), s(6)], [s(12), s(15)]]);
   });
   it("(e) gardes de bord : 0,49 ignorée, 0,50 gardée, fin à durée − 0,49 ignorée", () => {
     expect(plagesNoirBlancDesFaits(passage(490, 2000), ON)).toEqual([]);
