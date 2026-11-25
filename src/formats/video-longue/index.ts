@@ -7,8 +7,9 @@ import { briquesAuChoix, CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES }
  *
  * Une vidéo horizontale 16:9 de 4 à 12 minutes pour YouTube, découpée en chapitres, sur la voix validée par l'utilisateur.
  * La durée vient du script : au-delà de la zone, le studio ajoute une REMARQUE, jamais un refus. Aucune musique.
- * Statut `masque`, sans `ouvertDansLaNavigation` : l'écran n'est joignable que par son adresse, aucune carte n'est ajoutée à la main.
- * Le moteur `montage-video-longue` est écrit par VL-04 ; l'inscription dans `src/formats/index.ts` est faite (will-dc). Pas d'`adresseCreation` tant que la page n'existe pas.
+ * Statut `masque` mais `ouvertDansLaNavigation` : la carte est visible dans « Nouvelle vidéo » et le menu ; la page `/videos/longue` existe.
+ * Le moteur `montage-video-longue` est écrit par VL-04 ; l'inscription dans `src/formats/index.ts` est faite (will-dc).
+ * Le montage sans voix est relié (UI-4 et UI-5) ; le montage avec voix n'est pas encore relié.
  */
 export const ID_FORMAT_VIDEO_LONGUE = "video-longue";
 export const CODE_FORMAT_VIDEO_LONGUE = "VL";
@@ -19,9 +20,11 @@ export const formatVideoLongue: DefinitionFormat = {
   nom: "Vidéo longue",
   nomCourt: "Vidéo longue",
   accroche: "Une vidéo de plusieurs minutes, en chapitres",
-  description: "Votre script validé devient une vidéo horizontale découpée en chapitres, sur votre voix. Pas de musique ; vous gardez la main sur chaque phrase.",
+  description: "Votre script validé devient une vidéo horizontale découpée en chapitres, avec votre voix ou en sous-titres seuls. Pas de musique ; vous gardez la main sur chaque phrase.",
   icone: "film",
+  adresseCreation: "/videos/longue",
   statut: "masque",
+  ouvertDansLaNavigation: true,
   famille: "motion",
   codeClassement: CODE_FORMAT_VIDEO_LONGUE,
   declinaison: "aucune",
