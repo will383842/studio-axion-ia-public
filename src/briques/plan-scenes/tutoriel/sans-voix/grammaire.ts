@@ -59,14 +59,14 @@ export const PLANCHER_ABSOLU = 33.4;
 export const INTERLIGNE = 1.12;
 
 /** Opacité des parties NON visées par une mise en valeur (`focus`) : elles s'atténuent ENSEMBLE avec leurs enfants. */
-export const OPACITE_ATTENUEE = 0.55;
+export const OPACITE_ATTENUEE = 0.75;
 
 /** Durées (ms), pas de rebond. */
 export const DUREES_MS = {
   entree: 500,
-  /** Entre deux scènes : la sortante finit de s'effacer (250 ms) AVANT que l'entrante n'affiche du texte (elle entre de +200 à +600 ms). */
+  /** Entre deux scènes : la sortante finit de s'effacer (250 ms) AVANT que l'entrante n'affiche du texte (elle entre de +250 à +650 ms). */
   sortieScene: 250,
-  decalageEntreeScene: 200,
+  decalageEntreeScene: 250,
   entreeScene: 400,
   transition: 600,
   glisseTransitionPx: 14,

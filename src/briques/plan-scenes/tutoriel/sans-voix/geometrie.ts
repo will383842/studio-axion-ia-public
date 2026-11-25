@@ -29,7 +29,7 @@
  *
  * Règles de mouvement :
  *  - ENTRE DEUX SCÈNES : la sortante s'efface en 250 ms (elle glisse de 14 px vers le haut et recule à 0,96), PUIS l'entrante
- *    monte du bas et apparaît (de +200 à +600 ms) : aucun texte superposé à une opacité > 0,15 ;
+ *    monte du bas et apparaît (de +250 à +650 ms) : aucun texte superposé à une opacité > 0,15 ;
  *  - CAMÉRA : un léger mouvement global (échelle 1 → 1,035, dérive ≤ 12 px, courbes douces) s'applique à TOUT le groupe de la
  *    scène ; la mise en page garde la marge pour qu'il ne sorte jamais du contenu ;
  *  - ÉCRAN : la fenêtre (≥ 95 % de la largeur et ≥ 90 % de la hauteur du contenu) se construit en ≈ 1,5 s (cartes avec leurs
@@ -165,8 +165,8 @@ interface Ajuste {
   /** Raccourci à une frontière de mot (« … ») : `source` = texte complet. */
   tronque?: true;
   source: string;
-  /** Un mot a dû être coupé par un trait d'union (la disposition devrait s'élargir avant d'en arriver là). */
-  coupe?: true;
+  /** Un mot a dû être coupé par un trait d'union, CÉSURE (la disposition devrait s'élargir avant d'en arriver là). */
+  cesure?: true;
 }
 
 /** Coupe un mot trop long en morceaux finis par un trait d'union : ≥ 3 lettres avant et ≥ 3 lettres après chaque coupe. */
@@ -193,10 +193,25 @@ function couperMot(mot: string, taille: number, g: number, largeur: number): str
 /**
  * Texte coupé au mot qui TIENT TOUJOURS (jamais plus de `maxL` lignes, jamais plus large que `largeur`, jamais sous
  * `PLANCHER_ABSOLU`) : 1) réduit de `cible` jusqu'à `absolu` ; 2) puis jusqu'au plancher absolu ; 3) un mot encore trop long
- * est coupé avec un trait d'union (≥ 3 lettres de chaque côté, `coupe: true`) ; 4) sinon on garde les PREMIERS MOTS ENTIERS,
+ * est coupé avec un trait d'union (≥ 3 lettres de chaque côté, `cesure: true`) ; 4) sinon on garde les PREMIERS MOTS ENTIERS,
  * finis par « … » (`tronque: true`, jamais de coupe au milieu d'un mot). `g` = graisse de mesure (celle du dessin).
  */
+const MEMO_AJUSTE = new Map<string, Ajuste>();
+
+/** Version mémoïsée : le calcul est PUR (mêmes arguments, même résultat) et ne dépend jamais du temps, donc la mise en page
+ *  d'un texte n'est refaite qu'une fois pour toutes les images d'une vidéo. Les résultats ne sont jamais modifiés par les appelants. */
 function ajuster(s: number, texte: string, cible: number, largeur: number, maxL: number, g = 800, absolu = PLANCHER_TEXTE * s): Ajuste {
+  const cle = `${s}|${cible}|${largeur}|${maxL}|${g}|${absolu}|${texte}`;
+  let r = MEMO_AJUSTE.get(cle);
+  if (!r) {
+    if (MEMO_AJUSTE.size > 20000) MEMO_AJUSTE.clear();
+    r = ajusterCalcul(s, texte, cible, largeur, maxL, g, absolu);
+    MEMO_AJUSTE.set(cle, r);
+  }
+  return r;
+}
+
+function ajusterCalcul(s: number, texte: string, cible: number, largeur: number, maxL: number, g = 800, absolu = PLANCHER_TEXTE * s): Ajuste {
   const dur = Math.min(absolu, PLANCHER_ABSOLU * s);
   const mots = jetons(texte);
   const fait = (taille: number, liste: string[], affiche: string): Ajuste => {
@@ -215,22 +230,52 @@ function ajuster(s: number, texte: string, cible: number, largeur: number, maxL:
   }
   const plancher = fait(dur, mots, texte);
   if (tient(plancher)) return plancher;
-  const coupes = mots.flatMap((m) => (larg(m, dur, g) > largeur ? couperMot(m, dur, g, largeur) : [m]));
-  const aCoupe = coupes.length !== mots.length;
-  const coupe = fait(dur, coupes, texte);
-  if (aCoupe) coupe.coupe = true;
-  if (tient(coupe)) return coupe;
-  for (let k = coupes.length; k >= 1; k--) {
-    if (coupes[k - 1].endsWith("-")) continue; // jamais au milieu d'un mot
-    const dernier = coupes[k - 1].replace(new RegExp(`${NBSP}[?!:;»…]+$`), "");
-    const liste = [...coupes.slice(0, k - 1), dernier + "…"];
-    const a = fait(dur, liste, liste.join(" ").replace(/- /g, "").replace(new RegExp(NBSP, "g"), " "));
+  // Unités affichables : un mot entier, ou un morceau de mot césuré (`cesure` = le mot continue au morceau suivant).
+  const unites: { txt: string; cesure: boolean }[] = mots.flatMap((m) => {
+    if (larg(m, dur, g) <= largeur) return [{ txt: m, cesure: false }];
+    const morceaux = couperMot(m, dur, g, largeur);
+    return morceaux.map((p, i) => ({ txt: p, cesure: i < morceaux.length - 1 && p.endsWith("-") }));
+  });
+  const coupes = unites.map((u) => u.txt);
+  const aCesure = unites.some((u) => u.cesure);
+  const cesure = fait(dur, coupes, texte);
+  if (aCesure) cesure.cesure = true;
+  if (tient(cesure)) return cesure;
+  // Texte affiché reconstruit À PARTIR DES MOTS (jamais par une expression régulière sur le texte) : un morceau césuré perd son
+  // trait d'union ajouté et se recolle au suivant.
+  const reconstruit = (u: { txt: string; cesure: boolean }[]): string => {
+    const mm: string[] = [];
+    let cur = "";
+    for (const x of u) {
+      if (x.cesure) cur += x.txt.slice(0, -1);
+      else {
+        mm.push(cur + x.txt);
+        cur = "";
+      }
+    }
+    if (cur) mm.push(cur);
+    return mm.join(" ").split(NBSP).join(" ");
+  };
+  const finale = (txt: string) => txt.split(NBSP).join(" ").replace(/[\s,;:.!?»…]+$/u, "");
+  for (let k = unites.length; k >= 1; k--) {
+    if (unites[k - 1].cesure) continue; // jamais au milieu d'un mot
+    const dernier = finale(unites[k - 1].txt);
+    if (!dernier) continue;
+    const gardees = [...unites.slice(0, k - 1), { txt: dernier + "…", cesure: false }];
+    const a = fait(dur, gardees.map((u) => u.txt), reconstruit(gardees));
     a.tronque = true;
-    if (aCoupe) a.coupe = true;
+    if (aCesure) a.cesure = true;
     if (tient(a)) return a;
   }
-  const a = fait(dur, ["…"], "…");
+  // Dernier recours : JAMAIS « … » seul. On garde le premier mot entier (césuré s'il le faut), même si c'est le plus étroit possible.
+  let n1 = 1;
+  while (n1 < unites.length && unites[n1 - 1].cesure) n1++;
+  const premier = unites.slice(0, n1);
+  const dernierP = premier[n1 - 1];
+  const garde = [...premier.slice(0, -1), { txt: finale(dernierP.txt) + "…", cesure: false }];
+  const a = fait(dur, garde.map((u) => u.txt), reconstruit(garde));
   a.tronque = true;
+  if (n1 > 1) a.cesure = true;
   return a;
 }
 
@@ -259,6 +304,7 @@ function poserTexte(add: (p: Ajout) => Pose, id: string, f: Ajuste, x: number, y
     parentId: o.parentId,
     barre: o.barre,
     ...(f.tronque ? { tronque: true as const, texteSource: f.source } : {}),
+    ...(f.cesure ? { cesure: true as const } : {}),
   });
 }
 
@@ -306,7 +352,9 @@ function arc(a: { x: number; y: number }, b: { x: number; y: number }, u: number
 
 /** Ajoute un curseur (et son anneau de clic) : trajet en arc depuis `dep`, arrivée EXACTE au clic, puis il reste `tenueMs`. */
 function poserCurseur(add: (p: Ajout) => Pose, s: number, T: number, dep: number, clicAMs: number, depart: { x: number; y: number }, arrivee: { x: number; y: number }, cibleId: string, tenueMs: number): void {
-  const u = avancement(T, dep, Math.max(200, clicAMs - dep), adoucir);
+  // Vitesse JAMAIS nulle avant le clic : moitié linéaire, moitié douce (le curseur n'attend jamais dans un coin).
+  const duree = Math.max(200, clicAMs - dep);
+  const u = 0.5 * avancement(T, dep, duree, (x) => borne(x, 0, 1)) + 0.5 * avancement(T, dep, duree, adoucir);
   const entree = avancement(T, dep, 250);
   const sortie = 1 - avancement(T, clicAMs + tenueMs, 300, adoucir);
   const o = entree * sortie;
@@ -329,7 +377,7 @@ function poserCurseur(add: (p: Ajout) => Pose, s: number, T: number, dep: number
 /* ------------------------------------------------------------------ */
 
 function sceneTitre(c: Ctx, sc: Extract<SceneSansVoix, { genre: "titre" }>): Pose[] {
-  const { T, s, U, pf } = c;
+  const { T, s, U, C, pf } = c;
   const { els, add } = nouveau();
   const a0 = sc.debutMs;
   const L = U.largeur * 0.96;
@@ -359,17 +407,18 @@ function sceneTitre(c: Ctx, sc: Extract<SceneSansVoix, { genre: "titre" }>): Pos
   y += filetH + g3;
 
   if (illH) {
-    const cw = Math.min(U.largeur * 0.74, 640 * s);
+    // Illustration LARGE (≥ 75 % du contenu en 4:5) : elle remplit la largeur, les lignes sont plus longues.
+    const cw = Math.min(0.78 * C.largeur, U.largeur, 800 * s);
     const cx = x0 + (L - cw) / 2;
     const pe = Math.max(pf, avancement(T, a0 + 200, 550));
     entrer(add({ id: "pile", genre: "forme", rect: { x: cx, y, largeur: cw, hauteur: illH }, remplissage: "blanc", contour: "gris", rayonPx: 28 * s, ombre: true }), pe, 20 * s);
     const pad = 28 * s;
     const n = 4;
     const gap = 16 * s;
-    const rh = Math.min(48 * s, (illH - 2 * pad - (n - 1) * gap) / n);
+    const rh = Math.min(56 * s, (illH - 2 * pad - (n - 1) * gap) / n);
     const largs = [0.78, 0.62, 0.7, 0.5];
     const hor = 56 * s;
-    entrer(add({ id: "pile/horloge", genre: "forme", rect: { x: cx + cw - pad - hor, y: y + pad * 0.5, largeur: hor, hauteur: hor }, icone: "horloge", couleur: "terracotta", parentId: "pile" }), pe, 20 * s);
+    entrer(add({ id: "pile/horloge", genre: "forme", rect: { x: cx + cw - pad - hor, y: y + pad * 0.5, largeur: hor, hauteur: hor }, icone: "horloge", couleur: "terracotta", progression: (((T - a0) / 4000) % 1 + 1) % 1, parentId: "pile" }), pe, 20 * s);
     for (let k = 0; k < n; k++) {
       const ry = y + pad + k * (rh + gap);
       const ak = a0 + 300 + k * 140;
@@ -378,6 +427,12 @@ function sceneTitre(c: Ctx, sc: Extract<SceneSansVoix, { genre: "titre" }>): Pos
       entrer(add({ id: `pile/case-${k + 1}`, genre: "forme", rect: { x: cx + pad, y: ry, largeur: rh, hauteur: rh }, contour: "grisTexte", rayonPx: 10 * s, parentId: "pile" }), p, 14 * s);
       entrer(add({ id: `pile/barre-${k + 1}`, genre: "forme", rect: { x: cx + pad + rh + 18 * s, y: ry + rh * 0.2, largeur: bw, hauteur: rh * 0.6 }, remplissage: "grisTexte", rayonPx: rh * 0.3, parentId: "pile" }), p * 0.3, 14 * s);
       const qs = avancement(T, a0 + 900 + k * 380, 450, adoucir);
+      // La case se COCHE (carré terracotta qui grandit) quand son trait a fini de la barrer : la liste « se fait » toute seule.
+      const qc = avancement(T, a0 + 900 + k * 380 + 380, 320, adoucir);
+      if (qc > 0) {
+        const ci = rh * 0.3 * qc;
+        add({ id: `pile/coche-${k + 1}`, genre: "forme", rect: { x: cx + pad + rh / 2 - ci, y: ry + rh / 2 - ci, largeur: 2 * ci, hauteur: 2 * ci }, remplissage: "terracotta", rayonPx: 4 * s, progression: qc, parentId: "pile" });
+      }
       add({ id: `pile/trait-${k + 1}`, genre: "forme", rect: { x: cx + pad - 6 * s, y: ry + rh / 2 - 2.5 * s, largeur: (bw + rh + 30 * s) * qs, hauteur: 5 * s }, opacite: qs > 0 ? 1 : 0, remplissage: k === n - 1 ? "terracotta" : "grisTexte", rayonPx: 2.5 * s, progression: qs, parentId: "pile" });
     }
   }
@@ -432,18 +487,30 @@ function sceneRepere(c: Ctx, sc: Extract<SceneSansVoix, { genre: "repere" }>): P
     entrer(add({ id: "carte/horloge", genre: "forme", rect: { x: K.x + (K.largeur - horl) / 2, y, largeur: horl, hauteur: horl }, icone: "horloge", couleur: "grisTexte", progression: tour, parentId: "carte" }), ph, 12 * s);
     y += horl + g[0];
   }
-  // Robuste à l'ordre des mots (« en une minute au lieu d'une heure » : apresAMs < barreAMs) : « avant » est là dès le début,
-  // le trait se trace au plus tôt des deux instants, « après » monte au plus tard 500 ms après le début du trait.
-  const tBarre = Math.min(sc.barreAMs, sc.apresAMs);
-  const tApres = Math.max(sc.apresAMs, tBarre + 500);
+  // L'ORDRE SUIT LE TEMPS : le premier groupe prononcé apparaît le premier (« Vous décidez en une minute au lieu d'une
+  // heure » : « une minute » à `apresAMs`, puis « une heure » à `barreAMs`, barré aussitôt). Chaque groupe monte à SON instant
+  // (jamais avant la fin de l'entrée de la carte) ; leurs places sont fixes : « avant » (gris, plus petit) au-dessus.
+  // Le premier groupe dit apparaît au plus tard 300 ms après l'entrée de la carte (jamais de carte sans texte pendant 1 s) ;
+  // l'autre à son propre instant, au moins 400 ms après le premier (jamais deux textes d'un coup).
+  const avantD = sc.barreAMs <= sc.apresAMs;
+  const tPrem = Math.max(a0, Math.min(Math.min(sc.barreAMs, sc.apresAMs), a0 + 300));
+  const tSec = Math.max(Math.max(sc.barreAMs, sc.apresAMs), tPrem + 400);
+  const tAv = avantD ? tPrem : tSec;
+  const tAp = avantD ? tSec : tPrem;
   const x0 = K.x + pad;
-  entrer(poserTexte(add, "avant", av, x0, y, Lw, { graisse: 800, couleur: "grisTexte", alignement: "centre", barre: avancement(T, tBarre, 500, adoucir), parentId: "carte" }), Math.max(pf, avancement(T, a0, 500)), 12 * s);
+  const pAv = avancement(T, tAv, 450);
+  entrer(poserTexte(add, "avant", av, x0, y, Lw, { graisse: 800, couleur: "grisTexte", alignement: "centre", barre: avancement(T, tAv + 150, 550, adoucir), parentId: "carte" }), pAv, 14 * s);
   y += av.h + g[1];
-  entrer(poserTexte(add, "apres", ap, x0, y, Lw, { graisse: 800, couleur: "noir", alignement: "centre", parentId: "carte" }), avancement(T, tApres, 550), 28 * s);
+  entrer(poserTexte(add, "apres", ap, x0, y, Lw, { graisse: 800, couleur: "noir", alignement: "centre", parentId: "carte" }), avancement(T, tAp, 550), 28 * s);
   y += ap.h + g[2];
   const fl = Math.min(300 * s, Lw * 0.5);
-  const q = avancement(T, tApres + 350, 550, adoucir);
+  // Le filet terracotta se trace dès que « une minute » est là, sans attendre la fin de la scène.
+  const q = avancement(T, tAp + 350, 650, adoucir);
   add({ id: "carte/filet", genre: "forme", rect: { x: K.x + (K.largeur - fl) / 2, y, largeur: fl * q, hauteur: filetH }, opacite: q > 0 ? 1 : 0, remplissage: "terracotta", rayonPx: filetH / 2, progression: q, parentId: "carte" });
+  // Mouvement CONTINU sur toute la scène : le contenu de la carte grossit de 1 à 1,06 (la carte reste fixe) ; l'aiguille tourne.
+  const zoom = 1 + 0.06 * avancement(T, a0, Math.max(1000, sc.finMs - a0), (x) => borne(x, 0, 1));
+  const centre = { x: K.x + K.largeur / 2, y: K.y + K.hauteur / 2 };
+  for (const e of els) if (e.id !== "carte") reduire(e, centre, zoom);
   return els;
 }
 
@@ -459,11 +526,13 @@ function sceneAppel(c: Ctx, sc: Extract<SceneSansVoix, { genre: "appel" }>): Pos
   const x0 = U.x + (U.largeur - L) / 2;
   const qu = sc.question ? ajuster(s, sc.question, 68 * s, L, 2, 800, 56 * s) : null;
   const bt = ajuster(s, sc.bouton, 56 * s, L * 0.84 - 120 * s, 2, 700, 48 * s);
+  const si = sc.site ? ajuster(s, sc.site, 42 * s, L, 1, 600, 36 * s) : null;
   const bw = borne(bt.w + 120 * s, 520 * s, U.largeur * 0.94);
   const bh = Math.max(136 * s, bt.h + 80 * s);
   const g = 64 * s;
-  const total = (qu ? qu.h + g : 0) + bh;
-  // Bloc question + bouton CENTRÉ verticalement dans le contenu.
+  const gs = 44 * s;
+  const total = (qu ? qu.h + g : 0) + bh + (si ? gs + si.h : 0);
+  // Bloc question + bouton (+ site) CENTRÉ verticalement dans le contenu : la place du site est réservée dès le début.
   let y = U.y + (U.hauteur - total) / 2;
   if (qu) {
     entrer(poserTexte(add, "question", qu, x0, y, L, { graisse: 800, couleur: "noir", alignement: "centre" }), Math.max(pf, avancement(T, a0, 500)), 16 * s);
@@ -471,20 +540,36 @@ function sceneAppel(c: Ctx, sc: Extract<SceneSansVoix, { genre: "appel" }>): Pos
   }
   const bx = U.x + (U.largeur - bw) / 2;
   const pb = Math.max(pf, avancement(T, a0 + (qu ? 450 : 0), 500));
-  // Le bouton s'enfonce (0,96) au clic puis reste enfoncé.
-  const f = 1 - 0.04 * enfoncement(T - sc.clicAMs, 120, Infinity, 1);
+  const tc = sc.clicAMs;
+  // Survol : le bouton s'éclaircit légèrement 300 ms avant le clic. Clic : il s'enfonce (0,96) et RESTE enfoncé, puis « respire »
+  // doucement (0,96 → 0,975) jusqu'à la fin de la scène : l'image ne se fige jamais.
+  const survol = avancement(T, tc - 300, 200, adoucir);
+  const apres = Math.max(0, T - tc - 600);
+  const respire = apres > 0 ? 0.015 * (0.5 - 0.5 * Math.cos((2 * Math.PI * apres) / 1600)) : 0;
+  const f = 1 - 0.04 * enfoncement(T - tc, 120, Infinity, 1) + respire;
   const centre = { x: bx + bw / 2, y: y + bh / 2 };
   const bouton = entrer(add({ id: "bouton", genre: "forme", rect: { x: bx, y, largeur: bw, hauteur: bh }, remplissage: "terracotta", rayonPx: bh / 2, ombre: true }), pb, 24 * s);
+  const voile = survol > 0.001 ? entrer(add({ id: "bouton/survol", genre: "forme", rect: { x: bx, y, largeur: bw, hauteur: bh }, opacite: 0.09 * survol, remplissage: "blanc", rayonPx: bh / 2, parentId: "bouton" }), pb, 24 * s) : null;
   const texte = entrer(poserTexte(add, "bouton/texte", bt, bx, y + (bh - bt.h) / 2, bw, { graisse: 700, couleur: "ivoire", alignement: "centre", parentId: "bouton" }), pb, 24 * s);
   const cibleR = { x: bx, y, largeur: bw, hauteur: bh };
   add({ id: "bouton/cible", genre: "cible", rect: cibleR });
   const cy = (1 - pb) * 24 * s;
   reduire(bouton, { x: centre.x, y: centre.y + cy }, f);
+  if (voile) reduire(voile, { x: centre.x, y: centre.y + cy }, f);
   reduire(texte, { x: centre.x, y: centre.y + cy }, f);
-  // Le curseur arrive sur le BOUTON : pointe dans son bord droit intérieur, à côté du texte (jamais dessus).
-  const arrivee = { x: bx + bw - 26 * s, y: y + bh * 0.62 };
-  const dep = Math.max(a0, sc.clicAMs - 1300);
-  poserCurseur(add, s, T, dep, sc.clicAMs, { x: U.x + U.largeur - 90 * s, y: U.y + U.hauteur - 120 * s }, arrivee, "bouton/cible", 1.0e9);
+  // Anneau terracotta : il part du bouton au clic (s'élargit de 6 à 22 px en s'effaçant), puis un halo discret respire autour.
+  const q = (T - tc) / DUREES_MS.clic;
+  if (q > 0 && q <= 1) add({ id: "anneau", genre: "forme", rect: rectEnveloppe(bouton.rect, (6 + 16 * adoucir(q)) * s), opacite: 0.9 * (1 - q), contour: "terracotta", rayonPx: bh / 2 + 22 * s });
+  else if (q > 1) add({ id: "halo", genre: "forme", rect: rectEnveloppe(bouton.rect, 8 * s), opacite: 0.3 + 0.2 * Math.sin((2 * Math.PI * (T - tc - DUREES_MS.clic)) / 1600), contour: "terracotta", rayonPx: bh / 2 + 8 * s });
+  if (si) {
+    const ps = Math.max(0, avancement(T, tc + 300, 500));
+    entrer(poserTexte(add, "site", si, x0, y + bh + gs, L, { graisse: 600, couleur: "grisTexte", alignement: "centre", opacite: 1 }), ps, 12 * s);
+  }
+  // Le curseur arrive sur le BAS-CENTRE intérieur du bouton : sous le texte, dans la pilule (≥ 12 px des bords), jamais sur le texte.
+  const bas = y + (bh + bt.h) / 2;
+  const arrivee = { x: bx + bw / 2, y: (bas + y + bh) / 2 };
+  const dep = Math.max(a0, tc - 1100);
+  poserCurseur(add, s, T, dep, tc, { x: U.x + U.largeur - 70 * s, y: U.y + U.hauteur - 140 * s }, arrivee, "bouton/cible", 1.0e9);
   return els;
 }
 
@@ -533,22 +618,23 @@ function groupeDe(id: string): "cartes" | "liste" | "panneau" | "alerte" | null 
   return null;
 }
 
-/** Calendrier des colonnes de mini-graphique : dans chaque creux > 1,1 s entre deux jalons, on en pose à intervalle régulier. */
-function calendrierColonnes(jalons: number[], debut: number, fin: number, n: number): number[][] {
-  const t = Array.from({ length: n }, () => Array<number>(COLONNES_CARTE).fill(Infinity));
+/** Calendrier des éléments de remplissage : dans chaque creux > 0,8 s entre deux jalons, un instant à intervalle régulier (≤ 0,8 s ; tous les jalons ne créent pas un élément nouveau).
+ *  Les instants sont ensuite attribués dans l'ordre : colonnes de mini-graphique des cartes, PUIS tranches des lignes de la liste
+ *  (mises en page compacte ou en lignes, où les colonnes des cartes n'existent pas). */
+function calendrierRemplissage(jalons: number[], debut: number, fin: number): number[] {
+  const r: number[] = [];
   const J = [debut, ...jalons.filter((x) => x > debut && x < fin), fin].sort((a, b) => a - b);
-  let idx = 0;
   for (let i = 0; i + 1 < J.length; i++) {
     const creux = J[i + 1] - J[i];
-    const m = Math.ceil(creux / 1100) - 1;
-    for (let k = 1; k <= m; k++) {
-      if (idx >= n * COLONNES_CARTE) return t;
-      t[idx % n][Math.floor(idx / n)] = J[i] + (creux * k) / (m + 1);
-      idx++;
-    }
+    const m = Math.ceil(creux / 800) - 1;
+    for (let k = 1; k <= m; k++) r.push(J[i] + (creux * k) / (m + 1));
   }
-  return t;
+  return r.sort((a, b) => a - b);
 }
+
+/** Tranches de remplissage par ligne de la liste (squelette qui se complète). */
+const TRANCHES_MIN = 12;
+const TRANCHES_MAX = 48;
 
 function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pose[] {
   const { T, s, C, pf } = c;
@@ -556,10 +642,35 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   const ev = sc.evenements;
   const W = fenetreDe(C);
   const compact = C.hauteur < 760 * s; // 1:1 et 16:9 : fenêtre moins haute, marges resserrées
-  const barH = Math.round((compact ? 64 : 92) * s);
+  let barH = Math.round((compact ? 64 : 92) * s);
   const P = Math.round((compact ? 16 : 22) * s);
   const g = Math.round(14 * s);
   const g2 = Math.round((compact ? 12 : 20) * s);
+  // La barre de titre : points, titre, et la place du TOAST d'alerte. Le toast a son propre emplacement dans la barre : il ne
+  // recouvre jamais le contenu. Deux dispositions : (1) « à droite » du titre, sur UNE ligne, si ça tient ; (2) sinon il
+  // REMPLACE le titre le temps de son affichage (le titre s'efface avant son arrivée et revient après son départ), sur 1 ou 2
+  // lignes, la barre grandissant si nécessaire : jamais deux textes l'un sur l'autre.
+  const tx = W.x + 28 * s + 3 * 34 * s + 24 * s;
+  const evAl = trouver(sc.evenements, "alerte");
+  const tf = ajuster(s, sc.titreFenetre, 44 * s, W.x + W.largeur - tx - 28 * s, 1, 700, 40 * s);
+  let toast: { bt: Ajuste; bw: number; bh: number; pad: number; ico: number; gap: number; remplace: boolean } | null = null;
+  if (evAl) {
+    const pad = 14 * s;
+    const ico = 34 * s;
+    const gap = 10 * s;
+    const fixe = 2 * pad + ico + gap;
+    const dispoDroite = W.x + W.largeur - 16 * s - (tx + tf.w + 20 * s) - fixe;
+    const dispoPlein = W.x + W.largeur - 16 * s - tx - fixe;
+    let bt = ajuster(s, evAl.texte, 38 * s, Math.max(60 * s, dispoDroite), 1, 600, 36 * s);
+    let remplace = false;
+    if (bt.tronque || bt.cesure) {
+      remplace = true;
+      bt = ajuster(s, evAl.texte, 38 * s, Math.max(60 * s, dispoPlein), 2, 600, 36 * s);
+    }
+    const bh = bt.h + 8 * s;
+    toast = { bt, bw: bt.w + fixe, bh, pad, ico, gap, remplace };
+    barH = Math.max(barH, Math.ceil(bh + 12 * s));
+  }
   const ix = W.x + P;
   const iy = W.y + barH + P;
   const iw = W.largeur - 2 * P;
@@ -576,7 +687,9 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
 
   /* Alerte : une notification (toast) qui tombe PAR-DESSUS le haut de la fenêtre, sous la barre de titre, qui reste visible. */
   const pIn = evAlerte ? avancement(T, evAlerte.aMs, 450) : 0;
-  const pOut = evAlerte ? 1 - avancement(T, evAlerte.aMs + 450 + DUREES_MS.alerteTenue, 400, adoucir) : 1;
+  // Le toast a fini de s'effacer AU PLUS TARD à la fin de la scène (jamais encore là quand la suivante commence).
+  const finToast: number = evAlerte ? Math.min(evAlerte.aMs + 450 + DUREES_MS.alerteTenue, sc.finMs - 300) : 0;
+  const pOut = evAlerte ? 1 - avancement(T, finToast, 300, adoucir) : 1;
   const bp = pIn * pOut;
 
   /* Fenêtre : coque, points, titre, filet (jamais atténués par l'alerte) */
@@ -584,9 +697,8 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   for (let k = 0; k < 3; k++) {
     add({ id: `fenetre/point-${k + 1}`, genre: "forme", rect: { x: W.x + 28 * s + k * 34 * s, y: W.y + barH / 2 - 11 * s, largeur: 22 * s, hauteur: 22 * s }, opacite: 0.5, icone: "point", couleur: "grisTexte", parentId: "fenetre" });
   }
-  const tx = W.x + 28 * s + 3 * 34 * s + 24 * s;
-  const tf = ajuster(s, sc.titreFenetre, 44 * s, W.x + W.largeur - tx - 28 * s, 1, 700, 40 * s);
-  poserTexte(add, "fenetre/titre", tf, tx, W.y + (barH - tf.h) / 2, W.largeur, { graisse: 700, couleur: "noir", parentId: "fenetre" });
+  const cache = evAlerte && toast?.remplace ? avancement(T, evAlerte.aMs - 300, 250, adoucir) * (1 - avancement(T, finToast + 330, 300, adoucir)) : 0;
+  poserTexte(add, "fenetre/titre", tf, tx, W.y + (barH - tf.h) / 2, W.largeur, { graisse: 700, couleur: "noir", parentId: "fenetre", opacite: 1 - cache });
   add({ id: "fenetre/filet", genre: "forme", rect: { x: W.x + 2 * s, y: W.y + barH, largeur: W.largeur - 4 * s, hauteur: 2 * s }, remplissage: "gris", parentId: "fenetre" });
 
   /* ---- Cartes-chiffres : libellés 42 px, en cascade dès l'entrée ; disposition changée avant de couper un mot ---- */
@@ -608,7 +720,7 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   const wIntC = cwC - 2 * padC;
   let fits = calcLibelles(wIntC, 42 * s);
   // Un mot ne tient pas dans une colonne (coupé ou texte raccourci) : les cartes passent en LIGNES pleine largeur.
-  const enLignes = fits.some((f) => f.tronque || f.coupe);
+  const enLignes = fits.some((f) => f.tronque || f.cesure);
   const vw = Math.round(0.3 * iw);
   const labW = iw - 2 * padC - stripH - 14 * s - vw - 14 * s;
   if (enLignes) fits = calcLibelles(labW, 42 * s);
@@ -668,6 +780,49 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   const slotPos = (i: number) => entre(slotAvant[i], i, pTri);
   const rowRect = (pos: number): RectPx => ({ x: lx + padL, y: rowsTop + pos * (rowH + gapEff), largeur: lw - 2 * padL, hauteur: rowH });
 
+  /* ---- Mesure de l'historique (ne dépend pas du temps) : sert aux jalons du calendrier (seules les rubriques MONTRÉES comptent) ---- */
+  const PM = evPanneau
+    ? (() => {
+        const th = ajuster(s, evPanneau.titre, 44 * s, pw - 2 * padL - 54 * s, 1, 700, 40 * s);
+        // Rubriques : libellés ≥ 40 px si la place le permet ; sinon 1 ligne, puis sans mini-graphique, puis moins de rubriques.
+        const wFull = pw - 2 * padL;
+        const colW = 16 * s;
+        const colG = 8 * s;
+        const chartW = 6 * colW + 5 * colG;
+        const rub = evPanneau.rubriques;
+        const dispoH = ly + lh - padL - (ly + padL + th.h + 14 * s);
+        const sepL = 10 * s;
+        const mesure = (lignesMax: number) => rub.map((r) => ajuster(s, r.libelle, 44 * s, wFull, lignesMax, 600, 36 * s));
+        const enLigne = (f: Ajuste) => f.lignes.length === 1 && f.w + 20 * s + chartW <= wFull;
+        const hauteurR = (f: Ajuste, ch: number) => (ch <= 0 ? f.h : enLigne(f) ? Math.max(f.h, ch) : f.h + sepL + ch);
+        const gpDe = (ch: number) => (ch >= 34 ? 14 : 8) * s;
+        const total = (lf: Ajuste[], ch: number, m: number) => lf.slice(0, m).reduce((a, f) => a + hauteurR(f, ch * s), 0) + Math.max(0, m - 1) * gpDe(ch);
+        let lf = mesure(2);
+        let chartH = 0;
+        let montrees = rub.length;
+        let trouve = false;
+        for (const lm of [2, 1]) {
+          lf = mesure(lm);
+          for (const ch of [56, 44, 34, 26]) {
+            if (total(lf, ch, rub.length) <= dispoH) {
+              chartH = ch * s;
+              trouve = true;
+              break;
+            }
+          }
+          if (trouve) break;
+        }
+        if (!trouve) {
+          // Rien ne tient avec des mini-graphiques : libellés sur 1 ligne, sans graphique, puis on PLAFONNE le nombre de rubriques.
+          lf = mesure(1);
+          if (total(lf, 0, rub.length) > dispoH) while (montrees > 1 && total(lf, 0, montrees) > dispoH) montrees--;
+          chartH = 0;
+        }
+        const gp = gpDe(chartH / s);
+        return { th, wFull, chartW, colW, colG, rub, lf, chartH, montrees, gp, enLigne, hauteurR, sepL };
+      })()
+    : null;
+
   /* ---- Calendrier : cascade d'entrée (≈ 1,5 s), jalons (mots), colonnes de mini-graphique dans les creux ---- */
   const tCarte = (k: number) => tS + 150 + k * 150;
   const tListe = tS + 650;
@@ -680,11 +835,16 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
   if (evClic) jalons.push(tClic);
   if (evPanneau) {
     jalons.push(evPanneau.aMs);
-    for (const r of evPanneau.rubriques) jalons.push(Math.max(r.aMs, evPanneau.aMs + 600));
+    for (const r of evPanneau.rubriques.slice(0, PM!.montrees)) jalons.push(Math.max(r.aMs, evPanneau.aMs + 600));
   }
   if (evAlerte) jalons.push(evAlerte.aMs);
   for (const e of ev) if (e.genre === "focus") jalons.push(e.aMs);
-  const colT = avecSpark ? calendrierColonnes(jalons, tS + 1500, sc.finMs - 300, n) : [];
+  const tRempl = calendrierRemplissage(jalons, tS + 1500, sc.finMs - 300);
+  const nCol = avecSpark ? n * COLONNES_CARTE : 0;
+  const tColonne = (k: number, j: number): number => (avecSpark ? (tRempl[j * n + k] ?? Infinity) : Infinity);
+  // Tranches par ligne : assez pour absorber tous les instants restants (le nombre de lignes peut être 1).
+  const nTr = Math.min(TRANCHES_MAX, Math.max(TRANCHES_MIN, Math.ceil(Math.max(0, tRempl.length - nCol) / N)));
+  const tTranche = (i: number, j: number): number => tRempl[nCol + j * N + i] ?? Infinity;
 
   /* ---- Cartes ---- */
   const dyC = 12 * s;
@@ -722,7 +882,7 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
       const colG = 6 * s;
       const colW = (wIntC - (COLONNES_CARTE - 1) * colG) / COLONNES_CARTE;
       for (let j = 0; j < COLONNES_CARTE; j++) {
-        const qj = Number.isFinite(colT[k]?.[j] ?? Infinity) ? avancement(T, colT[k][j], 450, adoucir) : 0;
+        const qj = Number.isFinite(tColonne(k, j)) ? avancement(T, tColonne(k, j), 450, adoucir) : 0;
         const hh = sparkH * HAUTEURS_CARTE[j] * qj;
         fy(add({ id: `${id}/col-${j + 1}`, genre: "forme", rect: { x: ax + j * (colW + colG), y: sy + sparkH - hh, largeur: colW, hauteur: hh }, opacite: qj > 0 ? 0.32 * Math.min(1, qj * 6) : 0, remplissage: "grisTexte", rayonPx: Math.min(4 * s, colW / 2), progression: qj, parentId: id }));
       }
@@ -767,6 +927,14 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     add({ id: `${id}/fantome-barre`, genre: "forme", rect: { x: bx, y: R.y + (R.hauteur - bh) / 2 + dy, largeur: dispo * 0.78 * rIn, hauteur: bh }, opacite: 0.15 * rIn, remplissage: "grisTexte", rayonPx: bh / 2, parentId: id });
     const qb = Number.isFinite(aRow) ? avancement(T, aRow + 100, 500, adoucir) : 0;
     add({ id: `${id}/barre`, genre: "forme", rect: { x: bx, y: R.y + (R.hauteur - bh) / 2 + dy, largeur: dispo * [0.78, 0.62, 0.7, 0.5][i % 4] * qb, hauteur: bh }, opacite: qb > 0 ? 0.32 * pr : 0, remplissage: "grisTexte", rayonPx: bh / 2, progression: qb, parentId: id });
+    // Tranches de remplissage : le squelette de la ligne se complète peu à peu (jamais plus de ~1,1 s sans rien de nouveau).
+    const wg = dispo * 0.78;
+    const tw = wg / nTr;
+    for (let j = 0; j < nTr; j++) {
+      const qt = Number.isFinite(tTranche(i, j)) ? avancement(T, tTranche(i, j), 450, adoucir) : 0;
+      if (qt <= 0) continue;
+      add({ id: `${id}/tranche-${j + 1}`, genre: "forme", rect: { x: bx + j * tw, y: R.y + (R.hauteur - bh) / 2 + dy, largeur: tw * 0.78 * qt, hauteur: bh }, opacite: 0.34 * Math.min(1, qt * 6) * rIn, remplissage: "grisTexte", rayonPx: Math.min(bh / 2, 4 * s), progression: qt, parentId: id });
+    }
     add({ id: `${id}/court`, genre: "forme", rect: { x: R.x + R.largeur - 16 * s - shortW * qb, y: R.y + (R.hauteur - bh) / 2 + dy, largeur: shortW * qb, hauteur: bh }, opacite: qb > 0 ? 0.2 * pr : 0, remplissage: "grisTexte", rayonPx: bh / 2, progression: qb, parentId: id });
   }
   const slot0 = rowRect(0);
@@ -796,45 +964,10 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
     const i0 = els.length;
     const idP = "panneau";
     add({ id: idP, genre: "forme", rect: { x: px + dxP, y: ly, largeur: pw - dxP, hauteur: lh }, opacite: pp, remplissage: "blanc", contour: "gris", rayonPx: 22 * s, ombre: true });
-    const th = ajuster(s, evPanneau.titre, 44 * s, pw - 2 * padL - 54 * s, 1, 700, 40 * s);
+    const { th, wFull, chartW, colW, colG, rub, lf, chartH, montrees, gp, enLigne, hauteurR, sepL } = PM!;
     add({ id: `${idP}/horloge`, genre: "forme", rect: { x: px + padL, y: ly + padL + (th.h - 40 * s) / 2, largeur: 40 * s, hauteur: 40 * s }, opacite: pp, icone: "horloge", couleur: "terracotta", progression: (((T - evPanneau.aMs) / 4000) % 1 + 1) % 1, parentId: idP });
     poserTexte(add, `${idP}/titre`, th, px + padL + 54 * s, ly + padL, pw, { graisse: 700, couleur: "noir", parentId: idP, opacite: pp });
 
-    // Rubriques : libellés ≥ 40 px si la place le permet ; sinon 1 ligne, puis sans mini-graphique, puis moins de rubriques.
-    const wFull = pw - 2 * padL;
-    const colW = 16 * s;
-    const colG = 8 * s;
-    const chartW = 6 * colW + 5 * colG;
-    const rub = evPanneau.rubriques;
-    const dispoH = ly + lh - padL - (ly + padL + th.h + 14 * s);
-    const sepL = 10 * s;
-    const mesure = (lignesMax: number) => rub.map((r) => ajuster(s, r.libelle, 44 * s, wFull, lignesMax, 600, 36 * s));
-    const enLigne = (f: Ajuste) => f.lignes.length === 1 && f.w + 20 * s + chartW <= wFull;
-    const hauteurR = (f: Ajuste, ch: number) => (ch <= 0 ? f.h : enLigne(f) ? Math.max(f.h, ch) : f.h + sepL + ch);
-    const gpDe = (ch: number) => (ch >= 34 ? 14 : 8) * s;
-    const total = (lf: Ajuste[], ch: number, m: number) => lf.slice(0, m).reduce((a, f) => a + hauteurR(f, ch * s), 0) + Math.max(0, m - 1) * gpDe(ch);
-    let lf = mesure(2);
-    let chartH = 0;
-    let montrees = rub.length;
-    let trouve = false;
-    for (const lm of [2, 1]) {
-      lf = mesure(lm);
-      for (const ch of [56, 44, 34, 26]) {
-        if (total(lf, ch, rub.length) <= dispoH) {
-          chartH = ch * s;
-          trouve = true;
-          break;
-        }
-      }
-      if (trouve) break;
-    }
-    if (!trouve) {
-      // Rien ne tient avec des mini-graphiques : libellés sur 1 ligne, sans graphique, puis on PLAFONNE le nombre de rubriques.
-      lf = mesure(1);
-      if (total(lf, 0, rub.length) > dispoH) while (montrees > 1 && total(lf, 0, montrees) > dispoH) montrees--;
-      chartH = 0;
-    }
-    const gp = gpDe(chartH / s);
     let yy = ly + padL + th.h + 14 * s;
     rub.slice(0, montrees).forEach((r, k) => {
       const f = lf[k];
@@ -878,29 +1011,25 @@ function sceneEcran(c: Ctx, sc: Extract<SceneSansVoix, { genre: "ecran" }>): Pos
 
   /* ---- Curseur du clic : vrai TRAJET (≥ 1 s) en arc vers la ligne 1, pointe SUR la ligne ---- */
   if (evClic) {
-    const dep = Math.max(sc.debutMs, tClic - 1500);
+    const dep = Math.max(sc.debutMs, tClic - 1100);
     const cible = { x: slot0.x + slot0.largeur * 0.45, y: slot0.y + slot0.hauteur * 0.55 };
     poserCurseur(add, s, T, dep, tClic, { x: W.x + W.largeur - 90 * s, y: W.y + barH + 30 * s }, cible, "ligne-1", 1500);
   }
 
-  /* ---- Toast d'alerte (par-dessus le haut de la fenêtre, sous la barre de titre, avec une ombre) ---- */
+  /* ---- Toast d'alerte : DANS la barre de titre, à droite du titre (emplacement dédié : il ne recouvre aucun texte) ---- */
   let banR: RectPx | null = null;
-  if (evAlerte && bp > 0.001) {
-    const pad = 22 * s;
-    const ico = 48 * s;
-    const bw = Math.min(W.largeur - 2 * P, 0.64 * W.largeur);
-    const bt = ajuster(s, evAlerte.texte, 38 * s, bw - 2 * pad - ico - 18 * s, 2, 600, 36 * s);
-    const bh = Math.max(84 * s, bt.h + 2 * 20 * s);
-    const bx = W.x + W.largeur - P - bw;
-    const by = W.y + barH + 10 * s - (1 - pIn) * 40 * s;
+  if (evAlerte && toast && bp > 0.001) {
+    const { bt, bw, bh, pad, ico, gap } = toast;
+    const bx = toast.remplace ? tx : W.x + W.largeur - 16 * s - bw;
+    const by = W.y + (barH - bh) / 2 + (1 - pIn) * 5 * s;
     banR = { x: bx, y: by, largeur: bw, hauteur: bh };
-    add({ id: "alerte", genre: "forme", rect: banR, opacite: bp, remplissage: "blanc", contour: "terracotta", rayonPx: 22 * s, ombre: true });
+    add({ id: "alerte", genre: "forme", rect: banR, opacite: bp, remplissage: "blanc", contour: "terracotta", rayonPx: Math.min(22 * s, bh / 2), ombre: true });
     add({ id: "alerte/cloche", genre: "forme", rect: { x: bx + pad, y: by + (bh - ico) / 2, largeur: ico, hauteur: ico }, opacite: bp, icone: "cloche", couleur: "terracotta", parentId: "alerte" });
-    poserTexte(add, "alerte/texte", bt, bx + pad + ico + 18 * s, by + (bh - bt.h) / 2, bw, { graisse: 600, couleur: "noir", parentId: "alerte", opacite: bp });
+    poserTexte(add, "alerte/texte", bt, bx + pad + ico + gap, by + (bh - bt.h) / 2, bw, { graisse: 600, couleur: "noir", parentId: "alerte", opacite: bp });
   }
 
   /* ---- Mise en valeur (`focus`) : PAS de zoom. La cible s'éclaire (contour terracotta qui pulse, marge ≥ 6 px autour de la
-     cible réelle), les autres parties s'atténuent à 0,55 ENSEMBLE avec leurs enfants. Le plus avancé à l'instant t l'emporte. ---- */
+     cible réelle), les autres parties s'atténuent à 0,75 ENSEMBLE avec leurs enfants. Le plus avancé à l'instant t l'emporte. ---- */
   let kMax = 0;
   let foc: Extract<EvenementEcran, { genre: "focus" }> | undefined;
   for (const e of ev) {
@@ -987,7 +1116,7 @@ export function imageSansVoixA(plan: PlanComposeSansVoix, tMs: number): ImageSan
   let idx = 0;
   for (let i = 0; i < scenes.length; i++) if (scenes[i].debutMs <= T) idx = i;
   // Seule la scène courante et, pendant 250 ms, la sortante : la sortante a fini de s'effacer AVANT que l'entrante n'affiche
-  // du texte (entrée de +200 à +600 ms) : jamais deux textes superposés à plus de 0,15 d'opacité.
+  // du texte (entrée de +250 à +650 ms) : jamais deux textes superposés à plus de 0,15 d'opacité.
   const aTracer = idx > 0 && T < scenes[idx].debutMs + DUREES_MS.sortieScene ? [idx - 1, idx] : [idx];
   const sortie: Pose[] = [];
   for (const i of aTracer) {
