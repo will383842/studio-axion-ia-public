@@ -57,7 +57,7 @@ function verifierPavage(plan: PlanComposeSansVoix) {
   for (const sc of plan.scenes) expect(sc.finMs).toBeGreaterThanOrEqual(sc.debutMs);
 }
 
-function composer(texte: string, extra: { phraseTitre?: string; fin?: "aucune" | "rendez-vous" } = {}) {
+function composer(texte: string, extra: { phraseTitre?: string; fin?: "aucune" | "rendez-vous"; dureeMs?: number } = {}) {
   return composerPlanSansVoix({ texte, mots: motsDe(texte), format: FORMAT, basPct: 87, ...extra });
 }
 
@@ -117,6 +117,29 @@ describe("QUAL-2 — script du fondateur", () => {
     expect(appel.clicAMs).toBe(mots.find((m) => m.texte.startsWith("rendez-vous"))!.debutMs);
   });
 
+  it("instants et indices source calés sur les mots horodatés", () => {
+    const mots = motsDe(FONDATEUR);
+    const ecran = plan.scenes[1];
+    if (ecran.genre !== "ecran") throw new Error("ecran");
+    const suite = (r: { premier: number; dernier: number }) => norm(mots.slice(r.premier, r.dernier + 1).map((m) => m.texte).join(" "));
+    for (const ev of ecran.evenements) {
+      if (ev.genre === "cartes-chiffres") for (const c of ev.cartes) { expect(suite(c.source)).toContain(norm(c.libelle)); expect(c.aMs).toBe(mots[c.source.premier].debutMs); }
+      if (ev.genre === "liste") { expect(suite(ev.source)).toContain(norm(ev.titre)); expect(ev.aMs).toBe(mots[ev.source.premier].debutMs); }
+      if (ev.genre === "tri") { expect(suite(ev.source)).toContain(norm(ev.etiquette)); expect(ev.aMs).toBe(mots[ev.source.premier].debutMs); }
+      if (ev.genre === "panneau") for (const r of ev.rubriques) { expect(suite(r.source)).toContain(norm(r.libelle)); expect(r.aMs).toBe(mots[r.source.premier].debutMs); }
+      if (ev.genre === "alerte") {
+        expect(suite(ev.source)).toContain(norm(ev.texte));
+        expect(ev.aMs).toBeGreaterThanOrEqual(mots[ev.source.premier].debutMs);
+        expect(ev.aMs).toBeLessThanOrEqual(mots[ev.source.dernier].finMs);
+      }
+    }
+    const rep = plan.scenes[2];
+    if (rep.genre !== "repere") throw new Error("repere");
+    const iAu = mots.findIndex((m) => m.texte === "lieu");
+    expect(rep.apresAMs).toBe(mots[iAu - 2].debutMs);
+    expect(rep.barreAMs).toBe(mots.find((m, k) => k > iAu && m.texte === "une")!.debutMs);
+  });
+
   it("littéralité, aucun chiffre, pavage, déterminisme", () => {
     verifierLitteralite(plan, FONDATEUR, TITRE, "Prendre rendez-vous");
     for (const t of textesAffiches(plan)) expect(t).not.toMatch(/\d/);
@@ -147,7 +170,10 @@ describe("QUAL-2 — robustesse", () => {
   it("chiffres dits : seulement s'ils sont dans le script", () => {
     const script = "Trois commandes en retard ? Voici un outil qui les trouve. 3 commandes en retard sont signalées chaque matin. Prenez rendez-vous.";
     const { plan } = composer(script, { phraseTitre: "Suivre ses commandes" });
-    verifierLitteralite(plan, script, "Suivre ses commandes", "Prendre rendez-vous");
+    verifierLitteralite(plan, script, "Suivre ses commandes");
+    const appel = plan.scenes[plan.scenes.length - 1];
+    if (appel.genre !== "appel") throw new Error("appel");
+    expect(appel.bouton).toBe("Prenez rendez-vous");
     verifierPavage(plan);
     const avecChiffre = textesAffiches(plan).filter((t) => /\d/.test(t));
     for (const t of avecChiffre) expect(norm(script).includes(norm(t))).toBe(true);
@@ -173,5 +199,129 @@ describe("QUAL-2 — robustesse", () => {
     expect(nettoyerLibelle(["et", "la", "valeur", "totale."], { maxMots: 6, maxCar: 30 })?.texte).toBe("Valeur totale");
     expect(nettoyerLibelle(["l'historique", ":"], { maxMots: 3, maxCar: 28 })?.texte).toBe("Historique");
     expect(nettoyerLibelle(["les", "des"], { maxMots: 3, maxCar: 28 })).toBeNull();
+  });
+});
+
+describe("QUAL-2 — corrections des relecteurs", () => {
+  const ecranDe = (plan: PlanComposeSansVoix) => plan.scenes.find((s) => s.genre === "ecran");
+
+  it("élisions : « l'application », « l'alerte » reconnus", () => {
+    const script = "Un souci de suivi ? Ouvrez l'application. En haut, trois chiffres : ventes, stock et marge. Quand le stock baisse, l'alerte part toute seule. Prenez rendez-vous.";
+    const { plan } = composer(script);
+    const ecran = ecranDe(plan);
+    expect(ecran).toBeDefined();
+    if (!ecran || ecran.genre !== "ecran") return;
+    expect(ecran.titreFenetre).toBe("Application");
+    expect(ecran.evenements.some((e) => e.genre === "alerte")).toBe(true);
+    const { plan: p2 } = composer("Un souci ? Voici l'outil. Un clic sur la liste des articles ouvre l'historique : entrées, sorties. Une alerte d'alerte part. Prenez rendez-vous.");
+    expect(ecranDe(p2)).toBeDefined();
+  });
+
+  it("bouton d'appel : « Prendre rendez-vous » seulement si fin = rendez-vous", () => {
+    const script = "Un souci de suivi ? Voici le nouveau tableau de bord. Nos clients prennent rendez-vous en ligne. Contactez-nous.";
+    const a = composer(script).plan.scenes.at(-1)!;
+    if (a.genre !== "appel") throw new Error("appel");
+    expect(a.bouton).toBe("Contactez-nous");
+    const b = composer(script, { fin: "rendez-vous" }).plan.scenes.at(-1)!;
+    if (b.genre !== "appel") throw new Error("appel");
+    expect(b.bouton).toBe("Prendre rendez-vous");
+  });
+
+  it("énumérations sans virgule d'Oxford : 3 cartes, 3 rubriques", () => {
+    const script = "Un souci ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock et marge. Un clic sur un article ouvre l'historique : téléphone, adresse et notes. La liste des articles est triée par urgence. Prenez rendez-vous.";
+    const ecran = ecranDe(composer(script).plan);
+    if (!ecran || ecran.genre !== "ecran") throw new Error("ecran");
+    const cartes = ecran.evenements.find((e) => e.genre === "cartes-chiffres");
+    if (cartes?.genre !== "cartes-chiffres") throw new Error("cartes");
+    expect(cartes.cartes.map((c) => c.libelle)).toEqual(["Ventes", "Stock", "Marge"]);
+  });
+
+  it("rubriques sans virgule d'Oxford", () => {
+    const script = "Un souci ? Voici un tableau de bord. La liste des articles à commander est triée par urgence. Un clic sur un article ouvre son historique : téléphone, adresse et notes. Prenez rendez-vous.";
+    const ecran = ecranDe(composer(script).plan);
+    if (!ecran || ecran.genre !== "ecran") throw new Error("ecran");
+    const pan = ecran.evenements.find((e) => e.genre === "panneau");
+    if (pan?.genre !== "panneau") throw new Error("panneau");
+    expect(pan.rubriques.map((r) => r.libelle)).toEqual(["Téléphone", "Adresse", "Notes"]);
+  });
+
+  it("titre plafonné : 1re phrase de 380 caractères, script sans ponctuation", () => {
+    const longue = "Vous perdez beaucoup de temps chaque semaine à recopier à la main les mêmes informations dans plusieurs fichiers différents sans jamais savoir laquelle des versions est la bonne ni qui l'a modifiée en dernier et cela finit par coûter cher à toute votre équipe qui s'épuise sur des tâches répétitives que rien ne justifie vraiment aujourd'hui dans une petite entreprise moderne et bien organisée comme la vôtre ? Prenez rendez-vous.";
+    expect(longue.split("?")[0].length).toBeGreaterThan(300);
+    const { plan } = composer(longue);
+    const titre = plan.scenes[0];
+    if (titre.genre !== "titre") throw new Error("titre");
+    expect(titre.texte.length).toBeLessThanOrEqual(60);
+    expect(norm(longue).includes(norm(titre.texte))).toBe(true);
+    const sansPonct = "voici un script très long sans aucune ponctuation qui continue encore et encore pour dépasser largement la taille raisonnable d'un titre affiché";
+    const p2 = composer(sansPonct).plan.scenes[0];
+    if (p2.genre !== "titre") throw new Error("titre");
+    expect(p2.texte.length).toBeLessThanOrEqual(60);
+    expect(norm(sansPonct).includes(norm(p2.texte))).toBe(true);
+  });
+
+  it("indices source exacts avec un mot vide à l'indice 1", () => {
+    const script = "Un souci ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock et marge. Prenez rendez-vous.";
+    const mots = motsDe(script);
+    mots.splice(1, 0, { texte: "", debutMs: mots[1].debutMs, finMs: mots[1].debutMs });
+    const { plan } = composerPlanSansVoix({ texte: script, mots, format: FORMAT, basPct: 87 });
+    const ecran = ecranDe(plan);
+    if (!ecran || ecran.genre !== "ecran") throw new Error("ecran");
+    const cartes = ecran.evenements.find((e) => e.genre === "cartes-chiffres");
+    if (cartes?.genre !== "cartes-chiffres") throw new Error("cartes");
+    const ventes = cartes.cartes[0];
+    expect(mots[ventes.source.premier].texte.toLowerCase()).toContain("ventes");
+    expect(ventes.aMs).toBe(mots[ventes.source.premier].debutMs);
+    for (const sc of plan.scenes) { expect(sc.mots.premier).toBeGreaterThanOrEqual(0); expect(sc.mots.dernier).toBeLessThan(mots.length); }
+  });
+
+  it("sans mots horodatés : plages vides cohérentes + remarque", () => {
+    const { plan, remarques } = composerPlanSansVoix({ texte: "Un souci ? Voici un tableau de bord. En haut, trois chiffres : A, B, et C. Prenez rendez-vous.", mots: [], format: FORMAT, basPct: 87 });
+    verifierPavage(plan);
+    for (const sc of plan.scenes) expect(sc.mots).toEqual({ premier: 0, dernier: -1 });
+    expect(remarques.some((r) => /horodat/.test(r))).toBe(true);
+  });
+
+  it("dureeMs facultative : le plan finit exactement là", () => {
+    const { plan } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous", dureeMs: 60000 });
+    expect(plan.dureeMs).toBe(60000);
+    expect(plan.scenes.at(-1)!.finMs).toBe(60000);
+    verifierPavage(plan);
+  });
+
+  it("script vide : jamais de scènes vides, le plan pave", () => {
+    const { plan } = composerPlanSansVoix({ texte: "", mots: [], format: FORMAT, basPct: 87, dureeMs: 4000 });
+    expect(plan.scenes.length).toBe(1);
+    expect(plan.dureeMs).toBe(4000);
+    verifierPavage(plan);
+  });
+
+  it("titre de liste qui finit sur un verbe", () => {
+    expect(nettoyerLibelle(["10", "dernières", "commandes", "est"], { maxMots: 5, maxCar: 30 })?.texte).toBe("10 dernières commandes");
+  });
+
+  it("« A » seul n'est jamais retiré ; parenthèses orphelines", () => {
+    expect(nettoyerLibelle(["A,"], { maxMots: 6, maxCar: 30 })?.texte).toBe("A");
+    expect(nettoyerLibelle(["Stock", "(en", "temps", "réel"], { maxMots: 6, maxCar: 30 })?.texte).toBe("Stock");
+    expect(nettoyerLibelle(["Stock", "(en", "temps", "réel)"], { maxMots: 6, maxCar: 30 })?.texte).toBe("Stock (en temps réel)");
+  });
+
+  it("éléments en trop retirés avant nettoyage, avec remarque", () => {
+    const script = "Un souci ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock, marge et retards. Prenez rendez-vous.";
+    const { plan, remarques } = composer(script);
+    const ecran = ecranDe(plan);
+    if (!ecran || ecran.genre !== "ecran") throw new Error("ecran");
+    const cartes = ecran.evenements.find((e) => e.genre === "cartes-chiffres");
+    if (cartes?.genre !== "cartes-chiffres") throw new Error("cartes");
+    expect(cartes.cartes.length).toBe(3);
+    expect(remarques.some((r) => /élément retiré : « (et )?retards/.test(r))).toBe(true);
+  });
+
+  it("cartes-phrases vides de sens fondues dans la voisine", () => {
+    const script = "Votre cuisine vous ralentit ? Nous installons des meubles sur mesure. Voici. Chaque projet est suivi par un seul artisan. Merci. Contactez-nous.";
+    const { plan } = composer(script);
+    const textes = plan.scenes.filter((s) => s.genre === "carte-phrase").map((s) => (s.genre === "carte-phrase" ? s.texte : ""));
+    expect(textes.some((t) => /^(voici|merci)$/i.test(t))).toBe(false);
+    verifierPavage(plan);
   });
 });

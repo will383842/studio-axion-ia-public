@@ -70,7 +70,11 @@ export const MOTS_APPEL = new Set([
 export const DETERMINANTS = new Set(["le", "la", "les", "l'", "des", "du", "un", "une", "ces", "cet", "cette", "ses", "son", "sa", "vos", "votre", "leurs", "leur"]);
 export const MOTS_VIDES_FIN = new Set([
   "de", "du", "des", "le", "la", "les", "l'", "d'", "un", "une", "a", "au", "aux", "et", "ou", "en", "pour", "avec", "dans", "par", "que", "qui", "sur", "puis",
+  // Verbes d'être/avoir : un titre ne finit jamais sur « est » (« 10 dernières commandes est »).
+  "est", "sont", "ont", "etait", "etaient", "sera", "seront",
 ]);
+/** Mots sans contenu propre pour une carte-phrase (politesses) : s'ajoutent à DEBUTS_VIDES. */
+export const MOTS_SANS_SENS = new Set(["merci", "bonjour", "bonsoir", "salut", "bienvenue", "bravo", "voila", "voici"]);
 /** Débuts de phrase sans contenu (cartes-phrases) : pronoms sujets et connecteurs. */
 export const DEBUTS_VIDES = new Set([
   "vous", "nous", "je", "tu", "il", "elle", "on", "ils", "elles", "ca", "cela", "voici", "voila", "ensuite", "puis", "enfin", "alors", "donc", "mais", "car", "ainsi",
@@ -100,8 +104,34 @@ export function majuscule(s: string): string {
 }
 
 /** Retire ponctuation, guillemets et espaces aux deux bords. */
-export function nettoyerBords(s: string): string {
-  return s.replace(/^[\s«"“(\[:;,.!?…–—-]+/, "").replace(/[\s»"”)\]:;,.!?…–—-]+$/, "").replace(/\s+/g, " ");
+export function nettoyerBords(s: string, garderParenFermante = false): string {
+  const fin = garderParenFermante ? /[\s»"”\]:;,.!?…–—-]+$/ : /[\s»"”)\]:;,.!?…–—-]+$/;
+  return s.replace(/^[\s«"“(\[:;,.!?…–—-]+/, "").replace(fin, "").replace(/\s+/g, " ");
+}
+
+const compter = (s: string, c: string): number => s.split(c).length - 1;
+
+/** Parenthèses, guillemets orphelins : garde la parenthèse fermante si elle équilibre, sinon coupe avant « ( » orpheline. */
+export function equilibrer(joint: string): string {
+  let texte = nettoyerBords(joint);
+  if (compter(texte, "(") > compter(texte, ")")) {
+    const avecFermante = nettoyerBords(joint, true);
+    if (compter(avecFermante, "(") === compter(avecFermante, ")")) texte = avecFermante;
+    else texte = nettoyerBords(texte.slice(0, texte.lastIndexOf("(")));
+  }
+  if (compter(texte, ")") > compter(texte, "(")) texte = nettoyerBords(texte.replace(/\)/g, ""));
+  if (compter(texte, "«") > compter(texte, "»") && texte.includes("«")) texte = nettoyerBords(texte.slice(0, texte.lastIndexOf("«")));
+  if (compter(texte, "«") < compter(texte, "»")) texte = nettoyerBords(texte.replace(/»/g, ""));
+  if (compter(texte, '"') % 2 === 1) texte = nettoyerBords(texte.replace(/"/g, ""));
+  return texte;
+}
+
+/** Mot vide en fin de libellé ? Jamais une lettre capitale seule (« A », élément d'une énumération). */
+function videEnFin(brut: string): boolean {
+  const n = nu(brut);
+  if (n === "") return true;
+  if (brut.replace(/[^\p{L}]/gu, "") === "A") return false;
+  return MOTS_VIDES_FIN.has(n);
 }
 
 export interface OptionsLibelle {
@@ -145,7 +175,11 @@ export function nettoyerLibelle(mots: string[], opt: OptionsLibelle): LibelleNet
   }
   if (a > b) return null;
   const rogner = () => {
-    while (b >= a && (nu(mots[b]) === "" || MOTS_VIDES_FIN.has(nu(mots[b])))) b--;
+    // Ne retire jamais le dernier mot d'un libellé d'une seule lettre (« A »).
+    while (b >= a && videEnFin(mots[b])) {
+      if (b === a && mots[b].replace(/[^\p{L}]/gu, "").length === 1) break;
+      b--;
+    }
   };
   rogner();
   if (b < a) return null;
@@ -153,7 +187,7 @@ export function nettoyerLibelle(mots: string[], opt: OptionsLibelle): LibelleNet
   if (b - a + 1 > opt.maxMots) { b = a + opt.maxMots - 1; rogner(); }
   const construire = (): string => {
     const morceaux = mots.slice(a, b + 1).map((m, i) => (i === 0 && !opt.garderDeterminants ? m.replace(/^([lLdD])['’]/, "") : m));
-    return nettoyerBords(morceaux.join(" "));
+    return equilibrer(morceaux.join(" "));
   };
   let texte = construire();
   while (texte.length > opt.maxCar && b > a) {
