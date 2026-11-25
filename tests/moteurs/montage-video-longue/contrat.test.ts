@@ -148,7 +148,7 @@ describe("VL-04 · inscription", () => {
     const { moteurExiste: existe, obtenirMoteur: obtenir } = await import("@/moteurs");
     const { RENDU_COULEUR: lut } = await import("@/briques/charte/rendu-couleur");
     const { codeDuFormat } = await import("@/formats/registre-codes");
-    reg.inscrireFormat({ ...formatVideoLongue });
+    if (!reg.trouverFormat("video-longue")) reg.inscrireFormat({ ...formatVideoLongue });
     const f = reg.trouverFormat("video-longue")!;
     expect(codeDuFormat(f.id)).toBe("VL");
     expect(existe(f.moteur)).toBe(true);
