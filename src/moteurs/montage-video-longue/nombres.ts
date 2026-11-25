@@ -265,19 +265,20 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
   for (const seg of segments(texte)) {
     let i = 0;
     while (i < seg.length) {
-      let r = nombre(seg, i);
+      const r = nombre(seg, i);
       if (!r) {
         i++;
         continue;
       }
-      // « dix-huit cents » : le cent(s) qui suit un nombre de 10 à 99 le multiplie (1 800), jamais deux chiffres.
-      // Seulement de 11 à 19 ; de 20 à 99 (« vingt cents la pièce ») c'est une autre unité : tout le passage est exclu.
-      if (r.v >= 10 && r.v <= 99 && seg[i + r.n]?.t === "cent" && seg[i + r.n + 1]?.t !== "pour") {
-        if (r.v >= 11 && r.v <= 19) r = { v: r.v * 100, n: r.n + 1 };
-        else {
-          i += r.n + 1;
-          continue;
-        }
+      // « dix-huit cent », « vingt cents » : lecture ambiguë (années, centimes) : tout le passage est exclu,
+      // le « cent(s) », les mots-nombres qui suivent et un éventuel « pour cent ».
+      if (r.v >= 10 && r.v <= 99 && seg[i + r.n]?.t === "cent") {
+        let j = i + r.n + 1;
+        for (let sui = nombre(seg, j); sui; sui = nombre(seg, j)) j += sui.n;
+        if (seg[j]?.t === "pourcent") j += 1;
+        else if (seg[j]?.t === "pour" && seg[j + 1]?.t === "cent") j += 2;
+        i = j;
+        continue;
       }
       const debut = seg[i].debut;
       let fin = seg[i + r.n - 1].fin;

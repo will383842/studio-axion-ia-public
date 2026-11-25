@@ -187,11 +187,6 @@ describe("QUALL-9 : 2e passe", () => {
     expect(vals("Il a reculé de -5 %")).toEqual([]);
     expect(vals("Il fait −12 degrés")).toEqual([]);
   });
-  it("dix-huit cents : un seul nombre, 1 800", () => {
-    const n = nombresEcrits("dix-huit cents exemplaires");
-    expect(n.map((x) => x.valeur)).toEqual([1800]);
-    expect(n[0].affiche).toBe("1 800");
-  });
   it("téléphone d'un bloc exclu", () => {
     expect(vals("Appelez le 0612345678")).toEqual([]);
   });
@@ -199,14 +194,28 @@ describe("QUALL-9 : 2e passe", () => {
 
 describe("QUALL-9 : 3e passe", () => {
   const vals = (t: string) => nombresEcrits(t).map((n) => n.valeur);
-  it("N cents : multiplie seulement de 11 à 19, sinon rien", () => {
+  it("N cents : tout le passage est exclu", () => {
     expect(vals("vingt cents la pièce")).toEqual([]);
     expect(vals("cinquante cents")).toEqual([]);
     expect(vals("quatre-vingt-dix-neuf cents euros")).toEqual([]);
     expect(vals("5 cents")).toEqual([]);
-    expect(vals("dix-huit cents exemplaires")).toEqual([1800]);
+    expect(vals("dix-huit cents exemplaires")).toEqual([]);
   });
   it("signe moins avec espace : exclu", () => {
     expect(vals("reculé de - 5 %")).toEqual([]);
+  });
+});
+
+describe("QUALL-9 : 4e passe", () => {
+  const vals = (t: string) => nombresEcrits(t).map((n) => n.valeur);
+  it("11 à 19 + cent(s) : tout le passage exclu", () => {
+    expect(vals("dix-sept cent quatre-vingt-neuf")).toEqual([]);
+    expect(vals("dix-neuf cent vingt")).toEqual([]);
+    expect(vals("dix-huit cent pour cent")).toEqual([]);
+  });
+  it("deux cents, trois mille cinq cents, deux mille trois cents restent justes", () => {
+    expect(vals("deux cents")).toEqual([200]);
+    expect(vals("trois mille cinq cents")).toEqual([3500]);
+    expect(vals("deux mille trois cents")).toEqual([2300]);
   });
 });
