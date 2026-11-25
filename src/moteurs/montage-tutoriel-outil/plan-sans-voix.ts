@@ -258,6 +258,8 @@ function condition(t: Tok[], p: Phrase, k = -1): { conj: number; debut: number; 
   return trouvees.find((x) => k < 0 || x.fin < k) ?? trouvees[0] ?? null;
 }
 
+const CONJONCTIONS_FIN = new Set(["quand", "lorsque", "lorsqu'", "si", "que", "des", "chaque", "fois"]);
+
 function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { genre: "cartes-chiffres" }> | null): Extract<EvenementEcran, { genre: "alerte" }> | null {
   let k = -1;
   for (let i = p.premier; i <= p.dernier; i++) if (MOTS_ALERTE.has(t[i].m)) { k = i; break; }
@@ -278,6 +280,15 @@ function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { g
     if (brutLib.length <= MAX_ALERTE) { choisi = nettoyerLibelle(motsDe(a, b), opt); base = a; if (choisi) break; }
   }
   if (!choisi) { const [a, b] = candidats[candidats.length - 1]; choisi = nettoyerLibelle(motsDe(a, b), opt); base = a; }
+  if (!choisi) return null;
+  // Un texte ne finit pas sur la conjonction de la condition (« …toute seule quand ») : coupe avant elle.
+  while (choisi && CONJONCTIONS_FIN.has(nu(choisi.texte.split(/\s+/).pop() ?? ""))) {
+    const fin = base + choisi.dernier - 1;
+    const debut = base + choisi.premier;
+    if (fin < debut) return null;
+    choisi = nettoyerLibelle(motsDe(debut, fin), opt);
+    base = debut;
+  }
   if (!choisi) return null;
   const mots = new Set(choisi.texte.split(/\s+/).map(nu).filter((m) => m.length >= 5));
   let cartePulse: number | undefined;
@@ -351,10 +362,12 @@ const POLITESSES_FINALES: string[][] = [["merci"], ["bonne"], ["belle"], ["bon",
 /** Phrase de politesse finale : elle COMMENCE par merci, bonne (journée), à bientôt, au revoir… */
 function politesseFinale(t: Tok[], p: Phrase): boolean {
   if (!POLITESSES_FINALES.some((m) => suiteA(t, p.premier, m, p.dernier))) return false;
-  // « Merci de nous contacter », « Bonne nouvelle, prenez rendez-vous » : un mot d'appel => c'est l'appel, pas une politesse.
+  // « Merci de nous contacter », « Bonne nouvelle, prenez rendez-vous » : un VERBE d'appel, « rendez-vous » ou « devis » => c'est l'appel.
+  // Un nom d'appel seul (« restons en contact ») reste une politesse.
   for (let i = p.premier; i <= p.dernier; i++) {
     const c = nu(t[i].texte.split("-")[0]);
-    if (MOTS_APPEL.has(t[i].m) || MOTS_APPEL.has(t[i].n) || MOTS_APPEL.has(c) || VERBES_APPEL.has(t[i].m) || VERBES_APPEL.has(t[i].n) || VERBES_APPEL.has(c)) return false;
+    if (VERBES_APPEL.has(t[i].m) || VERBES_APPEL.has(t[i].n) || VERBES_APPEL.has(c)) return false;
+    if (t[i].n.startsWith("rendez") || c === "rendez" || t[i].n === "devis" || t[i].n === "rdv") return false;
   }
   return true;
 }
@@ -468,6 +481,8 @@ function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[]
         }
         return ev;
       })
+      // Une liste vidée par la coupe retire son événement (jamais `cartes: []` ni `rubriques: []`).
+      .filter((ev) => !(ev.genre === "cartes-chiffres" && !ev.cartes.length) && !(ev.genre === "panneau" && !ev.rubriques.length))
       .map((ev): EvenementEcran => {
         // Une carte retirée ne doit pas laisser `cartePulse` pointer dans le vide.
         if (ev.genre !== "alerte" || ev.cartePulse === undefined) return ev;
@@ -478,6 +493,13 @@ function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[]
         void _retire;
         return reste;
       });
+    // Un focus dont la cible a disparu avec la coupe vise l'ensemble.
+    const genresRestants = new Set(gardes.map((ev) => ev.genre));
+    const cibleExiste = (c: string): boolean => c === "ensemble" || (c === "cartes" && genresRestants.has("cartes-chiffres")) || genresRestants.has(c as "liste" | "panneau" | "alerte");
+    for (let k = 0; k < gardes.length; k++) {
+      const ev = gardes[k];
+      if (ev.genre === "focus" && !cibleExiste(ev.cible)) gardes[k] = { ...ev, cible: "ensemble" };
+    }
     if (gardes.length < sc.evenements.length) remarques.push(`${sc.evenements.length - gardes.length} événement(s) d'écran au-delà de dureeMs retiré(s).`);
     if (!gardes.length) gardes.push({ genre: "focus", aMs: sc.debutMs, finMs: sc.finMs, cible: "ensemble", source: plageDe(sc.mots.premier, sc.mots.dernier) });
     sc.evenements = gardes;
