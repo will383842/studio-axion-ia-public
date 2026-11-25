@@ -24,13 +24,31 @@ export const JOINTURE_MS = 500;
 export const OPACITE_VISIBLE = 0.05;
 
 const COULEURS_CHARTE: ReadonlySet<string> = new Set(["ivoire", "gris", "noir", "terracotta", "blanc", "grisTexte"]);
+/** Charte en hex (`CHARTE_AXION` de `jetons-motion.ts`, recopiée : ce fichier ne dépend de rien) + blanc. L'orange n'y est que sur fond noir. */
+const HEX_CHARTE: ReadonlySet<string> = new Set(["#FAF9F5", "#E8E6DC", "#141413", "#B23F16", "#D97757", "#FFFFFF"]);
+const HEX_ORANGE = "#D97757";
+/** Taille minimale d'un sous-titre : 52 px sur une image dont le côté court fait 1080. */
+export const TAILLE_MIN_SOUS_TITRE_REFERENCE_PX = 52;
+
+/** « #fff » / « #faf9f5 » → « #FFFFFF » / « #FAF9F5 » ; autre chose : tel quel en majuscules. */
+function hexNormalise(c: string): string {
+  const t = c.trim().toUpperCase();
+  return /^#[0-9A-F]{3}$/.test(t) ? `#${t[1]}${t[1]}${t[2]}${t[2]}${t[3]}${t[3]}` : t;
+}
+
+/** Un rectangle de sous-titre, avec (facultatif) la taille de police effective à l'écran (px). */
+export type RectSousTitre = RectPx & { taillePx?: number };
 
 export interface EntreeControleComposition {
   format: FormatImage;
   dureeMs: number;
   imagesA: (tMs: number) => ImageSansVoix;
   /** Rectangles réels des lignes de sous-titres à l'instant (vide : aucun sous-titre). */
-  sousTitresA: (tMs: number) => RectPx[];
+  sousTitresA: (tMs: number) => RectSousTitre[];
+  /** Couleurs des sous-titres en hex (charte + blanc ; l'orange #D97757 seulement sur fond noir). Absent : non contrôlées. */
+  couleursSousTitres?: { texte?: string; accent?: string; contour?: string };
+  /** Fond de la vidéo (sinon celui de l'image) : sert à la règle « orange seulement sur fond noir ». */
+  fond?: "ivoire" | "noir";
   /** Bande réservée aux sous-titres (aucun élément de scène n'y entre). */
   bande?: RectPx;
   pasMs?: number;
@@ -48,8 +66,10 @@ function intersecte(a: RectPx, b: RectPx): boolean {
   return a.x < b.x + b.largeur - 1e-6 && b.x < a.x + a.largeur - 1e-6 && a.y < b.y + b.hauteur - 1e-6 && b.y < a.y + a.hauteur - 1e-6;
 }
 
-function horsCadre(r: RectPx, f: FormatImage): boolean {
+function horsCadre(r: RectPx, f: FormatImage, sansMarge = false): boolean {
   const tol = 0.5;
+  // Pièce pleine toile ou forme de repli : seule une vraie sortie de l'image compte (jamais de fausse alerte de marge).
+  if (sansMarge) return r.x < -tol || r.y < -tol || r.x + r.largeur > f.largeur + tol || r.y + r.hauteur > f.hauteur + tol;
   return r.x < MARGE_BORD_PX - tol || r.y < MARGE_BORD_PX - tol || r.x + r.largeur > f.largeur - MARGE_BORD_PX + tol || r.y + r.hauteur > f.hauteur - MARGE_BORD_PX + tol;
 }
 
@@ -104,6 +124,19 @@ export function controlerComposition(e: EntreeControleComposition): ResultatCont
     const els = image.elements.filter(visible).sort((a, b) => Number(b.genre === "texte") - Number(a.genre === "texte"));
 
     if (!COULEURS_CHARTE.has(image.fond)) noter("CHARTE", "CHARTE", `la couleur de fond « ${String(image.fond)} » n'est pas dans la charte`);
+    const fondVideo = e.fond ?? image.fond;
+    if (e.couleursSousTitres && sousTitres.length) {
+      for (const [role, c] of Object.entries(e.couleursSousTitres)) {
+        if (typeof c !== "string") continue;
+        const h = hexNormalise(c);
+        if (!HEX_CHARTE.has(h)) noter(`CHARTE-ST-${role}`, "CHARTE", `la couleur « ${c} » des sous-titres (${role}) n'est pas dans la charte`);
+        else if (h === HEX_ORANGE && fondVideo !== "noir") noter(`CHARTE-ST-${role}`, "CHARTE", `l'orange ${HEX_ORANGE} des sous-titres (${role}) est posé sur fond ${String(fondVideo)} : il n'est permis que sur fond noir`);
+      }
+    }
+    const minSousTitrePx = (TAILLE_MIN_SOUS_TITRE_REFERENCE_PX * Math.min(e.format.largeur, e.format.hauteur)) / 1080;
+    for (const r of sousTitres) {
+      if (typeof r.taillePx === "number" && r.taillePx < minSousTitrePx - 1e-6) noter("TEXTE-ST", "TEXTE_TROP_PETIT", `les sous-titres sont écrits en ${Math.round(r.taillePx)} px, trop petit (minimum ${Math.round(minSousTitrePx)} px)`);
+    }
     for (const el of els) {
       for (const c of [el.remplissage, el.contour, el.couleur]) {
         if (c !== undefined && !COULEURS_CHARTE.has(c)) noter("CHARTE", "CHARTE", `la couleur « ${String(c)} » n'est pas dans la charte (${el.id})`, el.id);
@@ -112,7 +145,8 @@ export function controlerComposition(e: EntreeControleComposition): ResultatCont
         plusPetit = plusPetit === null ? el.taillePx : Math.min(plusPetit, el.taillePx);
         if (el.taillePx < minPx - 1e-6) noter("TEXTE_TROP_PETIT", "TEXTE_TROP_PETIT", `le texte « ${resume(el.texte)} » est écrit en ${Math.round(el.taillePx)} px, trop petit (minimum ${Math.round(minPx)} px)`, el.id);
       }
-      if (horsCadre(el.rect, e.format)) noter("HORS_CADRE", "HORS_CADRE", `un élément de la scène sort du cadre ou frôle le bord (marge de ${MARGE_BORD_PX} px non respectée)`, el.id);
+      if (el.coupe) noter("HORS_CADRE", "HORS_CADRE", "une pièce zoomée sort de l'image ou de sa boîte : une partie est coupée", el.id);
+      else if (horsCadre(el.rect, e.format, el.bordTolere === true)) noter("HORS_CADRE", "HORS_CADRE", `un élément de la scène sort du cadre ou frôle le bord (marge de ${MARGE_BORD_PX} px non respectée)`, el.id);
       if (el.genre === "texte" || el.genre === "forme") {
         if (sousTitres.some((r) => intersecte(el.rect, r))) noter("SOUS_TITRES_RECOUVERTS", "SOUS_TITRES_RECOUVERTS", `le sous-titre recouvre ${el.genre === "texte" ? "le texte" : "le dessin"} de la scène`, el.id);
         else if (e.bande && intersecte(el.rect, e.bande)) noter("SOUS_TITRES_RECOUVERTS", "SOUS_TITRES_RECOUVERTS", "la scène entre dans la bande réservée aux sous-titres", el.id);

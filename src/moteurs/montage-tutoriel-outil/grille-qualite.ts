@@ -51,9 +51,9 @@ export interface EntreeGrille {
   /** Niveau sonore mesuré (T-EXT-31). Absent : la grille reprend le contrôle « volume » du contrôle de l'image. */
   niveauSonoreLufs?: number | null;
   /**
-   * QUAL-4 : contrôle objectif de la composition (`controlerComposition`). `undefined` : critère non ajouté (grilles
-   * d'avant, note inchangée) ; `null` : contrôle PAS FAIT = « non fait » (jamais réussi) ; un résultat : réussi / échoué
-   * (un défaut bloquant rend le critère bloquant).
+   * QUAL-4 : contrôle objectif de la composition (`controlerComposition`). `undefined` ou `null` : contrôle PAS FAIT =
+   * « non fait » (jamais réussi : la note ne peut plus être de 100) ; un résultat : réussi / échoué (un défaut bloquant
+   * rend le critère bloquant).
    */
   composition?: ResultatControleComposition | null;
 }
@@ -164,7 +164,7 @@ function regardeur(r: VerdictRegard | undefined): Critere[] {
   ];
 }
 
-function composition(r: ResultatControleComposition | null): Critere {
+function composition(r: ResultatControleComposition | null | undefined): Critere {
   const seuil = "aucun texte trop petit, recouvert, vide ou hors du cadre";
   const libelle = "Composition de l'image";
   if (!r || !Array.isArray(r.defauts)) return critere("composition", libelle, "bloquant", seuil, "non-fait", NON_FAIT);
@@ -195,7 +195,7 @@ export function noterTutoriel(e: EntreeGrille): GrilleTutoriel {
     marque(e.controleur),
     depuisControleur(e.controleur, "TUT-REGISTRE", "Textes visibles validés", "aucun texte absent du registre", "bloquant"),
     ...regardeur(e.regardeur),
-    ...(e.composition === undefined ? [] : [composition(e.composition)]),
+    composition(e.composition),
     depuisControleur(e.controleur, "TUT-MOMENTS", "Moments « ça change tout »", "trois au plus", "a-corriger"),
   ];
   let bloquants = 0;

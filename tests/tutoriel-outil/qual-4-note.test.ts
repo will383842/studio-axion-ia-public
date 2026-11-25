@@ -11,7 +11,8 @@ import type { ResultatControleComposition } from "../../src/briques/plan-scenes/
 import type { DonneesCalque } from "../../src/briques/sous-titres/scene";
 import { noterTutoriel, type EntreeGrille } from "../../src/moteurs/montage-tutoriel-outil/grille-qualite";
 import { imagesPlanValideA, rectsSousTitresA } from "../../src/moteurs/montage-tutoriel-outil/geometrie-plan-valide";
-import { noteSansGrille } from "../../src/moteurs/montage-tutoriel-outil/index";
+import { alertesDe, noteSansGrille } from "../../src/moteurs/montage-tutoriel-outil/index";
+import type { EtatTutoriel } from "../../src/moteurs/montage-tutoriel-outil/chaine";
 
 const avant = JSON.parse(readFileSync(join(__dirname, "fixtures/qual-repli-avant.json"), "utf8"))[0] as { plan: PlanValide; sousTitres: DonneesCalque };
 const propre: ResultatControleComposition = { ok: true, defauts: [], mesures: { textePlusPetitPx: 60, videMaxMs: 0, echantillons: 100 } };
@@ -47,7 +48,7 @@ describe("critère « Composition de l'image » de la grille", () => {
   const entree = (composition?: ResultatControleComposition | null) => ({ controleImage: { controles: [], verdict: "livrable", nonFaits: 0, resume: "" }, controleur: { controles: [] }, dureeSec: 47, composition }) as unknown as EntreeGrille;
   const critere = (c?: ResultatControleComposition | null) => noterTutoriel(entree(c)).criteres.find((x) => x.id === "composition");
 
-  it("absent (undefined) : critère non ajouté, grilles d'avant inchangées", () => expect(critere(undefined)).toBeUndefined());
+  it("absent (undefined) : « non fait », jamais réussi (comme null)", () => expect(critere(undefined)).toMatchObject({ etat: "non-fait" }));
   it("null : non fait, jamais réussi", () => expect(critere(null)).toMatchObject({ etat: "non-fait" }));
   it("propre : réussi", () => expect(critere(propre)).toMatchObject({ etat: "reussi" }));
   it("défaut bloquant : échoue en bloquant et rend la vidéo non proposable", () => {
@@ -55,4 +56,17 @@ describe("critère « Composition de l'image » de la grille", () => {
     expect(noterTutoriel(entree(defaut("bloquant"))).proposable).toBe(false);
   });
   it("défaut à corriger : échoue en à corriger", () => expect(critere(defaut("a-corriger"))).toMatchObject({ etat: "echoue", gravite: "a-corriger" }));
+});
+
+describe("alertes de plan : la fonction réelle `alertesDe`", () => {
+  const etat = (codes: string[]) => ({ reserves: [], plan: { remarques: codes.map((code) => ({ code, message: `m ${code}` })) } }) as unknown as EtatTutoriel;
+  it("SCENE_RETIREE, SOUS_TITRES, LITTERALITE, TROP_COURT, DENSITE, TEXTE_TROP_LONG : « attention »", () => {
+    const a = alertesDe(etat(["SCENE_RETIREE", "SOUS_TITRES", "LITTERALITE", "TROP_COURT", "DENSITE", "TEXTE_TROP_LONG"]));
+    expect(a).toHaveLength(6);
+    expect(a.every((x) => x.gravite === "attention" && x.message.startsWith("Plan · "))).toBe(true);
+  });
+  it("une autre remarque reste « info » ; les remarques du LLM indisponible sont écartées", () => {
+    const a = alertesDe(etat(["AUTRE", "LLM_INDISPONIBLE", "LLM_ILLISIBLE"]));
+    expect(a).toEqual([{ code: "defaut-visuel", gravite: "info", message: "Plan · m AUTRE" }]);
+  });
 });
