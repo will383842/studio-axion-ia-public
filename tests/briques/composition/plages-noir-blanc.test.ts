@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { NOIR_BLANC_ACTIF, plagesNoirBlancDesFaits } from "../../../src/briques/composition/plages-noir-blanc";
 import type { MotFait } from "../../../src/briques/faits-script";
@@ -66,5 +67,18 @@ describe("plagesNoirBlancDesFaits", () => {
     const src = readFileSync(SRC, "utf8");
     for (const interdit of ["@/", "react", "remotion", "studio-rendu", "v4"]) expect(src).not.toContain(`from "${interdit}`);
     expect(/from "(@\/|react|remotion|[^"]*studio-rendu|[^"]*v4)/.test(src)).toBe(false);
+    // Sans importeur : aucun fichier de src/** ni de studio-rendu/** (hors le fichier lui-même) ne cite « plages-noir-blanc ».
+    const soi = fileURLToPath(SRC);
+    const citeurs: string[] = [];
+    const parcourir = (dossier: string) => {
+      for (const e of readdirSync(dossier, { withFileTypes: true })) {
+        const chemin = `${dossier}/${e.name}`;
+        if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== ".git") parcourir(chemin); }
+        else if (/\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/.test(e.name) && chemin !== soi && readFileSync(chemin, "utf8").includes("plages-noir-blanc")) citeurs.push(chemin);
+      }
+    };
+    parcourir(fileURLToPath(new URL("../../../src", import.meta.url)).replace(/\/$/, ""));
+    parcourir(fileURLToPath(new URL("../../../studio-rendu", import.meta.url)).replace(/\/$/, ""));
+    expect(citeurs).toEqual([]);
   });
 });
