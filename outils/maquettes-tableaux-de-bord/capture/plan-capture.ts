@@ -244,7 +244,14 @@ export function remarquesZones(mesures: MesureEtape[], largeur: number, hauteur:
     const r = m.rectPx;
     if (!r) continue;
     if (!zoneDansImage(r, largeur, hauteur)) {
-      out.push(`Étape ${m.etapeId} : la cible est entièrement hors de l'image filmée ; ni caméra, ni curseur, ni projecteur pour cette étape.`);
+      const lisible = [r.x, r.y, r.largeur, r.hauteur, largeur, hauteur].every(Number.isFinite) && largeur > 0 && hauteur > 0;
+      const chevauche = lisible && r.largeur > 0 && r.hauteur > 0 && r.x < largeur && r.x + r.largeur > 0 && r.y < hauteur && r.y + r.hauteur > 0;
+      const horsChamp = lisible && r.largeur > 0 && r.hauteur > 0 && !chevauche;
+      out.push(
+        horsChamp
+          ? `Étape ${m.etapeId} : la cible est entièrement hors de l'image filmée ; ni caméra, ni curseur, ni projecteur pour cette étape.`
+          : `Étape ${m.etapeId} : la cible n'a aucune surface visible (taille nulle ou illisible) ; ni caméra, ni curseur, ni projecteur pour cette étape.`,
+      );
       continue;
     }
     const deborde = r.x < -0.5 || r.y < -0.5 || r.x + r.largeur > largeur + 0.5 || r.y + r.hauteur > hauteur + 0.5;
@@ -252,7 +259,8 @@ export function remarquesZones(mesures: MesureEtape[], largeur: number, hauteur:
     const vx = Math.max(0, Math.min(r.x + r.largeur, largeur) - Math.max(r.x, 0));
     const vy = Math.max(0, Math.min(r.y + r.hauteur, hauteur) - Math.max(r.y, 0));
     const part = Math.round(((vx * vy) / (r.largeur * r.hauteur)) * 100);
-    out.push(`Étape ${m.etapeId} : zone coupée par le bord de l'image, ${part} % visible.`);
+    const visible = part < 1 ? "moins de 1 %" : part > 99 ? "plus de 99 %" : `${part} %`;
+    out.push(`Étape ${m.etapeId} : zone coupée par le bord de l'image, ${visible} visible.`);
   }
   return out;
 }

@@ -56,7 +56,7 @@ describe("zoneDansImage", () => {
     }
     // Chaque cible omise a une remarque ; aucune n'est silencieuse.
     const rem = remarquesZones(mesures, L, H);
-    for (const c of omises) expect(rem.some((t) => t.startsWith(`Étape ${c.etapeId} : la cible est entièrement hors`))).toBe(true);
+    for (const c of omises) expect(rem.some((t) => t.startsWith(`Étape ${c.etapeId} : la cible `))).toBe(true);
   });
 });
 
@@ -77,8 +77,22 @@ describe("remarquesZones", () => {
       "Étape e2 : zone coupée par le bord de l'image, 50 % visible.",
     ]);
   });
-  it("valeurs illisibles : omise, sans exception", () => {
-    expect(remarquesZones([{ etapeId: "e1", rectPx: { x: Number.NaN, y: 0, largeur: 5, hauteur: 5 }, instantMs: 0, finMs: 1 }], L, H)).toHaveLength(1);
+  const HORS = "la cible est entièrement hors de l'image filmée ; ni caméra, ni curseur, ni projecteur pour cette étape.";
+  const SANS = "la cible n'a aucune surface visible (taille nulle ou illisible) ; ni caméra, ni curseur, ni projecteur pour cette étape.";
+  const un = (rectPx: { x: number; y: number; largeur: number; hauteur: number }) => remarquesZones([{ etapeId: "e1", rectPx, instantMs: 0, finMs: 1 }], L, H);
+  it("valeurs illisibles : « aucune surface visible », pas « hors de l'image »", () => {
+    expect(un({ x: Number.NaN, y: 0, largeur: 5, hauteur: 5 })).toEqual([`Étape e1 : ${SANS}`]);
+  });
+  it("taille nulle dans l'image, ou minuscule au milieu : « aucune surface visible »", () => {
+    expect(un({ x: 500, y: 500, largeur: 0, hauteur: 0 })).toEqual([`Étape e1 : ${SANS}`]);
+    expect(un({ x: 500, y: 500, largeur: 0.04, hauteur: 50 })).toEqual([`Étape e1 : ${SANS}`]);
+  });
+  it("vrai hors champ : « entièrement hors de l'image filmée »", () => {
+    expect(un({ x: L + 10, y: 0, largeur: 50, hauteur: 50 })).toEqual([`Étape e1 : ${HORS}`]);
+  });
+  it("pourcentage borné : jamais 100 % ni 0 % pour une zone rognée", () => {
+    expect(un({ x: 0, y: 0, largeur: 1080.6, hauteur: 1350 })).toEqual(["Étape e1 : zone coupée par le bord de l'image, plus de 99 % visible."]);
+    expect(un({ x: 1079.9, y: 10, largeur: 50, hauteur: 10 })).toEqual(["Étape e1 : zone coupée par le bord de l'image, moins de 1 % visible."]);
   });
 });
 
