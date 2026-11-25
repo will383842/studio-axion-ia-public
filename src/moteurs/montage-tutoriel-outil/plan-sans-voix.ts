@@ -162,11 +162,10 @@ function elements(t: Tok[], a: number, b: number, opt: { maxMots: number; maxCar
     const l = nettoyerLibelle(brut(t, x, y), opt);
     if (!l) continue;
     if (l.tronque) remarques.push(`${quoi} « ${l.texte} » raccourci (suite contiguë du script, trop long pour la carte).`);
-    sortie.push({ libelle: l.texte, aMs: t[x + l.premier].debut, source: plageMots(x + l.premier, x + l.dernier) });
+    sortie.push({ libelle: l.texte, aMs: t[x + l.premier].debut, source: plageDe(x + l.premier, x + l.dernier) });
   }
   return sortie;
 }
-const plageMots = plageDe;
 
 function detecterCartes(t: Tok[], p: Phrase, remarques: string[]): Extract<EvenementEcran, { genre: "cartes-chiffres" }> | null {
   for (let i = p.premier; i <= p.dernier; i++) {
@@ -291,8 +290,8 @@ function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { g
   }
   const source = plageDe(Math.min(base + choisi.premier, k), Math.max(base + choisi.dernier, k));
   // aMs : la conjonction de la condition si elle existe (où qu'elle soit dans la phrase), sinon le début du texte AFFICHÉ.
-  const aMs = cond ? t[cond.conj].debut : t[source.premier].debut;
-  const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs, texte: choisi.texte, source };
+  const aMs = cond && cond.conj <= source.premier ? t[cond.conj].debut : t[source.premier].debut;
+  const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs, texte: choisi.texte, declencheurAMs: t[k].debut, source };
   if (cartePulse !== undefined) ev.cartePulse = cartePulse;
   return ev;
 }
@@ -351,7 +350,13 @@ const POLITESSES_FINALES: string[][] = [["merci"], ["bonne"], ["belle"], ["bon",
 
 /** Phrase de politesse finale : elle COMMENCE par merci, bonne (journée), à bientôt, au revoir… */
 function politesseFinale(t: Tok[], p: Phrase): boolean {
-  return POLITESSES_FINALES.some((m) => suiteA(t, p.premier, m, p.dernier));
+  if (!POLITESSES_FINALES.some((m) => suiteA(t, p.premier, m, p.dernier))) return false;
+  // « Merci de nous contacter », « Bonne nouvelle, prenez rendez-vous » : un mot d'appel => c'est l'appel, pas une politesse.
+  for (let i = p.premier; i <= p.dernier; i++) {
+    const c = nu(t[i].texte.split("-")[0]);
+    if (MOTS_APPEL.has(t[i].m) || MOTS_APPEL.has(t[i].n) || MOTS_APPEL.has(c) || VERBES_APPEL.has(t[i].m) || VERBES_APPEL.has(t[i].n) || VERBES_APPEL.has(c)) return false;
+  }
+  return true;
 }
 
 /** Titre plafonné (60 car.) : groupe de mots du début du script, coupé au mot, suite contiguë. */
@@ -394,10 +399,10 @@ function dureeImposee(e: EntreePlanSansVoix): number | null {
 
 /** Plan de secours : jamais de scène vide, une scène titre qui pave [0, dureeMs] ; plage de mots cohérente sans mots. */
 function planMinimal(e: EntreePlanSansVoix): PlanComposeSansVoix {
-  const sourceMots = [e.phraseTitre ?? "", String(e.texte ?? "")].map((x) => x.trim()).find(aDesMots) ?? "";
+  const sourceMots = [String(e.phraseTitre ?? ""), String(e.texte ?? "")].map((x) => x.trim()).find(aDesMots) ?? "";
   const texte = titrePlafonne(sourceMots.split(/\s+/).filter(Boolean));
   const nMots = Array.isArray(e.mots) ? e.mots.length : 0;
-  const fins = (nMots ? e.mots : []).map((m) => Number(m.finMs) || 0);
+  const fins = (nMots ? e.mots : []).map((m) => Number(m?.finMs) || 0);
   const dureeMs = dureeImposee(e) ?? (fins.length ? Math.round(Math.max(...fins) + QUEUE_MS) : 1000);
   const mots = nMots ? plageDe(0, nMots - 1) : plageDe(0, -1);
   const scenes: SceneSansVoix[] = [{ id: "s1-titre", genre: "titre", texte, debutMs: 0, finMs: dureeMs, mots }];
@@ -428,16 +433,51 @@ function remapperIndices(plan: PlanComposeSansVoix, t: Tok[], nMots: number): vo
 }
 
 /** dureeMs plus courte que la parole : retire les scènes entièrement au-delà, et les événements hors de leur scène (ou les ramène à sa fin). */
-function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[]): void {
+function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[], t: Tok[]): void {
   const avant = scenes.length;
   for (let k = scenes.length - 1; k > 0; k--) if (scenes[k].debutMs >= dureeMs) scenes.splice(k, 1);
   if (scenes.length < avant) remarques.push(`${avant - scenes.length} scène(s) au-delà de dureeMs retirée(s).`);
   const dernier = scenes[scenes.length - 1];
-  if (dernier) dernier.finMs = Math.max(dernier.debutMs, dureeMs);
+  if (dernier) {
+    dernier.finMs = Math.max(dernier.debutMs, dureeMs);
+    // Dernier mot de la dernière scène : le dernier mot qui COMMENCE avant dureeMs.
+    let lim = dernier.mots.premier;
+    for (let k = 0; k < t.length; k++) if (t[k].debut < dureeMs) lim = k;
+    if (dernier.mots.dernier > lim) dernier.mots = plageDe(dernier.mots.premier, Math.max(dernier.mots.premier, lim));
+  }
   for (const sc of scenes) {
     if (sc.genre === "appel" && sc.clicAMs > sc.finMs) sc.clicAMs = sc.finMs;
+    if (sc.genre === "repere") {
+      sc.barreAMs = Math.min(sc.barreAMs, sc.finMs);
+      sc.apresAMs = Math.min(sc.apresAMs, sc.finMs);
+    }
     if (sc.genre !== "ecran") continue;
-    const gardes = sc.evenements.filter((ev) => ev.aMs < sc.finMs).map((ev) => (ev.genre === "focus" && ev.finMs > sc.finMs ? { ...ev, finMs: sc.finMs } : ev));
+    const fin = sc.finMs;
+    const gardes = sc.evenements
+      .filter((ev) => ev.aMs < fin)
+      .map((ev): EvenementEcran => {
+        if (ev.genre === "focus") return ev.finMs > fin ? { ...ev, finMs: fin } : ev;
+        if (ev.genre === "alerte") return ev.declencheurAMs !== undefined && ev.declencheurAMs > fin ? { ...ev, declencheurAMs: fin } : ev;
+        if (ev.genre === "cartes-chiffres") {
+          const cartes = ev.cartes.filter((c) => c.aMs < fin);
+          return cartes.length === ev.cartes.length ? ev : { ...ev, cartes };
+        }
+        if (ev.genre === "panneau") {
+          const rubriques = ev.rubriques.filter((r) => r.aMs < fin);
+          return rubriques.length === ev.rubriques.length ? ev : { ...ev, rubriques };
+        }
+        return ev;
+      })
+      .map((ev): EvenementEcran => {
+        // Une carte retirée ne doit pas laisser `cartePulse` pointer dans le vide.
+        if (ev.genre !== "alerte" || ev.cartePulse === undefined) return ev;
+        const nCartes = sc.evenements.find((x) => x.genre === "cartes-chiffres");
+        const restantes = nCartes && nCartes.genre === "cartes-chiffres" ? nCartes.cartes.filter((c) => c.aMs < fin).length : 0;
+        if (ev.cartePulse < restantes) return ev;
+        const { cartePulse: _retire, ...reste } = ev;
+        void _retire;
+        return reste;
+      });
     if (gardes.length < sc.evenements.length) remarques.push(`${sc.evenements.length - gardes.length} événement(s) d'écran au-delà de dureeMs retiré(s).`);
     if (!gardes.length) gardes.push({ genre: "focus", aMs: sc.debutMs, finMs: sc.finMs, cible: "ensemble", source: plageDe(sc.mots.premier, sc.mots.dernier) });
     sc.evenements = gardes;
@@ -539,9 +579,8 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
           focus.push({ genre: "focus", aMs: t[p.premier].debut, finMs: t[p.dernier].fin, cible: "ensemble", source: plageDe(p.premier, p.dernier) });
         }
       }
-      ecran = { eS, eE, titre: outil ? (outilParPhrase.find((o) => o)?.titre ?? "Tableau de bord") : "Tableau de bord", evenements: [...evenements, ...focus] };
       const titreOutil = outilParPhrase[eS]?.titre ?? outilParPhrase.find((o) => o)?.titre;
-      if (titreOutil) ecran.titre = titreOutil;
+      ecran = { eS, eE, titre: titreOutil || "Tableau de bord", evenements: [...evenements, ...focus] };
     }
   }
 
@@ -550,7 +589,9 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   const idDe = (g: string) => `s${brouillons.length + 1}-${g}`;
   const p0 = phrases[0];
   const texteP0 = sansDebutPonctue(p0.texte);
-  const titreSaisi = sansDebutPonctue(e.phraseTitre ?? "");
+  // Même règle que le plan minimal : titre saisi plafonné à 60 caractères, coupé au mot.
+  const saisi = sansDebutPonctue(String(e.phraseTitre ?? ""));
+  const titreSaisi = saisi ? titrePlafonne(saisi.split(/\s+/).filter(Boolean)) : "";
   {
     const texte = titreSaisi || titrePlafonne(brut(t, p0.premier, p0.dernier));
     if (!titreSaisi && texte !== texteP0) remarques.push("1re phrase trop longue pour le titre : groupe de mots du début, coupé au mot.");
@@ -632,7 +673,7 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
     scenes.push({ ...b.scene, debutMs: debut, finMs: fin } as SceneSansVoix);
     borne = fin;
   });
-  if (dureeMs < finMots) tronquerA(scenes, dureeMs, remarques);
+  if (dureeMs < finMots) tronquerA(scenes, dureeMs, remarques, t);
   const plan: PlanComposeSansVoix = { version: VERSION_SANS_VOIX, format: e.format, dureeMs, basPct: e.basPct, scenes };
   remapperIndices(plan, t, nMots);
   return { plan, remarques };

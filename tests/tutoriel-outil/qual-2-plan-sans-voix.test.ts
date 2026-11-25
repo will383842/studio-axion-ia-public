@@ -58,7 +58,37 @@ function verifierPavage(plan: PlanComposeSansVoix) {
 }
 
 function composer(texte: string, extra: { phraseTitre?: string; fin?: "aucune" | "rendez-vous"; dureeMs?: number } = {}) {
-  return composerPlanSansVoix({ texte, mots: motsDe(texte), format: FORMAT, basPct: 87, ...extra });
+  const res = composerPlanSansVoix({ texte, mots: motsDe(texte), format: FORMAT, basPct: 87, ...extra });
+  // Le filet global ne doit jamais masquer un bogue.
+  expect(res.remarques.filter((r) => /interrompue/.test(r))).toEqual([]);
+  return res;
+}
+
+/** Tous les instants d'une scène (cartes, rubriques, barre, après, déclencheur, clic…) tiennent dans [debutMs, finMs]. */
+function verifierRienHorsScene(plan: PlanComposeSansVoix) {
+  for (const sc of plan.scenes) {
+    const instants: number[] = [];
+    if (sc.genre === "repere") instants.push(sc.barreAMs, sc.apresAMs);
+    if (sc.genre === "appel") instants.push(sc.clicAMs);
+    if (sc.genre === "ecran") {
+      for (const ev of sc.evenements) {
+        instants.push(ev.aMs);
+        if (ev.genre === "cartes-chiffres") instants.push(...ev.cartes.map((c) => c.aMs));
+        if (ev.genre === "panneau") instants.push(...ev.rubriques.map((r) => r.aMs));
+        if (ev.genre === "alerte" && ev.declencheurAMs !== undefined) instants.push(ev.declencheurAMs);
+        if (ev.genre === "cartes-chiffres") expect(ev.cartes.length).toBeGreaterThan(0);
+        if (ev.genre === "panneau") expect(ev.rubriques.length).toBeGreaterThan(0);
+        if (ev.genre === "alerte" && ev.cartePulse !== undefined) {
+          const cs = sc.evenements.find((x) => x.genre === "cartes-chiffres");
+          expect(cs?.genre === "cartes-chiffres" ? cs.cartes.length : 0).toBeGreaterThan(ev.cartePulse);
+        }
+      }
+    }
+    for (const x of instants) {
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThanOrEqual(sc.finMs);
+    }
+  }
 }
 
 describe("QUAL-2 — script du fondateur", () => {
@@ -389,6 +419,13 @@ describe("QUAL-2 — rythme de l'alerte et points mineurs", () => {
       expect(alerteDe(plan).aMs).toBe(debutDe(FONDATEUR, "Quand"));
     });
 
+    it("fondateur : declencheurAMs = début du mot « alerte »", () => {
+      const { plan } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous" });
+      const a = alerteDe(plan);
+      expect(a.declencheurAMs).toBe(debutDe(FONDATEUR, "alerte"));
+      expect(a.declencheurAMs).toBeGreaterThan(a.aMs);
+    });
+
     it("condition au milieu de la phrase : aMs = « quand », pas le début de la phrase", () => {
       const txt = "Un souci de stock ? Voici un tableau de bord. Juste en dessous, la liste des articles, et quand un article passe sous le seuil, une alerte part toute seule. Prenez rendez-vous.";
       const { plan } = composer(txt);
@@ -445,6 +482,26 @@ describe("QUAL-2 — rythme de l'alerte et points mineurs", () => {
       expect(tb.texte).toBe("Mon titre");
     });
 
+    it("dureeMs courte : aucun instant (cartes, rubriques, barre, après, déclencheur, clic) hors de sa scène", () => {
+      const scripts = [
+        "Voici. Vous décidez en une minute au lieu d'une heure.",
+        FONDATEUR,
+        "Un souci ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock et marge. Un clic sur un article ouvre son historique : entrées, sorties, ruptures. Quand le stock baisse, une alerte part. Vous décidez en une minute au lieu d'une heure. Prenez rendez-vous.",
+      ];
+      for (const txt of scripts) for (const dureeMs of [500, 1500, 2500, 6000, 12000, 20000, 30000]) {
+        const { plan } = composer(txt, { fin: "rendez-vous", dureeMs });
+        verifierRienHorsScene(plan);
+      }
+    });
+
+    it("titre saisi trop long : plafonné à 60 caractères comme le plan minimal", () => {
+      const long = "Un titre vraiment très long qui dépasse largement les soixante caractères permis pour un titre";
+      const { plan } = composer("Un souci ? Voici un tableau de bord. Prenez rendez-vous.", { phraseTitre: long });
+      const t = plan.scenes[0];
+      if (t.genre !== "titre") throw new Error("titre");
+      expect(t.texte.length).toBeLessThanOrEqual(60);
+    });
+
     it("dureeMs plus courte que la parole : rien hors de sa scène, aucune scène au-delà", () => {
       const dureeMs = 20000;
       const { plan, remarques } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous", dureeMs });
@@ -465,5 +522,45 @@ describe("QUAL-2 — rythme de l'alerte et points mineurs", () => {
       }
       verifierPavage(plan);
     });
+  });
+});
+
+describe("QUAL-2 — politesse ou appel, aMs de l'alerte, mots tronqués", () => {
+  const appelDe = (texte: string) => composer(texte).plan.scenes.find((s) => s.genre === "appel");
+  it("« Merci de nous contacter. » reste un appel", () => {
+    const a = appelDe("Voici un tableau de bord pour vos stocks. Une alerte part. Merci de nous contacter.");
+    expect(a).toBeDefined();
+    if (a?.genre === "appel") expect(a.bouton).toMatch(/contact/i);
+  });
+  it("« Bonne nouvelle, prenez rendez-vous dès aujourd'hui. » reste un appel", () => {
+    const a = appelDe("Voici un tableau de bord pour vos stocks. Une alerte part. Bonne nouvelle, prenez rendez-vous dès aujourd'hui.");
+    expect(a).toBeDefined();
+    if (a?.genre === "appel") expect(norm(a.bouton)).toContain("rendez vous");
+  });
+  it("une vraie politesse est fondue dans l'appel", () => {
+    const { plan } = composer("Voici un tableau de bord pour vos stocks. Une alerte part. Prenez rendez-vous. Merci, bonne journée.");
+    const appels = plan.scenes.filter((s) => s.genre === "appel");
+    expect(appels).toHaveLength(1);
+    expect(plan.scenes[plan.scenes.length - 1].genre).toBe("appel");
+  });
+  it("alerte : conjonction après le texte affiché => aMs = début du texte affiché", () => {
+    const script = "Voici un tableau de bord pour vos stocks. Une alerte part quand le stock baisse. Prenez rendez-vous.";
+    const mots = motsDe(script);
+    const { plan } = composer(script);
+    const ev = plan.scenes.flatMap((s) => (s.genre === "ecran" ? s.evenements : [])).find((e) => e.genre === "alerte");
+    expect(ev).toBeDefined();
+    if (ev?.genre === "alerte") {
+      const i = mots.findIndex((m) => m.texte === "Une");
+      expect(ev.aMs).toBe(mots[i].debutMs);
+    }
+  });
+  it("troncature : le dernier mot de la dernière scène commence avant dureeMs", () => {
+    const script = FONDATEUR;
+    const mots = motsDe(script);
+    const dureeMs = Math.round(mots[mots.length - 6].debutMs + 10);
+    const { plan } = composer(script, { dureeMs });
+    const der = plan.scenes[plan.scenes.length - 1];
+    expect(mots[der.mots.dernier].debutMs).toBeLessThan(dureeMs);
+    expect(der.mots.dernier).toBeLessThanOrEqual(mots.length - 6);
   });
 });
