@@ -89,17 +89,41 @@ export const estEmpreinteValide = (v: unknown): v is string => typeof v === "str
 export const estNomImageValide = (v: unknown): v is string => typeof v === "string" && REGEX_NOM_IMAGE.test(v);
 export const estCodeReponse = (v: unknown): v is CodeReponse => typeof v === "string" && (CODES_REPONSE as readonly string[]).includes(v);
 
+/** `<videoId nettoyé, 40 caractères au plus>-<12 premiers hexadécimaux de l'empreinte>` ; lève si le résultat sort du motif. */
+function assemblerId(videoId: string, empreinte: unknown): string {
+  const propre = String(videoId).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40);
+  if (typeof empreinte !== "string" || !/^[a-f0-9]{12,}$/.test(empreinte)) throw new Error("Empreinte de demande invalide.");
+  const id = `${propre}-${empreinte.slice(0, 12)}`;
+  if (!REGEX_ID.test(id)) throw new Error("Identifiant de demande invalide.");
+  return id;
+}
+
 /**
  * Id déterministe : `<videoId nettoyé, 40 caractères au plus>-<12 premiers hexadécimaux du sha256 du contenu>`.
  * Même travail = même id = jamais deux demandes. `sha256` est passé en paramètre pour que ce module reste pur.
  */
 export function idDemande(videoId: string, contenu: string, sha256: (s: string) => string): string {
-  const propre = String(videoId).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40);
-  const empreinte = sha256(contenu);
-  if (typeof empreinte !== "string" || !/^[a-f0-9]{12,}$/.test(empreinte)) throw new Error("Empreinte de demande invalide.");
-  const id = `${propre}-${empreinte.slice(0, 12)}`;
-  if (!REGEX_ID.test(id)) throw new Error("Identifiant de demande invalide.");
-  return id;
+  return assemblerId(videoId, sha256(contenu));
+}
+
+/**
+ * ID D'UN FILM (formule UNIQUE, partagée par le script d'essai et par l'appelant du Studio, POSTE-4) :
+ *   octets = octets UTF-8 de `scenario.json` + un octet 0x0A + octets UTF-8 de `calage.json` (les fichiers tels qu'ils partent dans la demande) ;
+ *   id     = `<videoId nettoyé [^a-z0-9-] -> « - », en minuscules, 40 caractères au plus>-<12 premiers hexadécimaux de sha256(octets)>`.
+ * Le sha256 porte sur des OCTETS (jamais sur une chaîne décodée en latin1) : un scénario accentué donne le même id partout.
+ * `sha256Octets` est passé en paramètre pour que ce module reste pur (l'appelant passe `createHash("sha256").update(o).digest("hex")`).
+ */
+export function idFilm(
+  videoId: string,
+  scenario: Uint8Array,
+  calage: Uint8Array,
+  sha256Octets: (octets: Uint8Array) => string,
+): string {
+  const octets = new Uint8Array(scenario.length + 1 + calage.length);
+  octets.set(scenario, 0);
+  octets[scenario.length] = 0x0a;
+  octets.set(calage, scenario.length + 1);
+  return assemblerId(videoId, sha256Octets(octets));
 }
 
 /** Nom du dossier d'une demande ou d'une réponse. Lève si le type ou l'id sort du contrat. */
@@ -184,7 +208,10 @@ export function lireEtat(texte: unknown): LectureEtat {
  */
 export const CODEC_FILM = "h264";
 export const FACTEUR_ECHELLE_FILM = 2;
+/** = `IMAGES_PAR_SECONDE_FILM` de `outils/maquettes-tableaux-de-bord/capture/film-images.ts` (test d'égalité dans `contrat.test.ts`). */
 export const IMAGES_PAR_SECONDE_FILM = 25;
+/** = `MARGE_FIN_FILM_MS` de `capture/film-images.ts` : `capturer` filme `dureeVoixMs` + cette marge (test d'égalité dans `contrat.test.ts`). */
+export const MARGE_FIN_FILM_MS = 500;
 export const TOLERANCE_DUREE_FILM_MS = 1000;
 
 /** Dimensions du film attendues pour un scénario `largeur` × `hauteur` (en pixels CSS de la maquette). */
@@ -193,7 +220,11 @@ export const dimensionsFilm = (largeur: number, hauteur: number): { largeur: num
   hauteur: hauteur * FACTEUR_ECHELLE_FILM,
 });
 
+/** Durée attendue d'un film : durée de la voix + `MARGE_FIN_FILM_MS` (jamais la durée de la voix seule). */
+export const dureeFilmAttendueMs = (dureeVoixMs: number): number => dureeVoixMs + MARGE_FIN_FILM_MS;
+
 export interface AttenduFilm {
+  /** = `dureeVoixMs + MARGE_FIN_FILM_MS` (voir `dureeFilmAttendueMs`), PAS la durée de la voix seule. */
   dureeMs: number;
   largeur: number;
   hauteur: number;
@@ -204,7 +235,8 @@ const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 /**
  * Juge un `ffprobe.json` (`-show_streams -show_format`, forme JSON) : un SEUL flux, vidéo, h264, aux dimensions attendues,
- * durée du conteneur égale à `dureeMs` à ± 1 s. Accepte le texte ou l'objet ; ne lève jamais.
+ * durée du conteneur égale à `dureeMs` à ± 1 s. DURÉE ATTENDUE = `dureeVoixMs + MARGE_FIN_FILM_MS` (marge de fin de `capturer`) :
+ * l'appelant passe `dureeFilmAttendueMs(dureeVoixMs)`, sinon le décalage fixe de la marge mangerait la moitié de la tolérance. Accepte le texte ou l'objet ; ne lève jamais.
  */
 export function jugerFfprobe(brut: unknown, attendu: AttenduFilm): VerdictFfprobe {
   const raisons: string[] = [];

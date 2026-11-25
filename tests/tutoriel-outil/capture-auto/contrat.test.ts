@@ -1,8 +1,11 @@
 /** POSTE-3 : contrat de la boîte `capture-boite.v1` (module pur). Aucun disque, aucun navigateur, 0 appel payant. */
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { IMAGES_PAR_SECONDE_FILM, MARGE_FIN_FILM_MS } from "../../../outils/maquettes-tableaux-de-bord/capture/film-images";
 import { lireCalage } from "../../../outils/maquettes-tableaux-de-bord/capture/plan-capture";
 import {
+  IMAGES_PAR_SECONDE_FILM as IMAGES_CONTRAT,
+  MARGE_FIN_FILM_MS as MARGE_CONTRAT,
   CODES_REPONSE,
   PHRASES_CODE,
   PHRASE_BOITE_NON_PRETE,
@@ -13,7 +16,9 @@ import {
   calageDepuis,
   calageRegulier,
   dimensionsFilm,
+  dureeFilmAttendueMs,
   idDemande,
+  idFilm,
   jugerFfprobe,
   lireEtat,
   lireNomDossier,
@@ -21,8 +26,13 @@ import {
   signatureMp4,
 } from "../../../src/moteurs/montage-tutoriel-outil/capture-auto/contrat";
 
+// sha256 des octets UTF-8 : `printf '%s\n%s' '{"titre":"Gestion des stocks : été à Zürich"}' '{"dureeVoixMs":9000}' | sha256sum`, 12 premiers hex.
+const EMPREINTE_ACCENTUEE = "966c8ee250e3";
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
-const INTERDIT = /€|\$|\bEUR\b|\bUSD\b|euros?\b|dollars?\b|\bco[ûu]ts?\b|\bprix\b/i;
+// Motif « aucun prix » de fiches-audit-25-11/00-COMMUN.md (FIN), plus les monnaies écrites.
+const AUCUN_PRIX = /\b(prix|budget|plafond|coût|couts?|tarif|devis)\b|€/i;
+const INTERDIT_PLUS = /\$|\bEUR\b|\bUSD\b|euros?\b|dollars?\b|\bco[ûu]ts?/i;
+const INTERDIT = new RegExp(`${AUCUN_PRIX.source}|${INTERDIT_PLUS.source}`, "i");
 
 describe("idDemande", () => {
   it("est déterministe et conforme au motif", () => {
@@ -128,5 +138,50 @@ describe("phrases pour Williams", () => {
     }
     for (const p of [PHRASE_POSTE_ETEINT, PHRASE_BOITE_NON_PRETE, PHRASE_SANS_REPONSE]) expect(p).not.toMatch(INTERDIT);
     expect(Object.keys(PHRASES_CODE).sort()).toEqual([...CODES_REPONSE].sort());
+  });
+});
+
+describe("idFilm (formule unique : sha256 sur des octets UTF-8)", () => {
+  const shaO = (o: Uint8Array) => createHash("sha256").update(o).digest("hex");
+  const scenario = Buffer.from('{"titre":"Gestion des stocks : été à Zürich"}', "utf8");
+  const calage = Buffer.from('{"dureeVoixMs":9000}', "utf8");
+  it("= videoId nettoyé + « - » + 12 premiers hexadécimaux du sha256 de scénario + 0x0A + calage (octets UTF-8)", () => {
+    const attendu = createHash("sha256").update(Buffer.concat([scenario, Buffer.from([0x0a]), calage])).digest("hex").slice(0, 12);
+    expect(idFilm("Stocks_05", scenario, calage, shaO)).toBe(`stocks-05-${attendu}`);
+  });
+  it("cas accentué : valeur fixe, différente de celle d'un hachage latin1 (l'ancien écart avec POSTE-4)", () => {
+    // sha256( UTF-8 de {"titre":"Gestion des stocks : été à Zürich"} + 0x0A + {"dureeVoixMs":9000} ), 12 premiers hex, calculé avec `sha256sum`.
+    const id = idFilm("stocks", scenario, calage, shaO);
+    expect(id).toMatch(/^stocks-[a-f0-9]{12}$/);
+    const latin1 = createHash("sha256").update(Buffer.concat([scenario, Buffer.from([0x0a]), calage]).toString("latin1")).digest("hex").slice(0, 12);
+    expect(id).not.toBe(`stocks-${latin1}`);
+    expect(id).toBe(`stocks-${EMPREINTE_ACCENTUEE}`);
+  });
+  it("change avec le scénario ou le calage, reste conforme au motif, refuse une empreinte tordue", () => {
+    const a = idFilm("v", scenario, calage, shaO);
+    expect(idFilm("v", scenario, Buffer.from("{}"), shaO)).not.toBe(a);
+    expect(idFilm("v", Buffer.from("{}"), calage, shaO)).not.toBe(a);
+    expect(a).toMatch(/^[a-z0-9-]{8,64}$/);
+    expect(() => idFilm("v", scenario, calage, () => "zz")).toThrow();
+  });
+});
+
+describe("constantes du film = celles de capture/film-images.ts", () => {
+  it("MARGE_FIN_FILM_MS et IMAGES_PAR_SECONDE_FILM sont égales", () => {
+    expect(MARGE_CONTRAT).toBe(MARGE_FIN_FILM_MS);
+    expect(IMAGES_CONTRAT).toBe(IMAGES_PAR_SECONDE_FILM);
+  });
+  it("la durée attendue d'un film = durée de la voix + la marge", () => {
+    expect(dureeFilmAttendueMs(9000)).toBe(9000 + MARGE_FIN_FILM_MS);
+    // 8 s de voix : le film dure 8,5 s ; comparer à 8 s seul mangerait la moitié de la tolérance de 1 s.
+    const bon = { streams: [{ codec_type: "video", codec_name: "h264", width: 2160, height: 2700 }], format: { duration: "9.5" } };
+    expect(jugerFfprobe(bon, { dureeMs: dureeFilmAttendueMs(8000), ...dimensionsFilm(1080, 1350) }).ok).toBe(true);
+    expect(jugerFfprobe({ ...bon, format: { duration: "10.6" } }, { dureeMs: dureeFilmAttendueMs(8000), ...dimensionsFilm(1080, 1350) }).ok).toBe(false);
+  });
+});
+
+describe("motif « aucun prix »", () => {
+  it("attrape budget, plafond, tarif, devis, coût, prix, €", () => {
+    for (const m of ["le budget", "un plafond", "le tarif", "un devis", "le coût", "les couts", "le prix", "5 €"]) expect(AUCUN_PRIX.test(m)).toBe(true);
   });
 });

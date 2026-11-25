@@ -5,22 +5,24 @@
  *   pnpm exec tsx outils/maquettes-tableaux-de-bord/essai-reel/essai-poste-relie.mts --boite <dossier hors dépôt> --direct   (cloud ou CI seulement)
  *   pnpm exec tsx outils/maquettes-tableaux-de-bord/essai-reel/essai-poste-relie.mts --boite <dossier hors dépôt> --lire [--id <id>]
  *
- *  --preparer : écrit `demandes/film-zip--<id>` comme le Studio l'écrirait (mêmes noms, mêmes bornes : `contrat.ts`) à partir d'une maquette
+ *  --preparer : (à lancer avec sudo, ou à suivre d'un `chown root:root` sur `PRET` et `.veilleur` : en vrai ils appartiennent à root, comme l'exige
+ *               le veilleur de la PR #1669 en mode production) écrit `demandes/film-zip--<id>` comme le Studio l'écrirait (mêmes noms, mêmes bornes : `contrat.ts`) à partir d'une maquette
  *               (défaut `05-stocks`) : zip fait en mémoire, `scenario.json` du dossier, calage SYNTHÉTIQUE (3 s par étape, aucune voix).
- *               Crée `PRET`, `pouls`, `demandes/`, `reponses/` si absents. Aucun navigateur, aucune garde d'environnement.
+ *               Crée `PRET` (0444), `.veilleur` (0700), `pouls`, `demandes/`, `reponses/`, `echecs/` si absents. Aucun navigateur, aucune garde d'environnement.
  *  --direct   : à la place du veilleur et du conteneur : prend la demande, la décompresse avec `decompresser-zip.ts`, lance `capturer.mts`
  *               hors conteneur, mesure le film avec ffprobe local et écrit la réponse au format de la boîte. Garde 51c (`environnementAutorise`) :
- *               cloud ou CI seulement, jamais le PC. Le `ffprobe.json` est celui de l'essai (local), pas celui du poste.
+ *               cloud ou CI seulement, jamais le PC. NE SERT QU'AUX DEMANDES FAITES PAR `--preparer` (maquette du dépôt) : jamais au dossier d'un
+ *               client (capturer.mts tourne ici HORS conteneur, réseau ouvert) ; il ne reçoit qu'un environnement réduit. Le `ffprobe.json` est celui de l'essai (local), pas celui du poste.
  *  --lire     : relit la réponse avec les règles du contrat (lstat, O_NOFOLLOW, fstat, noms en liste fermée, signature MP4) et affiche le verdict.
  *
  * Codes de sortie : 0 ok · 3 environnement interdit · 4 entrée refusée · 5 capture en échec.
  * Zéro euro : ni Claude, ni HeyGen, ni ElevenLabs, ni rendu. Rien n'est écrit dans le dépôt (`--boite` doit être HORS du dépôt).
  */
 import { spawnSync } from "node:child_process";
-import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeSync, fsyncSync } from "node:fs";
+import { closeSync, constants, existsSync, chmodSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeSync, fsyncSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { crc32, decompresserZip, ErreurZip, lireArchiveSurDisque } from "../capture/decompresser-zip";
 import { environnementAutorise, indicesConteneur } from "../capture/garde";
@@ -33,7 +35,8 @@ import {
   PHRASES_CODE,
   calageRegulier,
   dimensionsFilm,
-  idDemande,
+  dureeFilmAttendueMs,
+  idFilm,
   jugerFfprobe,
   lireEtat,
   lireNomDossier,
@@ -77,19 +80,41 @@ export function lireArguments(argv: readonly string[]): LectureArguments {
   return { ok: true, options };
 }
 
-/** Vrai si `boite` est HORS du dépôt (chemin résolu ; le plus proche parent existant est résolu aussi, pour les liens). */
+/** Chemin résolu ; le plus proche parent existant est résolu aussi (`realpath`), pour les liens. Une barre finale ne change rien. */
+function cheminReel(p: string): string {
+  let courant = resolve(p);
+  const reste: string[] = [];
+  while (!existsSync(courant) && dirname(courant) !== courant) {
+    reste.unshift(basename(courant));
+    courant = dirname(courant);
+  }
+  return resolve(realpathSync.native(courant), ...reste);
+}
+
+/** Vrai si `boite` est HORS du dépôt. `..boite` (un dossier du dépôt dont le nom commence par deux points) n'est PAS hors du dépôt. */
 export function boiteHorsDepot(boite: string, racineDepot: string = RACINE_DEPOT): boolean {
-  const reel = (p: string): string => {
-    let courant = resolve(p);
-    const reste: string[] = [];
-    while (!existsSync(courant) && dirname(courant) !== courant) {
-      reste.unshift(courant.slice(dirname(courant).length + 1));
-      courant = dirname(courant);
-    }
-    return resolve(realpathSync.native(courant), ...reste);
-  };
-  const v = relative(reel(racineDepot), reel(boite));
-  return v.startsWith("..") || isAbsolute(v);
+  const v = relative(cheminReel(racineDepot), cheminReel(boite));
+  return v === ".." || v.startsWith(".." + sep) || isAbsolute(v);
+}
+
+/** Les vraies boîtes : l'essai n'y écrit jamais (un faux `pouls` ferait croire au Studio que le poste est allumé). */
+export const BOITES_REELLES: readonly string[] = ["/opt/studio-axion-ia/capture-boite", "/var/studio-capture"];
+
+/** Vrai si `boite` est (ou est sous) l'une des vraies boîtes, après `realpath` des deux côtés, barre finale comprise. */
+export function boiteReelle(boite: string, reelles: readonly string[] = BOITES_REELLES): boolean {
+  const v = cheminReel(boite);
+  return reelles.some((r) => {
+    const rr = cheminReel(r);
+    return v === rr || v.startsWith(rr + sep);
+  });
+}
+
+/** Environnement réduit pour `capturer.mts` hors conteneur : PATH, HOME, langue, dossier temporaire et variables du navigateur seulement. */
+export function environnementReduit(env: Record<string, string | undefined>): Record<string, string> {
+  const garde = /^(PATH|HOME|LANG|LC_[A-Z]+|TMPDIR|TZ|DISPLAY|XDG_RUNTIME_DIR|PLAYWRIGHT_[A-Z_]+|CHROME_[A-Z_]+|CHROMIUM_[A-Z_]+|FONTCONFIG_[A-Z_]+)$/;
+  const sortie: Record<string, string> = {};
+  for (const [k, v] of Object.entries(env)) if (v !== undefined && garde.test(k)) sortie[k] = v;
+  return sortie;
 }
 
 /** Garde 51c : cloud ou CI seulement (ou conteneur de capture). Utilisée par `--direct` seulement. */
@@ -161,7 +186,12 @@ export function fichiersMaquetteAutonome(dossier: string, racineDepot: string = 
     const st = lstatSync(join(dossier, nom));
     if (!st.isFile() || !extensions.has(nom.split(".").pop()!.toLowerCase())) continue;
     let octets = readFileSync(join(dossier, nom));
-    if (nom === "index.html") octets = Buffer.from(octets.toString("utf8").replace('href="../charte/charte.css"', 'href="charte.css"'), "utf8");
+    if (nom === "charte.css" || nom === "manrope-latin.woff2") throw new Error(`La maquette contient déjà « ${nom} » : il serait doublé dans le zip.`);
+    if (nom === "index.html") {
+      octets = Buffer.from(octets.toString("utf8").replace('href="../charte/charte.css"', 'href="charte.css"'), "utf8");
+      // Une adresse relative qui sort du dossier ne serait pas réécrite : le zip ne serait pas autonome.
+      if (octets.toString("utf8").includes("../")) throw new Error("index.html contient encore une adresse « ../ » après réécriture : maquette non autonome.");
+    }
     sortie.push({ nom, octets });
   }
   if (!sortie.some((f) => f.nom === "index.html")) throw new Error("La maquette n'a pas d'index.html à sa racine.");
@@ -169,6 +199,7 @@ export function fichiersMaquetteAutonome(dossier: string, racineDepot: string = 
     "../../../src/app/polices/manrope-latin.woff2",
     "manrope-latin.woff2",
   );
+  if (charte.includes("../")) throw new Error("charte.css contient encore une adresse « ../ » après réécriture.");
   sortie.push({ nom: "charte.css", octets: Buffer.from(charte, "utf8") });
   sortie.push({ nom: "manrope-latin.woff2", octets: readFileSync(join(racineDepot, "src/app/polices/manrope-latin.woff2")) });
   return sortie;
@@ -178,8 +209,8 @@ export function fichiersMaquetteAutonome(dossier: string, racineDepot: string = 
 
 const { O_RDONLY, O_WRONLY, O_CREAT, O_EXCL, O_NOFOLLOW, O_NONBLOCK } = constants;
 
-function ecrireNeuf(chemin: string, octets: Uint8Array): void {
-  const fd = openSync(chemin, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, 0o600);
+function ecrireNeuf(chemin: string, octets: Uint8Array, mode = 0o600): void {
+  const fd = openSync(chemin, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW, mode);
   try {
     let ecrit = 0;
     while (ecrit < octets.length) ecrit += writeSync(fd, octets, ecrit, octets.length - ecrit);
@@ -191,11 +222,13 @@ function ecrireNeuf(chemin: string, octets: Uint8Array): void {
 
 /** Fichier ordinaire, sans lien, un seul nom, ≤ borne. Lève sinon. */
 function lireSur(chemin: string, borne: number): Buffer {
-  if (!lstatSync(chemin).isFile()) throw new Error(`« ${chemin} » n'est pas un fichier ordinaire.`);
+  const avant = lstatSync(chemin);
+  if (!avant.isFile()) throw new Error(`« ${chemin} » n'est pas un fichier ordinaire.`);
   const fd = openSync(chemin, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
   try {
     const st = fstatSync(fd);
     if (!st.isFile() || st.nlink !== 1) throw new Error(`« ${chemin} » : fichier refusé (lien physique ou non ordinaire).`);
+    if (st.ino !== avant.ino || st.dev !== avant.dev) throw new Error(`« ${chemin} » : fichier remplacé pendant la lecture.`);
     if (st.size > borne) throw new Error(`« ${chemin} » : fichier trop gros.`);
     const t = Buffer.alloc(st.size);
     let lu = 0;
@@ -204,13 +237,14 @@ function lireSur(chemin: string, borne: number): Buffer {
       if (n === 0) break;
       lu += n;
     }
-    return t.subarray(0, lu);
+    if (lu !== st.size) throw new Error(`« ${chemin} » : fichier modifié pendant la lecture.`);
+    return t;
   } finally {
     closeSync(fd);
   }
 }
 
-const sha256 = (s: string): string => createHash("sha256").update(s).digest("hex");
+const sha256 = (octets: Uint8Array): string => createHash("sha256").update(octets).digest("hex");
 
 // --- --preparer ------------------------------------------------------------------------------------------------------------
 
@@ -226,15 +260,16 @@ export function preparer(boite: string, dossierMaquette: string): { id: string; 
     "calage.json": Buffer.from(JSON.stringify(calage), "utf8"),
   };
   for (const [nom, borne] of Object.entries(FICHIERS_DEMANDE["film-zip"])) if (fichiers[nom]!.length > borne) throw new Error(`« ${nom} » dépasse la taille permise.`);
-  const id = idDemande(lecture.scenario.maquette, Buffer.concat([scenarioBrut, Buffer.from(fichiers["calage.json"]!)]).toString("latin1"), sha256);
+  const id = idFilm(lecture.scenario.maquette, scenarioBrut, fichiers["calage.json"]!, sha256);
   const nom = nomDossier("film-zip", id);
-  for (const d of ["demandes", "reponses", "echecs"]) mkdirSync(join(boite, d), { recursive: true, mode: 0o700 });
+  for (const d of ["demandes", "reponses", "echecs", ".veilleur"]) mkdirSync(join(boite, d), { recursive: true, mode: 0o700 });
+  chmodSync(join(boite, ".veilleur"), 0o700); // le veilleur exige `<propriétaire>:700` (en vrai : root)
   if (existsSync(join(boite, "demandes", nom)) || existsSync(join(boite, "reponses", nom))) throw new Error("Cette demande existe déjà dans la boîte.");
   const prep = join(boite, "demandes", `.prep-${id}`);
   mkdirSync(prep, { mode: 0o700 });
   for (const [n, o] of Object.entries(fichiers)) ecrireNeuf(join(prep, n), o);
   renameSync(prep, join(boite, "demandes", nom));
-  if (!existsSync(join(boite, "PRET"))) ecrireNeuf(join(boite, "PRET"), Buffer.alloc(0));
+  if (!existsSync(join(boite, "PRET"))) ecrireNeuf(join(boite, "PRET"), Buffer.alloc(0), 0o444); // le veilleur exige `<propriétaire>:444` (en vrai : root)
   rmSync(join(boite, "pouls"), { force: true });
   ecrireNeuf(join(boite, "pouls"), Buffer.from(new Date().toISOString() + "\n"));
   return { id, dossier: join(boite, "demandes", nom) };
@@ -265,7 +300,7 @@ export function lireReponseEssai(boite: string, id: string): VerdictLecture | nu
   if (!st.isDirectory()) throw new Error("Le dossier de réponse n'est pas un vrai dossier.");
   const permis = FICHIERS_REPONSE["film-zip"];
   const noms = readdirSync(dossier);
-  for (const n of noms) if (!Object.prototype.hasOwnProperty.call(permis, n)) throw new Error(`Nom inattendu dans la réponse : « ${n} ».`);
+  for (const n of noms) if (!Object.prototype.hasOwnProperty.call(permis, n)) throw new Error(`Nom inattendu dans la réponse : ${JSON.stringify(n.slice(0, 64))}.`);
   const etat = lireEtat(lireSur(join(dossier, "etat.txt"), BORNES.etat).toString("utf8"));
   if (!etat.ok) throw new Error(`État refusé : ${etat.raison}`);
   const v: VerdictLecture = {
@@ -293,7 +328,7 @@ export function lireReponseEssai(boite: string, id: string): VerdictLecture | nu
   if (typeof largeur !== "number" || typeof hauteur !== "number" || typeof dureeVoixMs !== "number") throw new Error("navigation.json : dimensions ou durée illisibles.");
   // Attendu tiré de navigation.json (en production, POSTE-4 le tirera du calage de la demande).
   const juge = jugerFfprobe(lireSur(join(dossier, "ffprobe.json"), BORNES.ffprobe).toString("utf8"), {
-    dureeMs: dureeVoixMs + 500,
+    dureeMs: dureeFilmAttendueMs(dureeVoixMs),
     ...dimensionsFilm(largeur, hauteur),
   });
   v.verdictFfprobe = juge.ok ? "ok" : "refuse";
@@ -340,15 +375,27 @@ function direct(boite: string, idDemandee?: string): number {
   try {
     // Comme le veilleur : la demande est copiée vers un dossier neuf, puis retirée de la boîte ; on ne travaille que sur la copie.
     for (const [n, borne] of Object.entries(permis)) ecrireNeuf(join(travail, n), lireSur(join(source, n), borne));
+    // Le calage et le scénario sont LUS (et jugés) AVANT d'effacer la demande : un fichier illisible donne une réponse « refus », jamais un plantage.
+    let calageBrut: unknown = null;
+    let scenarioBrut: unknown = null;
+    try {
+      calageBrut = JSON.parse(readFileSync(join(travail, "calage.json"), "utf8"));
+      scenarioBrut = JSON.parse(readFileSync(join(travail, "scenario.json"), "utf8"));
+    } catch {
+      calageBrut = null;
+    }
     rmSync(source, { recursive: true, force: true });
 
-    const lecture = lireCalage(JSON.parse(readFileSync(join(travail, "calage.json"), "utf8")));
     const echec = (code: CodeReponse, sortie: number, message: string): number => {
       console.error(message);
       ecrireReponse(boite, id, sortie === SORTIE.entree ? "refus" : "panne", code);
       return sortie;
     };
+    if (calageBrut === null || scenarioBrut === null) return echec("DEMANDE_INVALIDE", SORTIE.entree, "Calage ou scénario illisible.");
+    const lecture = lireCalage(calageBrut);
     if (!lecture.ok) return echec("DEMANDE_INVALIDE", SORTIE.entree, `Calage refusé : ${lecture.erreurs.join(" ")}`);
+    const sc = lireScenarioMaquette(scenarioBrut);
+    if (!sc.ok) return echec("DEMANDE_INVALIDE", SORTIE.entree, "Scénario refusé.");
     const maquette = join(travail, "zip", "maquette");
     mkdirSync(join(travail, "zip"));
     try {
@@ -371,7 +418,7 @@ function direct(boite: string, idDemandee?: string): number {
         "--calage", join(travail, "calage.json"),
         "--sortie", sortieCapture,
       ],
-      { encoding: "utf8", timeout: DELAI_CAPTURE_MS, maxBuffer: 64 * 1024 * 1024, env: process.env },
+      { encoding: "utf8", timeout: DELAI_CAPTURE_MS, maxBuffer: 64 * 1024 * 1024, env: environnementReduit(process.env) as NodeJS.ProcessEnv },
     );
     process.stdout.write(r.stdout ?? "");
     process.stderr.write(r.stderr ?? "");
@@ -387,9 +434,7 @@ function direct(boite: string, idDemandee?: string): number {
 
     const sonde = spawnSync("ffprobe", ["-v", "error", "-print_format", "json", "-show_streams", "-show_format", join(dossierCapture, "navigation.mp4")], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
     if (sonde.error || sonde.status !== 0 || Buffer.byteLength(sonde.stdout) > BORNES.ffprobe) return echec("FILM_INVALIDE", SORTIE.capture, "ffprobe local en échec.");
-    const sc = lireScenarioMaquette(JSON.parse(readFileSync(join(travail, "scenario.json"), "utf8")));
-    if (!sc.ok) return echec("DEMANDE_INVALIDE", SORTIE.entree, "Scénario refusé.");
-    const juge = jugerFfprobe(sonde.stdout, { dureeMs: lecture.calage.dureeVoixMs + 500, ...dimensionsFilm(sc.scenario.largeur, sc.scenario.hauteur) });
+    const juge = jugerFfprobe(sonde.stdout, { dureeMs: dureeFilmAttendueMs(lecture.calage.dureeVoixMs), ...dimensionsFilm(sc.scenario.largeur, sc.scenario.hauteur) });
     console.log(`Vérification de durée faite par ffprobe LOCAL (essai) : ${juge.ok ? "conforme" : juge.raisons.join(" ")}`);
     if (!juge.ok) return echec("FILM_INVALIDE", SORTIE.capture, "Le film ne passe pas le contrôle de ffprobe.");
     ecrireReponse(boite, id, "ok", "OK", { "navigation.mp4": film, "navigation.json": navigation, "ffprobe.json": Buffer.from(sonde.stdout, "utf8") });
@@ -402,7 +447,7 @@ function direct(boite: string, idDemandee?: string): number {
 
 // --- principal -------------------------------------------------------------------------------------------------------------
 
-function principal(argv: readonly string[]): number {
+export function principal(argv: readonly string[], env: Record<string, string | undefined> = process.env, plateforme: string = process.platform): number {
   const lu = lireArguments(argv);
   if (!lu.ok) {
     console.error(lu.message);
@@ -414,9 +459,13 @@ function principal(argv: readonly string[]): number {
     console.error("« --boite » doit être hors du dépôt.");
     return SORTIE.entree;
   }
+  if (boiteReelle(boite)) {
+    console.error("« --boite » ne peut pas être une vraie boîte du poste de capture.");
+    return SORTIE.entree;
+  }
   try {
     if (mode === "direct") {
-      const v = gardeDirect(process.env, process.platform, indicesConteneur(existsSync));
+      const v = gardeDirect(env, plateforme, indicesConteneur(existsSync));
       if (!v.ok) {
         console.error(v.raison);
         return SORTIE.environnement;

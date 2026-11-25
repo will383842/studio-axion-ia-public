@@ -48,6 +48,8 @@ export class ErreurBoite extends Error {
     this.name = "ErreurBoite";
   }
 }
+/** Nom lu dans la boîte (HOSTILE) rendu inoffensif pour un message : guillemets, échappements, 64 caractères au plus. */
+const nomSur = (n: string): string => JSON.stringify(String(n).slice(0, 64));
 const invalide = (m: string): never => {
   throw new ErreurBoite("FILM_INVALIDE", m);
 };
@@ -90,7 +92,9 @@ function lireFichierSur(fs: SystemeFichiers, chemin: string, borne: number): { o
       if (n === 0) break;
       lu += n;
     }
-    return { ok: true, octets: lu === tampon.length ? tampon : tampon.subarray(0, lu) };
+    // Lecture courte (fichier raccourci entre `fstat` et `read`) : refusée comme un fichier remplacé, jamais un tampon tronqué.
+    if (lu !== st.size) return { ok: false, raison: "fichier modifié pendant la lecture" };
+    return { ok: true, octets: tampon };
   } finally {
     try {
       fs.closeSync(fd);
@@ -142,9 +146,20 @@ export function noterEchec(racine: string, id: string, fs: SystemeFichiers = FS_
   const total = tentatives(racine, id, fs) + 1;
   const chemin = join(racine, "echecs", `${id}.json`);
   const octets = Buffer.from(JSON.stringify({ tentatives: total }));
+  // `echecs/` absent : créé ici (0700, non récursif) ; un lien ou un fichier à sa place est refusé.
+  const dossierEchecs = join(racine, "echecs");
+  const sd = lstatOuNul(fs, dossierEchecs);
+  if (!sd) {
+    try {
+      fs.mkdirSync(dossierEchecs, { mode: 0o700 });
+    } catch {
+      throw new ErreurBoite("DEMANDE_INVALIDE", "Les tentatives n'ont pas pu être notées.");
+    }
+  } else if (!sd.isDirectory()) throw new ErreurBoite("DEMANDE_INVALIDE", "Le dossier des tentatives est refusé.");
   let fd: number;
   try {
-    fd = fs.openSync(chemin, O_WRONLY | O_CREAT | O_NOFOLLOW, 0o600);
+    // O_NONBLOCK : une FIFO sans lecteur posée à cet endroit fait échouer l'ouverture (ENXIO) au lieu de bloquer le processus.
+    fd = fs.openSync(chemin, O_WRONLY | O_CREAT | O_NOFOLLOW | O_NONBLOCK, 0o600);
   } catch {
     throw new ErreurBoite("DEMANDE_INVALIDE", "Les tentatives n'ont pas pu être notées.");
   }
@@ -197,6 +212,9 @@ export function ecrireDemande(
     return demandeInvalide("Cette demande existe déjà.");
   }
   if (tentatives(racine, id, fs) >= MAX_TENTATIVES) return demandeInvalide("Trop de tentatives pour cette demande.");
+  // Une seule demande à la fois, décidée ICI (plan §4, « double capture » et « épuisement disque ») : toute entrée de `demandes/`,
+  // y compris un `.prep-*` d'un autre id, refuse l'écriture, avant tout `mkdir`.
+  if (demandeEnVol(racine, fs)) return demandeInvalide("Une demande est déjà en cours dans la boîte.");
   fs.mkdirSync(prep, { mode: 0o700 }); // non récursif : échoue si présent
   try {
     for (const n of noms) {
@@ -210,6 +228,9 @@ export function ecrireDemande(
         fs.closeSync(fd);
       }
     }
+    // Limite connue : sous Linux, `rename` d'un dossier REMPLACE une cible qui est un dossier vide (Node n'expose pas RENAME_NOREPLACE).
+    // Ce `lstat` laisse donc une petite fenêtre ; elle est réduite par `demandeEnVol` (rien d'autre dans `demandes/`) et par le fait
+    // que seul le Studio (verrou Postgres) écrit dans `demandes/`.
     if (lstatOuNul(fs, cible)) return demandeInvalide("Cette demande existe déjà.");
     fs.renameSync(prep, cible);
   } catch (e) {
@@ -240,14 +261,22 @@ export function lireReponse(racine: string, type: TypeDemande, id: string, fs: S
   if (!st) return null;
   if (!st.isDirectory()) return invalide("Le dossier de réponse n'est pas un vrai dossier.");
   const permis = FICHIERS_REPONSE[type];
-  const noms = fs.readdirSync(dossier);
+  // Limite connue : `readdirSync` charge toute la liste avant le comptage ; elle est bornée par la boucle de 2 Gio de la boîte.
+  // `O_NOFOLLOW` ne protège que le dernier composant : `racine`, `reponses/` et le dossier de réponse sont `lstat`-és puis rouverts par chemin ;
+  // seul root ou le Studio écrit dans `reponses/` (jamais le Chromium), et `ino/dev` + `nlink` sont recontrôlés. Acceptable en v1.
+  let noms: string[];
+  try {
+    noms = fs.readdirSync(dossier);
+  } catch {
+    return invalide("Réponse illisible.");
+  }
   if (noms.length > Object.keys(permis).length + 1) return invalide("Trop d'éléments dans la réponse.");
   const fichiers: Record<string, Buffer> = {};
   for (const n of noms) {
     if (n === DOSSIER_APERCU && type === "apercu") continue;
-    if (!Object.prototype.hasOwnProperty.call(permis, n)) return invalide(`Nom inattendu dans la réponse : « ${n} ».`);
+    if (!Object.prototype.hasOwnProperty.call(permis, n)) return invalide(`Nom inattendu dans la réponse : ${nomSur(n)}.`);
     const lu = lireFichierSur(fs, join(dossier, n), permis[n]!);
-    if (!lu.ok) return invalide(`« ${n} » refusé : ${lu.raison}.`);
+    if (!lu.ok) return invalide(`${nomSur(n)} refusé : ${lu.raison}.`);
     fichiers[n] = lu.octets;
   }
   if (!fichiers["etat.txt"]) return invalide("Le fichier d'état manque.");
@@ -262,12 +291,17 @@ export function lireReponse(racine: string, type: TypeDemande, id: string, fs: S
     const sous = join(dossier, DOSSIER_APERCU);
     const sst = lstatOuNul(fs, sous);
     if (!sst || !sst.isDirectory()) return invalide("Le dossier d'images n'est pas un vrai dossier.");
-    const images = fs.readdirSync(sous);
+    let images: string[];
+    try {
+      images = fs.readdirSync(sous);
+    } catch {
+      return invalide("Réponse illisible.");
+    }
     if (images.length > BORNES.pngMax) return invalide("Trop d'images.");
     for (const img of images) {
-      if (!estNomImageValide(img)) return invalide(`Nom d'image inattendu : « ${img} ».`);
+      if (!estNomImageValide(img)) return invalide(`Nom d'image inattendu : ${nomSur(img)}.`);
       const lu = lireFichierSur(fs, join(sous, img), BORNES.png);
-      if (!lu.ok) return invalide(`Image « ${img} » refusée : ${lu.raison}.`);
+      if (!lu.ok) return invalide(`Image ${nomSur(img)} refusée : ${lu.raison}.`);
       fichiers[`${DOSSIER_APERCU}/${img}`] = lu.octets;
     }
   }
@@ -278,5 +312,3 @@ export function lireReponse(racine: string, type: TypeDemande, id: string, fs: S
 export function effacerReponse(racine: string, type: TypeDemande, id: string, fs: SystemeFichiers = FS_REEL): void {
   retirerSansSuivre(fs, join(racine, "reponses", nomDossier(type, id)));
 }
-
-

@@ -1,5 +1,5 @@
 /** POSTE-3 : fonctions pures du script d'essai du poste relié. Aucun navigateur, aucune capture, 0 appel payant. */
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -7,6 +7,9 @@ import { lireArchive } from "../../../outils/maquettes-tableaux-de-bord/capture/
 import {
   RACINE_DEPOT,
   boiteHorsDepot,
+  boiteReelle,
+  environnementReduit,
+  principal,
   construireZip,
   fichiersMaquetteAutonome,
   gardeDirect,
@@ -40,11 +43,63 @@ describe("boiteHorsDepot", () => {
     expect(boiteHorsDepot(join(RACINE_DEPOT, "outils", "x", "..", "y"))).toBe(false);
     expect(boiteHorsDepot(RACINE_DEPOT)).toBe(false);
     expect(boiteHorsDepot(join(temp(), "boite"))).toBe(true);
+    expect(boiteHorsDepot("/inexistant-poste-relie/boite")).toBe(true);
+  });
+  it("refuse `..boite` (dossier du dépôt dont le nom commence par deux points)", () => {
+    expect(boiteHorsDepot(join(RACINE_DEPOT, "..boite"))).toBe(false);
+    expect(boiteHorsDepot(join(RACINE_DEPOT, "..", "boite-voisine-inexistante"))).toBe(true);
   });
   it("refuse un lien qui ramène dans le dépôt", () => {
     const d = temp();
     symlinkSync(RACINE_DEPOT, join(d, "lien"));
     expect(boiteHorsDepot(join(d, "lien", "boite"))).toBe(false);
+  });
+});
+
+describe("vraies boîtes interdites", () => {
+  it("refuse /opt/studio-axion-ia/capture-boite et /var/studio-capture, barre finale et sous-dossiers compris", () => {
+    for (const b of ["/opt/studio-axion-ia/capture-boite", "/opt/studio-axion-ia/capture-boite/", "/var/studio-capture", "/var/studio-capture/", "/var/studio-capture/x"]) expect(boiteReelle(b)).toBe(true);
+    expect(boiteReelle("/var/studio-capture-essai")).toBe(false);
+    expect(boiteReelle(join(temp(), "boite"))).toBe(false);
+  });
+  it("suit un lien (realpath)", () => {
+    const d = temp();
+    const vraie = join(d, "vraie");
+    mkdirSync(vraie);
+    symlinkSync(vraie, join(d, "lien"));
+    expect(boiteReelle(join(d, "lien"), [vraie])).toBe(true);
+    expect(boiteReelle(join(d, "lien") + "/", [vraie + "/"])).toBe(true);
+  });
+  it("principal refuse une vraie boîte (code 4) avant d'écrire quoi que ce soit", () => {
+    const r = principal(["--boite", "/var/studio-capture/", "--preparer"], {}, "linux");
+    expect(r).toBe(4);
+    expect(existsSync("/var/studio-capture/PRET")).toBe(false);
+  });
+});
+
+describe("principal et --direct", () => {
+  it("--direct hors cloud rend 3 et laisse la demande intacte", () => {
+    const boite = join(temp(), "boite");
+    mkdirSync(boite);
+    const r = preparer(boite, join(RACINE_DEPOT, "outils/maquettes-tableaux-de-bord/05-stocks"));
+    expect(principal(["--boite", boite, "--direct"], {}, "linux")).toBe(3);
+    expect(existsSync(r.dossier)).toBe(true);
+    expect(readdirSync(join(boite, "reponses"))).toEqual([]);
+  });
+  it("calage illisible : réponse « refus » écrite, code 4, aucun navigateur lancé", () => {
+    const boite = join(temp(), "boite");
+    mkdirSync(boite);
+    const r = preparer(boite, join(RACINE_DEPOT, "outils/maquettes-tableaux-de-bord/05-stocks"));
+    writeFileSync(join(r.dossier, "calage.json"), "pas du json");
+    expect(principal(["--boite", boite, "--direct"], { CI: "true" }, "linux")).toBe(4);
+    const reponses = readdirSync(join(boite, "reponses"));
+    expect(reponses).toHaveLength(1);
+    expect(readFileSync(join(boite, "reponses", reponses[0]!, "etat.txt"), "utf8")).toBe("refus\nDEMANDE_INVALIDE\n");
+    expect(existsSync(r.dossier)).toBe(false);
+  });
+  it("environnement réduit : PATH, HOME, variables du navigateur ; aucun secret", () => {
+    const e = environnementReduit({ PATH: "/bin", HOME: "/h", PLAYWRIGHT_BROWSERS_PATH: "/p", ANTHROPIC_API_KEY: "secret", DATABASE_URL: "x", CI: "true" });
+    expect(e).toEqual({ PATH: "/bin", HOME: "/h", PLAYWRIGHT_BROWSERS_PATH: "/p" });
   });
 });
 
@@ -72,12 +127,27 @@ describe("zip en mémoire et préparation", () => {
     expect(f.find((x) => x.nom === "charte.css")!.octets.toString()).not.toContain("../");
     expect(() => lireArchive(construireZip(f))).not.toThrow();
   });
+  it("refuse une maquette non autonome ou qui a déjà charte.css / la police", () => {
+    const source = join(RACINE_DEPOT, "outils/maquettes-tableaux-de-bord/05-stocks");
+    const a = join(temp(), "m");
+    cpSync(source, a, { recursive: true });
+    writeFileSync(join(a, "charte.css"), "x{}");
+    expect(() => fichiersMaquetteAutonome(a)).toThrow(/déjà/);
+    const b = join(temp(), "m");
+    cpSync(source, b, { recursive: true });
+    writeFileSync(join(b, "index.html"), '<link href="../autre/x.css"><link href="../charte/charte.css">');
+    expect(() => fichiersMaquetteAutonome(b)).toThrow(/\.\.\//);
+  });
   it("preparer écrit une demande film-zip conforme et PRET, sans rien laisser de .prep", () => {
     const boite = join(temp(), "boite");
     mkdirSync(boite);
     const r = preparer(boite, join(RACINE_DEPOT, "outils/maquettes-tableaux-de-bord/05-stocks"));
     expect(r.id).toMatch(/^[a-z0-9-]{8,64}$/);
     expect(readFileSync(join(r.dossier, "calage.json"), "utf8")).toContain("dureeVoixMs");
+    // Le veilleur exige PRET en 0444 et .veilleur en 0700 (veilleur.sh, controler_config).
+    expect(statSync(join(boite, "PRET")).mode & 0o777).toBe(0o444);
+    expect(statSync(join(boite, ".veilleur")).isDirectory()).toBe(true);
+    expect(statSync(join(boite, ".veilleur")).mode & 0o777).toBe(0o700);
     expect(() => preparer(boite, join(RACINE_DEPOT, "outils/maquettes-tableaux-de-bord/05-stocks"))).toThrow();
   });
 });
