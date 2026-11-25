@@ -8,10 +8,11 @@
  *  - BANDE des sous-titres : x 5 % → 95 %, y (basPct − 9) % → (basPct + 6) % ; aucune scène n'y entre, jamais ;
  *  - tout texte ≥ 32 px à 1080 de petit côté (× min(L, H) / 1080 ailleurs) ; ni bleu, ni jaune, ni orange sur ivoire.
  */
+import { contrasteWcag } from "../../../charte/axion-2026";
 import { CHARTE_AXION, adoucir, decelerer, entre, progression } from "../../../jetons-motion";
 import type { CouleurCharte, FormatImage, RectPx, ZonesSansVoix } from "./types";
 
-export { adoucir, decelerer, entre, progression };
+export { adoucir, decelerer, entre, progression, contrasteWcag };
 
 /** Échelle d'un format : petit côté / 1080. */
 export function echelleFormat(format: FormatImage): number {
@@ -48,18 +49,32 @@ export function taillesMinPour(format: FormatImage): Record<keyof typeof TAILLES
  */
 export const PLANCHER_TEXTE = 34;
 
+/**
+ * Plancher ABSOLU d'un texte (33,4 px à 1080) : ultime recours quand un mot long ne tient pas à `PLANCHER_TEXTE`.
+ * 33,4 × 0,96 (recul de sortie) ≥ 32 : même en transition, aucun texte visible ne passe sous 32 px.
+ */
+export const PLANCHER_ABSOLU = 33.4;
+
+/** Interligne UNIQUE de tous les textes du tutoriel sans voix (hauteur d'un bloc = lignes × taille × INTERLIGNE). */
+export const INTERLIGNE = 1.12;
+
+/** Opacité des parties NON visées par une mise en valeur (`focus`) : elles s'atténuent ENSEMBLE avec leurs enfants. */
+export const OPACITE_ATTENUEE = 0.55;
+
 /** Durées (ms), pas de rebond. */
 export const DUREES_MS = {
   entree: 500,
   transition: 400,
   glisseTransitionPx: 24,
+  /** Montée/descente de la mise en valeur d'un `focus` (pas de zoom : contour terracotta + atténuation du reste). */
   camera: 600,
   tri: 500,
   panneau: 500,
   alerteTenue: 3200,
   clic: 500,
   pulseTotal: 1400,
-  zoomMax: 1.25,
+  /** Non utilisé : la mise en valeur n'agrandit rien (plus de zoom, voir `focus`). */
+  zoomMax: 1,
   reculSortie: 0.04,
 } as const;
 
@@ -104,18 +119,4 @@ export function zonesSansVoix(format: FormatImage, basPct: number): ZonesSansVoi
 /** Avancement 0 → 1 d'un mouvement qui commence à `debutMs` et dure `dureeMs` (ms absolues). */
 export function avancement(tMs: number, debutMs: number, dureeMs: number, courbe: (t: number) => number = decelerer): number {
   return progression(tMs, debutMs, dureeMs, courbe);
-}
-
-/** Contraste WCAG entre deux couleurs hex (pour vérifier la table). */
-export function contrasteHex(a: string, b: string): number {
-  const lum = (hex: string) => {
-    const n = parseInt(hex.slice(1), 16);
-    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
-      const x = v / 255;
-      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-  };
-  const [la, lb] = [lum(a), lum(b)];
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
