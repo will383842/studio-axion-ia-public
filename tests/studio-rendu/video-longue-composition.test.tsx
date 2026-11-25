@@ -36,7 +36,7 @@ const rendre = (ms: number) => {
 describe.skipIf(!AVEC_RENDU)("VideoLongue", () => {
   it("carton-titre : la question, sans bande de sous-titres", () => {
     const h = rendre(2500);
-    expect(h).toContain("Comment suivre ses");
+    expect(h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")).toContain("Comment suivre ses stocks sans y passer des heures ?");
     expect(h).toContain("AXION IA");
     expect(h).not.toContain("#E8E6DC");
   });
