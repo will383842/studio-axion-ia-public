@@ -72,7 +72,7 @@ const INSTANTANE_MASTER: string[] = [
   "cadrage.zoom-avocat|prod|8|",
   "cadrage.zoom-demo|prod|8|",
   "cadrage.camera-cas-concret|prod|8|",
-  "cadrage.zoom-v4|absent|8|",
+  "cadrage.zoom-v4|eteint|8|", // C8-X01-b-v20j (seconde lecture du pilote)
   "motion.avis-client|prevu|8|",
   "objet.trait|prevu|9|",
   "objet.marque|prevu|9|",
