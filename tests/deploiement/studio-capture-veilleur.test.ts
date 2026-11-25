@@ -624,26 +624,36 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
       PATH: "/usr/local/bin:/usr/bin:/bin",
       VEILLEUR_TEST: "1", VEILLEUR_RACINE: b.racine, VEILLEUR_PATH_TEST: b.faux, VEILLEUR_BOITE: b.boite, DEPLOIEMENT: b.deploiement,
     } as NodeJS.ProcessEnv;
-    const premier = spawn("bash", [CHEMIN_SCRIPT, "--une-fois"], { env, stdio: "ignore" });
+    const lire = (f: string) => (existsSync(f) ? readFileSync(f, "utf8") : `(absent : ${f})`);
+    let sortiePremier = "";
+    const premier = spawn("bash", [CHEMIN_SCRIPT, "--une-fois"], { env, stdio: ["ignore", "pipe", "pipe"] });
+    premier.stdout!.on("data", (d) => (sortiePremier += `[out] ${d}`));
+    premier.stderr!.on("data", (d) => (sortiePremier += `[err] ${d}`));
     const fini = new Promise<number | null>((ok) => premier.on("close", (c) => ok(c)));
+    const etat = () =>
+      `\n--- premier passage (sortie) ---\n${sortiePremier}\n--- appels des faux outils ---\n${lire(join(b.faux, "appels"))}` +
+      `\n--- demandes : ${JSON.stringify(readdirSync(join(b.boite, "demandes")))} ; boite : ${JSON.stringify(readdirSync(b.boite))}`;
     try {
       // rendez-vous : le premier tient le verrou et attend dans docker (borne : 30 s)
       const limite = Date.now() + 30_000;
-      while (!existsSync(join(b.faux, "bloque")) && Date.now() < limite) await new Promise((r) => setTimeout(r, 20));
-      expect(existsSync(join(b.faux, "bloque")), "le premier passage doit atteindre le faux docker").toBe(true);
+      while (!existsSync(join(b.faux, "bloque")) && premier.exitCode === null && Date.now() < limite) await new Promise((r) => setTimeout(r, 20));
+      expect(existsSync(join(b.faux, "bloque")), `le premier passage doit atteindre le faux docker (code ${premier.exitCode})${etat()}`).toBe(true);
+      // le premier passage a écrit un pouls 0444 : on le REMPLACE (unlink + écriture), jamais d'écriture en place (EACCES hors root)
+      rmSync(join(b.boite, "pouls"), { force: true });
       writeFileSync(join(b.boite, "pouls"), "2000-01-01T00:00:00Z\n");
       const second = spawnSync("bash", [CHEMIN_SCRIPT, "--une-fois"], { env, encoding: "utf8", timeout: 30_000 });
-      expect(second.status).toBe(0);
-      expect(second.stderr).toBe("");
+      const msg = `second : code=${second.status} signal=${second.signal} stdout=${JSON.stringify(second.stdout)} stderr=${JSON.stringify(second.stderr)}${etat()}`;
+      expect(second.status, msg).toBe(0);
+      expect(second.stderr, msg).toBe("");
       // le second n'a rien pris, rien appelé, mais a rafraîchi le pouls
-      expect(readdirSync(join(b.boite, "demandes"))).toEqual([NOM]);
-      expect(readFileSync(join(b.boite, "pouls"), "utf8")).not.toBe("2000-01-01T00:00:00Z\n");
-      expect(b.appels()).toEqual([]);
-      expect(premier.exitCode, "le premier tient encore le verrou").toBeNull();
+      expect(readdirSync(join(b.boite, "demandes")), msg).toEqual([NOM]);
+      expect(readFileSync(join(b.boite, "pouls"), "utf8"), msg).not.toBe("2000-01-01T00:00:00Z\n");
+      expect(b.appels(), msg).toEqual([]);
+      expect(premier.exitCode, `le premier tient encore le verrou ; ${msg}`).toBeNull();
     } finally {
       writeFileSync(join(b.faux, "libere"), "");
     }
-    expect(await fini).toBe(0);
+    expect(await fini, `le premier passage doit finir en 0${etat()}`).toBe(0);
   });
   it("pouls : le mode est posé AVANT le mv -T (jamais de fichier root 0600 visible dans la boîte)", () => {
     const b = banc();
