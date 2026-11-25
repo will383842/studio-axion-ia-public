@@ -172,7 +172,7 @@ describe("QUAL-1 scènes", () => {
   });
 
   it("surtitre et plan sans scène", () => {
-    const p2: PlanComposeSansVoix = { ...plan, scenes: [{ ...(plan.scenes[0] as never), surTitre: "Tutoriel" }, ...plan.scenes.slice(1)] };
+    const p2: PlanComposeSansVoix = { ...plan, scenes: [{ ...(plan.scenes[0] as Extract<PlanComposeSansVoix["scenes"][number], { genre: "titre" }>), surTitre: "Tutoriel" }, ...plan.scenes.slice(1)] };
     expect(texte.call(null, 1000)).toBeTruthy();
     const els = imageSansVoixA(p2, 1500).elements;
     expect(els.find((e) => e.id === "s1/sur-titre")!.taillePx).toBeGreaterThanOrEqual(36);
