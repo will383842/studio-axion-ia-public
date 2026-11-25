@@ -26,10 +26,11 @@ describe("versRecentsImageVideo", () => {
 });
 
 describe("dépôt : l'action est dans la barre collée de l'enfant", () => {
-  it("Depot porte BoutonFabriquer dans BarreActionCollee, la page n'en passe pas", () => {
-    const depot = readFileSync("src/components/formats/image-video/Depot.tsx", "utf8");
+  it("DepotScript, DepotTexte et DepotLot portent BoutonFabriquer dans BarreActionCollee, la page n'en passe pas", () => {
+    const script = readFileSync("src/components/formats/image-video/DepotScript.tsx", "utf8");
+    const texte = readFileSync("src/components/formats/image-video/DepotTexte.tsx", "utf8");
     const lot = readFileSync("src/components/formats/image-video/DepotLot.tsx", "utf8");
-    for (const s of [depot, lot]) expect(s).toMatch(/<BarreActionCollee>\s*<BoutonFabriquer/);
+    for (const s of [script, texte, lot]) expect(s).toMatch(/<BarreActionCollee>\s*<BoutonFabriquer/);
     expect(readFileSync("src/app/(studio)/image-video/page.tsx", "utf8")).not.toMatch(/\baction=/);
   });
 });

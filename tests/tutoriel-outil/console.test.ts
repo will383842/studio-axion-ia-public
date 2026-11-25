@@ -343,6 +343,32 @@ describe("clés ajoutées par AUD-3", () => {
     const perf = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.performance");
     expect(perf?.phraseEteint).toMatch(/léger surcoût de l'appel du stratège, sous le plafond par vidéo/);
   });
+  it("FIN-6 : « Écriture et relecture par Claude » annonce que Claude est payant", () => {
+    const claude = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.claude");
+    expect(claude?.phraseEteint).toContain("appels Claude payants, sous le plafond par vidéo");
+  });
+  it("FIN-6 : une phrase ou un dossier sans script citent l'« Équipe de rôles »", () => {
+    for (const k of ["tutoriel.entreePhrase", "tutoriel.entreeZip"]) {
+      expect(c.REGLAGES_TUTORIEL.find((x) => x.cle === k)?.phraseEteint).toContain("Équipe de rôles");
+    }
+  });
+  it("FIN-6 : la phrase du formulaire est vraie aujourd'hui (il faut aussi une entrée ouverte)", () => {
+    const f = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.formulaire")?.phraseEteint ?? "";
+    expect(f).toContain("« Envoi d'un dossier »");
+    expect(f).toContain("« Entrée par une phrase »");
+    expect(f).toContain("sans voix");
+    expect(f).not.toContain("Allumé seul");
+  });
+  it("FIN-6 : « Écriture et relecture par Claude » ne promet pas « sans rien payer » en général", () => {
+    const claude = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.claude")?.phraseEteint ?? "";
+    expect(claude).toContain("avec votre script et sans voix");
+    expect(claude).toContain("sans appel à Claude");
+    expect(claude).not.toMatch(/sans rien payer/);
+  });
+  it("FIN-6 : la retouche du lecteur par Claude n'a pas d'interrupteur ici", () => {
+    // tant qu'il n'est branché nulle part (P24), un bouton sans effet serait trompeur
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).not.toContain("retoucheChat.tutorielLecteurClaude");
+  });
   it("le libellé périmé « (plus tard) » a disparu", () => {
     for (const r of c.REGLAGES_TUTORIEL) expect(r.libelle).not.toMatch(/plus tard/i);
   });

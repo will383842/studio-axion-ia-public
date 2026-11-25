@@ -68,10 +68,10 @@ export interface ReglageTutoriel {
 
 /** Liste FERMÉE des interrupteurs du panneau (ordre d'affichage). Le plafond n'y est pas. */
 export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
-  { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé." },
-  { cle: CLE_ENTREE_ZIP, libelle: "Envoi d'un dossier", phraseEteint: "Éteint : aucun dossier ne peut être envoyé." },
-  { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase", phraseEteint: "Éteint : pas d'entrée par une phrase." },
-  { cle: PARAM_CLAUDE_TUTORIEL, libelle: "Écriture et relecture par Claude", phraseEteint: "Éteint : Claude n'écrit ni ne relit rien.", allumeParDefaut: true },
+  { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé. Allumé, il faut aussi « Envoi d'un dossier » ou « Entrée par une phrase » ; avec votre script collé et sans voix, rien n'est payé si Claude reste éteint." },
+  { cle: CLE_ENTREE_ZIP, libelle: "Envoi d'un dossier", phraseEteint: "Éteint : aucun dossier ne peut être envoyé. Allumé, un dossier sans script a besoin de l'« Équipe de rôles » (appels Claude payants) ; ne pas l'ouvrir aux dossiers de clients avant le poste de capture." },
+  { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase", phraseEteint: "Éteint : pas d'entrée par une phrase. Sans script collé, une phrase a besoin de l'« Équipe de rôles » (appels Claude payants)." },
+  { cle: PARAM_CLAUDE_TUTORIEL, libelle: "Écriture et relecture par Claude", phraseEteint: `Éteint : Claude n'écrit ni ne relit rien ; avec votre script et sans voix, la vidéo se fait quand même sans appel à Claude ; ${ANNONCE_PAYANT}`, allumeParDefaut: true },
   { cle: CLE_DEVIS_AVANT_DEPENSE, libelle: "Devis avant toute dépense", phraseEteint: "Éteint : aucun devis n'est présenté avant de lancer." },
   { cle: CLE_FINITIONS, libelle: "Son et vignette finis", phraseEteint: "Éteint : ni son fini ni vignette finie." },
   { cle: CLE_FIN_COMMUNE, libelle: "Fin choisie (« Aucune » ou « Prendre rendez-vous »)", phraseEteint: "Éteint : aucune fin n'est ajoutée." },
