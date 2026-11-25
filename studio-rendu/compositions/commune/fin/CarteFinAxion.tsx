@@ -2,12 +2,14 @@
 import { AbsoluteFill, Img, interpolate, useCurrentFrame, Easing } from "remotion";
 import { COURBES, PILE_CSS } from "../../../../src/briques/charte/axion-2026";
 import { planifierCarteFin } from "../../../../src/briques/charte/carte-fin";
+import { chargerPoliceMarque } from "../police-marque";
 import { chargerPoliceTitre } from "../polices";
 import logo from "./logo-axion-fond-sombre.png";
 
 export type ProprietesCarteFin = { largeur: number; hauteur: number; dureeSec: number; adresse: string };
 
 export function CarteFinAxion(p: ProprietesCarteFin) {
+  chargerPoliceMarque();
   chargerPoliceTitre();
   const f = useCurrentFrame();
   const plan = planifierCarteFin(p.largeur, p.hauteur, p.dureeSec);

@@ -5,11 +5,6 @@
     "famille": "JetBrains Mono"
   },
   {
-    "hote": "plan-scenes/CalquePlanScenes.tsx",
-    "objet": "terminal-commande",
-    "famille": "JetBrains Mono"
-  },
-  {
     "hote": "commune/PlanSousTexte.tsx",
     "objet": "terminal-commande",
     "famille": "JetBrains Mono"
