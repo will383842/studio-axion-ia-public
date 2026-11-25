@@ -64,9 +64,10 @@ export function creerServiceRenduHttp(adresse: string, options: { fetch?: typeof
       if (r.status >= 500 || r.status === 429) throw new ErreurRendu({ code: "indisponible", reessayable: true, message: "Le service de rendu est momentanément indisponible." });
       if (r.status === 409) {
         // Même identifiant, demande différente : rien n'a été rendu pour cette demande, la vidéo doit être relancée.
+        // Le détail du serveur (identifiant interne, consigne) va au journal seulement, jamais à l'utilisateur.
         const detail = await r.json().then((c: { erreur?: unknown }) => (typeof c?.erreur === "string" ? c.erreur : ""), () => "");
-        const lisible = detail && !/https?:\/\//i.test(detail) ? ` (${detail})` : "";
-        throw new ErreurRendu({ code: "refuse", reessayable: false, message: `Le service de rendu a déjà un rendu différent sous cet identifiant : la vidéo doit être relancée.${lisible}` });
+        if (detail) console.warn(`[rendu] envoi d'un rendu : refus 409 (${detail.replace(/https?:\/\/\S+/gi, "[adresse]")})`);
+        throw new ErreurRendu({ code: "refuse", reessayable: false, message: "Le service de rendu a déjà un rendu différent sous cet identifiant : la vidéo doit être relancée." });
       }
       if (!r.ok) throw new ErreurRendu({ code: "refuse", reessayable: false, message: "Le service de rendu a refusé la demande." });
       const corps = (await r.json()) as { idRendu?: string };

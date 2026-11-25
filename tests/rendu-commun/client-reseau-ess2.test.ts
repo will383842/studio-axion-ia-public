@@ -65,16 +65,19 @@ describe("ESS-2 · client de rendu : lecture d'état relue après une coupure", 
     expect(attentes).toEqual([]);
   });
 
-  it("409 à la soumission : refus non réessayable, message clair, aucune adresse", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    const f = (async () => json({ erreur: "demande différente sous le même identifiant" }, 409)) as unknown as typeof fetch;
+  it("409 à la soumission : refus non réessayable, phrase fixe seule (le détail du serveur va au journal)", async () => {
+    const alerte = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const f = (async () => json({ erreur: "Changez l'identifiant t-secret-42 (https://depot.test/x)" }, 409)) as unknown as typeof fetch;
     const { service } = client(f);
     const erreur = await service.soumettre(demande).catch((e) => e);
     expect(erreur).toBeInstanceOf(ErreurRendu);
     expect(erreur.erreur.code).toBe("refuse");
     expect(erreur.reessayable).toBe(false);
     expect(erreur.message).toContain("déjà un rendu différent sous cet identifiant : la vidéo doit être relancée");
-    expect(erreur.message).not.toMatch(/https?:/);
+    expect(erreur.message).toBe("Le service de rendu a déjà un rendu différent sous cet identifiant : la vidéo doit être relancée.");
+    const journal = alerte.mock.calls.map((c) => String(c[0])).join("\n");
+    expect(journal).toContain("t-secret-42");
+    expect(journal).not.toContain("depot.test");
   });
 
   it("409 sans corps lisible : même refus clair", async () => {
