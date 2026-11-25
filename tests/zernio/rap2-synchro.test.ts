@@ -3,7 +3,8 @@ import { hash } from "@node-rs/argon2";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
 import type { ClientZernio, PostZernio } from "@/fournisseurs/publication/zernio-client";
-import { ErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { ErreurZernio, estCompteSuspendu } from "@/fournisseurs/publication/zernio-erreurs";
+import { creerFauxClientZernio } from "./aides/faux-zernio";
 
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
@@ -37,11 +38,19 @@ const fabrique = (n: number, status: string, extra: Partial<PostZernio> = {}): P
 });
 const lot = (n: number, status: string) => Array.from({ length: n }, (_, i) => fabrique(i, status));
 
+const BILLING = "https://exemple.invalid/facturation?jeton=JETON-FICTIF-123";
+const CORPS_402 = { error: "Account paused: payment required", code: "PAYMENT_REQUIRED", billingUrl: BILLING };
+/** La vraie erreur du vrai client, nourrie d'un faux 402 (aucun réseau). */
+async function erreur402(): Promise<unknown> {
+  const { client } = creerFauxClientZernio(() => ({ statut: 402, corps: CORPS_402 }));
+  return client.listerPosts({}).then(() => new Error("402 attendu"), (e: unknown) => e);
+}
+
 interface Faux {
   client: ClientZernio;
   posts: PostZernio[];
   introuvables: Set<string>;
-  etat: { liste: number; unitaires: number; comptes: number; erreurListe: "debit" | null; ecritures: number };
+  etat: { liste: number; unitaires: number; comptes: number; erreurListe: "debit" | "suspendu" | null; ecritures: number };
 }
 
 /** Client factice : lit (comptes, liste, post seul) ; TOUTE écriture lève et est comptée. */
@@ -58,6 +67,7 @@ function faux(posts: PostZernio[]): Faux {
     },
     async listerPosts(q?: Record<string, string | number | boolean>) {
       f.etat.liste++;
+      if (f.etat.erreurListe === "suspendu") throw await erreur402();
       if (f.etat.erreurListe) throw new ErreurZernio("debit", "plafond de débit");
       const tous = f.posts.filter((p) => (q?.status ? p.status === q.status : true));
       const page = Number(q?.page ?? 1);
@@ -267,5 +277,88 @@ describe("RAP-2 · aucune écriture chez le diffuseur", () => {
     await expect(synchroniserEtatsZernio({ force: true, instant: T0, complet: true })).resolves.toBeDefined();
     expect(f.etat.ecritures).toBe(0);
     expect(await rapatriees()).toHaveLength(7);
+  });
+});
+
+describe("compte du diffuseur en pause (HTTP 402)", () => {
+  const motifs = async () => (await depots().parametres.obtenir(ECART))?.valeur as { motif?: string; verifie: boolean } | undefined;
+  const cloche = () => depots().notifications.lister((n) => n.titre === "Compte du diffuseur en pause");
+
+  it("le client reconnaît le 402 : erreur typée « compte-suspendu », message français simple, ni clé ni adresse de facturation", async () => {
+    const e = await erreur402();
+    expect(estCompteSuspendu(e)).toBe(true);
+    expect(e).toBeInstanceOf(ErreurZernio);
+    expect((e as ErreurZernio).statut).toBe(402);
+    expect((e as ErreurZernio).reessayable).toBe(false);
+    expect((e as ErreurZernio).message).toBe("Le compte du diffuseur est en pause : paiement requis.");
+    const brut = JSON.stringify({ m: (e as ErreurZernio).message, d: (e as ErreurZernio).detailTechnique });
+    expect(brut).not.toContain("JETON-FICTIF-123");
+    expect(brut).not.toContain("facturation");
+  });
+
+  it("un 403 reste un refus d'accès, pas une pause de compte", async () => {
+    const { client } = creerFauxClientZernio(() => ({ statut: 403, corps: { error: "x" } }));
+    const e = await client.listerPosts({}).catch((x: unknown) => x);
+    expect(estCompteSuspendu(e)).toBe(false);
+  });
+
+  it("la synchro garde le motif, crée UNE seule notification (cloche) sur deux passages, n'écrit rien chez le diffuseur", async () => {
+    const f = faux([fabrique(0, "scheduled")]);
+    f.etat.erreurListe = "suspendu";
+    injecterClientZernio(f.client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 20 * 60_000 });
+    expect(await motifs()).toMatchObject({ verifie: false, motif: "compte-suspendu" });
+    const notifs = await cloche();
+    expect(notifs).toHaveLength(1);
+    expect(notifs[0].envoi).toBeUndefined();
+    expect(notifs[0].message).toBe("Le compte du diffuseur est en pause : paiement requis. Rien ne se publie tant que ce n'est pas réglé.");
+    expect(JSON.stringify(notifs[0])).not.toContain("JETON-FICTIF-123");
+    expect(JSON.stringify(await motifs())).not.toContain("JETON-FICTIF-123");
+    expect(f.etat.ecritures).toBe(0);
+    expect(await rapatriees()).toHaveLength(0);
+  });
+
+  it("le motif s'efface à la première lecture réussie ; une nouvelle pause notifie de nouveau", async () => {
+    const f = faux([fabrique(0, "scheduled")]);
+    f.etat.erreurListe = "suspendu";
+    injecterClientZernio(f.client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    f.etat.erreurListe = null;
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 20 * 60_000 });
+    expect((await motifs())!.motif).toBeUndefined();
+    expect((await motifs())!.verifie).toBe(true);
+    f.etat.erreurListe = "suspendu";
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 40 * 60_000 });
+    expect((await motifs())!.motif).toBe("compte-suspendu");
+    expect(await cloche()).toHaveLength(2);
+  });
+
+  it("une panne ordinaire (débit) ne pose aucun motif ni aucune notification", async () => {
+    const f = faux([fabrique(0, "scheduled")]);
+    f.etat.erreurListe = "debit";
+    injecterClientZernio(f.client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect((await motifs())!.motif).toBeUndefined();
+    expect(await cloche()).toHaveLength(0);
+  });
+
+  it("le bandeau dit que le compte est en pause (et plus « n'a pas pu être vérifié »)", async () => {
+    const { etatBandeauEcart } = await import("@/components/calendrier/BandeauEcartDiffuseur");
+    expect(etatBandeauEcart({ luLe: iso(T0), verifie: false, absents: 0, motif: "compte-suspendu" } as never, T0 + 60_000)).toBe("non-verifie");
+    const { texteBandeauEcart } = await import("@/components/calendrier/BandeauEcartDiffuseur");
+    expect(texteBandeauEcart({ luLe: iso(T0), verifie: false, chezDiffuseur: 0, absents: 0, exemples: [], motif: "compte-suspendu" } as never, "non-verifie")).toBe("Compte du diffuseur en pause : paiement requis. Rien ne se publie tant que ce n'est pas réglé.");
+  });
+
+  it("la sonde passe `publication` en alerte tant que le motif est posé, puis revient à ok", async () => {
+    const { sonderPublication } = await import("@/services/sonde-publication");
+    const f = faux([]);
+    f.etat.erreurListe = "suspendu";
+    injecterClientZernio(f.client);
+    await synchroniserEtatsZernio({ force: true, instant: T0 });
+    expect((await sonderPublication({ autorisee: async () => true, maintenant: () => T0 })).etat).toBe("alerte");
+    f.etat.erreurListe = null;
+    await synchroniserEtatsZernio({ force: true, instant: T0 + 20 * 60_000 });
+    expect((await sonderPublication({ autorisee: async () => true, maintenant: () => T0 })).etat).toBe("ok");
   });
 });

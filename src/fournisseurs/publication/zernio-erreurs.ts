@@ -111,6 +111,26 @@ export class ErreurZernio extends Error {
   }
 }
 
+/** Message français simple d'un compte du diffuseur en pause (HTTP 402) : le seul texte que l'écran et les journaux en gardent. */
+export const MESSAGE_COMPTE_SUSPENDU = "Le compte du diffuseur est en pause : paiement requis.";
+
+/**
+ * HTTP 402 `PAYMENT_REQUIRED` : le compte du diffuseur est en pause. Sous-type de `ErreurZernio` (code « refuse » pour les consommateurs existants,
+ * liste fermée des codes inchangée) reconnu par `estCompteSuspendu`. Jamais de `detailTechnique` : le corps du 402 porte l'adresse de facturation,
+ * qui peut contenir un jeton ; elle n'est ni lue, ni rangée, ni journalisée.
+ */
+export class ErreurCompteSuspendu extends ErreurZernio {
+  readonly motif = "compte-suspendu" as const;
+  constructor() {
+    super("refuse", MESSAGE_COMPTE_SUSPENDU, { statut: 402, reessayable: false });
+    this.name = "ErreurCompteSuspendu";
+  }
+}
+
+export function estCompteSuspendu(e: unknown): e is ErreurCompteSuspendu {
+  return e instanceof ErreurCompteSuspendu;
+}
+
 export function estErreurZernio(e: unknown): e is ErreurZernio {
   return e instanceof ErreurZernio;
 }

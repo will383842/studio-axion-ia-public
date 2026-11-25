@@ -13,7 +13,7 @@
  * La clé d'API vit dans une fermeture : jamais dans un champ de l'objet, un journal, une erreur.
  */
 import { createHash } from "node:crypto";
-import { ErreurZernio, estErreurZernio, masquerSecret } from "./zernio-erreurs";
+import { ErreurCompteSuspendu, ErreurZernio, estErreurZernio, masquerSecret } from "./zernio-erreurs";
 import { motifRefusInbox, motifReseau } from "./zernio-motifs-refus";
 import { IDEMPOTENCE_INBOX, SEGMENT_ID, verifierCorpsInbox, type RouteInboxZernio } from "./zernio-inbox-corps";
 import { exigerCorpsSansMotInterdit, motsInterditsDuCorps } from "./zernio-filtre";
@@ -865,6 +865,11 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
         if (c4.privateReplyConsumed === true || d4.privateReplyConsumed === true) {
           throw new ErreurZernio("reponse-privee-consommee", "La réponse privée de ce commentaire a déjà été utilisée : définitif, aucun réessai.", { statut: 400, motifInbox: motif });
         }
+      }
+      // 402 : compte du diffuseur en pause (paiement requis). Définitif tant que ce n'est pas réglé ; le corps (adresse de facturation) n'est jamais gardé.
+      if (rep.status === 402) {
+        journal.alerte("Zernio : compte en pause (paiement requis)", { requete: libelle, statut: 402 });
+        throw new ErreurCompteSuspendu();
       }
       if (rep.status === 401 || rep.status === 403) throw new ErreurZernio("acces", "Zernio refuse l'accès. Vérifiez la clé dans Connexions.", { statut: rep.status, detailTechnique: detailReponse(route, corps), motifInbox: motif });
       if (rep.status === 404) throw new ErreurZernio("introuvable", "Élément introuvable chez Zernio.", { statut: 404, detailTechnique: detailReponse(route, corps), motifInbox: motif });
