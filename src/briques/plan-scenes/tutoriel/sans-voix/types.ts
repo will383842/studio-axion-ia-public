@@ -138,11 +138,16 @@ export interface ElementVisible {
   graisse?: 500 | 600 | 700 | 800;
   couleur?: CouleurCharte;
   alignement?: "gauche" | "centre";
+  /** Texte raccourci faute de place (coupé à une FRONTIÈRE DE MOT, fini par « … ») : `texteSource` = texte complet du plan.
+   *  Le contrôle de composition doit le signaler ; la mise en page change d'abord de disposition avant de couper. */
+  tronque?: true;
+  texteSource?: string;
   /** Texte barré (repère « avant ») : part 0..1 du trait terracotta déjà tracé. */
   barre?: number;
   /** Forme « filet » ou barre squelette qui se trace/pousse : part 0..1. */
   progression?: number;
-  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, historique. */
+  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, historique.
+   *  Pour « horloge », `progression` (0..1) = tour de l'aiguille (0 = midi, 1 = un tour complet) : l'aiguille TOURNE. */
   icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche";
   /** Curseur : point cliquant et anneau de clic (0..1, 0 = pas de clic). */
   pointe?: { x: number; y: number };

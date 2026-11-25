@@ -64,8 +64,12 @@ export const OPACITE_ATTENUEE = 0.55;
 /** Durées (ms), pas de rebond. */
 export const DUREES_MS = {
   entree: 500,
-  transition: 400,
-  glisseTransitionPx: 24,
+  /** Entre deux scènes : la sortante finit de s'effacer (250 ms) AVANT que l'entrante n'affiche du texte (elle entre de +200 à +600 ms). */
+  sortieScene: 250,
+  decalageEntreeScene: 200,
+  entreeScene: 400,
+  transition: 600,
+  glisseTransitionPx: 14,
   /** Montée/descente de la mise en valeur d'un `focus` (pas de zoom : contour terracotta + atténuation du reste). */
   camera: 600,
   tri: 500,
@@ -77,6 +81,9 @@ export const DUREES_MS = {
   zoomMax: 1,
   reculSortie: 0.04,
 } as const;
+
+/** Caméra douce appliquée à TOUT le groupe d'une scène (échelle 1 → 1,035, dérive ≤ 12 px, courbes douces, sans rebond). */
+export const CAMERA = { echelleMax: 0.035, deriveXPx: 6, deriveYPx: 10, periodeMs: 9000 } as const;
 
 /** Couleurs de la charte par NOM. `grisTexte` = gris foncé lisible sur ivoire (contraste ≥ 4,5:1). */
 export const COULEURS_HEX: Record<CouleurCharte, string> = {
