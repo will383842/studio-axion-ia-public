@@ -17,6 +17,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { contientCaractereInterdit, controlerTexteGuide, empreinteGuide, schemaContenuGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { appelerClaudeRedaction, type MotifRefusArgent } from "@/fournisseurs/claude/appel-redaction";
+import type { OrigineLancement } from "./budget-mensuel";
 import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
 
 export const VARIABLE_INTERRUPTEUR_GUIDES_REDACTION = "GUIDES_REDACTION_ENABLED";
@@ -29,6 +30,13 @@ export const PREFIXE_PARAM_REDACTION = "guides.redaction.";
 const LONGUEUR_MAX_MOT = 60;
 const LONGUEUR_MAX_INTERRUPTEUR = 16;
 
+/**
+ * Origine de la rédaction, transmise à la garde d'argent. Seule entrée : l'action Studio d'une personne connectée
+ * (`actions-guides.ts`, `exigerSession()` avant tout) via `guides-fabrique.ts` ; AUCUNE entrée de l'Usine n'appelle cette
+ * rédaction. Un appelant de l'Usine devra passer « usine » lui-même, jamais cette constante.
+ */
+export const ORIGINE_GUIDES: OrigineLancement = "studio";
+
 type Env = Record<string, string | undefined>;
 
 /** Seul le texte exact « true » allume (valeur démesurée, majuscules, espaces : éteint). */
@@ -40,7 +48,7 @@ export function guidesRedactionActif(env: Env = process.env): boolean {
 export interface DepsRedaction {
   env?: Env;
   choisirCle: () => Promise<string | null>;
-  appeler: (requete: RequeteClaude, cle: string) => Promise<{ texte: string; marqueur?: string }>;
+  appeler: (requete: RequeteClaude, cle: string, origine: OrigineLancement) => Promise<{ texte: string; marqueur?: string }>;
   lireParametre: (id: string) => Promise<unknown>;
   ecrireParametre: (id: string, valeur: unknown) => Promise<void>;
   journaliser: (type: string, message: string) => Promise<void>;
@@ -156,6 +164,7 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
         json: true,
       },
       cle,
+      ORIGINE_GUIDES,
     );
     brut = reponse.texte;
     marqueur = reponse.marqueur;
