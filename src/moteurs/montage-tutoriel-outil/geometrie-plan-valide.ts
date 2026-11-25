@@ -15,7 +15,8 @@ import { TOILES } from "@/briques/plan-scenes/toiles";
 import { SOUS_ZONES, ZONES, type Rectangle } from "@/briques/plan-scenes/zones";
 import { pointDuTrajet } from "@/briques/plan-scenes/briques/Curseur";
 import { transformZoom } from "@/briques/plan-scenes/briques/ZoomCamera";
-import { largeurElement, sceneAuTemps, type DonneesCalque } from "@/briques/sous-titres/scene";
+import { escalierAuTemps, largeurElement, sceneAuTemps, type DonneesCalque } from "@/briques/sous-titres/scene";
+import type { RectSousTitre } from "@/briques/plan-scenes/tutoriel/controle-composition";
 
 /** Tailles de police (px, dans la toile de 1000 de large de chaque pièce) relevées dans `briques/*.tsx`. */
 export const TAILLES_TEXTE_PIECES = {
@@ -75,11 +76,12 @@ function legende(p: { texte: string; sousTexte: string; style: "bandeau" | "etiq
   const out: Brut[] = [];
   if (parent) out.push(forme("fond", { x, y, largeur: boxW, hauteur: boxH }, o));
   let cy = y + padY;
-  out.push(texte("texte", { x: x + padX + (dispo - t.largeur) / 2, y: cy, largeur: t.largeur, hauteur: t.hauteur }, taille, p.texte, o, parent));
+  // `Legende.tsx` CENTRE le texte dans la boîte : x = centre de la boîte − largeur / 2 (jamais poussé à droite).
+  out.push(texte("texte", { x: x + (boxW - t.largeur) / 2, y: cy, largeur: t.largeur, hauteur: t.hauteur }, taille, p.texte, o, parent));
   cy += t.hauteur;
   if (s) {
     cy += 10;
-    out.push(texte("sous-texte", { x: x + padX + (dispo - s.largeur) / 2, y: cy, largeur: s.largeur, hauteur: s.hauteur }, tailleSous, p.sousTexte, o, parent));
+    out.push(texte("sous-texte", { x: x + (boxW - s.largeur) / 2, y: cy, largeur: s.largeur, hauteur: s.hauteur }, tailleSous, p.sousTexte, o, parent));
     cy += s.hauteur;
   }
   if (filet) out.push(forme("filet", { x: 500 - 80, y: cy + 16, largeur: 160, hauteur: 6 }, o, parent));
@@ -236,8 +238,13 @@ function zoomSeul(p: { cible: { x: number; y: number }; facteur: number; moment:
     const y0 = Math.max(r.y, cadre.y);
     const x1 = Math.min(r.x + r.largeur, cadre.largeur);
     const y1 = Math.min(r.y + r.hauteur, cadre.hauteur);
-    if (x1 <= x0 || y1 <= y0) continue;
-    sortie.push({ ...b, rect: { x: x0, y: y0, largeur: x1 - x0, hauteur: y1 - y0 }, ...(b.taillePx ? { taillePx: b.taillePx * s } : {}) });
+    // Rogner à la toile cacherait une vraie coupe : un TEXTE zoomé qui déborde de la boîte (même en partie, même en
+    // entier) est signalé `coupe` (HORS_CADRE). Les formes (bords de fenêtre) qui débordent sont le zoom lui-même.
+    const dehors = x1 <= x0 || y1 <= y0;
+    const coupe = b.genre === "texte" && (dehors || x0 > r.x + 0.5 || y0 > r.y + 0.5 || x1 < r.x + r.largeur - 0.5 || y1 < r.y + r.hauteur - 0.5);
+    if (dehors && !coupe) continue;
+    const rect = dehors ? r : { x: x0, y: y0, largeur: x1 - x0, hauteur: y1 - y0 };
+    sortie.push({ ...b, rect, ...(b.taillePx ? { taillePx: b.taillePx * s } : {}), ...(coupe ? { coupe: true } : {}) });
   }
   return sortie;
 }
@@ -276,7 +283,8 @@ function geometriePiece(piece: string, parametres: unknown, c: ContexteP): Brut[
       return zoomSeul(p as never, c);
     default: {
       const t = (TOILES as Record<string, { largeur: number; hauteur: number }>)[piece] ?? { largeur: 1000, hauteur: 700 };
-      return [forme("contenu", { x: 20, y: 20, largeur: t.largeur - 40, hauteur: t.hauteur - 40 }, apparition(c.image, 0, 10))];
+      // Forme INVENTÉE (pièce non modélisée) : jamais de fausse alerte de marge (`bordTolere`).
+      return [{ ...forme("contenu", { x: 20, y: 20, largeur: t.largeur - 40, hauteur: t.hauteur - 40 }, apparition(c.image, 0, 10)), bordTolere: true }];
     }
   }
 }
@@ -319,6 +327,9 @@ function elementsDeLaScene(scene: SceneValide, plan: PlanValide, tMs: number): E
   const boite = enPx(ZONES[scene.position], largeur, hauteur);
   const contexte: ContexteP = { image, fps, dureeImages };
   let els: ElementVisible[] = [];
+  // Scène « plein » : la toile (proportions gardées) est entièrement dans l'image ; son panneau à 20 px de la toile (≈ 21,6 px)
+  // n'est pas une sortie du cadre (`bordTolere`). Posé AVANT le zoom : un zoom qui sort de l'image reste signalé.
+  const sansMarge = (l: ElementVisible[]): ElementVisible[] => (scene.position === "plein" ? l.map((e) => ({ ...e, bordTolere: true })) : l);
   if (scene.niveau === 2 && scene.calques?.length) {
     const zoom = scene.calques.find((c) => c.piece === "zoom-camera");
     scene.calques.forEach((cq, i) => {
@@ -329,6 +340,7 @@ function elementsDeLaScene(scene: SceneValide, plan: PlanValide, tMs: number): E
       const sb: RectPx = { x: boite.x + b.x, y: boite.y + b.y, largeur: b.largeur, hauteur: b.hauteur };
       els.push(...poserPiece(cq.piece, cq.parametres, sb, { image: image - depart, fps, dureeImages: Math.max(1, dureeImages - depart) }, `${scene.id}:c${i}:${cq.piece}:`));
     });
+    els = sansMarge(els);
     if (zoom) {
       const z = zoom.parametres as { cible: { x: number; y: number }; facteur: number; moment: number };
       const s = facteurZoom(z, image - msEnImages(zoom.debutMs, fps), dureeImages);
@@ -336,7 +348,7 @@ function elementsDeLaScene(scene: SceneValide, plan: PlanValide, tMs: number): E
       els = els.map((e) => ({ ...e, rect: zoomerRect(e.rect, o, s), ...(e.taillePx !== undefined ? { taillePx: e.taillePx * s } : {}), ...(e.pointe ? { pointe: { x: o.x + (e.pointe.x - o.x) * s, y: o.y + (e.pointe.y - o.y) * s } } : {}) }));
     }
   } else {
-    els.push(...poserPiece(scene.piece, scene.parametres, boite, contexte, `${scene.id}:${scene.piece}:`));
+    els.push(...sansMarge(poserPiece(scene.piece, scene.parametres, boite, contexte, `${scene.id}:${scene.piece}:`)));
   }
   // `rendu.tsx:97` : étiquette `texte` hors légende / haut / plein, dans ZONES.haut.
   if (scene.texte && scene.piece !== "legende" && scene.position !== "haut" && scene.position !== "plein") {
@@ -365,20 +377,47 @@ export const formatDuPlan = (plan: PlanValide): FormatImage => plan.format;
 
 /**
  * Rectangles des lignes de sous-titres à l'instant (ms), depuis les données du calque : largeur mesurée par
- * `largeurElement` × échelle, centre `yPx` (+ décalage d'entrée), hauteur 1,1 × taille (+ marges du bandeau, + débord
- * de l'inclinaison). Par excès : le contour et l'ombre ne sont pas comptés comme vides.
+ * `largeurElement` × échelle, centre `yPx` (+ décalage d'entrée), hauteur 1,1 × taille (+ marges du bandeau et de la
+ * pastille, + débord de l'inclinaison, + loupe des mots, + boîte arrondie). Chaque rectangle porte la taille de police
+ * effective (`taillePx`). `escalier` présent : un rectangle large couvre sa zone sûre. Par excès : le contour et l'ombre
+ * ne sont pas comptés comme vides.
  */
-export function rectsSousTitresA(donnees: DonneesCalque): (tMs: number) => RectPx[] {
+export function rectsSousTitresA(donnees: DonneesCalque): (tMs: number) => RectSousTitre[] {
   return (tMs) => {
+    const sortie: RectSousTitre[] = [];
     const el = sceneAuTemps(donnees, tMs / 1000);
-    if (!el || el.opacite < 0.05 || el.mots.length === 0) return [];
-    const largeur = largeurElement(el) * el.echelle;
-    if (!(largeur > 0)) return [];
-    const margeY = el.fond ? 2 * el.fond.margeYPx : 0;
-    const rot = Math.abs(Math.sin((el.rotationDeg * Math.PI) / 180)) * largeur;
-    const hauteur = 1.1 * el.taillePx * el.echelle + margeY + rot;
-    const cx = el.colonne ? el.colonne.gauchePx + el.colonne.largeurPx / 2 : donnees.largeur / 2;
-    const cy = el.yPx + el.decalageYPx;
-    return [{ x: cx - largeur / 2, y: cy - hauteur / 2, largeur, hauteur }];
+    if (el && el.opacite >= 0.05 && el.mots.length > 0) {
+      const base = largeurElement(el) * el.echelle;
+      if (base > 0) {
+        // Loupe des mots (style « pastille ») : le mot dit grossit et monte ; par excès, toute la ligne grossit.
+        const loupe = Math.max(1, ...el.mots.map((m) => m.echelle ?? 1));
+        const montee = Math.max(0, ...el.mots.map((m) => Math.abs(m.monteePx ?? 0)));
+        // Boîte arrondie (minimal) : sa marge en em de la taille, de chaque côté.
+        const margeBoite = donnees.boite ? donnees.boite.margeEm * el.taillePx : 0;
+        const largeur = base * loupe + 2 * margeBoite;
+        const margeY = (el.fond ? 2 * el.fond.margeYPx : 0) + (el.pastille ? 2 * el.pastille.margeYPx : 0) + 2 * margeBoite;
+        const rot = Math.abs(Math.sin((el.rotationDeg * Math.PI) / 180)) * largeur;
+        const hauteur = 1.1 * el.taillePx * el.echelle * loupe + margeY + 2 * montee + rot;
+        const cx = el.colonne ? el.colonne.gauchePx + el.colonne.largeurPx / 2 : donnees.largeur / 2;
+        const cy = el.yPx + el.decalageYPx;
+        sortie.push({ x: cx - largeur / 2, y: cy - hauteur / 2, largeur, hauteur, taillePx: el.taillePx * el.echelle });
+      }
+    }
+    // Escalier : la zone sûre entière est occupée par les lignes (par excès : un seul grand rectangle).
+    if (donnees.escalier && escalierAuTemps(donnees, tMs / 1000)) {
+      const z = donnees.escalier.zone;
+      sortie.push({ x: z.xPx, y: z.yPx, largeur: z.largeurPx, hauteur: z.hauteurPx, taillePx: donnees.escalier.taillePx });
+    }
+    return sortie;
   };
 }
+
+/** Couleurs des sous-titres à contrôler (hex) : celles du calque ; l'accent manquant vient de l'habillage du plan s'il existe. */
+export function couleursSousTitresDe(donnees: DonneesCalque, plan?: PlanValide): { texte?: string; accent?: string; contour?: string } {
+  const c = donnees.couleurs as Partial<DonneesCalque["couleurs"]> | undefined;
+  const habillage = plan?.habillage?.accent === "orange" ? "#D97757" : plan?.habillage?.accent === "terracotta" ? "#B23F16" : undefined;
+  return { ...(c?.texte ? { texte: c.texte } : {}), ...((c?.accent ?? habillage) ? { accent: c?.accent ?? habillage } : {}), ...(c?.contour ? { contour: c.contour } : {}) };
+}
+
+/** Fond de la vidéo pour la règle de l'orange. */
+export const fondDuPlan = (plan: PlanValide): "ivoire" | "noir" => (plan.habillage.fond === "noir" ? "noir" : "ivoire");

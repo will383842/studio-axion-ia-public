@@ -174,14 +174,14 @@ export function noteSansGrille(e: { bloquants: number; aCorriger: number; attent
   return Math.max(0, Math.min(100, 100 - 25 * e.bloquants - 8 * e.aCorriger - 10 * e.attention));
 }
 
-/** QUAL-4 : le contrôle de composition en alertes lisibles (absent : « non vérifiée », jamais réussi). */
+/** QUAL-4 : le contrôle de composition en alertes lisibles (absent : « non vérifiée », jamais réussi ; même règle que la grille, où l'absence vaut « non fait » et la note ne peut pas être de 100). */
 function alertesComposition(compo: ResultatControleComposition | undefined): AlerteQualite[] {
   if (!compo) return [{ code: "defaut-visuel", gravite: "info", message: "Composition de l'image : non vérifiée (la note ne peut pas être de 100)" }];
   return compo.defauts.map((d) => ({ code: "defaut-visuel" as const, gravite: d.gravite === "bloquant" ? ("bloquant" as const) : ("attention" as const), message: `Composition · ${d.message}` }));
 }
 
 /** Réserves (« À vérifier · … ») et remarques du plan, en alertes de la fiche vidéo. */
-function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
+export function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
   const reserves = etat.reserves.map((message) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message }));
   const script = (etat.script?.remarques ?? []).map((m) => ({ code: "duree" as const, gravite: "info" as const, message: `Script : ${m}` }));
   // QUAL-4 : une scène retirée ou déplacée, un texte trop long ou un plan trop dense changent ce que voit le spectateur : « attention », plus « info ».
