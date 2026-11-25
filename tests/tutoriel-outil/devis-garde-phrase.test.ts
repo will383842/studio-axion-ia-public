@@ -125,6 +125,22 @@ describe("PHRASE-4 : garde du devis, vidéo partie d'une phrase", () => {
     expect(pause(t2)).toBe("TO_DEVIS_ATTEINT");
     expect(eq.appels).toHaveLength(0);
   });
+  it("cas prudent : phrase fermée (faux ou port absent), l'analyste reste réservé, donc arrêt", async () => {
+    for (const phraseOuverte of [false, undefined]) {
+      const j = journalVide();
+      const eq = portPhrase();
+      const port = (phraseOuverte === undefined ? Object.fromEntries(Object.entries(eq.port).filter(([k]) => k !== "phraseOuverte")) : { ...eq.port, phraseOuverte }) as unknown as PortEquipe;
+      const c = avecAccord(commandePhrase(), devisDe(commandePhrase()).empreinte);
+      const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, port) });
+      const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+      const equipe = await equipePieceGardee();
+      // Cahier établi, pièce gardée, maquettiste appelé 3 fois : analyste réservé 3 + 4 (analyste 1, stratège 1, scénariste 2) + plan 2 = 9 > 8 : arrêt.
+      // Si l'analyste était écarté à tort : 3 + 3 + 2 = 8 ≤ 8, la vidéo continuerait.
+      const t = await mener(moteur, () => c, avecEtat(t0, equipe, { maquettiste: 3 }));
+      expect(pause(t)).toBe("TO_DEVIS_ATTEINT");
+      expect(eq.appels).toHaveLength(0);
+    }
+  });
 });
 
 describe("PHRASE-4 : le dossier (.zip) ne change pas", () => {
@@ -136,8 +152,9 @@ describe("PHRASE-4 : le dossier (.zip) ne change pas", () => {
     const c = avecAccord(c0, devis.empreinte);
     const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, eq.port) });
     const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
-    // Devis 8 ; maquettiste appelé 3 fois (état forcé, aucun cahier) : 3 + 5 restants (chef, analyste, stratège, scénariste ×2) + plan 2 = 10 > 8 : arrêt.
-    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...(t0.parametres!.tutoriel as object), appelsClaude: { plan: 0, roles: { maquettiste: 3 } } } } };
+    // Devis 8 ; maquettiste appelé 2 fois (état forcé, aucun cahier) : 2 + 5 restants (chef, analyste, stratège, scénariste ×2) + plan 2 = 9 > 8 : arrêt.
+    // Si la garde retirait le chef OU l'analyste à tort : 2 + 4 + 2 = 8 ≤ 8, la vidéo continuerait : le test le verrait.
+    const depart = { ...t0, parametres: { ...t0.parametres, tutoriel: { ...(t0.parametres!.tutoriel as object), appelsClaude: { plan: 0, roles: { maquettiste: 2 } } } } };
     const t = await mener(moteur, () => c, depart);
     expect(pause(t)).toBe("TO_DEVIS_ATTEINT");
     expect(eq.appels).toHaveLength(0);
@@ -151,9 +168,10 @@ describe("PHRASE-4 : le dossier (.zip) ne change pas", () => {
     const c = avecAccord(c0, devis.empreinte);
     const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, eq.port) });
     const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
-    // Chef 1 + maquettiste 3 consommés = 4 ; restants : analyste 1 + stratège 1 + scénariste 2 = 4 ; plan 2 : 4+4+2 = 10 > 8 (le dossier garde l'analyste).
+    // Chef 1 + maquettiste 2 consommés = 3 ; restants : analyste 1 + stratège 1 + scénariste 2 = 4 ; plan 2 : 3+4+2 = 9 > 8 (le dossier garde l'analyste).
+    // Si la garde retirait l'analyste à tort : 3 + 3 + 2 = 8 ≤ 8, la vidéo continuerait : le test le verrait.
     const equipe = await equipePieceGardee();
-    const depart = avecEtat(t0, { demande: equipe.demande, payes: {}, ...(equipe.cahier ? { cahier: equipe.cahier } : {}) }, { "chef-de-projet": 1, maquettiste: 3 });
+    const depart = avecEtat(t0, { demande: equipe.demande, payes: {}, ...(equipe.cahier ? { cahier: equipe.cahier } : {}) }, { "chef-de-projet": 1, maquettiste: 2 });
     const t = await mener(moteur, () => c, depart);
     expect(pause(t)).toBe("TO_DEVIS_ATTEINT");
     expect(eq.appels).toHaveLength(0);
