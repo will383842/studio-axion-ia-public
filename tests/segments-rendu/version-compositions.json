@@ -193,6 +193,7 @@
     "commune/motion/sur-mesure/vendeur/SplitText.min.js": "df642b24bb936643962a7148a7a12cf1d1a54ecf05a8463d4021582e9ae9efb1",
     "commune/motion/sur-mesure/vendeur/gsap.min.js": "c89c3f885df82df737427044b9c593644ba3a8579ed2c869e0fd468e103f44f8",
     "commune/motion/sur-mesure/vendeur/three.min.js": "c0c1515e6345cb42171713e60f44f4806e54218abebcf19e9eec62a0a281ebb6",
+    "commune/police-marque.ts": "b6a652c7b8520ee0a929ed09a30f932c6feeb61d59890b980d0262c01ef2b3f6",
     "commune/polices-tableau.ts": "42808ef6c8cdf4454d53d3582dd62b25d7d43670d87df41c2bd95c962387e20f",
     "commune/polices.ts": "3d2833d00194010f2918083fe0b07efc12d8029c3d798cae3cb280b4f4371720",
     "commune/polices/Anton-Regular.ttf": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
