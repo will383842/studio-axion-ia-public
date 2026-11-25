@@ -541,7 +541,7 @@ const RESERVE_FILM_SANS_SCENARIO = "À vérifier · Film de l'outil : le dossier
  */
 async function lireFilmDossier(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<EtatTutoriel | PasTutoriel> {
   const port = outils.filmDossier;
-  if (!port || etat.equipe || etat.filmDossierLu || !etat.audio || lireEntreesTutoriel(commande.entrees).navigationFilmee) return etat;
+  if (!port || !estSansVoix(commande.entrees) || etat.equipe || etat.filmDossierLu || !etat.audio || lireEntreesTutoriel(commande.entrees).navigationFilmee) return etat;
   const avec = (reserve: string): EtatTutoriel => ({ ...etat, filmDossierLu: true, reserves: etat.reserves.includes(reserve) ? etat.reserves : [...etat.reserves, reserve] });
   if (!port.captureAuto) return avec(RESERVE_FILM_CAPTURE_ETEINTE);
   let brut: unknown = null;

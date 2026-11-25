@@ -73,12 +73,12 @@ const LE = "2026-11-21T08:00:00.000Z";
 let boite: string;
 const puts = new Map<string, Buffer>();
 
-const commande = (script: string, ratios: ("4:5" | "9:16" | "16:9")[] = ["4:5"]): CommandeFabrication =>
+const commande = (script: string, ratios: ("4:5" | "9:16" | "16:9")[] = ["4:5"], avecVoix = false): CommandeFabrication =>
   commandeTutoriel({
     ratios,
-    distribution: [],
+    ...(avecVoix ? {} : { distribution: [] }),
     script: { blocs: [], texteComplet: script },
-    entrees: { tutorielOutil: { scriptColle: true, depot: { mode: "dossier", fichierId: "f-dossier1", attestationImages: true }, fin: "aucune", modeVoix: "sans-voix" } },
+    entrees: { tutorielOutil: { scriptColle: true, depot: { mode: "dossier", fichierId: "f-dossier1", attestationImages: true }, fin: "aucune", ...(avecVoix ? {} : { modeVoix: "sans-voix" }) } },
   } as never);
 
 const stockage = {
@@ -96,12 +96,12 @@ const stockage = {
 type Port = NonNullable<OutilsTutoriel["filmDossier"]>;
 
 /** Mène le moteur (SANS équipe, SANS voix) jusqu'à la pause du film (ou jusqu'au bout), puis installe vidéo, version et travail dans les dépôts. */
-async function lancer(script: string, filmDossier?: Port, options: { style?: Record<string, unknown>; ratios?: ("4:5" | "9:16" | "16:9")[]; commande?: CommandeFabrication } = {}) {
+async function lancer(script: string, filmDossier?: Port, options: { avecVoix?: boolean; style?: Record<string, unknown>; ratios?: ("4:5" | "9:16" | "16:9")[]; commande?: CommandeFabrication } = {}) {
   const j: Journal = { voix: [], claude: [], rendus: [] };
   const o = { ...outilsDoubles(j), ...(filmDossier ? { filmDossier } : {}), ...(options.style ? { sousTitres: { style: options.style } } : {}) } as OutilsTutoriel;
   expect(o.equipe).toBeUndefined();
   const moteur = creerMoteurTutorielOutil({ outils: une(o) });
-  const c = options.commande ?? commande(script, options.ratios);
+  const c = options.commande ?? commande(script, options.ratios, options.avecVoix);
   let t: Travail = await moteur.lancer(c, { travailId: "t-to", versionId: "ver-1", titre: "Tuto", maintenant: T0 });
   const mener = async (version: CommandeFabrication, depart: number) => {
     for (let i = depart; i < depart + 400; i++) {
@@ -320,6 +320,22 @@ describe("film d'un dossier sans équipe", () => {
     const rendus = rendusComposition(m.j);
     expect(rendus.length).toBeGreaterThan(0);
     for (const d of rendus) expect((proprietes(d).plan as { scenes: unknown[] }).scenes).toEqual([]);
+  });
+
+  it("vidéo AVEC voix partie d'un dossier, équipe éteinte, port présent et captureAuto allumée : le lot n'agit pas (aucune pause film, zip jamais lu, aucune réserve, rendu identique)", async () => {
+    const lireScenario = vi.fn(async () => SCENARIO as unknown);
+    const avec = await lancer(SCRIPT_STOCKS, { captureAuto: true, lireScenario }, { avecVoix: true });
+    expect(lireScenario).not.toHaveBeenCalled();
+    expect(avec.t().parametres?.pause).toBeUndefined();
+    expect(avec.t().statut).toBe("termine");
+    expect(avec.etat().scenarioDossier).toBeUndefined();
+    expect(avec.etat().filmDossierLu).toBeUndefined();
+    expect(avec.etat().reserves.filter((r) => /Film de l'outil/.test(r))).toEqual([]);
+    reinitialiserDepots();
+    const sans = await lancer(SCRIPT_STOCKS, undefined, { avecVoix: true });
+    expect(avec.etat().reserves).toEqual(sans.etat().reserves);
+    expect(avec.j.voix.length).toBeGreaterThan(0);
+    expect(JSON.parse(JSON.stringify(rendusComposition(avec.j).map((d) => d.parametres)))).toEqual(JSON.parse(JSON.stringify(rendusComposition(sans.j).map((d) => d.parametres))));
   });
 
   it("sans le port filmDossier : comportement d'avant, aucune réserve neuve", async () => {

@@ -133,7 +133,7 @@ brancherServicesTutoriel({
     // T-EXT-55 : l'équipe de rôles (T-EXT-48b : l'appel du stratège reçoit le relevé si `tutoriel.performance` vaut `true`). Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
     const equipe = (await equipeTutorielActive()) ? equipeAvecReleve(await portsEquipeAvecPhrase(c, c.videoId)) : undefined;
     // Film d'un dossier .zip SANS équipe (la chaîne ignore ce port si l'équipe a travaillé) : le scénario du dossier tient lieu de parcours. Le zip n'est lu que si la capture automatique est allumée.
-    const filmDossier = lireEntreesTutoriel(c.entrees).depot?.mode === "dossier" ? await filmDuDossier(c) : undefined;
+    const filmDossier = sansVoix && lireEntreesTutoriel(c.entrees).depot?.mode === "dossier" ? await filmDuDossier(c) : undefined;
     return {
       ...(filmDossier ? { filmDossier } : {}),
       ...(devis

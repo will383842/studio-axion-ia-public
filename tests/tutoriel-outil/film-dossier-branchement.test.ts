@@ -77,6 +77,13 @@ describe("branchement du film d'un dossier", () => {
     expect(await o.filmDossier!.lireScenario()).toBeNull();
   });
 
+  it("vidéo AVEC voix partie d'un dossier : aucun port filmDossier, même capture allumée", async () => {
+    reglages.set("tutoriel.captureAuto", true);
+    const avecVoix = commandeTutoriel({ entrees: { tutorielOutil: { scriptColle: true, depot: DOSSIER } } } as never);
+    expect((await outils(avecVoix)).filmDossier).toBeUndefined();
+    expect(lectures.dossier).toBe(0);
+  });
+
   it("vidéo qui ne part pas d'un dossier : aucun port filmDossier, même capture allumée", async () => {
     reglages.set("tutoriel.captureAuto", true);
     expect((await outils(commande({ mode: "phrase", phrase: "Un tutoriel" }))).filmDossier).toBeUndefined();
