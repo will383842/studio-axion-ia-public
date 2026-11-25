@@ -171,7 +171,8 @@ describe("S-15-b1 : appliquer les opérations de plaquettes", () => {
       }
     };
     marche(join(racine, "src"));
-    expect(trouves.filter((t) => t !== "src/services/retouche-chat/plaquettes-fa.ts")).toEqual([]);
+    // S-15-b3-v21s (25/11, ÉLARGISSEMENT, seconde lecture du pilote) : + le moteur face caméra animée (import dynamique), nom exact.
+    expect(trouves.filter((t) => !["src/services/retouche-chat/plaquettes-fa.ts", "src/moteurs/montage-facecam-animee/index.ts"].includes(t))).toEqual([]);
     const texte = readFileSync(join(racine, "src/domaine/facecam-animee/appliquer-plaquettes.ts"), "utf8");
     const imports = [...texte.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]);
     expect(imports.sort()).toEqual(["./noms-plaquettes", "./operations-plaquettes", "./plan", "zod"]);

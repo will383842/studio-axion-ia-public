@@ -13,6 +13,7 @@ export const DOMAINE: Domaine = {
     { cle: "retoucheChat.facecamAnimeeLecteur", etat: "eteint", appel: "src/services/retouche-chat/lecteur-studio.ts", declare: "src/services/retouche-chat/lecteur-generateurs.ts", motif: /lireParametre<unknown>\(cle, false\)\) === true/ },
     { cle: "retoucheChat.demoFacecamLecteur", etat: "eteint", appel: "src/services/retouche-chat/lecteur-studio.ts", declare: "src/services/retouche-chat/lecteur-generateurs.ts", motif: /lireParametre<unknown>\(cle, false\)\) === true/ },
     { cle: "retoucheChat.facecamAnimeeExtraits", etat: "eteint", appel: "src/services/facecam-animee-retouche.ts", motif: /lire\(PARAM_RETOUCHE_EXTRAITS_FA, false\)\)\.catch\(\(\) => false\)\) === true/ }, // R4-03-c2-v20j
+    { cle: "retoucheChat.facecamAnimeePlaquettes", etat: "eteint", appel: "src/services/facecam-animee-retouche.ts", motif: /lire\(PARAM_PLAQUETTES_FA, false\)\)\.catch\(\(\) => false\)\) === true/ }, // S-15-b3-v21s
     { cle: "retoucheChat.tableauLecteur", etat: "eteint", appel: "src/services/retouche-chat/lecteur-studio.ts", motif: /lireParametre<unknown>\(cle, false\)\) === true/ },
   ],
   gabarits: [],
@@ -32,6 +33,6 @@ export const DOMAINE: Domaine = {
     "services/retouche-chat/lecteur-studio.ts:cle": { couvre: "retoucheChat.facecamAnimeeLecteur" }, // les 3 clés de lecteur (CLES_REGLAGE_LECTEUR + tableau)
   },
   env: [],
-  nombre: { litterales: 1, constantes: 6, gabarits: 0, planScenes: 0, retouche: 6, exclusCles: 0, parExpression: 3, env: 0 },
+  nombre: { litterales: 1, constantes: 7, gabarits: 0, planScenes: 0, retouche: 6, exclusCles: 0, parExpression: 3, env: 0 },
   retirees: [],
 };

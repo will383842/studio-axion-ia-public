@@ -73,6 +73,9 @@ export function brancherServicesFacecamAnimee(s: { outils?: FabriqueOutilsFaceca
 /** G12-09b-a : retouche gratuite v4 (re-rendu du projet gardé). Dernière valeur connue, écrite par le service (G12-09b-b) ; seul `true` exact allume. */
 export const CLE_RETOUCHE_GRATUITE_FA = Symbol.for("studio-axion-ia.facecam-animee-retouche-gratuite");
 const retoucheGratuiteConnue = (): boolean => (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_GRATUITE_FA] === true;
+/** S-15-b3 : demandes du chat sur les plaquettes (réglage `retoucheChat.facecamAnimeePlaquettes`, écrit par le service) ; seul `true` exact allume. */
+export const CLE_PLAQUETTES_FA = Symbol.for("studio-axion-ia.facecam-animee-plaquettes");
+const plaquettesConnues = (): boolean => (globalThis as Record<symbol, unknown>)[CLE_PLAQUETTES_FA] === true;
 
 export const PHRASE_FORMAT_MASQUE_FA = "Le format « Face caméra animée » est en essai : un essai réel demande l'accord de Will.";
 const NON_RELIE_FA = "« Face caméra animée » n'est pas relié (stockage, transcription ou serveur de rendu). Vérifiez Réglages > Connexions, puis réessayez.";
@@ -86,6 +89,7 @@ export interface DependancesMoteurFacecamAnimee {
   statutFormat?: "actif" | "bientot" | "masque";
   /** Relecture Claude des images de contrôle (lot H). Jamais appelée quand le plafond du mois est atteint. */
   relire?: (commande: CommandeFabrication) => Promise<void>;
+  plaquettes?: () => boolean; // S-15-b3 (tests) : réglage « plaquettes par le chat » ; absent : la dernière valeur connue
   retoucheExtraits?: () => boolean; // R4-03-c2 (tests) : réglage « changer un extrait » ; absent : la dernière valeur connue
   extraitRetouche?: PortExtraitRetoucheFA; // R4-03-c2 (tests) : port du clip ; absent : celui du service
   /**
@@ -514,10 +518,16 @@ export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFa
         const r = await etatRetoucheExtraitV4({ entrees: commande.entrees, parentVersionId: parent?.versionId, actif: (dependances.retoucheExtraits ?? (() => (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_EXTRAITS_FA] === true))() === true && !!port }, { lire: lireDemandeExtraitV4, projet: () => lireProjetGardeV4(parent?.projetMontage), clip: (p, d) => port!(commande, p, d) as never, appliquer: (p, d, c) => appliquerDemandeExtraitV4(p, d, c as never), reprendre: (p) => etatRepriseAuRenduV4(p, { videoId: commande.videoId, versionId: contexte.versionId, priseCle: p.priseCle, titre: contexte.titre, ...(entrees.texteValide ? { texteValide: entrees.texteValide } : {}) }), refusProjet: () => ({ code: CODE_RETOUCHE_GRATUITE_IMPOSSIBLE, message: refusRetoucheGratuiteV4(parent?.projetMontage)?.message ?? "Les coupes de cette version n'ont pas été retrouvées à l'identique : déposez la prise à nouveau pour une nouvelle mise en scène." }) });
         if (r && "refus" in r) return echec(r.refus.code, r.refus.message);
         if (r) return travailV4(etapesV4(commande), ctx, commande, r.etat);
-        if (operations?.length) return echec("RETOUCHE_NON_PRISE_EN_CHARGE", "Les changements de la mise en scène par la conversation viendront plus tard : seule la version gardée peut être refaite.");
+        // S-15-b3 : seules des opérations TOUTES « plaquettesV4 », réglage allumé, passent ; sinon le refus d'aujourd'hui, mot pour mot.
+        const plaquettesV4 = !!operations?.length && operations.every((o) => o.type === "plaquettesV4") && (dependances.plaquettes ?? plaquettesConnues)() === true;
+        if (operations?.length && !plaquettesV4) return echec("RETOUCHE_NON_PRISE_EN_CHARGE", "Les changements de la mise en scène par la conversation viendront plus tard : seule la version gardée peut être refaite.");
+        const pq = plaquettesV4 ? await import("@/domaine/facecam-animee/appliquer-plaquettes") : null;
+        const lues = pq ? pq.lireOperationsPlaquettes((operations ?? []).flatMap((o) => { const x = (o as { operations?: unknown }).operations; return Array.isArray(x) ? x : [x]; })) : null;
         // Imports dynamiques (remontés plus haut, R4-03-c2) : `chaine-v4.ts` importe `./index` (cycle sinon), comme dans `lancer`.
         const projet = lireProjetGardeV4(parent?.projetMontage);
-        const etat = projet && etatRepriseAuRenduV4(projet, { videoId: commande.videoId, versionId: contexte.versionId, priseCle: projet.priseCle, titre: contexte.titre, ...(entrees.texteValide ? { texteValide: entrees.texteValide } : {}) });
+        const applique = pq && lues && projet ? pq.appliquerOperationsPlaquettes(projet.plan, lues.operations) : null;
+        if (applique && applique.appliquees === 0) return echec("RETOUCHE_PLAQUETTES_REFUSEE", [...(lues?.remarques ?? []), ...applique.refus].join(" ") || "Aucun changement des plaquettes n'a pu être fait.");
+        const etat = projet && etatRepriseAuRenduV4(applique ? { ...projet, plan: applique.plan } : projet, { videoId: commande.videoId, versionId: contexte.versionId, priseCle: projet.priseCle, titre: contexte.titre, ...(entrees.texteValide ? { texteValide: entrees.texteValide } : {}) });
         if (!etat) return echec(CODE_RETOUCHE_GRATUITE_IMPOSSIBLE, refusRetoucheGratuiteV4(parent?.projetMontage)?.message ?? "Les coupes de cette version n'ont pas été retrouvées à l'identique : déposez la prise à nouveau pour une nouvelle mise en scène.");
         return travailV4(etapesV4(commande), ctx, commande, etat);
       }

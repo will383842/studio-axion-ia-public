@@ -124,6 +124,8 @@ export type OperationMontage =
   | { type: "ajusterRythme"; sens: "plus-rapide" | "plus-lent"; depuisSec?: number; jusquaSec?: number }
   // D4-F2 : plan de scènes retouché par le chat (démo facecam) ; ignoré par les autres moteurs.
   | { type: "planScenes"; plan: unknown }
+  // S-15-b3 : opérations du chat sur les plaquettes v4 (face caméra animée) ; ignorée par les autres moteurs.
+  | { type: "plaquettesV4"; operations: unknown }
   // T-EXT-53c : réglages du film de navigation (crans par étape), relus par le moteur du tutoriel ; ignorée par les autres moteurs.
   | { type: "reglagesFilm"; reglages: unknown };
 
