@@ -138,10 +138,12 @@ brancherServicesTutoriel({
       sousTitres: { ...(style ? { style } : {}), ...(c.sousTitres?.base ? { base: c.sousTitres.base } : {}), ...(c.sousTitres?.intensite ? { intensite: c.sousTitres.intensite } : {}) },
       ...(voixReelle ? { voix: {
         ...voixReelle,
-        avantLecture: async () => {
-          const caracteres = (c.script.texteComplet ?? "").length;
-          const total = centimes(Math.ceil(caracteres * TARIF_VOIX_CENTIMES_PAR_CARACTERE));
-          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: voixReelle.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId, ...cleDepenseUsine(c.origine, travailId) });
+        avantLecture: async (l: { caracteres: number; lecturesMax: number }) => {
+          // FIX-VOIX-TUTO : le texte RÉELLEMENT lu. Studio : la réservation unique du travail couvre toutes les lectures permises (comme le devis) ; Usine : clé neuve à chaque lecture (déjà cumulée).
+          const caracteres = l.caracteres;
+          const lectures = (await import("./autonomie-usine")).normaliserOrigine(c.origine) === "usine" ? 1 : l.lecturesMax;
+          const total = centimes(Math.ceil(caracteres * lectures * TARIF_VOIX_CENTIMES_PAR_CARACTERE));
+          await verifierEtReserverSelonOrigine(c.origine, { lignes: [{ etape: "voix", fournisseur: voixReelle.fournisseurVoix ?? "heygen", unite: "caractere", quantite: caracteres * lectures, prixUnitaire: centimes(TARIF_VOIX_CENTIMES_PAR_CARACTERE), total, nature: "estime" }], total }, total.centimes, "Cette vidéo", { videoId: c.videoId, travailId, ...cleDepenseUsine(c.origine, travailId) });
         },
       } } : {}),
       claude: (await claudeTutorielActif())

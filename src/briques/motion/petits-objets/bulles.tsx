@@ -4,7 +4,7 @@
  * Imports relatifs seulement (dossier lu par le rendu). Le placement hors visage et hors sous-titres est vérifié par l'appelant (`zones.ts`).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import { couleursSur } from "../../jetons-motion";
 import { MOTS_MAX, type DefinitionObjet, type ProprietesObjet } from "./contrat";
 import { phaseObjet } from "./progres";
@@ -80,7 +80,7 @@ type Variante = "parole" | "pensee" | "notification";
 function Texte({ texte, fond, k, cx, cy, largeur }: { texte: string; fond: ProprietesObjet<ParametresBulle>["fond"]; k: number; cx: number; cy: number; largeur: number }): JSX.Element {
   const taille = Math.min(84, largeur / (Math.max(texte.length, 1) * 0.58));
   return (
-    <text x={f(cx)} y={f(cy)} textAnchor="middle" dominantBaseline="central" fontFamily={`"${FAMILLE_CSS}", sans-serif`} fontWeight={700} fontSize={f(taille)} fill={couleursSur(fond).texte} opacity={k}>
+    <text x={f(cx)} y={f(cy)} textAnchor="middle" dominantBaseline="central" fontFamily={PILE_CSS} fontWeight={700} fontSize={f(taille)} fill={couleursSur(fond).texte} opacity={k}>
       {texte}
     </text>
   );

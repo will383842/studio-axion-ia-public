@@ -10,6 +10,9 @@ import { couleurDuTon } from "../../src/briques/motion/petits-objets/tons";
 import { IMAGES_SORTIE } from "../../src/briques/motion/petits-objets/progres";
 import { garderObjet } from "../../src/briques/plan-scenes-objets/garde";
 
+/** POLICES-P2-b : la pile entière de la charte, telle que la rend `renderToStaticMarkup` (plus forte que l'ancien nom seul). */
+const PILE_ATTENDUE = 'font-family="&quot;Axion Manrope&quot;, &quot;Manrope&quot;, sans-serif"';
+
 const CHEMIN = new URL("../../src/briques/motion/petits-objets/appel-mot.tsx", import.meta.url);
 const DEF = DEF_APPEL_MOT as unknown as DefinitionObjet<unknown>;
 const TONS: TonObjet[] = ["neutre", "accent", "valide", "erreur"];
@@ -82,7 +85,7 @@ describe("C9-12b rendu", () => {
   });
   it("Manrope : verbe en 500, mot en 800", () => {
     const m = rendre(P, 30);
-    expect(m).toContain('font-family="Axion Manrope"');
+    expect(m).toContain(PILE_ATTENDUE);
     expect(m).toMatch(/font-weight="500"[^>]*>Commente</);
     expect(m).toMatch(/font-weight="800"[^>]*>GUIDE</);
   });

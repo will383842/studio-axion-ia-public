@@ -5,7 +5,7 @@
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import type { DefinitionObjet } from "./contrat";
 import { ecrireNombreFr } from "./gros-chiffre";
 import { phaseObjet } from "./progres";
@@ -140,16 +140,16 @@ export const OBJET_ANNEAU_DONNEES: DefinitionObjet<ParametresAnneauDonnees> = {
               )}
             </>
           )}
-          <text data-role="chiffre" x={500} y={yChiffre} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={cReste}>
+          <text data-role="chiffre" x={500} y={yChiffre} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={cReste}>
             {texte}
           </text>
           {total === TOTAL_DEFAUT ? (
-            <text data-role="unite" x={500} y={yChiffre + 50} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={600} fontSize={TAILLE_LIBELLE} fill={cReste}>
+            <text data-role="unite" x={500} y={yChiffre + 50} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={600} fontSize={TAILLE_LIBELLE} fill={cReste}>
               %
             </text>
           ) : null}
           {parametres.libelle ? (
-            <text data-role="libelle" x={500} y={yLibelle + (total === TOTAL_DEFAUT ? 50 : 0)} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={600} fontSize={TAILLE_LIBELLE} fill={cReste}>
+            <text data-role="libelle" x={500} y={yLibelle + (total === TOTAL_DEFAUT ? 50 : 0)} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={600} fontSize={TAILLE_LIBELLE} fill={cReste}>
               {parametres.libelle}
             </text>
           ) : null}
