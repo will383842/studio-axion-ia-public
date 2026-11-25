@@ -99,6 +99,24 @@ describe("ESS-2 · suivi d'un rendu soumis : coupure réseau", () => {
     expect(j.rendus.filter((d) => d.operation === "composition")).toHaveLength(1);
   });
 
+  it("« Réessayer » repart de zéro : réseau encore coupé, la borne entière est de nouveau attendue puis échec réessayable (jamais d'attente sans fin)", async () => {
+    const j = journalVide();
+    const { o, compte } = avecCoupures(outilsDoubles(j), Infinity, reseau);
+    const moteur = creerMoteurTutorielOutil({ outils: une(o) });
+    const c = commandeTutoriel({ ratios: ["4:5"] });
+    const tombe = await mener(moteur, c, await lancer(moteur, c), ATTENTES_RESEAU_MAX + 60);
+    expect(tombe.statut).toBe("echec");
+    const avant = compte.coupures;
+    const relance = await moteur.reessayer!(tombe, T0 + 900_000);
+    expect(etatDe(relance).rendus[0]?.aSoumettre).toBe(true);
+    expect(etatDe(relance).rendus[0]?.attentesReseau).toBeUndefined();
+    const t2 = await mener(moteur, c, relance, 400);
+    expect(t2.statut).toBe("echec");
+    expect(t2.erreur?.reessayable).toBe(true);
+    expect(compte.coupures - avant).toBe(ATTENTES_RESEAU_MAX + 1);
+    expect(j.rendus.filter((d) => d.operation === "composition")).toHaveLength(1);
+  });
+
   it("une coupure pendant le suivi du mixage, de la mesure du son et de la vignette ne les fait pas échouer", async () => {
     const j = journalVide();
     const base = outilsDoubles(j);

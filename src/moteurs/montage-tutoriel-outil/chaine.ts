@@ -64,7 +64,7 @@ export const ESSAIS_RENDU_TUTORIEL = 3;
 /**
  * Nombre de pas CONSÉCUTIFS où la lecture de l'état d'un rendu déjà soumis peut rester sans réponse (coupure réseau, service
  * qui se fige à la fin d'un rendu long) avant d'échouer comme avant. Une lecture réussie remet le compte à zéro, et
- * « Réessayer » repart de zéro (voir `compteReseau`). Un pas sans réponse dure déjà au moins 4 s (les relectures du client,
+ * « Réessayer » repart de zéro (`relancerRendusTombes` retire le compteur). Un pas sans réponse dure déjà au moins 4 s (les relectures du client,
  * 1 s puis 3 s) PLUS l'intervalle de la boucle : 120 pas laissent donc au service plusieurs minutes pour revenir (au moins 8 minutes,
  * valeur indicative qui dépend de l'intervalle de la boucle). Le « Réessayer » relit ensuite l'ancienne demande avant d'en soumettre une neuve (T-EXT-45b).
  */
@@ -94,14 +94,6 @@ async function suivreSansEchec(service: ServiceRendu, demande: DemandeRendu): Pr
   };
   const e = await suivreRendu(lecteur, demande);
   return panne ? { panne } : { e };
-}
-
-/**
- * Compte de départ d'un pas : « Réessayer » (`aSoumettre`) sur un rendu tombé à la borne repart de zéro, sinon le réseau encore coupé
- * ferait échouer dès la première lecture (l'état gardé porte la borne).
- */
-function compteReseau(r: RenduTutoriel): number | undefined {
-  return r.aSoumettre && (r.attentesReseau ?? 0) >= ATTENTES_RESEAU_MAX ? 0 : r.attentesReseau;
 }
 
 /** Compte d'attente suivant ; au-delà de la borne, la panne est levée telle quelle (échec réessayable, comme avant). */
@@ -800,7 +792,7 @@ async function pasRenduRecollage(etat: EtatTutoriel, ratio: Ratio, courant: Rend
     const lus = await Promise.all(demandes.map((d) => suivreSansEchec(service, d)));
     const panneLue = lus.find((l) => l.panne)?.panne;
     // Coupure réseau pendant le suivi : on relit au pas suivant (jamais un rendu de repli ni un nouvel identifiant).
-    if (panneLue) return remplacer({ ...courant, attentesReseau: attenteSuivante(compteReseau(courant), panneLue) });
+    if (panneLue) return remplacer({ ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, panneLue) });
     const suivis = lus.map((l) => l.e!);
     if (suivis.some((e) => e.statut === "echec")) return entier();
     if (suivis.some((e) => e.statut !== "termine")) return courant.aSoumettre ? remplacer(sansReprise) : courant.attentesReseau ? remplacer(sansAttente(courant)) : etat;
@@ -811,7 +803,7 @@ async function pasRenduRecollage(etat: EtatTutoriel, ratio: Ratio, courant: Rend
     return remplacer({ ...envoye, demande });
   }
   const lu = await suivreSansEchec(service, courant.demande);
-  if (lu.panne) return remplacer({ ...courant, attentesReseau: attenteSuivante(compteReseau(courant), lu.panne) });
+  if (lu.panne) return remplacer({ ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, lu.panne) });
   const e = lu.e!;
   if (e.statut === "echec") return entier();
   if (e.statut !== "termine") return courant.aSoumettre ? remplacer(sansReprise) : courant.attentesReseau ? remplacer(sansAttente(courant)) : etat;
@@ -856,7 +848,7 @@ async function pasRendu(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabr
   // l'ancienne demande avant d'en soumettre une neuve. Une demande neuve (identifiant neuf) n'est soumise que si l'ancienne est en échec.
   const lu = courant.demande ? await suivreSansEchec(service, courant.demande) : undefined;
   // Coupure réseau pendant le suivi d'une demande déjà soumise : l'état est rendu tel quel, on relira au pas suivant (borne : `ATTENTES_RESEAU_MAX`).
-  if (lu?.panne) return remplacer({ ...courant, attentesReseau: attenteSuivante(compteReseau(courant), lu.panne) });
+  if (lu?.panne) return remplacer({ ...courant, attentesReseau: attenteSuivante(courant.attentesReseau, lu.panne) });
   if (courant.attentesReseau) etat = remplacer(sansAttente(courant));
   const e = lu?.e;
   if (courant.aSoumettre && (!e || e.statut === "echec")) {
