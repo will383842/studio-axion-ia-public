@@ -16,6 +16,8 @@ const OBJETS_INSCRITS_2027B = ["objet-croquis", "objet-feutre-entourage", "objet
 const OBJETS_INSCRITS_N05 = ["objet-carton-magazine", "objet-tourne", "objet-particules", "objet-panneau-reglages", "objet-anneau-donnees"];
 // VL-10 : 3 pièces 16:9 de la vidéo longue (gardées par PIECES_GARDEES, porte fermée).
 const PIECES_VL10 = ["intercalaire-chapitre", "flux-ramifie", "cadre-capture"];
+// G4-11b-2 : la courbe à plusieurs séries, inscrite gardée.
+const PIECES_G4_11B = ["courbe-series"];
 // C9-34-TRAITS-v19c : 6 objets de plus (2 soulignements, surligneur, 3 flèches).
 const OBJETS_INSCRITS_TRAITS = ["objet-soulignement-vague", "objet-soulignement-double", "objet-surligneur", "objet-fleche-droite", "objet-fleche-courbe", "objet-fleche-pointillee"];
 // C9-34-ETIQUETTES-v20f : 8 objets de plus (pastille, étiquette, badge, tampon, 3 bulles, post-it).
@@ -37,8 +39,8 @@ function rendre(id: (typeof IDS_PIECES)[number], image: number, fond: "ivoire" |
 }
 
 describe("catalogue de briques (fausse interface logicielle)", () => {
-  it("contient les 78 briques (18 demandées + 4 + 6 + 3 + 5 + 6 + 6 + 8 + 8 + 10 + 1 volet objets inscrits + 3 pièces 16:9), chacune avec un rendu", () => {
-    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS, ...OBJETS_INSCRITS_CADRES, ...OBJETS_INSCRITS_ETIQUETTES, ...OBJETS_INSCRITS_SCHEMAS, ...OBJETS_INSCRITS_FIN, ...OBJETS_INSCRITS_VOLET, ...PIECES_VL10].sort());
+  it("contient les 79 briques (18 demandées + 4 + 6 + 3 + 5 + 6 + 6 + 8 + 8 + 10 + 1 volet objets inscrits + 3 pièces 16:9 + 1 courbe à plusieurs séries), chacune avec un rendu", () => {
+    expect([...IDS_PIECES].sort()).toEqual([...ATTENDUES, ...OBJETS_INSCRITS_A, ...OBJETS_INSCRITS_C, ...OBJETS_INSCRITS_2027B, ...OBJETS_INSCRITS_N05, ...OBJETS_INSCRITS_TRAITS, ...OBJETS_INSCRITS_CADRES, ...OBJETS_INSCRITS_ETIQUETTES, ...OBJETS_INSCRITS_SCHEMAS, ...OBJETS_INSCRITS_FIN, ...OBJETS_INSCRITS_VOLET, ...PIECES_VL10, ...PIECES_G4_11B].sort());
     for (const id of IDS_PIECES) expect(RENDUS_BRIQUES[id]).toBeTypeOf("function");
   });
 

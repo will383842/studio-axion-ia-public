@@ -237,7 +237,7 @@ describe("Banc d'écriture, --reel : le vrai socle de Will et ses vraies idées"
       expect(c.styleWill).toContain("on arrête de bricoler");
       expect(c.styleWill).toContain("Maintenant, ça part tout seul.");
       expect(c.preuves).toContain('id="prv-fictive-1"');
-      expect(c.gagnants).toContain("Oui, quinze minutes.");
+      expect(c.gagnants).toContain("Oui, dix minutes.");
     }
     expect(readFileSync(join(sortie, "tableau.md"), "utf8")).toMatch(/Socle de Will \(réel\)/);
   });

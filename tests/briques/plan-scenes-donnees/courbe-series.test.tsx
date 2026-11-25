@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { CHARTE_AXION } from "@/briques/jetons-motion";
 import { TOILES } from "@/briques/plan-scenes/toiles";
 import { CourbeSeries } from "@/briques/plan-scenes-donnees/CourbeSeries";
@@ -98,11 +98,12 @@ describe("courbe à plusieurs séries : rendu", () => {
   });
 });
 
-describe("courbe à plusieurs séries : garde statique (non inscrite)", () => {
-  it("catalogue.ts ne cite pas courbe-series", () => {
-    expect(readFileSync("src/briques/plan-scenes/catalogue.ts", "utf8")).not.toContain("courbe-series");
+describe("courbe à plusieurs séries : garde statique (inscrite, gardée)", () => {
+  it("catalogue.ts cite courbe-series (inscrite, porte fermée par PIECES_GARDEES)", () => {
+    expect(readFileSync("src/briques/plan-scenes/catalogue.ts", "utf8")).toContain("courbe-series");
+    expect(readFileSync("src/briques/plan-scenes/pieces-gardees.ts", "utf8")).toContain("courbe-series");
   });
-  it("aucun fichier de src/ n'importe plan-scenes-donnees", () => {
+  it("seuls catalogue.ts et briques/index.ts importent plan-scenes-donnees (liste fermée)", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -112,6 +113,6 @@ describe("courbe à plusieurs séries : garde statique (non inscrite)", () => {
       }
     };
     parcourir("src");
-    expect(fichiers.filter((f) => readFileSync(f, "utf8").includes("plan-scenes-donnees"))).toEqual([]);
+    expect(fichiers.filter((f) => readFileSync(f, "utf8").includes("plan-scenes-donnees")).map((f) => f.split(sep).join("/")).sort()).toEqual(["src/briques/plan-scenes/briques/index.ts", "src/briques/plan-scenes/catalogue.ts"]);
   });
 });

@@ -317,6 +317,158 @@ services:
     cpus: 2
     cpu_shares: 256
 
+  # Poste de capture figé du tutoriel d'outil (T-EXT-51b/51c) : Chromium + FFmpeg, SANS RÉSEAU. LIVRÉ INACTIF : profil
+  # « capture » = NI construit NI démarré par `docker compose up`/`build`, ni par mettre-a-jour.sh (qui ne le nomme pas).
+  # Obligatoire avant d'accepter un dossier (.zip) de client (T-EXT-41, T-EXT-29). Déclenchement À LA MAIN seulement,
+  # depuis deploiement/ ; n'utiliser que ces commandes : JAMAIS `--entrypoint`, `-v`/`--volume`, `-e`/`--env` (ils
+  # contournent le `timeout`, les montages fermés et le choix du Chromium). Le point d'entrée est lancer.sh.
+  #
+  # PRÉPARATION CÔTÉ SERVEUR (une fois, AVANT le premier lancement ; sinon docker crée les dossiers en root:root et la
+  # capture échoue en EACCES). Les dossiers sont HORS du dépôt cloné (fichiers de clients : jamais dans le contexte de
+  # construction ni dans git) ; UID 1001 = `pwuser`, l'utilisateur de l'image (vérifié : `docker run --rm --entrypoint id
+  # <image> pwuser` donne uid=1001) :
+  #   sudo mkdir -p /opt/studio-axion-ia/capture-entree /opt/studio-axion-ia/capture-sortie
+  #   (capture-entree : scenario.json + calage.json, lisibles par 1001, montés en lecture seule)
+  # Réglage du noyau à vérifier : `sysctl fs.suid_dumpable` doit valoir 0 ou 2 (avec 1, un binaire non lisible redevient « dumpable »
+  # et le `chmod 0711` de `timeout` dans l'image ne protège plus) ; sinon : `sudo sysctl -w fs.suid_dumpable=0`.
+  # /sortie BORNÉE (obligatoire : lancer.sh REFUSE de démarrer, code 64, si /sortie n'est pas un point de montage, et,
+  # code 65, si sa taille totale dépasse 4 Gio ; le disque du serveur est partagé avec Postgres et les médias). Procédure :
+  # un système de fichiers en boucle DÉDIÉ de 3 Gio, ni exécutable ni à droits spéciaux, monté sur capture-sortie :
+  #   sudo fallocate -l 3G /opt/studio-axion-ia/capture-sortie.img && sudo mkfs.ext4 -q -m 0 /opt/studio-axion-ia/capture-sortie.img
+  #   echo '/opt/studio-axion-ia/capture-sortie.img /opt/studio-axion-ia/capture-sortie ext4 loop,nodev,nosuid,noexec 0 0' | sudo tee -a /etc/fstab
+  #   sudo mount /opt/studio-axion-ia/capture-sortie && sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie
+  # (ce fichier .img occupe 3 Gio de disque, pas de mémoire vive). Autres emplacements : STUDIO_CAPTURE_ENTREE et
+  # STUDIO_CAPTURE_SORTIE (mêmes droits, même borne). Variables NON obligatoires (`:?` casserait l'analyse du compose
+  # entier, donc `up` en production) : les défauts sont hors dépôt.
+  #   docker compose --profile capture build studio-capture
+  # Capture (mode « capturer », par défaut) : lancer par la forme LANCER ci-dessous, avec ces <arguments du mode> :
+  #     --maquette outils/maquettes-tableaux-de-bord/maquette --scenario /entree/scenario.json --calage /entree/calage.json --sortie /sortie
+  # (sans --calage, seule la passe de contrôles tourne : pas de navigation.mp4).
+  # LANCER (toujours ainsi, capturer ou decompresser) : avec `-d`, l'échéance côté hôte tue VRAIMENT le conteneur (tuer
+  # seulement le client `docker compose run` ne lui transmet aucun signal : il continuerait de tourner et garderait /sortie
+  # monté en écriture). Avec `-d`, il n'y a plus de `--rm` : le `docker rm -f` final le remplace. <id> = un nom unique :
+  #   docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
+  #   docker logs studio-capture-<id> ; docker rm -f studio-capture-<id>
+  # (960 s = 900 s du `timeout` de lancer.sh + sa marge de 30 s + 30 s.) Les <arguments du mode> sont ceux de la commande de
+  # capture ci-dessus (`--maquette … --sortie /sortie`) ou de décompression ci-dessous.
+  # DÉCOMPRESSION d'un .zip client : dans CE conteneur (même service, même durcissement), jamais sur l'hôte. Le zip est
+  # posé dans capture-entree (monté en lecture seule sur /entree), la sortie va dans /sortie (bornée) ; les options
+  # exactes sont celles de outils/maquettes-tableaux-de-bord/capture/decompresser.mts (lot « zip »). <arguments du mode> :
+  #   decompresser --zip /entree/<fichier>.zip --sortie /sortie/maquette
+  # (--sortie est un SOUS-DOSSIER, /sortie/maquette : la racine d'un ext4 contient lost+found, donc n'est jamais vide, et un
+  # point de montage ne se renomme pas.)
+  # PROCÉDURE CÔTÉ HÔTE, dans cet ordre, pour CHAQUE client. Un Chromium compromis peut poser des liens symboliques dans
+  # /sortie, et docker SUIT sur l'hôte un lien placé dans la source d'un montage (essai réel : un lien vers un dossier
+  # contenant .env a donné son contenu au conteneur) :
+  #  1. AUCUN conteneur ne doit tourner : `docker ps -a --filter name=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire),
+  #     ET `docker ps -a --filter label=com.docker.compose.service=studio-capture` doit être VIDE (sinon ARRÊT : ne rien faire).
+  #     OBLIGATOIRE : `umount` (étape 2) RÉUSSIT même si un conteneur garde /sortie ouvert (le montage disparaît de l'hôte, pas du conteneur) ;
+  #     sans ce contrôle, un conteneur resté en vie pourrait encore écrire dans l'ancien /sortie.
+  #  2. Un /sortie NEUF POUR CHAQUE CLIENT (jamais de décompression et de capture en même temps sur le même /sortie) :
+  #       sudo umount /opt/studio-axion-ia/capture-sortie
+  #       sudo rm -f /opt/studio-axion-ia/capture-sortie.img && sudo fallocate -l 3G /opt/studio-axion-ia/capture-sortie.img
+  #       sudo mkfs.ext4 -q -m 0 /opt/studio-axion-ia/capture-sortie.img
+  #       sudo mount -o loop,nodev,nosuid,noexec /opt/studio-axion-ia/capture-sortie.img /opt/studio-axion-ia/capture-sortie
+  #       sudo chown 1001:1001 /opt/studio-axion-ia/capture-sortie
+  #  3. Décompresser (commande ci-dessus), puis refaire l'étape 1 (le conteneur est supprimé).
+  #  4. CONTRÔLER LA SOURCE, puis COPIER la maquette décompressée HORS de capture-sortie, vers un dossier de root que le conteneur
+  #     ne monte pas. Chaque commande se copie telle quelle ; au moindre écart : ARRÊT, ne rien monter.
+  #     Critère 1 : la source ne contient que des fichiers et des dossiers, cette commande doit afficher RIEN (liens, FIFO, sockets, périphériques) :
+  #       sudo find /opt/studio-axion-ia/capture-sortie/maquette ! -type f ! -type d
+  #     Critère 1 bis : aucun fichier à plusieurs liens physiques (ils gonfleraient la copie), cette commande doit afficher RIEN :
+  #       sudo find /opt/studio-axion-ia/capture-sortie/maquette -type f -links +1
+  #     Critère 2 : le chemin réel doit être ÉGAL au chemin exact écrit (aucun lien, ni sur `maquette`, ni sur `<dossier>`) :
+  #       sudo realpath -e /opt/studio-axion-ia/capture-sortie/maquette/<dossier>
+  #     Critère 3 : <id> doit être NEUF (ni fichier, ni dossier, ni lien, même cassé ; cette commande doit réussir) :
+  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes && test ! -e /opt/studio-axion-ia/capture-maquettes/<id> && test ! -L /opt/studio-axion-ia/capture-maquettes/<id>
+  #     La copie va sur un système de fichiers en boucle BORNÉ (1 Gio) et NEUF, comme /sortie (une copie qui dépasse échoue : ARRÊT) :
+  #       sudo mkdir -p /opt/studio-axion-ia/capture-maquettes-img && sudo rm -f /opt/studio-axion-ia/capture-maquettes-img/<id>.img && sudo fallocate -l 1G /opt/studio-axion-ia/capture-maquettes-img/<id>.img
+  #       sudo mkfs.ext4 -q -m 0 /opt/studio-axion-ia/capture-maquettes-img/<id>.img
+  #       sudo mkdir /opt/studio-axion-ia/capture-maquettes/<id> && sudo mount -o loop,nodev,nosuid,noexec /opt/studio-axion-ia/capture-maquettes-img/<id>.img /opt/studio-axion-ia/capture-maquettes/<id>
+  #     Copier avec `cp` SEULEMENT (aucun autre outil de copie), puis donner la copie à root :
+  #       sudo cp -r --no-dereference /opt/studio-axion-ia/capture-sortie/maquette/<dossier> /opt/studio-axion-ia/capture-maquettes/<id>/maquette
+  #       sudo chown -R root:root /opt/studio-axion-ia/capture-maquettes/<id>/maquette && sudo chmod -R a+rX,go-w /opt/studio-axion-ia/capture-maquettes/<id>/maquette
+  #     Critère 4 : CONTRÔLER LA COPIE de la même façon, cette commande doit afficher RIEN, et le chemin réel doit être ÉGAL au chemin écrit :
+  #       sudo find /opt/studio-axion-ia/capture-maquettes/<id>/maquette ! -type f ! -type d
+  #       sudo realpath -e /opt/studio-axion-ia/capture-maquettes/<id>/maquette
+  #     Puis, la copie contrôlée, la remonter en LECTURE SEULE :
+  #       sudo mount -o remount,ro /opt/studio-axion-ia/capture-maquettes/<id>
+  #  5. Refaire l'étape 2 (un /sortie neuf pour la capture), puis, JUSTE AVANT de lancer, refaire le contrôle `docker ps` de l'étape 1
+  #     (`docker ps -a` par nom ET par label, VIDES, sinon ARRÊT), puis capturer en montant la COPIE contrôlée (lancer avec `&&` : ne jamais
+  #     attendre un ancien conteneur) :
+  #       STUDIO_CAPTURE_MAQUETTE=/opt/studio-axion-ia/capture-maquettes/<id>/maquette docker compose --profile capture run -d --name studio-capture-<id> studio-capture <arguments du mode> && timeout 960 docker wait studio-capture-<id> || docker kill studio-capture-<id>
+  #  6. Après la capture (conteneur supprimé, étape 1) : libérer la copie :
+  #       sudo umount /opt/studio-axion-ia/capture-maquettes/<id> && sudo rm -f /opt/studio-axion-ia/capture-maquettes-img/<id>.img && sudo rmdir /opt/studio-axion-ia/capture-maquettes/<id>
+  # Le film sort dans /sortie ; l'envoi au stockage reste au Studio, qui doit traiter /sortie comme HOSTILE (liens
+  # symboliques, fichiers énormes : lstat, O_NOFOLLOW, liste fermée de noms, taille maximale, ffprobe en conteneur).
+  # Entrées : STUDIO_CAPTURE_MAQUETTE (dossier d'une maquette, défaut 03-accueil-24h : uniquement le dossier décompressé
+  # et contrôlé). Inscriptible : /sortie (bornée), un tmpfs /tmp de 256 Mo et un tmpfs /dev/shm de 512 Mo (Chromium),
+  # tous deux noexec,nosuid,nodev ; rien d'autre. Durée : 15 min (capturer) ou 5 min (decompresser), SIGKILL 30 s après, `timeout` de
+  # lancer.sh ; aucun secret, aucun port.
+  # ISOLATION : le bac à sable de Chromium est DÉSACTIVÉ (Playwright 1.63 passe --no-sandbox si chromiumSandbox n'est
+  # pas true) : SEUL ce conteneur isole Chromium. Pour cela, NE JAMAIS ajouter : privileged, cap_add, devices, ipc/pid/
+  # userns_mode host, seccomp:unconfined, apparmor:unconfined, systempaths=unconfined, montage de docker.sock, de /var/run,
+  # de /opt/studio-axion-ia (hors capture-*) ou d'un .env, ni `--no-sandbox` ajouté à la main (tests/deploiement/studio-capture.test.ts).
+  studio-capture:
+    profiles: [capture]
+    build:
+      context: ..
+      dockerfile: deploiement/studio-capture/Dockerfile
+    image: studio-capture:local
+    restart: "no"
+    network_mode: none
+    read_only: true
+    init: false
+    # `init: false` ÉCRIT EN CLAIR (jamais `init: true`, jamais la clé absente : sans clé, le démon applique SA valeur par
+    # défaut, et `"init": true` dans daemon.json ou `dockerd --init` remettrait un autre PID 1 que `timeout`).
+    # PAS d'`init: true` (changement de garde VOULU par l'audit de #1611) : sans init, lancer.sh fait `exec timeout ...`,
+    # donc `timeout` est le PID 1 du conteneur, et le noyau IGNORE tout SIGSTOP envoyé à un PID 1 depuis l'intérieur de
+    # son espace de noms (preuve réelle : `kill -STOP 1` est sans effet et le conteneur s'arrête à l'échéance, code 124).
+    # Avec `init: true`, `timeout` n'était pas PID 1 et tournait sous le même uid 1001 que Chromium : un Chromium compromis
+    # le gelait par `kill -STOP <pid>` et échappait à la durée bornée (essai : encore vivant à 12 s pour `timeout 5`).
+    # Contrepartie acceptée : les zombies ne sont plus récupérés, ils restent bornés par `pids: 512`.
+    # Journaux Docker BORNÉS, écrits en clair (pas d'ancre : le test les interdit dans ce service) : sans cela un
+    # processus du conteneur pouvait écrire ~1 Go de journal en 12 s sur le disque du serveur (audit de #1611).
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    # UN SEUL uid : celui de `pwuser` dans l'image (Dockerfile : USER 1001:1001, contrôlé à la construction).
+    user: "1001:1001"
+    cap_drop: [ALL]
+    # seccomp : le profil par défaut de Docker (v29.10.0) à l'IDENTIQUE, SAUF `ptrace`, `process_vm_readv` et
+    # `process_vm_writev` retirés (plus strict, jamais plus large) : sans cela, un processus du conteneur (même uid 1001 que
+    # `timeout`, PID 1) le gelait par PTRACE_SEIZE + PTRACE_INTERRUPT et échappait à la durée bornée. Référence :
+    # https://github.com/moby/moby/blob/docker-v29.10.0/vendor/github.com/moby/profiles/seccomp/default.json (commit 06db173,
+    # sha256 6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6) ; le test reconstruit cette référence. Chemin
+    # relatif AU FICHIER COMPOSE. Changer de version de Docker : reprendre le profil au nouveau tag, mêmes 3 retraits.
+    # DURÉE : seul le `docker kill` de l'HÔTE (procédure LANCER ci-dessus) la GARANTIT. `init: false`, seccomp sans ptrace et
+    # `timeout` en 0711 dans l'image (Dockerfile : non lisible, donc non dumpable : pas de /proc/1/mem) ne font que la rendre
+    # plus difficile à contourner pour un processus du conteneur. `setpriority` et SCHED_IDLE peuvent RETARDER la fin du conteneur
+    # (processus ralentis) : seul le `docker kill` de l'hôte la garantit, à l'échéance de 960 s.
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=./studio-capture/seccomp.json
+    # Limite de mémoire par `deploy.resources.limits` (et non `mem_limit`) : le budget mémoire du serveur
+    # (tests/v5-serveur-scripts.test.ts) ne compte que les services qui tournent en permanence ; celui-ci est inactif.
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          pids: 512
+          # CPU bornée (comme studio-rendu/studio-aligneur) : 2 cœurs au plus ; ici et non `cpus:` (compose refuse les deux).
+          cpus: "2"
+    cpu_shares: 256
+    tmpfs:
+      - /tmp:size=256m,mode=1777,noexec,nosuid,nodev
+      - /dev/shm:size=512m,mode=1777,noexec,nosuid,nodev
+    volumes:
+      - ${STUDIO_CAPTURE_MAQUETTE:-../outils/maquettes-tableaux-de-bord/03-accueil-24h}:/app/outils/maquettes-tableaux-de-bord/maquette:ro
+      - ../outils/maquettes-tableaux-de-bord/charte:/app/outils/maquettes-tableaux-de-bord/charte:ro
+      - ${STUDIO_CAPTURE_ENTREE:-/opt/studio-axion-ia/capture-entree}:/entree:ro
+      - ${STUDIO_CAPTURE_SORTIE:-/opt/studio-axion-ia/capture-sortie}:/sortie
+
 volumes:
   donnees:
   # Travaux face caméra de studio-aligneur (fichiers de travail, jamais des données : rien d'irremplaçable).

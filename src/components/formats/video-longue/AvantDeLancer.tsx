@@ -16,6 +16,9 @@ export function AvantDeLancer({
   courts,
   sansVoix = false,
   peutLancer,
+  enCours = false,
+  lance = false,
+  phraseBloquee,
   onLancer,
   onRetour,
 }: {
@@ -26,6 +29,12 @@ export function AvantDeLancer({
   /** Mode « Sans voix » : pas de voix, aucun crédit voix, coût 0 €. */
   sansVoix?: boolean;
   peutLancer: boolean;
+  /** Envoi en cours : bouton remplacé par « Lancement en cours… ». */
+  enCours?: boolean;
+  /** Vidéo déjà lancée : ni bouton ni lien vers les réglages. */
+  lance?: boolean;
+  /** Phrase affichée à la place du bouton quand le mode choisi n'est pas disponible. */
+  phraseBloquee?: string;
   onLancer: () => void;
   onRetour: () => void;
 }) {
@@ -37,14 +46,18 @@ export function AvantDeLancer({
           {sansVoix ? <li>Sans voix : sous-titres et texte à l&apos;écran, environ {formaterDuree(dureeSec)}, aucun coût</li> : <li>Voix de votre double : environ {formaterDuree(dureeSec)}</li>}
           <li>{chapitres} chapitre{chapitres > 1 ? "s" : ""}</li>
           <li>Format large</li>
-          {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus</li>}
+          {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus : pas encore fabriquée{courts > 1 ? "s" : ""}</li>}
         </ul>
         <p className="text-sm text-texte-doux">
           {sansVoix ? "Aucune voix, aucune musique : rien n'est payé." : "Rien n'est payé avant votre accord. Si le prix du jour change, le Studio s'arrête et vous redemande."}
         </p>
       </Carte>
       <div className="flex flex-wrap items-center gap-3">
-        {peutLancer ? (
+        {enCours ? (
+          <p role="status" className="text-sm text-texte">Lancement en cours…</p>
+        ) : lance ? null : phraseBloquee ? (
+          <p role="status" className="text-sm font-semibold text-texte">{phraseBloquee}</p>
+        ) : peutLancer ? (
           <Bouton type="button" icone="baguette" onClick={onLancer}>
             Je donne mon accord et je lance la vidéo
           </Bouton>

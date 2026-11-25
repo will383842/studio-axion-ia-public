@@ -1,0 +1,288 @@
+/** RES-3 : suivi des éléments pris (fait, échec, pris sans vidéo depuis plus de 15 min). Aucun appel réel. */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const magasin = new Map<string, unknown>();
+vi.mock("@/services/_commun", async (importOriginal) => {
+  const reel = await importOriginal<typeof import("@/services/_commun")>();
+  return {
+    ...reel,
+    lireParametre: async (id: string, defaut: unknown) => (magasin.has(id) ? structuredClone(magasin.get(id)) : defaut),
+    ecrireParametre: async (id: string, v: unknown) => void magasin.set(id, structuredClone(v)),
+  };
+});
+
+import { CLE_BAIL_TIRAGE, REGLAGES_RESERVE_DEFAUT } from "@/domaine/tutoriel-reserve";
+import type { StatutVideo } from "@/domaine/types";
+import { prendreBail, rendreBail } from "@/donnees/memoire";
+import { ajouterElementReserve, lireElementReserve, prendreSuivantReserve } from "@/services/tutoriel-reserve";
+import { CLE_BAIL_LANCEMENT, suivreElementsPris, tirerSuivantReserve, type NotificationReserve } from "@/services/tutoriel-reserve-tirage";
+
+const nouveau = (id: string) => ({ id, titre: id, source: { type: "idee", phrase: "Un tableau de bord pour un atelier" } as const, fin: "aucune" as const, ajouteLe: "2026-11-01T00:00:00.000Z", ajoutePar: "fondateur" as const });
+const MAINTENANT = "2026-11-21T10:00:00.000Z";
+
+beforeEach(async () => {
+  magasin.clear();
+  await rendreBail(CLE_BAIL_TIRAGE, "autre-titulaire");
+  await rendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire");
+});
+
+async function pris(id: string, cle: string, le: string, videoId?: string) {
+  await ajouterElementReserve(nouveau(id));
+  await prendreSuivantReserve({ cle, declencheur: "usine", elementId: id, maintenant: le });
+  if (videoId) {
+    const { noterVideoDuTirage } = await import("@/services/tutoriel-reserve");
+    await noterVideoDuTirage(cle, id, videoId);
+  }
+}
+
+function dep(statut: StatutVideo | null) {
+  const cloches: NotificationReserve[] = [];
+  return { cloches, dep: { maintenant: () => MAINTENANT, statutVideo: async () => statut, notifier: async (n: NotificationReserve) => void cloches.push(n) } };
+}
+
+describe("suivreElementsPris", () => {
+  it("vidéo prête : fait, plus une cloche « à valider » sans « € » et avec le lien du suivi", async () => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    const s = dep("prete");
+    expect(await suivreElementsPris(s.dep)).toEqual({ faits: 1, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("fait");
+    expect(s.cloches).toHaveLength(1);
+    expect(s.cloches[0]?.lien).toBe("/tutoriel-outil/suivi/v-1");
+    expect(JSON.stringify(s.cloches)).not.toMatch(/€|euro/i);
+  });
+
+  it("vidéo en cours : rien ne change", async () => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    for (const st of ["en_file", "en_fabrication"] as const) expect(await suivreElementsPris(dep(st).dep)).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it.each(["echec", "annulee", "archivee", null] as const)("vidéo %s : échec (retour en réserve, tentative 1)", async (statut) => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    expect(await suivreElementsPris(dep(statut).dep)).toEqual({ faits: 0, echecs: 1 });
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
+  });
+
+  it("deuxième échec : à revoir", async () => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    await suivreElementsPris(dep("echec").dep);
+    await prendreSuivantReserve({ cle: "cle-suivi-002", declencheur: "usine", maintenant: MAINTENANT });
+    const { noterVideoDuTirage } = await import("@/services/tutoriel-reserve");
+    await noterVideoDuTirage("cle-suivi-002", "res-premier1", "v-2");
+    await suivreElementsPris(dep(null).dep);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "a_revoir", tentatives: 2 });
+  });
+
+  it("pris sans vidéo depuis plus de 15 min : retour en réserve, tentative + 1", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z");
+    expect(await suivreElementsPris(dep(null).dep)).toEqual({ faits: 0, echecs: 1 });
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
+  });
+
+  it("pris sans vidéo depuis moins de 15 min : on attend (le lancement est peut-être en cours)", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:50:00.000Z");
+    expect(await suivreElementsPris(dep(null).dep)).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("vidéo restée brouillon depuis plus de 15 min : brouillon archivé, élément en échec (jamais relancé ici)", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z", "v-1");
+    const archives: string[] = [];
+    const s = dep("brouillon");
+    expect(await suivreElementsPris({ ...s.dep, abandonner: async (id) => { archives.push(id); return true; }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 1 });
+    expect(archives).toEqual(["v-1"]);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
+  });
+
+  it("vidéo brouillon depuis moins de 15 min : on attend ; archivage en échec : l'élément reste pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:50:00.000Z", "v-1");
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => true })).toEqual({ faits: 0, echecs: 0 });
+    magasin.clear();
+    await pris("res-second01", "cle-suivi-002", "2026-11-21T09:30:00.000Z", "v-2");
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => { throw new Error("base"); }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-second01"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : lancement d'une autre machine terminé entre la lecture et le bail (en_file, travail payant) : aucun archivage, élément toujours pris, rien d'écrit", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    let lectures = 0;
+    let travaux = 0;
+    const r = await suivreElementsPris({
+      ...dep("brouillon").dep,
+      statutVideo: async () => (lectures++ === 0 ? "brouillon" : "en_file"),
+      travailEnCours: async () => travaux++ > 0,
+      abandonner: async (id) => { archives.push(id); return true; },
+    });
+    expect(r).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "pris", prise: { videoId: "v-1" } });
+  });
+
+  it("ARGENT : statut relu sous le bail (brouillon puis en_file), sans aucun travail visible : aucun archivage, élément toujours pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    let lectures = 0;
+    const r = await suivreElementsPris({
+      ...dep("brouillon").dep,
+      statutVideo: async () => (lectures++ === 0 ? "brouillon" : "en_file"),
+      travailEnCours: async () => false,
+      abandonner: async (id) => { archives.push(id); return true; },
+    });
+    expect(r).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it.each([["autre prise.cle", { cle: "cle-suivi-999", videoId: "v-1" }], ["autre videoId", { cle: "cle-suivi-001", videoId: "v-autre" }]] as const)("ARGENT : élément changé entre la liste et le bail (%s), branche brouillon : aucun archivage, rien d'écrit", async (_nom, prise) => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    const frais = (await lireElementReserve("res-premier1"))!;
+    let listes = 0;
+    const r = await suivreElementsPris({
+      ...dep("brouillon").dep,
+      travailEnCours: async () => false,
+      abandonner: async (id) => { archives.push(id); return true; },
+      lireElement: async () => ({ ...frais, prise: { ...frais.prise!, ...prise } }),
+      lister: async () => (listes++ === 0 ? [frais] : []),
+    });
+    expect(r).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : travail apparu sous le bail alors que le statut reste brouillon, ou relecture qui lève : rien", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    const abandonner = async (id: string) => { archives.push(id); return true; };
+    let n = 0;
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => n++ > 0 })).toEqual({ faits: 0, echecs: 0 });
+    let m = 0;
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => { if (m++ > 0) throw new Error("base"); return false; } })).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("abandonner qui n'archive rien (rend false) : pas d'échec écrit, élément toujours pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async () => false, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it.each(["en_file", "en_fabrication", "prete"] as const)("vidéo en échec lue, puis lancement abouti avant l'écriture (%s) : rien n'est écrit", async (relu) => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    let lectures = 0;
+    expect(await suivreElementsPris({ ...dep("echec").dep, statutVideo: async () => (lectures++ === 0 ? "echec" : relu) })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("vidéo en échec lue, puis statut relu « maquette » : rien n'est écrit", async () => {
+    await pris("res-premier1", "cle-suivi-001", MAINTENANT, "v-1");
+    let lectures = 0;
+    expect(await suivreElementsPris({ ...dep("echec").dep, statutVideo: async () => (lectures++ === 0 ? "echec" : "maquette") as StatutVideo })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : brouillon > 15 min avec un travail en file, ou lecture des travaux qui lève : ni archivage ni échec, élément toujours pris", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    const archives: string[] = [];
+    const abandonner = async (id: string) => { archives.push(id); return true; };
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => true })).toEqual({ faits: 0, echecs: 0 });
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner, travailEnCours: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : un suivi lancé pendant un tirage qui n'a pas rendu attend sa fin (n'archive rien)", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    await ajouterElementReserve(nouveau("res-second01"));
+    let liberer!: () => void;
+    const bloque = new Promise<void>((r) => (liberer = r));
+    let entre!: () => void;
+    const enCours = new Promise<void>((r) => (entre = r));
+    const tirage = tirerSuivantReserve({ declencheur: "usine", cle: "cle-lent-0001" }, { reglages: async () => ({ ...REGLAGES_RESERVE_DEFAUT, actif: true }), lister: async () => { entre(); await bloque; return []; } });
+    await enCours;
+    const archives: string[] = [];
+    let fini = false;
+    const suivi = suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => { archives.push(id); return true; }, travailEnCours: async () => false }).then((r) => { fini = true; return r; });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fini).toBe(false);
+    expect(archives).toEqual([]);
+    liberer();
+    await tirage;
+    await suivi;
+    expect(fini).toBe(true);
+  });
+
+  it("un tirage réussi puis le suivi : le même élément passe de pris à fait", async () => {
+    await ajouterElementReserve(nouveau("res-premier1"));
+    const r = await tirerSuivantReserve(
+      { declencheur: "usine", cle: "cle-usine-01" },
+      {
+        maintenant: () => MAINTENANT,
+        reglages: async () => ({ ...REGLAGES_RESERVE_DEFAUT, actif: true }),
+        interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: true }),
+        interrupteur: async () => true,
+        equipe: async () => true,
+        tauxUsdEur: async () => 0.9,
+        plafondVideoUsd: async () => 1,
+        plafondMoisAtteint: async () => false,
+        accordSansClic: async () => true,
+        sousPlafondUsine: async () => true,
+        lancer: async (_e, o) => {
+          await o.noterBrouillon("v-9");
+          return { statut: "lancee", videoId: "v-9" };
+        },
+        notifier: async () => undefined,
+      },
+    );
+    expect(r).toMatchObject({ etat: "pris", videoId: "v-9" });
+    expect(await suivreElementsPris(dep("prete").dep)).toEqual({ faits: 1, echecs: 0 });
+  });
+
+  it("ARGENT : vidéo notée entre la lecture de la liste et l'écriture du suivi : l'élément reste pris avec son videoId", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z");
+    const { noterVideoDuTirage } = await import("@/services/tutoriel-reserve");
+    const { listerReserve } = await import("@/services/tutoriel-reserve");
+    const s = dep(null);
+    const lister = async () => {
+      const liste = await listerReserve();
+      await noterVideoDuTirage("cle-suivi-001", "res-premier1", "v-tard"); // l'autre machine note sa vidéo juste après la lecture
+      return liste;
+    };
+    expect(await suivreElementsPris({ ...s.dep, lister })).toEqual({ faits: 0, echecs: 0 });
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "pris", tentatives: 0, prise: { cle: "cle-suivi-001", videoId: "v-tard" } });
+  });
+
+  it("rendrePriseSiInchangee : écrit si la prise est la même (vidéo absente comprise), sinon rien et false", async () => {
+    const { rendrePriseSiInchangee } = await import("@/services/tutoriel-reserve");
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:40:00.000Z", "v-1");
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "cle-suivi-001" }, "en_reserve", { patch: { prise: undefined } })).toBe(false);
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "autre-cle-01", videoId: "v-1" }, "en_reserve", { patch: { prise: undefined } })).toBe(false);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "cle-suivi-001", videoId: "v-1" }, "en_reserve", { patch: { prise: undefined, tentatives: 1 } })).toBe(true);
+    expect(await lireElementReserve("res-premier1")).toMatchObject({ etat: "en_reserve", tentatives: 1 });
+    expect(await rendrePriseSiInchangee("res-premier1", { cle: "cle-suivi-001", videoId: "v-1" }, "en_reserve")).toBe(false);
+  });
+
+  it("ARGENT : bail de lancement tenu par un autre titulaire : le suivi n'archive rien et ne remet rien en réserve", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z", "v-1");
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 60_000)).toBe(true);
+    const archives: string[] = [];
+    expect(await suivreElementsPris({ ...dep("brouillon").dep, abandonner: async (id) => { archives.push(id); return true; }, travailEnCours: async () => false })).toEqual({ faits: 0, echecs: 0 });
+    expect(archives).toEqual([]);
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+    magasin.clear();
+    await pris("res-second01", "cle-suivi-002", "2026-11-21T09:30:00.000Z");
+    expect(await suivreElementsPris(dep(null).dep)).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-second01"))?.etat).toBe("pris");
+  });
+
+  it("ARGENT : prise du bail qui lève : rien n'est fait ; bail rendu après un suivi normal", async () => {
+    await pris("res-premier1", "cle-suivi-001", "2026-11-21T09:30:00.000Z");
+    expect(await suivreElementsPris({ ...dep(null).dep, prendreBail: async () => { throw new Error("base"); } })).toEqual({ faits: 0, echecs: 0 });
+    expect((await lireElementReserve("res-premier1"))?.etat).toBe("pris");
+    expect(await suivreElementsPris(dep(null).dep)).toEqual({ faits: 0, echecs: 1 });
+    expect(await prendreBail(CLE_BAIL_LANCEMENT, "autre-titulaire", 1000)).toBe(true); // rendu par le suivi
+  });
+});

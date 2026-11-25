@@ -16,6 +16,16 @@ export function BarreTemps({ zone, fond, dureeImages }: { zone: MargesBoutons; f
       <div
         style={{
           position: "absolute",
+          left: `${b.rail.boite.x}%`,
+          top: `${b.rail.boite.y}%`,
+          width: `${b.rail.boite.largeur}%`,
+          height: `${b.rail.boite.hauteur}%`,
+          background: b.rail.couleur,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
           left: `${b.boite.x}%`,
           top: `${b.boite.y}%`,
           width: `${b.boite.largeur}%`,

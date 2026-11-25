@@ -44,8 +44,8 @@ describe("liaison catalogue → façade (N-01a)", () => {
     expect(hors, hors.map((id) => `${id} est inscrite au catalogue mais aucun générateur ne la consomme (déclaration)`).join("\n")).toEqual([]);
   });
 
-  it("la garde mord : objet.chiffre éteint (chantier 9) sans consommateur est listé", () => {
-    expect(horsFacade([ligne(ID.objetChiffre, "eteint", "9")])).toEqual(["objet.chiffre"]);
+  it("la garde mord : objet.trait éteint (chantier 9) sans consommateur est listé", () => {
+    expect(horsFacade([ligne(ID.objetTrait, "eteint", "9")])).toEqual(["objet.trait"]);
   });
 
   it("la garde mord : transition commune en prod (chantier 6 (H1 à H4)) sans consommateur est listée", () => {
@@ -67,6 +67,6 @@ describe("liaison catalogue → façade (N-01a)", () => {
   });
 
   it("le chantier 10 est contrôlé comme 6 et 9", () => {
-    expect(horsFacade([ligne(ID.objetChiffre, "eteint", "10")])).toEqual(["objet.chiffre"]);
+    expect(horsFacade([ligne(ID.objetTrait, "eteint", "10")])).toEqual(["objet.trait"]);
   });
 });

@@ -14,7 +14,8 @@ import { REGLES_BRUITAGES, type BruitagePlace } from "@/briques/intensite/types"
 import { baseRetenue, controlerSousTitres, donneesCalque } from "@/briques/sous-titres";
 import { lireEntreeBandeau, poserBandeauNom } from "@/briques/sous-titres/bandeau-nom";
 import { etiquettesAutonomes } from "@/briques/sous-titres/noms-outils";
-import { escalierPermis, etiquettesOutilPermises, pavePermis, sortieAnimeePermise } from "./porte-texte";
+import { escalierPermis, etiquettesOutilPermises, pavePermis, selectifPermis, sortieAnimeePermise } from "./porte-texte";
+import { segmentsSelectifs } from "./selectif-calque";
 import { SORTIE_PAR_DEFAUT } from "../sous-titres/sortie";
 import { fondFlouObjets } from "../motion/habillage-commun/fond-flou-objets";
 import { largeurLibrePct, positionsVerticales, zoneDe } from "@/briques/sous-titres/largeur";
@@ -322,7 +323,8 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   if (cameras) image.cameras = cameras;
   if (e.planScenes && e.planScenesSousTexte !== true) image.planScenes = e.planScenes;
   // C10-04b : fond flouté sous le carton magazine, posé seulement s'il y a un carton (sinon, paramètres identiques).
-  { const f = fondFlouObjets(image.planScenes); if (f.length) image.fondFlouCartes = f; }
+  // FOND-FLOU-C10-04-c : ni flou quand la piste du double couvre le décor (vraie prise filmée, look réel, fond uni) : `opaque`.
+  { const f = fondFlouObjets(image.planScenes); if (f.length && !opaque) image.fondFlouCartes = f; }
   // BR-TABLEAU-RACCORDS-b : fondus entre scènes, seulement si la commande porte `raccordsTableau === true` (jamais une chaîne).
   if ((c.entrees as Record<string, unknown> | undefined)?.raccordsTableau === true) { const r = raccordsStyleMontage(image.plans, "fondu"); if (r.length) image.raccords = r; }
 
@@ -358,7 +360,8 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   // Un montant incrusté n'est pas écrit une seconde fois en sous-titre (même instant).
   // Facecam : un groupe qui répète le texte d'une carte affichée en même temps n'est pas écrit une seconde fois, et
   // aucun groupe n'est posé pendant une carte plein écran (il couvrait la dernière ligne du titre).
-  const segmentsImage = masquerPendantCartesPleinEcran(masquerTextesAffiches(masquerMontantsDits(segments, inc.incrustations), e.textesAffiches), e.cartesPleinEcran);
+  const selectif = selectifPermis(c.entrees);
+  const segmentsImage = segmentsSelectifs(masquerPendantCartesPleinEcran(masquerTextesAffiches(masquerMontantsDits(segments, inc.incrustations), e.textesAffiches), e.cartesPleinEcran), selectif);
   const avecSousTitres = c.briques["sous-titres"] !== false && c.styles.sousTitres !== null && segmentsImage.length > 0;
   // Facecam lot G : pendant un passage « côté », la ligne se tient dans la colonne de Will (même hauteur).
   const colonnesCote = (e.misesEnPage ?? []).filter((mp) => mp.mode === "cote" && mp.geometrie.cote).map((mp) => ({ debutSec: mp.debutSec, finSec: mp.finSec, centrePct: e.positionSousTitresPct ?? recette.centreSousTitres[ratio] ?? 60, colonne: { gauchePx: mp.geometrie.cote!.xPersonne, largeurPx: mp.geometrie.cote!.largeurPersonne } }));
@@ -372,7 +375,7 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
   // BR-FACECAM-TEXTE : escalier (zone = la bande des sous-titres, 24 % de l'image au plus, jamais plus haut que le centre de la ligne - 12 %) et plaque animée + marque, seulement si le profil figé les permet ; sinon rien, vidéo identique.
   const centreLignePct = styleRatio?.positionPct ?? 48;
   const largeurZonePct = largeurLibrePct(ratio, reseaux);
-  const escalier = escalierPermis(c.entrees) ? { escalier: { zone: { xPx: ((100 - largeurZonePct) / 200) * largeur, yPx: (Math.min(76, Math.max(0, centreLignePct - 12)) / 100) * hauteur, largeurPx: (largeurZonePct / 100) * largeur, hauteurPx: 0.24 * hauteur }, taillePx: style?.taillePx ?? recette.tailleSousTitresPx } } : {};
+  const escalier = escalierPermis(c.entrees) && !selectif ? { escalier: { zone: { xPx: ((100 - largeurZonePct) / 200) * largeur, yPx: (Math.min(76, Math.max(0, centreLignePct - 12)) / 100) * hauteur, largeurPx: (largeurZonePct / 100) * largeur, hauteurPx: 0.24 * hauteur }, taillePx: style?.taillePx ?? recette.tailleSousTitresPx } } : {};
   const aPlaque = pavePermis(c.entrees) ? segmentsImage.flatMap((s) => { const k = motsAPlaque(s, "forts")[0]; return k === undefined ? [] : [[s.id, k] as const]; }) : [];
   const marque = aPlaque.length ? tirerMarqueMot(`${c.videoId}`) : null;
   const pave = aPlaque.length ? { paveAnime: true as const, plaques: Object.fromEntries(aPlaque), ...(marque ? { marques: Object.fromEntries(aPlaque.map(([id]) => [id, marque])) } : {}) } : {};

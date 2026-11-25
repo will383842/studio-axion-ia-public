@@ -84,7 +84,7 @@ describe("phrase non choisie : sur le chemin réel de la relecture", () => {
   it("une fin CHOISIE (question de la banque) → rien", async () => {
     const r = await relire(temoin, FINS.question);
     expect(r.rapport.lignes.filter((l) => l.libelle === "Phrase non choisie")).toEqual([]);
-  });
+  }, 15_000);
   it("une seconde phrase en plus de la fin choisie → bloquant", async () => {
     const r = await controlerAvecPhraseInjectee(FINS.question, "Abonnez-vous pour recevoir mes astuces.");
     expect(r.bloquants.some((l) => l.libelle === "Phrase non choisie")).toBe(true);

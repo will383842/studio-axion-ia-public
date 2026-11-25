@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { GabaritCreation } from "@/components/creation/GabaritCreation";
 import { PauseVitrine } from "@/components/formats/vitrines/RemarquesFiche";
 import { Bouton } from "@/components/ui/Bouton";
@@ -13,6 +13,8 @@ import { modeleDescription } from "@/briques/geo";
 import { AvantDeLancer } from "./AvantDeLancer";
 import { KitGeo } from "./KitGeo";
 import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, dureeTotaleSec, PlanChapitres, planDepuisValide, type ChapitrePlan } from "./PlanChapitres";
+import type { Resultat } from "@/services/_commun";
+import type { DemandeVideoLongue, IssueVideoLongue } from "@/services/video-longue-creation";
 import { TexteParChapitre, type ChapitreAvecVersions, type ChapitreValide } from "./TexteParChapitre";
 
 const ETAPES = [
@@ -24,14 +26,14 @@ const ETAPES = [
 
 const PHRASE_ECRITURE_NON_RELIEE = "L'écriture des chapitres n'est pas encore reliée : votre sujet est gardé, rien n'a échoué et rien n'est payé.";
 const PHRASE_ENREGISTREMENT_NON_RELIE = "L'enregistrement n'est pas encore relié : rien n'a échoué et rien n'est payé.";
-const PHRASE_LANCEMENT_NON_RELIEE = "La fabrication de la vidéo longue n'est pas encore reliée : votre accord n'a déclenché aucune dépense et rien n'a échoué.";
+const PHRASE_LANCEMENT_NON_RELIEE = "Le lancement n'est pas disponible sur cet écran : votre accord n'a déclenché aucune dépense et rien n'a échoué.";
 
 /**
  * Générateur « Vidéo longue » (écrans 1 à 4, vitrine). Aucune dépense, aucun appel à Claude : tant que la fabrication
  * n'est pas reliée (VL-07), chaque geste qui voudrait écrire ou fabriquer répond par une pause claire.
  * Le plan vient du script collé par l'utilisateur ; sans script, rien n'est inventé.
  */
-export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boolean; depensesCoupees: boolean }) {
+export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVoixNonReliee, phraseMontageNonRelie }: { actif: boolean; depensesCoupees: boolean; phraseVoixNonReliee?: string; phraseMontageNonRelie?: string; lancer?: (demande: DemandeVideoLongue) => Promise<Resultat<IssueVideoLongue>> }) {
   const [etape, setEtape] = useState(0);
   const [question, setQuestion] = useState("");
   const [pourQui, setPourQui] = useState("");
@@ -45,6 +47,9 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
   const [chapitres, setChapitres] = useState<ChapitrePlan[]>([]);
   const [valide, setValide] = useState<ChapitreValide[] | null>(null);
   const [pause, setPause] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const verrou = useRef(false);
+  const [videoId, setVideoId] = useState<string | null>(null);
 
   const versions = useMemo<ChapitreAvecVersions[]>(
     () => chapitres.map((c) => ({ id: c.id, titre: c.titre, versions: [{ cle: "colle", phrases: decouperEnPhrases(c.texte) }] })),
@@ -66,6 +71,32 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
     setValide(null);
     setPause(null);
     setEtape(1);
+  }
+  async function lancerLaVideo() {
+    if (!lancer) {
+      setPause(PHRASE_LANCEMENT_NON_RELIEE);
+      return;
+    }
+    if (verrou.current || enCours || !valide) return;
+    verrou.current = true;
+    setEnCours(true);
+    setPause(null);
+    try {
+      const r = await lancer({
+        question,
+        chapitres: valide.map((c) => ({ id: c.id, titre: c.titre, texte: c.phrases.join(" ") })),
+        sansVoix,
+        accordVoix: !sansVoix,
+      });
+      if (!r.ok) setPause(r.message);
+      else if (r.donnees.statut === "lancee") setVideoId(r.donnees.videoId);
+      else setPause(r.donnees.phrase);
+    } catch {
+      setPause("Le lancement n'a pas abouti : rien n'est payé. Vous pouvez réessayer.");
+    } finally {
+      verrou.current = false;
+      setEnCours(false);
+    }
   }
   const aller = (i: number) => {
     setPause(null);
@@ -107,9 +138,9 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
             />
             <p className="-mt-2 text-sm text-texte-doux">C&apos;est une cible, pas une limite.</p>
             <SelecteurPastilles
-              libelle="Son"
+              libelle="Son de la vidéo"
               options={[
-                { valeur: "avec", libelle: "Avec la voix de mon double" },
+                { valeur: "avec", libelle: "Avec la voix de mon double (par défaut)" },
                 { valeur: "sans", libelle: "Sans voix (sous-titres et texte à l'écran)" },
               ]}
               valeur={sansVoix ? "sans" : "avec"}
@@ -117,6 +148,8 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
             />
             {sansVoix ? (
               <p className="text-sm text-texte-doux">Silence total, sans musique : chaque scène reste le temps de lire le texte.</p>
+            ) : phraseVoixNonReliee ? (
+              <p role="status" className="text-sm font-semibold text-texte">{phraseVoixNonReliee}</p>
             ) : (
               <p className="text-sm font-semibold text-texte">Voix : votre double.</p>
             )}
@@ -164,11 +197,22 @@ export function FormulaireVideoLongue({ actif, depensesCoupees }: { actif: boole
               chapitres={planFinal.length}
               courts={courts ? planFinal.length : 0}
               sansVoix={sansVoix}
-              peutLancer={actif && !depensesCoupees}
-              onLancer={() => setPause(PHRASE_LANCEMENT_NON_RELIEE)}
+              peutLancer={actif && !depensesCoupees && !phraseMontageNonRelie && !(phraseVoixNonReliee && !sansVoix)}
+              enCours={enCours}
+              lance={!!videoId}
+              phraseBloquee={actif && !depensesCoupees ? phraseMontageNonRelie ?? (!sansVoix ? phraseVoixNonReliee : undefined) : undefined}
+              onLancer={() => void lancerLaVideo()}
               onRetour={() => aller(2)}
             />
             {pause && <PauseVitrine phrase={pause} />}
+            {videoId && (
+              <p role="status" className="text-sm text-texte">
+                Votre vidéo est lancée.{" "}
+                <Link href={`/videos/${videoId}`} className="font-semibold text-accent underline">
+                  Voir la vidéo
+                </Link>
+              </p>
+            )}
             {valide && (
               <KitGeo
                 titre={question}

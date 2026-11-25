@@ -227,3 +227,30 @@ describe("bouton « Retenir ce sujet »", () => {
     expect(retenir).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("carte carrousel : lien et phrase selon le type du résultat (plan usine #63)", () => {
+  beforeEach(() => { etats.length = 0; });
+  const lien = (arbre: ReactElement) => trouver(arbre, (e) => (e.props as { href?: string }).href !== undefined);
+
+  it("résultat carrousel : « Voir le carrousel » vers /carrousels/<id> et la phrase de relecture", async () => {
+    const retenir = vi.fn(async () => ({ ok: true as const, donnees: { id: "vis_123", rappelUsine: false, type: "carrousel" as const } }));
+    await bouton(rendre(retenir))!.props.onClick!();
+    const apres = rendre(retenir);
+    expect((lien(apres)!.props as { href?: string }).href).toBe("/carrousels/vis_123");
+    expect(texte(lien(apres)!)).toBe("Voir le carrousel");
+    expect(texte(apres)).toContain("Brouillon de carrousel créé : relisez-le et validez-le avant toute programmation.");
+    expect(texte(apres)).not.toContain("Voir dans « Écrire »");
+  });
+
+  it("résultat vidéo (ou sans type) : « Voir dans « Écrire » » comme avant", async () => {
+    for (const donnees of [{ id: "s", rappelUsine: false, type: "video" as const }, { id: "s", rappelUsine: false }]) {
+      etats.length = 0;
+      const retenir = vi.fn(async () => ({ ok: true as const, donnees }));
+      await bouton(rendre(retenir))!.props.onClick!();
+      const apres = rendre(retenir);
+      expect((lien(apres)!.props as { href?: string }).href).toBe("/ecrire");
+      expect(texte(lien(apres)!)).toBe("Voir dans « Écrire »");
+      expect(texte(apres)).not.toContain("Brouillon de carrousel");
+    }
+  });
+});

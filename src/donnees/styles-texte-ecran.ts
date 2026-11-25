@@ -23,7 +23,7 @@ export const VALEUR_AXION_SURLIGNE: ValeurStyleSousTitres = karaoke({ marqueur: 
 export const VALEUR_AXION_PAVE: ValeurStyleSousTitres = karaoke({ pave: { mots: "forts-et-chiffres" } });
 export const VALEUR_AXION_OUTILS: ValeurStyleSousTitres = { ...STYLE_SOUS_TITRES_MINIMAL, texteEcran: { outils: "etiquette" } };
 export const VALEUR_AXION_VARIE: ValeurStyleSousTitres = karaoke({ varier: true });
-/** Pastille pleine, mot dit en orange clair ; la police suit `PASTILLE_EN_MANROPE` (C2-U14, éteinte). */
+/** Pastille pleine, mot dit en orange clair ; la police suit `PASTILLE_EN_MANROPE` (C2-U14, allumée : Manrope Bold). */
 export const VALEUR_PASTILLE_AXION: ValeurStyleSousTitres = { ...STYLE_SOUS_TITRES_AVOCAT, pastille: "axion" };
 
 export function elementsStylesTexteEcran(maintenant: string): ElementBibliotheque[] {

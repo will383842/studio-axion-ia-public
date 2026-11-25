@@ -24,3 +24,9 @@ Le vérificateur ne lance pas le navigateur, ne fait aucune requête réseau et 
 ## Après l'ouverture
 
 Avant d'accepter des dossiers de clients, un conteneur de capture figé (sans réseau, utilisateur sans droits) est construit par will-dc : voir la demande 51b de la fiche T-EXT-51. Tant qu'il n'existe pas, aucun dossier de client n'est ouvert.
+
+Dans le conteneur de capture, la garde reconnaît `CAPTURE_CONTENEUR=true` seulement si `/.dockerenv` ou `/run/.containerenv` existe. La capture ET le vérificateur de poste (`verifier-poste`, déjà branché) appliquent cette règle ; le bac à sable de Chromium y est coupé (le conteneur est la barrière), de même qu'en root hors conteneur (routine cloud : Chromium refuse de démarrer en root avec son bac à sable).
+
+Pendant la construction de l'image (`docker build`), BuildKit ne crée ni `/.dockerenv` ni `/run/.containerenv` : le conteneur ne peut donc pas y compter sur `CAPTURE_CONTENEUR` seul. Il pose `CI=true` uniquement devant la commande `verifier-poste` du `RUN` de build, et plus dans l'`ENV` de l'image (au lancement, `docker run` crée `/.dockerenv`).
+
+Les liens symboliques, les liens physiques (`nlink` supérieur à 1) et tout ce qui n'est pas un fichier ordinaire sont refusés dans une maquette (chemin réel, `deciderRequete`).

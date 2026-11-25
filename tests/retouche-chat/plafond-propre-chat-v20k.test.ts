@@ -114,9 +114,9 @@ describe("S3-07-v20k · plafond propre du chat de retouche (« rtcht »)", () =>
   it("e) le fichier d'argent : les trois listes fermées portent le chat, et aucun plafond existant n'a bougé", () => {
     const source = readFileSync(resolve(process.cwd(), "src/services/depense-claude-video.ts"), "utf8");
     expect(dcv.PREFIXE_ETAPE_RETOUCHE_CHAT).toBe(PREFIXE);
-    expect(source).toContain('id: "tbdec" | "tbscr" | "favid" | "rtcht";');
-    expect(source).toMatch(/const PREFIXES_PLAFONDS_PROPRES = \["Tableau · découpage", "Tableau · script", PREFIXE_ETAPE_VIDEOS_FA, PREFIXE_ETAPE_RETOUCHE_CHAT\] as const;/);
-    expect(source).toMatch(/const PREFIXES_APPELS_PROPRES = \["tbdec", "tbscr", "favid", "rtcht"\]\.map\(/);
+    expect(source).toContain('id: "tbdec" | "tbscr" | "favid" | "rtcht" | "tbreg" | "tuto";');
+    expect(source).toMatch(/const PREFIXES_PLAFONDS_PROPRES = \["Tableau · découpage", "Tableau · script", PREFIXE_ETAPE_VIDEOS_FA, PREFIXE_ETAPE_RETOUCHE_CHAT, PREFIXE_ETAPE_REGARD_TABLEAU, PREFIXE_ETAPE_TUTORIEL_PLAFOND\] as const;/);
+    expect(source).toMatch(/const PREFIXES_APPELS_PROPRES = \["tbdec", "tbscr", "favid", "rtcht", "tbreg", "tuto"\]\.map\(/);
     expect(dcv.PLAFOND_KIT_USD).toBe(0.3);
     expect(dcv.PLAFOND_FACECAM_VERSION_USD).toBe(1.5);
     expect(dcv.PLAFOND_VIDEOS_FA_USD).toBe(0.6);

@@ -56,7 +56,7 @@ export const DECLARATIONS: Readonly<Record<string, DeclarationGenerateur>> = Obj
   "motion": figer({ formatId: "motion", artefacts: PLAN, decoupage: "scenes", visage: false, ratios: ["9:16", "16:9"] }),
   "ugc": figer({ formatId: "ugc", artefacts: PLAN, decoupage: "aucun", visage: true, ratios: ["9:16"] }),
   "selfie": figer({ formatId: "selfie", artefacts: PLAN, decoupage: "aucun", visage: true, ratios: ["9:16"] }),
-  "tableau-anime": figer({ formatId: "tableau-anime", artefacts: PLAN_ET_SCENES, decoupage: "scenes", operations: OPERATIONS_TABLEAU, visage: false, ratios: ["9:16"] }),
+  "tableau-anime": figer({ formatId: "tableau-anime", consomme: [ID.objetChiffre, ID.objetEtape, ID.objetMarque], artefacts: PLAN_ET_SCENES, decoupage: "scenes", operations: OPERATIONS_TABLEAU, visage: false, ratios: ["9:16"] }),
   "cas-concret": figer({ formatId: "cas-concret", consomme: [ID.planScenesCasConcret, ID.transitionCasConcret, ID.cadrageCameraCasConcret], artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["9:16"] }),
   "facecam-animee": figer({ formatId: "facecam-animee", consomme: [ID.texteSousTitresV4, ID.ecranClipV4, ID.motionPlaquettesV4, ID.sonV4], artefacts: PLAN_ET_VOIX, decoupage: "plans", visage: true, ratios: ["9:16"] }),
   "image-video": figer({ formatId: "image-video", consomme: [ID.transitionImageVideo], artefacts: PLAN_ET_SCENES, decoupage: "scenes", visage: false, ratios: ["9:16"] }),

@@ -70,7 +70,7 @@ const estAppelFacecam = (travailId?: string) => !!travailId?.startsWith(`${PREFI
  */
 export interface PlafondPropre {
   /** Identifiant court (entre dans le préfixe des réservations). */
-  id: "tbdec" | "tbscr" | "favid" | "rtcht";
+  id: "tbdec" | "tbscr" | "favid" | "rtcht" | "tbreg" | "tuto";
   /** Réglage du plafond, en dollars. */
   parametre: string;
   /** Valeur par défaut du réglage, en dollars. */
@@ -102,9 +102,13 @@ export const PARAM_PLAFOND_SCRIPT_TABLEAU = "tableau.plafondScriptUsd";
 
 /** Chat de retouche (S3-07, 20/11) : ses lectures par Claude ont leur PROPRE plafond par vidéo (« rtcht »), à part des textes de publication. */
 export const PREFIXE_ETAPE_RETOUCHE_CHAT = "Retouche chat ·";
+/** Regard du tableau (S-10, 21/11) : son PROPRE plafond par vidéo (« tbreg »), disjoint de « Tableau · découpage », « Tableau · script ». */
+export const PREFIXE_ETAPE_REGARD_TABLEAU = "Tableau · regard";
+/** Tutoriel d'outil (TUTO-DEPENSE-PROPRE, 21/11) : son PROPRE plafond par vidéo (« tuto ») ; même valeur que `PREFIXE_ETAPE_TUTORIEL` de tutoriel-claude.ts. */
+export const PREFIXE_ETAPE_TUTORIEL_PLAFOND = "Tutoriel ·";
 /** Préfixes d'étape des plafonds propres connus (leurs dépenses ne comptent pas dans le plafond des textes). */
-const PREFIXES_PLAFONDS_PROPRES = ["Tableau · découpage", "Tableau · script", PREFIXE_ETAPE_VIDEOS_FA, PREFIXE_ETAPE_RETOUCHE_CHAT] as const;
-const PREFIXES_APPELS_PROPRES = ["tbdec", "tbscr", "favid", "rtcht"].map((id) => `${PREFIXE_APPEL_TEXTE}-${id}-`);
+const PREFIXES_PLAFONDS_PROPRES = ["Tableau · découpage", "Tableau · script", PREFIXE_ETAPE_VIDEOS_FA, PREFIXE_ETAPE_RETOUCHE_CHAT, PREFIXE_ETAPE_REGARD_TABLEAU, PREFIXE_ETAPE_TUTORIEL_PLAFOND] as const;
+const PREFIXES_APPELS_PROPRES = ["tbdec", "tbscr", "favid", "rtcht", "tbreg", "tuto"].map((id) => `${PREFIXE_APPEL_TEXTE}-${id}-`);
 const estDepensePropre = (x: Pick<DepenseEnregistree, "lignes">) => x.lignes.some((l) => PREFIXES_PLAFONDS_PROPRES.some((p) => l.etape.startsWith(p)));
 const estAppelPropre = (travailId?: string) => !!travailId && PREFIXES_APPELS_PROPRES.some((p) => travailId.startsWith(p));
 

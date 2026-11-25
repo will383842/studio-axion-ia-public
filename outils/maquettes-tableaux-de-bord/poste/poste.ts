@@ -16,6 +16,8 @@ export const EXIGENCES_POSTE = {
 export interface SondesPoste {
   plateforme: string;
   env: { CI?: string; CLAUDE_CODE_REMOTE?: string; CAPTURE_CONTENEUR?: string };
+  /** Lu sur le disque par le lanceur (`indicesConteneur(existsSync)`) : /.dockerenv ou /run/.containerenv présent. */
+  indicesConteneur?: boolean;
   playwright?: string;
   chromium?: { chemin: string; version: string };
   ffmpeg?: { version: string; encodeurs: string[]; filtres: string[] };
@@ -36,11 +38,11 @@ export function lireVersionFfmpeg(texte: string): string | undefined {
   return m ? m[1] : undefined;
 }
 
-/** Noms des filtres de `ffmpeg -filters` (colonne 2 de chaque ligne de la liste). */
+/** Noms des filtres de `ffmpeg -filters` (colonne 2 de chaque ligne : 2 options en FFmpeg 8, 3 avant). */
 export function lireFiltres(texteFiltres: string): string[] {
   const noms: string[] = [];
   for (const ligne of String(texteFiltres ?? "").split(/\r?\n/)) {
-    const m = /^\s*[A-Z.|]{3}\s+(\S+)\s+\S+->\S+\s/.exec(ligne);
+    const m = /^\s*[A-Z.|]{2,3}\s+(\S+)\s+\S+->\S+\s/.exec(ligne);
     if (m) noms.push(m[1]);
   }
   return noms;
@@ -67,7 +69,7 @@ export function jugerPoste(s: SondesPoste): Jugement {
   const env = s?.env ?? {};
   const plateforme = s?.plateforme ?? "";
 
-  const verdict = environnementAutorise(env as Record<string, string | undefined>, plateforme);
+  const verdict = environnementAutorise(env as Record<string, string | undefined>, plateforme, s?.indicesConteneur === true);
   if (!verdict.ok) manques.push(verdict.raison);
   if (plateforme && !(EXIGENCES_POSTE.plateformes as readonly string[]).includes(plateforme)) {
     manques.push(`Système « ${plateforme} » refusé : seulement Linux (cloud ou CI).`);
@@ -109,17 +111,20 @@ export function empreintePoste(s: SondesPoste): string {
 
 export type TypePoste = "routine-cloud" | "ci" | "conteneur";
 
-export function typePoste(env: SondesPoste["env"]): TypePoste {
-  if (env?.CAPTURE_CONTENEUR === "true") return "conteneur";
+/** « conteneur » seulement avec CAPTURE_CONTENEUR exactement « true » ET sans indice absent (`false` = le lanceur n'a vu aucun fichier témoin). */
+export function typePoste(env: SondesPoste["env"], indicesConteneur?: boolean): TypePoste {
+  if (env?.CAPTURE_CONTENEUR === "true" && indicesConteneur !== false) return "conteneur";
   if (env?.CI === "true" && env?.CLAUDE_CODE_REMOTE !== "true") return "ci";
   return "routine-cloud";
 }
 
 export function posteJson(s: SondesPoste, jugement: Jugement) {
+  // `indicesConteneur` sert au jugement et au type seulement : il n'entre pas dans la fiche.
   const { env, ...sondes } = s;
+  delete sondes.indicesConteneur;
   return {
     version: "poste-capture.v1" as const,
-    type: typePoste(env ?? {}),
+    type: typePoste(env ?? {}, s?.indicesConteneur),
     ...sondes,
     empreinte: empreintePoste(s),
     ok: jugement.ok,

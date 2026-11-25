@@ -36,7 +36,7 @@ describe("fin en boucle (X1-11)", () => {
     expect(deciderBoucle(sc)).toEqual(deciderBoucle(sc));
     expect(JSON.stringify(sc)).toBe(copie);
   });
-  it("éteint = identique : aucune source n'importe fins/boucle ni deciderBoucle", () => {
+  it("éteint = identique : seules les décisions pures de BOUCLE-EFFET-a et BOUCLE-TABLEAU-a citent fins/boucle ou deciderBoucle (liste fermée)", () => {
     const lister = (d: string): string[] =>
       readdirSync(d).flatMap((n) => {
         if (n === "node_modules" || n === "dist") return [];
@@ -45,10 +45,10 @@ describe("fin en boucle (X1-11)", () => {
       });
     const sources = [...lister("src"), ...lister("studio-rendu")].filter((f) => !f.replace(/\\/g, "/").endsWith("src/briques/fins/boucle.ts"));
     expect(sources.length).toBeGreaterThan(0);
-    for (const f of sources) {
-      const code = readFileSync(f, "utf8");
-      expect(code, f).not.toMatch(/fins\/boucle|deciderBoucle/);
-    }
+    const importeurs = sources.filter((f) => /fins\/boucle|deciderBoucle/.test(readFileSync(f, "utf8"))).map((f) => f.replace(/\\/g, "/"));
+    expect(importeurs).toEqual(["src/moteurs/montage-cas-concret/boucle-effet.ts", "src/moteurs/montage-tableau/boucle-effet.ts"]);
+    // cas fictif : un 2e importeur rendrait la liste fermée rouge
+    expect([...importeurs, "src/autre.ts"]).not.toEqual(["src/moteurs/montage-cas-concret/boucle-effet.ts", "src/moteurs/montage-tableau/boucle-effet.ts"]);
     expect(readFileSync("src/briques/fins/index.ts", "utf8")).not.toMatch(/boucle/);
   });
 });

@@ -9,7 +9,7 @@ import { ZERO } from "@/lib/montants";
 import type { SortieProduite } from "../types";
 import { creerMoteurGabarit, type DefinitionGabarit } from "../gabarit";
 import { lireEntreesVideoLongue, type EntreesVideoLongue } from "./entrees";
-import { avancerVideoLongue, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
+import { avancerVideoLongue, estimerMotsSansVoix, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
 
 export { COMPOSITION_VIDEO_LONGUE } from "./chaine";
 export type { DependancesVideoLongue, EtatVideoLongue } from "./chaine";
@@ -18,9 +18,9 @@ export const ID_MOTEUR_VIDEO_LONGUE = "montage-video-longue";
 export const PHRASE_PAUSE_VIDEO_LONGUE = "La fabrication de la vidéo longue n'est pas reliée : votre script est gardé, rien n'a échoué et rien n'est payé.";
 
 /** 1920×1080, 20 min au plus (au-delà de 12 min : une remarque, jamais un refus). */
-const DUREE_MAX_SEC = 1200;
+export const DUREE_MAX_SEC = 1200;
 
-export function definitionVideoLongue(dependances: (commande: CommandeFabrication) => DependancesVideoLongue | null): DefinitionGabarit<EntreesVideoLongue, EtatVideoLongue, DependancesVideoLongue, RepriseVideoLongue> {
+export function definitionVideoLongue(dependances: (commande: CommandeFabrication, travailId?: string) => DependancesVideoLongue | null): DefinitionGabarit<EntreesVideoLongue, EtatVideoLongue, DependancesVideoLongue, RepriseVideoLongue> {
   return {
     id: ID_MOTEUR_VIDEO_LONGUE,
     nom: "Montage vidéo longue",
@@ -30,7 +30,7 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     dureeMaxSec: DUREE_MAX_SEC,
     phrasePause: PHRASE_PAUSE_VIDEO_LONGUE,
     lireEntrees: lireEntreesVideoLongue,
-    dependances: (commande) => dependances(commande),
+    dependances: (commande, travailId) => dependances(commande, travailId),
     etatInitial: () => ({ faites: [], remarques: [], sorties: {} }),
     avancer: avancerVideoLongue,
     resultat(commande, etat) {
@@ -62,13 +62,21 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
         return r?.voix && Array.isArray(r.chapitres) ? { voix: r.voix, chapitres: r.chapitres } : undefined;
       },
       // Retouche : la voix déjà lue est gardée (rien n'est relu ni repayé) ; seul le montage est refait.
-      etatPourRetouche: (reprise) => ({ faites: [], voix: reprise.voix, chapitres: reprise.chapitres, remarques: [], sorties: {} }),
+      // Sans voix, « voix » et « chapitres » ne sont que des estimations de l'ancien texte : on les recalcule (coût 0).
+      etatPourRetouche: (reprise, commande) => {
+        const entrees = lireEntreesVideoLongue(commande);
+        if (entrees.sansVoix) {
+          const lue = estimerMotsSansVoix(entrees);
+          return { faites: [], voix: { mots: lue.mots, dureeSec: lue.dureeSec, morceaux: 0 }, remarques: [], sorties: {} };
+        }
+        return { faites: [], voix: reprise.voix, chapitres: reprise.chapitres, remarques: [], sorties: {} };
+      },
     },
     proprietesRendu: () => ({}),
   };
 }
 
-export const creerMoteurVideoLongue = (dependances: (commande: CommandeFabrication) => DependancesVideoLongue | null) => creerMoteurGabarit(definitionVideoLongue(dependances));
+export const creerMoteurVideoLongue = (dependances: (commande: CommandeFabrication, travailId?: string) => DependancesVideoLongue | null) => creerMoteurGabarit(definitionVideoLongue(dependances));
 
 /** Moteur inscrit : AUCUNE dépendance reliée (VL-07 les reliera derrière un réglage éteint) = pause sans dépense. */
 export const moteurMontageVideoLongue = creerMoteurVideoLongue(() => null);

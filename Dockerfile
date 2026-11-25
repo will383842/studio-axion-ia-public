@@ -49,6 +49,8 @@ COPY --from=build --chown=studio:studio /app/.next/standalone ./
 COPY --from=build --chown=studio:studio /app/.next/static ./.next/static
 COPY --from=build --chown=studio:studio /app/public ./public
 COPY --from=build --chown=studio:studio /app/outils ./outils
+# Police de la charte des maquettes de démo (RES-8) : elle vit dans src/, absent de l'image standalone ; lue à l'exécution dans outils/.
+COPY --from=build --chown=studio:studio /app/src/app/polices/manrope-latin.woff2 ./outils/maquettes-tableaux-de-bord/charte/manrope-latin.woff2
 # Contrôle des commandes FFmpeg du format « Image → vidéo », exécuté par deploiement/verifier-outils-video.sh avant toute
 # mise en ligne. Il garde la disposition du dépôt (chemins relatifs) : le contrôle et les deux fichiers PURS qu'il lit.
 COPY deploiement/studio/controle-ffmpeg-iv.mjs /app/controle-iv/deploiement/studio/

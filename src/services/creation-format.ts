@@ -27,6 +27,11 @@ export interface EntreeBrouillonFormat {
 /** Brouillon neuf (statut `brouillon`, rien de lancé). Session exigée ; le format peut être masqué. */
 export async function nouveauBrouillonFormat(e: EntreeBrouillonFormat): Promise<Video> {
   await exigerSession();
+  return creerBrouillonFormatSansSession(e);
+}
+
+/** Même brouillon que `nouveauBrouillonFormat`, SANS session. Appelants autorisés : séquenceurs sans session (réserve de tutoriels). */
+export async function creerBrouillonFormatSansSession(e: EntreeBrouillonFormat): Promise<Video> {
   const format = trouverFormat(e.formatId);
   if (!format) throw new ErreurStudio("FORMAT_INCONNU", "Ce format n'existe pas.");
   const mention = await lireParametre<MentionIA>("mentionIA.parDefaut", MENTION_IA_PAR_DEFAUT);

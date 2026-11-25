@@ -7,10 +7,24 @@
  * Film : image par image (horloge de la page arrêtée, 40 ms par image, PNG 2× vers FFmpeg x264).
  * Zéro euro : aucune voix fabriquée, aucun appel à un fournisseur ; réseau coupé (seuls les fichiers de la maquette passent).
  * Jamais appelé par le Studio. Rien n'est écrit dans le dépôt.
+ *
+ * BAC À SABLE DE CHROMIUM (T-EXT-51c, essais réels, Playwright 1.63 / Chromium 153) : Playwright ajoute le drapeau de
+ * désactivation du bac à sable dès que `chromiumSandbox !== true`. Le lanceur demande donc `chromiumSandbox: !EN_CONTENEUR && uid !== 0` :
+ *  - Hors conteneur, utilisateur NON root (PC de développement Linux, CI ordinaire) : bac à sable ACTIF, essai réel concluant.
+ *  - Hors conteneur, en ROOT (routine cloud) : bac à sable COUPÉ, comme dans la base 51b. Chromium refuse de démarrer en root
+ *    avec le bac à sable (« Running as root without --no-sandbox is not supported »). Ce n'est donc PAS un gain pour la routine
+ *    cloud : la barrière y est la session cloud elle-même et le refus des liens (garde.ts), pas Chromium.
+ *  - Dans le conteneur studio-capture (`CAPTURE_CONTENEUR=true` ET /.dockerenv ou /run/.containerenv ; réseau none, read_only,
+ *    cap_drop ALL, no-new-privileges, 1001:1001) : bac à sable COUPÉ. L'essai réel ÉCHOUE avec `chromiumSandbox: true` :
+ *    « Chromium sandboxing failed! ». Cause : le seccomp PAR DÉFAUT de Docker refuse unshare(CLONE_NEWUSER) (pas d'espace de noms
+ *    utilisateur), et le `chrome_sandbox` de l'image n'est pas setuid. Décision (b) : le CONTENEUR est la seule barrière ;
+ *    on ne l'affaiblit JAMAIS (ni seccomp unconfined, ni SYS_ADMIN, ni privileged). Le test capture-securite verrouille : aucun
+ *    `args`, aucun `ignoreDefaultArgs`, aucun `chromiumSandbox: false`, exécutable = CAPTURE_CHROMIUM ou celui de Playwright.
+ *  - Variante (a), non appliquée (au fondateur) : un profil seccomp dédié n'autorisant que unshare(CLONE_NEWUSER).
  */
 import { chromium, type Page } from "@playwright/test";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { lireScenarioMaquette, type ScenarioMaquette } from "../../../src/moteurs/montage-tutoriel-outil/scenario-maquette";
@@ -25,7 +39,7 @@ import {
   type GesteImage,
   type PlanImages,
 } from "./film-images";
-import { adresseAutorisee, environnementAutorise, RACINES_PAR_DEFAUT } from "./garde";
+import { deciderRequete, environnementAutorise, indicesConteneur, RACINES_PAR_DEFAUT } from "./garde";
 import {
   empreinteCapture,
   lireCalage,
@@ -44,6 +58,8 @@ import {
 } from "./plan-capture";
 
 const RACINE_DEPOT = fileURLToPath(new URL("../../../", import.meta.url));
+/** Vrai dans le conteneur de capture : fichier témoin Docker/Podman ET `CAPTURE_CONTENEUR=true` ; le bac à sable de Chromium n'y est pas disponible, voir l'en-tête. */
+const EN_CONTENEUR = indicesConteneur(existsSync) && process.env.CAPTURE_CONTENEUR === "true";
 const HEURE_FIGEE = new Date("2026-01-15T09:00:00+01:00");
 const ATTENTE_CIBLE_MAX_MS = 5000;
 const ATTENTE_ANIMATIONS_MAX_MS = 2000;
@@ -116,7 +132,7 @@ async function passeFilm(
 ): Promise<{ mesures: MesureEtape[]; debutFilmMs: number; fichier: string; animationsPilotees: number }> {
   if (!sonde("ffmpeg", ["-version"]).ok) throw new Arret(5, "FFmpeg est nécessaire pour le film.");
   const fichier = join(sortie, "navigation.mp4");
-  const browser = await chromium.launch({ executablePath: process.env.CAPTURE_CHROMIUM || undefined });
+  const browser = await chromium.launch({ executablePath: process.env.CAPTURE_CHROMIUM || undefined, chromiumSandbox: !EN_CONTENEUR && process.getuid?.() !== 0 });
   let encodeur: ChildProcess | undefined;
   try {
     const context = await browser.newContext({
@@ -132,7 +148,8 @@ async function passeFilm(
     });
     await context.route("**/*", async (route) => {
       const url = route.request().url();
-      if (adresseAutorisee(url, RACINES_MAQUETTE)) await route.continue();
+      // Décision pure (garde.ts) : chemin RÉEL, fichier ordinaire, un seul nom ; un lien dans la maquette n'est jamais servi.
+      if (deciderRequete(url, RACINES_MAQUETTE, realpathSync.native, statSync) === "continuer") await route.continue();
       else {
         rapport.requetesBloquees.push(url);
         await route.abort();
@@ -244,7 +261,7 @@ async function passeControles(
   sortie: string,
   rapport: Rapport,
 ): Promise<{ cible: string | undefined; etapeId: string; rectPx?: RectPx; policeMinPx?: number }[]> {
-  const browser = await chromium.launch({ executablePath: process.env.CAPTURE_CHROMIUM || undefined });
+  const browser = await chromium.launch({ executablePath: process.env.CAPTURE_CHROMIUM || undefined, chromiumSandbox: !EN_CONTENEUR && process.getuid?.() !== 0 });
   try {
     const context = await browser.newContext({
       viewport: { width: scenario.largeur, height: scenario.hauteur },
@@ -259,7 +276,8 @@ async function passeControles(
     });
     await context.route("**/*", async (route) => {
       const url = route.request().url();
-      if (adresseAutorisee(url, RACINES_MAQUETTE)) await route.continue();
+      // Décision pure (garde.ts) : chemin RÉEL, fichier ordinaire, un seul nom ; un lien dans la maquette n'est jamais servi.
+      if (deciderRequete(url, RACINES_MAQUETTE, realpathSync.native, statSync) === "continuer") await route.continue();
       else {
         rapport.requetesBloquees.push(url);
         await route.abort();
@@ -312,7 +330,7 @@ function lireFilm(fichier: string): string {
 const RACINES_MAQUETTE: string[] = RACINES_PAR_DEFAUT.map((r) => resolve(RACINE_DEPOT, r));
 
 async function principal(): Promise<void> {
-  const verdict = environnementAutorise(process.env, process.platform);
+  const verdict = environnementAutorise(process.env, process.platform, EN_CONTENEUR);
   if (!verdict.ok) throw new Arret(3, verdict.raison);
   const a = args();
   for (const k of ["maquette", "scenario", "sortie"]) if (!a[k]) throw new Arret(4, `Argument « --${k} » obligatoire.`);

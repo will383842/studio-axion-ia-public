@@ -5,9 +5,12 @@ import { depots } from "@/donnees/memoire";
 import { exigerSession } from "@/services/auth";
 import { coutsDeLaVideo } from "@/services/cout-video";
 import { ligneSimulee, moisParis } from "@/services/couts";
-import { lireConsommation, lireReglagesTutoriel, lireTexteMention, phraseDevis, phraseDuTravail, videosEnCours } from "@/services/tutoriel-console";
+import { CLE_FORMULAIRE, lireConsommation, lireReglagesTutoriel, lireTexteMention, phraseDevis, phraseDuTravail, videosEnCours } from "@/services/tutoriel-console";
+import { lireReglagesReserve } from "@/services/tutoriel-reserve";
 import { lireSuivi } from "@/services/tutoriel-suivi";
 import { basculerReglageFormulaire, enregistrerTexteFormulaire } from "./actions";
+import { enregistrerReglagesReserveAction } from "./actions-reserve";
+import { ReglagesReserve } from "./ReglagesReserve";
 
 export const metadata: Metadata = { title: "Tutoriel d'outil" };
 export const dynamic = "force-dynamic";
@@ -23,7 +26,7 @@ export default async function PageReglagesTutorielOutil() {
       return travail ? phraseDuTravail(travail.statut) : null;
     },
   });
-  const [reglages, texteMention, consommation] = await Promise.all([
+  const [reglages, texteMention, consommation, reserve] = await Promise.all([
     lireReglagesTutoriel(),
     lireTexteMention(),
     lireConsommation(videos, {
@@ -37,11 +40,15 @@ export default async function PageReglagesTutorielOutil() {
       moisDe: (date) => moisParis(date),
       moisCourant: moisParis(),
     }),
+    lireReglagesReserve(),
   ]);
   return (
     <div className="mx-auto w-full max-w-xl">
       <EnTetePage retour={{ href: "/reglages", libelle: "Réglages" }} titre="Tutoriel d'outil" sousTitre="Allumez un réglage seulement quand vous voulez l'utiliser." />
       <PanneauConsole vue={{ reglages, texteMention, videos, consommation }} basculer={basculerReglageFormulaire} enregistrerTexte={enregistrerTexteFormulaire} />
+      <div className="mt-8">
+        <ReglagesReserve reglages={reserve} formulaireOuvert={reglages.some((r) => r.cle === CLE_FORMULAIRE && r.allume)} enregistrer={enregistrerReglagesReserveAction} />
+      </div>
     </div>
   );
 }
