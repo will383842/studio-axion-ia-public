@@ -182,7 +182,7 @@ export function plafondTutorielPhraseUsd(): number {
   const total = Math.round(pas * 5) / 100;
   if (!plafondPhraseJournalise) {
     plafondPhraseJournalise = true;
-    console.info(`Plafond tutoriel depuis une phrase : défaut ${defaut} $, création ${creation.toFixed(4)} $ (${PROPOSITIONS_PIECE_MAX} propositions au pire), total ${total} $`);
+    console.info(`Plafond tutoriel depuis une phrase : défaut ${defaut} $, création ${creation.toFixed(4)} $ (1 proposition et 1 reprise au pire), total ${total} $`);
   }
   return total;
 }

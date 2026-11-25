@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { DefinitionRole } from "@/generateur/roles/types";
 import { exempleSortieMaquette, roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { appliquerSortie, prochainPas, ROLES_TUTORIEL, type EntreesEquipe, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
-import { MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { MESSAGE_APERCU_A_CORRIGER, MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PHRASE_STOCKS, SORTIE_REELLE_SERVEUR } from "./sortie-reelle-phrase1";
 
@@ -187,5 +187,23 @@ describe("PHRASE-1 · la pause d'une pièce « à revoir » sans appel restant n
     const p = prochainPas({ ...e, appels: { maquettiste: 1 }, pieceCreee: piece }, ouvert);
     expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_REVOIR" } });
     expect((p as { pause: { message: string } }).pause.message).toMatch(/en demander une autre/);
+  });
+
+  it("reprise réussie (2 appels) puis aperçu à défauts : la pause invite à corriger les textes, ni « reformulez » ni « en demander une autre »", async () => {
+    const { e } = premierAppel();
+    const un = await appliquerSortie(e, "maquettiste", sortieHorsRegle(), ouvert);
+    if (un.ok) throw new Error("refus attendu");
+    const reprise = payant(prochainPas(un.etat, ouvert));
+    const deux = await appliquerSortie(un.etat, "maquettiste", simuler(reprise.entree), ouvert);
+    if (!deux.ok) throw new Error("la reprise est reçue");
+    const piece = deux.etat.pieceCreee!;
+    expect(piece.statut).toBe("a-construire");
+    // L'aperçu arrive avec des défauts : la pièce est « à valider », Williams peut encore corriger.
+    const apercu = { version: 1 as never, empreinteDescription: piece.empreinte, images: [], controle: { ok: false, defauts: ["Un texte déborde."] } };
+    const p = prochainPas({ ...deux.etat, pieceCreee: { ...piece, statut: "a-valider", apercu } }, ouvert);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_REVOIR", message: MESSAGE_APERCU_A_CORRIGER } });
+    const m = (p as { pause: { message: string } }).pause.message;
+    expect(m).toMatch(/corrigez/);
+    expect(m).not.toMatch(/reformulez|en demander une autre|autre proposition/);
   });
 });

@@ -24,7 +24,7 @@ import { appliquerRelecture, chiffresARelire, type ChiffreARelire, type Decision
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { nombresAffirmes } from "@/domaine/nombres-fr";
 import type { Fichier } from "@/domaine/types";
-import { MESSAGE_PIECE_A_REVOIR, MESSAGE_PLUS_DE_PROPOSITION, type PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { MESSAGE_PIECE_A_REVOIR, MESSAGE_PLUS_DE_PROPOSITION, MESSAGE_PLUS_DE_PROPOSITION_FLUX, type PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { controlerFluxCree, empreinteFlux, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
 import { lireFluxAutomatisation, type ActeurFlux, type FluxAutomatisation, type VueEcran } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { lireDescriptionMaquette, type DescriptionMaquette, type DonneeExemple } from "@/moteurs/montage-tutoriel-outil/description-maquette";
@@ -468,7 +468,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     cas: etat.cas,
     genre: flux ? "flux" : "maquette",
     etapes: fluxLu ? etapesDuFlux(fluxLu) : [],
-    message: etat.statut === "a-revoir" ? (plusDAutre ? MESSAGE_PLUS_DE_PROPOSITION : flux ? MESSAGE_FLUX_A_REVOIR : MESSAGE_PIECE_A_REVOIR) : null,
+    message: etat.statut === "a-revoir" ? (plusDAutre ? (flux ? MESSAGE_PLUS_DE_PROPOSITION_FLUX : MESSAGE_PLUS_DE_PROPOSITION) : flux ? MESSAGE_FLUX_A_REVOIR : MESSAGE_PIECE_A_REVOIR) : null,
     empreinte: etat.empreinte,
     apercu: (etat.apercu?.images ?? []).flatMap((i) => (urls[i.cle] ? [{ url: urls[i.cle]!, ecranId: i.ecranId, titre: titres.get(i.ecranId) ?? i.ecranId, etat: i.etat }] : [])),
     textes: textes.map((t) => ({ ...t, titre: titres.get(t.ecranId) ?? t.ecranId })),
@@ -615,7 +615,7 @@ async function garderPieceSeul(videoId: string, demande: DemandeGarder, d: Depen
   if (unSeulBlocDeTexte(demande?.empreinte) !== etat.empreinte || etat.apercu.empreinteDescription !== etat.empreinte) {
     return refus("Cette maquette a changé depuis que vous l'avez ouverte. Rechargez la page pour la revoir.");
   }
-  if (!etat.apercu.controle.ok) return refus("L'aperçu a des défauts : corrigez les textes concernés ou demandez une autre proposition.");
+  if (!etat.apercu.controle.ok) return refus(etat.proposition >= PROPOSITIONS_PIECE_MAX || etat.appelsEpuises === true ? "L'aperçu a des défauts : corrigez les textes concernés ou arrêtez cette demande." : "L'aperçu a des défauts : corrigez les textes concernés ou demandez une autre proposition.");
   if (estFlux(etat)) {
     // Un flux ne montre aucun chiffre : seul l'aperçu et le contrôle des textes comptent. Les décisions de chiffres sont ignorées.
     const flux = fluxDe(etat);

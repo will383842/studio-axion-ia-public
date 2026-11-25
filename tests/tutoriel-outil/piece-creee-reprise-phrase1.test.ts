@@ -9,8 +9,8 @@ import { PieceCreee } from "@/components/tutoriel-outil/PieceCreee";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
 import { MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { exempleSortieMaquette } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
-import { empreinteDescription, PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
-import { autreProposition, etatEcranDepuisPiece, NOMS_ECRANS_OUTILS, NOMS_NEUTRES, vuePieceCreee, type DependancesPiece, type DepotPiece } from "@/services/tutoriel-piece-creee";
+import { empreinteDescription, PROPOSITIONS_PIECE_MAX, VERSION_APERCU } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { autreProposition, corrigerTexte, etatEcranDepuisPiece, garderPiece, NOMS_ECRANS_OUTILS, NOMS_NEUTRES, vuePieceCreee, type DependancesPiece, type DepotPiece, type EtatPieceCreee } from "@/services/tutoriel-piece-creee";
 
 const VIDEO = "v-1";
 const description = (): DescriptionMaquette => {
@@ -123,5 +123,41 @@ describe("PHRASE-1 · l'écran d'une pièce « à revoir » ne propose plus d'en
       expect(r).toEqual({ ok: false, message: "Cette maquette n'est plus modifiable." });
       expect(m.compteurs).toEqual({ ecritures: 0, relances: 0 });
     }
+  });
+});
+
+describe("PHRASE-1 · aperçu à défauts après la reprise : Williams peut encore corriger", () => {
+  const avecDefauts = () => {
+    const m = monde(PROPOSITIONS_PIECE_MAX, 1, "a-construire");
+    const d = description();
+    const empreinte = empreinteDescription(d);
+    let etat: EtatPieceCreee = { ...etatEcranDepuisPiece(m.equipe)!, statut: "a-valider", apercu: { version: VERSION_APERCU, empreinteDescription: empreinte, images: [], controle: { ok: false, defauts: ["Un texte déborde."] } } };
+    m.dep.depot = { lire: async () => etat, ecrire: async (_id, e) => void (etat = e) };
+    return { m, empreinte, lire: () => etat };
+  };
+
+  it("la vue ne dit ni « demandez-en une autre » ni « plus de proposition » : le statut reste « à valider »", async () => {
+    const { m } = avecDefauts();
+    const vue = await vuePieceCreee(VIDEO, m.dep);
+    expect(vue).toMatchObject({ statut: "a-valider", propositionsRestantes: 0, message: null });
+    expect(vue?.defauts).toContain("Un texte déborde.");
+  });
+
+  it("garder est refusé sans proposer une autre proposition ; corriger un texte reste accepté", async () => {
+    const { m, empreinte } = avecDefauts();
+    const g = await garderPiece(VIDEO, { empreinte }, m.dep);
+    expect(g.ok).toBe(false);
+    expect(g.message).toBe("L'aperçu a des défauts : corrigez les textes concernés ou arrêtez cette demande.");
+    const zone = description().ecrans[0]!.zones[0]!;
+    const r = await corrigerTexte(VIDEO, { ecranId: description().ecrans[0]!.id, avant: zone.libelle, apres: "Mon suivi du jour" }, m.dep);
+    expect(r).toMatchObject({ ok: true, statut: "a-construire" });
+  });
+});
+
+describe("PHRASE-1 · flux « à revoir » sans appel restant", () => {
+  it("MESSAGE_PLUS_DE_PROPOSITION_FLUX parle d'automatisation, jamais de maquette", async () => {
+    const { MESSAGE_PLUS_DE_PROPOSITION_FLUX } = await import("@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee");
+    expect(MESSAGE_PLUS_DE_PROPOSITION_FLUX).toMatch(/automatisation/);
+    expect(MESSAGE_PLUS_DE_PROPOSITION_FLUX).not.toMatch(/maquette/);
   });
 });

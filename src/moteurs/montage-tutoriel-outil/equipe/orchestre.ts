@@ -23,7 +23,7 @@ import { classerParRegles, etablirCahier, lireDecisionChef, roleChefDeProjet, ty
 import { controlerAvantValidation, resumePourWilliams, type VerdictControleur } from "./controleur";
 import { PHRASE_FIN_RENDEZ_VOUS } from "./dossier-validation";
 import { PROPOSITIONS_PIECE_MAX } from "../maquette-creee";
-import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, MESSAGE_PLUS_DE_PROPOSITION, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
+import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, MESSAGE_APERCU_A_CORRIGER, MESSAGE_PLUS_DE_PROPOSITION, MESSAGE_PLUS_DE_PROPOSITION_FLUX, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
 import { lireFluxAutomatisation } from "../gabarit-flux";
 import { completerManque, entreeMaquettiste, MANQUES_MAQUETTISTE, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste, type PropositionMaquettiste } from "./maquettiste";
 import { realiser, type ParcoursTutoriel } from "./realisateur";
@@ -340,8 +340,12 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): Pas
       return { faire: "maquettiste", payant: true, entree: avecRemarques(e, "maquettiste", entree), empreinteEntree: empreinteDe("maquettiste", avecRemarques(e, "maquettiste", entree)) };
     }
     const r = pasPieceCreee(p);
-    // Plus aucun appel possible (reprise ou proposition n° 2 épuisées) : une pièce « à revoir » ne dit plus « demandez-en une autre ».
-    if ("pause" in r && r.pause.code === CODE_PIECE_A_REVOIR && faits >= PROPOSITIONS_PIECE_MAX) return { pause: { code: CODE_PIECE_A_REVOIR, message: MESSAGE_PLUS_DE_PROPOSITION } };
+    // Plus aucun appel possible (reprise ou proposition n° 2 épuisées) : une pièce « à revoir » ne dit plus « demandez-en une autre » ;
+    // un aperçu à défauts (pièce « à valider ») se corrige encore texte par texte : on ne pousse pas à tout abandonner.
+    if ("pause" in r && r.pause.code === CODE_PIECE_A_REVOIR && faits >= PROPOSITIONS_PIECE_MAX) {
+      const message = p.statut === "a-revoir" ? (piece === "maquette" ? MESSAGE_PLUS_DE_PROPOSITION : MESSAGE_PLUS_DE_PROPOSITION_FLUX) : MESSAGE_APERCU_A_CORRIGER;
+      return { pause: { code: CODE_PIECE_A_REVOIR, message } };
+    }
     // La pièce quitte « gardée » : tout ce qui vient de l'ancienne pièce est effacé (rien n'est repris d'un texte que Williams ne voit plus).
     if ("pause" in r) return { pause: r.pause, ...(r.etat ? { etat: { ...sansDeductionDePiece(e), pieceCreee: r.etat } } : {}) };
     if (e.carteEmpreinte !== p.gardee?.empreinte) {
