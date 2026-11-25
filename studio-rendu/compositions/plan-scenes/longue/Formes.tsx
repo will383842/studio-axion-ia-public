@@ -19,23 +19,31 @@ export function Forme({ forme, trace, couleur, epaisseur, t, largeur }: { forme:
   const chemins = CHEMINS[forme];
   const n = chemins.length;
   const e = (epaisseur * 100) / Math.max(1, largeur);
+  // Mouvement continu : l'icône oscille lentement (rotation ±6°) et respire (échelle ±3 %).
+  const angle = 6 * Math.sin(t * 0.9);
+  const echelle = 1 + 0.03 * Math.sin(t * 1.7 + 1);
   return (
     <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ overflow: "visible", display: "block" }}>
-      {chemins.map((d, i) => {
-        // Les chemins se tracent l'un après l'autre (chevauchement partiel), le premier d'abord.
-        const part = Math.min(1, Math.max(0, trace * (n + 1.5) - i) / 1.5);
-        if (part <= 0) return null;
-        const { strokeDasharray, strokeDashoffset } = evolvePath(Math.min(1, part), d);
-        return <path key={i} d={d} fill="none" stroke={couleur} strokeWidth={e} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} />;
-      })}
-      {forme === "horloge" && trace > 0.8 && (
-        <g stroke={couleur} strokeWidth={e} strokeLinecap="round">
-          <line x1="50" y1="50" x2="50" y2="26" transform={`rotate(${(t * 60) % 360} 50 50)`} />
-          <line x1="50" y1="50" x2="50" y2="34" transform={`rotate(${(t * 5) % 360} 50 50)`} />
-        </g>
-      )}
-      {forme === "cercle" && trace > 0.9 && <circle cx={50 + 42 * Math.cos(t * 1.4 - Math.PI / 2)} cy={50 + 42 * Math.sin(t * 1.4 - Math.PI / 2)} r={e * 1.3} fill={couleur} />}
-      {forme === "alerte" && trace > 0.9 && <circle cx="50" cy="56" r={34 + 4 * Math.sin(t * 4)} fill="none" stroke={couleur} strokeWidth={e / 3} opacity={0.35} />}
+      <g transform={`rotate(${angle} 50 50) translate(50 50) scale(${echelle}) translate(-50 -50)`}>
+        {chemins.map((d, i) => {
+          // Les chemins se tracent l'un après l'autre (chevauchement partiel), le premier d'abord.
+          const part = Math.min(1, Math.max(0, trace * (n + 1.5) - i) / 1.5);
+          if (part <= 0) return null;
+          const { strokeDasharray, strokeDashoffset } = evolvePath(Math.min(1, part), d);
+          // Graphique : chaque barre respire à son rythme.
+          const barre = forme === "graphique" && i > 0 ? `translate(0 88) scale(1 ${1 + 0.07 * Math.sin(t * 2.2 + i * 1.4)}) translate(0 -88)` : undefined;
+          return <path key={i} d={d} transform={barre} fill="none" stroke={couleur} strokeWidth={e} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={strokeDasharray} strokeDashoffset={strokeDashoffset} />;
+        })}
+        {forme === "horloge" && trace > 0.8 && (
+          <g stroke={couleur} strokeWidth={e} strokeLinecap="round">
+            <line x1="50" y1="50" x2="50" y2="26" transform={`rotate(${(t * 60) % 360} 50 50)`} />
+            <line x1="50" y1="50" x2="50" y2="34" transform={`rotate(${(t * 5) % 360} 50 50)`} />
+          </g>
+        )}
+        {forme === "cercle" && trace > 0.9 && <circle cx={50 + 42 * Math.cos(t * 1.4 - Math.PI / 2)} cy={50 + 42 * Math.sin(t * 1.4 - Math.PI / 2)} r={e * 1.3} fill={couleur} />}
+        {forme === "cible" && trace > 0.9 && <circle cx="50" cy="50" r={9 + 5 * (0.5 + 0.5 * Math.sin(t * 3))} fill="none" stroke={couleur} strokeWidth={e} />}
+        {forme === "alerte" && trace > 0.9 && <circle cx="50" cy="71" r={e * (0.7 + 0.35 * (0.5 + 0.5 * Math.sin(t * 5)))} fill={couleur} />}
+      </g>
     </svg>
   );
 }

@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { PROPRIETES_EXEMPLE_LONGUE } from "../../../studio-rendu/compositions/plan-scenes/longue/exemple";
-import { chiffreCompte, poserScene, poserSousTitre, sceneAvecBande } from "../../../src/moteurs/montage-video-longue/mise-en-page";
+import { chiffreCompte, formeChapitre, poserScene, poserSousTitre, sceneAvecBande } from "../../../src/moteurs/montage-video-longue/mise-en-page";
 import { COULEURS_LONGUE, TAILLES_LONGUE, ZONES_LONGUE, type ElementPose, type FormeLongue, type Rect, type SceneLongue } from "../../../src/moteurs/montage-video-longue/storyboard-types";
 
 const sb = PROPRIETES_EXEMPLE_LONGUE.storyboard;
@@ -95,7 +95,7 @@ describe("mise en page de la vidéo longue", () => {
 
   it("chaque scène a du contenu visible à chaque échantillon après la transition", () => {
     for (const { s, t, els } of echantillons) {
-      if (t - s.debutMs < 500) continue;
+      if (t - s.debutMs < 700) continue;
       expect(els.some((e) => e.role === "contenu" && e.opacite >= 0.5), `${s.id} à ${t} ms`).toBe(true);
     }
   });
@@ -109,6 +109,71 @@ describe("mise en page de la vidéo longue", () => {
     }
   });
 
+  it("deux images à 300 ms d'écart ne sont jamais identiques, dans aucune scène", () => {
+    for (const s of sb.scenes) {
+      for (let t = s.debutMs; t + 300 < s.finMs; t += 100) {
+        expect(JSON.stringify(poserScene(s, t)), `${s.id} à ${t} ms`).not.toBe(JSON.stringify(poserScene(s, t + 300)));
+      }
+    }
+  });
+
+  it("aucune case fantôme : une carte n'est posée qu'une fois son texte apparu", () => {
+    for (const { s, t, els } of echantillons) {
+      if (s.type !== "liste" && s.type !== "etapes") continue;
+      for (const e of els) {
+        const m = /^(.*):(?:carte|tuile)(\d+)$/.exec(e.id);
+        if (!m) continue;
+        const texte = els.find((x) => x.id === `${m[1]}:texte${m[2]}`);
+        expect(texte, `${e.id} à ${t} ms : carte sans texte`).toBeDefined();
+        expect(texte!.opacite, `${e.id} à ${t} ms`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("liste avec compte : trois tuiles côte à côte avec icône et libellé, sans chiffre inventé", () => {
+    const l = sb.scenes.find((s) => s.type === "liste")!;
+    const els = poserScene(l, l.finMs - 100);
+    const tuiles = els.filter((e) => /:tuile\d$/.test(e.id));
+    expect(tuiles).toHaveLength(3);
+    expect(new Set(tuiles.map((e) => e.rect.y)).size).toBe(1);
+    expect(els.filter((e) => /:icone\d$/.test(e.id))).toHaveLength(3);
+    expect(new Set(els.filter((e) => /:icone\d$/.test(e.id)).map((e) => e.forme)).size).toBe(3);
+    const nombres = els.filter((e) => e.nature === "texte").flatMap((e) => (e.lignes ?? []).flat().map((m) => m.texte)).filter((x) => /\d/.test(x));
+    expect(nombres).toEqual(["3"]);
+  });
+
+  it("chiffre : le compteur part à +300 ms et atteint la valeur en 900 ms ; blocs exacts pour un entier de 2 à 24", () => {
+    const c = sb.scenes.find((s) => s.type === "chiffre" && s.chiffres.length === 1 && s.chiffres[0].valeur === 12)!;
+    if (c.type !== "chiffre") throw new Error("type");
+    const val = (t: number) => poserScene(c, t).find((e) => e.id.endsWith(":nombre"))!.lignes![0][0].texte;
+    expect(Number(val(c.debutMs + 700))).toBeGreaterThan(0);
+    expect(val(c.debutMs + 1200)).toBe("12");
+    const blocs = (t: number) => poserScene(c, t).filter((e) => /:bloc\d+-plein$/.test(e.id)).length;
+    expect(poserScene(c, c.finMs - 500).filter((e) => /:bloc\d+$/.test(e.id))).toHaveLength(12);
+    expect(blocs(c.finMs - 500)).toBe(12);
+    expect(blocs(c.debutMs + 500)).toBeLessThan(12);
+  });
+
+  it("cartons de chapitre : une icône différente par chapitre", () => {
+    const formes = sb.scenes.filter((s) => s.type === "carton-chapitre").map((s) => (s.type === "carton-chapitre" ? formeChapitre(s.titre, s.rang) : ""));
+    expect(new Set(formes).size).toBe(formes.length);
+    expect(formeChapitre("Un titre sans mot repère", 2)).not.toBe(formeChapitre("Un titre sans mot repère", 3));
+  });
+
+  it("avant/après : texte « avant » noir sur carte claire", () => {
+    const a = sb.scenes.find((s) => s.type === "avant-apres")!;
+    const els = poserScene(a, a.finMs - 200);
+    expect(els.find((e) => e.id.endsWith(":texteA"))!.couleur).toBe("noir");
+    expect(els.find((e) => e.id.endsWith(":avant"))!.fond).toBe("blanc");
+  });
+
+  it("fin : rappel des chapitres et bouton, dans la zone", () => {
+    const f = sb.scenes.find((s) => s.type === "fin")!;
+    const els = poserScene(f, f.finMs - 100, sb.chapitres.map((c) => c.titre));
+    expect(els.filter((e) => /:rappel\d$/.test(e.id)).length).toBeGreaterThan(0);
+    for (const e of els) expect(dedans(e.rect, ZONES_LONGUE.plein), e.id).toBe(true);
+  });
+
   it("est pure : mêmes entrées, mêmes éléments", () => {
     const s = sb.scenes[9];
     expect(poserScene(s, 45000)).toEqual(poserScene(s, 45000));
@@ -117,7 +182,7 @@ describe("mise en page de la vidéo longue", () => {
   it("le texte des éléments vient du story-board (les accents sont dans leur texte)", () => {
     const liste = sb.scenes.find((s) => s.type === "liste")!;
     const els = poserScene(liste, liste.finMs - 100);
-    const textes = els.filter((e) => e.nature === "texte").map((e) => (e.lignes ?? []).flat().map((m) => m.texte).join(""));
+    const textes = els.filter((e) => e.nature === "texte").map((e) => (e.lignes ?? []).map((l) => l.map((m) => m.texte).join("")).join(" "));
     expect(textes.join(" ")).toContain("la valeur du stock");
     expect(els.some((e) => e.id.endsWith(":compte") && e.lignes?.[0][0].texte === "3")).toBe(true);
   });

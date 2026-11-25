@@ -31,11 +31,20 @@ export function DessinElement({ el, tMs }: { el: ElementPose; tMs: number }) {
       >
         {(el.lignes ?? []).map((ligne, i) => (
           <div key={i} style={{ height: taille * interligne }}>
-            {ligne.map((m, k) => (
-              <span key={k} style={m.accent ? { color: c(el.couleurAccent ?? el.couleur) } : undefined}>
-                {m.texte}
-              </span>
-            ))}
+            {ligne.map((m, k) => {
+              if (!m.accent) return <span key={k}>{m.texte}</span>;
+              const couleurAccent = c(el.couleurAccent ?? el.couleur);
+              if (el.trace === undefined) return <span key={k} style={{ color: couleurAccent }}>{m.texte}</span>;
+              // Mot clé souligné : le trait suit EXACTEMENT la largeur du mot (l'espace qui suit reste hors du soulignement).
+              const mot = m.texte.replace(/\s+$/, "");
+              const reste = m.texte.slice(mot.length);
+              return (
+                <span key={k}>
+                  <span style={{ color: couleurAccent, backgroundImage: `linear-gradient(${couleurAccent}, ${couleurAccent})`, backgroundRepeat: "no-repeat", backgroundPosition: "0 calc(100% - 6px)", backgroundSize: `${el.trace * 100}% 8px` }}>{mot}</span>
+                  {reste}
+                </span>
+              );
+            })}
           </div>
         ))}
       </div>

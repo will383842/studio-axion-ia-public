@@ -21,7 +21,6 @@ import {
   type FormeLongue,
   type LigneSousTitre,
   type MorceauLigne,
-  type PoserScene,
   type PoserSousTitre,
   type Rect,
   type SceneAvantApres,
@@ -31,6 +30,7 @@ import {
   type SceneEtapes,
   type SceneFin,
   type SceneListe,
+  type SceneLongue,
   type ScenePhraseCle,
 } from "./storyboard-types";
 
@@ -299,6 +299,20 @@ function cartonTitre(s: SceneCartonTitre, t: number): ElementPose[] {
 /* Carton de chapitre                                                  */
 /* ------------------------------------------------------------------ */
 
+/** Icônes des chapitres : choisie par les mots du titre, sinon par le rang. */
+const ICONES_CHAPITRE: FormeLongue[] = ["horloge", "graphique", "alerte", "fleche", "calendrier", "cible", "coche", "cercle"];
+export function formeChapitre(titre: string, rang: number): FormeLongue {
+  const t = titre.toLowerCase();
+  const parRang = ICONES_CHAPITRE[(Math.max(1, rang) - 1) % ICONES_CHAPITRE.length];
+  if (/commenc|d[ée]marr|d[ée]but|premier|d[ée]part|lancer|[ée]tape/.test(t)) return "fleche";
+  if (/alerte|manqu|rupture|seuil|pr[ée]venir|surveill/.test(t)) return "alerte";
+  if (/solution|tableau|bord|outil|r[ée]sultat|chiffre|suivi|donn[ée]es/.test(t)) return "graphique";
+  if (/probl[èe]me|main|erreur|perte|temps|manuel|compter/.test(t)) return "horloge";
+  if (/pourquoi|enjeu|objectif|but/.test(t)) return "cible";
+  if (/conclusion|bilan|r[ée]sum|v[ée]rif|valid/.test(t)) return "coche";
+  return parRang;
+}
+
 function cartonChapitre(s: SceneCartonChapitre, t: number): ElementPose[] {
   const tl = t - s.debutMs;
   const p = palette(s.fond);
@@ -319,7 +333,7 @@ function cartonChapitre(s: SceneCartonChapitre, t: number): ElementPose[] {
   ];
   const cote = 380;
   const d = 10;
-  out.push(formeEl(`${s.id}:forme`, s.rang % 2 === 1 ? "cible" : "cercle", { x: 1400 + d * souffle(tl, 6400), y: Z.y + (yBas - Z.y - cote) / 2 + d * souffle(tl, 5000, 0.8), largeur: cote - 20, hauteur: cote - 20 }, p.accent, douce(prog(tl, 300, 1100)), 14, 0.9));
+  out.push(formeEl(`${s.id}:forme`, formeChapitre(s.titre, s.rang), { x: 1400 + d * souffle(tl, 6400), y: Z.y + (yBas - Z.y - cote) / 2 + d * souffle(tl, 5000, 0.8), largeur: cote - 20, hauteur: cote - 20 }, p.accent, douce(prog(tl, 300, 1100)), 14, 0.9));
   // Progression : un segment par chapitre, ceux déjà vus pleins, le courant se remplit.
   const n = Math.max(1, s.total);
   const gap = 16;
@@ -346,26 +360,122 @@ function cartonChapitre(s: SceneCartonChapitre, t: number): ElementPose[] {
 /** Instants d'apparition réellement joués : jamais avant la fin de la transition, jamais deux au même instant. */
 function apparitions(brutes: number[], debut: number, premier: number, pas: number): number[] {
   const res: number[] = [];
-  brutes.forEach((b, i) => res.push(Math.max(b, i === 0 ? debut + premier : res[i - 1] + pas)));
+  brutes.forEach((b, i) => res.push(i === 0 ? debut + premier : Math.max(b, res[i - 1] + pas)));
   return res;
 }
 
+/** Barre fine de progression de la scène (bas de la zone de scène) : elle se remplit du début à la fin, donc rien n'est jamais figé. */
+function barreProgres(s: SceneLongue, t: number): ElementPose[] {
+  const S = sceneAvecBande(s.type) ? ZONES_LONGUE.scene : ZONES_LONGUE.plein;
+  const p = palette(s.fond);
+  const q = prog(t, s.debutMs, Math.max(1, s.finMs - s.debutMs));
+  const y = S.y + S.hauteur - 14;
+  const vide: CouleurLongue = p.fond === "noir" ? "grisSurNoir" : "gris";
+  const out = [carteEl(`${s.id}:progres`, { x: S.x, y, largeur: S.largeur, hauteur: 8 }, vide, undefined, p.fond === "noir" ? 0.4 : 0.9, 4)];
+  const w = Math.max(2, S.largeur * q);
+  out.push(carteEl(`${s.id}:progres-plein`, { x: S.x, y, largeur: w, hauteur: 8 }, p.accent, undefined, 1, 4, 0, `${s.id}:progres`));
+  return out;
+}
+
+/** Icône d'une tuile, choisie dans le libellé (jamais deux fois la même dans une scène). */
+const POOL_TUILES: FormeLongue[] = ["graphique", "alerte", "horloge", "calendrier", "cible", "fleche"];
+function iconeTuile(texte: string, deja: Set<FormeLongue>): FormeLongue {
+  const m: FormeLongue | null = /épuis|manqu|rupture|alerte|seuil|critique/i.test(texte)
+    ? "alerte"
+    : /attente|commande|délai|retard|livraison/i.test(texte)
+      ? "horloge"
+      : /valeur|stock|total|chiffre|vente|euro|€/i.test(texte)
+        ? "graphique"
+        : null;
+  const f = m && !deja.has(m) ? m : (POOL_TUILES.find((x) => !deja.has(x)) ?? "cercle");
+  deja.add(f);
+  return f;
+}
+
+/** Liste annoncée par un nombre (« trois chiffres ») : de grandes tuiles côte à côte, façon tableau de bord. Libellés seulement, aucun chiffre inventé. */
+function tuiles(s: SceneListe, t: number): ElementPose[] {
+  const tl = t - s.debutMs;
+  const p = palette(s.fond);
+  const S = ZONES_LONGUE.scene;
+  const out: ElementPose[] = [];
+  const n = s.elements.length;
+  const gap = 32;
+  const wT = (S.largeur - (n - 1) * gap) / n;
+  const pad = 40;
+  const icone = n <= 3 ? 170 : 130;
+  const wTexte = wT - 2 * pad;
+  const zoneH = BAS_SCENE - S.y;
+  const dPast = 176;
+  const aT = s.titre ? ajuster(s.titre, 84, 64, 800, S.largeur - dPast - 56, 200, 1.1) : null;
+  const hTitre = aT ? hauteurLignes(aT.lignes.length, aT.taille, 1.1) : 0;
+  const hRangee = aT ? Math.max(hTitre, dPast + 14) : 0;
+  const entre = aT ? hRangee + 52 : 0;
+  let taille = 56;
+  let lignes: string[][][] = [];
+  for (const cand of [56, 52, 48, 46, 44]) {
+    taille = cand;
+    lignes = s.elements.map((e) => coupe(e.texte, cand, 600, wTexte));
+    if (pad + icone + 30 + Math.max(...lignes.map((l) => hauteurLignes(l.length, cand, 1.2))) + pad <= zoneH - entre - 20) break;
+  }
+  const hTexteMax = Math.max(...lignes.map((l) => hauteurLignes(l.length, taille, 1.2)));
+  const hTuile = Math.min(zoneH - entre - 20, Math.max(pad + icone + 30 + hTexteMax + pad, aT ? 400 : 520));
+  const total = entre + hTuile;
+  const y0 = S.y + (zoneH - total) / 2;
+  if (aT) {
+    const e = douce(prog(tl, 120, 450));
+    out.push(texteEl({ id: `${s.id}:titre`, x: S.x, y: y0 + (hRangee - hTitre) / 2, largeur: S.largeur - dPast - 56, texte: s.titre ?? "", taille: aT.taille, graisse: 800, couleur: p.texte, interligne: 1.1, lignes: aT.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
+    // La pastille compte jusqu'au nombre annoncé.
+    const cxp = S.x + S.largeur - dPast / 2;
+    const cyp = y0 + hRangee / 2;
+    const eP = rebond(prog(tl, 250, 600));
+    const dP = Math.min(dPast, dPast * Math.max(0.05, eP)) - 8 + 8 * souffle(tl, 2400);
+    const idP = `${s.id}:pastille`;
+    out.push(disqueEl(idP, cxp, cyp, Math.max(8, dP), p.accent, undefined, borne(prog(tl, 250, 300)), 0));
+    if (tl >= 600 && s.compte !== null) {
+      const valeur = Math.round(s.compte * douce(prog(tl, 650, 900)));
+      out.push(texteEl({ id: `${s.id}:compte`, x: cxp - 70, y: cyp - 48, largeur: 140, texte: String(valeur), taille: 96, graisse: 800, couleur: p.surAccent, interligne: 1.0, alignement: "centre", opacite: prog(tl, 600, 250), dans: idP }));
+    }
+  }
+  const app = apparitions(s.elements.map((e) => e.apparitionMs), s.debutMs, 450, 260);
+  let actif = -1;
+  app.forEach((a, i) => {
+    if (t >= a) actif = i;
+  });
+  const deja = new Set<FormeLongue>();
+  s.elements.forEach((el, i) => {
+    const forme = iconeTuile(el.texte, deja);
+    if (t <= app[i]) return; // aucune case fantôme : la tuile n'existe pas avant son texte
+    const e = douce(prog(t, app[i], 420));
+    const dy = 26 * (1 - e);
+    const cx = S.x + i * (wT + gap);
+    const cy = y0 + entre + dy;
+    const idT = `${s.id}:tuile${i}`;
+    const courant = i === actif;
+    out.push(carteEl(idT, { x: cx, y: cy, largeur: wT, hauteur: hTuile }, p.carte, courant ? p.accent : p.bordure, e, 32, courant ? 4 : 2));
+    out.push(formeEl(`${s.id}:icone${i}`, forme, { x: cx + pad, y: cy + pad, largeur: icone, hauteur: icone }, p.accent, douce(prog(t, app[i] + 120, 800)), 8, e, idT));
+    const hT = hauteurLignes(lignes[i].length, taille, 1.2);
+    out.push(texteEl({ id: `${s.id}:texte${i}`, x: cx + pad, y: cy + hTuile - pad - hT, largeur: wTexte, texte: el.texte, taille, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: 1.2, lignes: lignes[i], opacite: e, dans: idT }));
+  });
+  return out;
+}
+
 function liste(s: SceneListe, t: number): ElementPose[] {
+  if (s.compte !== null && s.elements.length >= 2 && s.elements.length <= 4) return tuiles(s, t);
   const tl = t - s.debutMs;
   const p = palette(s.fond);
   const S = ZONES_LONGUE.scene;
   const out: ElementPose[] = [];
   const aCompte = s.compte !== null;
   const largeurListe = aCompte ? colsL(9) : S.largeur;
-  let y = S.y;
+  const zoneH = BAS_SCENE - S.y;
+  let hTitre = 0;
+  let aTitre: { taille: number; lignes: string[][] } | null = null;
   if (s.titre) {
-    const a = ajuster(s.titre, s.elements.length <= 3 ? 84 : 76, 60, 800, largeurListe, 190, 1.1);
-    const e = douce(prog(tl, 120, 450));
-    out.push(texteEl({ id: `${s.id}:titre`, x: S.x, y, largeur: largeurListe, texte: s.titre, taille: a.taille, graisse: 800, couleur: p.texte, interligne: 1.1, lignes: a.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
-    y += hauteurLignes(a.lignes.length, a.taille, 1.1) + 56;
+    aTitre = ajuster(s.titre, s.elements.length <= 3 ? 84 : 76, 60, 800, largeurListe, 190, 1.1);
+    hTitre = hauteurLignes(aTitre.lignes.length, aTitre.taille, 1.1) + 56;
   }
   const n = s.elements.length;
-  const dispo = BAS_SCENE - y;
+  const dispo = zoneH - hTitre;
   const gap = 32;
   const marque = s.titre ? 28 : 64;
   const pad = 32;
@@ -396,7 +506,13 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   const rangs = Math.ceil(n / colonnes);
   const hRang = Math.min(190, Math.max(choix.hLigne, (dispo - (rangs - 1) * gap) / rangs));
   const hBloc = rangs * hRang + (rangs - 1) * gap;
-  const y0 = y + Math.max(0, (dispo - hBloc) / 2);
+  // Tout le bloc (titre compris) est centré dans la zone, sur sa taille finale.
+  const yTop = S.y + Math.max(0, (zoneH - hTitre - hBloc) / 2);
+  const y0 = yTop + hTitre;
+  if (aTitre) {
+    const e = douce(prog(tl, 120, 450));
+    out.push(texteEl({ id: `${s.id}:titre`, x: S.x, y: yTop, largeur: largeurListe, texte: s.titre ?? "", taille: aTitre.taille, graisse: 800, couleur: p.texte, interligne: 1.1, lignes: aTitre.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
+  }
   const largeurCarte = (largeurListe - (colonnes - 1) * gap) / colonnes;
   const app = apparitions(s.elements.map((e) => e.apparitionMs), s.debutMs, 450, 180);
   let actif = -1;
@@ -404,13 +520,14 @@ function liste(s: SceneListe, t: number): ElementPose[] {
     if (t >= a) actif = i;
   });
   s.elements.forEach((el, i) => {
+    if (t <= app[i]) return; // aucune case fantôme
     const col = colonnes === 2 ? i % 2 : 0;
     const rang = colonnes === 2 ? Math.floor(i / 2) : i;
     const cx = S.x + col * (largeurCarte + gap);
     const cy = y0 + rang * (hRang + gap);
     const e = douce(prog(t, app[i], 380));
     const courant = i === actif;
-    out.push(carteEl(`${s.id}:carte${i}`, { x: cx, y: cy, largeur: largeurCarte, hauteur: hRang }, p.carte, courant ? p.accent : p.bordure, 0.5 + 0.5 * e, 28, courant ? 4 : 2));
+    out.push(carteEl(`${s.id}:carte${i}`, { x: cx, y: cy, largeur: largeurCarte, hauteur: hRang }, p.carte, courant ? p.accent : p.bordure, e, 28, courant ? 4 : 2));
     const hT = hauteurLignes(lignes[i].length, taille, 1.2);
     const xT = cx + pad + marque + 28;
     if (s.titre) {
@@ -442,7 +559,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   if (aCompte && s.compte !== null) {
     const zone = { x: colX(9), largeur: colsL(3) };
     const cxp = zone.x + zone.largeur / 2;
-    const cyp = S.y + (BAS_SCENE - S.y) / 2;
+    const cyp = S.y + zoneH / 2;
     const eP = rebond(prog(tl, 250, 600));
     const dP = 290 * Math.max(0.05, eP) + 6 * souffle(tl, 3200);
     const idP = `${s.id}:pastille`;
@@ -491,28 +608,27 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
     if (maxH <= hRang - 36) break;
   }
   s.elements.forEach((el, i) => {
+    if (t <= app[i]) return; // aucune case fantôme : ni carte, ni disque avant le texte
     const ry = y0 + i * (hRang + gap);
     const e = douce(prog(t, app[i], 380));
     const courant = i === actif;
     const idCarte = `${s.id}:carte${i}`;
-    out.push(carteEl(idCarte, { x: xCarte, y: ry, largeur: lCarte, hauteur: hRang }, p.carte, courant ? p.accent : p.bordure, 0.5 + 0.5 * e, 32, courant ? 4 : 2));
+    out.push(carteEl(idCarte, { x: xCarte, y: ry, largeur: lCarte, hauteur: hRang }, p.carte, courant ? p.accent : p.bordure, e, 32, courant ? 4 : 2));
     const lignes = coupe(el.texte, taille, 600, lTexte);
     const hT = hauteurLignes(lignes.length, taille, 1.2);
     out.push(texteEl({ id: `${s.id}:texte${i}`, x: xCarte + 48, y: ry + (hRang - hT) / 2, largeur: lTexte, texte: el.texte, taille, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: 1.2, lignes, opacite: e, dy: 20 * (1 - e), dans: idCarte }));
-    // Disque : plein pour l'étape lue, au trait sinon.
-    const pop = courant ? Math.min(1, 0.82 + 0.18 * rebond(prog(t, app[i] + 120, 450))) * (0.965 + 0.035 * (0.5 + 0.5 * souffle(tl, 1800))) : 1;
+    // Disque : plein pour l'étape lue (il pulse), au trait sinon.
+    const pop = courant ? Math.min(1, 0.82 + 0.18 * rebond(prog(t, app[i] + 120, 450))) * (0.93 + 0.07 * (0.5 + 0.5 * souffle(tl, 1500))) : 1;
     const idD = `${s.id}:disque${i}`;
     const cx = S.x + d / 2;
     const cy = ry + hRang / 2;
     const dd = d * pop;
-    const futur = t < app[i];
-    const op = futur ? 0.55 : 1;
-    out.push(disqueEl(idD, cx, cy, dd, courant ? p.accent : p.fond === "noir" ? "noir" : "ivoire", p.accent, op, courant ? 0 : 5));
-    out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - dd / 2, y: cy - 38, largeur: dd, texte: String(s.numeroDepart + i), taille: 76, graisse: 800, couleur: courant ? p.surAccent : p.accent, interligne: 1.0, alignement: "centre", opacite: op, dans: idD }));
+    out.push(disqueEl(idD, cx, cy, dd, courant ? p.accent : p.fond === "noir" ? "noir" : "ivoire", p.accent, e, courant ? 0 : 5));
+    out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - dd / 2, y: cy - 38, largeur: dd, texte: String(s.numeroDepart + i), taille: 76, graisse: 800, couleur: courant ? p.surAccent : p.accent, interligne: 1.0, alignement: "centre", opacite: e, dans: idD }));
     if (i > 0) {
       const haut = y0 + (i - 1) * (hRang + gap) + hRang / 2 + d / 2 + 8;
       const bas = ry + hRang / 2 - d / 2 - 8;
-      const q = douce(prog(t, app[i] - 60, 520));
+      const q = douce(prog(t, app[i], 520));
       if (q > 0) out.push({ ...traitEl(`${s.id}:lien${i}`, { x: cx - 3, y: haut, largeur: 6, hauteur: Math.max(0, bas - haut) * q }, p.accent, 1, 1), trace: arrondi(q) });
     }
   });
@@ -526,10 +642,10 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
 /** Le chiffre affiché à mi-compteur : mêmes séparateurs, mêmes décimales que le texte final. */
 export function chiffreCompte(affiche: string, valeur: number, avancement: number): string {
   if (avancement >= 1) return affiche;
-  const m = /\d[\d\s  ]*(?:[.,]\d+)?/.exec(affiche);
+  const m = /\d[\d\s  ]*(?:[.,]\d+)?/.exec(affiche);
   if (!m) return affiche;
   const brut = m[0];
-  const sep = /[\s  ]/.exec(brut)?.[0] ?? "";
+  const sep = /[\s  ]/.exec(brut)?.[0] ?? "";
   const dec = /[.,](\d+)$/.exec(brut);
   const nbDec = dec ? dec[1].length : 0;
   const signe = dec ? brut[brut.length - nbDec - 1] : ",";
@@ -550,34 +666,60 @@ function chiffre(s: SceneChiffre, t: number): ElementPose[] {
   if (n === 1) {
     const c = s.chiffres[0];
     const cx = S.x + largeurGauche / 2;
-    const cy = S.y + zoneH / 2;
-    const dRing = 700;
+    const blocs = Number.isInteger(c.valeur) && c.valeur >= 2 && c.valeur <= 24 ? c.valeur : 0;
+    const parRangee = blocs > 12 ? Math.ceil(blocs / 2) : blocs;
+    const rangees = blocs ? Math.ceil(blocs / parRangee) : 0;
+    const tBloc = blocs ? Math.min(64, Math.floor((largeurGauche - (parRangee - 1) * 10) / parRangee)) : 0;
+    const hBlocs = blocs ? rangees * tBloc + (rangees - 1) * 10 : 0;
+    const dRing = blocs ? 540 : 680;
+    const total = dRing + (blocs ? 56 + hBlocs : 0);
+    const haut = S.y + (zoneH - total) / 2;
+    const cy = haut + dRing / 2;
     const idR = `${s.id}:anneau`;
     const respire = 8 * souffle(tl, 3600);
     const trace = douce(prog(tl, 250, 900));
     out.push(formeEl(idR, "cercle", { x: cx - (dRing + respire) / 2, y: cy - (dRing + respire) / 2, largeur: dRing + respire, hauteur: dRing + respire }, p.accent, trace, 16, 0.95));
-    const debut = Math.max(c.apparitionMs, s.debutMs + 350);
+    // Le compteur part au début de la scène et atteint la valeur en 900 ms.
+    const debut = s.debutMs + 300;
     const av = douce(prog(t, debut, 900));
-    const largeurN = 520;
+    const largeurN = dRing - 140;
     const tN = Math.min(TAILLES_LONGUE.chiffre, Math.floor((largeurN * UTILE * TAILLES_LONGUE.chiffre) / Math.max(largeurN * 0.2, largeurLigne([c.affiche], TAILLES_LONGUE.chiffre, 800))));
     const tailleN = Math.max(120, tN);
     const aU = ajuster(c.unite, TAILLES_LONGUE.unite, 44, 700, largeurN, 64 * 1.2 * 1.01, 1.2);
     const hU = c.unite ? hauteurLignes(aU.lignes.length, aU.taille, 1.2) : 0;
-    const total = tailleN + (c.unite ? 14 + hU : 0);
-    const yN = cy - total / 2;
+    const hContenu = tailleN + (c.unite ? 14 + hU : 0);
+    const yN = cy - hContenu / 2;
     const e = prog(tl, 150, 300);
-    out.push(texteEl({ id: `${s.id}:nombre`, x: cx - largeurN / 2, y: yN, largeur: largeurN, texte: chiffreCompte(c.affiche, c.valeur, av), taille: tailleN, graisse: 800, couleur: p.accent, interligne: 1.0, alignement: "centre", opacite: e, lignes: [[chiffreCompte(c.affiche, c.valeur, av)]], dans: idR }));
+    const texteN = chiffreCompte(c.affiche, c.valeur, av);
+    out.push(texteEl({ id: `${s.id}:nombre`, x: cx - largeurN / 2, y: yN, largeur: largeurN, texte: texteN, taille: tailleN, graisse: 800, couleur: p.accent, interligne: 1.0, alignement: "centre", opacite: e, lignes: [[texteN]], dans: idR }));
     if (c.unite) {
-      const a = aU;
       const eU = douce(prog(t, debut + 500, 400));
-      out.push(texteEl({ id: `${s.id}:unite`, x: cx - largeurN / 2, y: yN + tailleN + 14, largeur: largeurN, texte: c.unite, taille: a.taille, graisse: 700, couleur: p.texte, interligne: 1.2, alignement: "centre", lignes: a.lignes, opacite: eU, dy: 16 * (1 - eU), dans: idR }));
+      out.push(texteEl({ id: `${s.id}:unite`, x: cx - largeurN / 2, y: yN + tailleN + 14, largeur: largeurN, texte: c.unite, taille: aU.taille, graisse: 700, couleur: p.texte, interligne: 1.2, alignement: "centre", lignes: aU.lignes, opacite: eU, dy: 16 * (1 - eU), dans: idR }));
+    }
+    // Illustration exacte du nombre : `valeur` petits blocs qui se remplissent un à un.
+    if (blocs) {
+      const yB = haut + dRing + 56;
+      const vide: CouleurLongue = p.fond === "noir" ? "grisSurNoir" : "gris";
+      for (let k = 0; k < blocs; k++) {
+        const r = Math.floor(k / parRangee);
+        const dansRangee = Math.min(parRangee, blocs - r * parRangee);
+        const x = cx - (dansRangee * tBloc + (dansRangee - 1) * 10) / 2 + (k - r * parRangee) * (tBloc + 10);
+        const y = yB + r * (tBloc + 10);
+        const idB = `${s.id}:bloc${k}`;
+        out.push(carteEl(idB, { x, y, largeur: tBloc, hauteur: tBloc }, vide, undefined, p.fond === "noir" ? 0.4 : 0.9, 12));
+        const q = douce(prog(t, debut + (k * 900) / blocs, 260));
+        if (q > 0) {
+          const dd = tBloc * (0.5 + 0.5 * q);
+          out.push(carteEl(`${s.id}:bloc${k}-plein`, { x: x + (tBloc - dd) / 2, y: y + (tBloc - dd) / 2, largeur: dd, hauteur: dd }, p.accent, undefined, q, 12, 0, idB));
+        }
+      }
     }
   } else {
     const hBloc = 330;
-    const y1 = S.y + 20;
+    const y1 = S.y + (zoneH - (n * hBloc + (n - 1) * 40)) / 2;
     s.chiffres.forEach((c, i) => {
       const by = y1 + i * (hBloc + 40);
-      const debut = Math.max(c.apparitionMs, s.debutMs + 350 + i * 250);
+      const debut = s.debutMs + 300 + i * 250;
       const av = douce(prog(t, debut, 900));
       const tailleN = Math.max(120, Math.min(190, Math.floor((largeurGauche * UTILE * 190) / Math.max(largeurGauche * 0.2, largeurLigne([c.affiche], 190, 800)))));
       const hU = c.unite ? 56 * 1.2 : 0;
@@ -620,13 +762,13 @@ function avantApres(s: SceneAvantApres, t: number): ElementPose[] {
   const p = palette(s.fond);
   const S = ZONES_LONGUE.scene;
   const out: ElementPose[] = [];
-  const lCarte = 760;
+  const lCarte = 680;
   const lT = lCarte - 96;
-  const a = ajuster(s.avant, 52, 44, 600, lT, 480, 1.2);
+  const a = ajuster(s.avant, 56, 44, 600, lT, 480, 1.2);
   const b = ajuster(s.apres, 72, 44, 800, lT, 480, 1.15);
   const hA = hauteurLignes(a.lignes.length, a.taille, 1.2);
   const hB = hauteurLignes(b.lignes.length, b.taille, 1.15);
-  const hC = Math.min(BAS_SCENE - S.y - 40, Math.max(520, 140 + Math.max(hA, hB) + 90));
+  const hC = Math.min(BAS_SCENE - S.y - 40, Math.max(560, 140 + Math.max(hA, hB) + 90));
   const yC = S.y + (BAS_SCENE - S.y - hC) / 2;
   const xA = S.x;
   const xB = S.x + S.largeur - lCarte;
@@ -635,33 +777,35 @@ function avantApres(s: SceneAvantApres, t: number): ElementPose[] {
   const eA = douce(prog(tl, 120, 450));
   const appB = Math.max(s.apparitionApresMs, s.debutMs + 1300);
   const eB = douce(prog(t, appB, 450));
-  const fondAvant: CouleurLongue = p.fond === "noir" ? "noir" : "gris";
-  out.push(carteEl(idA, { x: xA, y: yC, largeur: lCarte, hauteur: hC }, fondAvant, p.fond === "noir" ? p.bordure : undefined, 0.4 + 0.6 * eA, 36, 2));
-  out.push(carteEl(idB, { x: xB, y: yC, largeur: lCarte, hauteur: hC }, p.carte, p.accent, 0.4 + 0.6 * eB, 36, 5));
+  // Carte « avant » claire (texte noir lisible), barré en terracotta.
+  out.push(carteEl(idA, { x: xA, y: yC, largeur: lCarte, hauteur: hC }, p.carte, p.bordure, eA, 36, 3));
   const hautTexte = yC + 140;
   const dispo = yC + hC - 56 - hautTexte;
   const yA = hautTexte + (dispo - hA) / 2;
   const yB = hautTexte + (dispo - hB) / 2;
   out.push(etiquetteEl(`${s.id}:etiqA`, xA + 48, yC + 44, 360, "AVANT", p.texte, eA, "gauche", idA));
-  out.push(etiquetteEl(`${s.id}:etiqB`, xB + 48, yC + 44, 360, "MAINTENANT", p.accent, 0.5 + 0.5 * eB, "gauche", idB));
-  out.push(texteEl({ id: `${s.id}:texteA`, x: xA + 48, y: yA, largeur: lT, texte: s.avant, taille: a.taille, graisse: 600, couleur: p.texte, interligne: 1.2, lignes: a.lignes, opacite: eA * (1 - 0.25 * prog(t, s.debutMs + 900, 500)), dy: 20 * (1 - eA), dans: idA }));
+  out.push(texteEl({ id: `${s.id}:texteA`, x: xA + 48, y: yA, largeur: lT, texte: s.avant, taille: a.taille, graisse: 600, couleur: p.texte, interligne: 1.2, lignes: a.lignes, opacite: eA, dy: 20 * (1 - eA), dans: idA }));
   // Le trait qui barre : une ligne par ligne de texte, tracées l'une après l'autre.
   a.lignes.forEach((mots, i) => {
     const q = douce(prog(tl, 600 + i * 220, 380));
     if (q <= 0) return;
     const w = largeurLigne(mots, a.taille, 600);
-    out.push(traitEl(`${s.id}:barre${i}`, { x: xA + 48, y: yA + 20 * (1 - eA) + i * a.taille * 1.2 + a.taille * 0.6 - 3, largeur: Math.min(lT, w), hauteur: 6 }, p.accent, q, 1, `${s.id}:texteA`));
+    out.push(traitEl(`${s.id}:barre${i}`, { x: xA + 48, y: yA + 20 * (1 - eA) + i * a.taille * 1.2 + a.taille * 0.6 - 4, largeur: Math.min(lT, w), hauteur: 8 }, p.accent, q, 1, `${s.id}:texteA`));
   });
-  out.push(texteEl({ id: `${s.id}:texteB`, x: xB + 48, y: yB, largeur: lT, texte: s.apres, taille: b.taille, graisse: 800, couleur: p.texte, interligne: 1.15, lignes: b.lignes, opacite: eB, dy: 24 * (1 - eB), dans: idB }));
-  // Coche en haut à droite de la carte « après ».
-  const qc = douce(prog(t, appB + 120, 500));
-  if (qc > 0) out.push(formeEl(`${s.id}:coche`, "coche", { x: xB + lCarte - 48 - 100, y: yC + 28, largeur: 100, hauteur: 100 }, p.accent, qc, 9, 1, idB));
-  // Flèche tracée dans l'espace entre les deux cartes.
+  if (eB > 0) {
+    out.push(carteEl(idB, { x: xB, y: yC, largeur: lCarte, hauteur: hC }, p.carte, p.accent, eB, 36, 5));
+    out.push(etiquetteEl(`${s.id}:etiqB`, xB + 48, yC + 44, 360, "MAINTENANT", p.accent, eB, "gauche", idB));
+    out.push(texteEl({ id: `${s.id}:texteB`, x: xB + 48, y: yB, largeur: lT, texte: s.apres, taille: b.taille, graisse: 800, couleur: p.texte, interligne: 1.15, lignes: b.lignes, opacite: eB, dy: 24 * (1 - eB), dans: idB }));
+    // Coche en haut à droite de la carte « après ».
+    const qc = douce(prog(t, appB + 120, 500));
+    if (qc > 0) out.push(formeEl(`${s.id}:coche`, "coche", { x: xB + lCarte - 48 - 100, y: yC + 28, largeur: 100, hauteur: 100 }, p.accent, qc, 9, 1, idB));
+  }
+  // Grande flèche tracée dans l'espace entre les deux cartes.
   const gapX = xB - (xA + lCarte);
-  const wF = 112;
-  const dxF = 10 * souffle(tl, 2200);
-  const qf = douce(prog(t, appB - 500, 500));
-  if (qf > 0) out.push(formeEl(`${s.id}:fleche`, "fleche", { x: xA + lCarte + (gapX - wF) / 2 + dxF, y: yC + hC / 2 - wF / 2, largeur: wF, hauteur: wF }, p.accent, qf, 9));
+  const wF = 240;
+  const dxF = 12 * souffle(tl, 1800);
+  const qf = douce(prog(t, appB - 500, 700));
+  if (qf > 0) out.push(formeEl(`${s.id}:fleche`, "fleche", { x: xA + lCarte + (gapX - wF) / 2 + dxF, y: yC + hC / 2 - wF / 2, largeur: wF, hauteur: wF }, p.accent, qf, 14));
   return out;
 }
 
@@ -676,27 +820,18 @@ function phraseCle(s: ScenePhraseCle, t: number): ElementPose[] {
   const out: ElementPose[] = [];
   const largeur = colsL(8);
   const interligne = 1.25;
-  const a = ajuster(s.phrase, TAILLES_LONGUE.phraseCle, 56, 800, largeur, 560, interligne);
+  const a = ajuster(s.phrase, 84, 64, 800, largeur, 560, interligne);
   const hT = hauteurLignes(a.lignes.length, a.taille, interligne);
   const zoneH = BAS_SCENE - S.y;
-  const yT = S.y + (zoneH - hT) / 2 + 20;
+  // Filet + phrase, centrés ensemble dans la zone.
+  const yT = S.y + (zoneH - hT - 64) / 2 + 64;
   const e = douce(prog(tl, 200, 600));
   out.push(traitEl(`${s.id}:filet`, { x: S.x, y: yT - 64, largeur: 160, hauteur: 10 }, p.accent, douce(prog(tl, 100, 600))));
   const idT = `${s.id}:phrase`;
-  out.push(texteEl({ id: idT, x: S.x, y: yT, largeur, texte: s.phrase, taille: a.taille, graisse: 800, couleur: p.texte, accent: s.motCle, couleurAccent: p.accent, interligne, lignes: a.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
-  if (s.motCle) {
-    const mots = morceaux(s.phrase, a.lignes, s.motCle);
-    mots.forEach((ligne, i) => {
-      const avant = ligne.filter((m, k) => !m.accent && ligne.slice(k + 1).some((x) => x.accent)).map((m) => m.texte.trim().split(" ")).flat();
-      const dans = ligne.filter((m) => m.accent).map((m) => m.texte.trim().split(" ")).flat();
-      if (!dans.length) return;
-      const x0 = largeurLigne(avant, a.taille, 800) + (avant.length ? ESPACE_MOTS_EM * a.taille : 0);
-      const w = largeurLigne(dans, a.taille, 800);
-      const q = douce(prog(tl, 800 + i * 300, 500));
-      if (q > 0) out.push(traitEl(`${s.id}:souligne${i}`, { x: S.x + x0, y: yT + MONTEE_PX * (1 - e) + i * a.taille * interligne + a.taille * interligne - 14, largeur: Math.min(w * 0.96, largeur - x0), hauteur: 8 }, p.accent, q, 1, idT));
-    });
-  }
-  const cote = 360;
+  // Le soulignement du mot clé est dessiné par le rendu sur le mot lui-même (`trace` = part tracée) : largeur exacte du mot.
+  const souligne = s.motCle ? douce(prog(tl, 800, 600)) : undefined;
+  out.push({ ...texteEl({ id: idT, x: S.x, y: yT, largeur, texte: s.phrase, taille: a.taille, graisse: 800, couleur: p.texte, accent: s.motCle, couleurAccent: p.accent, interligne, lignes: a.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }), ...(souligne !== undefined ? { trace: arrondi(souligne) } : {}) });
+  const cote = 500;
   const d = 10;
   const zone = { x: colX(8), largeur: colsL(4) };
   out.push(
@@ -706,7 +841,7 @@ function phraseCle(s: ScenePhraseCle, t: number): ElementPose[] {
       { x: zone.x + (zone.largeur - cote) / 2 + d * souffle(tl, 6800), y: S.y + (zoneH - cote) / 2 + d * souffle(tl, 5200, 1.3), largeur: cote, hauteur: cote },
       p.accent,
       douce(prog(tl, 300, 900)),
-      13,
+      14,
       1,
     ),
   );
@@ -717,55 +852,74 @@ function phraseCle(s: ScenePhraseCle, t: number): ElementPose[] {
 /* Fin                                                                 */
 /* ------------------------------------------------------------------ */
 
-/** Position du logo de la fin (dessiné par la composition, hors de tout élément posé) : tout le bloc est centré dans la zone pleine. */
-export function logoFin(s: SceneFin): { y: number; hauteur: number } {
-  const hLogo = 240;
-  const hQ = s.question ? hauteurLignes(ajuster(s.question, TAILLES_LONGUE.finAdresse, 44, 600, 1400, 200, 1.25).lignes.length, TAILLES_LONGUE.finAdresse, 1.25) + 80 : 40;
-  const total = hLogo + 60 + hQ + 160 + 90 + 60;
-  return { y: ZONES_LONGUE.plein.y + (ZONES_LONGUE.plein.hauteur - total) / 2, hauteur: hLogo };
+const FIN_COLONNE_G = { x: 120, largeur: 680 };
+const FIN_COLONNE_D = { x: 860, largeur: 940 };
+
+/** Position du logo de la fin (dessiné par la composition, hors de tout élément posé) : grand, centré dans la colonne de gauche. */
+export function logoFin(): { x: number; y: number; hauteur: number; largeur: number } {
+  const hauteur = 440;
+  const largeur = hauteur * (2048 / 1423);
+  const Z = ZONES_LONGUE.plein;
+  return { x: FIN_COLONNE_G.x + (FIN_COLONNE_G.largeur - largeur) / 2, y: Z.y + (Z.hauteur - hauteur) / 2, hauteur, largeur };
 }
 
-function fin(s: SceneFin, t: number): ElementPose[] {
+function fin(s: SceneFin, t: number, chapitres: string[] = []): ElementPose[] {
   const tl = t - s.debutMs;
   const p = palette(s.fond);
+  const Z = ZONES_LONGUE.plein;
   const out: ElementPose[] = [];
-  const largeur = 1400;
-  const x = (1920 - largeur) / 2;
-  const lg = logoFin(s);
-  let y = lg.y + lg.hauteur + 60;
-  if (s.question) {
-    const a = ajuster(s.question, TAILLES_LONGUE.finAdresse, 44, 600, largeur, 200, 1.25);
-    const h = hauteurLignes(a.lignes.length, a.taille, 1.25);
+  const C = FIN_COLONNE_D;
+  const cx = C.x + C.largeur / 2;
+  const qA = s.question ? ajuster(s.question, 56, 44, 700, C.largeur, 220, 1.2) : null;
+  const hQ = qA ? hauteurLignes(qA.lignes.length, qA.taille, 1.2) : 0;
+  const tA0 = TAILLES_LONGUE.finAppel;
+  const wTexte0 = largeurLigne(nettoie(s.appel).split(" "), tA0, 800);
+  const wBouton = Math.min(780, wTexte0 + 160);
+  const tA = Math.max(48, Math.min(tA0, Math.floor((tA0 * (wBouton - 100)) / Math.max(1, wTexte0))));
+  const hBouton = 130;
+  const hAdresse = TAILLES_LONGUE.finAdresse * 1.15;
+  // Rappel des titres des chapitres (texte du script), autant que la hauteur le permet.
+  const titres = chapitres.map((c) => ajuster(c, 44, 44, 600, C.largeur, 120, 1.2));
+  const hDe = (i: number) => hauteurLignes(titres[i].lignes.length, 44, 1.2);
+  const fixe = (qA ? hQ + 44 : 0) + 56 + hBouton + 90 + hAdresse;
+  let nb = titres.length;
+  const hRecap = (k: number) => titres.slice(0, k).reduce((sum, _x, i) => sum + hDe(i), 0) + Math.max(0, k - 1) * 14;
+  while (nb > 0 && fixe + hRecap(nb) + 44 > Z.hauteur - 60) nb--;
+  const total = fixe + (nb ? hRecap(nb) + 44 : 0);
+  let y = Z.y + (Z.hauteur - total) / 2;
+  if (qA && s.question) {
     const e = douce(prog(tl, 250, 500));
-    out.push(texteEl({ id: `${s.id}:question`, x, y, largeur, texte: s.question, taille: a.taille, graisse: 600, couleur: p.texte, interligne: 1.25, alignement: "centre", lignes: a.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
-    y += h + 80;
-  } else {
-    y += 40;
+    out.push(texteEl({ id: `${s.id}:question`, x: C.x, y, largeur: C.largeur, texte: s.question, taille: qA.taille, graisse: 700, couleur: p.texte, interligne: 1.2, alignement: "centre", lignes: qA.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
+    y += hQ + 44;
   }
-  const tA = TAILLES_LONGUE.finAppel;
-  const wTexte = largeurLigne(nettoie(s.appel).split(" "), tA, 800);
-  const wBouton = Math.min(largeur, wTexte + 200);
-  const hBouton = 160;
-  const pulse = 1 + 0.015 * (1 + souffle(tl, 1600, -Math.PI / 2));
-  const eB = rebond(prog(tl, 650, 600));
-  const echelle = Math.max(0.05, (0.88 + 0.12 * eB) * (tl > 1300 ? pulse : 1));
-  const cx = 960;
-  const cy = y + hBouton / 2;
+  for (let i = 0; i < nb; i++) {
+    const e = douce(prog(tl, 600 + i * 200, 450));
+    out.push(texteEl({ id: `${s.id}:rappel${i}`, x: C.x, y, largeur: C.largeur, texte: chapitres[i], taille: 44, graisse: 600, couleur: p.fond === "noir" ? "grisSurNoir" : p.texte, interligne: 1.2, alignement: "centre", lignes: titres[i].lignes, opacite: e, dy: 20 * (1 - e) }));
+    y += hDe(i) + 14;
+  }
+  if (nb) y += 44 - 14;
+  y += 56;
+  // Le bouton entre (montée + fondu) puis pulse.
+  const debutB = 600 + nb * 200 + 500;
+  const eB = douce(prog(tl, debutB, 600));
+  const pulse = tl > debutB + 700 ? 1 + 0.04 * (0.5 + 0.5 * souffle(tl, 1400, -Math.PI / 2)) : 1;
+  const cy = y + hBouton / 2 + 70 * (1 - eB);
   const idB = `${s.id}:bouton`;
+  const avecOnde = tl > debutB + 700;
   out.push({
     id: idB,
     nature: "carte",
     role: "decor",
-    rect: { x: arrondi(cx - (wBouton * echelle) / 2), y: arrondi(cy - (hBouton * echelle) / 2), largeur: arrondi(wBouton * echelle), hauteur: arrondi(hBouton * echelle) },
-    opacite: arrondi(borne(prog(tl, 650, 300))),
+    rect: { x: arrondi(cx - (wBouton * pulse) / 2), y: arrondi(cy - (hBouton * pulse) / 2), largeur: arrondi(wBouton * pulse), hauteur: arrondi(hBouton * pulse) },
+    opacite: arrondi(borne(prog(tl, debutB, 450))),
     couleur: "terracotta",
     fond: "terracotta",
-    rayonPx: 80,
-    ...(tl > 1300 ? { dans: `${s.id}:onde` } : {}),
+    rayonPx: 70,
+    ...(avecOnde ? { dans: `${s.id}:onde` } : {}),
   });
-  if (tl > 1300) {
-    const cycle = ((tl - 1300) % 2400) / 2400;
-    const g = 12 + 48 * douce(cycle);
+  if (avecOnde) {
+    const cycle = ((tl - debutB - 700) % 2400) / 2400;
+    const g = 12 + 40 * douce(cycle);
     out.push({
       id: `${s.id}:onde`,
       nature: "carte",
@@ -774,40 +928,42 @@ function fin(s: SceneFin, t: number): ElementPose[] {
       opacite: arrondi(0.7 * (1 - cycle)),
       couleur: p.accent,
       bordure: p.accent,
-      rayonPx: 80 + g,
+      rayonPx: 70 + g,
       epaisseurPx: 4,
     });
   }
-  out.push(texteEl({ id: `${s.id}:appel`, x: cx - (wBouton * echelle) / 2, y: cy - (tA * 1.0) / 2, largeur: wBouton * echelle, texte: s.appel, taille: tA, graisse: 800, couleur: "blanc", interligne: 1.0, alignement: "centre", lignes: [[s.appel]], opacite: prog(tl, 750, 300), dans: idB }));
-  const eAd = douce(prog(tl, 1100, 500));
-  out.push(texteEl({ id: `${s.id}:adresse`, x, y: y + hBouton + 90 - MONTEE_PX * 0 + MONTEE_PX * (1 - eAd), largeur, texte: s.adresse, taille: TAILLES_LONGUE.finAdresse, graisse: 700, couleur: p.accent, interligne: 1.15, alignement: "centre", opacite: eAd }));
+  out.push(texteEl({ id: `${s.id}:appel`, x: cx - (wBouton * pulse) / 2, y: cy - tA / 2, largeur: wBouton * pulse, texte: s.appel, taille: tA, graisse: 800, couleur: "blanc", interligne: 1.0, alignement: "centre", lignes: [[s.appel]], opacite: prog(tl, debutB + 80, 350), dans: idB }));
+  const eAd = douce(prog(tl, debutB + 500, 500));
+  out.push(texteEl({ id: `${s.id}:adresse`, x: C.x, y: y + hBouton + 90 + MONTEE_PX * (1 - eAd), largeur: C.largeur, texte: s.adresse, taille: TAILLES_LONGUE.finAdresse, graisse: 700, couleur: p.accent, interligne: 1.15, alignement: "centre", opacite: eAd }));
   return out;
 }
-
 
 /* ------------------------------------------------------------------ */
 /* API publique                                                        */
 /* ------------------------------------------------------------------ */
 
-/** Mise en page d'une scène à l'instant `tMs` (temps de la vidéo entière). PURE. */
-export const poserScene: PoserScene = (scene, tMs) => {
+/**
+ * Mise en page d'une scène à l'instant `tMs` (temps de la vidéo entière). PURE. `chapitres` (facultatif) : titres des
+ * chapitres du script, pour le rappel de la fin.
+ */
+export const poserScene = (scene: SceneLongue, tMs: number, chapitres?: string[]): ElementPose[] => {
   switch (scene.type) {
     case "carton-titre":
       return cartonTitre(scene, tMs);
     case "carton-chapitre":
       return cartonChapitre(scene, tMs);
     case "liste":
-      return liste(scene, tMs);
+      return [...liste(scene, tMs), ...barreProgres(scene, tMs)];
     case "etapes":
-      return etapes(scene, tMs);
+      return [...etapes(scene, tMs), ...barreProgres(scene, tMs)];
     case "chiffre":
-      return chiffre(scene, tMs);
+      return [...chiffre(scene, tMs), ...barreProgres(scene, tMs)];
     case "avant-apres":
-      return avantApres(scene, tMs);
+      return [...avantApres(scene, tMs), ...barreProgres(scene, tMs)];
     case "phrase-cle":
-      return phraseCle(scene, tMs);
+      return [...phraseCle(scene, tMs), ...barreProgres(scene, tMs)];
     case "fin":
-      return fin(scene, tMs);
+      return [...fin(scene, tMs, chapitres), ...barreProgres(scene, tMs)];
   }
 };
 
