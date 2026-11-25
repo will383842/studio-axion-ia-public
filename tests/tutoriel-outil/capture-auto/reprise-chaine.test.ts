@@ -113,7 +113,7 @@ async function installerPauseFilm(dims?: { largeur: number; hauteur: number }, d
   // Essai réel : la voix de la chaîne prend la durée de voix du film de l'essai (le contrat compare navigation.dureeVoixMs au calage de la DEMANDE).
   if (dureeVoixMs && etat.audio) {
     const k = dureeVoixMs / (etat.audio.dureeSec * 1000);
-    etat.audio.mots = etat.audio.mots.map((m: Record<string, unknown>) => ({ ...m, ...(typeof m.debutSec === "number" ? { debutSec: m.debutSec * k } : {}), ...(typeof m.finSec === "number" ? { finSec: m.finSec * k } : {}) })) as never;
+    etat.audio.mots = etat.audio.mots.map((m) => ({ ...m, debutSec: m.debutSec * k, finSec: m.finSec * k }));
     etat.audio.dureeSec = dureeVoixMs / 1000;
   }
   const le = "2026-11-21T08:00:00.000Z";
