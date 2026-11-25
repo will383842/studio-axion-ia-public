@@ -157,6 +157,7 @@ const SITES: Site[] = [
   { fichier: "src/services/image-video.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix HeyGen de l'image → vidéo, origine de la commande" },
   { fichier: "src/services/image-video.ts", appel: "verifierBudgetEtCredits", n: 1, nature: "pré-vol", pourquoi: "Claude et transcription : Claude est réservé par `executerRolePourVideo` avec la même origine" },
   { fichier: "src/services/cas-concret-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du cas concret, origine de la commande" },
+  { fichier: "src/fournisseurs/claude/appel-redaction.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "rédaction des guides par Claude, origine transmise par `guides-redaction.ts` depuis l'action Studio, plafond du mois vérifié avant sous verrou" },
   { fichier: "src/services/cas-concret-branchements.ts", appel: "verifierBudgetEtCredits", n: 1, nature: "pré-vol", pourquoi: "écriture Claude du cas concret : réservée par `executerRolePourVideo` avec la même origine" },
   { fichier: "src/services/tableau-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du tableau animé, origine de la commande" },
   // Ajouts FIN-4 (argent) : sites déjà présents dans le code, origine = `c.origine` / `commande.origine` (jamais un littéral).
