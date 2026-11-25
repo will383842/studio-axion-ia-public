@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { DefinitionRole } from "@/generateur/roles/types";
 import { exempleSortieMaquette, roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { appliquerSortie, prochainPas, ROLES_TUTORIEL, type EntreesEquipe, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
-import { MESSAGE_APERCU_A_CORRIGER, MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { MESSAGE_APERCU_A_CORRIGER, MESSAGE_PIECE_A_VALIDER, MESSAGE_PIECE_A_VALIDER_SANS_AUTRE, MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PHRASE_STOCKS, SORTIE_REELLE_SERVEUR } from "./sortie-reelle-phrase1";
 
@@ -205,5 +205,29 @@ describe("PHRASE-1 · la pause d'une pièce « à revoir » sans appel restant n
     const m = (p as { pause: { message: string } }).pause.message;
     expect(m).toMatch(/corrigez/);
     expect(m).not.toMatch(/reformulez|en demander une autre|autre proposition/);
+  });
+  it("refus, reprise réussie, aperçu bon : la pause ne propose plus d'en demander une autre", async () => {
+    const { e } = premierAppel();
+    const un = await appliquerSortie(e, "maquettiste", sortieHorsRegle(), ouvert);
+    if (un.ok) throw new Error("refus attendu");
+    const reprise = payant(prochainPas(un.etat, ouvert));
+    const deux = await appliquerSortie(un.etat, "maquettiste", simuler(reprise.entree), ouvert);
+    if (!deux.ok) throw new Error("la reprise est reçue");
+    const piece = deux.etat.pieceCreee!;
+    const apercu = { version: 1 as never, empreinteDescription: piece.empreinte, images: [], controle: { ok: true as const, defauts: [] } };
+    const p = prochainPas({ ...deux.etat, pieceCreee: { ...piece, statut: "a-valider", apercu } }, ouvert);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_VALIDER", message: MESSAGE_PIECE_A_VALIDER_SANS_AUTRE } });
+    expect(MESSAGE_PIECE_A_VALIDER_SANS_AUTRE).toBe("Votre maquette attend votre choix : gardez-la, corrigez un texte ou arrêtez cette demande.");
+    expect((p as { pause: { message: string } }).pause.message).not.toMatch(/demandez-en une autre|autre proposition/);
+  });
+
+  it("proposition n° 1 sans reprise (un appel) et aperçu bon : le message d'origine reste", async () => {
+    const { e } = premierAppel();
+    const ok = await appliquerSortie(e, "maquettiste", simuler(payant(prochainPas(e, ouvert)).entree), ouvert);
+    if (!ok.ok) throw new Error("sortie correcte attendue");
+    const piece = ok.etat.pieceCreee!;
+    const apercu = { version: 1 as never, empreinteDescription: piece.empreinte, images: [], controle: { ok: true as const, defauts: [] } };
+    const p = prochainPas({ ...ok.etat, pieceCreee: { ...piece, statut: "a-valider", apercu } }, ouvert);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_VALIDER", message: MESSAGE_PIECE_A_VALIDER } });
   });
 });

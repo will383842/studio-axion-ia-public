@@ -52,6 +52,8 @@ export const MESSAGE_PLUS_DE_PROPOSITION_FLUX = "Les deux essais de cette automa
 export const MESSAGE_APERCU_A_CORRIGER = "L'aperçu a relevé des points à revoir : corrigez les textes concernés ou arrêtez cette demande. Rien n'a échoué.";
 export const MESSAGE_PIECE_A_CONSTRUIRE = "La maquette se prépare sur le poste de capture : son aperçu arrive, rien n'est dépensé.";
 export const MESSAGE_PIECE_A_VALIDER = "Votre maquette attend votre choix : gardez-la, corrigez un texte ou demandez-en une autre.";
+/** Maquette à valider alors qu'aucun appel ne reste : on ne propose plus d'en demander une autre. */
+export const MESSAGE_PIECE_A_VALIDER_SANS_AUTRE = "Votre maquette attend votre choix : gardez-la, corrigez un texte ou arrêtez cette demande.";
 export const MESSAGE_DEMANDE_ARRETEE = "Vous avez arrêté cette demande : rien ne sera fabriqué.";
 const MESSAGE_APERCU_A_REVOIR = "L'aperçu de la maquette a relevé des points à revoir (détail sur l'écran) : vous pouvez en demander une autre. Rien n'a échoué.";
 

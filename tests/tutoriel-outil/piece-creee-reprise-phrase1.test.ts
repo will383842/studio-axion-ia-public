@@ -143,6 +143,17 @@ describe("PHRASE-1 · aperçu à défauts après la reprise : Williams peut enco
     expect(vue?.defauts).toContain("Un texte déborde.");
   });
 
+  it("aperçu bon, appels épuisés : la vue n'offre aucune autre proposition (message vide, bouton fermé, texte des essais faits)", async () => {
+    const { m, empreinte } = avecDefauts();
+    const etat = (await m.dep.depot!.lire(VIDEO))!;
+    const bon: EtatPieceCreee = { ...etat, apercu: { ...etat.apercu!, empreinteDescription: empreinte, controle: { ok: true, defauts: [] } } };
+    m.dep.depot = { lire: async () => bon, ecrire: async () => undefined };
+    const vue = await vuePieceCreee(VIDEO, m.dep);
+    expect(vue).toMatchObject({ statut: "a-valider", propositionsRestantes: 0, message: null });
+    const html = renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue: vue! }));
+    expect(html).not.toMatch(/Il vous reste 1 autre proposition/);
+  });
+
   it("garder est refusé sans proposer une autre proposition ; corriger un texte reste accepté", async () => {
     const { m, empreinte } = avecDefauts();
     const g = await garderPiece(VIDEO, { empreinte }, m.dep);

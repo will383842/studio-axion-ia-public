@@ -23,7 +23,7 @@ import { classerParRegles, etablirCahier, lireDecisionChef, roleChefDeProjet, ty
 import { controlerAvantValidation, resumePourWilliams, type VerdictControleur } from "./controleur";
 import { PHRASE_FIN_RENDEZ_VOUS } from "./dossier-validation";
 import { PROPOSITIONS_PIECE_MAX } from "../maquette-creee";
-import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, MESSAGE_APERCU_A_CORRIGER, MESSAGE_PLUS_DE_PROPOSITION, MESSAGE_PLUS_DE_PROPOSITION_FLUX, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
+import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, CODE_PIECE_A_VALIDER, MESSAGE_APERCU_A_CORRIGER, MESSAGE_PLUS_DE_PROPOSITION, MESSAGE_PIECE_A_VALIDER_SANS_AUTRE, MESSAGE_PLUS_DE_PROPOSITION_FLUX, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
 import { lireFluxAutomatisation } from "../gabarit-flux";
 import { completerManque, entreeMaquettiste, MANQUES_MAQUETTISTE, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste, type PropositionMaquettiste } from "./maquettiste";
 import { realiser, type ParcoursTutoriel } from "./realisateur";
@@ -346,6 +346,8 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): Pas
       const message = p.statut === "a-revoir" ? (piece === "maquette" ? MESSAGE_PLUS_DE_PROPOSITION : MESSAGE_PLUS_DE_PROPOSITION_FLUX) : MESSAGE_APERCU_A_CORRIGER;
       return { pause: { code: CODE_PIECE_A_REVOIR, message } };
     }
+    // Aperçu bon mais plus aucun appel (reprise faite, ou proposition n° 2) : le choix ne propose plus « une autre ».
+    if ("pause" in r && r.pause.code === CODE_PIECE_A_VALIDER && (faits >= PROPOSITIONS_PIECE_MAX || p.proposition >= 2)) return { pause: { code: CODE_PIECE_A_VALIDER, message: MESSAGE_PIECE_A_VALIDER_SANS_AUTRE } };
     // La pièce quitte « gardée » : tout ce qui vient de l'ancienne pièce est effacé (rien n'est repris d'un texte que Williams ne voit plus).
     if ("pause" in r) return { pause: r.pause, ...(r.etat ? { etat: { ...sansDeductionDePiece(e), pieceCreee: r.etat } } : {}) };
     if (e.carteEmpreinte !== p.gardee?.empreinte) {
