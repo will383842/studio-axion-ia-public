@@ -307,7 +307,7 @@ describe("demande", () => {
     await tour();
     expect(demandes()).toEqual([]);
     expect(cloches).toHaveLength(1);
-    expect(cloches[0]!.message).toMatch(/impossible sans voix mesurée/);
+    expect(cloches[0]!.message).toMatch(/n.a pas de scénario de maquette/);
   });
 
   it.each([["boîte non prête", () => rmSync(join(boite, "PRET")), PHRASE_BOITE_NON_PRETE], ["poste éteint (pouls ancien)", () => writeFileSync(join(boite, "pouls"), "2020-01-01T00:00:00.000Z\n"), PHRASE_POSTE_ETEINT]])("%s : une cloche une seule fois, aucune écriture dans la boîte", async (_n, casser, phrase) => {

@@ -34,7 +34,7 @@ const IMAGES_PAR_SECONDE_SUIVI = 25;
 export const versMs = (sec: number): number => Math.round(sec * 1000);
 
 /** Minuscules, sans accents, sans ponctuation de bord. */
-function normaliser(t: string): string {
+export function normaliser(t: string): string {
   return t
     .normalize("NFD")
     .replace(/\p{M}+/gu, "")

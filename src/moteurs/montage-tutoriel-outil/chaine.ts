@@ -50,6 +50,8 @@ import { CARTE_FIN_AXION, COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, dureeImagesT
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
+import { scenarioCalable } from "./film-dossier";
+import { lireScenarioMaquette, type ScenarioMaquette } from "./scenario-maquette";
 import { controlerApresCalage } from "./equipe/controleur";
 import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
 import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
@@ -138,6 +140,12 @@ export interface OutilsTutoriel {
   finitions?: { actif: true };
   /** T-EXT-52b : retouche sans tout refaire (un format dont rien ne change est repris tel quel). Seul `true` allume ; absent = éteint, comportement d'avant. */
   retouchePartielle?: boolean;
+  /**
+   * Film d'une vidéo partie d'un DOSSIER .zip, SANS équipe de rôles : le `scenario.json` du dossier tient lieu de parcours et la vidéo attend
+   * le film (pause `TO_FILM_A_CAPTURER`). Présent seulement pour une vidéo partie d'un dossier ; `lireScenario` rend le `ScenarioMaquette` lu
+   * ou null. Absent = comportement d'avant strictement inchangé.
+   */
+  filmDossier?: { captureAuto: boolean; lireScenario(): Promise<unknown | null> };
   /** T-EXT-26a : fin commune (« Aucune » par défaut, « Prendre rendez-vous » si choisie). Absent = carte « Axion IA » d'aujourd'hui. */
   fin?: { actif: boolean };
   /** Style des sous-titres résolu par le studio ; absent : style par défaut. */
@@ -288,6 +296,10 @@ export interface EtatTutoriel {
   compose?: Record<string, PlanComposeSansVoix>;
   /** QUAL-5 : contrôle objectif de la composition (0 €) ; absent = non vérifié (la note ne peut pas être de 100). */
   composition?: ResultatControleComposition;
+  /** Film d'un dossier sans équipe : le scénario du dossier calable sur la voix (retenu une fois). */
+  scenarioDossier?: ScenarioMaquette;
+  /** Film d'un dossier sans équipe : la lecture du scénario a été tentée (le zip n'est pas relu à chaque tour). */
+  filmDossierLu?: true;
   /** Formats à rendre, dans l'ordre (le premier est le maître). */
   ratios: Ratio[];
   rendus: RenduTutoriel[];
@@ -518,12 +530,39 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
   return { statut: "en-cours", etat: suite };
 }
 
+const MESSAGE_FILM_A_CAPTURER = "Le film de navigation se fabrique sur le poste de capture : déposez-le, la vidéo reprend. Rien n'a échoué.";
+const RESERVE_FILM_CAPTURE_ETEINTE = "À vérifier · Film de l'outil : la capture automatique est éteinte, la vidéo montre des scènes dessinées, pas votre tableau de bord.";
+const RESERVE_FILM_SANS_SCENARIO = "À vérifier · Film de l'outil : le dossier n'a pas de scenario.json lisible, la vidéo montre des scènes dessinées, pas votre tableau de bord.";
+
+/**
+ * Film d'un dossier sans équipe : APRÈS la voix, lit (une seule fois) le scénario du dossier et le retient s'il se cale sur la voix.
+ * Capture éteinte ou scénario introuvable / incalable : chemin d'avant, avec une réserve. Capture éteinte : le zip n'est pas lu.
+ */
+async function lireFilmDossier(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<EtatTutoriel> {
+  const port = outils.filmDossier;
+  if (!port || etat.equipe || etat.filmDossierLu || !etat.audio || lireEntreesTutoriel(commande.entrees).navigationFilmee) return etat;
+  const avec = (reserve: string): EtatTutoriel => ({ ...etat, filmDossierLu: true, reserves: etat.reserves.includes(reserve) ? etat.reserves : [...etat.reserves, reserve] });
+  if (!port.captureAuto) return avec(RESERVE_FILM_CAPTURE_ETEINTE);
+  let brut: unknown = null;
+  try {
+    brut = await port.lireScenario();
+  } catch {
+    brut = null;
+  }
+  const lu = brut ? lireScenarioMaquette(brut) : null;
+  const scenario = lu?.ok ? scenarioCalable(lu.scenario, etat.audio.mots, Math.round(etat.audio.dureeSec * 1000)) : null;
+  if (!scenario) return avec(RESERVE_FILM_SANS_SCENARIO);
+  return { ...etat, filmDossierLu: true, scenarioDossier: scenario };
+}
+
 /**
  * T-EXT-55 · Après le calage (équipe allumée seulement) : le contrôleur relit les durées réelles (sans IA ; ses remarques
  * deviennent des réserves, jamais un échec), puis la vidéo attend le film de navigation, fait sur le poste de capture.
  */
 function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication, outils: Pick<OutilsTutoriel, "fin">): PasTutoriel {
   const equipe = pas.etat.equipe;
+  // Sans équipe : un dossier dont le scénario est calable attend le film, comme avec l'équipe (même pause, même message).
+  if (!equipe && pas.statut === "faite" && pas.etat.scenarioDossier && !lireEntreesTutoriel(commande.entrees).navigationFilmee) return { statut: "pause", etat: pas.etat, code: "TO_FILM_A_CAPTURER", message: MESSAGE_FILM_A_CAPTURER };
   // Décision sur l'ÉTAT de la vidéo, jamais sur le port : le port est recréé à chaque pas et peut manquer un tour (réglage lu en échec).
   if (!equipe?.parcours || pas.statut !== "faite") return pas;
   let etat = pas.etat;
@@ -535,7 +574,7 @@ function pasApresCalage(pas: PasTutoriel, commande: CommandeFabrication, outils:
     const reserves = verdict.controles.filter((c) => c.etat === "echoue").flatMap((c) => c.details.map((d) => `À vérifier · ${d}`));
     etat = { ...etat, equipe: { ...equipe, verdictCalage: verdict }, reserves: [...etat.reserves, ...reserves.filter((m) => !etat.reserves.includes(m))] };
   }
-  if (!nav) return { statut: "pause", etat, code: "TO_FILM_A_CAPTURER", message: "Le film de navigation se fabrique sur le poste de capture : déposez-le, la vidéo reprend. Rien n'a échoué." };
+  if (!nav) return { statut: "pause", etat, code: "TO_FILM_A_CAPTURER", message: MESSAGE_FILM_A_CAPTURER };
   return { statut: "faite", etat };
 }
 
@@ -587,7 +626,7 @@ function pasCalage(etat: EtatTutoriel, commande: CommandeFabrication, outils: Ou
   const st = outils.sousTitres;
   // QUAL-5 : sans voix, sous-titres sobres de la bande réservée (base minimal, aucun accent) ; sinon réglages du studio.
   // Seul le plan composé (sans voix ET sans film de navigation) a la bande réservée ; sinon, comportement de master.
-  const sansVoix = estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee;
+  const sansVoix = estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee && !etat.scenarioDossier;
   const options = sansVoix ? optionsSousTitresSansVoix(etat.ratios[0]) : { ...(st?.style !== undefined ? { style: st.style } : {}), ...(st?.base ? { base: st.base } : {}), ...(st?.intensite ? { intensite: st.intensite } : {}) };
   const fabriques = fabriquerSousTitres({
     texte: etat.script!.texte,
@@ -653,7 +692,7 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
   const empreinteEntree = fnv1a64(jsonCanonique({ texte, mots, format }));
   // QUAL-5 : sans voix et sans film de navigation, le plan est COMPOSÉ du script (0 appel Claude, aucune réserve « plan simple »).
   // Il est recomposé à chaque version (déterministe) : une retouche « plan de scènes » du chat n'a pas d'effet visible dans ce mode.
-  if (estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee) {
+  if (estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee && !etat.scenarioDossier) {
     const entrees = lireEntreesTutoriel(commande.entrees);
     const phraseTitre = entrees.depot?.mode === "phrase" ? entrees.depot.phrase : entrees.idee;
     const fin = entrees.fin;
@@ -1242,7 +1281,7 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
       return pasVoix(etat, commande, outils);
     case "calage":
       // Sans étape « voix » (aucune distribution), le calage part de l'estimation du texte.
-      return pasApresCalage(pasCalage(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils), commande, outils);
+      return pasApresCalage(pasCalage(await lireFilmDossier(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils), commande, outils), commande, outils);
     case "plan":
       return pasPlan(etat, commande, outils);
     case "montage":
