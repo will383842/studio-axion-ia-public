@@ -1,6 +1,6 @@
 /**
  * BR-MOT-CLE-a — pose le MOT-CLÉ DE RECHERCHE (X1-13 / X1-18) au plan de scènes : une scène `legende` d'un seul mot, en haut,
- * style `etiquette`, dans les 3 premières secondes. Le mot est un mot DIT (`motCleDeRecherche`), jamais reformulé.
+ * style `bandeau` (choix de Williams, 25/11), dans les 3 premières secondes. Le mot est un mot DIT (`motCleDeRecherche`), jamais reformulé.
  * Fonction PURE, ne lève jamais ; le MÊME objet est rendu quand rien ne se pose. Aucun appelant (éteint) ; la constante
  * `MOT_CLE_RECHERCHE_ACTIF` n'est PAS lue ici. À appeler APRÈS le tri de l'adaptateur (`estRetenue` jette une légende d'un mot).
  * Posée seulement si `[debutMs, finMs)` ne chevauche AUCUNE scène (même test que `objets-au-plan.ts`).
@@ -9,10 +9,11 @@ import { motCleDeRecherche } from "../composition/mot-cle-recherche";
 import type { MotMinute, PlanDeScenes, ScenePlan } from "../plan-scenes/schema";
 import { SCENE_MIN_MS } from "../plan-scenes/zones";
 
-/** Durée visée de l'étiquette (ms) : au-dessus du minimum de lecture d'un mot (650 ms) et de `SCENE_MIN_MS`. */
+/** Durée visée du mot-clé (ms) : au-dessus du minimum de lecture d'un mot (650 ms) et de `SCENE_MIN_MS`. */
 export const DUREE_MOT_CLE_MS = 1200;
 /** Longueur maximale du mot posé (lettres). */
 export const LETTRES_MOT_CLE_MAX = 24;
+export const STYLE_MOT_CLE = "bandeau" as const;
 const TRANSITION_MOT_CLE = { entree: "fondu", sortie: "fondu", dureeMs: 400 } as const;
 
 export function poserMotCleAuPlan(
@@ -46,7 +47,7 @@ export function poserMotCleAuPlan(
       position: "haut",
       transition: { ...TRANSITION_MOT_CLE },
       piece: "legende",
-      parametres: { texte: m.texte, sousTexte: "", style: "etiquette" },
+      parametres: { texte: m.texte, sousTexte: "", style: STYLE_MOT_CLE },
     } as ScenePlan;
     return { ...plan, scenes: [...plan.scenes, scene].sort((a, b) => a.debutMs - b.debutMs) };
   } catch {
