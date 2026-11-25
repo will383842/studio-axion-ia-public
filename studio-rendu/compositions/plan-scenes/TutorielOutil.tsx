@@ -14,8 +14,17 @@ import { SchemaFlux } from "./tutoriel-flux/SchemaFlux";
 
 export { COMPOSITION_TUTORIEL };
 
+/**
+ * Durée totale en images. Avec `compositionSansVoix`, le plan composé couvre TOUTE la vidéo (voix + fin, durée posée par
+ * QUAL-5) : total = le plus grand de `dureeImagesTutoriel(p)` et du plan composé. Sans : `dureeImagesTutoriel(p)` inchangé.
+ */
+export function dureeTotaleImages(p: ProprietesTutorielOutil): number {
+  const base = dureeImagesTutoriel(p);
+  return p.compositionSansVoix ? Math.max(base, imagesDe(p.compositionSansVoix.dureeMs, p.plan.format.fps)) : base;
+}
+
 export function TutorielOutil(p: ProprietesTutorielOutil) {
-  const imagesPlan = imagesDe(p.plan.dureeMs, p.plan.format.fps);
+  const imagesPlan = p.compositionSansVoix ? dureeTotaleImages(p) : imagesDe(p.plan.dureeMs, p.plan.format.fps);
   return (
     <AbsoluteFill>
       <Sequence durationInFrames={imagesPlan}>
@@ -37,7 +46,7 @@ export function TutorielOutil(p: ProprietesTutorielOutil) {
         {p.sousTitres ? <CalqueSousTitres donnees={p.sousTitres} /> : null}
         {p.audio ? <Audio src={p.audio} /> : null}
       </Sequence>
-      {p.finMs > 0 ? (
+      {p.finMs > 0 && !p.compositionSansVoix ? (
         <Sequence from={imagesPlan}>
           <PlanDeScenes plan={planCarteFin(p)} />
         </Sequence>
@@ -47,7 +56,7 @@ export function TutorielOutil(p: ProprietesTutorielOutil) {
 }
 
 export const metaTutorielOutil = ({ props }: { props: ProprietesTutorielOutil }) => ({
-  durationInFrames: dureeImagesTutoriel(props),
+  durationInFrames: dureeTotaleImages(props),
   fps: props.plan.format.fps,
   width: props.plan.format.largeur,
   height: props.plan.format.hauteur,

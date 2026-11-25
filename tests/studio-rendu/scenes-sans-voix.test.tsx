@@ -20,6 +20,7 @@ vi.mock("../../studio-rendu/node_modules/remotion/dist/esm/index.mjs", async (or
 });
 
 import { imageSansVoixA } from "@/briques/plan-scenes/tutoriel/sans-voix/geometrie";
+import { INTERLIGNE, PLANCHER_TEXTE } from "@/briques/plan-scenes/tutoriel/sans-voix/grammaire";
 import { PALETTE } from "@/briques/charte/axion-2026";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { ElementVisible, ImageSansVoix } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
@@ -86,6 +87,34 @@ describe.skipIf(!AVEC_RENDU)("DessinSansVoix (QUAL-3)", () => {
     expect(h.indexOf('data-id="carte"')).toBeLessThan(h.indexOf('data-id="titre"'));
   });
 
+  it("horloge : la grande aiguille tourne de progression × 360° autour du centre (12, 12)", () => {
+    const rendu = (progression?: number) =>
+      html(createElement(DESSIN!.DessinSansVoix, { image: { tMs: 0, fond: "ivoire", elements: [el({ id: "h", genre: "forme", icone: "horloge", couleur: "noir", progression, rect: { x: 0, y: 0, largeur: 48, hauteur: 48 } })] }, format: FORMAT }));
+    expect(rendu(0.25)).toContain('transform="rotate(90 12 12)"');
+    expect(rendu(0.5)).toContain('transform="rotate(180 12 12)"');
+    expect(rendu(undefined)).toContain('transform="rotate(0 12 12)"');
+    expect(rendu(1.25)).toContain('transform="rotate(90 12 12)"');
+    expect(rendu(0.25)).not.toBe(rendu(0.5));
+  });
+
+  it("contrat du texte : nowrap, interligne de la grammaire, alignement, repli sur le plancher de la grammaire", () => {
+    const h = sortie();
+    expect(h).toContain("white-space:nowrap");
+    // titre : 2 lignes à 64 px dans 160 px => 1,25 (mesuré) ; une ligne à 56 px dans 70 px => 1,25 ; aucun repli magique 1,15
+    expect(h).not.toContain("line-height:1.15");
+    const rendu = (e: Partial<ElementVisible>) => html(createElement(DESSIN!.DessinSansVoix, { image: { tMs: 0, fond: "ivoire", elements: [el({ id: "t", genre: "texte", texte: "A", lignes: ["A"], taillePx: 50, ...e })] }, format: FORMAT }));
+    const ok = rendu({ rect: { x: 0, y: 0, largeur: 100, hauteur: 50 * INTERLIGNE } });
+    expect(ok).toContain(`line-height:${INTERLIGNE}`);
+    const incoherent = rendu({ rect: { x: 0, y: 0, largeur: 100, hauteur: 500 } });
+    expect(incoherent).toContain(`line-height:${INTERLIGNE}`); // repli = INTERLIGNE
+    expect(rendu({ alignement: "centre" })).toContain("align-items:center");
+    expect(rendu({ alignement: "gauche" })).toContain("align-items:flex-start");
+    const avertir = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(rendu({ taillePx: undefined })).toContain(`font-size:${PLANCHER_TEXTE}px`);
+    expect(avertir).toHaveBeenCalled();
+    avertir.mockRestore();
+  });
+
   it("aucune couleur hors charte et aucune police sous 32 px", () => {
     const h = sortie();
     const hex = h.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
@@ -128,6 +157,22 @@ describe.skipIf(!AVEC_RENDU)("TutorielOutil et compositionSansVoix (QUAL-3)", ()
       const { x, y, largeur, hauteur } = e.rect;
       expect(avec).toContain(`data-id="${e.id}" style="position:absolute;left:${x}px;top:${y}px;width:${largeur}px;height:${hauteur}px`);
     }
+  });
+
+  it("avec le champ : pas de carte de fin séparée ; durée totale = le plus grand du plan et du plan composé", () => {
+    etat.image = 5;
+    const avec = rendre({ compositionSansVoix: PLAN_SANS_VOIX_STOCKS });
+    expect(avec).not.toContain("axion-ia.com");
+    expect(rendre()).toContain("axion-ia.com");
+    const composeCourt = { ...PLAN_SANS_VOIX_STOCKS, dureeMs: 1000 };
+    const plan = planTuto();
+    const base = plan.dureeMs; // 6000 ms : la carte de fin sert de plan nu dans le test
+    const meta = (extra: object) => TUTORIEL!.metaTutorielOutil({ props: { plan, fin: FIN, finMs: 0, ...extra } }).durationInFrames;
+    expect(meta({})).toBe(Math.ceil((base * 25) / 1000));
+    expect(meta({ compositionSansVoix: composeCourt })).toBe(Math.ceil((base * 25) / 1000));
+    expect(meta({ compositionSansVoix: { ...PLAN_SANS_VOIX_STOCKS, dureeMs: 40000 } })).toBe(1000);
+    // avec finMs > 0 sans composition : plan + fin (inchangé)
+    expect(TUTORIEL!.metaTutorielOutil({ props: { plan, fin: FIN, finMs: 2500 } }).durationInFrames).toBe(150 + 63);
   });
 
   it("plan des stocks à 5 instants : textes de la scène, couleurs de la charte, aucune police sous 32 px, jamais un fond nu", () => {
