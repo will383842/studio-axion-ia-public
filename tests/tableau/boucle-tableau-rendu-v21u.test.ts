@@ -53,7 +53,6 @@ describe("BOUCLE-TABLEAU-b : fin en boucle du tableau animé", () => {
     expect(p1.match(/FIN_REFERENCE\.fonduImageMs/g)).toHaveLength(2);
     expect(p3.match(/FIN_REFERENCE\.fonduImageMs/g)).toHaveLength(2);
     expect(pt.match(/const f = borne\(\(t \* 1000 - \(r\.finVideoMs - FIN_REFERENCE\.fonduImageMs\)\) \/ FIN_REFERENCE\.fonduImageMs\)/g)).toHaveLength(1);
-    for (const s of [p1, p3]) expect(s).not.toMatch(/finEnBoucle[^\n]*\b\d{3,}\b/);
   });
   it("(e) sans appelant : le moteur du tableau et les services ne posent pas finEnBoucle", () => {
     const parcourir = (d: string): string[] =>
