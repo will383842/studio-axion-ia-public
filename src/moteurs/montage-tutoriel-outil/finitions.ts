@@ -66,7 +66,9 @@ const virgule = (n: number) => String(n).replace(".", ",").replace("-", "−");
 
 /** Ce que le rapport peut affirmer du son : la valeur mesurée, jamais un chiffre écrit en dur. */
 export function rapportSon(mesure: MesureSon | null, cible: CibleSon, avecVoix: boolean): RapportSon {
-  if (!avecVoix) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "Son : vidéo sans voix", gravite: "info" };
+  // Sans voix, aucun niveau n'est mesuré : `RapportQualite.niveauSonoreLufs` est obligatoire (type du domaine), on y met donc la cible,
+  // et `sonVerifie` reste faux ; l'alerte le dit en toutes lettres pour que la cible ne passe pas pour une mesure.
+  if (!avecVoix) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "Son : vidéo sans voix, aucun niveau mesuré (la valeur affichée est la cible)", gravite: "info" };
   if (!mesure) return { niveauSonoreLufs: cible.lufs, sonVerifie: false, alerte: "À vérifier · Son : niveau non mesuré (la valeur affichée est la cible)", gravite: "info" };
   const niveau = dixieme(mesure.lufs);
   const niveauOk = Math.abs(mesure.lufs - cible.lufs) <= TOLERANCE_LUFS_TUTORIEL;

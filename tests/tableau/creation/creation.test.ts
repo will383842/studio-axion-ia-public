@@ -34,7 +34,8 @@ vi.mock("@/moteurs/montage-tableau/sans-voix", async (original) => {
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
-const { decouperScriptTableau, ecranCreationTableau, lireBrouillonTableau, fabriquerVideoTableau, travaillerTachesTableau, corrigerFicheTableau, reprendreTacheTableau, brouillonsRecentsTableau, cocherDejaVuTableau, RAISON_CASE_DEJA_VU, rouvrirFicheTableau, validerDonneesScript } = await import("@/services/tableau-creation");
+const { ecrireParametre } = await import("@/services/_commun");
+const { PARAM_STYLE_TIRE_TABLEAU, decouperScriptTableau, ecranCreationTableau, lireBrouillonTableau, fabriquerVideoTableau, travaillerTachesTableau, corrigerFicheTableau, reprendreTacheTableau, brouillonsRecentsTableau, cocherDejaVuTableau, RAISON_CASE_DEJA_VU, rouvrirFicheTableau, validerDonneesScript } = await import("@/services/tableau-creation");
 const { fabriquerVideoTableauAction, decouperScriptTableauAction } = await import("@/app/(studio)/tableau/nouvelle/actions");
 const { default: PageNouvelleTableau } = await import("@/app/(studio)/tableau/nouvelle/page");
 const { adresseCreationFormat, listerFormatsNavigation } = await import("@/formats");
@@ -181,6 +182,8 @@ describe("Découper en scènes", () => {
   });
 
   it("essai réel n° 4 : une fiche « à corriger » dont une ancre dépasse le texte dit s'enregistre SANS changement (réparée)", async () => {
+    // Ce cas vérifie la réparation d'une ancre, pas le style : on écrit « tableau.styleTire » à false (ÉLARGISSEMENT DU PILOTE 25/11).
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, false);
     const claude = doubleClaude((f) => (f.scenes[0].texteDit = f.scenes[0].texteDit.replace("vagues", "floues")));
     const r = await decouperEtAttendre(donnees, { appeler: claude.appeler, aujourdhui: AUJOURDHUI_EXEMPLES });
     expect(r.brouillon.versions[0].origine).toBe("decoupage-a-corriger");

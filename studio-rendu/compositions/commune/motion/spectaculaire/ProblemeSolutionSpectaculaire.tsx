@@ -23,7 +23,7 @@ function Face({ f, etiquette, solution, debut, padding, largeur, brisure, style,
         <IconeSpec nom={f.icone ?? (solution ? "coche-cercle" : "alerte")} taille={taille("legende") * 1.25} debut={debut} couleur={couleur} epaisseur={2.4} />
         <MotsGeants texte={etiquette.toUpperCase()} debut={debut + 0.05} taille={taille("legende")} graisse={800} effet="etire" couleur={couleur} decalage={0.05} approche={0.14} />
       </div>
-      <MotsGeants texte={solution ? `*${f.titre}*` : f.titre} debut={debut + 0.12} taille={taille("titre")} graisse={900} effet={solution ? "ecrase" : "etire"} largeurMax={largeur - 2 * padding} decalage={0.05} interligne={1.06} approche={-0.02} couleur={COULEURS.creme} balayage={debut + 0.8} />
+      <MotsGeants texte={solution ? `*${f.titre}*` : f.titre} debut={debut + 0.12} taille={taille("titre")} graisse={800} effet={solution ? "ecrase" : "etire"} largeurMax={largeur - 2 * padding} decalage={0.05} interligne={1.06} approche={-0.02} couleur={COULEURS.creme} balayage={debut + 0.8} />
       {f.detail && <MotsGeants texte={f.detail} debut={debut + 0.4} taille={taille("corps")} graisse={600} effet="etire" couleur={solution ? COULEURS.creme : COULEURS.cremeAttenuee} decalage={0.04} interligne={1.18} approche={-0.005} />}
       {solution && <Balayage debut={debut + 0.9} opacite={0.32} />}
       {/* Fêlure qui se dessine sur le problème. */}

@@ -133,8 +133,9 @@ describe("QUALL-5 : la note n'est plus un 80 en dur", () => {
     const etat = { faites: [], voix: { mots: minutage.mots, dureeSec: minutage.dureeSec, morceaux: 0 }, chapitres: minutage.chapitres, remarques: [], sorties: { "16:9": "k.mp4" } };
     const r = definitionVideoLongue(() => null).resultat(avecVoix, etat as never, lireEntreesVideoLongue(avecVoix));
     expect(r.noteQualite.globale).toBe(80);
-    expect(r.noteQualite.alertes).toEqual([]);
-    expect(r.sorties[0].rapportQualite.alertes).toEqual([]);
+    // Seule l'alerte de son de master (« niveau non mesuré ») reste : aucune alerte du contrôle du story-board.
+    expect(r.noteQualite.alertes.filter((a) => a.code !== "niveau-sonore")).toEqual([]);
+    expect(r.sorties[0].rapportQualite.alertes.filter((a) => a.code !== "niveau-sonore")).toEqual([]);
   });
 
   it("avec voix et sans chapitres dans l'état : comportement d'avant (80)", () => {

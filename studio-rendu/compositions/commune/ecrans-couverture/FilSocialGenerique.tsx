@@ -3,22 +3,16 @@
  * Générique : que du texte dans des cartes. Message refusé, absent, ou plus de 6 : fond seul.
  */
 import React from "react";
-import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from "remotion";
-import { CHARTE_AXION, FAMILLE_CSS_AXION, POLICE_AXION } from "../../../../src/briques/jetons-motion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
+import { CHARTE_AXION, FAMILLE_CSS_AXION } from "../../../../src/briques/jetons-motion";
 import { geometrieFil, MAX_CARTES_FIL } from "../../../../src/briques/motion/ecrans-couverture/ecrans-composes";
 import { textesGeneriques } from "../../../../src/briques/motion/ecrans-couverture/textes-generiques";
-import manrope from "../polices/Manrope-Variable.ttf";
+import { chargerPoliceMarque } from "../police-marque";
 
 /** Éteint : aucun branchement. */
 export const FIL_SOCIAL_GENERIQUE_ACTIVE = false;
 
-let chargement: Promise<void> | null = null;
-function chargerManropeFil(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope (fil générique)");
-  const face = new FontFace(POLICE_AXION, `url(${manrope})`, { weight: "200 800" });
-  chargement = face.load().then(() => { document.fonts.add(face); }).catch(() => undefined).finally(() => continueRender(attente));
-}
+const chargerManropeFil = chargerPoliceMarque;
 
 export type ProprietesFilSocialGenerique = { messages?: string[] };
 

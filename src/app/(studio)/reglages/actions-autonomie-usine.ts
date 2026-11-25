@@ -8,7 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { ErreurStudio, essayer, type Resultat } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
-import { reglerAutonomieUsine } from "@/services/autonomie-usine";
+import { eteindreDepuisStudio, reglerAutonomieUsine } from "@/services/autonomie-usine";
 
 export async function reglerAutonomieUsineAction(actif: boolean, plafondEuros: number): Promise<Resultat> {
   await exigerSession();
@@ -19,6 +19,16 @@ export async function reglerAutonomieUsineAction(actif: boolean, plafondEuros: n
     }
     const plafondCents = Math.round(plafondEuros * 100);
     await reglerAutonomieUsine({ actif, plafondCents });
+    revalidatePath("/reglages");
+    return undefined;
+  });
+}
+
+/** Bouton d'urgence « Éteindre » quand l'Usine règle l'autonomie : éteint seulement, n'allume jamais. */
+export async function eteindreAutonomieUsineAction(): Promise<Resultat> {
+  await exigerSession();
+  return essayer(async () => {
+    await eteindreDepuisStudio();
     revalidatePath("/reglages");
     return undefined;
   });

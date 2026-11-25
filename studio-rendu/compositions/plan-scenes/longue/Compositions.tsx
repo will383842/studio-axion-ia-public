@@ -2,14 +2,15 @@
 import type { ComponentType } from "react";
 import { Composition } from "remotion";
 import { imageDe } from "../../../../src/moteurs/montage-video-longue/rendu-chapitres";
-import { FORMAT_LONGUE, ID_COMPOSITION_VIDEO_LONGUE, type ProprietesVideoLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
+import { FORMAT_LONGUE, type ProprietesVideoLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
 import { PROPRIETES_EXEMPLE_LONGUE } from "./exemple";
 import { VideoLongue } from "./VideoLongue";
 
 export function CompositionsVideoLongue() {
   return (
     <Composition
-      id={ID_COMPOSITION_VIDEO_LONGUE}
+      // Écrit en dur (lu comme du texte par tests/generateurs/inscrit-partout.test.ts) ; égal à ID_COMPOSITION_VIDEO_LONGUE.
+      id="VideoLongue"
       component={VideoLongue as unknown as ComponentType<Record<string, unknown>>}
       durationInFrames={imageDe(PROPRIETES_EXEMPLE_LONGUE.storyboard.dureeMs, FORMAT_LONGUE.fps)}
       fps={FORMAT_LONGUE.fps}

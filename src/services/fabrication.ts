@@ -362,7 +362,9 @@ async function commandeDeLaVideo(video: Video, options: { simulerEchecEtape?: st
   const distribution = await resoudreDistributionCommande(video, format, reglages.reglages);
   // IV-SV : « Image → vidéo » sans voix n'a personne qui parle (le dépôt a posé `sansVoix`) ; tout autre cas garde sa règle.
   const sansVoixIV = format.id === "image-video" && (video.entrees as { imageVideo?: { sansVoix?: unknown } } | undefined)?.imageVideo?.sansVoix === true;
-  if (!sansVoixIV && distribution.length < format.personnages.min) throw new ErreurStudio("DISTRIBUTION_INCOMPLETE", "Choisissez qui parle.");
+  // TO-SV (P4) : tutoriel d'outil en mode sans voix, seul `modeVoix === "sans-voix"` exact (= MODE_SANS_VOIX, lu comme `lireModeVoix`) ; tout autre cas garde sa règle.
+  const sansVoixTO = format.id === "tutoriel-outil" && (video.entrees as { tutorielOutil?: { modeVoix?: unknown } } | undefined)?.tutorielOutil?.modeVoix === "sans-voix";
+  if (!sansVoixIV && !sansVoixTO && distribution.length < format.personnages.min) throw new ErreurStudio("DISTRIBUTION_INCOMPLETE", "Choisissez qui parle.");
 
   const briques = briquesEffectives(format, video.briquesCoupees, video.briquesAllumees);
   const plans = (options.sansPlans ? [] : await plansApercu(videoId)).map((p) => ({

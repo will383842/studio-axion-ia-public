@@ -20,7 +20,7 @@ import { chapitresDepuisVoix } from "../../src/moteurs/montage-video-longue/chai
 import { minuterSansVoix } from "../../src/moteurs/montage-video-longue/minutage";
 import { storyboardVideoLongue } from "../../src/moteurs/montage-video-longue/storyboard";
 import { controlerStoryboard } from "../../src/moteurs/montage-video-longue/controle";
-import { poserScene, poserSousTitre } from "../../src/moteurs/montage-video-longue/mise-en-page";
+import { poserScene, poserSousTitreDe } from "../../src/moteurs/montage-video-longue/mise-en-page";
 import { monterVideoLongue, pasMontageVideoLongue, type PlageNotee } from "../../src/services/video-longue-montage";
 import type { SuiviMontageVideoLongue } from "../../src/moteurs/montage-video-longue/chaine";
 import { analyserVideo, reperesVides, FPS_BANC } from "./controle-images-longue";
@@ -143,7 +143,7 @@ seau.close();
 
 // Contrôle gratuit : note du story-board (même calcul que la Qualité du moteur), puis banc images sur la vidéo produite.
 const sb = storyboardVideoLongue({ question: entrees.question ?? null }, { mots: voix.mots, chapitres, dureeSec: voix.dureeSec });
-const controle = controlerStoryboard(sb, { scene: poserScene, sousTitre: poserSousTitre });
+const controle = controlerStoryboard(sb, { scene: poserScene, sousTitre: poserSousTitreDe(sb) });
 console.log(`note du contrôle du story-board : ${controle.note}/100 (${controle.alertes.length} alerte(s))`);
 for (const a of controle.alertes) console.log(`  - [${a.gravite}] ${a.code} : ${a.message}`);
 const parts = await analyserVideo(sortieFinale);

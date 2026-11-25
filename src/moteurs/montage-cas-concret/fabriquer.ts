@@ -219,6 +219,8 @@ export interface OptionsFabricationCasConcret {
   styleVarie?: boolean;
   /** BR-CC-BRANCHER · pièces d'objets permises par l'entrée bibliothèque (lues par index.ts) ; absent ou vide : aucun objet. */
   objetsPermis?: readonly string[];
+  /** BR-MOT-CLE-c-v21s · mot-clé de recherche (X1-13) en bandeau dans les 3 premières secondes : ALLUMÉ dès que le plan de scènes tourne (décision de Williams du 25/11) ; seul `false` l'éteint. */
+  motCle?: false;
   /** X3-07 : cran du dosage figé dans la commande (X3-03) ; absent : tirage inchangé. */
   dosage?: DosageMotion;
   /**
@@ -1158,6 +1160,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       memo: journal.planScenes,
       ...(entrees.habillageTransitions === true ? { habillage: { actif: true, graine: o.videoId } } : {}),
       ...(o.objetsPermis?.length ? { objetsPermis: o.objetsPermis } : {}),
+      ...(o.motCle !== false ? { motCle: { actif: true, sujet: cas.titre || cas.theme || cas.promesse, motsInterdits: [mot] } } : {}),
     });
     journal.planScenes = r.memo;
     await ecrire();

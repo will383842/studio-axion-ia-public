@@ -42,7 +42,7 @@ export interface SuiviMontageVideoLongue {
 }
 
 /** Résultat d'un pas de montage : fini, ou encore en cours (à rappeler avec le nouveau suivi). */
-export type PasMontageVideoLongue = { fini: { fichierCle: string } } | { enCours: { suivi: SuiviMontageVideoLongue; fait: number; total: number } };
+export type PasMontageVideoLongue = { fini: { fichierCle: string; /** Taille mesurée du fichier collé (octets), si le collage l'a renvoyée. */ taille?: number } } | { enCours: { suivi: SuiviMontageVideoLongue; fait: number; total: number } };
 
 type ContexteMontage = { chapitres: ChapitreWeb[]; mots: MotHorodate[]; dureeSec: number };
 
@@ -60,6 +60,8 @@ export interface EtatVideoLongue extends EtatGabarit {
   chapitres?: ChapitreWeb[];
   remarques: RemarqueChapitres[];
   sorties: Partial<Record<Ratio, string>>;
+  /** Taille mesurée (octets) du fichier de chaque format, quand le collage l'a renvoyée. Absente = inconnue. */
+  tailles?: Partial<Record<Ratio, number>>;
   /** Montage pas à pas : suivi par format tant que le collage n'est pas terminé. */
   montageSuivi?: Partial<Record<Ratio, SuiviMontageVideoLongue>>;
 }
@@ -137,6 +139,7 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
       }
       // Pas à pas : un seul format, une seule action de rendu, puis retour. L'étape n'est faite qu'une fois tout collé.
       const suivis = { ...etat.montageSuivi };
+      const tailles = { ...etat.tailles };
       const ratio = ctx.commande.ratios.find((r) => !sorties[r]);
       if (ratio) {
         let pas: PasMontageVideoLongue;
@@ -150,10 +153,11 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
         }
         if ("enCours" in pas) return { ...etat, sorties, montageSuivi: { ...suivis, [ratio]: pas.enCours.suivi } };
         sorties[ratio] = pas.fini.fichierCle;
+        if (typeof pas.fini.taille === "number" && pas.fini.taille > 0) tailles[ratio] = pas.fini.taille;
         delete suivis[ratio];
-        if (ctx.commande.ratios.some((r) => !sorties[r])) return { ...etat, sorties, montageSuivi: suivis };
+        if (ctx.commande.ratios.some((r) => !sorties[r])) return { ...etat, sorties, tailles, montageSuivi: suivis };
       }
-      return faite({ ...etat, sorties, montageSuivi: undefined });
+      return faite({ ...etat, sorties, tailles, montageSuivi: undefined });
     }
     default:
       return { ...faite(etat), fini: true };

@@ -65,7 +65,8 @@ describe("tutoriel d'outil : finitions (T-EXT-31)", () => {
     expect(rq.verifie.son).toBe(false);
     expect(rq.verifie.droits).toBe(false);
     expect(messages(resultat).some((m) => m.includes("non mesuré"))).toBe(true);
-    expect(resultat.sorties[0].vignetteCle).toMatch(/tutoriel-4x5\.jpg$/);
+    // AUTORISATION PERMANENTE (b) : avant ESS-6, une clé « …/tutoriel-4x5.jpg » était inventée alors qu'aucune vignette n'existe ; la valeur exacte est maintenant "" (aucune vignette).
+    expect(resultat.sorties[0].vignetteCle).toBe("");
     expect(messages(resultat)).toContain("Vignette non produite");
   });
 

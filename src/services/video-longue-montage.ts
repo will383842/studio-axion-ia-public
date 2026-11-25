@@ -68,6 +68,16 @@ export class ErreurMontageVideoLongue extends Error {
   }
 }
 
+/**
+ * Échec d'une plage : si le service de rendu ne connaît pas encore la composition (Studio déployé avant studio-rendu),
+ * phrase claire et RÉESSAYABLE (rien n'est payé ; la même demande repartira une fois le service à jour). Sinon : définitif.
+ */
+export const COMPOSITION_ABSENTE = /introuvable|could not find composition/i;
+export function erreurEchecPlage(message: string): ErreurMontageVideoLongue {
+  if (COMPOSITION_ABSENTE.test(message)) return new ErreurMontageVideoLongue("Le service de rendu n'est pas encore à jour pour ce nouveau montage : rien n'est payé, réessayez un peu plus tard.", [], true);
+  return new ErreurMontageVideoLongue(`Le rendu d'une partie de la vidéo a échoué : ${message}`, [], false);
+}
+
 const empreinte = (v: unknown): string => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 24);
 /** Caractères admis par studio-rendu pour un idRendu : `[A-Za-z0-9_.:-]`, 120 au plus. */
 const idSur = (v: string): string => v.replace(/[^A-Za-z0-9_.:-]/g, "_");
@@ -128,7 +138,7 @@ async function soumettreEtAttendre(demande: DemandeRendu, ports: PortsMontageVid
       continue;
     }
     if (e.statut === "termine") return { sortieCle: e.sortieCle || demande.sortie.cle };
-    if (e.statut === "echec") throw new Error(`Le rendu a échoué : ${e.erreur.message}`);
+    if (e.statut === "echec") throw COMPOSITION_ABSENTE.test(e.erreur.message) ? erreurEchecPlage(e.erreur.message) : new Error(`Le rendu a échoué : ${e.erreur.message}`);
     if (e.statut === "inconnu") await ports.rendu.soumettre(demande);
     await attendre(intervalle); // y compris après un renvoi : pas de boucle serrée sur un service qui répond « inconnu »
   }
@@ -339,7 +349,7 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
       await ports.ecrirePlages(videoId, { ...notees, ...Object.fromEntries(plages.filter((p) => courant.plages[p.id]).map((p) => [p.id, { sortieCle: courant.plages[p.id], empreinte: p.empreinte }])) });
       return enCours();
     }
-    if (e.statut === "echec") throw new ErreurMontageVideoLongue(`Le rendu d'une partie de la vidéo a échoué : ${e.erreur.message}`, [], false);
+    if (e.statut === "echec") throw erreurEchecPlage(e.erreur.message);
     if (maintenant() - courant.enCours.depuisMs > (ports.delaiPlageMs ?? DELAI_MAX_PLAGE_MS)) throw new ErreurMontageVideoLongue("Une partie de la vidéo prend trop de temps à se rendre (délai dépassé), vous pouvez réessayer.", [], true);
     // « inconnu » : le conteneur a redémarré. On n'enchaîne pas : la même demande (même identifiant) repart au pas suivant.
     if (e.statut === "inconnu") delete courant.enCours;
@@ -375,7 +385,8 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
     return { enCours: { suivi: courant, fait: plages.length, total } };
   }
   const e = lu.etat;
-  if (e.statut === "termine") return { fini: { fichierCle: e.sortieCle || sortieCle } };
+  // La taille mesurée par le collage est transmise seulement si c'est un nombre positif (sinon : inconnue).
+  if (e.statut === "termine") return { fini: { fichierCle: e.sortieCle || sortieCle, ...(typeof e.mesures?.taille === "number" && e.mesures.taille > 0 ? { taille: e.mesures.taille } : {}) } };
   if (e.statut === "echec") throw new ErreurMontageVideoLongue(`Le collage de la vidéo a échoué : ${e.erreur.message}`, [], false);
   if (maintenant() - courant.collage.depuisMs > (ports.delaiCollageMs ?? DELAI_COLLAGE_MS)) throw new ErreurMontageVideoLongue("L'assemblage final prend trop de temps (délai dépassé), vous pouvez réessayer.", [], true);
   // « inconnu » : le collage repart (même identifiant) au pas suivant, pas dans celui-ci.

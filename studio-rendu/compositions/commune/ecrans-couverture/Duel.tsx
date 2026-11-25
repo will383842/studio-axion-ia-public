@@ -3,22 +3,16 @@
  * ni coche, ni croix, ni score. Un texte refusé, manquant, ou plus de 4 critères : fond seul, rien d'écrit.
  */
 import React from "react";
-import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from "remotion";
-import { CHARTE_AXION, FAMILLE_CSS_AXION, POLICE_AXION } from "../../../../src/briques/jetons-motion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
+import { CHARTE_AXION, FAMILLE_CSS_AXION } from "../../../../src/briques/jetons-motion";
 import { entreeEcranCompose, geometrieDuel, MAX_CRITERES_DUEL } from "../../../../src/briques/motion/ecrans-couverture/ecrans-composes";
 import { textesGeneriques } from "../../../../src/briques/motion/ecrans-couverture/textes-generiques";
-import manrope from "../polices/Manrope-Variable.ttf";
+import { chargerPoliceMarque } from "../police-marque";
 
 /** Éteint : aucun branchement. */
 export const DUEL_ACTIVE = false;
 
-let chargement: Promise<void> | null = null;
-function chargerManropeDuel(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope (duel)");
-  const face = new FontFace(POLICE_AXION, `url(${manrope})`, { weight: "200 800" });
-  chargement = face.load().then(() => { document.fonts.add(face); }).catch(() => undefined).finally(() => continueRender(attente));
-}
+const chargerManropeDuel = chargerPoliceMarque;
 
 export type CritereDuel = { libelle: string; gauche: string; droite: string };
 export type ProprietesDuel = { gauche?: string; droite?: string; criteres?: CritereDuel[] };

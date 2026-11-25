@@ -485,3 +485,20 @@ describe("FIN-8 : classement « réessayable » d'un échec de pas", () => {
     expect(etat.echec?.message).toMatch(/accès refusé/);
   });
 });
+
+describe("ESS-6L : la taille mesurée du collage arrive au résultat du moteur", () => {
+  it("taille > 0 renvoyée par le collage : transmise jusqu'à `taille` de la sortie", async () => {
+    const b = banc({ reponse: (id) => (b.soumis.find((d) => d.idRendu === id)?.operation === "collage-chapitres" ? { statut: "termine", sortieCle: b.soumis.find((d) => d.idRendu === id)!.sortie.cle, mesures: { taille: 4_200_000 } } : undefined) as never });
+    const { fini } = await mener(b);
+    expect(fini.taille).toBe(4_200_000);
+    const k = chaine(b);
+    const etat = await k.jusqua(1);
+    const def = definitionVideoLongue(() => null);
+    expect(def.resultat(commande, etat, lireEntreesVideoLongue(commande)).sorties[0].taille).toBe(4_200_000);
+  });
+  it("collage sans mesure ou taille nulle : pas de taille inventée", async () => {
+    const b = banc({ reponse: (id) => (b.soumis.find((d) => d.idRendu === id)?.operation === "collage-chapitres" ? { statut: "termine", sortieCle: "k", mesures: { taille: 0 } } : undefined) as never });
+    const { fini } = await mener(b);
+    expect(fini).not.toHaveProperty("taille");
+  });
+});

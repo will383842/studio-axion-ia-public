@@ -11,7 +11,7 @@ vi.mock("@/briques/plan-scenes/validateur", async (orig) => {
   return {
     ...vrai,
     validerPlan: (brut: { scenes?: { piece?: string; position?: string; parametres?: { style?: string } }[] }, ctx?: unknown) => {
-      if (brut?.scenes?.some((x) => x.piece === "legende" && x.position === "haut" && x.parametres?.style === "etiquette")) appelsAvecMot.push(brut);
+      if (brut?.scenes?.some((x) => x.piece === "legende" && x.position === "haut" && x.parametres?.style === "bandeau")) appelsAvecMot.push(brut);
       return vrai.validerPlan(brut, ctx as never);
     },
   };
@@ -39,7 +39,7 @@ function groupe(id: string, texte: string): GroupePourPlan {
 // Première phrase sans fait ni chiffre : le stock ne pose rien entre 0 et 3 s, la place est libre pour le mot-clé.
 const SCRIPT = "Voici comment relancer vos devis sans stress avec cette méthode très simple. Hier 3 clients ont répondu. Merci à vous.";
 const GROUPES = [groupe("g0", SCRIPT), ...DIX_SCRIPTS.map((s, i) => groupe(`g${i + 1}`, s))];
-const mots = (r: Awaited<ReturnType<typeof planScenesCasConcret>>) => Object.values(r.tranches).flatMap((t) => t.scenes).filter((s) => s.piece === "legende" && s.position === "haut" && (s.parametres as { style?: string }).style === "etiquette");
+const mots = (r: Awaited<ReturnType<typeof planScenesCasConcret>>) => Object.values(r.tranches).flatMap((t) => t.scenes).filter((s) => s.piece === "legende" && s.position === "haut" && (s.parametres as { style?: string }).style === "bandeau");
 
 describe("planScenesCasConcret · motCle", () => {
   it("absent ou actif:false : résultat identique en profondeur (tranches, remarques, mémo)", async () => {
