@@ -1,0 +1,32 @@
+[
+  {
+    "hote": "plan-scenes/PlanDeScenes.tsx",
+    "objet": "terminal-commande",
+    "famille": "JetBrains Mono"
+  },
+  {
+    "hote": "plan-scenes/CalquePlanScenes.tsx",
+    "objet": "terminal-commande",
+    "famille": "JetBrains Mono"
+  },
+  {
+    "hote": "commune/PlanSousTexte.tsx",
+    "objet": "terminal-commande",
+    "famille": "JetBrains Mono"
+  },
+  {
+    "hote": "demo-facecam/DemoFacecam.tsx",
+    "objet": "terminal-commande",
+    "famille": "JetBrains Mono"
+  },
+  {
+    "hote": "tableau/TableauScene.tsx",
+    "objet": "terminal-commande",
+    "famille": "JetBrains Mono"
+  },
+  {
+    "hote": "petits-objets/planche/RacinePlanches.tsx",
+    "objet": "terminal-commande",
+    "famille": "JetBrains Mono"
+  }
+]
