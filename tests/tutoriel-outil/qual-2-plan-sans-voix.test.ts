@@ -129,8 +129,7 @@ describe("QUAL-2 — script du fondateur", () => {
       if (ev.genre === "panneau") for (const r of ev.rubriques) { expect(suite(r.source)).toContain(norm(r.libelle)); expect(r.aMs).toBe(mots[r.source.premier].debutMs); }
       if (ev.genre === "alerte") {
         expect(suite(ev.source)).toContain(norm(ev.texte));
-        expect(ev.aMs).toBeGreaterThanOrEqual(mots[ev.source.premier].debutMs);
-        expect(ev.aMs).toBeLessThanOrEqual(mots[ev.source.dernier].finMs);
+        expect(ev.aMs).toBeLessThanOrEqual(mots[ev.source.premier].debutMs);
       }
     }
     const rep = plan.scenes[2];
@@ -323,5 +322,55 @@ describe("QUAL-2 — corrections des relecteurs", () => {
     const textes = plan.scenes.filter((s) => s.genre === "carte-phrase").map((s) => (s.genre === "carte-phrase" ? s.texte : ""));
     expect(textes.some((t) => /^(voici|merci)$/i.test(t))).toBe(false);
     verifierPavage(plan);
+  });
+});
+
+describe("QUAL-2 — rythme de l'alerte et points mineurs", () => {
+  const mots = (s: string) => motsDe(s);
+  it("l'alerte démarre au début de sa phrase (« Quand »)", () => {
+    const { plan } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous" });
+    const ecran = plan.scenes.find((s) => s.genre === "ecran");
+    if (ecran?.genre !== "ecran") throw new Error("ecran");
+    const alerte = ecran.evenements.find((e) => e.genre === "alerte");
+    if (alerte?.genre !== "alerte") throw new Error("alerte");
+    const m = mots(FONDATEUR);
+    const quand = m.find((x) => x.texte === "Quand");
+    expect(alerte.aMs).toBe(quand?.debutMs);
+  });
+
+  it("« Lorsqu'un … » : élision reconnue", async () => {
+    const { sansElision } = await import("@/moteurs/montage-tutoriel-outil/plan-sans-voix-regles");
+    expect(sansElision("lorsqu'un")).toBe("un");
+    expect(sansElision("jusqu'a")).toBe("a");
+    expect(sansElision("puisqu'il")).toBe("il");
+    expect(sansElision("quoiqu'elle")).toBe("elle");
+  });
+
+  it("« Merci. » final n'annule pas la scène d'appel", () => {
+    const { plan } = composer("Un souci ? Voici un tableau de bord. Un clic sur un article ouvre son historique : entrées et sorties. Vous voulez le même ? Prenez rendez-vous. Merci.", { fin: "rendez-vous" });
+    expect(plan.scenes[plan.scenes.length - 1].genre).toBe("appel");
+    expect(plan.scenes.some((s) => s.genre === "carte-phrase" && /merci/i.test(s.texte))).toBe(false);
+  });
+
+  it("bouton : le verbe d'appel l'emporte sur le nom", () => {
+    const { plan } = composer("Un souci de stock ? Nous installons des meubles sur mesure. Devis, contactez-nous.");
+    const appel = plan.scenes.find((s) => s.genre === "appel");
+    if (appel?.genre !== "appel") throw new Error("appel");
+    expect(appel.bouton).toBe("Contactez-nous");
+  });
+
+  it("dureeMs plus courte que la fin des mots : remarque", () => {
+    const { remarques } = composer("Un souci ? Voici un tableau de bord. Prenez rendez-vous.", { dureeMs: 500 });
+    expect(remarques.some((r) => /dureeMs/.test(r))).toBe(true);
+  });
+
+  it("1re phrase de ponctuation seule : jamais titre ni sur-titre", () => {
+    const { plan } = composer("… Voici un tableau de bord simple. Prenez rendez-vous.");
+    const titre = plan.scenes[0];
+    if (titre.genre !== "titre") throw new Error("titre");
+    expect(/[\p{L}]/u.test(titre.texte)).toBe(true);
+    const a = composer(". Voici un tableau de bord. Prenez rendez-vous.", { phraseTitre: "Mon titre" }).plan.scenes[0];
+    if (a.genre !== "titre") throw new Error("titre");
+    expect(a.surTitre === undefined || /[\p{L}]/u.test(a.surTitre)).toBe(true);
   });
 });
