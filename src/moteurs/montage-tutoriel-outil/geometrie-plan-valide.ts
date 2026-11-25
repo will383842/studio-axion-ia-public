@@ -24,9 +24,9 @@ export const TAILLES_TEXTE_PIECES = {
   "liste-au-mot": { fichier: "PiecesDonnees.tsx", tailles: { titre: 40, element: 44 } },
   repere: { fichier: "PiecesDonnees.tsx", tailles: { genre: 28, texte: 64 } },
   "tableau-de-bord": { fichier: "TableauDeBord.tsx", tailles: { titre: 40, libelle: 26, valeur: 84 } },
-  "liste-crm": { fichier: "ListeCrm.tsx", tailles: { titre: 38, initiale: 22, nom: 30, detail: 22, statut: 22 } },
+  "liste-crm": { fichier: "ListeCrm.tsx", tailles: { titre: 38, initiale: 28, nom: 30, detail: 28, statut: 28 } },
   "carte-kpi": { fichier: "CarteKpi.tsx", tailles: { libelle: 34, valeur: 150, variation: 28 } },
-  "fenetre-app": { fichier: "FenetreApp.tsx", tailles: { titre: 28, onglet: 24 } },
+  "fenetre-app": { fichier: "FenetreApp.tsx", tailles: { titre: 28, onglet: 28 } },
   curseur: { fichier: "Curseur.tsx", tailles: {} },
 } as const;
 

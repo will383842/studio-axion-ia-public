@@ -135,16 +135,27 @@ describe("G4c · correction 3 : plafond du sujet sur une estimation réaliste", 
       expect((await depots().generations.obtenir(g.id))!.statut).not.toBe("plafond-atteint");
     });
 
-    it("le plafond du sujet arrête toujours quand même la médiane ne tient plus", async () => {
+    it("plafond du sujet quand même la médiane ne tient plus : Studio (repère, 08/11) l'appel part, alerte au journal ; Usine : arrêt avant tout appel", async () => {
       const g = await jeLisDejaEntame();
       const lourd = { ...roleSonde, id: "accroches", maxTokens: 10_000 } as DefinitionRole; // médiane 0,199 $
       const f = fauxFetch([() => reponseFlux(fluxReussi({ texte: '{"phrase":"x"}' }))]);
       gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: f.fetch, attenteMs: () => 0 });
-      expect(await gc.executerRoleFacture(g.id, lourd, entree)).toMatchObject({ ok: false, arret: "plafond-atteint" });
-      expect(f.appels).toHaveLength(0);
+      // Studio (08/11) : le plafond du sujet est un repère, l'appel part (1 appel), le dépassement est dit au journal.
+      expect(await gc.executerRoleFacture(g.id, lourd, entree)).toMatchObject({ ok: true, simule: false });
+      expect(f.appels).toHaveLength(1);
+      expect((await depots().generations.obtenir(g.id))!.statut).toBe("en-cours");
+      expect((await depots().evenements.lister()).map((e) => e.message)).toContain("Budget indicatif dépassé (sujet) : Le plafond du sujet est dépassé ; l'écriture continue.");
+      // Usine (mode-budget.ts:37-39) : même écriture entamée, le plafond du sujet arrête avant tout appel.
+      const gu = { ...g, id: `${g.id}-usine`, scriptMaitreId: `${g.scriptMaitreId}-usine` };
+      await depots().generations.enregistrer(gu);
+      const fu = fauxFetch([() => reponseFlux(fluxReussi({ texte: '{"x":1}' }))]);
+      gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fu.fetch, attenteMs: () => 0 });
+      expect(await gc.executerRoleFacture(gu.id, lourd, entree, { origine: "usine" })).toMatchObject({ ok: false, arret: "plafond-atteint" });
+      expect(fu.appels).toHaveLength(0);
+      expect((await depots().generations.obtenir(gu.id))!.statut).toBe("plafond-atteint");
     });
 
-    it("le plafond MENSUEL garde le pire cas : la médiane tiendrait, le pire cas non → en attente, aucun appel", async () => {
+    it("plafond MENSUEL au pire cas (médiane tiendrait, pire cas non) : Studio (repère, 08/11) l'appel part, alerte au journal ; Usine : en attente, aucun appel", async () => {
       const prose = ROLES_ECRITURE.prose as DefinitionRole;
       const pire = pireCasRole(prose, entree);
       // Plafond mensuel entre médiane × 1,2 et pire cas × 1,2.
@@ -154,8 +165,19 @@ describe("G4c · correction 3 : plafond du sujet sur une estimation réaliste", 
       await depots().generations.enregistrer(g);
       const f = fauxFetch([() => reponseFlux(fluxReussi({ texte: '{"x":1}' }))]);
       gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: f.fetch, attenteMs: () => 0 });
-      expect(await gc.executerRoleFacture(g.id, prose, entree)).toMatchObject({ ok: false, arret: "en-attente-credit" });
-      expect(f.appels).toHaveLength(0);
+      // Studio (08/11) : la limite du mois est un repère (generation-claude.ts:662), l'appel part (1 appel), alerte au journal.
+      expect(await gc.executerRoleFacture(g.id, prose, entree)).toMatchObject({ ok: true, simule: false });
+      expect(f.appels).toHaveLength(1);
+      expect((await depots().generations.obtenir(g.id))!.statut).toBe("en-cours");
+      expect((await depots().evenements.lister()).map((e) => e.message)).toContain("Budget indicatif dépassé (Claude du mois) : Rien n'est arrêté : l'écriture continue (repère du mois). Seul un crédit Claude épuisé la met en attente.");
+      // Usine (mode-budget.ts:37-39) : la limite du mois garde le pire cas → en attente, aucun appel.
+      const gu = { ...g, id: `${g.id}-usine`, scriptMaitreId: `${g.scriptMaitreId}-usine` };
+      await depots().generations.enregistrer(gu);
+      const fu = fauxFetch([() => reponseFlux(fluxReussi({ texte: '{"x":1}' }))]);
+      gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fu.fetch, attenteMs: () => 0 });
+      expect(await gc.executerRoleFacture(gu.id, prose, entree, { origine: "usine" })).toMatchObject({ ok: false, arret: "en-attente-credit" });
+      expect(fu.appels).toHaveLength(0);
+      expect((await depots().generations.obtenir(gu.id))!.statut).toBe("en-attente-credit");
     });
   });
 });

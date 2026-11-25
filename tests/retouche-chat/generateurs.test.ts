@@ -19,11 +19,11 @@ const plan: PlanValide = validerPlan(PLAN_DEMO, { mots: PLAN_DEMO.mots, format: 
 const idsScenes = plan.scenes.map((s) => s.id);
 
 describe("réglage du chat de retouche par générateur", () => {
-  it("six générateurs, une clé chacun, éteint par défaut", async () => {
+  it("six générateurs, une clé chacun, éteint par défaut sauf la démo", async () => {
     expect([...GENERATEURS_RETOUCHE]).toEqual(["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue", "demo-facecam"]);
     expect(CLES_REGLAGE_RETOUCHE["image-video"]).toBe("retoucheChat.imageVideo");
     for (const g of GENERATEURS_RETOUCHE) {
-      expect(await retoucheChatActif(g, async (_c, defaut) => defaut)).toBe(false);
+      expect(await retoucheChatActif(g, async (_c, defaut) => defaut)).toBe(g === "demo-facecam");
       expect(await retoucheChatActif(g, async () => "true")).toBe(false);
       expect(await retoucheChatActif(g, async () => 1)).toBe(false);
       expect(await retoucheChatActif(g, async () => { throw new Error("panne"); })).toBe(false);

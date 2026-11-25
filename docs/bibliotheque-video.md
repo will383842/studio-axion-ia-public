@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 105 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -87,16 +87,21 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `texte.mode-carte` | prevu | 11 |  | porte éteinte |
 | `texte.effets` | prevu | 11 |  | livrée, non branchée |
 | `texte.accents-role` | prevu | 11 |  | porte éteinte, rien ne l'importe |
-| `texte.poids-variable` | prevu | X1 |  |  |
-| `texte.minimal-dynamique` | prevu | X1 |  |  |
+| `cadrage.camera-couverture` | eteint | 11 |  | un seul importeur : le film du tutoriel ; le cran du dosage décide |
+| `ecran.carte-video-arrondie` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.grilles-archive` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.ecrans-composes` | prevu | 11 |  | inscrite, non branchée |
+| `motion.titre-etape-montante` | prevu | 11 |  | inscrite, non branchée |
+| `texte.poids-variable` | eteint | X1 |  |  |
+| `texte.minimal-dynamique` | eteint | X1 |  |  |
 | `ecran.fenetre-inclinee` | prevu | X1 |  |  |
-| `fond.verre-depoli` | prevu | X1 |  |  |
+| `fond.verre-depoli` | eteint | X1 |  |  |
 | `transition.zoom-mot` | prevu | X1 |  |  |
-| `transition.raccord-forme` | prevu | X1 |  |  |
-| `accroche.apercu-fin` | prevu | X1 |  |  |
-| `accroche.mot-cle` | prevu | X1 |  |  |
+| `transition.raccord-forme` | eteint | X1 |  |  |
+| `accroche.apercu-fin` | eteint | X1 |  |  |
+| `accroche.mot-cle` | eteint | X1 |  |  |
 | `mention.ia` | prevu | X1 |  |  |
-| `rythme.boucle` | prevu | X1 |  |  |
+| `rythme.boucle` | eteint | X1 |  |  |
 
 Résumé : 13 capacités `motion.v4-coulisse.*` en coulisse (préparées pour la v4, rien n'est visible) :
 

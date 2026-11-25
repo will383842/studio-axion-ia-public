@@ -41,6 +41,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   reinitialiserDepots();
   reinitialiserRequete();
+  // R5 : le défaut est « automatique » (carte validée seule). Ces tests exigent l'arrêt « carte à valider » : on pose le
+  // réglage du format « Vérifier ce que j'ai compris = Toujours » sur chaque brouillon créé, sans toucher au code.
+  const enregistrer = depots().videos.enregistrer.bind(depots().videos);
+  depots().videos.enregistrer = async (v) => enregistrer(v.formatId === ID_FORMAT_IMAGE_VIDEO ? { ...v, reglages: { ...v.reglages, validationCarte: "toujours" } } : v);
   await auth.seConnecter(MDP, false);
   // Fournisseurs payants en doubles, branchés APRÈS l'import de la boucle (qui branche les outils réels). Les décisions de
   // Will sont celles gardées par le studio, comme en production : le double seul n'en a pas. Avant le raccord de la boucle,

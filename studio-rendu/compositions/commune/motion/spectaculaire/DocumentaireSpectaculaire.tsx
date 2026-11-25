@@ -17,7 +17,7 @@ function LieuFrappe({ texte, debut, taille }: { texte: string; debut: number; ta
   const fin = debut + texte.length * FRAPPE;
   const curseur = t >= debut - 0.2 && t < fin + 0.7 && (t < fin || Math.floor((t - fin) / 0.25) % 2 === 0);
   return (
-    <div style={{ fontSize: taille, fontWeight: 900, letterSpacing: "0.03em", lineHeight: 1.06, textTransform: "uppercase", whiteSpace: "pre-wrap" }}>
+    <div style={{ fontSize: taille, fontWeight: 800, letterSpacing: "0.03em", lineHeight: 1.06, textTransform: "uppercase", whiteSpace: "pre-wrap" }}>
       {/* Un groupe insécable par mot : la ligne ne se coupe jamais au milieu d'un mot. */}
       {texte.split(" ").map((mot, m, mots) => {
         const avant = mots.slice(0, m).join(" ").length + (m > 0 ? 1 : 0);
@@ -92,10 +92,10 @@ function Contenu({ d }: { d: DonneesDocumentaire }) {
             <div style={{ position: "relative", marginTop: 18 * u, opacity: borne((t - h.tChiffre) / 0.1) }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 18 * u, flexWrap: "wrap", transform: `scale(${(1 + 0.28 * r).toFixed(4)}, ${(1 - 0.28 * r).toFixed(4)})`, transformOrigin: "0% 80%" }}>
                 <FlouFort dy={t < tImpact ? Math.min(30, Math.abs(v - valeurCompteur(t - 1 / 50, h.tChiffre, 0, d.chiffre.valeur, 0.75)) * 40) * u : 0} style={{ display: "inline-block" }}>
-                  <span style={{ fontSize: grand, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.045em", fontVariantNumeric: "tabular-nums", color: COULEURS.creme, textShadow: `0 ${10 * u}px ${44 * u}px ${avecOpacite(COULEURS.fondProfond, 0.85)}` }}>{texteValeur(v, undefined, d.chiffre.decimales)}</span>
+                  <span style={{ fontSize: grand, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.045em", fontVariantNumeric: "tabular-nums", color: COULEURS.creme, textShadow: `0 ${10 * u}px ${44 * u}px ${avecOpacite(COULEURS.fondProfond, 0.85)}` }}>{texteValeur(v, undefined, d.chiffre.decimales)}</span>
                 </FlouFort>
                 {d.chiffre.unite && (
-                  <span style={{ fontSize: tTitre * 0.85, fontWeight: 900, opacity: borne((t - tImpact) / 0.12) }}>
+                  <span style={{ fontSize: tTitre * 0.85, fontWeight: 800, opacity: borne((t - tImpact) / 0.12) }}>
                     <MotCle mot={d.chiffre.unite} t={t} arrivee={tImpact + 0.05} balayage={tImpact + 0.6} u={u} />
                   </span>
                 )}
