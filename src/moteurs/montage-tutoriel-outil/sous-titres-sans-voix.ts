@@ -121,6 +121,9 @@ function regrouperParProposition(mots: MotHorodate[]): MotHorodate[][] {
  * d'importance. Les mots et leurs horaires sont inchangés ; seul le regroupement en cartes change (par proposition, 4 à 9
  * mots, ≥ 1,5 s à l'écran : la carte se prolonge jusqu'à la suivante au plus, jamais deux cartes à la fois).
  */
+/** Trou maximal comblé entre deux cartes (s). */
+export const TROU_COMBLE_SEC = 0.6;
+
 export function normaliserSegments(segments: SegmentSousTitres[]): SegmentSousTitres[] {
   const cartes = regrouperParProposition(segments.flatMap((s) => s.mots));
   return cartes.map((mots, k) => {
@@ -128,7 +131,8 @@ export function normaliserSegments(segments: SegmentSousTitres[]): SegmentSousTi
     const finBrute = Math.max(mots.at(-1)!.finSec, debutSec);
     const suivant = cartes[k + 1]?.[0]?.debutSec;
     const finVoulue = Math.max(finBrute, debutSec + CARTE_DUREE_MIN_SEC);
-    const finSec = suivant === undefined ? finVoulue : Math.max(finBrute, Math.min(finVoulue, suivant));
+    // Un trou court (< 0,6 s) entre deux cartes fait « clignoter » la bande : la carte reste jusqu'à la suivante.
+    const finSec = suivant === undefined ? finVoulue : suivant - finVoulue < TROU_COMBLE_SEC ? suivant : Math.max(finBrute, Math.min(finVoulue, suivant));
     return { id: `st-${k}`, debutSec, finSec, mots, style: "base", souligne: null, position: "auto", inclinaison: 0, verrouille: false };
   });
 }

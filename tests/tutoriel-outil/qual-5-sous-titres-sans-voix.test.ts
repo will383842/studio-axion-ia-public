@@ -131,3 +131,17 @@ describe("carte de fin sans voix (tour 4)", () => {
     expect(p.scenes[0].parametres).toMatchObject({ texte: "Prendre rendez-vous" });
   });
 });
+
+describe("cartes sans clignotement (tour 7)", () => {
+  it("aucun trou < 0,6 s entre deux cartes : la carte reste jusqu'à la suivante", async () => {
+    const { normaliserSegments, TROU_COMBLE_SEC } = await import("@/moteurs/montage-tutoriel-outil/sous-titres-sans-voix");
+    const mots = "Quand un article passe sous le seuil, une alerte part toute seule. Vous décidez en une minute au lieu d'une heure.".split(" ");
+    const horodates = mots.map((mot, i) => ({ mot, debutSec: i * 0.4 + (i >= 7 ? 0.2 : 0), finSec: i * 0.4 + 0.3 + (i >= 7 ? 0.2 : 0) }));
+    const cartes = normaliserSegments([{ id: "s", debutSec: 0, finSec: 10, mots: horodates, style: "base", souligne: null, position: "auto", inclinaison: 0, verrouille: false } as never]);
+    expect(cartes.length).toBeGreaterThan(1);
+    for (let k = 0; k + 1 < cartes.length; k++) {
+      const trou = cartes[k + 1].debutSec - cartes[k].finSec;
+      expect(trou < 1e-9 || trou >= TROU_COMBLE_SEC).toBe(true);
+    }
+  });
+});
