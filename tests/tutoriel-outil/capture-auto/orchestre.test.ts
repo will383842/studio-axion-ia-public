@@ -623,6 +623,62 @@ describe("une seule demande en vol AU TOTAL côté Studio", () => {
   });
 });
 
+describe("deux vidéos : une panne ne laisse partir aucune autre demande dans le même tour", () => {
+  it("A refusée : B ne reçoit aucune demande dans CE tour (garde `aEchoue`) ; au tour suivant une demande part", async () => {
+    await installerPauseFilm();
+    const t = (await depots().travaux.obtenir("t-to"))!;
+    const v = (await depots().videos.obtenir("v-to"))!;
+    const ver = (await depots().versions.obtenir("ver-1"))!;
+    await depots().videos.enregistrer({ ...v, id: "v-to2", titre: "Second tutoriel", creeLe: "2026-11-21T09:00:00.000Z" } as never);
+    await depots().versions.enregistrer({ ...ver, id: "ver-2", videoId: "v-to2" } as never);
+    await depots().travaux.enregistrer({ ...t, id: "t-to2", cibleId: "v-to2", versionId: "ver-2", creeLe: "2026-11-21T09:00:00.000Z" } as never);
+    await tour();
+    expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
+    etatReponse("refus", "ZIP_REFUSE");
+    await tour();
+    expect(cloches).toHaveLength(1);
+    expect(demandes()).toEqual([]); // ni B, ni la redemande de A, dans le tour de l'échec
+    await tour();
+    expect(demandes()).toHaveLength(1); // le tour suivant : une seule demande
+  });
+});
+
+describe("chaque panne est journalisée ; la cloche seule est dédoublonnée", () => {
+  const idEnVol = () => demandes()[0]!.replace("film-zip--", "");
+
+  it("un 2e épisode de panne sur la même vidéo avec un AUTRE id (nouvelle voix) : une nouvelle cloche ET une nouvelle ligne de journal", async () => {
+    await installerPauseFilm();
+    await tour();
+    const id1 = idEnVol();
+    etatReponse("refus", "ZIP_REFUSE");
+    await tour();
+    // la voix change : nouveau calage, donc nouvel id
+    const t = (await depots().travaux.obtenir("t-to"))!;
+    const etat = t.parametres!.tutoriel as EtatTutoriel;
+    await depots().travaux.modifier("t-to", { parametres: { ...t.parametres, tutoriel: { ...etat, audio: { ...etat.audio!, dureeSec: etat.audio!.dureeSec + 1 } } } } as never);
+    await tour();
+    const id2 = idEnVol();
+    expect(id2).not.toBe(id1);
+    etatReponse("refus", "ZIP_REFUSE");
+    await tour();
+    expect(cloches).toHaveLength(2);
+    expect((await journal()).filter((m) => m === PHRASES_CODE.ZIP_REFUSE)).toHaveLength(2);
+    const liens = (await depots().notifications.lister((n) => n.lien.startsWith(lienCapture("v-to")))).map((n) => n.lien);
+    expect(new Set(liens).size).toBe(2); // un épisode = une cloche
+  });
+
+  it("une cloche déjà posée pour CET épisode n'est pas reposée, mais la panne est quand même écrite au journal", async () => {
+    await installerPauseFilm();
+    await tour();
+    const id = idEnVol();
+    await depots().notifications.enregistrer({ id: "not-deja", lue: false, type: "echec", titre: "La capture automatique du film s'est arrêtée (essai 1) · Mon tutoriel", message: "x", lien: `${lienCapture("v-to")}?capture=${id}`, creeLe: "2026-11-21T08:00:00.000Z", modifieLe: "2026-11-21T08:00:00.000Z" } as never);
+    etatReponse("refus", "ZIP_REFUSE");
+    await tour();
+    expect(cloches).toEqual([]);
+    expect(await journal()).toContain(PHRASES_CODE.ZIP_REFUSE);
+  });
+});
+
 describe("nettoyage de la boîte (sans suivre un seul lien)", () => {
   const vieillir = (chemin: string, ms: number) => {
     const d = new Date(Date.now() - ms);
@@ -715,10 +771,21 @@ describe("nettoyage de la boîte (sans suivre un seul lien)", () => {
     await tour();
     expect(cloches.map((c) => c.message)).toEqual([PHRASE_SANS_REPONSE]); // UNE cloche dédoublonnée
     expect(demandes()).toEqual([]);
+    // à +61 min la trace orpheline n'est PAS close (borne 60 + 70, pas 60) : aucune demande envoyée pour v-to, aucun essai noté
+    expect(tentativesNotees()).toEqual([]);
+    expect((await journal()).filter((m) => /demande envoyée/.test(m))).toEqual([]);
+    expect((await depots().evenements.lister((e) => e.entiteId === "v-autre")).map((e) => e.message)).not.toContain("Capture automatique : demande terminée (orphelin-0123456789ab).");
     avancer(DELAI_REPONSE_MS); // 60 + 1 + 70 = 131 min depuis l'envoi
     await tour();
     expect(demandes()).toHaveLength(1);
     expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
+    // le mtime réel de la demande est aligné sur l'horloge simulée : elle est neuve, pas vieille de 131 min
+    const maintenant = new Date(Date.now());
+    utimesSync(join(boite, "demandes", demandes()[0]!), maintenant, maintenant);
+    await tour();
+    expect(demandes()).toHaveLength(1);
+    expect(tentativesNotees()).toEqual([]);
+    expect(cloches).toHaveLength(1);
   });
 });
 

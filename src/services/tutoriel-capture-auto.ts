@@ -150,13 +150,22 @@ async function creerClocheReelle(n: Parameters<CreerNotification>[0], options: {
   return creerNotification(n, options);
 }
 
-/** Une cloche (et un journal) par (lien, titre) : une seconde fois, rien. Rend vrai si la cloche a été posée. */
-async function signalerUneFois(video: Video, type: TypeNotification, titre: string, message: string, dep: DependancesCaptureAuto): Promise<boolean> {
-  const lien = lienCapture(video.id);
+/**
+ * Une cloche (et un journal) par (lien, titre) : une seconde fois, rien. Rend vrai si la cloche a été posée.
+ * `episode` (id de la demande en panne) : CHAQUE panne est journalisée, même si la cloche existe déjà (le dédoublonnage ne vaut que pour la
+ * cloche) ; et le lien de la cloche porte l'épisode, donc une nouvelle panne de la même vidéo (autre id : nouvelle voix, nouvelle fabrication)
+ * sonne de nouveau au lieu de passer sans nouvelle.
+ */
+async function signalerUneFois(video: Video, type: TypeNotification, titre: string, message: string, dep: DependancesCaptureAuto, episode?: string): Promise<boolean> {
+  const lien = episode ? `${lienCapture(video.id)}?capture=${episode}` : lienCapture(video.id);
+  const journalType = type === "echec" ? "echec" : "fabrication";
   const deja: Notification[] = await depots().notifications.lister((n) => n.lien === lien && n.titre === titre);
-  if (deja.length > 0) return false;
+  if (deja.length > 0) {
+    if (episode) await journaliser(journalType, message, { type: "video", id: video.id });
+    return false;
+  }
   await (dep.cloche ?? creerClocheReelle)({ type, titre, message, lien }, { cloche: true });
-  await journaliser(type === "echec" ? "echec" : "fabrication", message, { type: "video", id: video.id });
+  await journaliser(journalType, message, { type: "video", id: video.id });
   return true;
 }
 
@@ -550,7 +559,7 @@ export async function avancerCapturesTutoriel(dep: DependancesCaptureAuto = {}):
     }
     const suite = essais >= boite.MAX_TENTATIVES ? " Plus aucun nouvel essai automatique." : "";
     const titre = `La capture automatique du film s'est arrêtée (essai ${essais}) · ${c.video.titre}`;
-    await signalerUneFois(c.video, "echec", titre, p.phrase + suite, dep);
+    await signalerUneFois(c.video, "echec", titre, p.phrase + suite, dep, id);
     await fermer(id);
     await poserMessagePause(c.travail.id, p.phrase);
   };
