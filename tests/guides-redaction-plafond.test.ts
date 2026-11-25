@@ -69,7 +69,7 @@ afterEach(() => {
 describe("0a · (a) limite Claude du mois atteinte : refus propre, aucun appel", () => {
   it("redigerBrouillonGuide : « plafond_atteint », aucun appel au client Claude, rien d'écrit, aucune réservation", async () => {
     await ecrireParametre("claude.plafondMensuelUsd", 0.01);
-    const r = await redigerBrouillonGuide("essai", "studio");
+    const r = await redigerBrouillonGuide("essai");
     expect(r).toEqual({ ok: false, raison: "plafond_atteint" });
     expect(appels).toEqual([]);
     expect(await depensesGuide()).toEqual([]);
@@ -81,13 +81,13 @@ describe("0a · (a) limite Claude du mois atteinte : refus propre, aucun appel",
     await ecrireParametre("claude.plafondMensuelUsd", 1);
     const l = [gc.ligne("Écriture · autre", 0.99, await gc.taux(), "reel")];
     await depots().depenses.enregistrer({ id: "dep-autre", travailId: "appel-autre", lignes: l, total: l[0]!.total, date: new Date().toISOString(), creeLe: new Date().toISOString(), modifieLe: new Date().toISOString() });
-    expect(await redigerBrouillonGuide("essai", "studio")).toEqual({ ok: false, raison: "plafond_atteint" });
+    expect(await redigerBrouillonGuide("essai")).toEqual({ ok: false, raison: "plafond_atteint" });
     expect(appels).toEqual([]);
   });
 
   it("le geste « Rédiger avec l'IA » montre une phrase claire, sans montant", async () => {
     await ecrireParametre("claude.plafondMensuelUsd", 0.01);
-    const r = await redigerGuide("essai", "studio");
+    const r = await redigerGuide("essai");
     expect(r).toMatchObject({ ok: false, raison: "redaction", phrase: expect.stringMatching(/limite Claude du mois est atteinte.*rien n'a été rédigé ni payé/) });
     expect(r.phrase).not.toMatch(/\d\s*(€|\$)|(€|\$)\s*\d/);
     expect(appels).toEqual([]);
@@ -95,7 +95,7 @@ describe("0a · (a) limite Claude du mois atteinte : refus propre, aucun appel",
 
   it("Claude non choisi : « claude_indisponible », aucun appel, aucune réservation", async () => {
     await ecrireParametre("fournisseur.script", "simulation");
-    expect(await redigerBrouillonGuide("essai", "studio")).toEqual({ ok: false, raison: "claude_indisponible" });
+    expect(await redigerBrouillonGuide("essai")).toEqual({ ok: false, raison: "claude_indisponible" });
     expect(appels).toEqual([]);
     expect(await reservationsGuide()).toEqual([]);
   });
@@ -103,7 +103,7 @@ describe("0a · (a) limite Claude du mois atteinte : refus propre, aucun appel",
 
 describe("0a · (b) chaque appel compte dans le suivi des dépenses", () => {
   it("appel réussi : brouillon enregistré, UNE dépense réelle (anthropic, coût des jetons), réservation consommée", async () => {
-    const r = await redigerBrouillonGuide("essai", "studio");
+    const r = await redigerBrouillonGuide("essai");
     expect(r).toMatchObject({ ok: true, version: 1 });
     expect(appels).toHaveLength(1);
     expect(appels[0]!.corps).toMatchObject({ model: "claude-sonnet-5-5", max_tokens: 8000 });
@@ -125,7 +125,7 @@ describe("0a · (b) chaque appel compte dans le suivi des dépenses", () => {
     brancherClaude(() => {
       throw new TypeError("fetch failed");
     });
-    expect(await redigerBrouillonGuide("essai", "studio")).toMatchObject({ ok: false, raison: "panne_claude" });
+    expect(await redigerBrouillonGuide("essai")).toMatchObject({ ok: false, raison: "panne_claude" });
     const deps = await depensesGuide();
     expect(deps).toHaveLength(1);
     expect(deps[0]!.lignes[0]!.nature).toBe("estime");
@@ -135,7 +135,7 @@ describe("0a · (b) chaque appel compte dans le suivi des dépenses", () => {
 
   it("appel payé mais écriture de la dépense en panne : la réservation reste ACTIVE (toujours comptée), l'erreur remonte", async () => {
     const espion = vi.spyOn(depots().depenses, "enregistrer").mockRejectedValue(new Error("base en panne"));
-    const r = await redigerBrouillonGuide("essai", "studio");
+    const r = await redigerBrouillonGuide("essai");
     expect(r).toMatchObject({ ok: false });
     expect(appels).toHaveLength(1);
     expect(espion).toHaveBeenCalledTimes(1);
@@ -148,7 +148,7 @@ describe("0a · (b) chaque appel compte dans le suivi des dépenses", () => {
 
   it("refus net de Claude (400) : rien n'est compté, la réservation est rendue", async () => {
     brancherClaude(() => reponseErreur(400, "invalid_request_error", "mauvaise demande"));
-    expect(await redigerBrouillonGuide("essai", "studio")).toMatchObject({ ok: false, raison: "panne_claude" });
+    expect(await redigerBrouillonGuide("essai")).toMatchObject({ ok: false, raison: "panne_claude" });
     expect(await depensesGuide()).toEqual([]);
     expect((await reservationsGuide()).map((x) => x.statut)).toEqual(["liberee"]);
   });
@@ -157,7 +157,7 @@ describe("0a · (b) chaque appel compte dans le suivi des dépenses", () => {
 describe("0a · (c) interrupteurs éteints : rien", () => {
   it("GUIDES_REDACTION_ENABLED éteint : aucun appel, aucune dépense, aucune réservation", async () => {
     vi.stubEnv("GUIDES_REDACTION_ENABLED", "");
-    expect(await redigerBrouillonGuide("essai", "studio")).toEqual({ ok: false, raison: "interrupteur_eteint" });
+    expect(await redigerBrouillonGuide("essai")).toEqual({ ok: false, raison: "interrupteur_eteint" });
     expect(appels).toEqual([]);
     expect(await depensesGuide()).toEqual([]);
     expect(await reservationsGuide()).toEqual([]);
@@ -165,7 +165,7 @@ describe("0a · (c) interrupteurs éteints : rien", () => {
 
   it("GUIDES_FABRIQUE_ECRAN éteint : le geste refuse, aucun appel, aucune dépense, aucune réservation", async () => {
     vi.stubEnv("GUIDES_FABRIQUE_ECRAN", "");
-    expect(await redigerGuide("essai", "studio")).toMatchObject({ ok: false, raison: "ecran_eteint" });
+    expect(await redigerGuide("essai")).toMatchObject({ ok: false, raison: "ecran_eteint" });
     expect(appels).toEqual([]);
     expect(await depensesGuide()).toEqual([]);
     expect(await reservationsGuide()).toEqual([]);
@@ -174,7 +174,7 @@ describe("0a · (c) interrupteurs éteints : rien", () => {
 
 describe("0a · la rédaction d'un guide n'envoie pas les phrases fixes des rôles (ancrage, preuve)", () => {
   it("le champ system de la requête envoyée ne contient ni ANCRAGE_MANQUANT ni PREUVE_MANQUANTE", async () => {
-    const r = await redigerBrouillonGuide("essai", "studio");
+    const r = await redigerBrouillonGuide("essai");
     expect(r).toMatchObject({ ok: true });
     expect(appels).toHaveLength(1);
     const systeme = JSON.stringify(appels[0]!.corps.system);
@@ -184,7 +184,7 @@ describe("0a · la rédaction d'un guide n'envoie pas les phrases fixes des rôl
 
   it("réponse « ANCRAGE_MANQUANT : … » : reponse_illisible, événement qui nomme le marqueur, jamais le texte", async () => {
     brancherClaude(() => reponseFlux(fluxReussi({ texte: "ANCRAGE_MANQUANT : texte secret du modèle", modele: "claude-sonnet-5-5", entree: 900, cacheEcrit: 0, sortie: 50 })));
-    expect(await redigerBrouillonGuide("essai", "studio")).toEqual({ ok: false, raison: "reponse_illisible" });
+    expect(await redigerBrouillonGuide("essai")).toEqual({ ok: false, raison: "reponse_illisible" });
     const evts = await depots().evenements.lister((e) => e.type === "guide_redaction_illisible");
     expect(evts).toHaveLength(1);
     expect(evts[0]!.message).toContain("marqueur=ANCRAGE_MANQUANT");

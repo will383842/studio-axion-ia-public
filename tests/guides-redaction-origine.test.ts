@@ -2,7 +2,7 @@
  * FIN-9 · ARGENT · la rédaction des guides reçoit l'origine de son appelant réel (jamais `undefined`, jamais écrite en dur
  * dans le fournisseur). Vraies dépendances (base en mémoire, brique Crédits, chemin gardé) ; Claude DOUBLÉ par un faux `fetch`
  * (fausse clé, aucun réseau, aucun appel payant) :
- *  (1) l'origine passée par l'action serveur arrive à `verifierEtReserverSelonOrigine` (espion) ;
+ *  (1) l'origine de la rédaction (« studio », seule entrée : l'action Studio) arrive à `verifierEtReserverSelonOrigine` (espion) ;
  *  (2) « usine » sans budget reçu : refus `BUDGET_USINE_ABSENT` (donc « credit_insuffisant »), Claude non appelé ;
  *  (3) limite du mois dépassée : refus AVANT la réservation (l'espion n'est pas appelé), Claude non appelé ;
  *  (4) le paramètre est obligatoire dans les trois maillons (garde de source).
@@ -24,7 +24,8 @@ const gc = await import("@/services/generation-claude");
 const { ecrireParametre } = await import("@/services/_commun");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
 const { appelerClaudeRedaction, RefusArgentRedaction, PREFIXE_APPEL_REDACTION_GUIDE } = await import("@/fournisseurs/claude/appel-redaction");
-const { redigerGuideAction } = await import("@/app/(studio)/mots/actions-guides");
+const { redigerGuide } = await import("@/services/guides-fabrique");
+const { redigerBrouillonGuide, ORIGINE_GUIDES } = await import("@/services/guides-redaction");
 
 const contenuBon = { titre: "Réussir son premier essai", sections: [{ titre: "Préparer", paragraphes: ["Vous commencez par relire le sujet."], puces: ["Un point"] }] };
 const fetchInterdit = (async () => {
@@ -64,9 +65,9 @@ afterEach(() => {
 });
 
 describe("FIN-9 · (1) l'origine de l'appelant arrive à la garde d'argent", () => {
-  it("l'action serveur (personne connectée) passe « studio » : l'espion le voit, jamais `undefined`", async () => {
+  it("le geste « Rédiger » (point d'entrée de l'action Studio) passe « studio » : l'espion le voit, jamais `undefined`", async () => {
     const espion = vi.spyOn(credits, "verifierEtReserverSelonOrigine");
-    const r = await redigerGuideAction("essai");
+    const r = await redigerGuide("essai");
     expect(r).toMatchObject({ ok: true, version: 1 });
     expect(espion).toHaveBeenCalledTimes(1);
     expect(espion.mock.calls[0]![0]).toBe("studio");
@@ -98,25 +99,23 @@ describe("FIN-9 · (3) limite du mois dépassée : refus avant toute réservatio
     expect(await reservationsGuide()).toEqual([]);
   });
 
-  it("par l'action serveur : « plafond_atteint », Claude non appelé", async () => {
+  it("par le geste « Rédiger » : « plafond_atteint », Claude non appelé", async () => {
     await ecrireParametre("claude.plafondMensuelUsd", 0.01);
-    expect(await redigerGuideAction("essai")).toMatchObject({ ok: false, raison: "redaction" });
+    expect(await redigerBrouillonGuide("essai")).toEqual({ ok: false, raison: "plafond_atteint" });
     expect(appels).toBe(0);
   });
 });
 
-describe("FIN-9 · (4) paramètre obligatoire, « studio » écrit seulement dans l'action serveur", () => {
+describe("FIN-9 · (4) paramètre obligatoire du fournisseur, « studio » nommé une seule fois dans le service", () => {
   const lire = (f: string) => readFileSync(f, "utf8");
-  it("les trois maillons déclarent l'origine sans `?` ni valeur par défaut", () => {
+  it("appelerClaudeRedaction déclare l'origine sans `?` ni valeur par défaut", () => {
     expect(lire("src/fournisseurs/claude/appel-redaction.ts")).toMatch(/_cle: string, origine: OrigineLancement\)/);
-    expect(lire("src/services/guides-redaction.ts")).toMatch(/redigerBrouillonGuide\(mot: string, origine: OrigineLancement, deps\?/);
-    expect(lire("src/services/guides-fabrique.ts")).toMatch(/redigerGuide\(mot: string, origine: OrigineLancement, deps\?/);
   });
-  it("aucun littéral d'origine dans le fournisseur ni les services ; « studio » dans l'action serveur", () => {
-    for (const f of ["src/fournisseurs/claude/appel-redaction.ts", "src/services/guides-redaction.ts", "src/services/guides-fabrique.ts"]) {
-      expect(lire(f), f).not.toMatch(/verifierEtReserverSelonOrigine\(\s*(undefined|["'])/);
-      expect(lire(f), f).not.toMatch(/OrigineLancement\s*=\s*["']/);
-    }
-    expect(lire("src/app/(studio)/mots/actions-guides.ts")).toMatch(/ORIGINE_GESTE_PERSONNE: OrigineLancement = "studio"/);
+  it("aucun littéral d'origine dans le fournisseur ; une constante nommée dans guides-redaction", () => {
+    const f = lire("src/fournisseurs/claude/appel-redaction.ts");
+    expect(f).not.toMatch(/verifierEtReserverSelonOrigine\(\s*(undefined|["'])/);
+    expect(f).not.toMatch(/OrigineLancement\s*=\s*["']/);
+    expect(ORIGINE_GUIDES).toBe("studio");
+    expect(lire("src/services/guides-redaction.ts")).toMatch(/ORIGINE_GUIDES: OrigineLancement = "studio"/);
   });
 });

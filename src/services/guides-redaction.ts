@@ -30,6 +30,13 @@ export const PREFIXE_PARAM_REDACTION = "guides.redaction.";
 const LONGUEUR_MAX_MOT = 60;
 const LONGUEUR_MAX_INTERRUPTEUR = 16;
 
+/**
+ * Origine de la rédaction, transmise à la garde d'argent. Seule entrée : l'action Studio d'une personne connectée
+ * (`actions-guides.ts`, `exigerSession()` avant tout) via `guides-fabrique.ts` ; AUCUNE entrée de l'Usine n'appelle cette
+ * rédaction. Un appelant de l'Usine devra passer « usine » lui-même, jamais cette constante.
+ */
+export const ORIGINE_GUIDES: OrigineLancement = "studio";
+
 type Env = Record<string, string | undefined>;
 
 /** Seul le texte exact « true » allume (valeur démesurée, majuscules, espaces : éteint). */
@@ -116,10 +123,9 @@ const CONSIGNE = [
 
 /**
  * Rédige un brouillon pour `mot` et l'enregistre « À valider ». Ne lève jamais : toute panne devient un résultat d'échec.
- * `origine` (OBLIGATOIRE) : celle de l'appelant réel, transmise jusqu'à la garde d'argent (jamais écrite en dur ici).
  * `deps` : injectable pour les essais (faux client Claude, mémoire).
  */
-export async function redigerBrouillonGuide(mot: string, origine: OrigineLancement, deps?: DepsRedaction): Promise<ResultatRedaction> {
+export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): Promise<ResultatRedaction> {
   // 1. L'interrupteur se lit AVANT tout chargement : éteint, rien n'est importé ni touché.
   if (!guidesRedactionActif(deps?.env ?? process.env)) return { ok: false, raison: "interrupteur_eteint" };
   // 2. Les dépendances se chargent dans un try : une panne d'import ou de base devient un résultat d'échec.
@@ -158,7 +164,7 @@ export async function redigerBrouillonGuide(mot: string, origine: OrigineLanceme
         json: true,
       },
       cle,
-      origine,
+      ORIGINE_GUIDES,
     );
     brut = reponse.texte;
     marqueur = reponse.marqueur;
