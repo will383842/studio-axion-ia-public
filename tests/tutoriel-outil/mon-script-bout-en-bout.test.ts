@@ -150,6 +150,7 @@ describe("« Mon script » sans voix : dépôt → lancement → rendu simulé, 
   });
 
   it("0 appel Claude quand `tutoriel.claude` est éteint : ni le client ni `depense-claude-video` ne sont touchés, la vidéo est rendue", async () => {
+    await ecrireParametre("tutoriel.claude", false);
     const commande = await deposer("sans-voix");
     const { t } = await aller(commande, "t-ms-claude");
     expect(t.statut).toBe("termine");

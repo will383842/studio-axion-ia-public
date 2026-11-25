@@ -6,6 +6,7 @@
 import type { PlageExtrait } from "../../domaine/archive-extraits";
 import type { Piste, Ratio, Sortie, Video } from "../../domaine/types";
 import type { Fenetres } from "./fenetres";
+import { EPS } from "../../lib/tolerance";
 
 export type PolitiqueSources = "publiees" | "pretes" | "cochees";
 export const POLITIQUE_SOURCES_PAR_DEFAUT: PolitiqueSources = "publiees";
@@ -74,8 +75,7 @@ export function qualifierPlages(plages: PlageExtrait[], fenetres: Fenetres, text
   });
 }
 
-const SEUIL_RECOUVREMENT = 0.8;
-const EPS = 1e-9;
+export const SEUIL_RECOUVREMENT = 0.8;
 
 function recouvre(a: PlageExtrait, b: PlageExtrait): boolean {
   const commun = Math.min(a.finSec, b.finSec) - Math.max(a.debutSec, b.debutSec);

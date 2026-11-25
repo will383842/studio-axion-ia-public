@@ -59,7 +59,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `cadrage.zoom-avocat` | prod | 8 | AM-16 |  |
 | `cadrage.zoom-demo` | prod | 8 | AM-16 |  |
 | `cadrage.camera-cas-concret` | prod | 8 | AM-16 |  |
-| `cadrage.zoom-v4` | absent | 8 | AM-16 | attend W-6 |
+| `cadrage.zoom-v4` | eteint | 8 | AM-16 | branché, éteint : facecamAnimee.zoomGratuit ; allumage après la planche C8-Z10 |
 | `motion.avis-client` | prevu | 8 | AM-16 |  |
 | `objet.trait` | prevu | 9 | D3 § C |  |
 | `objet.marque` | prevu | 9 | D3 § C |  |

@@ -430,7 +430,10 @@ export function elementDe(d: DonneesCalque, s: SegmentSousTitres, t: number): El
     options,
   );
   const { opacite, echelle, decalageYPx } = entree(g, s, t, d.glissement !== false);
-  const clair = d.passagesClairs?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6)?.texte;
+  const passage = d.passagesClairs?.find((p) => t >= p.debutSec - 1e-6 && t < p.finSec - 1e-6)?.texte;
+  // FIX-MINIMAL-FOND-CLAIR-v21s : Minimal (sans contour) sur décor clair = écrit en foncé, comme un écran clair ; un passage clair réel l'emporte.
+  const minimalSurClair = g.contourPx === 0 && !g.bandeau && (d.facteurOmbre ?? 1) > 1 ? d.couleurs.contour : undefined;
+  const clair = passage ?? minimalSurClair;
   const couleurs = clair ? { ...d.couleurs, texte: clair } : d.couleurs;
   // Lot L3b : surlignage (fond derrière le mot souligné) ; ses couleurs d'écran clair pendant un passage clair.
   const surlignage = d.surlignage ? (clair ? { fond: d.surlignage.fondClair ?? d.surlignage.fond, texte: d.surlignage.texteClair ?? d.surlignage.texte } : { fond: d.surlignage.fond, texte: d.surlignage.texte }) : undefined;
