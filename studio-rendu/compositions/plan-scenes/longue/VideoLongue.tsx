@@ -3,7 +3,7 @@
  * la bande des sous-titres et le sous-titre. Tout vient de `mise-en-page.ts` (le contrôle voit la même chose).
  */
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
-import { poserScene, poserSousTitre, repereChapitre, sceneAvecBande, sousTitreRedondant, logoFin, zoomScene } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
+import { poserScene, poserSousTitre, repereSousTitre, sceneAvecBande, logoFin, zoomScene } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
 import { COULEURS_LONGUE, TEMPS_LONGUE, ZONES_LONGUE, type ProprietesVideoLongue, type SceneLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
 import logo from "../../commune/fin/logo-axion-fond-sombre.png";
 import { DessinElement } from "./DessinElement";
@@ -45,25 +45,19 @@ export function VideoLongue({ storyboard }: ProprietesVideoLongue) {
   if (idx < 0) idx = t < scenes[0].debutMs ? 0 : scenes.length - 1;
   const s = scenes[idx];
   const tl = t - s.debutMs;
-  const p = Math.min(1, Math.max(0, tl / TEMPS_LONGUE.transitionMs));
-  const prev = idx > 0 && p < 1 && s.entree !== "aucune" ? scenes[idx - 1] : null;
+  // Fondu au noir vers un carton de chapitre (250 ms pour sortir, 250 ms pour entrer) ; fondu enchaîné ou glisse ailleurs (400 ms).
+  const carton = s.entree === "volet";
+  const duree = carton ? 500 : TEMPS_LONGUE.transitionMs;
+  const prev = idx > 0 && tl < duree && s.entree !== "aucune" ? scenes[idx - 1] : null;
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  // Sortie 0 → 250 ms ; entrée 150 → 400 ms (chevauchement minimal : jamais d'image vide) ; vers un carton 250 → 500 ms (fondu au noir).
+  const sortie = clamp(tl / 250);
+  const entree = carton ? clamp((tl - 250) / 250) : clamp((tl - 150) / 250);
+  const ee = 1 - (1 - entree) ** 3;
   let contenu;
   if (!prev) contenu = <Couche scene={s} t={t} />;
-  else if (s.entree === "fondu") {
-    // Fondu enchaîné sans superposition de texte : la scène sortante disparaît (0 → 200 ms), PUIS l'entrante apparaît (200 → 400 ms).
-    const sortie = 1 - Math.min(1, Math.max(0, tl / 200));
-    const entree = Math.min(1, Math.max(0, (tl - 200) / 200));
-    contenu = (
-      <>
-        <Couche scene={prev} t={t} style={{ opacity: sortie }} />
-        <Couche scene={s} t={t} style={{ opacity: entree }} />
-      </>
-    );
-  } else if (s.entree === "glisse") {
-    // Même séquence, avec un glissement de 40 px seulement : aucune lettre n'atteint le bord de l'image.
-    const sortie = Math.min(1, Math.max(0, tl / 200));
-    const entree = Math.min(1, Math.max(0, (tl - 200) / 200));
-    const ee = 1 - (1 - entree) ** 3;
+  else if (s.entree === "glisse") {
+    // Glissement de 40 px seulement : aucune lettre n'atteint le bord de l'image.
     contenu = (
       <>
         <Couche scene={prev} t={t} style={{ opacity: 1 - sortie, transform: `translateX(${-40 * sortie}px)` }} />
@@ -71,23 +65,21 @@ export function VideoLongue({ storyboard }: ProprietesVideoLongue) {
       </>
     );
   } else {
-    // Volet : un aplat terracotta balaie l'image de gauche à droite ; la scène change quand il la couvre.
-    const q = p;
-    const couvre = q < 0.5;
-    const gauche = couvre ? 0 : (q - 0.5) * 2 * 1920;
-    const droite = couvre ? q * 2 * 1920 : 1920;
     contenu = (
       <>
-        <Couche scene={couvre ? prev : s} t={t} />
-        <div style={{ position: "absolute", left: gauche, top: 0, width: droite - gauche, height: 1080, background: COULEURS_LONGUE.terracotta }} />
+        <Couche scene={prev} t={t} style={{ opacity: 1 - sortie }} />
+        <Couche scene={s} t={t} style={{ opacity: entree }} />
       </>
     );
   }
-  const ligne = storyboard.sousTitres.find((l) => t >= l.debutMs && t < l.finMs);
-  // Quand la scène affiche déjà la phrase lue mot pour mot, la bande montre le repère du chapitre au lieu de la répéter.
-  const chapitre = storyboard.chapitres.find((c) => c.id === s.chapitreId);
-  const repere = ligne && chapitre && sousTitreRedondant(s, ligne) ? repereChapitre(chapitre.rang, chapitre.titre) : undefined;
-  const sous = ligne && sceneAvecBande(s.type) ? poserSousTitre(ligne, t, repere) : null;
+  // Sous-titre : celui de l'ancienne scène (qui s'estompe avec elle) jusqu'au milieu de la transition, puis celui de la nouvelle.
+  const surPrev = prev !== null && tl < duree / 2;
+  const sceneSous = surPrev && prev ? prev : s;
+  const ligne = surPrev ? storyboard.sousTitres.find((l) => s.debutMs - 1 >= l.debutMs && s.debutMs - 1 < l.finMs) : storyboard.sousTitres.find((l) => t >= l.debutMs && t < l.finMs);
+  const repere = repereSousTitre(sceneSous, ligne ?? { texte: "", debutMs: 0, finMs: 0 }, storyboard.chapitres);
+  const tSous = ligne && surPrev ? Math.min(ligne.finMs - 1, Math.max(ligne.debutMs, ligne.finMs - 200)) : t;
+  const sousBrut = ligne && sceneAvecBande(sceneSous.type) ? poserSousTitre(ligne, tSous, repere) : null;
+  const sous = sousBrut && surPrev ? { ...sousBrut, opacite: sousBrut.opacite * (1 - sortie) } : sousBrut;
   return (
     <AbsoluteFill style={{ background: fondDe(s), overflow: "hidden" }}>
       {/* La bande reste à sa place pendant un fondu entre deux scènes à bande (aucun trou quand les deux couches sont transparentes). */}

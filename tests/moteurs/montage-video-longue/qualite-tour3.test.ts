@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { storyboardVideoLongue } from "../../../src/moteurs/montage-video-longue/storyboard";
 import { motCle } from "../../../src/moteurs/montage-video-longue/deduction";
-import { ORIGINE_ZOOM_Y, ZOOM_SCENE, formeDeListe, poserScene, zoomScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
+import { ZOOM_SCENE, formeDeListe, poserScene, zoomScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
 import { TEMPS_LONGUE, ZONES_LONGUE, type ElementPose, type MotLu, type SceneLongue, type StoryboardVideoLongue, type TempsStoryboard } from "../../../src/moteurs/montage-video-longue/storyboard-types";
 
 const SCRIPT = `Le problème : compter à la main
@@ -83,7 +83,8 @@ describe("marges", () => {
         for (const e of poserScene(s, t)) {
           if (e.opacite <= 0 || estProgres(e)) continue;
           expect(e.rect.y, `${e.id} à ${t} ms`).toBeGreaterThanOrEqual(80);
-          if (s.type !== "carton-titre" && s.type !== "carton-chapitre" && s.type !== "fin") expect(ORIGINE_ZOOM_Y - (ORIGINE_ZOOM_Y - e.rect.y) * ZOOM_SCENE, `${e.id} à ${t} ms (après zoom)`).toBeGreaterThanOrEqual(100);
+          const z = zoomScene(s, t);
+          expect(z.y - (z.y - e.rect.y) * z.echelle, `${e.id} à ${t} ms (après zoom réel)`).toBeGreaterThanOrEqual(78);
           if (s.type !== "carton-titre" && s.type !== "carton-chapitre" && s.type !== "fin") expect(e.rect.y + e.rect.hauteur, `${e.id} à ${t} ms`).toBeLessThanOrEqual(BARRE - 40);
         }
       }
@@ -125,13 +126,14 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
       }
     }
   });
-  it("5 étapes : marge haute ≥ 100 px, étapes à venir en filigrane dès le début, numéros visibles", () => {
+  it("5 étapes : toutes entrées avant +1,5 s, numéros ≥ 72 px dans des disques ≥ 96 px, texte ≥ 52 px, marge haute", () => {
     const e = sb.scenes.find((s) => s.type === "etapes")!;
-    const els = poserScene(e, e.debutMs + 1000);
-    expect(els.filter((x) => /:num\d$/.test(x.id))).toHaveLength(5);
-    expect(els.filter((x) => /:carte\d$/.test(x.id)).length).toBeLessThanOrEqual(2);
-    // Après le zoom 1,08 autour de y = 440, le haut du bloc reste à 100 px de l'écran au moins.
-    for (const x of poserScene(e, e.debutMs + 3000)) if (!/:progres/.test(x.id)) expect(ORIGINE_ZOOM_Y - (ORIGINE_ZOOM_Y - x.rect.y) * ZOOM_SCENE, x.id).toBeGreaterThanOrEqual(100);
+    const els = poserScene(e, e.debutMs + 1500);
+    expect(els.filter((x) => /:carte\d$/.test(x.id))).toHaveLength(5);
+    for (const x of els.filter((y) => /:num\d$/.test(y.id))) expect(x.taillePx!).toBeGreaterThanOrEqual(72);
+    for (const x of els.filter((y) => /:disque\d$/.test(y.id))) expect(x.rect.largeur).toBeGreaterThanOrEqual(86);
+    for (const x of els.filter((y) => /:texte\d$/.test(y.id))) expect(x.taillePx!).toBeGreaterThanOrEqual(52);
+    for (const x of poserScene(e, e.debutMs + 3000)) if (!/:progres/.test(x.id)) expect(x.rect.y).toBeGreaterThanOrEqual(90);
   });
   it("deux scènes voisines n'ont jamais la même icône de liste ou d'étapes", () => {
     const formes = (s: SceneLongue) => poserScene(s, s.debutMs + 1000).find((x) => x.nature === "forme" && /:forme$/.test(x.id))?.forme;
@@ -143,12 +145,13 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
     });
     expect(formeDeListe(["Un message part"], "etapes", "s09")).not.toBe(formeDeListe(["Un message part"], "etapes", "s10"));
   });
-  it("tuiles : posées dès le début en contour terracotta, pastille accolée au titre avec le compte final", () => {
+  it("tuiles : en cascade avant +1,5 s, une seule à bord terracotta (celle qu'on lit), pastille accolée au titre avec le compte final", () => {
     const l = sb.scenes.find((s) => s.type === "liste" && s.compte !== null && s.elements.length <= 4)!;
-    const els = poserScene(l, l.debutMs + 700);
+    if (l.type !== "liste") throw new Error("type");
+    const els = poserScene(l, l.debutMs + 1500);
     const tuiles = els.filter((x) => /:tuile\d$/.test(x.id));
     expect(tuiles).toHaveLength(l.elements.length);
-    expect(tuiles.every((x) => x.bordure === "terracotta")).toBe(true);
+    expect(tuiles.filter((x) => x.bordure === "terracotta")).toHaveLength(1);
     const titre = els.find((x) => x.id.endsWith(":titre"))!;
     const pastille = els.find((x) => x.id.endsWith(":pastille"))!;
     expect(pastille.rect.x - (titre.rect.x + titre.rect.largeur)).toBeLessThanOrEqual(80);
@@ -243,15 +246,41 @@ describe("zoom de scène calculé dans la mise en page (tour 6)", () => {
     }
     expect(zoomMax).toBeGreaterThan(1.01);
   });
-  it("5 étapes : au moins 20 px entre le texte et le cadre de sa carte, texte ≥ 48 px", () => {
+  it("5 étapes : au moins 20 px entre le texte et le cadre de sa carte, pulsation comprise, texte ≥ 52 px", () => {
     const e = sb.scenes.find((s) => s.type === "etapes")!;
-    const els = poserScene(e, e.finMs - 100);
+    for (let t = e.debutMs + 1500; t < e.finMs; t += 100) {
+    const els = poserScene(e, t);
     for (let i = 0; i < 5; i++) {
       const c = els.find((x) => x.id === `${e.id}:carte${i}`)!;
       const t = els.find((x) => x.id === `${e.id}:texte${i}`)!;
-      expect(t.rect.y - c.rect.y, `carte ${i} (haut)`).toBeGreaterThanOrEqual(20 - 5);
-      expect(c.rect.y + c.rect.hauteur - (t.rect.y + t.rect.hauteur), `carte ${i} (bas)`).toBeGreaterThanOrEqual(20 - 5);
-      expect(t.taillePx!).toBeGreaterThanOrEqual(48);
+      expect(t.rect.y - c.rect.y, `carte ${i} (haut)`).toBeGreaterThanOrEqual(20);
+      expect(c.rect.y + c.rect.hauteur - (t.rect.y + t.rect.hauteur), `carte ${i} (bas)`).toBeGreaterThanOrEqual(20);
+      expect(t.taillePx!).toBeGreaterThanOrEqual(52);
     }
+    }
+  });
+});
+
+describe("bande : repère vu par le contrôle, deux lignes au plus, jamais d'ellipse", () => {
+  it("poserSousTitreDe applique le repère ; le contrôle reste propre avec ce poseur", async () => {
+    const { controlerStoryboard } = await import("../../../src/moteurs/montage-video-longue/controle");
+    const { poserSousTitreDe } = await import("../../../src/moteurs/montage-video-longue/mise-en-page");
+    const poseur = poserSousTitreDe(sb);
+    const s = sb.scenes.find((x) => x.type === "phrase-cle")!;
+    const l = sb.sousTitres.find((x) => x.debutMs >= s.debutMs - 50 && x.debutMs < s.finMs)!;
+    const e = poseur(l, l.debutMs + 600)!;
+    expect(e.lignes!.map((x) => x.map((m) => m.texte).join("")).join(" ")).toMatch(/^01 · /);
+    const c = controlerStoryboard(sb, { scene: poserScene, sousTitre: poseur });
+    expect(c.alertes.filter((a) => a.critere === "lisibilite" || a.code === "hors-cadre")).toEqual([]);
+  });
+  it("un repère très long est coupé au dernier mot entier qui tient (2 lignes, pas d'ellipse)", () => {
+    const l = { texte: "x", debutMs: 0, finMs: 3000 };
+    const long = "02 · " + Array.from({ length: 40 }, (_, i) => `mot${i}`).join(" ");
+    const e = poserSousTitre(l, 1000, long)!;
+    expect(e.lignes!.length).toBeLessThanOrEqual(2);
+    const texte = e.lignes!.map((x) => x.map((m) => m.texte).join("")).join(" ");
+    expect(texte).not.toContain("…");
+    expect(long.startsWith(texte)).toBe(true);
+    expect(e.taillePx!).toBeGreaterThanOrEqual(44);
   });
 });

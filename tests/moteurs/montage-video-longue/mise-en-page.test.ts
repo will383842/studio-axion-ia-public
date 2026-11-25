@@ -62,7 +62,7 @@ describe("mise en page de la vidéo longue", () => {
           const b = els[j];
           if (a.opacite <= 0 || b.opacite <= 0) continue;
           // Le halo est un filet qui pulse DANS sa carte : il recouvre exprès ce que la carte contient.
-          if (/:(halo|orbite)$/.test(a.id) || /:(halo|orbite)$/.test(b.id)) continue;
+          if (/:(halo|orbite|curseur|reflet)$/.test(a.id) || /:(halo|orbite|curseur|reflet)$/.test(b.id)) continue;
           if (ancetres(a, els).has(b.id) || ancetres(b, els).has(a.id)) continue;
           expect(recouvre(a.rect, b.rect), `${a.id} / ${b.id} à ${t} ms`).toBe(false);
         }
@@ -75,7 +75,7 @@ describe("mise en page de la vidéo longue", () => {
       for (const e of els) {
         if (!e.dans) continue;
         const parent = els.find((x) => x.id === e.dans);
-        if (!parent || e.id.endsWith(":onde") || e.id.endsWith(":orbite") || e.nature === "trait") continue;
+        if (!parent || e.id.endsWith(":onde") || e.id.endsWith(":orbite") || e.id.endsWith(":curseur") || e.id.endsWith(":reflet") || e.nature === "trait") continue;
         expect(dedans(e.rect, parent.rect), `${e.id} dans ${parent.id} à ${t} ms`).toBe(true);
       }
     }
@@ -124,7 +124,7 @@ describe("mise en page de la vidéo longue", () => {
       if (s.type !== "liste" && s.type !== "etapes") continue;
       for (const e of els) {
         const m = /^(.*):(?:carte|tuile)(\d+)$/.exec(e.id);
-        if (!m || m[0].includes(":tuile")) continue; // les tuiles sont posées dès le début (contour terracotta)
+        if (!m) continue;
         const texte = els.find((x) => x.id === `${m[1]}:texte${m[2]}`);
         expect(texte, `${e.id} à ${t} ms : carte sans texte`).toBeDefined();
         expect(texte!.opacite, `${e.id} à ${t} ms`).toBeGreaterThan(0);
@@ -178,22 +178,33 @@ describe("mise en page de la vidéo longue", () => {
     }
   });
 
-  it("étapes : grille fixée dès le début (aucune remontée), cartes de même hauteur, étapes à venir en simples numéros estompés", () => {
+  it("listes, étapes, tuiles : tout le monde est entré avant +1,5 s (cascade), aucune case vide, grille fixe, tout dans la zone", () => {
     for (const s of sb.scenes) {
-      if (s.type !== "etapes") continue;
+      if (s.type !== "etapes" && s.type !== "liste") continue;
+      const n = s.elements.length;
+      const tot = poserScene(s, s.debutMs + 1500);
       const fin = poserScene(s, s.finMs - 100);
-      const debut = poserScene(s, s.debutMs + 1000);
-      const cartes = fin.filter((e) => /:carte\d$/.test(e.id));
-      expect(cartes).toHaveLength(s.elements.length);
-      expect(debut.filter((e) => /:num\d$/.test(e.id)), s.id).toHaveLength(s.elements.length);
-      expect(debut.some((e) => e.nature === "carte" && !/:(carte\d|progres)/.test(e.id) && !e.id.endsWith(":halo")), "aucun cadre vide").toBe(false);
+      const cartes = tot.filter((e) => /:(carte|tuile)\d$/.test(e.id));
+      expect(cartes, s.id).toHaveLength(n);
+      expect(tot.filter((e) => /:texte\d$/.test(e.id) && e.opacite > 0.5), s.id).toHaveLength(n);
+      for (const e of tot) expect(dedans(e.rect, zoneDe(s)), `${e.id} à +1,5 s`).toBe(true);
       for (const c of cartes) {
-        const i = /(\d+)$/.exec(c.id)![1];
-        const a = debut.find((e) => e.id === `${s.id}:num${i}`)!;
-        const b = fin.find((e) => e.id === `${s.id}:num${i}`)!;
-        expect(Math.abs(a.rect.y - b.rect.y), `${c.id}`).toBeLessThanOrEqual(40);
+        const f = fin.find((e) => e.id === c.id)!;
+        expect(Math.abs(f.rect.y - c.rect.y), `${c.id}`).toBeLessThanOrEqual(16);
       }
+      expect(tot.some((e) => /:(fili|ghost)/.test(e.id)), "plus de numéro estompé").toBe(false);
     }
+  });
+  it("listes et étapes : l'élément lu a un bord terracotta, les autres sont calmes (texte ≤ 75 %)", () => {
+    const e = sb.scenes.find((x) => x.type === "etapes")!;
+    if (e.type !== "etapes") throw new Error("type");
+    const t = e.elements[2].apparitionMs + 800;
+    const els = poserScene(e, t);
+    const cartes = els.filter((x) => /:carte\d$/.test(x.id));
+    const actives = cartes.filter((x) => x.bordure === "terracotta");
+    expect(actives).toHaveLength(1);
+    expect(actives[0].id).toBe(`${e.id}:carte2`);
+    for (const x of els.filter((y) => /:texte\d$/.test(y.id) && y.id !== `${e.id}:texte2`)) expect(x.opacite).toBeLessThanOrEqual(0.75);
   });
 
   it("est pure : mêmes entrées, mêmes éléments", () => {

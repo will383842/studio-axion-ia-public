@@ -408,7 +408,7 @@ describe("QUALL-7 · choix de la forme", () => {
   it.each(["Une rupture est vite arrivée", "L'urgence disparaît", "Plus de problème de stock"])("dans « La solution… », pas d'alerte sans le mot « alerte » : %s", (t) => {
     expect(formePour(t, null, "La solution : un tableau de bord")).not.toBe("alerte");
   });
-  it("dans « La solution… », « alerte » écrit reste permis", () => {
+  it("dans « La solution… », le mot « alerte » écrit donne la cloche (le triangle reste interdit)", () => {
     expect(formePour("Une alerte part tout de suite", null, "La solution : un tableau de bord")).toBe("cloche");
     expect(formePour("Une rupture est une alerte rouge", null, "La solution : un tableau de bord")).toBe("cloche");
   });
