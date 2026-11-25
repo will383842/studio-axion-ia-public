@@ -13,7 +13,18 @@ import type { CouleurCharte, ElementVisible, FormatImage, ImageSansVoix } from "
 export const COULEURS_SANS_VOIX: Record<CouleurCharte, string> = COULEURS_HEX;
 
 const couleur = (nom: CouleurCharte | undefined, repli: CouleurCharte): string => COULEURS_SANS_VOIX[nom ?? repli];
-const OMBRE_DOUCE = "0 10px 28px rgba(20, 20, 19, 0.12)";
+/** Ombre douce : le noir de la charte (COULEURS_HEX.noir, lu en rvb) avec une opacité de 12 %. */
+const OMBRE_DOUCE = (() => {
+  const [r, v, b] = [1, 3, 5].map((i) => parseInt(COULEURS_SANS_VOIX.noir.slice(i, i + 2), 16));
+  return `0 10px 28px rgba(${r}, ${v}, ${b}, 0.12)`;
+})();
+/** Interligne de repli (rect ou lignes incohérents). */
+const INTERLIGNE_REPLI = 1.15;
+/**
+ * Taille de repli d'un texte sans `taillePx` : le plancher de lisibilité de 32 px (même règle que le contrôle QUAL-4).
+ * Un texte sans `taillePx` est une anomalie de la géométrie : on le signale (console.warn) au lieu de le taire.
+ */
+export const TAILLE_REPLI_PX = 32;
 const FAMILLE = "Manrope, sans-serif";
 
 function Icone({ el }: { el: ElementVisible }) {
@@ -55,11 +66,15 @@ function Icone({ el }: { el: ElementVisible }) {
 
 function Texte({ el }: { el: ElementVisible }) {
   const lignes = el.lignes && el.lignes.length > 0 ? el.lignes : el.texte ? [el.texte] : [];
-  const taille = el.taillePx ?? 32;
+  if (el.taillePx === undefined) console.warn(`DessinSansVoix : le texte « ${el.id} » n'a pas de taillePx, repli ${TAILLE_REPLI_PX} px`);
+  const taille = el.taillePx ?? TAILLE_REPLI_PX;
+  // Interligne = ce que mesure le contrôle : hauteur du rect / (nombre de lignes × taille).
+  const brut = lignes.length > 0 ? el.rect.hauteur / (lignes.length * taille) : NaN;
+  const interligne = Number.isFinite(brut) && brut >= 0.8 && brut <= 2.5 ? brut : INTERLIGNE_REPLI;
   const centre = el.alignement === "centre";
   const epaisseur = Math.max(2, taille * 0.08);
   return (
-    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: centre ? "center" : "flex-start", fontFamily: FAMILLE, fontSize: taille, fontWeight: el.graisse ?? 600, color: couleur(el.couleur, "noir"), lineHeight: 1.15, whiteSpace: "nowrap", textAlign: centre ? "center" : "left" }}>
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: centre ? "center" : "flex-start", fontFamily: FAMILLE, fontSize: taille, fontWeight: el.graisse ?? 600, color: couleur(el.couleur, "noir"), lineHeight: interligne, whiteSpace: "nowrap", textAlign: centre ? "center" : "left" }}>
       {lignes.map((ligne, i) => (
         <div key={i} style={{ position: "relative", display: "inline-block" }}>
           {ligne}
@@ -92,12 +107,11 @@ function Curseur({ el }: { el: ElementVisible }) {
 function Element({ el }: { el: ElementVisible }) {
   if (el.genre === "curseur") return <Curseur el={el} />;
   const { x, y, largeur, hauteur } = el.rect;
-  const part = el.progression === undefined ? 1 : Math.max(0, Math.min(1, el.progression));
   const style: CSSProperties = {
     position: "absolute",
     left: x,
     top: y,
-    width: largeur * part,
+    width: largeur,
     height: hauteur,
     opacity: el.opacite,
     zIndex: el.z,

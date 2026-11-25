@@ -1,9 +1,8 @@
 /**
  * QUAL-3 · Dessin du tutoriel sans voix composé : DessinSansVoix sur des images synthétiques (textes, curseur, barre,
  * couleurs de la charte seulement, aucune police < 32 px) ; TutorielOutil sans `compositionSansVoix` : HTML identique à
- * celui d'avant la modification (empreinte prise avant) ; avec : ScenesSansVoix rendu. Rendu statique, aucun réseau.
+ * celui de l'arbre d'origin/master (comparaison à un arbre de référence construit dans le test) ; avec : ScenesSansVoix rendu. Rendu statique, aucun réseau.
  */
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
@@ -20,9 +19,10 @@ vi.mock("../../studio-rendu/node_modules/remotion/dist/esm/index.mjs", async (or
   };
 });
 
+import { imageSansVoixA } from "@/briques/plan-scenes/tutoriel/sans-voix/geometrie";
 import { PALETTE } from "@/briques/charte/axion-2026";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import type { ElementVisible, ImageSansVoix, PlanComposeSansVoix } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
+import type { ElementVisible, ImageSansVoix } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
 import { PLAN_SANS_VOIX_STOCKS } from "../tutoriel-outil/fixtures/plan-sans-voix-stocks";
 import { HABILLAGE_TUTORIEL, formatDuRatio, planCarteFin } from "@/moteurs/montage-tutoriel-outil/proprietes";
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
@@ -30,6 +30,8 @@ const { createElement } = AVEC_RENDU ? ((await import("../../studio-rendu/node_m
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
 const { renderToStaticMarkup } = AVEC_RENDU ? ((await import("../../studio-rendu/node_modules/react-dom/server.js")) as typeof import("react-dom/server")) : ({} as typeof import("react-dom/server"));
 const chemin = (c: string) => `../../studio-rendu/compositions/${c}`;
+const REMOTION = AVEC_RENDU ? await import(/* @vite-ignore */ "../../studio-rendu/node_modules/remotion/dist/esm/index.mjs") : null;
+const PLAN_DE_SCENES = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan-scenes/PlanDeScenes")) : null;
 const DESSIN = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan-scenes/tutoriel-sans-voix/DessinSansVoix")) : null;
 const TUTORIEL = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan-scenes/TutorielOutil")) : null;
 
@@ -57,10 +59,6 @@ function image(): ImageSansVoix {
   };
 }
 
-function planCompose(): PlanComposeSansVoix {
-  return { version: "sans-voix-1", format: FORMAT, dureeMs: 6000, basPct: 80, scenes: [{ id: "t", genre: "titre", debutMs: 0, finMs: 6000, mots: { premier: 0, dernier: 2 }, texte: "Une automatisation simple" }] };
-}
-
 function planTuto(): PlanValide {
   const base = { version: 1, format: formatDuRatio("4:5"), habillage: HABILLAGE_TUTORIEL } as unknown as PlanValide;
   return planCarteFin({ plan: base, fin: { titre: "Une automatisation simple", sousTitre: "de bout en bout" }, finMs: 6000 });
@@ -81,9 +79,10 @@ describe.skipIf(!AVEC_RENDU)("DessinSansVoix (QUAL-3)", () => {
     expect(h).not.toContain("Fantôme"); // opacité 0 : non dessiné
   });
 
-  it("progression : largeur × progression ; z croissant = ordre de dessin", () => {
+  it("progression : le rect est déjà le rectangle actuel (largeur du rect, pas multipliée) ; z croissant = ordre de dessin", () => {
     const h = sortie();
-    expect(h).toContain("width:300px;height:24px");
+    expect(h).toContain("width:600px;height:24px");
+    expect(h).not.toContain("width:300px");
     expect(h.indexOf('data-id="carte"')).toBeLessThan(h.indexOf('data-id="titre"'));
   });
 
@@ -99,19 +98,36 @@ describe.skipIf(!AVEC_RENDU)("DessinSansVoix (QUAL-3)", () => {
 
 describe.skipIf(!AVEC_RENDU)("TutorielOutil et compositionSansVoix (QUAL-3)", () => {
   const rendre = (extra: object = {}) => html(createElement(TUTORIEL!.TutorielOutil, { plan: planTuto(), fin: FIN, finMs: 2500, ...extra }));
-  const empreinte = (s: string) => createHash("sha256").update(s).digest("hex");
 
-  it("sans le champ : HTML identique à celui d'avant la modification", () => {
+  // Arbre de référence : celui de TutorielOutil d'origin/master (sans sous-titres, audio ni schéma de flux).
+  const reference = () => {
+    const plan = planTuto();
+    const images = Math.max(1, Math.round((plan.dureeMs * plan.format.fps) / 1000));
+    const { AbsoluteFill, Sequence } = REMOTION as unknown as Record<string, unknown>;
+    const el = createElement as unknown as (...a: unknown[]) => unknown;
+    return html(
+      el(AbsoluteFill, null, el(Sequence, { durationInFrames: images }, el(PLAN_DE_SCENES!.PlanDeScenes, { plan })), el(Sequence, { from: images }, el(PLAN_DE_SCENES!.PlanDeScenes, { plan: planCarteFin({ plan, fin: FIN, finMs: 2500 }) }))),
+    );
+  };
+
+  it("sans le champ : HTML identique à l'arbre de référence d'origin/master", () => {
     etat.image = 5;
-    expect(empreinte(rendre())).toBe("7e2d4683eb90954404b3c99c5370e0bcc5090a91aebbe849d9ee996e9231a677");
+    expect(rendre()).toBe(reference());
   });
 
-  it("avec le champ : ScenesSansVoix est rendu à la place du plan nu", () => {
-    etat.image = 5;
+  it("avec le champ : le plan composé est dessiné (data-id, textes, positions du rect de imageSansVoixA)", () => {
+    etat.image = 300; // 12 000 ms à 25 i/s
     const sans = rendre();
-    const avec = rendre({ compositionSansVoix: planCompose() });
+    const avec = rendre({ compositionSansVoix: PLAN_SANS_VOIX_STOCKS });
     expect(avec).not.toBe(sans);
-    expect(avec).toContain("background:#FAF9F5");
+    const attendu = imageSansVoixA(PLAN_SANS_VOIX_STOCKS, 12000).elements.filter((e) => e.opacite > 0.005 && e.genre !== "curseur");
+    expect(attendu.length).toBeGreaterThan(3);
+    expect(avec).toContain("Tableau de bord");
+    for (const e of attendu) {
+      expect(sans).not.toContain(`data-id="${e.id}"`);
+      const { x, y, largeur, hauteur } = e.rect;
+      expect(avec).toContain(`data-id="${e.id}" style="position:absolute;left:${x}px;top:${y}px;width:${largeur}px;height:${hauteur}px`);
+    }
   });
 
   it("plan des stocks à 5 instants : textes de la scène, couleurs de la charte, aucune police sous 32 px, jamais un fond nu", () => {
