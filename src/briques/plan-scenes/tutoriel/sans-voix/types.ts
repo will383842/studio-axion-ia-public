@@ -32,7 +32,7 @@ export interface PlageMots {
   dernier: number;
 }
 
-/** Couleurs de la charte, par NOM (jamais une valeur libre) : ivoire, gris, noir, terracotta ; blanc pour les panneaux. */
+/** Couleurs de la charte, par NOM (jamais une valeur libre) : ivoire, gris, noir, terracotta ; blanc pour les panneaux ; grisTexte (gris foncé lisible) pour les barres et textes secondaires. */
 export type CouleurCharte = "ivoire" | "gris" | "noir" | "terracotta" | "blanc" | "grisTexte";
 
 /* ------------------------------------------------------------------ */
@@ -61,7 +61,7 @@ export type EvenementEcran =
       cartePulse?: number;
       source: PlageMots;
     }
-  /** Caméra douce vers une partie de l'écran (zoom ≤ 1,25) ; jamais d'élément hors cadre après zoom. */
+  /** Caméra douce vers une partie de l'écran (mise en valeur : contour terracotta et atténuation du reste, aucun zoom). */
   | { genre: "focus"; aMs: number; finMs: number; cible: "cartes" | "liste" | "panneau" | "alerte" | "ensemble"; source: PlageMots };
 
 interface BaseScene {
@@ -167,7 +167,7 @@ export interface ElementVisible {
   barre?: number;
   /** Forme « filet » ou barre squelette qui se trace/pousse : part 0..1. */
   progression?: number;
-  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, historique.
+  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, horloge (historique, avant / après).
    *  Pour « horloge », `progression` (0..1) = tour de l'aiguille (0 = midi, 1 = un tour complet) : l'aiguille TOURNE. */
   icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche";
   /** Curseur : point cliquant et anneau de clic (0..1, 0 = pas de clic). */
