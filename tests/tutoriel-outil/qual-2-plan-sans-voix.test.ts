@@ -373,4 +373,97 @@ describe("QUAL-2 — rythme de l'alerte et points mineurs", () => {
     if (a.genre !== "titre") throw new Error("titre");
     expect(a.surTitre === undefined || /[\p{L}]/u.test(a.surTitre)).toBe(true);
   });
+
+  describe("revue opus : aMs de l'alerte, élisions, politesses, titres, dureeMs", () => {
+    const alerteDe = (plan: PlanComposeSansVoix) => {
+      for (const sc of plan.scenes) if (sc.genre === "ecran") for (const ev of sc.evenements) if (ev.genre === "alerte") return ev;
+      throw new Error("pas d'alerte");
+    };
+    const debutDe = (texte: string, mot: string, nieme = 0): number => {
+      const m = motsDe(texte).filter((x) => x.texte.toLowerCase().replace(/[^a-zà-ÿ']/g, "") === mot.toLowerCase());
+      return m[nieme].debutMs;
+    };
+
+    it("fondateur : aMs = « Quand »", () => {
+      const { plan } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous" });
+      expect(alerteDe(plan).aMs).toBe(debutDe(FONDATEUR, "Quand"));
+    });
+
+    it("condition au milieu de la phrase : aMs = « quand », pas le début de la phrase", () => {
+      const txt = "Un souci de stock ? Voici un tableau de bord. Juste en dessous, la liste des articles, et quand un article passe sous le seuil, une alerte part toute seule. Prenez rendez-vous.";
+      const { plan } = composer(txt);
+      const a = alerteDe(plan);
+      expect(a.aMs).toBe(debutDe(txt, "quand"));
+      expect(a.aMs).toBeGreaterThan(debutDe(txt, "liste"));
+    });
+
+    it("sans condition : aMs = début du texte affiché (« une alerte »), pas la phrase entière", () => {
+      const txt = "Un souci de stock ? Voici un tableau de bord. Chaque matin à huit heures, après le café…, une alerte part. Prenez rendez-vous.";
+      const { plan } = composer(txt);
+      const a = alerteDe(plan);
+      expect(a.aMs).toBe(debutDe(txt, "une"));
+      expect(a.aMs).toBeGreaterThan(debutDe(txt, "Chaque"));
+    });
+
+    it("« Lorsqu'un article… » : conjonction reconnue, préfixe retiré du libellé", () => {
+      const txt = "Un souci de stock ? Voici un tableau de bord. En haut, la liste des articles. Lorsqu'un article passe sous le seuil, une alerte part. Prenez rendez-vous.";
+      const { plan } = composer(txt);
+      const a = alerteDe(plan);
+      expect(a.texte).toBe("Un article passe sous le seuil");
+      expect(a.aMs).toBe(debutDe(txt, "Lorsqu'un"));
+    });
+
+    it.each(["Merci, bonne journée.", "À bientôt.", "Au revoir et bonne journée."])("politesse finale « %s » : scène d'appel gardée, fondue", (pol) => {
+      const txt = `Un souci ? Voici un tableau de bord. Un clic sur un article ouvre son historique : entrées et sorties. Vous voulez le même ? Prenez rendez-vous. ${pol}`;
+      const { plan } = composer(txt, { fin: "rendez-vous" });
+      const dernier = plan.scenes[plan.scenes.length - 1];
+      expect(dernier.genre).toBe("appel");
+      expect(plan.scenes.some((s) => s.genre === "carte-phrase" && /merci|bientot|bientôt|revoir|bonne/i.test(s.texte))).toBe(false);
+      expect(dernier.mots.dernier).toBe(motsDe(txt).length - 1);
+    });
+
+    it("titre tiré du script : jamais de ponctuation au début", () => {
+      for (const t of [". Voici un tableau de bord simple. Prenez rendez-vous.", "… Voici un tableau de bord simple. Prenez rendez-vous."]) {
+        const titre = composer(t).plan.scenes[0];
+        if (titre.genre !== "titre") throw new Error("titre");
+        expect(titre.texte).toBe("Voici un tableau de bord simple.");
+        const avecSaisi = composer(t, { phraseTitre: "Mon titre" }).plan.scenes[0];
+        if (avecSaisi.genre !== "titre") throw new Error("titre");
+        expect(avecSaisi.surTitre === undefined || /^[\p{L}\p{N}]/u.test(avecSaisi.surTitre)).toBe(true);
+      }
+    });
+
+    it("script de ponctuation seule : remarque et titre jamais de ponctuation vide", () => {
+      const a = composer("… . ?");
+      expect(a.remarques.some((r) => /sans mots/.test(r))).toBe(true);
+      const ta = a.plan.scenes[0];
+      if (ta.genre !== "titre") throw new Error("titre");
+      expect(ta.texte).toBe("");
+      const b = composer("… . ?", { phraseTitre: "Mon titre" });
+      const tb = b.plan.scenes[0];
+      if (tb.genre !== "titre") throw new Error("titre");
+      expect(tb.texte).toBe("Mon titre");
+    });
+
+    it("dureeMs plus courte que la parole : rien hors de sa scène, aucune scène au-delà", () => {
+      const dureeMs = 20000;
+      const { plan, remarques } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous", dureeMs });
+      expect(remarques.some((r) => /dureeMs/.test(r))).toBe(true);
+      expect(plan.dureeMs).toBe(dureeMs);
+      expect(plan.scenes[plan.scenes.length - 1].finMs).toBe(dureeMs);
+      for (const sc of plan.scenes) {
+        expect(sc.debutMs).toBeLessThan(dureeMs);
+        expect(sc.finMs).toBeLessThanOrEqual(dureeMs);
+        if (sc.genre === "appel") expect(sc.clicAMs).toBeLessThanOrEqual(sc.finMs);
+        if (sc.genre === "ecran") {
+          expect(sc.evenements.length).toBeGreaterThan(0);
+          for (const ev of sc.evenements) {
+            expect(ev.aMs).toBeLessThan(sc.finMs);
+            if (ev.genre === "focus") expect(ev.finMs).toBeLessThanOrEqual(sc.finMs);
+          }
+        }
+      }
+      verifierPavage(plan);
+    });
+  });
 });
