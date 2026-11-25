@@ -164,14 +164,28 @@ describe("mise en page de la vidéo longue", () => {
     const a = sb.scenes.find((s) => s.type === "avant-apres")!;
     const els = poserScene(a, a.finMs - 200);
     expect(els.find((e) => e.id.endsWith(":texteA"))!.couleur).toBe("noir");
-    expect(els.find((e) => e.id.endsWith(":avant"))!.fond).toBe("blanc");
+    expect(els.find((e) => e.id.endsWith(":avant"))!.fond).toBe("gris");
   });
 
-  it("fin : rappel des chapitres et bouton, dans la zone", () => {
+  it("fin : le bouton est visible dès +600 ms et le reste, tout dans la zone", () => {
     const f = sb.scenes.find((s) => s.type === "fin")!;
-    const els = poserScene(f, f.finMs - 100, sb.chapitres.map((c) => c.titre));
-    expect(els.filter((e) => /:rappel\d$/.test(e.id)).length).toBeGreaterThan(0);
-    for (const e of els) expect(dedans(e.rect, ZONES_LONGUE.plein), e.id).toBe(true);
+    for (let tl = 600; tl < f.finMs - f.debutMs; tl += 100) {
+      const els = poserScene(f, f.debutMs + tl);
+      expect(els.find((e) => e.id.endsWith(":bouton"))!.opacite, `bouton à +${tl} ms`).toBe(1);
+      for (const e of els) expect(dedans(e.rect, ZONES_LONGUE.plein), e.id).toBe(true);
+    }
+  });
+
+  it("liste et étapes : le bloc est centré sur ce qui est déjà affiché", () => {
+    for (const s of sb.scenes) {
+      if (s.type !== "etapes") continue;
+      const els = poserScene(s, s.debutMs + 450 + 420).filter((e) => /:carte\d$/.test(e.id));
+      expect(els.length).toBeGreaterThan(0);
+      const haut = Math.min(...els.map((e) => e.rect.y));
+      const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
+      const centre = (haut + bas) / 2;
+      expect(Math.abs(centre - (ZONES_LONGUE.scene.y + 756 / 2)), s.id).toBeLessThan(60);
+    }
   });
 
   it("est pure : mêmes entrées, mêmes éléments", () => {
