@@ -1397,7 +1397,7 @@ export async function fabriquerTableau(o: OutilsFabrication): Promise<CompteRend
         sorties: [{ id, libelle: format.libelle, fiche: calageS.fiche, options: { preuves, ...(imageVerticale ? {} : { format: image }), ...(appel ? { appel } : {}) } }],
       },
       // CLAUDE-REGARD-c-a : dépendance facultative, absente par défaut (alors « non faite », rien n'est appelé) ; reçoit la vidéo finie.
-      o.relireImagesCles ? { relireImagesCles: (f, m) => o.relireImagesCles!(f, m, { cle: composition.sortieCle, dureeSec: Number.isFinite(composition.mesures.dureeSec) && composition.mesures.dureeSec! > 0 ? composition.mesures.dureeSec! : dureeSec, ...(o.attendre ? { attendre: o.attendre } : {}) }) } : {},
+      o.relireImagesCles && id === sorties[0] ? { relireImagesCles: (f, m) => o.relireImagesCles!(f, m, { cle: composition.sortieCle, dureeSec: Number.isFinite(composition.mesures.dureeSec) && composition.mesures.dureeSec! > 0 ? composition.mesures.dureeSec! : dureeSec, ...(o.attendre ? { attendre: o.attendre } : {}) }) } : {},
     );
     // Les contrôles du fichier fini déclassés en alertes : dits sur la sortie livrée et au rapport, sans jeter la vidéo.
     for (const l of controles.indicatifs.filter((x) => x.declasse)) {
