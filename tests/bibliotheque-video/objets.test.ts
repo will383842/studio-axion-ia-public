@@ -101,17 +101,17 @@ const HORS_OBJET_MASTER = [
   "motion.v4-coulisse.element-barre-pictos|coulisse",
   "motion.v4-coulisse.appel-final-pile|coulisse",
   "motion.v4-coulisse.panneau-fin|coulisse",
-  // X1-00
-  "texte.poids-variable|prevu",
-  "texte.minimal-dynamique|prevu",
+  // X1-00 (TENDANCES-2027-CAT-v20l : 7 validés sur planche → eteint ; zoom-mot, fenetre-inclinee, mention.ia restent prevu)
+  "texte.poids-variable|eteint",
+  "texte.minimal-dynamique|eteint",
   "ecran.fenetre-inclinee|prevu",
-  "fond.verre-depoli|prevu",
+  "fond.verre-depoli|eteint",
   "transition.zoom-mot|prevu",
-  "transition.raccord-forme|prevu",
-  "accroche.apercu-fin|prevu",
-  "accroche.mot-cle|prevu",
+  "transition.raccord-forme|eteint",
+  "accroche.apercu-fin|eteint",
+  "accroche.mot-cle|eteint",
   "mention.ia|prevu",
-  "rythme.boucle|prevu",
+  "rythme.boucle|eteint",
 ];
 
 describe("famille objet (C9-03)", () => {
