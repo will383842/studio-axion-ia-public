@@ -119,8 +119,8 @@ describe("gardes statiques", () => {
   });
   it("les deux fichiers de déclaration du catalogue n'importent rien de titres-couverture", () => {
     for (const f of declarations) {
-      const s = readFileSync(f, "utf8");
-      expect(s.split("\n").filter((l) => /^\s*(import|export)\b.*titres-couverture/.test(l)), f).toEqual([]);
+      // Texte entier : couvre import multi-ligne, import() dynamique et ré-export.
+      expect(readFileSync(f, "utf8"), f).not.toMatch(/titres-couverture/);
     }
   });
   it("aucun service, fournisseur ni useCurrentFrame", () => {
