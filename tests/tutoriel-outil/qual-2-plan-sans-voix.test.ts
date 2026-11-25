@@ -564,3 +564,73 @@ describe("QUAL-2 — politesse ou appel, aMs de l'alerte, mots tronqués", () =>
     expect(der.mots.dernier).toBeLessThanOrEqual(mots.length - 6);
   });
 });
+
+describe("QUAL-2 — revue opus 2 : troncature sans liste vide, focus orphelin, politesse, alerte", () => {
+  const options = { phraseTitre: TITRE, fin: "rendez-vous" as const };
+
+  function verifierInvariants(plan: PlanComposeSansVoix) {
+    verifierRienHorsScene(plan);
+    verifierPavage(plan);
+    for (const sc of plan.scenes) {
+      if (sc.genre !== "ecran") continue;
+      const genres = new Set(sc.evenements.map((ev) => ev.genre));
+      for (const ev of sc.evenements) {
+        if (ev.genre === "cartes-chiffres") expect(ev.cartes.length).toBeGreaterThan(0);
+        if (ev.genre === "panneau") expect(ev.rubriques.length).toBeGreaterThan(0);
+        if (ev.genre === "focus" && ev.cible !== "ensemble") {
+          const attendu = ev.cible === "cartes" ? "cartes-chiffres" : ev.cible;
+          expect(genres.has(attendu), `focus orphelin : ${ev.cible}`).toBe(true);
+        }
+      }
+    }
+  }
+
+  it("dureeMs 10000 et 24000 : aucune liste vide", () => {
+    for (const dureeMs of [10000, 24000]) {
+      const { plan } = composer(FONDATEUR, { ...options, dureeMs });
+      verifierInvariants(plan);
+    }
+  });
+
+  it("balayage tous les 100 ms sur le script du fondateur : invariants tenus", () => {
+    for (let dureeMs = 100; dureeMs <= 40000; dureeMs += 100) {
+      const { plan } = composer(FONDATEUR, { ...options, dureeMs });
+      try {
+        verifierInvariants(plan);
+      } catch (err) {
+        throw new Error(`dureeMs ${dureeMs} : ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  });
+
+  it("dureeMs 9000 : un focus dont la cible a disparu vise l'ensemble", () => {
+    const { plan } = composer(FONDATEUR, { ...options, dureeMs: 9000 });
+    verifierInvariants(plan);
+    for (const sc of plan.scenes) {
+      if (sc.genre !== "ecran") continue;
+      const genres = new Set(sc.evenements.map((ev) => ev.genre));
+      for (const ev of sc.evenements) if (ev.genre === "focus" && ev.cible === "liste") expect(genres.has("liste")).toBe(true);
+    }
+  });
+
+  it("politesse finale avec un NOM d'appel (« restons en contact ») : le bouton reste « Prenez rendez-vous »", () => {
+    const texte = "Un souci ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock et marge. Prenez rendez-vous. Merci, à bientôt et restons en contact.";
+    const { plan } = composer(texte);
+    const appel = plan.scenes.find((s) => s.genre === "appel");
+    if (!appel || appel.genre !== "appel") throw new Error("appel");
+    expect(appel.bouton).toBe("Prenez rendez-vous");
+    const b = composer(texte, { fin: "rendez-vous" }).plan.scenes.find((s) => s.genre === "appel");
+    if (!b || b.genre !== "appel") throw new Error("appel");
+    expect(b.bouton).toBe("Prendre rendez-vous");
+  });
+
+  it("alerte : le texte ne finit pas sur la conjonction", () => {
+    const texte = "Un souci ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock et marge. Une alerte part toute seule quand un article passe sous le seuil, sans rien faire. Prenez rendez-vous.";
+    const { plan } = composer(texte);
+    const ecran = plan.scenes.find((s) => s.genre === "ecran");
+    if (!ecran || ecran.genre !== "ecran") throw new Error("ecran");
+    const alerte = ecran.evenements.find((ev) => ev.genre === "alerte");
+    if (!alerte || alerte.genre !== "alerte") throw new Error("alerte");
+    expect(alerte.texte).toBe("Une alerte part toute seule");
+  });
+});
