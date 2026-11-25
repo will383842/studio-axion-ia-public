@@ -60,8 +60,8 @@ const BAS_SCENE = 800;
 /** Zoom lent de la scène : 1 → 1,06 sur sa durée, autour de ce point (le rendu applique la transformation). */
 export const ZOOM_SCENE = 1.06;
 export const ORIGINE_ZOOM_Y = 420;
-/** Les cartes d'une scène flottent de ±4 px (période 3 s) : elles bougent sans jamais toucher la barre de progression. */
-const FLOTTE_CARTE_PX = 4;
+/** Les cartes d'une scène flottent de ±6 px (période 3 s) : elles bougent sans jamais toucher la barre de progression. */
+const FLOTTE_CARTE_PX = 6;
 /** Va-et-vient 0 → 1 de période `periodeMs`. */
 const onde = (tl: number, periodeMs: number, dephasage = 0) => 0.5 + 0.5 * Math.sin((2 * Math.PI * tl) / periodeMs + dephasage);
 
@@ -458,18 +458,16 @@ function tuiles(s: SceneListe, t: number): ElementPose[] {
   const y0 = HAUT_SCENE + (zoneH - total) / 2;
   if (aT) {
     const e = douce(prog(tl, 120, 450));
-    out.push(texteEl({ id: `${s.id}:titre`, x: S.x, y: y0 + (hRangee - hTitre) / 2, largeur: S.largeur - dPast - 56, texte: s.titre ?? "", taille: aT.taille, graisse: 800, couleur: p.texte, interligne: 1.1, lignes: aT.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
-    // La pastille compte jusqu'au nombre annoncé.
-    const cxp = S.x + S.largeur - dPast / 2;
+    out.push(texteEl({ id: `${s.id}:titre`, x: S.x, y: y0 + (hRangee - hTitre) / 2, largeur: Math.min(S.largeur - dPast - 56, Math.max(...aT.lignes.map((l) => largeurLigne(l, aT.taille, 800))) + 8), texte: s.titre ?? "", taille: aT.taille, graisse: 800, couleur: p.texte, interligne: 1.1, lignes: aT.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
+    // La pastille est accolée au titre et affiche d'emblée le compte final, avec un petit rebond.
+    const wTitre = Math.max(...aT.lignes.map((l) => largeurLigne(l, aT.taille, 800)));
+    const cxp = S.x + wTitre + 48 + dPast / 2;
     const cyp = y0 + hRangee / 2;
-    const eP = rebond(prog(tl, 250, 600));
-    const dP = Math.min(dPast, dPast * Math.max(0.05, eP)) - 14 + 12 * souffle(tl, 2400);
+    const eP = rebond(prog(tl, 200, 600));
+    const dP = Math.max(8, dPast * Math.max(0.05, eP) - 14 + 10 * souffle(tl, 2400));
     const idP = `${s.id}:pastille`;
-    out.push(disqueEl(idP, cxp, cyp, Math.max(8, dP), p.accent, undefined, borne(prog(tl, 250, 300)), 0));
-    if (tl >= 600 && s.compte !== null) {
-      const valeur = Math.round(s.compte * douce(prog(tl, 650, 900)));
-      out.push(texteEl({ id: `${s.id}:compte`, x: cxp - 70, y: cyp - 48, largeur: 140, texte: String(valeur), taille: 96, graisse: 800, couleur: p.surAccent, interligne: 1.0, alignement: "centre", opacite: prog(tl, 600, 250), dans: idP }));
-    }
+    out.push(disqueEl(idP, cxp, cyp, dP, p.accent, undefined, borne(prog(tl, 200, 250)), 0));
+    if (tl >= 350 && s.compte !== null) out.push(texteEl({ id: `${s.id}:compte`, x: cxp - 70, y: cyp - 48, largeur: 140, texte: String(s.compte), taille: 96, graisse: 800, couleur: p.surAccent, interligne: 1.0, alignement: "centre", opacite: prog(tl, 350, 200), dans: idP }));
   }
   // Les tuiles se posent l'une après l'autre dès le début de la scène : le tableau de bord est complet en une seconde.
   const app = s.elements.map((_e, i) => s.debutMs + 450 + i * 250);
@@ -480,15 +478,17 @@ function tuiles(s: SceneListe, t: number): ElementPose[] {
   const deja = new Set<FormeLongue>();
   s.elements.forEach((el, i) => {
     const forme = iconeTuile(el.texte, deja);
-    if (t <= app[i]) return; // aucune case fantôme : la tuile n'existe pas avant son texte
+    // Les tuiles sont posées dès le début de la scène, en contour terracotta ; le libellé et l'icône arrivent à leur tour.
+    const eC = douce(prog(tl, 100, 400));
     const e = douce(prog(t, app[i], 420));
-    const dy = 26 * (1 - e) + FLOTTE_CARTE_PX * souffle(tl, 3000, i * 2.1);
+    const dy = 26 * (1 - eC) + FLOTTE_CARTE_PX * souffle(tl, 3000, i * 2.1);
     const cx = S.x + i * (wT + gap);
     const cy = y0 + entre + dy;
     const idT = `${s.id}:tuile${i}`;
     const courant = i === actif;
-    if (courant) out.push(halo(idT, { x: cx, y: cy, largeur: wT, hauteur: hTuile }, tl, e, 32, p));
-    out.push(carteEl(idT, { x: cx, y: cy, largeur: wT, hauteur: hTuile }, p.carte, courant ? p.accent : p.bordure, e, 32, courant ? 4 : 2));
+    if (courant) out.push(halo(idT, { x: cx, y: cy, largeur: wT, hauteur: hTuile }, tl, eC, 32, p));
+    out.push(carteEl(idT, { x: cx, y: cy, largeur: wT, hauteur: hTuile }, p.carte, p.accent, eC, 32, courant ? 5 : 3));
+    if (t <= app[i]) return;
     out.push(formeEl(`${s.id}:icone${i}`, forme, { x: cx + pad, y: cy + pad, largeur: icone, hauteur: icone }, p.accent, douce(prog(t, app[i] + 120, 800)), 8, e, idT));
     const hT = hauteurLignes(lignes[i].length, taille, 1.2);
     out.push(texteEl({ id: `${s.id}:texte${i}`, x: cx + pad, y: cy + hTuile - pad - hT, largeur: wTexte, texte: el.texte, taille, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: 1.2, lignes: lignes[i], opacite: e, dans: idT }));
@@ -496,16 +496,22 @@ function tuiles(s: SceneListe, t: number): ElementPose[] {
   return out;
 }
 
-/** Forme de l'icône posée à droite d'une liste ou d'étapes (d'après leurs mots), pour qu'une demi-image ne reste jamais vide. */
-export function formeDeListe(textes: string[], type: "liste" | "etapes"): FormeLongue {
+/** Forme de remplacement : deux scènes voisines (numéros d'identifiant de parité différente) n'ont jamais la même icône. */
+const AUTRE_FORME: Partial<Record<FormeLongue, FormeLongue>> = { cloche: "fleche", tableur: "liste", cible: "coche", calendrier: "horloge", graphique: "tableur", liste: "coche" };
+
+/** Forme de l'icône posée à droite d'une liste ou d'étapes (d'après leurs mots) ; la parité du numéro de scène alterne avec l'autre forme. */
+export function formeDeListe(textes: string[], type: "liste" | "etapes", idScene = ""): FormeLongue {
   const t = textes.join(" ").toLowerCase();
-  if (/alerte|message|résumé|resume|notification|préviens|prévient/.test(t)) return "cloche";
-  if (/tableur|rempli|feuille/.test(t)) return "tableur";
-  if (/seuil|objectif|cible|priorit/.test(t)) return "cible";
-  if (type === "etapes") return "liste";
-  if (/semaine|mois|lundi|calendrier|année|jour/.test(t)) return "calendrier";
-  if (/chiffre|stock|tableau|vente|catalogue|valeur|article/.test(t)) return "graphique";
-  return "liste";
+  let f: FormeLongue;
+  if (/alerte|message|résumé|resume|notification|préviens|prévient/.test(t)) f = "cloche";
+  else if (/tableur|rempli|feuille/.test(t)) f = "tableur";
+  else if (/seuil|objectif|cible|priorit/.test(t)) f = "cible";
+  else if (type === "etapes") f = "liste";
+  else if (/semaine|mois|lundi|calendrier|année|jour/.test(t)) f = "calendrier";
+  else if (/chiffre|stock|tableau|vente|catalogue|valeur|article/.test(t)) f = "graphique";
+  else f = "liste";
+  const num = Number(/(\d+)\s*$/.exec(idScene)?.[1] ?? 0);
+  return num % 2 === 1 ? (AUTRE_FORME[f] ?? f) : f;
 }
 
 /** Icône animée à droite des cartes (4 colonnes) : grande, qui flotte (sinus vertical ±14 px, période 3 s) et s'anime selon sa nature. */
@@ -513,7 +519,7 @@ function iconeDroite(s: SceneListe | SceneEtapes, tl: number, p: Palette): Eleme
   const zone = { x: colX(8), largeur: colsL(4) };
   const cote = 420;
   const cy = HAUT_SCENE + (BAS_SCENE - HAUT_SCENE) / 2;
-  const forme = formeDeListe(s.elements.map((e) => e.texte), s.type);
+  const forme = formeDeListe(s.elements.map((e) => e.texte), s.type, s.id);
   return formeEl(`${s.id}:forme`, forme, { x: zone.x + (zone.largeur - cote) / 2 + 8 * souffle(tl, 3000, Math.PI / 2), y: cy - cote / 2 + 14 * souffle(tl, 3000), largeur: cote, hauteur: cote }, p.accent, douce(prog(tl, 200, 900)), 12, 1);
 }
 
@@ -531,7 +537,8 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   const S = ZONES_LONGUE.scene;
   const out: ElementPose[] = [];
   const aCompte = s.compte !== null;
-  const largeurListe = aCompte ? colsL(9) : colsL(8);
+  const avecIcone = !aCompte && s.elements.length <= 2;
+  const largeurListe = aCompte ? colsL(9) : avecIcone ? colsL(8) : S.largeur;
   const zoneH = BAS_SCENE - HAUT_SCENE;
   let hTitre = 0;
   let aTitre: { taille: number; lignes: string[][] } | null = null;
@@ -545,14 +552,16 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   const marque = s.titre ? 28 : 68;
   const pad = 40;
   const minH = n <= 2 ? 210 : n === 3 ? 170 : n === 4 ? 120 : 92;
-  // Colonnes et taille : la plus grande qui tient (jamais sous 44 px).
+  // Taille et colonnes : la plus grande taille qui tient (60 px et plus tant que possible, 56 px au moins avant de descendre).
   let choix: { colonnes: number; taille: number; hLigne: number; lignes: string[][][] } | null = null;
-  for (const colonnes of n >= 4 ? [1, 2] : [1]) {
-    const largeurCarte = (largeurListe - (colonnes - 1) * gap) / colonnes;
-    const largeurTexte = largeurCarte - pad - marque - 28 - pad;
-    const rangs = Math.ceil(n / colonnes);
-    for (const taille of n <= 3 ? [60, 56, 52, 50, 48, 46, 44] : [56, 52, TAILLES_LONGUE.liste, 48, 46, 44]) {
+  const tailles = n <= 2 ? [66, 64, 62, 60, 56, 52, 48, 44] : [62, 60, 58, 56, 52, 50, 48, 46, 44];
+  for (const taille of tailles) {
+    for (const colonnes of n >= 3 ? [1, 2] : [1]) {
+      const largeurCarte = (largeurListe - (colonnes - 1) * gap) / colonnes;
+      const largeurTexte = largeurCarte - pad - marque - 28 - pad;
+      const rangs = Math.ceil(n / colonnes);
       const lignes = s.elements.map((e) => coupe(e.texte, taille, 600, largeurTexte));
+      if (Math.max(...lignes.map((l) => l.length)) > 2 && taille > 44) continue;
       const besoin = Math.max(...lignes.map((l) => hauteurLignes(l.length, taille, 1.2))) + 40;
       const hLigne = Math.max(minH, besoin);
       if (rangs * hLigne + (rangs - 1) * gap <= dispo) {
@@ -579,7 +588,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   });
   const avance = s.elements.map((_e, i) => douce(prog(t, app[i], 400)));
   // Le bloc (titre compris) est centré sur ce qui est DÉJÀ affiché et glisse doucement quand une rangée arrive.
-  const poidsRang = Array.from({ length: rangs }, (_x, r) => Math.max(0, ...avance.filter((_v, i) => (colonnes === 2 ? Math.floor(i / 2) : i) === r)));
+  const poidsRang = Array.from({ length: rangs }, () => 1); // grille fixe dès le début : rien ne remonte
   const hVu = Math.max(0, poidsRang.reduce((a, w) => a + w * (hRang + gap), 0) - gap * (poidsRang.some((w) => w > 0) ? 1 : 0));
   const dernier = poidsRang.reduce((m, w, r) => (w > 0 ? r : m), -1);
   const etendue = dernier < 0 ? 0 : poidsRang.slice(0, dernier).reduce((a, w) => a + w * (hRang + gap), 0) + hRang;
@@ -591,15 +600,20 @@ function liste(s: SceneListe, t: number): ElementPose[] {
     out.push(texteEl({ id: `${s.id}:titre`, x: S.x, y: yTop, largeur: largeurListe, texte: s.titre ?? "", taille: aTitre.taille, graisse: 800, couleur: p.texte, interligne: 1.1, lignes: aTitre.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
   }
   s.elements.forEach((el, i) => {
-    if (t <= app[i]) return; // aucune case fantôme
     const col = colonnes === 2 ? i % 2 : 0;
     const rang = colonnes === 2 ? Math.floor(i / 2) : i;
     const cx = S.x + col * (largeurCarte + gap);
-    const fl = FLOTTE_CARTE_PX * souffle(tl, 3000, i * 1.7);
+    const fl = FLOTTE_CARTE_PX * souffle(tl, 3000 + i * 260, i * 1.7);
     const cy = y0 + poidsRang.slice(0, rang).reduce((a, w) => a + w * (hRang + gap), 0) + fl;
     const e = avance[i];
     const courant = i === actif;
     const rect = { x: cx, y: cy, largeur: largeurCarte, hauteur: hRang };
+    if (t <= app[i]) {
+      // Élément à venir : contour terracotta en pointillé et repère visible, sans texte (filigrane léger).
+      const eF = douce(prog(tl, 80 + i * 90, 400));
+      out.push(carteEl(`${s.id}:fili${i}`, rect, undefined, p.accent, eF * (0.3 + 0.25 * onde(tl, 2000, i * 2.1)), 28, 3));
+      return;
+    }
     if (courant) out.push(halo(`${s.id}:carte${i}`, rect, tl, e, 28, p));
     out.push(carteEl(`${s.id}:carte${i}`, rect, p.carte, courant ? p.accent : p.bordure, e, 28, courant ? 4 : 2));
     const hT = hauteurLignes(lignes[i].length, taille, 1.2);
@@ -608,7 +622,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
       const d = 28 * (0.35 + 0.65 * rebond(prog(t, app[i], 450))) + (e >= 1 ? 6 * souffle(tl, 2200, i) : 0);
       out.push(disqueEl(`${s.id}:puce${i}`, cx + pad + marque / 2, cy + hRang / 2, Math.max(8, d), p.accent, undefined, e, 0, `${s.id}:carte${i}`));
     } else {
-      out.push(texteEl({ id: `${s.id}:num${i}`, x: cx + pad, y: cy + (hRang - 80) / 2, largeur: marque, texte: String(i + 1), taille: 80, graisse: 800, couleur: p.accent, interligne: 1.0, opacite: e, dans: `${s.id}:carte${i}` }));
+      out.push(texteEl({ id: `${s.id}:num${i}`, x: cx + pad, y: cy + (hRang - 88) / 2 + 5 * souffle(tl, 1800, i * 1.3), largeur: marque + 12, texte: String(i + 1), taille: 88, graisse: 800, couleur: p.accent, interligne: 1.0, opacite: e, dans: `${s.id}:carte${i}` }));
     }
     out.push(
       texteEl({
@@ -645,7 +659,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
       const valeur = Math.round(s.compte * douce(prog(tl, 650, 900)));
       out.push(texteEl({ id: `${s.id}:compte`, x: cxp - 130, y: cyp - 70, largeur: 260, texte: String(valeur), taille: 140, graisse: 800, couleur: p.surAccent, interligne: 1.0, alignement: "centre", opacite: prog(tl, 600, 250), dans: idP }));
     }
-  } else {
+  } else if (avecIcone) {
     out.push(iconeDroite(s, tl, p));
   }
   return out;
@@ -661,71 +675,83 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   const S = ZONES_LONGUE.scene;
   const out: ElementPose[] = [];
   const n = s.elements.length;
+  const avecIcone = n <= 2;
   const d = n >= 4 ? 96 : 120;
   const dispo = BAS_SCENE - HAUT_SCENE;
+  const largeurZone = avecIcone ? colsL(8) : S.largeur;
   const xCarte = S.x + d + 32;
-  const lCarte = colsL(8) - d - 32;
+  const lCarte = largeurZone - d - 32;
   const lTexte = lCarte - 96;
   const app = apparitions(s.elements.map((e) => e.apparitionMs), s.debutMs, 450, 220);
   let actif = -1;
   app.forEach((a, i) => {
     if (t >= a) actif = i;
   });
-  // Même taille pour toutes les étapes ; chaque carte a la hauteur de ses lignes réelles ; le bloc est centré sur sa taille finale.
-  const minH = n <= 2 ? 200 : n === 3 ? 170 : n === 4 ? 132 : 92;
-  const maxH = n <= 3 ? 280 : 240;
-  const gap0 = n >= 5 ? 12 : 28;
-  let taille: number = 60;
+  // Grille FIXE dès le début de la scène : les positions finales de toutes les étapes sont connues, rien ne remonte.
+  // Texte 52 px au moins (56 et plus si possible, 60 et plus avec 1 ou 2 étapes), 1 à 2 lignes.
+  const minH = n <= 2 ? 200 : n === 3 ? 170 : n === 4 ? 130 : 96;
+  const maxH = n <= 3 ? 280 : 200;
+  const gap0 = n >= 5 ? 14 : 28;
+  const tailles = n <= 2 ? [64, 60, 56, 52] : n <= 4 ? [60, 58, 56, 52] : [56, 54, 52];
+  let taille = tailles[tailles.length - 1];
   let gap = gap0;
   let lignesDe: string[][][] = [];
   let hautes: number[] = [];
-  for (const cand of n >= 4 ? [52, TAILLES_LONGUE.etape, 46, 44] : [60, 56, 52, TAILLES_LONGUE.etape, 46, 44]) {
+  for (const cand of tailles) {
     taille = cand;
     lignesDe = s.elements.map((e) => coupe(e.texte, cand, 600, lTexte));
-    hautes = lignesDe.map((l) => Math.min(maxH, Math.max(minH, hauteurLignes(l.length, cand, 1.2) + (n >= 5 ? 28 : 36))));
+    hautes = lignesDe.map((l) => Math.min(maxH, Math.max(minH, hauteurLignes(l.length, cand, 1.2) + 24)));
     gap = gap0;
-    if (hautes.reduce((a, b) => a + b, 0) + (n - 1) * gap <= dispo) break;
+    if (Math.max(...lignesDe.map((l) => l.length)) <= 2 && hautes.reduce((a, b) => a + b, 0) + (n - 1) * gap <= dispo) break;
   }
   const somme = hautes.reduce((a, b) => a + b, 0);
   if (somme + (n - 1) * gap > dispo) gap = Math.max(10, (dispo - somme) / Math.max(1, n - 1));
-  // Le bloc est centré sur ce qui est DÉJÀ affiché et glisse doucement quand une étape arrive.
-  const avance = s.elements.map((_e, i) => douce(prog(t, app[i], 400)));
-  const hVu = Math.max(0, avance.reduce((a, w, i) => a + w * (hautes[i] + gap), 0) - (avance.some((w) => w > 0) ? gap : 0));
-  const dernier = avance.reduce((m, w, i) => (w > 0 ? i : m), -1);
-  const etendue = dernier < 0 ? 0 : avance.slice(0, dernier).reduce((a, w, i) => a + w * (hautes[i] + gap), 0) + hautes[dernier];
-  const y0 = Math.max(HAUT_SCENE, Math.min(HAUT_SCENE + (dispo - hVu) / 2, BAS_SCENE - etendue));
+  // Les cartes sont réparties sur toute la hauteur utile quand il reste de la place (jamais plus de 60 px d'écart).
+  else if (n > 1) gap = Math.min(60, Math.max(gap, (dispo - somme) / (n - 1)));
+  const total = hautes.reduce((a, b) => a + b, 0) + (n - 1) * gap;
+  const y0 = Math.max(HAUT_SCENE, HAUT_SCENE + (dispo - total) / 2);
   const tops: number[] = [];
-  hautes.reduce((acc, h, i) => ((tops[i] = acc), acc + avance[i] * (h + gap)), y0);
+  hautes.reduce((acc, h, i) => ((tops[i] = acc), acc + h + gap), y0);
+  const fond: CouleurLongue = p.fond === "noir" ? "noir" : "ivoire";
   s.elements.forEach((el, i) => {
-    if (t <= app[i]) return; // aucune case fantôme : ni carte, ni disque avant le texte
-    const fl = FLOTTE_CARTE_PX * souffle(tl, 3000, i * 1.7);
+    const fl = FLOTTE_CARTE_PX * souffle(tl, 3000 + i * 260, i * 1.7);
     const ry = tops[i] + fl;
     const hRang = hautes[i];
-    const e = douce(prog(t, app[i], 380));
+    const lu = t > app[i];
+    const e = lu ? douce(prog(t, app[i], 380)) : 0;
+    const eFond = douce(prog(tl, 80 + i * 90, 400));
     const courant = i === actif;
     const idCarte = `${s.id}:carte${i}`;
     const rect = { x: xCarte, y: ry, largeur: lCarte, hauteur: hRang };
-    if (courant) out.push(halo(idCarte, rect, tl, e, 32, p));
-    out.push(carteEl(idCarte, rect, p.carte, courant ? p.accent : p.bordure, e, 32, courant ? 4 : 2));
-    const lignes = lignesDe[i];
-    const hT = hauteurLignes(lignes.length, taille, 1.2);
-    out.push(texteEl({ id: `${s.id}:texte${i}`, x: xCarte + 48, y: ry + (hRang - hT) / 2, largeur: lTexte, texte: el.texte, taille, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: 1.2, lignes, opacite: e, dy: 20 * (1 - e), dans: idCarte }));
-    // Disque : plein pour l'étape lue (il pulse), au trait sinon.
-    const pop = courant ? Math.min(1, 0.82 + 0.18 * rebond(prog(t, app[i] + 120, 450))) * (0.9 + 0.1 * onde(tl, 1500)) : 1;
-    const idD = `${s.id}:disque${i}`;
-    const cx = S.x + d / 2;
+    const cx = S.x + d * 0.55;
     const cy = ry + hRang / 2;
-    const dd = d * pop;
-    out.push(disqueEl(idD, cx, cy, dd, courant ? p.accent : p.fond === "noir" ? "noir" : "ivoire", p.accent, e, courant ? 0 : 5));
-    out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - dd / 2, y: cy - (n >= 4 ? 34 : 44), largeur: dd, texte: String(s.numeroDepart + i), taille: n >= 4 ? 68 : 88, graisse: 800, couleur: courant ? p.surAccent : p.accent, interligne: 1.0, alignement: "centre", opacite: e, dans: idD }));
+    if (!lu) {
+      // Étape à venir : contour terracotta en pointillé et numéro visible, sans texte (filigrane léger).
+      const respire = 0.3 + 0.25 * onde(tl, 2000, i * 2.1);
+      out.push(carteEl(`${s.id}:fili${i}`, rect, undefined, p.accent, respire * eFond, 32, 3));
+      out.push(disqueEl(`${s.id}:disque${i}`, cx, cy, d, fond, p.accent, respire * eFond, 4));
+      out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - d / 2, y: cy - (n >= 4 ? 34 : 44), largeur: d, texte: String(s.numeroDepart + i), taille: n >= 4 ? 68 : 88, graisse: 800, couleur: p.accent, interligne: 1.0, alignement: "centre", opacite: respire * eFond, dans: `${s.id}:disque${i}` }));
+    } else {
+      if (courant) out.push(halo(idCarte, rect, tl, e, 32, p));
+      out.push(carteEl(idCarte, rect, p.carte, courant ? p.accent : p.bordure, e, 32, courant ? 4 : 2));
+      const lignes = lignesDe[i];
+      const hT = hauteurLignes(lignes.length, taille, 1.2);
+      out.push(texteEl({ id: `${s.id}:texte${i}`, x: xCarte + 48, y: ry + (hRang - hT) / 2, largeur: lTexte, texte: el.texte, taille, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: 1.2, lignes, opacite: e, dy: 20 * (1 - e), dans: idCarte }));
+      // Disque : l'étape lue s'allume (plein, il pulse), les étapes déjà lues restent au trait.
+      const pop = courant ? Math.min(1, 0.82 + 0.18 * rebond(prog(t, app[i] + 120, 450))) * (0.9 + 0.1 * onde(tl, 1500)) : 1;
+      const idD = `${s.id}:disque${i}`;
+      const dd = d * pop * (1 + 0.04 * souffle(tl, 2000, i * 1.3));
+      out.push(disqueEl(idD, cx, cy, dd, courant ? p.accent : fond, p.accent, 1, courant ? 0 : 5));
+      out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - dd / 2, y: cy - (n >= 4 ? 34 : 44), largeur: dd, texte: String(s.numeroDepart + i), taille: n >= 4 ? 68 : 88, graisse: 800, couleur: courant ? p.surAccent : p.accent, interligne: 1.0, alignement: "centre", opacite: 1, dans: idD }));
+    }
     if (i > 0) {
-      const haut = tops[i - 1] + FLOTTE_CARTE_PX * souffle(tl, 3000, (i - 1) * 1.7) + hautes[i - 1] / 2 + d / 2 + 6;
+      const haut = tops[i - 1] + FLOTTE_CARTE_PX * souffle(tl, 3000 + (i - 1) * 260, (i - 1) * 1.7) + hautes[i - 1] / 2 + d / 2 + 6;
       const bas = cy - d / 2 - 6;
-      const q = douce(prog(t, app[i], 520));
+      const q = lu ? douce(prog(t, app[i], 520)) : 0;
       if (q > 0 && bas > haut) out.push({ ...traitEl(`${s.id}:lien${i}`, { x: cx - 3, y: haut, largeur: 6, hauteur: (bas - haut) * q }, p.accent, 1, 1), trace: arrondi(q) });
     }
   });
-  out.push(iconeDroite(s, tl, p));
+  if (avecIcone) out.push(iconeDroite(s, tl, p));
   return out;
 }
 
@@ -773,6 +799,10 @@ function chiffre(s: SceneChiffre, t: number): ElementPose[] {
     const respire = 20 * souffle(tl, 2400);
     const trace = douce(prog(tl, 250, 900));
     out.push(formeEl(idR, "cercle", { x: cx - (dRing + respire) / 2, y: cy - (dRing + respire) / 2, largeur: dRing + respire, hauteur: dRing + respire }, p.accent, trace, 16, 0.95));
+    // Un point d'accent parcourt l'anneau en orbite (un tour en 2,4 s).
+    const angleO = (2 * Math.PI * tl) / 2400 - Math.PI / 2;
+    const rO = (dRing + respire) / 2;
+    out.push(disqueEl(`${s.id}:orbite`, cx + rO * Math.cos(angleO), cy + rO * Math.sin(angleO), 40, p.accent, undefined, borne(prog(tl, 700, 300)), 0, idR));
     // Le compteur part au début de la scène et atteint la valeur en 900 ms.
     const debut = s.debutMs + 300;
     const av = douce(prog(t, debut, 900));
@@ -804,7 +834,10 @@ function chiffre(s: SceneChiffre, t: number): ElementPose[] {
         const q = douce(prog(t, debut + (k * 900) / blocs, 260));
         if (q > 0) {
           const dd = tBloc * (0.5 + 0.5 * q);
-          out.push(carteEl(`${s.id}:bloc${k}-plein`, { x: x + (tBloc - dd) / 2, y: y + (tBloc - dd) / 2, largeur: dd, hauteur: dd }, p.accent, undefined, q, 12, 0, idB));
+          // Une fois remplis, les blocs scintillent en vague (taille et opacité).
+          const vague = q >= 1 ? onde(tl, 1400, -k * 0.55) : 0;
+          const ddv = q >= 1 ? tBloc * (0.62 + 0.38 * vague) : dd;
+          out.push(carteEl(`${s.id}:bloc${k}-plein`, { x: x + (tBloc - ddv) / 2, y: y + (tBloc - ddv) / 2, largeur: ddv, hauteur: ddv }, p.accent, undefined, q >= 1 ? 0.55 + 0.45 * vague : q, 12, 0, idB));
         }
       }
     }
@@ -993,7 +1026,7 @@ function fin(s: SceneFin, t: number): ElementPose[] {
   const debutB = 0;
   const eB = douce(prog(tl, debutB, 350));
   const enPulse = tl > debutB + 400;
-  const pulse = enPulse ? 1 + 0.04 * (0.5 + 0.5 * souffle(tl, 1400, -Math.PI / 2)) : 1;
+  const pulse = enPulse ? 1 + 0.04 * (0.5 + 0.5 * souffle(tl, 1600, -Math.PI / 2)) : 1;
   const cy = g.yBouton + g.hBouton / 2 + 60 * (1 - eB);
   const idB = `${s.id}:bouton`;
   out.push({

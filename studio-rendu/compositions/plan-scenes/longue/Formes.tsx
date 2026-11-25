@@ -82,7 +82,7 @@ export function Forme({ forme, trace, couleur, epaisseur, t, largeur }: { forme:
         <line x1="50" y1="50" x2="50" y2="34" transform={`rotate(${(t * 8) % 360} 50 50)`} />
       </g>
     );
-  if (forme === "cercle" && fini) extra = <circle cx={50 + 42 * Math.cos(t * 1.4 - Math.PI / 2)} cy={50 + 42 * Math.sin(t * 1.4 - Math.PI / 2)} r={e * 1.3} fill={couleur} />;
+  if (forme === "cercle" && fini) extra = <circle cx="50" cy="50" r={30 + 6 * onde(t, 2)} fill="none" stroke={couleur} strokeWidth={e} opacity={0.25 + 0.4 * onde(t, 2)} />;
   if (forme === "fleche" && fini) {
     // Trois points qui avancent le long de la flèche.
     extra = (

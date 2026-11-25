@@ -102,13 +102,54 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
       vues = n;
     }
   });
-  it("une liste ou des étapes ont une icône à droite (jamais une demi-image vide)", () => {
+  it("1 ou 2 éléments : icône à droite et texte ≥ 60 px ; 3 ou plus : pas d'icône, pleine largeur, texte ≥ 56 px (≥ 52 px avec 5 étapes)", () => {
     for (const s of sb.scenes) {
       if (s.type !== "etapes" && !(s.type === "liste" && s.compte === null)) continue;
-      const f = poserScene(s, s.debutMs + 1000).find((x) => x.nature === "forme");
-      expect(f, s.id).toBeDefined();
-      expect(f!.rect.largeur).toBeGreaterThanOrEqual(400);
+      const els = poserScene(s, s.finMs - 200);
+      const n = s.elements.length;
+      const f = els.find((x) => x.nature === "forme");
+      const textes = els.filter((x) => /:texte\d$/.test(x.id));
+      expect(textes, s.id).toHaveLength(n);
+      for (const x of textes) {
+        expect(x.lignes!.length, `${x.id}`).toBeLessThanOrEqual(2);
+        expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(n <= 2 ? 60 : s.type === "etapes" && n >= 5 ? 52 : 56);
+      }
+      if (n <= 2) {
+        expect(f, s.id).toBeDefined();
+        expect(f!.rect.largeur).toBeGreaterThanOrEqual(400);
+      } else {
+        expect(f, s.id).toBeUndefined();
+        expect(Math.max(...els.filter((x) => /:carte\d$/.test(x.id)).map((x) => x.rect.x + x.rect.largeur))).toBeGreaterThan(1700);
+      }
     }
+  });
+  it("5 étapes : marge haute ≥ 100 px, étapes à venir en filigrane dès le début, numéros visibles", () => {
+    const e = sb.scenes.find((s) => s.type === "etapes")!;
+    const els = poserScene(e, e.debutMs + 1000);
+    expect(els.filter((x) => /:fili\d$/.test(x.id)).length).toBeGreaterThanOrEqual(4);
+    expect(els.filter((x) => /:num\d$/.test(x.id))).toHaveLength(5);
+    for (const x of poserScene(e, e.debutMs + 3000)) if (!/:progres/.test(x.id)) expect(x.rect.y).toBeGreaterThanOrEqual(100);
+  });
+  it("deux scènes voisines n'ont jamais la même icône de liste ou d'étapes", () => {
+    const formes = (s: SceneLongue) => poserScene(s, s.debutMs + 1000).find((x) => x.nature === "forme" && /:forme$/.test(x.id))?.forme;
+    sb.scenes.forEach((s, i) => {
+      const p = sb.scenes[i - 1];
+      if (i === 0 || (s.type !== "liste" && s.type !== "etapes") || (p.type !== "liste" && p.type !== "etapes")) return;
+      const a = formes(s);
+      if (a) expect(a, s.id).not.toBe(formes(p));
+    });
+    expect(formeDeListe(["Un message part"], "etapes", "s09")).not.toBe(formeDeListe(["Un message part"], "etapes", "s10"));
+  });
+  it("tuiles : posées dès le début en contour terracotta, pastille accolée au titre avec le compte final", () => {
+    const l = sb.scenes.find((s) => s.type === "liste" && s.compte !== null && s.elements.length <= 4)!;
+    const els = poserScene(l, l.debutMs + 700);
+    const tuiles = els.filter((x) => /:tuile\d$/.test(x.id));
+    expect(tuiles).toHaveLength(l.elements.length);
+    expect(tuiles.every((x) => x.bordure === "terracotta")).toBe(true);
+    const titre = els.find((x) => x.id.endsWith(":titre"))!;
+    const pastille = els.find((x) => x.id.endsWith(":pastille"))!;
+    expect(pastille.rect.x - (titre.rect.x + titre.rect.largeur)).toBeLessThanOrEqual(80);
+    expect(els.find((x) => x.id.endsWith(":compte"))!.lignes![0][0].texte).toBe(String(l.compte));
   });
   it("formeDeListe : sens juste", () => {
     expect(formeDeListe(["Un message part"], "etapes")).toBe("cloche");

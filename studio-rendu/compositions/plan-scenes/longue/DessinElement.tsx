@@ -51,7 +51,7 @@ export function DessinElement({ el, tMs }: { el: ElementPose; tMs: number }) {
     );
   }
   if (el.nature === "carte" || el.nature === "volet") {
-    return <div data-id={el.id} style={{ ...base, background: c(el.fond), border: el.bordure ? `${el.epaisseurPx ?? 2}px solid ${c(el.bordure)}` : undefined, borderRadius: el.rayonPx ?? 0 }} />;
+    return <div data-id={el.id} style={{ ...base, background: c(el.fond), border: el.bordure ? `${el.epaisseurPx ?? 2}px ${el.id.includes(":fili") ? "dashed" : "solid"} ${c(el.bordure)}` : undefined, borderRadius: el.rayonPx ?? 0 }} />;
   }
   if (el.nature === "disque") {
     return <div data-id={el.id} style={{ ...base, borderRadius: "50%", background: c(el.fond), border: el.bordure && (el.epaisseurPx ?? 0) > 0 ? `${el.epaisseurPx}px solid ${c(el.bordure)}` : undefined }} />;

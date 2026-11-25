@@ -62,7 +62,7 @@ describe("mise en page de la vidéo longue", () => {
           const b = els[j];
           if (a.opacite <= 0 || b.opacite <= 0) continue;
           // Le halo est un filet qui pulse DANS sa carte : il recouvre exprès ce que la carte contient.
-          if (a.id.endsWith(":halo") || b.id.endsWith(":halo")) continue;
+          if (/:(halo|orbite)$/.test(a.id) || /:(halo|orbite)$/.test(b.id)) continue;
           if (ancetres(a, els).has(b.id) || ancetres(b, els).has(a.id)) continue;
           expect(recouvre(a.rect, b.rect), `${a.id} / ${b.id} à ${t} ms`).toBe(false);
         }
@@ -75,7 +75,7 @@ describe("mise en page de la vidéo longue", () => {
       for (const e of els) {
         if (!e.dans) continue;
         const parent = els.find((x) => x.id === e.dans);
-        if (!parent || e.id.endsWith(":onde") || e.nature === "trait") continue;
+        if (!parent || e.id.endsWith(":onde") || e.id.endsWith(":orbite") || e.nature === "trait") continue;
         expect(dedans(e.rect, parent.rect), `${e.id} dans ${parent.id} à ${t} ms`).toBe(true);
       }
     }
@@ -124,7 +124,7 @@ describe("mise en page de la vidéo longue", () => {
       if (s.type !== "liste" && s.type !== "etapes") continue;
       for (const e of els) {
         const m = /^(.*):(?:carte|tuile)(\d+)$/.exec(e.id);
-        if (!m) continue;
+        if (!m || m[0].includes(":tuile")) continue; // les tuiles sont posées dès le début (contour terracotta)
         const texte = els.find((x) => x.id === `${m[1]}:texte${m[2]}`);
         expect(texte, `${e.id} à ${t} ms : carte sans texte`).toBeDefined();
         expect(texte!.opacite, `${e.id} à ${t} ms`).toBeGreaterThan(0);
@@ -137,7 +137,7 @@ describe("mise en page de la vidéo longue", () => {
     const els = poserScene(l, l.finMs - 100);
     const tuiles = els.filter((e) => /:tuile\d$/.test(e.id));
     expect(tuiles).toHaveLength(3);
-    expect(Math.max(...tuiles.map((e) => e.rect.y)) - Math.min(...tuiles.map((e) => e.rect.y))).toBeLessThanOrEqual(10);
+    expect(Math.max(...tuiles.map((e) => e.rect.y)) - Math.min(...tuiles.map((e) => e.rect.y))).toBeLessThanOrEqual(14);
     expect(els.filter((e) => /:icone\d$/.test(e.id))).toHaveLength(3);
     expect(new Set(els.filter((e) => /:icone\d$/.test(e.id)).map((e) => e.forme)).size).toBe(3);
     const nombres = els.filter((e) => e.nature === "texte").flatMap((e) => (e.lignes ?? []).flat().map((m) => m.texte)).filter((x) => /\d/.test(x));
@@ -178,15 +178,19 @@ describe("mise en page de la vidéo longue", () => {
     }
   });
 
-  it("liste et étapes : le bloc est centré sur ce qui est déjà affiché", () => {
+  it("étapes : grille fixée dès le début de la scène (aucune remontée de bloc), étapes à venir en filigrane", () => {
     for (const s of sb.scenes) {
       if (s.type !== "etapes") continue;
-      const els = poserScene(s, s.debutMs + 450 + 420).filter((e) => /:carte\d$/.test(e.id));
-      expect(els.length).toBeGreaterThan(0);
-      const haut = Math.min(...els.map((e) => e.rect.y));
-      const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
-      const centre = (haut + bas) / 2;
-      expect(Math.abs(centre - (106 + 694 / 2)), s.id).toBeLessThan(60);
+      const fin = poserScene(s, s.finMs - 100).filter((e) => /:carte\d$/.test(e.id));
+      const debut = poserScene(s, s.debutMs + 1000);
+      expect(fin).toHaveLength(s.elements.length);
+      const fili = debut.filter((e) => /:fili\d$/.test(e.id));
+      expect(fili.length + debut.filter((e) => /:carte\d$/.test(e.id)).length, s.id).toBe(s.elements.length);
+      for (const c of fin) {
+        const i = /(\d+)$/.exec(c.id)![1];
+        const avant = debut.find((e) => e.id === c.id || e.id.endsWith(`:fili${i}`));
+        expect(Math.abs(avant!.rect.y - c.rect.y), `${c.id}`).toBeLessThanOrEqual(14);
+      }
     }
   });
 

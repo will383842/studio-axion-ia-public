@@ -25,7 +25,7 @@ function Couche({ scene, t, style }: { scene: SceneLongue; t: number; style?: Re
         {poserScene(scene, t).map((el) => (
           <DessinElement key={el.id} el={el} tMs={t} />
         ))}
-        {scene.type === "fin" && <Img src={logo} style={{ position: "absolute", left: lg.x, top: lg.y, height: lg.hauteur, width: lg.largeur, opacity: entreeLogo, transform: `translateY(${20 * (1 - entreeLogo)}px) scale(${1 + 0.02 * Math.sin(t / 700)})` }} />}
+        {scene.type === "fin" && <Img src={logo} style={{ position: "absolute", left: lg.x, top: lg.y, height: lg.hauteur, width: lg.largeur, opacity: entreeLogo, transform: `translateY(${20 * (1 - entreeLogo) + 6 * Math.sin((2 * Math.PI * (t - scene.debutMs)) / 3000)}px) scale(${1 + 0.02 * Math.sin(t / 700)})` }} />}
       </AbsoluteFill>
       {bande && (
         <div style={{ position: "absolute", left: 0, top: ZONES_LONGUE.bandeSousTitres.y, width: 1920, height: ZONES_LONGUE.bandeSousTitres.hauteur, background: COULEURS_LONGUE.gris }}>
