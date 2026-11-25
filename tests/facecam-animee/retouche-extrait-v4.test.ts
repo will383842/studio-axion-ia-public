@@ -184,6 +184,7 @@ describe("R4-03-b1 · gardes statiques", () => {
     parcourir(join(racine, "src"));
     const autorise = join(racine, "src/services/retouche-extrait-v4-demande.ts");
     const importeurs = fichiers.filter((f) => f !== chemin && /(?<!sources-)retouche-extrait-v4["']/.test(readFileSync(f, "utf8")));
-    expect(importeurs).toEqual([autorise]);
+    // MAJ 25/11 (R4-03-c2-v20j, voulue, à relire) : `src/moteurs/montage-facecam-animee/index.ts` est le second importeur permis (import dynamique, derrière le réglage éteint `retoucheChat.facecamAnimeeExtraits`). Tout AUTRE fichier reste refusé.
+    expect([...importeurs].sort()).toEqual([autorise, join(racine, "src/moteurs/montage-facecam-animee/index.ts")].sort());
   });
 });

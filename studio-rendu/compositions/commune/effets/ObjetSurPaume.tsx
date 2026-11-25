@@ -16,6 +16,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, Img, OffthreadVideo, useCurrentFrame } from "remotion";
 import { elevationSurPaume } from "../../../../src/briques/effets-speciaux/main";
 import type { CapsulePx, CarteEnvironnement, Lumiere, PoseObjet, ProprietesEffetObjetMain } from "../../../../src/briques/effets-speciaux/types";
+import { policeMarquePrete } from "../police-marque";
 import { construireLogo, construireTelephone, dessinerEcran } from "./objets-realistes";
 import { construireObjet } from "./objets";
 import { trois, type Trois } from "./trois";
@@ -282,13 +283,16 @@ export function ObjetSurPaume(p: ProprietesEffetObjetMain) {
   const sortie = useRef<HTMLCanvasElement>(null);
   const scene = useRef<Scene3D | null>(null);
   const [attente] = useState(() => delayRender("Objet posé : préparation de la scène"));
+  const [policePrete, setPolicePrete] = useState(false);
+  // POLICES-P5-b : le canevas de l'écran n'emploie que les polices déjà chargées ; échec = rendu arrêté par le chargeur.
+  useEffect(() => { let vivant = true; policeMarquePrete().then(() => vivant && setPolicePrete(true), () => undefined); return () => { vivant = false; }; }, []);
   const pose = p.poses[Math.min(image, p.poses.length - 1)];
   const boite = useMemo(() => tailleBoite(p.poses), [p.poses]);
   const visible = !!pose && !!pose.surPaume && pose.visible > 0.002;
   const bx = pose ? Math.round(pose.x - boite / 2) : 0;
   const by = pose ? Math.round(pose.y - boite / 2) : 0;
   useLayoutEffect(() => {
-    if (!gl.current || !sortie.current || !pose) return;
+    if (!gl.current || !sortie.current || !pose || !policePrete) return;
     const g = sortie.current.getContext("2d")!;
     g.clearRect(0, 0, boite, boite);
     if (!visible) return;
@@ -315,8 +319,8 @@ export function ObjetSurPaume(p: ProprietesEffetObjetMain) {
     ajouterGrain(g, boite, boite, p.prise?.grain ?? 2.5, image + 1);
   });
   useEffect(() => {
-    continueRender(attente);
-  }, [attente]);
+    if (policePrete) continueRender(attente);
+  }, [attente, policePrete]);
   const flou = Math.max(0, p.prise?.flouPx ?? 0);
   const doigts = visible ? pose!.surPaume!.doigts : [];
   return (

@@ -69,6 +69,7 @@ import { titreAffiche } from "@/domaine/titres";
 import { CARACTERES_DITS_MAX_TABLEAU, DUREE_MAX_TABLEAU_SEC, caracteresDits, dureeDiteSec } from "@/domaine/duree-tableau";
 import { DOULEUR_MAX_TABLEAU, MOT_DOULEUR_LONGUEUR_MAX, MOTS_DOULEUR_MAX, couperAuMot, douleurDepuisScript, motDouleurDit, nettoyerMotsDouleur, raccourcirDouleur } from "@/domaine/douleur-tableau";
 import { METHODE_PAR_DEFAUT, PARAM_METHODE_TABLEAU, methodeLue, type MethodeTableau } from "./tableau-scripts/consignes";
+import { preteAvecRemarquesActive } from "./tableau-remarques";
 import { depots, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { appelerRejoue, clientRejoue, lireTache, modifierTache, nouvelleTache, NOM_ANNEXE_TABLEAU, phraseErreur, tacheActive, travaillerTaches, vueTache, type TacheTableau, type VueTacheTableau } from "./tableau-taches";
 import { MARGE_CREDITS } from "./credits";
@@ -497,7 +498,7 @@ function coutVoixDe(fiche: FicheTableau, lecturesVoixMax: number): number {
 /**
  * LA relecture d'avant la fabrication, pour un brouillon : `relireFicheTableau` avec EXACTEMENT les entrées que la
  * fabrication lancée depuis ce brouillon recevra (fiche, contexte des règles, sorties des réseaux cochés, fin de chaque
- * sortie avec le mot saisi, case « déjà vu », aucun historique ni preuve injectés : la chaîne n'en reçoit pas non plus).
+ * sortie avec le mot saisi, case « déjà vu » ; l'historique n'est PAS injecté ici alors que la fabrication reçoit l'historique réel : écart assumé, S-13-d).
  */
 export async function relireBrouillonTableau(b: Pick<BrouillonTableau, "donnees" | "dejaVu">, fiche: FicheTableau, contexte: Omit<ContexteTableau, "texteScript">) {
   const sorties = sortiesDesReseaux(b.donnees.reseaux);
@@ -505,6 +506,7 @@ export async function relireBrouillonTableau(b: Pick<BrouillonTableau, "donnees"
     fiche,
     contexte: { ...avecMotsDouleur(contexte, b.donnees), texteScript: texteDitDe(fiche) },
     historique: [],
+    ...((await preteAvecRemarquesActive()) ? { preteAvecRemarques: true as const } : {}), // S-13-d : la console dit la variété comme la fabrication
     sorties,
     choisirFin: choisirFinTableau({}, { sorties, ...(b.donnees.mot ? { mot: b.donnees.mot } : {}) }),
     ...(b.dejaVu ? { dejaVu: b.dejaVu } : {}),

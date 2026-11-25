@@ -1,7 +1,7 @@
 /**
  * BR-TABLEAU-STYLE-b2 : le style tiré du tableau évite les styles des voisines déjà publiées (réglage `varieteCommune`).
  * PAR LE CHEMIN RÉEL : `decouperScriptTableau` puis la boucle de fond `travaillerTachesTableau` (donc `executerDecoupage`),
- * dépôts en mémoire, double de Claude, aucun appel payant. ÉTEINT par défaut : `varieteCommune` absent = tirage identique à master.
+ * dépôts en mémoire, double de Claude, aucun appel payant. ALLUMÉ par défaut (ALLUMER-VARIETE-COMMUNE-v21o) : `false` = tirage identique à master.
  */
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -101,7 +101,7 @@ const huit = async (historique: { videoId: string; style: StyleTableau }[]) => {
 const VOISINE_ARDOISE = [{ videoId: "voisine-0", style: "ardoise" as StyleTableau }];
 
 describe("(a) éteint = identique à master : le tirage ne reçoit aucune liste à éviter", () => {
-  it.each([["absent", undefined], ["false", false], ["'true'", "true"], ["{}", {}], ["{ seuil: 'x' }", { seuil: "x" }], ["null", null], ["1", 1]])("varieteCommune %s : 8 découpages, jamais de `eviter`", async (_n, valeur) => {
+  it.each([["false", false], ["'true'", "true"], ["{}", {}], ["{ seuil: 'x' }", { seuil: "x" }], ["1", 1]])("varieteCommune %s : 8 découpages, jamais de `eviter`", async (_n, valeur) => {
     await preparer(VOISINE_ARDOISE);
     if (valeur !== undefined) await ecrireParametre("varieteCommune", valeur);
     vus.tirages.length = 0;
@@ -130,6 +130,18 @@ describe("(a) éteint = identique à master : le tirage ne reçoit aucune liste 
 });
 
 describe("(b) allumé : le style de la voisine publiée n'est jamais tiré", () => {
+  // ALLUMER-VARIETE-COMMUNE-v21o : absent ou null = allumé par défaut (mêmes attentes que le cas `true` ci-dessous).
+  it.each([["absent", undefined], ["null", null]])("varieteCommune %s : allumé par défaut, `eviter` = [ardoise], jamais ardoise", async (_n, valeur) => {
+    await preparer(VOISINE_ARDOISE);
+    if (valeur !== undefined) await ecrireParametre("varieteCommune", valeur);
+    vus.tirages.length = 0;
+    const styles = await huit(VOISINE_ARDOISE);
+    expect(styles.every((s) => typeof s === "string")).toBe(true);
+    expect(styles).not.toContain("ardoise");
+    const tires = vus.tirages.filter((t) => t !== undefined);
+    expect(tires.length).toBeGreaterThan(0);
+    for (const t of tires) expect(t?.eviter).toEqual(["ardoise"]);
+  });
   it("voisine LinkedIn en ardoise (rang 0), vidéo pour LinkedIn : 8 découpages réels, `eviter` = [ardoise], jamais ardoise", async () => {
     await preparer(VOISINE_ARDOISE);
     await ecrireParametre("varieteCommune", true);
@@ -174,7 +186,7 @@ describe("(d) tout évité, ou voisines illisibles : le découpage aboutit", () 
 describe("(e) un seul lecteur de la clé", () => {
   it("lire-reglage.ts est le seul fichier de src/** qui passe `varieteCommune` à lireParametre", () => {
     const fichiers = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { encoding: "utf8" }).split("\n").filter(Boolean);
-    const lecteurs = fichiers.filter((f) => /lireParametre(?:<[^()]*?>)?\((?:cle, false|CLE_VARIETE_COMMUNE|"varieteCommune")/.test(readFileSync(f, "utf8")) && /varieteCommune|CLE_VARIETE_COMMUNE|lireVarieteCommune/.test(readFileSync(f, "utf8")));
+    const lecteurs = fichiers.filter((f) => /lireParametre(?:<[^()]*?>)?\((?:cle, true|CLE_VARIETE_COMMUNE|"varieteCommune")/.test(readFileSync(f, "utf8")) && /varieteCommune|CLE_VARIETE_COMMUNE|lireVarieteCommune/.test(readFileSync(f, "utf8")));
     expect(lecteurs).toContain("src/services/variete-commune/lire-reglage.ts");
     expect(lecteurs.filter((f) => f !== "src/services/variete-commune/lire-reglage.ts")).toEqual([]);
   });

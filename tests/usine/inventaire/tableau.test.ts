@@ -10,6 +10,7 @@ export const DOMAINE: Domaine = {
     { cle: "tableau.lectureCaptureClaude", etat: "allume", appel: "src/services/lecture-capture-claude.ts", motif: /l<unknown>\(PARAM_LECTURE_CAPTURE_CLAUDE, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
     { cle: "tableau.prononciations", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /lireParametre<unknown>\(PARAM_PRONONCIATIONS_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ }, // S2-16-c-v20l : drapeau figé au lancement, base de prononciation passée au moteur
     { cle: "tableau.raccords", etat: "eteint", appel: "src/services/tableau-branchements.ts", motif: /lireParametre<unknown>\(PARAM_RACCORDS_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ }, // BR-TABLEAU-RACCORDS-c-v20j
+    { cle: "tableau.preteAvecRemarques", etat: "eteint", appel: "src/services/tableau-remarques.ts", motif: /l<unknown>\(PARAM_PRETE_AVEC_REMARQUES, false\)\) === true/ }, // S-13-d-v20j
   ],
   gabarits: [],
   planScenes: {},
