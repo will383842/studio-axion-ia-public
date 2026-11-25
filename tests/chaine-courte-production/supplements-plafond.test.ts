@@ -146,28 +146,23 @@ describe("chaîne courte : un supplément a le plafond du réglage `generateur.p
     }
   }
 
-  it("pire cas au-dessus du réglage : refusé avant le 1er appel, le message et « Reprendre » nomment le réglage ; relevé, la reprise part", async () => {
+  it("pire cas au-dessus du réglage (Studio, repère du 08/11) : pas refusé, l'écriture va au bout, le dépassement est journalisé", async () => {
     const claude = await brancherAuPire();
     const r = await sujetEcrit(CINQ.slice(0, 3));
     await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 0.4);
     const s = await supplement(r.scriptMaitreId, { mode: "teleprompteur" });
     claude.appels.length = 0;
     await bg.tourBoucleGeneration();
-    expect((await depots().generations.obtenir(s.generationId))?.statut).toBe("plafond-atteint");
-    expect(claude.appels).toHaveLength(0);
-    expect(await gc.lireReserveChaine(s.generationId)).toMatchObject({ accepte: false, reglage: "generateur.plafondSujetUsd" });
-    expect(await gc.phraseReserveRefusee(s.generationId)).toMatch(/relevez le réglage « generateur\.plafondSujetUsd »/);
-    const bloque = await bg.devisRepriseDuSujet(r.scriptMaitreId);
-    expect(bloque.possible).toBe(false);
-    expect(bloque.raison).toMatch(/relevez le réglage « generateur\.plafondSujetUsd »/);
-    // Will relève le réglage : la reprise est possible, à un prix confirmé, et va au bout.
-    await ecrireParametre(gc.PARAM_PLAFOND_SUJET, 1.5);
-    const devis = await bg.devisRepriseDuSujet(r.scriptMaitreId);
-    expect(devis.possible).toBe(true);
-    expect(devis.centimesEur).toBeGreaterThan(0);
-    expect(await bg.reprendreEcriture(r.scriptMaitreId, devis.centimesEur)).toBe(1);
-    await bg.tourBoucleGeneration();
-    expect((await depots().generations.obtenir(s.generationId))).toMatchObject({ statut: "terminee", plafondUsd: 1.5 });
+    // Studio (08/11) : le réglage est un repère ; le pire cas le dépasse, l'écriture n'est pas refusée et va au bout.
+    const g = (await depots().generations.obtenir(s.generationId))!;
+    expect(g).toMatchObject({ statut: "terminee", plafondUsd: 0.4 });
+    expect(claude.appels).toEqual(["court-script", "court-relecture", "declinaison", "declinaison"]);
+    const reserve = (await gc.lireReserveChaine(s.generationId))!;
+    expect(reserve).toMatchObject({ accepte: true, chaine: "courte", reglage: "generateur.plafondSujetUsd", plafondUsd: 0.4 });
+    expect(reserve.pireCasUsd).toBeGreaterThan(0.4);
+    expect(gc.depenseGenerationUsd(g)).toBeLessThanOrEqual(reserve.pireCasUsd + 1e-9);
+    // Le dépassement est journalisé (libellé de budget-mensuel.ts:205).
+    expect((await depots().evenements.lister()).map((x) => x.message)).toContain("Budget indicatif dépassé (sujet) : Cette écriture peut coûter plus que le repère du sujet ; rien n'est arrêté.");
   });
 });
 

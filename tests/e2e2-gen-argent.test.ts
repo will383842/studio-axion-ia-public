@@ -112,16 +112,26 @@ describe("E2E-2 argent n° 1 · retouche ratée chez Claude", () => {
     expect(traites).not.toContain("gen-orpheline");
   });
 
-  it("retouche qui attend du crédit : close, message « pas partie », rien n'est compté dans les 5", async () => {
+  it("limite Claude du mois à 0 (repère, 08/11) : la retouche n'attend pas, elle part chez Claude ; réseau coupé : close « échec », version d'avant gardée", async () => {
     const id = await sujetEcrit();
     const v = (await depots().variantes.lister((x) => x.scriptMaitreId === id))[0];
     await ecrireParametre("fournisseur.script", "claude");
-    gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchInterdit, attenteMs: () => 0 });
+    let tentatives = 0;
+    const fetchCompte = (async () => {
+      tentatives++;
+      throw new Error("réseau interdit");
+    }) as typeof fetch;
+    gc.injecterClaudePourEssai({ cle: CLE_ESSAI_CLAUDE, fetch: fetchCompte, attenteMs: () => 0 });
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 0);
     const e = await bg.regenererVariante(v.id, "ameliorer").then(() => null, (x: InstanceType<typeof ErreurStudio>) => x);
-    expect(e?.code).toBe("RETOUCHE_EN_ATTENTE");
+    // 08/11 : la limite du mois est un repère ; la retouche n'est PAS mise en attente, elle part chez Claude (1 tentative).
+    expect(e?.code).toBe("RETOUCHE_INTERROMPUE");
+    expect(e?.message).toBe("Claude n'a pas répondu : la retouche n'a pas abouti et la version d'avant est gardée. Réessayez dans un instant.");
+    expect(tentatives).toBe(1);
+    expect((await depots().evenements.lister()).map((x) => x.message)).toContain("Budget indicatif dépassé (Claude du mois) : Rien n'est arrêté : l'écriture continue (repère du mois). Seul un crédit Claude épuisé la met en attente.");
     expect((await depots().generations.lister((g) => g.portee === "retouche")).map((g) => g.statut)).toEqual(["echec"]);
-    expect(await lireParametre<number>(bg.cleRetouches(v.code), 0)).toBe(0);
+    // L'étape coupée est comptée à son pire cas (dépense non nulle) : la retouche compte dans les 5 (boucle-generation.ts:1342-1345).
+    expect(await lireParametre<number>(bg.cleRetouches(v.code), 0)).toBe(1);
     // Elle ne « reprend » jamais seule, même une fois la limite relevée.
     await gc.definirPlafondMensuelClaude(100);
     expect((await depots().generations.lister((g) => g.portee === "retouche")).map((g) => g.statut)).toEqual(["echec"]);
@@ -185,7 +195,7 @@ describe("E2E-2 argent n° 2 · écriture refusée ou en panne", () => {
 const entree = { contexte: { contexteAxion: "Axion-IA : formations IA pour dirigeants." }, variable: "<brief>Les PV</brief>" };
 
 describe("E2E-2 argent n° 10 (B1) · limite Claude du mois et appels parallèles", () => {
-  it("une limite qui ne permet qu'un appel : 4 appels lancés ensemble, 1 seul part", async () => {
+  it("une limite qui ne permet qu'un appel, 4 appels lancés ensemble : Usine, 1 seul part ; Studio (repère, 08/11), les 4 partent", async () => {
     await credits.declarerRecharge("anthropic", 100_000);
     const appels: string[] = [];
     gc.injecterClaudePourEssai({
@@ -202,9 +212,22 @@ describe("E2E-2 argent n° 10 (B1) · limite Claude du mois et appels parallèle
     const le = new Date().toISOString();
     const g: GenerationScript = { id: "gen-b1", scriptMaitreId: "suj-b1", hachageContexte: "h", plafondUsd: 100, portee: "sujet", etapes: [], statut: "en-cours", creeLe: le, modifieLe: le };
     await depots().generations.enregistrer(g);
-    const res = await Promise.all([1, 2, 3, 4].map(() => gc.executerRoleFacture(g.id, roleSonde, entree)));
+    // Usine (mode-budget.ts:37-39, B1 inchangé) : la limite ne permet qu'un appel → 4 lancés ensemble, 1 seul part.
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    const { moisParis } = await import("@/services/couts");
+    await reglerBudgetUsine({ budget_mensuel_cents: 5_000, mois: moisParis() });
+    const gu: GenerationScript = { ...g, id: "gen-b1-usine", scriptMaitreId: "suj-b1-usine" };
+    await depots().generations.enregistrer(gu);
+    const resU = await Promise.all([1, 2, 3, 4].map(() => gc.executerRoleFacture(gu.id, roleSonde, entree, { origine: "usine" })));
     expect(appels.length).toBe(1);
-    expect(res.filter((x) => x.ok).length).toBe(1);
+    expect(resU.filter((x) => x.ok).length).toBe(1);
+    expect(resU.filter((x) => !x.ok).map((x) => (x as { arret?: string }).arret)).toEqual(["en-attente-credit", "en-attente-credit", "en-attente-credit"]);
+    appels.length = 0;
+    const res = await Promise.all([1, 2, 3, 4].map(() => gc.executerRoleFacture(g.id, roleSonde, entree)));
+    // Studio (08/11) : la limite du mois est un repère, les 4 appels partent (nombre exact), l'écriture reste en cours.
+    expect(appels.length).toBe(4);
+    expect(res.filter((x) => x.ok).length).toBe(4);
+    expect((await depots().generations.obtenir(g.id))!.statut).toBe("en-cours");
   });
 });
 

@@ -114,9 +114,13 @@ describe("RÉEL 2 · F2, F3, F5 — un décor HeyGen depuis « Décrivez »", ()
     expect(CENTIMES_USD_PAR_LOOK).toBe(100);
   });
 
-  it("ROUGE — sans accord : refus « Confirmez d'abord le coût affiché », aucune création", async () => {
-    await expect(decors.creerDecorDepuisDescription(PHRASE, { confirme: false })).rejects.toMatchObject({ code: "CONFIRMATION" });
-    expect(creations()).toEqual([]);
+  it("sans accord (Studio, décision du 08/11, #240) : le décor part quand même, un look, rangé à vérifier, dépense notée", async () => {
+    const avant = await depots().depenses.compter();
+    const r = await decors.creerDecorDepuisDescription(PHRASE, { confirme: false });
+    expect(r.crees).toEqual(["trois-quarts"]);
+    expect(creations()).toHaveLength(1);
+    expect((await depots().elements.obtenir(r.decorId))!.valeur as ValeurDecor).toMatchObject({ methode: "look-heygen", statut: "a_verifier" });
+    expect(await depots().depenses.compter()).toBe(avant + 1);
   });
 
   it("avec accord et second angle : 2 looks dans le GROUPE de Will (référence : son look filmé), décor rangé à vérifier, dépense notée ; aperçu en vignette une fois prêt", async () => {
