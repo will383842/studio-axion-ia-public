@@ -22,6 +22,7 @@ import {
 } from "@/domaine/guides-pdf/guide-fabrique";
 import { empreinteGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { PREFIXE_PARAM_REDACTION, STATUT_A_VALIDER, STATUT_VALIDE, identifiantMot, redigerBrouillonGuide, type ResultatRedaction, type VersionBrouillon } from "./guides-redaction";
+import type { OrigineLancement } from "./budget-mensuel";
 import { envoyerContenuGuide, type ResultatEnvoiContenu } from "./guides-fabrique-site";
 import { PARAM_CIBLES_MIROIR, creerElementCatalogue, delierMot, lireCiblesSite, type ResultatCreation, type ResultatEcriture } from "./cibles-site";
 import { motVersSite, type LiaisonMot } from "@/domaine/guide-reseau/cibles-contrat";
@@ -35,7 +36,7 @@ export interface DepsFabrique {
   ecrireParametre: (id: string, valeur: unknown) => Promise<void>;
   journaliser: (type: string, message: string) => Promise<void>;
   maintenant: () => string;
-  rediger: (mot: string) => Promise<ResultatRedaction>;
+  rediger: (mot: string, origine: OrigineLancement) => Promise<ResultatRedaction>;
   envoyer: (corps: CorpsContenuGuide) => Promise<ResultatEnvoiContenu>;
   creerElement: (o: { titre: string; cheminPdf: string; code: string }) => Promise<ResultatCreation>;
   /** Liaisons du site, lues À NEUF (jamais la copie) ; `null` si le site n'a pas pu être lu. */
@@ -51,7 +52,7 @@ async function depsReelles(): Promise<DepsFabrique> {
     ecrireParametre: commun.ecrireParametre,
     journaliser: (type, message) => commun.journaliser(type, message),
     maintenant: commun.maintenant,
-    rediger: (mot) => redigerBrouillonGuide(mot),
+    rediger: (mot, origine) => redigerBrouillonGuide(mot, origine),
     envoyer: (corps) => envoyerContenuGuide({ corps }),
     creerElement: (o) => creerElementCatalogue({ type: "guide", ...o }),
     lireLiaisons: async () => {
@@ -192,11 +193,11 @@ export async function lireGuideDuMot(mot: string, deps?: DepsFabrique): Promise<
   }
 }
 
-/** Geste 2 : « Rédiger avec l'IA » → brouillon « À valider ». Un appel par geste, un geste à la fois par mot. */
-export async function redigerGuide(mot: string, deps?: DepsFabrique): Promise<ResultatGeste<{ version: number }>> {
+/** Geste 2 : « Rédiger avec l'IA » → brouillon « À valider ». `origine` (OBLIGATOIRE) vient de l'appelant. Un appel par geste, un geste à la fois par mot. */
+export async function redigerGuide(mot: string, origine: OrigineLancement, deps?: DepsFabrique): Promise<ResultatGeste<{ version: number }>> {
   const p = await preparer(mot, deps);
   if (estRefus(p)) return p;
-  const r = await exclusif(p.id, () => p.d.rediger(mot));
+  const r = await exclusif(p.id, () => p.d.rediger(mot, origine));
   if (r === OCCUPE) return refus("en_cours");
   if (!r.ok) return { ok: false, raison: "redaction", phrase: PHRASES_REDACTION[r.raison] ?? PHRASES.indisponible, ...(r.regle ? { regle: r.regle } : {}) };
   return { ok: true, version: r.version, phrase: `Brouillon n° ${r.version} prêt. Relisez-le en entier avant de le valider.` };

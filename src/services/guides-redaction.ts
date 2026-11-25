@@ -17,6 +17,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { contientCaractereInterdit, controlerTexteGuide, empreinteGuide, schemaContenuGuide, type ContenuGuide } from "@/domaine/guides-pdf/guide-contenu";
 import { appelerClaudeRedaction, type MotifRefusArgent } from "@/fournisseurs/claude/appel-redaction";
+import type { OrigineLancement } from "./budget-mensuel";
 import { extraireJson, type RequeteClaude } from "@/fournisseurs/claude/client";
 
 export const VARIABLE_INTERRUPTEUR_GUIDES_REDACTION = "GUIDES_REDACTION_ENABLED";
@@ -40,7 +41,7 @@ export function guidesRedactionActif(env: Env = process.env): boolean {
 export interface DepsRedaction {
   env?: Env;
   choisirCle: () => Promise<string | null>;
-  appeler: (requete: RequeteClaude, cle: string) => Promise<{ texte: string; marqueur?: string }>;
+  appeler: (requete: RequeteClaude, cle: string, origine: OrigineLancement) => Promise<{ texte: string; marqueur?: string }>;
   lireParametre: (id: string) => Promise<unknown>;
   ecrireParametre: (id: string, valeur: unknown) => Promise<void>;
   journaliser: (type: string, message: string) => Promise<void>;
@@ -115,9 +116,10 @@ const CONSIGNE = [
 
 /**
  * Rédige un brouillon pour `mot` et l'enregistre « À valider ». Ne lève jamais : toute panne devient un résultat d'échec.
+ * `origine` (OBLIGATOIRE) : celle de l'appelant réel, transmise jusqu'à la garde d'argent (jamais écrite en dur ici).
  * `deps` : injectable pour les essais (faux client Claude, mémoire).
  */
-export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): Promise<ResultatRedaction> {
+export async function redigerBrouillonGuide(mot: string, origine: OrigineLancement, deps?: DepsRedaction): Promise<ResultatRedaction> {
   // 1. L'interrupteur se lit AVANT tout chargement : éteint, rien n'est importé ni touché.
   if (!guidesRedactionActif(deps?.env ?? process.env)) return { ok: false, raison: "interrupteur_eteint" };
   // 2. Les dépendances se chargent dans un try : une panne d'import ou de base devient un résultat d'échec.
@@ -156,6 +158,7 @@ export async function redigerBrouillonGuide(mot: string, deps?: DepsRedaction): 
         json: true,
       },
       cle,
+      origine,
     );
     brut = reponse.texte;
     marqueur = reponse.marqueur;
