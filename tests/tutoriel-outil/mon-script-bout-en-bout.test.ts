@@ -2,7 +2,9 @@
  * FIN-2 · « Mon script » de bout en bout, SANS VOIX. Dépôt en mode « script » (ni phrase, ni dossier, équipe fermée, `tutoriel.claude`
  * éteint) → vraie commande de fabrication → moteur avancé pas à pas jusqu'au rendu simulé. TEST « 0 appel HeyGen / ElevenLabs » :
  * les modules HeyGen et ElevenLabs sont des pièges qui LÈVENT s'ils sont appelés, `branchementsReels` (avec voix) aussi.
- * TEST « 0 appel Claude » : le client Claude est piégé et l'appeleur du tutoriel, éteint, lève comme en vrai. 0 €, aucun appel réel.
+ * TEST « 0 appel Claude » : le client Claude ET `depense-claude-video` (le chemin gardé que prend le vrai appeleur du tutoriel) sont
+ * des pièges qui notent l'appel ; éteint (`tutoriel.claude`), rien n'est noté ; allumé (contrôle positif), le piège note l'appel.
+ * 0 €, aucun appel réel : les pièges remplacent les modules.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/next-mocks";
@@ -37,10 +39,10 @@ vi.mock("@/fournisseurs/heygen/client", (importOriginal) => pieges.moduleEspion(
 vi.mock("@/fournisseurs/heygen/rendus", (importOriginal) => pieges.moduleEspion("heygen/rendus")(importOriginal as never));
 vi.mock("@/fournisseurs/credits/heygen", (importOriginal) => pieges.moduleEspion("credits/heygen")(importOriginal as never));
 vi.mock("@/fournisseurs/credits/elevenlabs", (importOriginal) => pieges.moduleEspion("credits/elevenlabs")(importOriginal as never));
-// Claude : le client réseau est piégé (les classes d'erreur restent), l'appeleur du tutoriel éteint lève et note la tentative.
+// Claude : le client réseau ET le chemin gardé de l'argent (`executerRolePourVideo`, pris par le vrai appeleur du tutoriel) sont piégés.
 vi.mock("@/fournisseurs/claude/client", (importOriginal) => pieges.moduleEspion("claude/client")(importOriginal as never));
+vi.mock("@/services/depense-claude-video", (importOriginal) => pieges.moduleEspion("depense")(importOriginal as never));
 
-const claudeEteint = vi.hoisted(() => ({ tentatives: 0 }));
 const sansVoixReel = vi.hoisted(() => ({ appels: 0, journal: null as unknown as Journal, outils: null as unknown as import("../../src/moteurs/montage-tutoriel-outil").OutilsTutoriel | null }));
 const branchementsReels = vi.hoisted(() => vi.fn(async () => {
   throw new Error("branchementsReels (avec voix) ne doit pas être appelé sans voix");
@@ -55,11 +57,6 @@ vi.mock("@/services/tableau-outils", async () => {
       sansVoixReel.appels++;
       // Le même double de rendu à chaque tour (il garde ses demandes, comme le vrai service).
       const o = (sansVoixReel.outils ??= outilsDoubles(sansVoixReel.journal));
-      // `tutoriel.claude` éteint : l'appeleur lève, comme `brancherServicesTutoriel` quand le réglage n'est pas à `true`.
-      o.claude = async () => {
-        claudeEteint.tentatives++;
-        throw new Error("Claude n'est pas encore relié au tutoriel d'outil.");
-      };
       return { env: "dev", montage: { rendu: o.rendu!.service, signer: async (lectures: Record<string, string>, depots: { cle: string }[]) => ({ lectures: Object.fromEntries(Object.entries(lectures).map(([n, c]) => [n, `https://stockage.test/${c}`])), depots: Object.fromEntries(depots.map((x) => [x.cle, `https://depot.test/${x.cle}`])) }) } };
     },
   };
@@ -67,6 +64,7 @@ vi.mock("@/services/tableau-outils", async () => {
 
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
+const { ecrireParametre } = await import("@/services/_commun");
 const { construireCommande } = await import("@/services/fabrication");
 const d = await import("@/services/tutoriel-depot");
 await import("@/services/tutoriel-branchements");
@@ -85,7 +83,6 @@ beforeEach(async () => {
   reinitialiserDepots();
   reinitialiserRequete();
   pieges.appels.length = 0;
-  claudeEteint.tentatives = 0;
   branchementsReels.mockClear();
   sansVoixReel.appels = 0;
   sansVoixReel.outils = null;
@@ -152,12 +149,23 @@ describe("« Mon script » sans voix : dépôt → lancement → rendu simulé, 
     expect(sansVoixReel.appels).toBeGreaterThan(0);
   });
 
-  it("0 appel Claude quand `tutoriel.claude` est éteint : le client est piégé, le double n'est jamais atteint, la vidéo est tout de même rendue", async () => {
+  it("0 appel Claude quand `tutoriel.claude` est éteint : ni le client ni `depense-claude-video` ne sont touchés, la vidéo est rendue", async () => {
     const commande = await deposer("sans-voix");
     const { t } = await aller(commande, "t-ms-claude");
     expect(t.statut).toBe("termine");
-    expect(pieges.appels.filter((a) => /^claude/.test(a))).toEqual([]);
+    expect(pieges.appels.filter((a) => /depense|claude/.test(a))).toEqual([]);
     expect(sansVoixReel.journal.claude).toEqual([]);
+  });
+
+  it("contrôle positif : avec `tutoriel.claude` allumé, le même piège note l'appel (il détecte donc bien un appel Claude)", async () => {
+    await ecrireParametre("tutoriel.claude", true);
+    try {
+      const commande = await deposer("sans-voix");
+      await aller(commande, "t-ms-claude-allume");
+      expect(pieges.appels.filter((a) => /depense|claude/.test(a))).toContain("depense.executerRolePourVideo");
+    } finally {
+      await ecrireParametre("tutoriel.claude", false); // remis éteint (la mémoire est aussi remise à zéro par `reinitialiserDepots`)
+    }
   });
 
   it("un script collé « Mon script » ne met pas la vidéo en pause pour une relecture : elle va au rendu sans l'équipe", async () => {

@@ -192,9 +192,10 @@ describe("« Mon script » : ce qui est écrit dans le brouillon", () => {
 describe("« Mon script » : l'équipe n'est pas nécessaire (et jamais interrogée)", () => {
   it("équipe fermée ou ouverte : même résultat ; sans script collé, phrase et dossier restent refusés équipe fermée", async () => {
     for (const equipe of [false, true]) {
-      const { brouillons, dep } = banc({ equipe });
+      const { brouillons, compte, dep } = banc({ equipe });
       expect((await d.deposerTutoriel(demande(), dep)).statut).toBe("lancee");
       expect(brouillons).toHaveLength(1);
+      expect(compte.equipe).toBe(0); // jamais interrogée en mode script
     }
     const f = banc({ interrupteurs: { formulaire: true, dossier: true, phrase: true }, equipe: false });
     expect(await d.deposerTutoriel({ mode: "phrase", phrase: "Un tableau de bord pour un atelier" }, f.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_EQUIPE_FERMEE });
