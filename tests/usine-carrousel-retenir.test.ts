@@ -13,7 +13,7 @@ import type { Visuel } from "@/domaine/visuels/visuel";
 import type { IdeeUsine } from "@/domaine/usine";
 import type { DependancesCarrousels } from "@/visuels/services/carrousels";
 
-const espions = vi.hoisted(() => ({ preparer: vi.fn(), valider: vi.fn(), programmer: vi.fn(), publier: vi.fn() }));
+const espions = vi.hoisted(() => ({ preparer: vi.fn(), valider: vi.fn() }));
 vi.mock("@/visuels/services/carrousels", async (orig) => {
   const reel = await orig<typeof import("@/visuels/services/carrousels")>();
   return { ...reel, preparerPourReseaux: espions.preparer, valider: espions.valider };
@@ -177,11 +177,17 @@ describe("carte carrousel retenue", () => {
     await lancer(m, "linkedin");
     expect(espions.preparer).not.toHaveBeenCalled();
     expect(espions.valider).not.toHaveBeenCalled();
-    expect(espions.programmer).not.toHaveBeenCalled();
-    expect(espions.publier).not.toHaveBeenCalled();
     expect(m.rendreReseaux).not.toHaveBeenCalled();
     const [v] = await m.depot.lister(() => true);
-    expect(["valide", "programme", "rendu_en_cours", "a_valider"]).not.toContain(v!.statut);
+    // Le seul statut atteint par ce chemin est celui d'avant relecture : ni validé, ni programmé, ni publié, ni en rendu.
+    expect(["brouillon", "ecrit"]).toContain(v!.statut);
+    expect(v!.valideLe).toBeUndefined();
+    expect(v!.versions ?? []).toHaveLength(0);
+    // Même chemin, même garde, si l'usine ne répond pas : toujours rien de validé.
+    const m2 = monter({ usineOk: false });
+    await lancer(m2, "facebook");
+    expect(["brouillon", "ecrit"]).toContain((await m2.depot.lister(() => true))[0]!.statut);
+    expect(espions.valider).not.toHaveBeenCalled();
   });
 
   it("titre trop long : coupé à 200 signes sur un mot ; titre vide : le sujet, puis la douleur ; lien : refus clair", async () => {
@@ -203,6 +209,76 @@ describe("carte carrousel retenue", () => {
   });
 });
 
+describe("réserves de relecture (plan usine #63 · PR B)", () => {
+  const idee2 = { ...idee, signature: "plombier|tpe|devis|d12|c01||carrousel|autre-reseau" } as IdeeUsine;
+  const lancer2 = (m: ReturnType<typeof monter>, reseau = "facebook") => creerCarrouselDeLUsine(idee2, { reseau, jour: "2026-11-25", titre: "Le devis du plombier en une heure" }, m.deps);
+
+  it("(1) deux cartes de signatures différentes au même texte en moins de 60 s : le premier visuel n'est JAMAIS écrasé, refus clair pour la seconde", async () => {
+    const m = monter();
+    const r1 = await lancer(m);
+    const avant = structuredClone((await m.depot.obtenir(r1.id))!);
+    const appelsAvant = m.appels.length;
+    m.avancer(10_000);
+    const e = (await lancer2(m).then(() => null, (x: unknown) => x)) as { code: string; message: string };
+    expect(e).toMatchObject({ code: "RETENIR_MEME_TEXTE" });
+    expect(e.message).toMatch(/attendez une minute/);
+    const apres = (await m.depot.obtenir(r1.id))!;
+    expect(apres).toEqual(avant);
+    expect(apres.origineUsine?.signature).toBe(idee.signature);
+    expect(apres.reseaux).toEqual(["instagram"]);
+    expect(apres.dateVisee).toBe("2026-11-24");
+    expect(await m.depot.lister(() => true)).toHaveLength(1);
+    expect(m.appels).toHaveLength(appelsAvant); // l'usine n'a reçu aucun second `retenir` vers le même visuel
+    // Passé 60 s, la seconde carte obtient son propre visuel.
+    m.avancer(120_000);
+    const r2 = await lancer2(m);
+    expect(r2.id).not.toBe(r1.id);
+    expect((await m.depot.obtenir(r2.id))!.origineUsine?.signature).toBe(idee2.signature);
+    expect((await m.depot.obtenir(r1.id))!.origineUsine?.signature).toBe(idee.signature);
+  });
+
+  it("(1) un carrousel fait à la main au même texte, créé il y a moins d'une minute, n'est pas écrasé non plus", async () => {
+    const m = monter();
+    const { creerDepuisSujet } = await import("@/visuels/services/carrousels");
+    const { id } = await creerDepuisSujet("Le devis du plombier en une heure", m.deps);
+    const avant = structuredClone((await m.depot.obtenir(id))!);
+    m.avancer(5_000);
+    expect(await code(lancer(m))).toBe("RETENIR_MEME_TEXTE");
+    expect((await m.depot.obtenir(id))!).toEqual(avant);
+    expect(m.appels).toHaveLength(0);
+  });
+
+  it("(3) toute ErreurVisuel devient une ErreurStudio avec sa phrase (générateur éteint entre les deux contrôles)", async () => {
+    const m = monter();
+    let appels = 0;
+    m.deps.allume = async () => ++appels === 1; // allumé au premier contrôle, éteint quand `creerDepuisSujet` le relit
+    const e = (await lancer(m).then(() => null, (x: unknown) => x)) as Error & { code: string };
+    expect(e.name).toBe("ErreurStudio");
+    expect(e.code).toBe("GENERATEUR_ETEINT");
+    expect(e.message).toBe("Le générateur est éteint (Réglages › Carrousels)");
+    expect(await m.depot.lister(() => true)).toHaveLength(0);
+    expect(m.fetchEspion).not.toHaveBeenCalled();
+  });
+
+  it("(5) si l'écriture de l'origine échoue, aucun brouillon sans origine ne reste (corbeille) et l'usine n'est pas appelée", async () => {
+    const m = monter();
+    const vrai = m.depot.modifier.bind(m.depot);
+    let essais = 0;
+    m.depot.modifier = (async (id: string, patch: Partial<Visuel>) => {
+      if (patch.origineUsine && ++essais === 1) throw new Error("disque plein");
+      return vrai(id, patch);
+    }) as typeof m.depot.modifier;
+    await expect(lancer(m)).rejects.toThrow("disque plein");
+    const [v] = await m.depot.lister(() => true);
+    expect(v!.corbeilleLe).toBeTruthy();
+    expect(m.appels).toHaveLength(0);
+    // Le brouillon à la corbeille ne bloque pas un nouveau clic.
+    m.avancer(1_000);
+    const r = await lancer(m);
+    expect(r.id).not.toBe(v!.id);
+  });
+});
+
 describe("semaine gardée : le type de la carte est conservé", () => {
   const sujet = { signature: "s", parts: {}, metier: "m", taille: "t", douleur: "d", casUsage: "c" };
   it("le type est relu ; absent ou inconnu : vidéo", async () => {
@@ -218,5 +294,20 @@ describe("semaine gardée : le type de la carte est conservé", () => {
     });
     const d = await lireDerniereSemaine();
     expect(d!.propositions.map((p) => p.type)).toEqual(["carrousel", "video", "video", "video"]);
+  });
+  it("(2) le titre de la carte est gardé ; un titre absent, vide ou qui n'est pas un texte est écarté", async () => {
+    const { lireDerniereSemaine, PARAM_DERNIERE_SEMAINE } = await import("@/services/proposer-semaine");
+    parametres.set(PARAM_DERNIERE_SEMAINE, {
+      debut: "2026-11-23",
+      propositions: [
+        { cle: "a", jour: "2026-11-24", reseau: "instagram", type: "carrousel", titre: "Mon titre", sujet },
+        { cle: "b", jour: "2026-11-24", reseau: "instagram", type: "carrousel", titre: "  ", sujet },
+        { cle: "c", jour: "2026-11-24", reseau: "instagram", type: "carrousel", titre: 42, sujet },
+        { cle: "d", jour: "2026-11-24", reseau: "instagram", type: "carrousel", sujet },
+      ],
+    });
+    const d = await lireDerniereSemaine();
+    expect(d!.propositions.map((p) => p.titre)).toEqual(["Mon titre", undefined, undefined, undefined]);
+    expect(d!.propositions.slice(1).every((p) => !("titre" in p))).toBe(true);
   });
 });

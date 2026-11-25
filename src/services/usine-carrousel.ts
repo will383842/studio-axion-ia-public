@@ -10,13 +10,14 @@ import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
 import type { IdeeUsine, OrigineUsine } from "@/domaine/usine";
 import { ErreurStudio, maintenant } from "@/services/_commun";
 import { avecViseeUsine, retenirSujetUsine } from "@/services/usine-porte";
-import { creerDepuisSujet, type DependancesCarrousels } from "@/visuels/services/carrousels";
+import { creerDepuisSujet, ErreurVisuel, type DependancesCarrousels } from "@/visuels/services/carrousels";
 import { dependancesCarrousels } from "@/visuels/services/production";
 
 export const PHRASE_RESEAU_SANS_CARROUSEL = "Ce réseau ne reçoit pas de carrousel : le sujet n'a pas été retenu.";
 export const PHRASE_GENERATEUR_ETEINT_USINE = "Le générateur de carrousels est éteint (Réglages › Carrousels) : allumez-le, puis retenez le sujet.";
 const PHRASE_DEJA = "Ce sujet est déjà retenu.";
 const PHRASE_TEXTE = "Cette carte n'a pas de texte utilisable pour un carrousel : le sujet n'a pas été retenu.";
+const PHRASE_MEME_TEXTE = "Un carrousel au même texte vient d'être créé il y a moins d'une minute : attendez une minute, puis retenez ce sujet. Rien n'a été écrit pour cette carte.";
 const TEXTE_MAX = 200;
 const TEXTE_MIN = 3;
 
@@ -62,14 +63,27 @@ export async function creerCarrouselDeLUsine(
   }
 
   const texte = texteDuCarrousel(idee, carte.titre);
+  const avant = Date.parse(deps.maintenant());
   let id: string;
   try {
     ({ id } = await creerDepuisSujet(texte, deps));
   } catch (e) {
-    if ((e as { code?: string }).code === "SUJET_INVALIDE") throw new ErreurStudio("RETENIR_TEXTE", PHRASE_TEXTE);
+    if (e instanceof ErreurVisuel) {
+      if (e.code === "SUJET_INVALIDE") throw new ErreurStudio("RETENIR_TEXTE", PHRASE_TEXTE);
+      throw new ErreurStudio(e.code, e.message);
+    }
     throw e;
   }
-  await deps.verrou(() => deps.depot.modifier(id, { reseaux: [carte.reseau as Reseau], origineUsine: origine, dateVisee: carte.jour }));
+  // `creerDepuisSujet` rend le carrousel EXISTANT d'un même texte créé il y a moins de 60 s : on ne l'écrase jamais (autre carte, ou carrousel fait à la main).
+  const cree = await deps.depot.obtenir(id);
+  if (!cree || cree.origineUsine || Date.parse(cree.creeLe) < avant) throw new ErreurStudio("RETENIR_MEME_TEXTE", PHRASE_MEME_TEXTE);
+  try {
+    await deps.verrou(() => deps.depot.modifier(id, { reseaux: [carte.reseau as Reseau], origineUsine: origine, dateVisee: carte.jour }));
+  } catch (e) {
+    // Jamais de brouillon sans origine (un nouveau clic en créerait un second) : on le met à la corbeille, puis on laisse l'erreur remonter.
+    await deps.verrou(() => deps.depot.modifier(id, { corbeilleLe: maintenant() })).catch(() => undefined);
+    throw e;
+  }
   const prevenue = await avecViseeUsine(visee, () => retenirSujetUsine(origine, id));
   if (prevenue) await deps.verrou(() => deps.depot.modifier(id, { origineUsine: { ...origine, prevenueLe: maintenant() } }));
   return { id, rappelUsine: !prevenue };

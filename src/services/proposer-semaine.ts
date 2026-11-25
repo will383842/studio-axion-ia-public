@@ -53,7 +53,7 @@ export type TypeCarteSemaine = "video" | "carrousel" | "infographie" | "image";
 export interface DerniereSemaine {
   debut: string;
   /** `type` : absent d'une semaine gardée avant le plan usine #63, lu comme « video ». */
-  propositions: { cle: string; jour: string; reseau: string; type: TypeCarteSemaine; sujet: IdeeUsine }[];
+  propositions: { cle: string; jour: string; reseau: string; type: TypeCarteSemaine; /** Titre de la carte : texte du carrousel retenu (sinon le sujet, sinon la douleur). */ titre?: string; sujet: IdeeUsine }[];
 }
 export interface OptionsSemaine extends Pick<Options, "env" | "fetchImpl" | "delaiMs"> {
   /** Instant pris pour « aujourd'hui » (tests). */
@@ -121,7 +121,7 @@ export async function proposerSemaine(demande: { debut: string; reseaux?: readon
       ...(l.sujet ? { sujet: l.sujet } : {}),
     });
   }
-  await garderDerniereSemaine({ debut: demande.debut, propositions: propositions.flatMap((p) => (p.sujet ? [{ cle: p.cle, jour: p.jour, reseau: p.reseau, type: p.type as TypeCarteSemaine, sujet: p.sujet }] : [])) });
+  await garderDerniereSemaine({ debut: demande.debut, propositions: propositions.flatMap((p) => (p.sujet ? [{ cle: p.cle, jour: p.jour, reseau: p.reseau, type: p.type as TypeCarteSemaine, ...(p.titre ? { titre: p.titre } : {}), sujet: p.sujet }] : [])) });
   return { propositions, appelsRestants, ...(message ? { message } : {}) };
 }
 
@@ -142,6 +142,9 @@ export async function lireDerniereSemaine(): Promise<DerniereSemaine | null> {
   if (typeof debut !== "string" || !Array.isArray(propositions)) return null;
   const bonnes = propositions
     .filter((p) => !!p && typeof p === "object" && typeof p.cle === "string" && typeof p.jour === "string" && typeof p.reseau === "string" && !!p.sujet && typeof p.sujet === "object" && typeof p.sujet.signature === "string")
-    .map((p): DerniereSemaine["propositions"][number] => ({ ...p, type: typeof p.type === "string" && TYPES.has(p.type) ? (p.type as TypeCarteSemaine) : "video" }));
+    .map((p): DerniereSemaine["propositions"][number] => {
+      const { titre, ...reste } = p;
+      return { ...reste, type: typeof p.type === "string" && TYPES.has(p.type) ? (p.type as TypeCarteSemaine) : "video", ...(typeof titre === "string" && titre.trim() ? { titre } : {}) };
+    });
   return { debut, propositions: bonnes };
 }

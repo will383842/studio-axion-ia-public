@@ -56,7 +56,7 @@ export async function retenirSujetSemaineAction(debut: unknown, cle: unknown): P
       if (!v.success || !i.success) throw new ErreurStudio("RETENIR_VISEE", "Ce jour ou ce réseau n'est pas reconnu : le sujet n'a pas été retenu.");
       if (proposition.type === "carrousel") {
         // Carrousel : un brouillon à relire (jamais validé, préparé, programmé ni publié). `ecrireSujetDeLUsine` refuserait (formats vidéo seulement).
-        const c = await creerCarrouselDeLUsine(i.data, { reseau: v.data.reseau, jour: v.data.jour });
+        const c = await creerCarrouselDeLUsine(i.data, { reseau: v.data.reseau, jour: v.data.jour, ...(proposition.titre ? { titre: proposition.titre } : {}) });
         after(async () => {
           try {
             await lancerRendu(c.id, dependancesCarrousels());
