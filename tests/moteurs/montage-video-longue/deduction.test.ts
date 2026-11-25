@@ -6,6 +6,8 @@ import {
   estEchelonnee,
   estImperatif,
   formePour,
+  indiceCoupe,
+  majuscule,
   motCle,
   phraseDe,
   repartirEtapes,
@@ -99,11 +101,11 @@ describe("étapes", () => {
     expect(sc[0].finMs).toBe(sc[1].debutMs);
   });
 
-  it("le texte d'une étape est abrégé à 22 mots", () => {
+  it("le texte d'une étape est la phrase entière, jamais abrégée", () => {
     const long = "Ouvrez " + Array.from({ length: 40 }, (_, i) => `mot${i}`).join(" ") + ".";
     const sc = deduireScenes(suite(long, "Fermez tout."), ctx()).map((x) => x.scene);
     if (sc[0].type !== "etapes") throw new Error("type");
-    expect(sc[0].elements[0].texte.split(/\s+/).length).toBeLessThanOrEqual(23);
+    expect(sc[0].elements[0].texte).toBe(long.replace(/\.$/, ""));
   });
 });
 
@@ -210,7 +212,7 @@ describe("chiffre", () => {
       [800, "800 €"],
     ]);
     expect(s.chiffres[0].apparitionMs).toBeLessThan(s.chiffres[1].apparitionMs);
-    expect(s.contexte.split(/\s+/).length).toBeLessThanOrEqual(12);
+    expect(s.contexte).toBe("Le coût passe de 1 200 € à 800 € pour 3 mois et 4 jours");
   });
   it("décimales et pourcentage", () => {
     const [s] = un("Le gain atteint 12,5 % du stock.");
@@ -228,15 +230,40 @@ describe("phrase clé", () => {
       expect(s.forme).toBeTruthy();
     }
   });
-  it("une phrase de plus de 12 mots devient sa proposition qui contient le mot clé, ou 12 mots + « … »", () => {
-    const c = ctx("Le stock", "");
-    const [a] = un("Chaque matin, quelqu'un ouvre le tableur pour recopier toutes les lignes du stock de la veille.", c);
+  it("une phrase de 20 mots au plus s'affiche entière, sans « … »", () => {
+    const t = "Chaque matin, quelqu'un ouvre le tableur pour recopier toutes les lignes du stock de la veille.";
+    const [a] = un(t, ctx("Le stock", ""));
     if (a.type !== "phrase-cle") throw new Error("type");
-    expect(a.phrase.split(/\s+/).length).toBeLessThanOrEqual(13);
-    const [b] = un("Un mot après l'autre sans la moindre virgule jusqu'à la fin de cette très très longue phrase ici présente.", ctx());
+    expect(a.phrase).toBe(t.replace(/\.$/, ""));
+    const t20 = Array.from({ length: 20 }, (_, i) => `mot${i}`).join(" ");
+    const [b] = un(`${t20}.`);
     if (b.type !== "phrase-cle") throw new Error("type");
-    expect(b.phrase.endsWith("…")).toBe(true);
-    expect(b.phrase.replace("…", "").trim().split(/\s+/).length).toBeLessThanOrEqual(12);
+    expect(b.phrase).toBe(majuscule(t20));
+  });
+  it.each([
+    "Beaucoup de dirigeants suivent encore leur stock dans un tableur rempli à la main.",
+    "Chaque fin de mois, quelqu'un passe une journée entière à compter les étagères du dépôt.",
+    "Personne ne sait vraiment ce qui dort au fond de l'entrepôt et ce qui manque depuis des semaines.",
+  ])("piège : « %s » n'est jamais tronquée", (t) => {
+    const sc = un(t);
+    for (const s of sc) expect(JSON.stringify(s)).not.toContain("…");
+    expect(sc.map((s) => (s.type === "phrase-cle" ? s.phrase : "")).join(" ")).toBe(majuscule(t.replace(/\.$/, "")));
+  });
+  it.each([
+    "Chaque lundi matin, un résumé de toute la semaine précédente arrive dans votre boîte, avec les articles à surveiller et les commandes déjà passées.",
+    "Quand le stock passe sous le seuil fixé pour un article, le tableau de bord prévient la personne concernée et propose la quantité à commander ensuite.",
+    "Un mot après l'autre sans la moindre virgule jusqu'à la fin de cette très très longue phrase ici présente et encore plus loin que prévu.",
+  ])("piège : au-delà de 20 mots, deux scènes complètes sans « … » : « %s »", (t) => {
+    const sc = un(t);
+    expect(sc.length).toBeGreaterThanOrEqual(2);
+    for (const s of sc) {
+      if (s.type !== "phrase-cle") throw new Error("type");
+      expect(s.phrase).not.toContain("…");
+      expect(s.phrase.split(/\s+/).length).toBeLessThanOrEqual(20);
+    }
+    const ph = sc.map((s) => (s.type === "phrase-cle" ? s.phrase : ""));
+    const n = (x: string) => x.toLowerCase().replace(/[\s,;:.]+/g, " ").trim();
+    expect(n(ph.join(" "))).toBe(n(t));
   });
   it("mot clé : hors mots vides, favorise le titre du chapitre et les répétitions", () => {
     expect(motCle("Le stock est vraiment très important chaque jour.", { titre: "", texteChapitre: "" })).toBe("important");
@@ -297,28 +324,113 @@ describe("variété et scènes longues", () => {
     expect(sc[0].debutMs).toBe(longue.debutMs);
     expect(sc[sc.length - 1].finMs).toBe(longue.finMs);
     sc.forEach((s, i) => {
-      expect(s.finMs - s.debutMs).toBeLessThanOrEqual(8000);
+      expect(s.finMs - s.debutMs).toBeLessThanOrEqual(9000);
       if (i + 1 < sc.length) expect(s.finMs).toBe(sc[i + 1].debutMs);
     });
   });
 
   it("estEchelonnee : scène courte toujours bonne ; longue sans élément qui arrive : mauvaise", () => {
     expect(estEchelonnee({ type: "phrase-cle", debutMs: 0, finMs: 5000, phrase: "x", motCle: null, forme: "cercle" })).toBe(true);
-    expect(estEchelonnee({ type: "phrase-cle", debutMs: 0, finMs: 9000, phrase: "x", motCle: null, forme: "cercle" })).toBe(false);
-    expect(estEchelonnee({ type: "avant-apres", debutMs: 0, finMs: 9000, avant: "a", apres: "b", apparitionApresMs: 5000 })).toBe(true);
-    expect(estEchelonnee({ type: "avant-apres", debutMs: 0, finMs: 9000, avant: "a", apres: "b", apparitionApresMs: 800 })).toBe(false);
+    expect(estEchelonnee({ type: "phrase-cle", debutMs: 0, finMs: 9500, phrase: "x", motCle: null, forme: "cercle" })).toBe(false);
+    expect(estEchelonnee({ type: "avant-apres", debutMs: 0, finMs: 12000, avant: "a", apres: "b", apparitionApresMs: 6000 })).toBe(true);
+    expect(estEchelonnee({ type: "avant-apres", debutMs: 0, finMs: 12000, avant: "a", apres: "b", apparitionApresMs: 800 })).toBe(false);
   });
 });
 
 describe("outils de texte", () => {
-  it("abreger : coupe à la virgule d'abord, au mot sinon avec « … »", () => {
+  it("abreger (titres) : coupe à la virgule d'abord, au mot sinon, jamais de « … »", () => {
     expect(abreger("Un deux trois.", 5)).toBe("Un deux trois");
     expect(abreger("Un deux trois quatre, cinq six sept huit neuf dix.", 6)).toBe("Un deux trois quatre");
-    expect(abreger("a b c d e f g h", 4)).toBe("a b c d…");
+    expect(abreger("a b c d e f g h", 4)).toBe("a b c d");
   });
   it("decouperPhrases : jusqu'à [.!?…], reste sans ponctuation = dernière phrase", () => {
     const m = (mot: string, i: number) => ({ mot, debutMs: i * 100, finMs: i * 100 + 90 });
     const r = decouperPhrases(["Bonjour", "à", "tous.", "Vous", "allez", "bien ?", "Oui"].map(m));
     expect(r.map((g) => g.map((x) => x.mot).join(" "))).toEqual(["Bonjour à tous.", "Vous allez bien ?", "Oui"]);
+  });
+});
+
+describe("QUALL-7 · listes de phrases sans titre (variété)", () => {
+  const phrasesVariete = [
+    "Dès que le stock passe sous ce seuil, un message part automatiquement à la bonne personne.",
+    "Le message dit quoi commander et en quelle quantité.",
+    "Chaque lundi matin, un résumé de la semaine arrive dans votre boîte.",
+    "Le tableau garde la trace de chaque mouvement.",
+  ];
+  it("chaque élément est une phrase entière, jamais un morceau amputé", () => {
+    const sc = deduireScenes(suite(...phrasesVariete), ctx("Les alertes", "")).map((x) => x.scene);
+    const listes = sc.filter((s) => s.type === "liste");
+    expect(listes.length).toBeGreaterThan(0);
+    const toutes = phrasesVariete.map((p) => p.replace(/\.$/, ""));
+    for (const l of listes) {
+      if (l.type !== "liste") continue;
+      for (const e of l.elements) expect(toutes.map(majuscule)).toContain(e.texte);
+    }
+  });
+  it.each([
+    ["Dès que le stock passe sous ce seuil, un message part automatiquement à la bonne personne."],
+    ["Quand une rupture menace, la bonne personne est prévenue sans qu'il faille y penser une seule fois."],
+    ["Si le stock baisse trop vite, un message vous le dit avant que le client appelle."],
+  ])("piège : une subordonnée en ouverture n'est pas coupée seule (« %s »)", (t) => {
+    const p = phrase(t, 0, 11_000);
+    const sc = deduireScenes([p], ctx()).map((x) => x.scene);
+    expect(indiceCoupe(p.mots, true)).toBeNull();
+    expect(sc).toHaveLength(1);
+  });
+});
+
+describe("QUALL-7 · choix de la forme", () => {
+  it.each([
+    ["Juste en dessous, la liste des articles à commander, triée par urgence", "graphique"],
+    ["Un clic montre l'historique des ruptures et des urgences", "graphique"],
+    ["Le tableau est trié par urgence", "graphique"],
+  ])("piège : « %s » → %s (avant urgence → alerte)", (t, f) => {
+    expect(formePour(t, null)).toBe(f);
+  });
+  it("sans ces mots, urgence reste alerte", () => {
+    expect(formePour("On commande alors en urgence, plus cher", null)).toBe("alerte");
+  });
+  it.each(["Une rupture est vite arrivée", "L'urgence disparaît", "Plus de problème de stock"])("dans « La solution… », pas d'alerte sans le mot « alerte » : %s", (t) => {
+    expect(formePour(t, null, "La solution : un tableau de bord")).not.toBe("alerte");
+  });
+  it("dans « La solution… », « alerte » écrit reste permis", () => {
+    expect(formePour("Une alerte part tout de suite", null, "La solution : un tableau de bord")).toBe("alerte");
+  });
+  it("jamais la même forme que la précédente, même si le titre ou le texte la désigne", () => {
+    expect(formePour("Le tableau du stock", "graphique")).not.toBe("graphique");
+    expect(formePour("Rien de spécial ici", "cercle", "Les alertes")).not.toBe("cercle");
+  });
+  it("deux phrases clés voisines n'ont jamais la même forme", () => {
+    const c = ctx("Les alertes", "");
+    const sc = deduireScenes(suite("Une rupture arrive.", "Une urgence arrive.", "Un problème arrive.", "Une erreur arrive."), c).map((x) => x.scene);
+    for (let i = 1; i < sc.length; i++) {
+      const a = sc[i - 1];
+      const b = sc[i];
+      if (a.type === "phrase-cle" && b.type === "phrase-cle") expect(b.forme).not.toBe(a.forme);
+    }
+  });
+});
+
+describe("QUALL-7 · chiffre « douze mois »", () => {
+  it.each([
+    ["Un clic sur un article montre son historique sur douze mois.", "mois"],
+    ["Le suivi garde l'historique sur 12 mois.", "mois"],
+    ["Le tableau couvre vingt articles par famille.", "articles"],
+  ])("piège : « %s » → unité et contexte complet", (t, unite) => {
+    const [s] = un(t);
+    if (s.type !== "chiffre") throw new Error("type");
+    expect(s.chiffres[0].unite).toBe(unite);
+    expect(s.contexte).toBe(t.replace(/\.$/, ""));
+  });
+});
+
+describe("QUALL-7 · rythme : jamais plus de 9 s sans nouvel élément", () => {
+  it.each([
+    "Le tableau de bord montre tout ce qui se passe dans l'entrepôt, de la réception des colis jusqu'à la préparation des commandes.",
+    "Un clic sur un article montre son historique sur douze mois et la quantité vendue chaque semaine pour chaque famille.",
+    "On commande alors en urgence, plus cher, et personne ne sait ce qui dort au fond de l'entrepôt depuis des mois.",
+  ])("piège : phrase lente de 12 s : « %s »", (t) => {
+    const p = phrase(t, 0, 12_000);
+    for (const s of deduireScenes([p], ctx()).map((x) => x.scene)) expect(estEchelonnee(s)).toBe(true);
   });
 });

@@ -160,7 +160,7 @@ describe("storyboard de l'essai : scènes déduites du texte", () => {
     expect(c.chiffres[0]).toMatchObject({ valeur: 12, ecrit: "douze", affiche: "12", unite: "mois" });
     expect(c.chiffres[0].apparitionMs).toBeGreaterThanOrEqual(c.debutMs);
     expect(c.chiffres[0].apparitionMs).toBeLessThan(c.finMs);
-    expect(c.contexte.split(/\s+/).length).toBeLessThanOrEqual(12);
+    expect(c.contexte).toBe("Un clic sur un article montre son historique sur douze mois");
   });
 
   it("avant/après « compter » → « le stock est juste à chaque instant »", () => {
@@ -202,12 +202,13 @@ describe("storyboard de l'essai : scènes déduites du texte", () => {
     expect(sb.scenes.some((s) => s.type === "chiffre" && s.chiffres.some((c) => c.valeur === 1))).toBe(false);
   });
 
-  it("phrase clé : phrase ≤ 12 mots, mot clé exact, forme présente, jamais deux formes pareilles de suite", () => {
+  it("phrase clé : phrase ≤ 20 mots entière, mot clé exact, forme présente, jamais deux formes pareilles de suite", () => {
     const pc = sb.scenes.filter((s) => s.type === "phrase-cle");
     expect(pc.length).toBeGreaterThan(0);
     for (const s of pc) {
       if (s.type !== "phrase-cle") continue;
-      expect(s.phrase.split(/\s+/).length).toBeLessThanOrEqual(12);
+      expect(s.phrase.split(/\s+/).length).toBeLessThanOrEqual(20);
+      expect(s.phrase).not.toContain("…");
       if (s.motCle) expect(s.phrase).toContain(s.motCle);
       expect(s.forme).toBeTruthy();
     }
@@ -283,6 +284,54 @@ describe("storyboard de l'essai : rythme", () => {
 
   it("fonds : noir pour les cartons de chapitre et la fin, ivoire ailleurs", () => {
     for (const s of sb.scenes) expect(s.fond).toBe(s.type === "carton-chapitre" || s.type === "fin" ? "noir" : "ivoire");
+  });
+});
+
+describe("QUALL-7 · script d'essai : rien de tronqué, formes, rythme", () => {
+  const texteDe = (s: SceneLongue): string[] => {
+    switch (s.type) {
+      case "phrase-cle": return [s.phrase];
+      case "liste": return [...(s.titre ? [s.titre] : []), ...s.elements.map((e) => e.texte)];
+      case "etapes": return s.elements.map((e) => e.texte);
+      case "chiffre": return [s.contexte];
+      case "avant-apres": return [s.avant, s.apres];
+      default: return [];
+    }
+  };
+  it("aucun « … » à l'écran, aucun texte de plus de 20 mots", () => {
+    for (const s of sb.scenes) for (const t of texteDe(s)) {
+      expect(t).not.toContain("…");
+      expect(t.split(/\s+/).length).toBeLessThanOrEqual(20);
+    }
+  });
+  it("les deux phrases jadis tronquées s'affichent entières", () => {
+    const tout = sb.scenes.flatMap(texteDe).map(norm);
+    expect(tout).toContain(norm("Beaucoup de dirigeants suivent encore leur stock dans un tableur rempli à la main"));
+    expect(tout).toContain(norm("Chaque fin de mois, quelqu'un passe une journée entière à compter les étagères"));
+  });
+  it("chaque élément de liste sans titre est une phrase entière du script", () => {
+    const phrases = SCRIPT_ESSAI.split(/(?<=[.!?])\s+/).map((p) => norm(p.replace(/[.!?]$/, "")));
+    for (const s of sb.scenes) if (s.type === "liste" && !s.titre) for (const e of s.elements) expect(phrases, e.texte).toContain(norm(e.texte));
+  });
+  it("chapitre « La solution » : pas d'alerte ; « la liste… triée par urgence » : graphique ; jamais deux formes voisines pareilles", () => {
+    const c2 = sb.chapitres[1].id;
+    for (const s of sb.scenes) if (s.chapitreId === c2 && s.type === "phrase-cle") expect(s.forme).not.toBe("alerte");
+    const tri = sb.scenes.find((s) => s.type === "phrase-cle" && /triée par urgence/.test(s.phrase));
+    const prec = tri ? sb.scenes[sb.scenes.indexOf(tri) - 1] : undefined;
+    // graphique, sauf si la scène voisine l'a déjà (jamais deux formes pareilles de suite).
+    if (tri?.type === "phrase-cle") expect(prec?.type === "phrase-cle" && prec.forme === "graphique" ? tri.forme !== "graphique" : tri.forme === "graphique").toBe(true);
+    sb.scenes.forEach((s, i) => {
+      const p = sb.scenes[i - 1];
+      if (i > 0 && s.type === "phrase-cle" && p.type === "phrase-cle") expect(s.forme).not.toBe(p.forme);
+    });
+  });
+  it("aucune scène de contenu de plus de 9 s sans nouvel élément", () => {
+    for (const s of sb.scenes) {
+      if (["carton-titre", "carton-chapitre", "fin"].includes(s.type)) continue;
+      const t = s.type === "liste" || s.type === "etapes" ? s.elements.map((e) => e.apparitionMs) : s.type === "avant-apres" ? [s.apparitionApresMs] : s.type === "chiffre" ? s.chiffres.map((c) => c.apparitionMs) : [];
+      const pts = [s.debutMs, ...t, s.finMs].sort((a, b) => a - b);
+      pts.forEach((x, i) => i > 0 && expect(x - pts[i - 1], `${s.id}`).toBeLessThanOrEqual(9000));
+    }
   });
 });
 
