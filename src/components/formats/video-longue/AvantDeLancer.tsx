@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { Bouton } from "@/components/ui/Bouton";
 import { Carte } from "@/components/ui/Carte";
+import { DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
 import { formaterDuree } from "./PlanChapitres";
 
+export const PHRASE_PLUS_DE_20_MIN = "Votre script dépasse 20 minutes de lecture : raccourcissez-le ou coupez-le en deux vidéos.";
+
 /**
- * Écran 4 : ce que la vidéo utilisera, SANS aucun montant. L'accord est explicite ; tant que la fabrication n'est pas
- * reliée (VL-07), le bouton ne lance rien et rien n'est payé. Si le générateur est éteint ou si les dépenses sont
+ * Écran 4 : ce que la vidéo utilisera, SANS aucun montant. L'accord est explicite ; au-delà de 20 minutes, une alerte
+ * remplace le bouton de lancement (la même borne que le lancement). Si le générateur est éteint ou si les dépenses sont
  * coupées dans les réglages, il n'y a pas de bouton de lancement, seulement un lien vers les réglages.
  */
 export function AvantDeLancer({
@@ -26,7 +29,7 @@ export function AvantDeLancer({
   chapitres: number;
   /** Nombre de vidéos courtes en plus ; 0 = case décochée, rien n'est affiché. */
   courts: number;
-  /** Mode « Sans voix » : pas de voix, aucun crédit voix, coût 0 €. */
+  /** Mode « Sans voix » : pas de voix, aucun crédit de voix. */
   sansVoix?: boolean;
   peutLancer: boolean;
   /** Envoi en cours : bouton remplacé par « Lancement en cours… ». */
@@ -38,6 +41,7 @@ export function AvantDeLancer({
   onLancer: () => void;
   onRetour: () => void;
 }) {
+  const tropLong = dureeSec > DUREE_MAX_SEC;
   return (
     <section className="space-y-5" aria-label="Avant de lancer">
       <Carte className="space-y-3">
@@ -49,13 +53,20 @@ export function AvantDeLancer({
           {courts > 0 && <li>{courts} vidéo{courts > 1 ? "s" : ""} courte{courts > 1 ? "s" : ""} en plus : pas encore fabriquée{courts > 1 ? "s" : ""}</li>}
         </ul>
         <p className="text-sm text-texte-doux">
-          {sansVoix ? "Aucune voix, aucune musique : rien n'est payé." : "Rien n'est payé avant votre accord. Si le prix du jour change, le Studio s'arrête et vous redemande."}
+          {sansVoix ? "Aucune voix, aucune musique : rien n'est payé." : "Rien n'est payé avant votre accord. Si le montant du jour change, le Studio s'arrête et vous redemande."}
         </p>
       </Carte>
       <div className="flex flex-wrap items-center gap-3">
         {enCours ? (
           <p role="status" className="text-sm text-texte">Lancement en cours…</p>
-        ) : lance ? null : phraseBloquee ? (
+        ) : lance ? null : tropLong ? (
+          <>
+            <p role="alert" className="text-sm font-semibold text-texte">{PHRASE_PLUS_DE_20_MIN}</p>
+            <Bouton type="button" icone="baguette" disabled>
+              Je donne mon accord et je lance la vidéo
+            </Bouton>
+          </>
+        ) : phraseBloquee ? (
           <p role="status" className="text-sm font-semibold text-texte">{phraseBloquee}</p>
         ) : peutLancer ? (
           <Bouton type="button" icone="baguette" onClick={onLancer}>

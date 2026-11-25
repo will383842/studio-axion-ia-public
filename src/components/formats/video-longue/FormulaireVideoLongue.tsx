@@ -24,14 +24,17 @@ const ETAPES = [
   { cle: "lancer", libelle: "Lancer" },
 ];
 
+const BIENTOT = "Bientôt : ce choix n'est pas encore pris en compte.";
+
 const PHRASE_ECRITURE_NON_RELIEE = "L'écriture des chapitres n'est pas encore reliée : votre sujet est gardé, rien n'a échoué et rien n'est payé.";
 const PHRASE_ENREGISTREMENT_NON_RELIE = "L'enregistrement n'est pas encore relié : rien n'a échoué et rien n'est payé.";
 const PHRASE_LANCEMENT_NON_RELIEE = "Le lancement n'est pas disponible sur cet écran : votre accord n'a déclenché aucune dépense et rien n'a échoué.";
 
 /**
- * Générateur « Vidéo longue » (écrans 1 à 4, vitrine). Aucune dépense, aucun appel à Claude : tant que la fabrication
- * n'est pas reliée (VL-07), chaque geste qui voudrait écrire ou fabriquer répond par une pause claire.
- * Le plan vient du script collé par l'utilisateur ; sans script, rien n'est inventé.
+ * Générateur « Vidéo longue » (écrans 1 à 4). Aucun appel à Claude depuis cet écran. Le lancement part par l'action `lancer`
+ * (réglage allumé, accord, gardes du moteur) ; sans elle, ou si la fabrication refuse, une pause claire s'affiche.
+ * Seuls la question, les chapitres, « sans voix » et l'accord partent réellement : les autres choix (pour qui, message,
+ * durée visée, fin, vidéos courtes, page du site) sont désactivés et marqués « bientôt ». Le plan vient du script collé.
  */
 export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVoixNonReliee, phraseMontageNonRelie }: { actif: boolean; depensesCoupees: boolean; phraseVoixNonReliee?: string; phraseMontageNonRelie?: string; lancer?: (demande: DemandeVideoLongue) => Promise<Resultat<IssueVideoLongue>> }) {
   const [etape, setEtape] = useState(0);
@@ -113,7 +116,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
         {!actif && (
           <div role="status" className="flex flex-wrap items-center gap-3 rounded-carte border border-trait bg-surface-2 p-3.5 text-sm text-texte">
             <span>La vidéo longue est éteinte : rien ne sera écrit ni fabriqué.</span>
-            <Link href="/reglages" className="font-semibold text-accent underline">
+            <Link href="/reglages#video-longue" className="font-semibold text-accent underline">
               Ouvrir les réglages
             </Link>
           </div>
@@ -127,16 +130,16 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
             }}
           >
             <Champ libelle="La question à laquelle la vidéo répond" value={question} onChange={(e) => setQuestion(e.target.value)} />
-            <Champ libelle="Pour qui ?" value={pourQui} onChange={(e) => setPourQui(e.target.value)} />
-            <ZoneTexte libelle="Ce que vous voulez dire (facultatif)" value={messageCle} onChange={(e) => setMessageCle(e.target.value)} />
+            <Champ libelle="Pour qui ?" value={pourQui} onChange={(e) => setPourQui(e.target.value)} aide={BIENTOT} disabled />
+            <ZoneTexte libelle="Ce que vous voulez dire (facultatif)" value={messageCle} onChange={(e) => setMessageCle(e.target.value)} aide={BIENTOT} disabled />
             <ZoneTexte libelle="Votre script complet (facultatif) : il fait foi, le Studio ne change aucun mot" value={script} onChange={(e) => setScript(e.target.value)} />
             <SelecteurPastilles
               libelle="Durée visée"
-              options={[4, 6, 8, 10].map((m) => ({ valeur: m, libelle: `${m} min` }))}
+              options={[4, 6, 8, 10].map((m) => ({ valeur: m, libelle: `${m} min`, desactive: true, raison: "Bientôt" }))}
               valeur={cible}
               onChange={setCible}
             />
-            <p className="-mt-2 text-sm text-texte-doux">C&apos;est une cible, pas une limite.</p>
+            <p className="-mt-2 text-sm text-texte-doux">C&apos;est une cible, pas une limite. Bientôt : ce choix n&apos;est pas encore pris en compte.</p>
             <SelecteurPastilles
               libelle="Son de la vidéo"
               options={[
@@ -156,20 +159,20 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
             <SelecteurPastilles
               libelle="Fin"
               options={[
-                { valeur: "aucune", libelle: "Aucune" },
-                { valeur: "rdv", libelle: "Prendre rendez-vous" },
+                { valeur: "aucune", libelle: "Aucune", desactive: true, raison: "Bientôt" },
+                { valeur: "rdv", libelle: "Prendre rendez-vous", desactive: true, raison: "Bientôt" },
               ]}
               valeur={fin}
               onChange={setFin}
             />
-            <CaseACocher libelle="Préparer aussi des vidéos courtes tirées de cette vidéo" coche={courts} onChange={setCourts} />
-            <CaseACocher libelle="Préparer aussi la page pour mon site" coche={pageSite} onChange={setPageSite} />
+            <CaseACocher libelle="Préparer aussi des vidéos courtes tirées de cette vidéo" detail="Bientôt" coche={courts} onChange={setCourts} desactive />
+            <CaseACocher libelle="Préparer aussi la page pour mon site" detail="Bientôt" coche={pageSite} onChange={setPageSite} desactive />
             <div className="flex flex-wrap gap-3">
               <Bouton type="submit" icone="baguette" disabled={!actif}>
                 Proposer les chapitres
               </Bouton>
-              <Bouton type="button" variante="secondaire" onClick={() => setPause(PHRASE_ENREGISTREMENT_NON_RELIE)}>
-                Enregistrer pour plus tard
+              <Bouton type="button" variante="secondaire" disabled>
+                Enregistrer pour plus tard (bientôt)
               </Bouton>
             </div>
             {pause && <PauseVitrine phrase={pause} />}

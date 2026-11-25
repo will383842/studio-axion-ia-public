@@ -128,7 +128,7 @@ describe("G4-08-b2 · gardes", () => {
     for (const i of imports) expect(i).not.toMatch(/fabrication|credits|@\/fournisseurs\/|montage-donnees|depense-claude|generation-claude/);
   });
 
-  it("d) rien dans src/ n'importe EcranRelectureTableau ni actions-tableau-de-bord (montés nulle part)", () => {
+  it("d) montés par la seule page du tableau de bord (G4-08-b3-b) : seuls actions.ts et FormulaireTableauDeBord.tsx importent EcranRelectureTableau ou actions-tableau-de-bord", () => {
     const trouves: string[] = [];
     const parcourir = (d: string) => {
       for (const n of readdirSync(d)) {
@@ -138,7 +138,7 @@ describe("G4-08-b2 · gardes", () => {
       }
     };
     parcourir(join(racine, "src"));
-    expect(trouves).toEqual([]);
+    expect(trouves.sort()).toEqual([join(racine, "src/app/(studio)/tableau-de-bord/actions.ts"), join(racine, "src/components/formats/vitrines/FormulaireTableauDeBord.tsx")].sort());
   });
 
   it("e) audit argent léger : un dépôt = au plus un appel de lecture, aucune ligne de prix", async () => {

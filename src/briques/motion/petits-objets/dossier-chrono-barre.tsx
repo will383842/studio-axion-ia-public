@@ -1,6 +1,6 @@
 /** PETITS OBJETS — dossier qui se remplit, chronomètre, barre de progression. Pièces pures, non inscrites. Tracés par `<TraceSvg>`. Imports relatifs seulement. */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import { DUREE_SEC, type DefinitionObjet, type ProprietesObjet, type TonObjet } from "./contrat";
 import { phaseObjet } from "./progres";
 import { tremblement } from "./tremblement";
@@ -105,7 +105,7 @@ function RenduChrono({ image, fps, dureeImages, fond, ton = "neutre", graine, pa
         <g opacity={opacite} transform={`translate(${t.dx.toFixed(2)} ${t.dy.toFixed(2)}) rotate(${t.angle.toFixed(2)} ${C.cx} ${C.cy})`}>
           <TraceSvg d={cheminCadran()} t={trace} ton={ton} fond={fond} />
           <TraceSvg d={cheminAiguille(secondes)} t={trace} ton={ton} fond={fond} />
-          <text x={C.cx} y={C.cy + C.r + 90} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={700} fontSize={84} fill={couleurDuTon(ton, fond)}>
+          <text x={C.cx} y={C.cy + C.r + 90} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={700} fontSize={84} fill={couleurDuTon(ton, fond)}>
             {formaterChrono(secondes)}
           </text>
         </g>

@@ -106,6 +106,7 @@ describe("image de rendu : les compositions du format n'importent de src/ que ce
     const sources: Record<string, string> = {
       [`${DEPART}/Fautif.tsx`]: 'import type { X } from "./relais";',
       [`${DEPART}/relais.ts`]: 'export type { Y } from "../../../src/domaine/duree-tableau";',
+      "src/domaine/duree-tableau.ts": "",
     };
     const faux = (e: string) => relative(RACINE, e).split(sep).join("/") in sources;
     const atteints = importsDeSrc([`${DEPART}/Fautif.tsx`], (f) => sources[f] ?? lire(f), (e) => faux(e) || (existsSync(e) && statSync(e).isFile()));
