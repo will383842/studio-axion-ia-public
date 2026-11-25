@@ -4,7 +4,7 @@
  * la personne (double, écran partagé, mise en page facecam) : Q7. Jamais si l'un des deux plans dure moins de 0,6 s.
  */
 import type { PlanScene } from "./scene";
-const EPS = 1e-9;
+import { EPS } from "../../lib/tolerance";
 
 export type StyleMontage = "coupe" | "fondu" | "glissement";
 export interface RaccordMontage {
