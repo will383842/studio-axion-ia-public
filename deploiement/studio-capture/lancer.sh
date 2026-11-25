@@ -54,6 +54,9 @@ case "$mode" in
       echo "studio-capture : le mode verifier n'accepte aucun argument." >&2
       exit 66
     fi
-    exec timeout --kill-after=30 60 ffprobe -v error -show_entries format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate -of json /entree/navigation.mp4 > /sortie/ffprobe.json
+    # noclobber : la redirection échoue si /sortie/ffprobe.json existe déjà (fichier ou lien symbolique).
+    set -C
+    # -f mov : démuxeur MP4 imposé, ffprobe ne devine pas le format d'après le contenu.
+    exec timeout --kill-after=30 60 ffprobe -v error -f mov -show_entries format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate -of json /entree/navigation.mp4 > /sortie/ffprobe.json
     ;;
 esac
