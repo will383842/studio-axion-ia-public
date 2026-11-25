@@ -17,6 +17,9 @@ import { VERSION_SANS_VOIX } from "@/briques/plan-scenes/tutoriel/sans-voix/type
 import {
   CONJONCTIONS_CONDITION,
   DEBUTS_VIDES,
+  DETERMINANTS,
+  MOTS_SANS_SENS,
+  MOTS_VIDES_FIN,
   MOTS_ALERTE,
   MOTS_APPEL,
   MOTS_CLIC,
@@ -34,6 +37,7 @@ import {
   nettoyerBords,
   nettoyerLibelle,
   nu,
+  sansElision,
 } from "./plan-sans-voix-regles";
 
 const QUEUE_MS = 500;
@@ -42,7 +46,8 @@ const MAX_SURTITRE = 60;
 const MAX_ALERTE = 40;
 const MAX_CARTE_PHRASE = 48;
 
-interface Tok { texte: string; n: string; debut: number; fin: number }
+/** `n` = forme pliée ; `m` = forme pliée sans élision (« l'outil » → « outil ») ; `idx` = indice d'origine dans `mots`. */
+interface Tok { texte: string; n: string; m: string; debut: number; fin: number; idx: number }
 interface Phrase { premier: number; dernier: number; texte: string; question: boolean }
 
 export interface EntreePlanSansVoix {
@@ -52,6 +57,8 @@ export interface EntreePlanSansVoix {
   phraseTitre?: string;
   basPct: number;
   fin?: "aucune" | "rendez-vous";
+  /** Durée voulue du plan (facultatif) : si fournie, le plan finit exactement là. */
+  dureeMs?: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -65,13 +72,13 @@ function jetons(e: EntreePlanSansVoix): Tok[] {
       : String(e.texte ?? "").split(/\s+/).filter(Boolean).map((t, i) => ({ texte: t, debutMs: i * MS_PAR_MOT_REPLI, finMs: (i + 1) * MS_PAR_MOT_REPLI - 40 }));
   const sortie: Tok[] = [];
   let dernierDebut = 0;
-  for (const m of brut) {
+  for (const [idx, m] of brut.entries()) {
     const texte = m.texte.trim();
     if (!texte) continue;
     const debut = Math.round(Math.max(dernierDebut, m.debutMs));
     const fin = Math.round(Math.max(debut, m.finMs));
     dernierDebut = debut;
-    sortie.push({ texte, n: nu(texte), debut, fin });
+    sortie.push({ texte, n: nu(texte), m: sansElision(nu(texte)), debut, fin, idx });
   }
   return sortie;
 }
@@ -98,7 +105,7 @@ const plageDe = (a: number, b: number): PlageMots => ({ premier: a, dernier: b }
 /** Cherche une suite de mots pliés à partir de `depuis` dans [depuis, borne]. */
 function suiteA(t: Tok[], i: number, mots: string[], borne: number): boolean {
   if (i + mots.length - 1 > borne) return false;
-  return mots.every((w, k) => t[i + k].n === w);
+  return mots.every((w, k) => t[i + k].m === w || t[i + k].n === w);
 }
 
 /* ------------------------------------------------------------------ */
@@ -120,19 +127,25 @@ function segments(t: Tok[], a: number, b: number): [number, number][] {
     if (finVirgule(t[i]) && i < b) { sortie.push([debut, i]); debut = i + 1; }
   }
   if (debut <= b) sortie.push([debut, b]);
-  if (sortie.length === 1) {
-    const [x, y] = sortie[0];
+  if (sortie.length >= 1) {
+    // « et » coupe le DERNIER segment, même sans virgule d'Oxford (« téléphone, adresse et notes »).
+    const [x, y] = sortie[sortie.length - 1];
     const coupes: [number, number][] = [];
     let d = x;
     for (let i = x + 1; i < y; i++) if (t[i].n === "et") { coupes.push([d, i - 1]); d = i + 1; }
-    if (coupes.length) { coupes.push([d, y]); return coupes; }
+    if (coupes.length) { coupes.push([d, y]); return [...sortie.slice(0, -1), ...coupes]; }
   }
   return sortie;
 }
 
-function elements(t: Tok[], a: number, b: number, opt: { maxMots: number; maxCar: number }, remarques: string[], quoi: string): { libelle: string; aMs: number; source: PlageMots }[] {
+function elements(t: Tok[], a: number, b: number, opt: { maxMots: number; maxCar: number }, remarques: string[], quoi: string, max: number): { libelle: string; aMs: number; source: PlageMots }[] {
   const sortie: { libelle: string; aMs: number; source: PlageMots }[] = [];
   for (const [x, y] of segments(t, a, b)) {
+    if (sortie.length >= max) {
+      // Retiré AVANT nettoyage : la remarque cite le texte brut, pas un libellé « raccourci ».
+      remarques.push(`${quoi} : élément retiré : « ${nettoyerBords(brut(t, x, y).join(" "))} » (au plus ${max}).`);
+      continue;
+    }
     const l = nettoyerLibelle(brut(t, x, y), opt);
     if (!l) continue;
     if (l.tronque) remarques.push(`${quoi} « ${l.texte} » raccourci (suite contiguë du script, trop long pour la carte).`);
@@ -144,11 +157,11 @@ const plageMots = plageDe;
 
 function detecterCartes(t: Tok[], p: Phrase, remarques: string[]): Extract<EvenementEcran, { genre: "cartes-chiffres" }> | null {
   for (let i = p.premier; i <= p.dernier; i++) {
-    if (!NOMS_ANNONCE.has(t[i].n)) continue;
+    if (!NOMS_ANNONCE.has(t[i].m)) continue;
     let deuxPoints = -1;
     for (let j = i; j <= Math.min(i + 3, p.dernier); j++) if (estDeuxPoints(t[j])) { deuxPoints = j; break; }
     if (deuxPoints < 0) continue;
-    const cartes = elements(t, deuxPoints + 1, p.dernier, { maxMots: 6, maxCar: 30 }, remarques, "Carte").slice(0, 3);
+    const cartes = elements(t, deuxPoints + 1, p.dernier, { maxMots: 6, maxCar: 30 }, remarques, "Carte", 3);
     if (cartes.length < 2) { remarques.push("Annonce de chiffres trouvée mais moins de deux éléments énumérés : cartes non dessinées."); return null; }
     const declencheur = i > p.premier && (NOMBRES.has(t[i - 1].n) || /^\d+$/.test(t[i - 1].n)) ? i - 1 : i;
     return { genre: "cartes-chiffres", aMs: t[declencheur].debut, cartes };
@@ -188,11 +201,11 @@ function detecterTri(t: Tok[], p: Phrase): Extract<EvenementEcran, { genre: "tri
 
 function detecterClic(t: Tok[], p: Phrase, remarques: string[]): { clic: Extract<EvenementEcran, { genre: "clic" }>; panneau: Extract<EvenementEcran, { genre: "panneau" }> | null } | null {
   let c = -1;
-  for (let i = p.premier; i <= p.dernier; i++) if (MOTS_CLIC.has(t[i].n)) { c = i; break; }
+  for (let i = p.premier; i <= p.dernier; i++) if (MOTS_CLIC.has(t[i].m)) { c = i; break; }
   if (c < 0) return null;
   const clic: Extract<EvenementEcran, { genre: "clic" }> = { genre: "clic", aMs: t[c].debut, cible: "ligne-1", source: plageDe(c, c) };
   let o = -1;
-  for (let i = c + 1; i <= p.dernier; i++) if (MOTS_OUVRE.has(t[i].n)) { o = i; break; }
+  for (let i = c + 1; i <= p.dernier; i++) if (MOTS_OUVRE.has(t[i].m)) { o = i; break; }
   if (o < 0) return { clic, panneau: null };
   clic.source = plageDe(c, o - 1 >= c ? o - 1 : c);
   let d = o + 1;
@@ -206,7 +219,7 @@ function detecterClic(t: Tok[], p: Phrase, remarques: string[]): { clic: Extract
     remarques.push("Un clic ouvre un panneau, mais son titre ou sa liste (« : a, b et c ») n'a pas été reconnu : panneau non dessiné.");
     return { clic, panneau: null };
   }
-  const rubriques = elements(t, deuxPoints + 1, p.dernier, { maxMots: 8, maxCar: 44 }, remarques, "Rubrique").slice(0, 4);
+  const rubriques = elements(t, deuxPoints + 1, p.dernier, { maxMots: 8, maxCar: 44 }, remarques, "Rubrique", 4);
   if (!rubriques.length) return { clic, panneau: null };
   return { clic, panneau: { genre: "panneau", aMs: t[o].debut, titre: titre.texte, rubriques, source: plageDe(o, p.dernier) } };
 }
@@ -222,7 +235,7 @@ function condition(t: Tok[], p: Phrase): { debut: number; fin: number } | null {
 
 function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { genre: "cartes-chiffres" }> | null): Extract<EvenementEcran, { genre: "alerte" }> | null {
   let k = -1;
-  for (let i = p.premier; i <= p.dernier; i++) if (MOTS_ALERTE.has(t[i].n)) { k = i; break; }
+  for (let i = p.premier; i <= p.dernier; i++) if (MOTS_ALERTE.has(t[i].m)) { k = i; break; }
   if (k < 0) return null;
   const opt = { maxMots: 8, maxCar: MAX_ALERTE, garderDeterminants: true };
   const candidats: [number, number][] = [];
@@ -267,13 +280,13 @@ function detecterRepere(t: Tok[], p: Phrase): { avant: string; apres: string; ba
     const apres = nettoyerLibelle(brut(t, e + 1, i - 1), opt);
     const avant = nettoyerLibelle(brut(t, d, p.dernier).map((m, k) => (k === 0 ? m.replace(/^d['’]/i, "") : m)), opt);
     if (!apres || !avant) continue;
-    return { avant: avant.texte, apres: apres.texte, barreAMs: t[d].debut, apresAMs: t[e + 1 + apres.premier].debut };
+    return { avant: avant.texte, apres: apres.texte, barreAMs: t[d + avant.premier].debut, apresAMs: t[e + 1 + apres.premier].debut };
   }
   return null;
 }
 
 function estAppel(t: Tok[], p: Phrase): boolean {
-  for (let i = p.premier; i <= p.dernier; i++) if (MOTS_APPEL.has(t[i].n) || MOTS_APPEL.has(nu(t[i].texte.split("-")[0]))) return true;
+  for (let i = p.premier; i <= p.dernier; i++) if (MOTS_APPEL.has(t[i].m) || MOTS_APPEL.has(t[i].n) || MOTS_APPEL.has(nu(t[i].texte.split("-")[0]))) return true;
   return false;
 }
 
@@ -297,6 +310,21 @@ function groupeNominal(t: Tok[], p: Phrase): string {
   return majuscule(nettoyerBords(t[p.premier].texte)).slice(0, MAX_CARTE_PHRASE);
 }
 
+/** Carte-phrase sans contenu propre (« Voici », « Merci », « Vous… ») : à fondre dans la scène voisine. */
+function videDeSens(texte: string): boolean {
+  const mots = texte.split(/\s+/).map(nu).map((m) => sansElision(m)).filter(Boolean);
+  return mots.every((m) => DEBUTS_VIDES.has(m) || MOTS_SANS_SENS.has(m) || MOTS_VIDES_FIN.has(m) || DETERMINANTS.has(m));
+}
+
+/** Titre plafonné (60 car.) : groupe de mots du début du script, coupé au mot, suite contiguë. */
+function titrePlafonne(mots: string[]): string {
+  const brutTxt = mots.join(" ").trim();
+  if (nettoyerBords(brutTxt).length <= MAX_SURTITRE) return brutTxt;
+  const l = nettoyerLibelle(mots.slice(0, 14), { maxMots: 12, maxCar: MAX_SURTITRE, garderDeterminants: true });
+  if (l) return l.texte;
+  return majuscule(nettoyerBords(mots[0] ?? "")).slice(0, MAX_SURTITRE);
+}
+
 /* ------------------------------------------------------------------ */
 /* Composition                                                          */
 /* ------------------------------------------------------------------ */
@@ -318,11 +346,44 @@ export function composerPlanSansVoix(e: EntreePlanSansVoix): { plan: PlanCompose
   }
 }
 
+function dureeImposee(e: EntreePlanSansVoix): number | null {
+  const d = Number(e.dureeMs);
+  return Number.isFinite(d) && d > 0 ? Math.round(d) : null;
+}
+
+/** Plan de secours : jamais de scène vide, une scène titre qui pave [0, dureeMs] ; plage de mots cohérente sans mots. */
 function planMinimal(e: EntreePlanSansVoix): PlanComposeSansVoix {
-  const texte = (e.phraseTitre ?? e.texte ?? "").trim();
-  const dureeMs = 1000;
-  const scenes: SceneSansVoix[] = texte ? [{ id: "s1-titre", genre: "titre", texte, debutMs: 0, finMs: dureeMs, mots: plageDe(0, 0) }] : [];
+  const sourceMots = (e.phraseTitre ?? "").trim() || String(e.texte ?? "").trim();
+  const texte = titrePlafonne(sourceMots.split(/\s+/).filter(Boolean));
+  const nMots = Array.isArray(e.mots) ? e.mots.length : 0;
+  const fins = (nMots ? e.mots : []).map((m) => Number(m.finMs) || 0);
+  const dureeMs = dureeImposee(e) ?? (fins.length ? Math.round(Math.max(...fins) + QUEUE_MS) : 1000);
+  const mots = nMots ? plageDe(0, nMots - 1) : plageDe(0, -1);
+  const scenes: SceneSansVoix[] = [{ id: "s1-titre", genre: "titre", texte, debutMs: 0, finMs: dureeMs, mots }];
   return { version: VERSION_SANS_VOIX, format: e.format, dureeMs, basPct: e.basPct, scenes };
+}
+
+/** Replace les indices de jetons (mots non vides) par les indices d'origine dans `mots` (contrat PlageMots). */
+function remapperIndices(plan: PlanComposeSansVoix, t: Tok[], nMots: number): void {
+  const vus = new Set<PlageMots>();
+  const f = (r: PlageMots) => {
+    if (vus.has(r)) return;
+    vus.add(r);
+    if (nMots === 0) { r.premier = 0; r.dernier = -1; return; }
+    const p = t[Math.min(Math.max(r.premier, 0), t.length - 1)].idx;
+    const d = t[Math.min(Math.max(r.dernier, 0), t.length - 1)].idx;
+    r.premier = p;
+    r.dernier = Math.max(p, d);
+  };
+  for (const sc of plan.scenes) {
+    f(sc.mots);
+    if (sc.genre !== "ecran") continue;
+    for (const ev of sc.evenements) {
+      if ("source" in ev) f(ev.source);
+      if (ev.genre === "cartes-chiffres") ev.cartes.forEach((c) => f(c.source));
+      if (ev.genre === "panneau") ev.rubriques.forEach((r) => f(r.source));
+    }
+  }
 }
 
 function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanComposeSansVoix; remarques: string[] } {
@@ -332,7 +393,9 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
     return { plan: planMinimal(e), remarques };
   }
   const phrases = decouperPhrases(t);
-  const dureeMs = Math.round(Math.max(...t.map((m) => m.fin)) + QUEUE_MS);
+  const dureeMs = dureeImposee(e) ?? Math.round(Math.max(...t.map((m) => m.fin)) + QUEUE_MS);
+  const nMots = Array.isArray(e.mots) ? e.mots.length : 0;
+  if (nMots === 0) remarques.push("Aucun mot horodaté : instants estimés, plages de mots vides.");
   const nP = phrases.length;
 
   // Repères, appel final, outil.
@@ -352,7 +415,7 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   const outil = outilParPhrase.find((o) => o) ?? null;
   const declencheEcran = (i: number): boolean => {
     const p = phrases[i];
-    return detecterCartes(t, p, []) !== null || detecterListe(t, p) !== null || detecterClic(t, p, []) !== null || t.slice(p.premier, p.dernier + 1).some((m) => MOTS_ALERTE.has(m.n));
+    return detecterCartes(t, p, []) !== null || detecterListe(t, p) !== null || detecterClic(t, p, []) !== null || t.slice(p.premier, p.dernier + 1).some((m) => MOTS_ALERTE.has(m.m));
   };
   let eS = -1;
   if (outil) {
@@ -422,7 +485,8 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   const texteP0 = nettoyerBords(p0.texte) === "" ? p0.texte : p0.texte.trim();
   const titreSaisi = (e.phraseTitre ?? "").trim();
   {
-    const texte = titreSaisi || texteP0;
+    const texte = titreSaisi || titrePlafonne(brut(t, p0.premier, p0.dernier));
+    if (!titreSaisi && texte !== texteP0) remarques.push("1re phrase trop longue pour le titre : groupe de mots du début, coupé au mot.");
     const sur = titreSaisi && texteP0.length <= MAX_SURTITRE && nu(texteP0) !== nu(titreSaisi) ? texteP0 : undefined;
     brouillons.push({
       scene: { id: idDe("titre"), genre: "titre", texte, ...(sur ? { surTitre: sur } : {}), mots: plageDe(p0.premier, p0.dernier) },
@@ -444,20 +508,22 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
     }
     if (appel && i === appel.premier) {
       const pa = phrases[appel.appel];
-      const rdvDit = t.some((m) => m.n.startsWith("rendez"));
       const rdvIdx = t.findIndex((m, k) => k >= pa.premier && k <= pa.dernier && m.n.startsWith("rendez"));
+      let motAppel = pa.premier;
+      for (let k = pa.premier; k <= pa.dernier; k++) if (MOTS_APPEL.has(t[k].m) || MOTS_APPEL.has(t[k].n) || MOTS_APPEL.has(nu(t[k].texte.split("-")[0]))) { motAppel = k; break; }
       let bouton: string;
-      if (e.fin === "rendez-vous" || rdvDit) bouton = "Prendre rendez-vous";
+      if (e.fin === "rendez-vous") bouton = "Prendre rendez-vous";
       else {
-        const l = nettoyerLibelle(brut(t, pa.premier, Math.min(pa.dernier, pa.premier + 2)), { maxMots: 3, maxCar: 30, garderDeterminants: true });
-        bouton = l ? l.texte : majuscule(nettoyerBords(t[pa.premier].texte));
+        // Suite littérale de la PHRASE D'APPEL seule, à partir du mot d'appel.
+        const l = nettoyerLibelle(brut(t, motAppel, Math.min(pa.dernier, motAppel + 2)), { maxMots: 3, maxCar: 30, garderDeterminants: true });
+        bouton = l ? l.texte : majuscule(nettoyerBords(t[motAppel].texte));
       }
       const qTexte = appel.question !== null ? nettoyerBords(phrases[appel.question].texte) : "";
       const questionTexte = appel.question !== null ? phrases[appel.question].texte.trim() : "";
       const question = qTexte && qTexte.length <= MAX_SURTITRE ? questionTexte : undefined;
       if (qTexte && !question) remarques.push("La question finale est trop longue pour la scène d'appel : seul le bouton est affiché.");
       brouillons.push({
-        scene: { id: idDe("appel"), genre: "appel", ...(question ? { question } : {}), bouton, clicAMs: t[rdvIdx >= 0 ? rdvIdx : pa.premier].debut, mots: plageDe(p.premier, pa.dernier) },
+        scene: { id: idDe("appel"), genre: "appel", ...(question ? { question } : {}), bouton, clicAMs: t[rdvIdx >= 0 ? rdvIdx : motAppel].debut, mots: plageDe(p.premier, pa.dernier) },
         premierMot: p.premier,
       });
       i = appel.appel + 1;
@@ -470,6 +536,13 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
       continue;
     }
     const texte = groupeNominal(t, p);
+    const precedent = brouillons[brouillons.length - 1];
+    if (videDeSens(texte) && precedent) {
+      remarques.push(`Phrase ${i + 1} sans contenu propre (« ${texte} ») : fondue dans la scène précédente.`);
+      precedent.scene.mots = plageDe(precedent.scene.mots.premier, p.dernier);
+      i++;
+      continue;
+    }
     remarques.push(`Phrase ${i + 1} non reconnue comme une action d'écran : reprise en carte-phrase « ${texte} ».`);
     brouillons.push({ scene: { id: idDe("carte-phrase"), genre: "carte-phrase", texte, mots: plageDe(p.premier, p.dernier) }, premierMot: p.premier });
     i++;
@@ -481,11 +554,13 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   const scenes: SceneSansVoix[] = [];
   let borne = 0;
   brouillons.forEach((b, k) => {
-    const debut = k === 0 ? 0 : Math.max(borne, t[b.premierMot].debut);
+    const debut = Math.min(dureeMs, k === 0 ? 0 : Math.max(borne, t[b.premierMot].debut));
     const suivant = brouillons[k + 1];
-    const fin = suivant ? Math.max(debut, t[suivant.premierMot].debut) : Math.max(debut, dureeMs);
+    const fin = suivant ? Math.min(dureeMs, Math.max(debut, t[suivant.premierMot].debut)) : Math.max(debut, dureeMs);
     scenes.push({ ...b.scene, debutMs: debut, finMs: fin } as SceneSansVoix);
     borne = fin;
   });
-  return { plan: { version: VERSION_SANS_VOIX, format: e.format, dureeMs, basPct: e.basPct, scenes }, remarques };
+  const plan: PlanComposeSansVoix = { version: VERSION_SANS_VOIX, format: e.format, dureeMs, basPct: e.basPct, scenes };
+  remapperIndices(plan, t, nMots);
+  return { plan, remarques };
 }
