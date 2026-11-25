@@ -126,7 +126,7 @@ describe("interrupteurs", () => {
     expect(lire("src/formats/tutoriel-outil/index.ts")).toContain(`ID_FORMAT_TUTORIEL_OUTIL = "${c.FORMAT_TUTORIEL}"`);
     expect(c.CLE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.actif");
     expect(c.CLE_TEXTE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.texte");
-    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif", "tutoriel.captureAuto"]);
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "tutoriel.captureAuto", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
   });
 });
 
@@ -506,6 +506,6 @@ describe("interrupteur « Capture automatique du film » (POSTE-5)", () => {
     expect(lignes.find((l) => l.cle === "tutoriel.captureAuto")?.allume).toBe(true);
   });
   it("aucun mot de prix ni montant dans sa phrase", () => {
-    expect(`${ligne()?.libelle} ${ligne()?.phraseEteint}`).not.toMatch(/€|\$|euro|dollar|co[uû]t|prix|budget|tarif|devis|\d/i);
+    expect(`${ligne()?.libelle} ${ligne()?.phraseEteint}`).not.toMatch(/€|\$|euro|dollar|co[uû]t|prix|budget|plafond|tarif|devis|\d/i);
   });
 });

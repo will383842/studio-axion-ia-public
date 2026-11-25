@@ -10,6 +10,8 @@
  *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15), `lienSuivi` (T-EXT-34) et les clés des fiches 33 et 41 (`PARAM_FORMULAIRE`,
  *    `PARAM_ENTREE_ZIP`) sont importés. La clé de fin commune (26a) est écrite ici parce que 26a ne l'exporte pas :
  *    le test de la console la compare au texte de `tutoriel-branchements.ts`. Plus aucune attente.
+ *  - La clé `tutoriel.captureAuto` (POSTE-4) est aussi écrite ici en clair : la garde de POSTE-4 réserve à `boucle.ts`
+ *    l'import de `tutoriel-capture-auto` ; le test de la console la compare au texte de `PARAM_CAPTURE_AUTO`.
  */
 import "server-only";
 import {
@@ -83,9 +85,9 @@ export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
   { cle: CLE_RETOUCHE_PARTIELLE, libelle: "Retouche partielle", phraseEteint: "Éteint : une retouche refait toute la vidéo." },
   { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis (n'agit que si l'équipe tourne ; léger surcoût de l'appel du stratège, sous le plafond par vidéo)." },
   { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
+  { cle: CLE_CAPTURE_AUTO, libelle: "Capture automatique du film", phraseEteint: "Éteint : le film d'une vidéo partie d'un dossier .zip se dépose à la main. Allumé, le poste de capture fait ce film tout seul, sans aucun appel payant ; il doit d'abord être installé sur le serveur. Rien ne change pour les vidéos parties d'une phrase." },
   { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = chaque retouche relance un rendu payant (la voix et le script sont repris ; si le regard de Claude est allumé, un appel Claude de plus, sous le plafond par vidéo)." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
-  { cle: CLE_CAPTURE_AUTO, libelle: "Capture automatique du film", phraseEteint: "Éteint : le film d'une vidéo partie d'un dossier .zip se dépose à la main. Allumé, le poste de capture le filme tout seul ; il doit d'abord être installé sur le serveur. Les vidéos parties d'une phrase attendent encore." },
 ];
 
 export type LireReglage = <T>(id: string, defaut: T) => Promise<T>;
