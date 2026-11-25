@@ -649,4 +649,63 @@ describe("QUAL-2 — repère : l'écran est prolongé jusqu'à 600 ms avant « u
     expect(repere.debutMs).toBeLessThanOrEqual(repere.apresAMs);
     expect(repere.apresAMs - repere.debutMs).toBeLessThanOrEqual(600);
   });
+
+  describe("couverture des mots et repère non appel (fixer)", () => {
+    const B = "Un souci de stock ? Voici un tableau de bord. En haut, trois chiffres : ventes, stock et marge. ";
+    const SCRIPTS = [
+      FONDATEUR,
+      B + "Vous décidez en une minute au lieu d'une heure. Prenez rendez-vous.",
+      B + "Une alerte part toute seule quand un article passe sous le seuil. Vous décidez en une minute au lieu d'une heure. Merci.",
+      B + "Un clic sur un article ouvre son historique : entrées, sorties. Vous décidez en une minute au lieu d'une heure ! Bonne journée.",
+    ];
+
+    it("chaque mot non vide qui commence avant dureeMs appartient à exactement une scène (balayage tous les 100 ms)", () => {
+      for (const txt of SCRIPTS) {
+        const mots = motsDe(txt);
+        const fin = mots[mots.length - 1].finMs;
+        for (let d = 100; d <= fin + 1000; d += 100) {
+          const { plan } = composer(txt, { dureeMs: d });
+          mots.forEach((m, k) => {
+            if (!m.texte.trim() || m.debutMs >= d) return;
+            const n = plan.scenes.filter((s) => k >= s.mots.premier && k <= s.mots.dernier).length;
+            expect(n, `mot ${k} « ${m.texte} » dureeMs ${d}`).toBe(1);
+          });
+        }
+      }
+    });
+
+    it("fondateur, dureeMs 33900 à 34400 : « Vous décidez » est couvert", () => {
+      const mots = motsDe(FONDATEUR);
+      const k = mots.findIndex((m, i) => /^vous$/i.test(m.texte) && /^d[ée]cidez$/i.test(mots[i + 1]?.texte ?? ""));
+      for (let d = 33900; d <= 34400; d += 100) {
+        const { plan } = composer(FONDATEUR, { dureeMs: d });
+        if (mots[k].debutMs < d) expect(plan.scenes.some((s) => k >= s.mots.premier && k <= s.mots.dernier)).toBe(true);
+      }
+    });
+
+    it("« … en une minute au lieu d'une heure. Merci, restons en contact. » : le repère n'est pas la scène d'appel", () => {
+      const txt = B + "Vous décidez en une minute au lieu d'une heure. Merci, restons en contact.";
+      const { plan } = composer(txt);
+      expect(plan.scenes.some((s) => s.genre === "repere")).toBe(true);
+      expect(plan.scenes.some((s) => s.genre === "appel")).toBe(false);
+      const txt2 = B + "Restons en contact, vous décidez en une minute au lieu d'une heure. Merci, restons en contact.";
+      const r2 = composer(txt2).plan;
+      expect(r2.scenes.some((s) => s.genre === "repere")).toBe(true);
+      expect(r2.scenes.some((s) => s.genre === "appel")).toBe(false);
+    });
+  });
+});
+
+describe("avance avant le repère : seulement après un écran", () => {
+  it("un titre qui précède le repère n'est pas prolongé sur la phrase du repère", () => {
+    const texte = "Voici un tableau de bord. Grâce à lui, avec toute votre équipe réunie autour de la table, vous décidez en une minute au lieu d'une heure.";
+    const { plan } = composerPlanSansVoix({ texte, mots: motsDe(texte), format: FORMAT, basPct: 87 });
+    const rep = plan.scenes.find((sc) => sc.genre === "repere");
+    expect(rep).toBeDefined();
+    const k = plan.scenes.indexOf(rep!);
+    expect(k).toBeGreaterThan(0);
+    expect(plan.scenes[k - 1].genre).not.toBe("ecran");
+    // Pas d'avance : le repère commence au premier mot de sa phrase.
+    expect(rep!.debutMs).toBe(motsDe(texte)[rep!.mots.premier].debutMs);
+  });
 });
