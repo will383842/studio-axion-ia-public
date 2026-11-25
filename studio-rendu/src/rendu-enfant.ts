@@ -31,11 +31,11 @@ export interface DemandeEnfant {
 export type MessageEnfant =
   | { type: "progression"; pc: number }
   | { type: "fini"; images: number; fps: number }
-  | { type: "erreur"; phase: "selection" | "rendu"; message: string };
+  | { type: "erreur"; phase: "selection" | "rendu"; message: string; /** Code de la cause (`ECONNREFUSED`…), s'il existe. */ codeCause?: string };
 
 /** Erreur remontée par l'enfant : `phase` dit si c'est le choix de la composition ou le rendu. */
 export class ErreurEnfant extends Error {
-  constructor(message: string, public readonly phase: "selection" | "rendu" | "processus") {
+  constructor(message: string, public readonly phase: "selection" | "rendu" | "processus", public readonly codeCause?: string) {
     super(message);
     this.name = "ErreurEnfant";
   }
@@ -44,7 +44,8 @@ export class ErreurEnfant extends Error {
 /** Le strict nécessaire d'un processus enfant (un faux le remplace dans les tests). */
 export interface EnfantMinimal {
   on(evenement: "message", ecoute: (m: unknown) => void): unknown;
-  on(evenement: "exit", ecoute: (code: number | null, signal: NodeJS.Signals | null) => void): unknown;
+  /** `close` (et non `exit`) : il attend la fermeture du canal IPC, donc le dernier message n'est jamais perdu. */
+  on(evenement: "close", ecoute: (code: number | null, signal: NodeJS.Signals | null) => void): unknown;
   on(evenement: "error", ecoute: (e: Error) => void): unknown;
   send(m: unknown): unknown;
   kill(signal?: NodeJS.Signals): unknown;
@@ -53,8 +54,18 @@ export interface EnfantMinimal {
 export interface OptionsEnfant {
   /** Lance l'enfant (défaut : `child_process.fork`, qui hérite de `process.execArgv`, donc du chargeur tsx). */
   lancer?: (module: string, env: NodeJS.ProcessEnv) => EnfantMinimal;
-  /** Délai avant SIGKILL après l'arrêt demandé (défaut 5 s). */
+  /**
+   * Délai avant SIGKILL après l'arrêt demandé (défaut 60 s). Après un arrêt, Remotion efface en synchrone le profil
+   * Chrome (8,5 s pour 15 Go) : un SIGKILL trop tôt couperait cet effacement et laisserait le profil dans /tmp. Le
+   * serveur n'est plus gelé et la file est déjà libérée (`Promise.race`), attendre ne coûte rien.
+   */
   delaiAbattageMs?: number;
+  /**
+   * Dossier temporaire de l'enfant (`TMPDIR`). Le profil Chrome (`puppeteer_dev_chrome_profile-*`) et les dossiers de
+   * Remotion y vivent : ils sont effacés avec le dossier du rendu (`files.ts`, sans bloquer le serveur), quelle que
+   * soit la fin de l'enfant (arrêt, SIGKILL, plantage). Le dossier doit exister.
+   */
+  dossierTemp?: string;
   /** Module de l'enfant (défaut : `cheminEnfant()`). */
   module?: string;
 }
@@ -77,7 +88,7 @@ function lancerParDefaut(module: string, env: NodeJS.ProcessEnv): EnfantMinimal 
 export function lancerRenduEnfant(demande: DemandeEnfant, contexte: { progression: (pc: number) => void; signal: AbortSignal }, options: OptionsEnfant = {}): Promise<{ images: number; fps: number }> {
   return new Promise((ok, ko) => {
     if (contexte.signal.aborted) return ko(new ErreurEnfant("Le rendu a été arrêté avant son départ.", "processus"));
-    const enfant = (options.lancer ?? lancerParDefaut)(options.module ?? cheminEnfant(), { ...process.env, STUDIO_RENDU_ENFANT: "1" });
+    const enfant = (options.lancer ?? lancerParDefaut)(options.module ?? cheminEnfant(), { ...process.env, STUDIO_RENDU_ENFANT: "1", ...(options.dossierTemp ? { TMPDIR: options.dossierTemp } : {}) });
     let resultat: { images: number; fps: number } | null = null;
     let erreur: ErreurEnfant | null = null;
     let fini = false;
@@ -101,7 +112,7 @@ export function lancerRenduEnfant(demande: DemandeEnfant, contexte: { progressio
         } catch {
           // Déjà parti.
         }
-      }, options.delaiAbattageMs ?? 5_000);
+      }, options.delaiAbattageMs ?? 60_000);
       abattage.unref?.();
     };
     contexte.signal.addEventListener("abort", arreter, { once: true });
@@ -110,10 +121,10 @@ export function lancerRenduEnfant(demande: DemandeEnfant, contexte: { progressio
       if (!m || typeof m !== "object") return;
       if (m.type === "progression") contexte.progression(m.pc);
       else if (m.type === "fini") resultat = { images: m.images, fps: m.fps };
-      else if (m.type === "erreur") erreur = new ErreurEnfant(m.message, m.phase);
+      else if (m.type === "erreur") erreur = new ErreurEnfant(m.message, m.phase, m.codeCause);
     });
     enfant.on("error", (e) => terminer(() => ko(new ErreurEnfant(`Le processus de rendu n'a pas pu démarrer (${e.message}).`, "processus"))));
-    enfant.on("exit", (code, signal) =>
+    enfant.on("close", (code, signal) =>
       terminer(() => {
         if (code === 0 && resultat) return ok(resultat);
         if (erreur) return ko(erreur);
@@ -143,6 +154,16 @@ function dire(m: MessageEnfant): Promise<void> {
 
 const texteErreur = (e: unknown): string => (e instanceof Error ? e.message : String(e ?? "erreur"));
 
+/** Code de la cause (`fetch failed` → `ECONNREFUSED`) : il passe par l'IPC pour que le parent le montre. */
+function causeDe(e: unknown): { codeCause?: string } {
+  const code = (e as { cause?: { code?: unknown } } | null)?.cause?.code;
+  return typeof code === "string" && code ? { codeCause: code } : {};
+}
+
+/** Arrêt demandé (SIGTERM) ou parent disparu : posé dès le départ, consulté avant `renderMedia`. */
+let arretDemande = false;
+let annuler: (() => void) | null = null;
+
 /** Rend la composition demandée (mêmes appels qu'avant, dans ce processus). */
 async function rendreDansEnfant(d: DemandeEnfant): Promise<void> {
   const { makeCancelSignal, renderMedia, selectComposition } = await import("@remotion/renderer");
@@ -150,12 +171,15 @@ async function rendreDansEnfant(d: DemandeEnfant): Promise<void> {
   try {
     choisie = await selectComposition({ serveUrl: d.serveUrl, id: d.id, inputProps: d.proprietes });
   } catch (e) {
-    await dire({ type: "erreur", phase: "selection", message: texteErreur(e) });
+    await dire({ type: "erreur", phase: "selection", message: texteErreur(e), ...causeDe(e) });
+    process.exit(1);
+  }
+  if (arretDemande) {
+    await dire({ type: "erreur", phase: "rendu", message: "Le rendu a été arrêté avant son départ." });
     process.exit(1);
   }
   const { cancelSignal, cancel } = makeCancelSignal();
-  // Arrêt demandé par le parent : Remotion ferme proprement son navigateur et le rendu échoue.
-  process.on("SIGTERM", () => cancel());
+  annuler = cancel;
   try {
     await renderMedia({
       ...(d.reglages as object),
@@ -169,7 +193,7 @@ async function rendreDansEnfant(d: DemandeEnfant): Promise<void> {
       onProgress: ({ progress }: { progress: number }) => void dire({ type: "progression", pc: progress * 95 }),
     } as Parameters<typeof renderMedia>[0]);
   } catch (e) {
-    await dire({ type: "erreur", phase: "rendu", message: texteErreur(e) });
+    await dire({ type: "erreur", phase: "rendu", message: texteErreur(e), ...causeDe(e) });
     process.exit(1);
   }
   await dire({ type: "fini", images: choisie.durationInFrames, fps: choisie.fps });
@@ -177,10 +201,21 @@ async function rendreDansEnfant(d: DemandeEnfant): Promise<void> {
 }
 
 if (process.env.STUDIO_RENDU_ENFANT === "1" && process.send) {
+  // Posés dès le départ : un arrêt pendant `selectComposition` (qui ouvre déjà un navigateur) ne tue plus Node sans
+  // fermer Chrome ; le drapeau est consulté avant `renderMedia`. Parent disparu (canal fermé) : plus personne ne lit.
+  process.on("SIGTERM", () => {
+    arretDemande = true;
+    annuler?.();
+  });
+  process.on("disconnect", () => {
+    arretDemande = true;
+    if (annuler) annuler();
+    else process.exit(1);
+  });
   process.once("message", (m: { type?: string; demande?: DemandeEnfant }) => {
     if (m?.type !== "demande" || !m.demande) return process.exit(2);
     rendreDansEnfant(m.demande).catch(async (e) => {
-      await dire({ type: "erreur", phase: "rendu", message: texteErreur(e) });
+      await dire({ type: "erreur", phase: "rendu", message: texteErreur(e), ...causeDe(e) });
       process.exit(1);
     });
   });

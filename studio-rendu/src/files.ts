@@ -73,9 +73,13 @@ export function delaiRendu(d: DemandeRendu, o: { delaiCourteMs: number; delaiLon
 /** Longueur gardée d'un message d'échec. */
 const LONGUEUR_MOTIF = 300;
 
-/** Texte court qui garde la FIN (la vraie cause d'un stderr FFmpeg, pas sa bannière). PUR. */
+/**
+ * Texte court qui garde la FIN (la vraie cause d'un stderr FFmpeg, pas sa bannière). Les lignes de pile d'appels
+ * (`    at …`) sont retirées d'abord : leur fin ne dit rien (essai du 25/11 : « …et:347:12) »). PUR.
+ */
 export function finDuTexte(texte: string, max: number = LONGUEUR_MOTIF): string {
-  return texte.length > max ? `…${texte.slice(-max)}` : texte;
+  const sansPile = texte.split("\n").filter((l) => !/^\s+at /.test(l)).join("\n").trim();
+  return sansPile.length > max ? `…${sansPile.slice(-max)}` : sansPile;
 }
 
 /** Code de la cause réseau d'une erreur (`fetch failed` → `ECONNREFUSED`), sinon null. PUR. */
@@ -119,11 +123,12 @@ function jsonStable(v: unknown): string {
 }
 
 /**
- * Empreinte d'une demande : opération, file, paramètres, clé de sortie et NOMS des entrées. Jamais les adresses
- * signées des entrées ni du dépôt (elles changent à chaque signature). PUR.
+ * Empreinte d'une demande : opération, file, paramètres, clé de sortie et entrées (nom ET fichier : origine + chemin,
+ * sans la signature). Jamais l'adresse de dépôt ni les signatures (elles changent à chaque signature) ; un autre
+ * fichier sous le même nom d'entrée (voix brute puis voix mixée) est bien une autre demande. PUR.
  */
 export function empreinteDemande(d: DemandeRendu): string {
-  return createHash("sha256").update(jsonStable({ operation: d.operation, file: d.file, parametres: d.parametres, sortie: d.sortie?.cle, entrees: Object.keys(d.entrees ?? {}).sort() })).digest("hex");
+  return createHash("sha256").update(jsonStable({ operation: d.operation, file: d.file, parametres: d.parametres, sortie: d.sortie?.cle, entrees: d.entrees ?? {} })).digest("hex");
 }
 
 /** Identifiant sans son suffixe de reprise (`-eN`, `-sN`, `-rN`) : un même montage repris garde le même identifiant de base. PUR. */

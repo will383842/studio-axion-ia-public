@@ -10,6 +10,8 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DemandeRendu } from "../studio-rendu/src/contrat";
 import { FilesRendu, empreinteDemande, motifEchec } from "../studio-rendu/src/files";
+import { demandeEnfantEssai } from "../studio-rendu/src/operations/composition";
+import { CACHE_VIDEO_RENDU_OCTETS } from "../studio-rendu/src/remotion";
 import { nettoyerTemporairesOrphelins } from "../studio-rendu/src/nettoyage";
 import { cheminEnfant, ErreurEnfant, lancerRenduEnfant, type DemandeEnfant } from "../studio-rendu/src/rendu-enfant";
 import { creerServeur } from "../studio-rendu/src/serveur";
@@ -49,7 +51,7 @@ describe("rendu dans un processus enfant", () => {
     enfant.emit("message", { type: "progression", pc: 10 });
     enfant.emit("message", { type: "progression", pc: 60 });
     enfant.emit("message", { type: "fini", images: 300, fps: 30 });
-    enfant.emit("exit", 0, null);
+    enfant.emit("close", 0, null);
     await expect(p).resolves.toEqual({ images: 300, fps: 30 });
     expect(pcs).toEqual([10, 60]);
   });
@@ -57,7 +59,7 @@ describe("rendu dans un processus enfant", () => {
   it("échec avec message : l'erreur porte le message de l'enfant", async () => {
     const { enfant, p } = lancer();
     enfant.emit("message", { type: "erreur", phase: "rendu", message: "FFmpeg quit with code 254" });
-    enfant.emit("exit", 1, null);
+    enfant.emit("close", 1, null);
     const e = await p.catch((x) => x);
     expect(e).toBeInstanceOf(ErreurEnfant);
     expect(e.message).toBe("FFmpeg quit with code 254");
@@ -68,19 +70,19 @@ describe("rendu dans un processus enfant", () => {
   it("erreur de sélection : la phase est transmise", async () => {
     const { enfant, p } = lancer();
     enfant.emit("message", { type: "erreur", phase: "selection", message: "Could not find composition" });
-    enfant.emit("exit", 1, null);
+    enfant.emit("close", 1, null);
     await expect(p).rejects.toMatchObject({ phase: "selection" });
   });
 
   it("enfant tué : message lisible avec le signal", async () => {
     const { enfant, p } = lancer();
-    enfant.emit("exit", null, "SIGKILL");
+    enfant.emit("close", null, "SIGKILL");
     await expect(p).rejects.toThrow("Le processus de rendu s'est arrêté (signal SIGKILL).");
   });
 
   it("sortie sans résultat ni message : code affiché", async () => {
     const { enfant, p } = lancer();
-    enfant.emit("exit", 3, null);
+    enfant.emit("close", 3, null);
     await expect(p).rejects.toThrow("Le processus de rendu s'est arrêté (code 3).");
   });
 
@@ -91,8 +93,49 @@ describe("rendu dans un processus enfant", () => {
     expect(enfant.signaux).toEqual(["SIGTERM"]);
     await new Promise((r) => setTimeout(r, 40));
     expect(enfant.signaux).toEqual(["SIGTERM", "SIGKILL"]);
-    enfant.emit("exit", null, "SIGKILL");
+    enfant.emit("close", null, "SIGKILL");
     await expect(p).rejects.toThrow(/s'est arrêté/);
+  });
+
+  it("le dossier temporaire du rendu devient le TMPDIR de l'enfant (profil Chrome effacé avec le rendu)", async () => {
+    let env: NodeJS.ProcessEnv = {};
+    const enfant = new FauxEnfant();
+    const p = lancerRenduEnfant(demandeEnfant, { progression: () => undefined, signal: new AbortController().signal }, { lancer: (_m, e) => ((env = e), enfant), dossierTemp: "/tmp/rendu-x/tmp" }).catch(() => undefined);
+    expect(env.TMPDIR).toBe("/tmp/rendu-x/tmp");
+    expect(env.STUDIO_RENDU_ENFANT).toBe("1");
+    enfant.emit("close", 1, null);
+    await p;
+  });
+
+  it("le délai avant SIGKILL par défaut est de 60 s", async () => {
+    const controleur = new AbortController();
+    const enfant = new FauxEnfant();
+    const p = lancerRenduEnfant(demandeEnfant, { progression: () => undefined, signal: controleur.signal }, { lancer: () => enfant });
+    const vrai = globalThis.setTimeout;
+    const delais: number[] = [];
+    globalThis.setTimeout = ((f: () => void, ms?: number, ...a: unknown[]) => (delais.push(ms ?? 0), vrai(f, 1_000_000, ...a))) as typeof setTimeout;
+    try {
+      controleur.abort();
+    } finally {
+      globalThis.setTimeout = vrai;
+    }
+    expect(delais).toContain(60_000);
+    enfant.emit("close", null, "SIGTERM");
+    await p.catch(() => undefined);
+  });
+
+  it("la cause réseau de l'enfant arrive au parent", async () => {
+    const { enfant, p } = lancer();
+    enfant.emit("message", { type: "erreur", phase: "rendu", message: "fetch failed", codeCause: "ECONNRESET" });
+    enfant.emit("close", 1, null);
+    await expect(p).rejects.toMatchObject({ codeCause: "ECONNRESET" });
+  });
+
+  it("la demande transmise à l'enfant borne les caches vidéo et garde crf et codec", () => {
+    const d = demandeEnfantEssai({ ...demande("a", { operation: "composition", file: "longue", parametres: { composition: "Essai", crf: 12, proprietes: { a: 1 } } }) }, "http://paquet", "/tmp/v.mp4");
+    expect(d.supplements).toMatchObject({ offthreadVideoCacheSizeInBytes: CACHE_VIDEO_RENDU_OCTETS, mediaCacheSizeInBytes: CACHE_VIDEO_RENDU_OCTETS, crf: 12, colorSpace: "bt709" });
+    expect(d).toMatchObject({ serveUrl: "http://paquet", id: "Essai", sortie: "/tmp/v.mp4" });
+    expect(d.proprietes).toMatchObject({ a: 1, media: "https://r2.exemple/a.mp4?sig=1" });
   });
 
   it("déjà arrêté avant le départ : aucun enfant lancé", async () => {
@@ -116,6 +159,14 @@ describe("idempotence sûre", () => {
     expect(f.soumettre(demande("a"))).toEqual({ idRendu: "a", nouveau: true });
     const r = f.soumettre(demande("a", { entrees: { media: "https://r2.exemple/a.mp4?sig=2" }, sortie: { urlDepot: "https://r2.exemple/d?sig=2", cle: "sorties/a.json" } }));
     expect(r).toEqual({ idRendu: "a", nouveau: false });
+    await f.inactif();
+  });
+
+  it("même nom d'entrée, autre fichier : conflit ; même fichier, autre signature : idempotent", async () => {
+    const f = fabrique();
+    f.soumettre(demande("a", { entrees: { audio: "https://r2.exemple/voix-brute.wav?sig=1" } }));
+    expect(f.soumettre(demande("a", { entrees: { audio: "https://r2.exemple/voix-mixee.wav?sig=1" } }))).toMatchObject({ nouveau: false, conflit: true });
+    expect(f.soumettre(demande("a", { entrees: { audio: "https://r2.exemple/voix-brute.wav?sig=2" } }))).toEqual({ idRendu: "a", nouveau: false });
     await f.inactif();
   });
 
@@ -187,6 +238,13 @@ describe("motifs d'échec lisibles", () => {
   it("la cause réseau est présente", () => {
     const e = new TypeError("fetch failed", { cause: Object.assign(new Error("connect"), { code: "ECONNREFUSED" }) });
     expect(motifEchec(e).message).toBe("fetch failed (ECONNREFUSED)");
+  });
+
+  it("une pile d'appels Remotion ne cache pas la cause", () => {
+    const e = new Error("Could not extract frame from compositor Error: Compositor exited with signal SIGKILL\n    at ChildProcess.<anonymous> (file:///app/node_modules/@remotion/renderer/dist/esm/index.mjs:16815:37)\n    at ChildProcess.emit (node:events:518:28)\n    at Socket.<anonymous> (node:net:347:12)");
+    const m = motifEchec(e).message;
+    expect(m).toContain("Compositor exited with signal SIGKILL");
+    expect(m).not.toContain("node:net");
   });
 
   it("un long stderr garde la fin, sans adresse", () => {

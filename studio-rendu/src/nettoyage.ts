@@ -18,7 +18,7 @@ export const PREFIXES_TEMPORAIRES = ["studio-rendu-", "remotion-", "react-motion
 
 /**
  * Âge minimal (date de modification du dossier) avant effacement : 6 h. Essai du 25/11 : un autre rendu vivant de la
- * même machine voyait ses dossiers effacés au démarrage de celui-ci. Un montage dure au plus 20 min : 6 h est large.
+ * même machine voyait ses dossiers effacés au démarrage de celui-ci. Un montage dure au plus 20 min : 6 h est large. Limite connue : le paquet `remotion-webpack-bundle-*` d'une AUTRE instance vivante depuis plus de 6 h serait effacé (son mtime reste celui de sa création) ; sans effet en production (un seul conteneur).
  */
 export const AGE_MINIMAL_ORPHELIN_MS = 6 * 3600_000;
 

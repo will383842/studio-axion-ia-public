@@ -38,13 +38,26 @@ import { compositionFacecamV4 } from "./facecam-v4.js";
 import { compositionPlage } from "./plage-images.js";
 import { deposer, erreurSelectionComposition, executer, executerAvecErreurs, exigerAdressePermise, FFMPEG, FFPROBE, sansAdresses, telecharger } from "../outils.js";
 import { lireCubeFichier } from "../lut.js";
-import { ErreurEnfant, lancerRenduEnfant } from "../rendu-enfant.js";
-import { coeursDisponibles, paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
+import { ErreurEnfant, lancerRenduEnfant, type DemandeEnfant } from "../rendu-enfant.js";
+import { CACHE_VIDEO_RENDU_OCTETS, coeursDisponibles, paquetCompositions, REGLAGES_RENDU } from "../remotion.js";
 import { chargerClientLambda, configLambda, rendreSurLambda } from "../remotion-lambda.js";
 import { PAN_VOIX_STEREO, preparerSilence, preparerSon } from "../son/chaine.js";
 import { mesurerFichier } from "../son/mesure.js";
 import { mesurerBordsNoirs, mesuresBords } from "../controle-bords.js";
 import { argumentsFiges, mesuresFiges } from "../controle-figes.js";
+
+/**
+ * Demande transmise à l'enfant pour la composition d'essai. Mêmes options qu'avant, plus les caches vidéo BORNÉS
+ * (essai du 25/11 : « Compositor exited with signal SIGKILL » à 4 Go, comme l'incident du 18/10 de facecam-v4). PUR.
+ */
+export function demandeEnfantEssai(demande: DemandeRendu, serveUrl: string, sortie: string): DemandeEnfant {
+  const id = typeof demande.parametres.composition === "string" ? demande.parametres.composition : "Essai";
+  const proprietes = { ...((demande.parametres.proprietes ?? {}) as Record<string, unknown>), ...demande.entrees };
+  // Lot I (facultatif) : `parametres.crf` (0-51) pour un rendu quasi sans perte (effets spéciaux posés sur la piste
+  // 10 bits) ; absent : réglages par défaut, comme avant.
+  const crf = typeof demande.parametres.crf === "number" && Number.isFinite(demande.parametres.crf) ? { crf: Math.max(0, Math.min(51, Math.round(demande.parametres.crf))), colorSpace: "bt709" as const } : {};
+  return { serveUrl, id, proprietes, reglages: { ...REGLAGES_RENDU }, supplements: { ...crf, offthreadVideoCacheSizeInBytes: CACHE_VIDEO_RENDU_OCTETS, mediaCacheSizeInBytes: CACHE_VIDEO_RENDU_OCTETS }, sortie };
+}
 
 /**
  * Composition d'essai du lot M1b (aucun mode). Essai du 25/11 : le rendu tourne dans un PROCESSUS ENFANT
@@ -53,15 +66,15 @@ import { argumentsFiges, mesuresFiges } from "../controle-figes.js";
  */
 async function compositionEssai(demande: DemandeRendu, contexte: ContexteOperation) {
   const id = typeof demande.parametres.composition === "string" ? demande.parametres.composition : "Essai";
-  const proprietes = { ...((demande.parametres.proprietes ?? {}) as Record<string, unknown>), ...demande.entrees };
   const serveUrl = await paquetCompositions();
   const sortie = join(contexte.dossier, "video.mp4");
-  // Lot I (facultatif) : `parametres.crf` (0-51) pour un rendu quasi sans perte (effets spéciaux posés sur la piste
-  // 10 bits) ; absent : réglages par défaut, comme avant.
-  const crf = typeof demande.parametres.crf === "number" && Number.isFinite(demande.parametres.crf) ? { crf: Math.max(0, Math.min(51, Math.round(demande.parametres.crf))), colorSpace: "bt709" as const } : {};
-  const rendu = await lancerRenduEnfant({ serveUrl, id, proprietes, reglages: { ...REGLAGES_RENDU }, supplements: crf, sortie }, { progression: contexte.progression, signal: contexte.signal }).catch((e: unknown) => {
+  // Dossier temporaire PROPRE à l'enfant, dans le dossier du rendu : le profil Chrome (15 Go avec un film) y vit et est
+  // effacé avec lui, sans bloquer le serveur, même si l'enfant est tué en pleine fermeture.
+  const dossierTemp = join(contexte.dossier, "tmp");
+  await mkdir(dossierTemp, { recursive: true });
+  const rendu = await lancerRenduEnfant(demandeEnfantEssai(demande, serveUrl, sortie), { progression: contexte.progression, signal: contexte.signal }, { dossierTemp }).catch((e: unknown) => {
     if (e instanceof ErreurEnfant && e.phase === "selection") throw erreurSelectionComposition(id, new Error(e.message));
-    throw e instanceof ErreurEnfant ? new Error(e.message) : e;
+    throw e instanceof ErreurEnfant ? new Error(e.message, e.codeCause ? { cause: { code: e.codeCause } } : undefined) : e;
   });
   await deposer(demande.sortie.urlDepot, sortie, "video/mp4", contexte.signal);
   const { size } = await stat(sortie);
