@@ -1285,8 +1285,8 @@ export async function signalerTravailEnErreur(lu: InstantaneTravail, e: unknown)
   await journaliser("echec", `Un travail a levé une erreur pendant le tour (il sera relu au tour suivant) : ${e instanceof Error ? e.name : "erreur"}`, { type: "video", id: lu.travail.cibleId }).catch(() => undefined);
 }
 
-/** Pauses du tutoriel d'outil qui attendent un geste de Williams (accord, validation, film à déposer, pièce à valider, cas V2). */
-const PAUSES_ATTENTE_WILLIAMS_TUTORIEL: readonly string[] = ["TO_DEVIS_A_ACCEPTER", "TO_SCRIPT_A_VALIDER", "TO_FILM_A_CAPTURER", "TO_PIECE_A_VALIDER", "TO_CAS_V2"];
+/** Pauses du tutoriel d'outil qui attendent un geste de Williams (accord, validation, film à déposer, pièce à valider, cas V2), ou une attente légitime : pièce à construire sur le poste, pièce à revoir (P7, 25/11). */
+const PAUSES_ATTENTE_WILLIAMS_TUTORIEL: readonly string[] = ["TO_DEVIS_A_ACCEPTER", "TO_SCRIPT_A_VALIDER", "TO_FILM_A_CAPTURER", "TO_PIECE_A_VALIDER", "TO_CAS_V2", "TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_REVOIR"];
 
 /**
  * Garde « plus d'avancement » : un travail `en_cours` dont l'empreinte d'état n'a pas changé depuis plus que le délai de
