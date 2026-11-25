@@ -9,6 +9,7 @@ import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
 import { CalquePlanScenes } from "./CalquePlanScenes";
 import { NavigationFilmee } from "./NavigationFilmee";
 import { PlanDeScenes } from "./PlanDeScenes";
+import { ScenesSansVoix } from "./tutoriel-sans-voix/ScenesSansVoix";
 import { SchemaFlux } from "./tutoriel-flux/SchemaFlux";
 
 export { COMPOSITION_TUTORIEL };
@@ -23,6 +24,8 @@ export function TutorielOutil(p: ProprietesTutorielOutil) {
             <NavigationFilmee film={p.filmNavigation} navigation={p.navigation} />
             <CalquePlanScenes plan={p.plan} />
           </>
+        ) : p.compositionSansVoix ? (
+          <ScenesSansVoix plan={p.compositionSansVoix} />
         ) : (
           <PlanDeScenes plan={p.plan} />
         )}
