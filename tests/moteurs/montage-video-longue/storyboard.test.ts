@@ -354,13 +354,14 @@ describe("storyboard de l'essai : sous-titres", () => {
     });
   });
 
-  it("une phrase trop longue pour 2 lignes de 46 px est coupée en demi-phrases", () => {
+  it("une phrase trop longue pour 2 lignes de 56 px est coupée en demi-phrases", () => {
     const longue = "Chaque matin, quelqu'un ouvre le tableur, recopie à la main toutes les lignes de toutes les familles du catalogue, vérifie une à une les quantités en rayon avec le responsable de l'entrepôt, puis envoie un message récapitulatif à toute l'équipe commerciale.";
     const t = fabriquerTemps(`Titre\n\n${longue}`, null);
     const r = storyboardVideoLongue({ question: null }, t);
     expect(r.sousTitres.length).toBeGreaterThanOrEqual(2);
     expect(r.sousTitres.map((l) => l.texte).join(" ")).toBe(longue);
-    expect(r.sousTitres.length).toBeLessThanOrEqual(3);
+    expect(r.sousTitres.length).toBeLessThanOrEqual(4);
+    expect(TAILLES_LONGUE.sousTitrePx).toBe(56);
     expect(TAILLES_LONGUE.sousTitreLignesMax).toBe(2);
   });
 });

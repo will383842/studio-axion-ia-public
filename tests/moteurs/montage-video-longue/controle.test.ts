@@ -83,7 +83,7 @@ const sousTitreSain: PoserSousTitre = (l) => ({
   rect: { ...ZONES_LONGUE.texteSousTitres },
   opacite: 1,
   couleur: "noir",
-  taillePx: 46,
+  taillePx: 56,
   lignes: [[{ texte: l.texte, accent: false }]],
 });
 const sain = { scene: poseurSain, sousTitre: sousTitreSain };
@@ -97,6 +97,15 @@ describe("controlerStoryboard : story-board propre", () => {
     expect(c.alertes.filter((a) => a.gravite === "grave")).toEqual([]);
     expect(c.note).toBeGreaterThanOrEqual(90);
     expect(Object.keys(c.criteres)).toHaveLength(9);
+  });
+});
+
+describe("controlerStoryboard : sous-titres de 52 px au moins", () => {
+  it("un sous-titre sous 52 px est « sous-titre-illisible » ; 52 px passe", () => {
+    const petit: PoserSousTitre = (l) => ({ ...sousTitreSain(l, 0)!, taillePx: 50 });
+    expect(codes(storyboardPropre(), { scene: poseurSain, sousTitre: petit })).toContain("sous-titre-illisible");
+    const limite: PoserSousTitre = (l) => ({ ...sousTitreSain(l, 0)!, taillePx: 52 });
+    expect(codes(storyboardPropre(), { scene: poseurSain, sousTitre: limite })).not.toContain("sous-titre-illisible");
   });
 });
 

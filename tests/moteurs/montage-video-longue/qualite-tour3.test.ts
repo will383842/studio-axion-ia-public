@@ -319,19 +319,62 @@ describe("tour 8 : transitions sans superposition, carton de titre, frise du chi
       expect(els.filter((e) => /:bloc\d+$/.test(e.id))[0].rect.largeur).toBeGreaterThanOrEqual(90);
     }
   });
-  it("carte active : pulsation jusqu'à 5 % en largeur et bord qui s'épaissit en respirant", () => {
+  it("carte active : le groupe grossit jusqu'à 1,04 (jamais sous sa taille de base) et le filet respire vers l'extérieur", () => {
     const e = sb.scenes.find((s) => s.type === "etapes")!;
     const larg: number[] = [];
-    const bord: number[] = [];
-    for (let t = e.debutMs + 6000; t < e.debutMs + 7300; t += 50) {
+    const halo: number[] = [];
+    let base = Infinity;
+    for (let t = e.debutMs + 4000; t < e.debutMs + 5300; t += 50) {
       const els = poserScene(e, t);
       const act = els.find((x) => /:carte\d$/.test(x.id) && x.bordure === "terracotta");
-      if (act) {
+      const h = els.find((x) => x.id.endsWith(":halo"));
+      if (act && h) {
         larg.push(act.rect.largeur);
-        bord.push(act.epaisseurPx!);
+        halo.push(h.rect.largeur - act.rect.largeur);
+        expect(h.rect.largeur, "le filet est plus large que la carte").toBeGreaterThan(act.rect.largeur);
+        expect(h.rect.x, "le filet est à l'extérieur").toBeLessThan(act.rect.x);
+      }
+      const calme = els.filter((x) => /:carte\d$/.test(x.id) && x.bordure !== "terracotta");
+      for (const c of calme) base = Math.min(base, c.rect.largeur);
+    }
+    expect(Math.max(...larg) / Math.min(...larg)).toBeGreaterThanOrEqual(1.035);
+    expect(Math.max(...larg) / Math.min(...larg)).toBeLessThanOrEqual(1.045);
+    expect(Math.min(...larg)).toBeGreaterThanOrEqual(base - 1);
+    expect(Math.max(...halo) - Math.min(...halo)).toBeGreaterThanOrEqual(6);
+  });
+  it("listes et étapes : à chaque instant, le texte (et le numéro) est dans sa carte avec au moins 20 px d'air de chaque côté", () => {
+    for (const s of sb.scenes) {
+      if (s.type !== "etapes" && !(s.type === "liste" && s.compte === null)) continue;
+      for (let t = s.debutMs + 1500; t < s.finMs; t += 100) {
+        const els = poserScene(s, t);
+        for (const c of els.filter((x) => /:carte\d$/.test(x.id) && x.opacite >= 0.99)) {
+          const i = /(\d+)$/.exec(c.id)![1];
+          for (const suffixe of ["texte", s.type === "liste" && !s.titre ? "num" : ""]) {
+            if (!suffixe) continue;
+            const x = els.find((y) => y.id === `${s.id}:${suffixe}${i}`)!;
+            expect(x.rect.x - c.rect.x, `${x.id} (gauche) à ${t} ms`).toBeGreaterThanOrEqual(20);
+            expect(c.rect.x + c.rect.largeur - (x.rect.x + x.rect.largeur), `${x.id} (droite) à ${t} ms`).toBeGreaterThanOrEqual(20);
+            expect(x.rect.y - c.rect.y, `${x.id} (haut) à ${t} ms`).toBeGreaterThanOrEqual(20);
+            expect(c.rect.y + c.rect.hauteur - (x.rect.y + x.rect.hauteur), `${x.id} (bas) à ${t} ms`).toBeGreaterThanOrEqual(20);
+          }
+        }
       }
     }
-    expect(Math.min(...larg) / Math.max(...larg)).toBeLessThanOrEqual(0.955);
-    expect(Math.max(...bord) - Math.min(...bord)).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("sous-titres de 56 px (52 px au plus bas), dans la bande, 2 lignes au plus", () => {
+  it("chaque ligne du story-board d'essai tient en 2 lignes de 56 px dans la bande ; le repère aussi", () => {
+    const bande = { y0: 900, y1: 1080 };
+    for (const l of sb.sousTitres) {
+      for (const repere of [undefined, "01 · Le problème : compter à la main"]) {
+        const e = poserSousTitre(l, (l.debutMs + l.finMs) / 2, repere)!;
+        expect(e.taillePx!, l.texte).toBeGreaterThanOrEqual(52);
+        expect(e.lignes!.length).toBeLessThanOrEqual(2);
+        expect(e.rect.y).toBeGreaterThanOrEqual(bande.y0);
+        expect(e.rect.y + e.rect.hauteur).toBeLessThanOrEqual(bande.y1);
+        if (!repere) expect(e.taillePx!, "les lignes du story-board tiennent à 56 px").toBe(56);
+      }
+    }
   });
 });

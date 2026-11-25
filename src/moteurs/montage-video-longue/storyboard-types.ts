@@ -17,7 +17,7 @@ export const ID_COMPOSITION_VIDEO_LONGUE = "VideoLongue" as const;
  * À augmenter à CHAQUE changement visible du dessin ou de la mise en page : entre dans l'empreinte des plages notées,
  * sinon un vieux morceau rendu avec l'ancien dessin serait recollé.
  */
-export const VERSION_DESSIN_LONGUE = 9;
+export const VERSION_DESSIN_LONGUE = 10;
 
 export const FORMAT_LONGUE = { largeur: 1920, hauteur: 1080, fps: 25 } as const;
 
@@ -86,7 +86,10 @@ export const TAILLES_LONGUE = {
   texteMinPx: 44,
   /** Plancher des étiquettes (« AVANT », « 02 / 04 », « AXION IA ») : 3 mots au plus, en capitales. */
   etiquetteMinPx: 32,
-  sousTitrePx: 46,
+  /** Sous-titres : 56 px (grammaire du lot E), jamais sous `sousTitreMinPx`. */
+  sousTitrePx: 56,
+  /** Plancher des sous-titres et du repère de chapitre de la bande. */
+  sousTitreMinPx: 52,
   sousTitreLignesMax: 2,
   question: 88,
   titreChapitre: 96,
@@ -233,7 +236,7 @@ export interface SceneFin extends SceneBase {
 export type SceneLongue = SceneCartonTitre | SceneCartonChapitre | SceneListe | SceneEtapes | SceneChiffre | SceneAvantApres | ScenePhraseCle | SceneFin;
 export type TypeSceneLongue = SceneLongue["type"];
 
-/** Une ligne de sous-titres : une phrase entière, ou une demi-phrase si elle ne tient pas en 2 lignes de 46 px. */
+/** Une ligne de sous-titres : une phrase entière, ou une demi-phrase si elle ne tient pas en 2 lignes de 56 px. */
 export interface LigneSousTitre {
   texte: string;
   debutMs: number;

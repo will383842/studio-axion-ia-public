@@ -208,7 +208,7 @@ export const controlerStoryboard: ControlerStoryboard = (sb: StoryboardVideoLong
     if (!e) continue;
     const cle = String(l.debutMs);
     if ((e.lignes?.length ?? 0) > TAILLES_LONGUE.sousTitreLignesMax) ajouter("sous-titre-illisible", `Sous-titre sur ${e.lignes?.length} lignes (${TAILLES_LONGUE.sousTitreLignesMax} au plus).`, { instantMs: l.debutMs, cle });
-    if (e.taillePx !== undefined && e.taillePx < TAILLES_LONGUE.texteMinPx) ajouter("texte-trop-petit", `Sous-titre de ${e.taillePx} px (plancher ${TAILLES_LONGUE.texteMinPx} px).`, { instantMs: l.debutMs, cle: `st-${cle}` });
+    if (e.taillePx !== undefined && e.taillePx < TAILLES_LONGUE.sousTitreMinPx) ajouter("sous-titre-illisible", `Sous-titre de ${e.taillePx} px (plancher ${TAILLES_LONGUE.sousTitreMinPx} px).`, { instantMs: l.debutMs, cle: `st-${cle}` });
     if (!dedans(e.rect, ZONES_LONGUE.bandeSousTitres)) ajouter("hors-cadre", "Sous-titre hors de la bande des sous-titres.", { instantMs: l.debutMs, cle: `st-${cle}` });
   }
 
