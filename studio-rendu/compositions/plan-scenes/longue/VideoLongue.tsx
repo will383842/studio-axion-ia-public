@@ -3,7 +3,7 @@
  * la bande des sous-titres et le sous-titre. Tout vient de `mise-en-page.ts` (le contrôle voit la même chose).
  */
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
-import { poserScene, poserSousTitre, sceneAvecBande, logoFin } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
+import { ORIGINE_ZOOM_Y, ZOOM_SCENE, poserScene, poserSousTitre, repereChapitre, sceneAvecBande, sousTitreRedondant, logoFin } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
 import { COULEURS_LONGUE, TEMPS_LONGUE, ZONES_LONGUE, type ProprietesVideoLongue, type SceneLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
 import logo from "../../commune/fin/logo-axion-fond-sombre.png";
 import { DessinElement } from "./DessinElement";
@@ -14,11 +14,11 @@ const fondDe = (s: SceneLongue) => (s.fond === "noir" ? COULEURS_LONGUE.noir : C
 function Couche({ scene, t, style }: { scene: SceneLongue; t: number; style?: React.CSSProperties }) {
   const bande = sceneAvecBande(scene.type);
   const lg = scene.type === "fin" ? logoFin(scene) : { x: 0, y: 0, hauteur: 0, largeur: 0 };
-  // Zoom lent du groupe de scène (1 → 1,04 sur la durée de la scène) : jamais deux images identiques.
+  // Zoom lent du groupe de scène (1 → 1,06 sur la durée de la scène) : jamais deux images identiques.
   const avance = Math.min(1, Math.max(0, (t - scene.debutMs) / Math.max(1, scene.finMs - scene.debutMs)));
-  const zoom = 1 + 0.04 * avance;
-  const centreY = bande ? ZONES_LONGUE.scene.y + ZONES_LONGUE.scene.hauteur / 2 : 540;
-  const entreeLogo = Math.min(1, Math.max(0, (t - scene.debutMs - 100) / 500));
+  const zoom = 1 + (ZOOM_SCENE - 1) * avance;
+  const centreY = bande ? ORIGINE_ZOOM_Y : 540;
+  const entreeLogo = Math.min(1, Math.max(0, (t - scene.debutMs) / 300));
   return (
     <AbsoluteFill style={{ background: fondDe(scene), overflow: "hidden", ...style }}>
       <AbsoluteFill style={{ transform: `scale(${zoom})`, transformOrigin: `960px ${centreY}px` }}>
@@ -80,7 +80,10 @@ export function VideoLongue({ storyboard }: ProprietesVideoLongue) {
     );
   }
   const ligne = storyboard.sousTitres.find((l) => t >= l.debutMs && t < l.finMs);
-  const sous = ligne && sceneAvecBande(s.type) ? poserSousTitre(ligne, t) : null;
+  // Quand la scène affiche déjà la phrase lue mot pour mot, la bande montre le repère du chapitre au lieu de la répéter.
+  const chapitre = storyboard.chapitres.find((c) => c.id === s.chapitreId);
+  const repere = ligne && chapitre && sousTitreRedondant(s, ligne) ? repereChapitre(chapitre.rang, chapitre.titre) : undefined;
+  const sous = ligne && sceneAvecBande(s.type) ? poserSousTitre(ligne, t, repere) : null;
   return (
     <AbsoluteFill style={{ background: fondDe(s), overflow: "hidden" }}>
       {contenu}

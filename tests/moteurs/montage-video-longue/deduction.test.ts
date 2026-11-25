@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { FormeLongue } from "../../../src/moteurs/montage-video-longue/storyboard-types";
 import {
   abreger,
   decouperPhrases,
@@ -81,17 +82,18 @@ describe("étapes", () => {
     expect(s.type).not.toBe("etapes");
   });
 
-  it("repartirEtapes : 3 au plus par scène, réparties à égalité", () => {
+  it("repartirEtapes : 5 au plus par scène (les étapes lues restent affichées), réparties à égalité", () => {
     expect(repartirEtapes(2)).toEqual([2]);
     expect(repartirEtapes(3)).toEqual([3]);
-    expect(repartirEtapes(4)).toEqual([2, 2]);
-    expect(repartirEtapes(5)).toEqual([3, 2]);
+    expect(repartirEtapes(4)).toEqual([4]);
+    expect(repartirEtapes(5)).toEqual([5]);
     expect(repartirEtapes(6)).toEqual([3, 3]);
-    expect(repartirEtapes(7)).toEqual([3, 2, 2]);
+    expect(repartirEtapes(7)).toEqual([4, 3]);
+    expect(repartirEtapes(9)).toEqual([5, 4]);
   });
 
   it("numéros continus, apparition à la lecture de chaque étape, accent = nombre du texte", () => {
-    const ph = suite("Ouvrez le tableur.", "Choisissez dix articles.", "Reliez la caisse.", "Vérifiez les totaux.", "Fermez le fichier.");
+    const ph = suite("Ouvrez le tableur.", "Choisissez dix articles.", "Reliez la caisse.", "Vérifiez les totaux.", "Fermez le fichier.", "Archivez le fichier.");
     const sc = deduireScenes(ph, ctx()).map((x) => x.scene);
     expect(sc.map((s) => s.type)).toEqual(["etapes", "etapes"]);
     if (sc[0].type !== "etapes" || sc[1].type !== "etapes") return;
@@ -286,8 +288,21 @@ describe("phrase clé", () => {
     expect(formePour("Fixez un seuil", null)).toBe("cible");
     expect(formePour("C'est juste", null)).toBe("coche");
     expect(formePour("La valeur du stock", null)).toBe("graphique");
-    expect(formePour("Pour commander vite", null)).toBe("fleche");
+    expect(formePour("Pour commander vite", null)).toBe("liste");
+    expect(formePour("On envoie vite", null)).toBe("horloge");
+    expect(formePour("Un message part", null)).toBe("cloche");
+    expect(formePour("Un tableur rempli à la main", null)).toBe("tableur");
+    expect(formePour("Vous savez avant de manquer, et plus jamais par un client", null)).toBe("bouclier");
+    expect(formePour("Le stock est juste", null)).toBe("coche");
     expect(formePour("Rien de spécial ici", null)).toBe("horloge");
+  });
+  it("jamais deux fois la même forme dans un chapitre si une autre convient", () => {
+    const deja: FormeLongue[] = [];
+    for (let i = 0; i < 4; i++) deja.push(formePour("Le stock du jour", deja[deja.length - 1] ?? null, "", deja));
+    expect(new Set(deja).size).toBe(4);
+  });
+  it("jamais le triangle pour une phrase positive", () => {
+    for (const t of ["Vous savez avant de manquer", "Plus jamais de rupture", "Le stock est juste"]) expect(formePour(t, null)).not.toBe("alerte");
   });
   it("jamais deux formes de suite", () => {
     expect(formePour("Le tableau du stock", "graphique")).not.toBe("graphique");
@@ -381,9 +396,9 @@ describe("QUALL-7 · listes de phrases sans titre (variété)", () => {
 
 describe("QUALL-7 · choix de la forme", () => {
   it.each([
-    ["Juste en dessous, la liste des articles à commander, triée par urgence", "graphique"],
-    ["Un clic montre l'historique des ruptures et des urgences", "graphique"],
-    ["Le tableau est trié par urgence", "graphique"],
+    ["Juste en dessous, la liste des articles à commander, triée par urgence", "liste"],
+    ["Un clic montre l'historique des ruptures et des urgences", "liste"],
+    ["Le tableau est trié par urgence", "liste"],
   ])("piège : « %s » → %s (avant urgence → alerte)", (t, f) => {
     expect(formePour(t, null)).toBe(f);
   });
@@ -394,7 +409,8 @@ describe("QUALL-7 · choix de la forme", () => {
     expect(formePour(t, null, "La solution : un tableau de bord")).not.toBe("alerte");
   });
   it("dans « La solution… », « alerte » écrit reste permis", () => {
-    expect(formePour("Une alerte part tout de suite", null, "La solution : un tableau de bord")).toBe("alerte");
+    expect(formePour("Une alerte part tout de suite", null, "La solution : un tableau de bord")).toBe("cloche");
+    expect(formePour("Une rupture est une alerte rouge", null, "La solution : un tableau de bord")).toBe("cloche");
   });
   it("jamais la même forme que la précédente, même si le titre ou le texte la désigne", () => {
     expect(formePour("Le tableau du stock", "graphique")).not.toBe("graphique");

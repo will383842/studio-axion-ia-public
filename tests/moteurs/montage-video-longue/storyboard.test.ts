@@ -179,15 +179,15 @@ describe("storyboard de l'essai : scènes déduites du texte", () => {
     if (p?.type === "phrase-cle") expect(p.phrase).toBe("Vous savez avant de manquer, et plus jamais par un client mécontent");
   });
 
-  it("5 étapes en 2 scènes (1 à 3, puis 4 à 5)", () => {
+  it("5 étapes sur une même scène (les étapes déjà lues restent affichées)", () => {
     const e = sb.scenes.filter((s) => s.type === "etapes");
-    expect(e).toHaveLength(2);
-    if (e[0].type !== "etapes" || e[1].type !== "etapes") throw new Error("types");
-    expect([e[0].numeroDepart, e[0].elements.length, e[1].numeroDepart, e[1].elements.length]).toEqual([1, 3, 4, 2]);
+    expect(e).toHaveLength(1);
+    if (e[0].type !== "etapes") throw new Error("types");
+    expect([e[0].numeroDepart, e[0].elements.length]).toEqual([1, 5]);
     expect(e[0].elements[0].texte).toBe("Commencez petit");
     expect(e[0].elements[1].accent).toBe("vingt");
-    expect(e[1].elements[0].texte).toMatch(/^Vérifiez pendant deux semaines/);
-    expect(e[1].elements[0].accent).toBe("deux");
+    expect(e[0].elements[3].texte).toMatch(/^Vérifiez pendant deux semaines/);
+    expect(e[0].elements[3].accent).toBe("deux");
   });
 
   it("aucun chiffre dans une phrase sans nombre ; tout chiffre vient du texte", () => {
@@ -317,8 +317,8 @@ describe("QUALL-7 · script d'essai : rien de tronqué, formes, rythme", () => {
     for (const s of sb.scenes) if (s.chapitreId === c2 && s.type === "phrase-cle") expect(s.forme).not.toBe("alerte");
     const tri = sb.scenes.find((s) => s.type === "phrase-cle" && /triée par urgence/.test(s.phrase));
     const prec = tri ? sb.scenes[sb.scenes.indexOf(tri) - 1] : undefined;
-    // graphique, sauf si la scène voisine l'a déjà (jamais deux formes pareilles de suite).
-    if (tri?.type === "phrase-cle") expect(prec?.type === "phrase-cle" && prec.forme === "graphique" ? tri.forme !== "graphique" : tri.forme === "graphique").toBe(true);
+    // liste (« liste, triée, à commander »), sauf si la scène voisine l'a déjà (jamais deux formes pareilles de suite).
+    if (tri?.type === "phrase-cle") expect(prec?.type === "phrase-cle" && prec.forme === "liste" ? tri.forme !== "liste" : tri.forme === "liste").toBe(true);
     sb.scenes.forEach((s, i) => {
       const p = sb.scenes[i - 1];
       if (i > 0 && s.type === "phrase-cle" && p.type === "phrase-cle") expect(s.forme).not.toBe(p.forme);

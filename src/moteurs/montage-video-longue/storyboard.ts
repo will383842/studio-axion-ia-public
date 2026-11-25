@@ -83,7 +83,7 @@ export const storyboardVideoLongue: ConstruireStoryboard = (entrees, temps) => {
   const scenes: SceneLongue[] = [];
   const sousTitres: LigneSousTitre[] = [];
   const chapitres: ChapitreStoryboard[] = [];
-  const etat: { forme: FormeLongue | null } = { forme: null };
+  const etat: { forme: FormeLongue | null; dejaChapitre: FormeLongue[] } = { forme: null, dejaChapitre: [] };
   let n = 0;
   const idScene = () => `s${String(++n).padStart(2, "0")}`;
   let finDebutMs = dureeMs;
@@ -148,6 +148,7 @@ export const storyboardVideoLongue: ConstruireStoryboard = (entrees, temps) => {
       const derniere = unites.pop()!;
       unites[unites.length - 1] = fusionner(unites[unites.length - 1], derniere);
     }
+    etat.dejaChapitre = [];
     const contenu = deduireScenes(unites, { titre, texteChapitre: phrases.map((p) => p.texte).join(" "), etat });
     contenu.forEach((c, k) => {
       const b: SceneBrouillon = k === 0 ? { ...c.scene, debutMs: Math.min(c.scene.debutMs, curseur) } : c.scene;

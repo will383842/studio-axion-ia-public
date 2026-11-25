@@ -32,7 +32,7 @@ export interface ContexteDeduction {
   /** Texte entier du chapitre (pour compter les mots clés). */
   texteChapitre: string;
   /** Mémoire de la dernière forme de phrase clé (partagée entre chapitres). */
-  etat: { forme: FormeLongue | null };
+  etat: { forme: FormeLongue | null; /** Formes déjà posées dans le chapitre courant (jamais deux fois la même si une autre convient). */ dejaChapitre?: FormeLongue[] };
 }
 
 /** Une scène déduite et les phrases qui la portent. */
@@ -182,9 +182,12 @@ function etapesDe(run: PhraseLue[], numeroDepart: number): ScenePortee {
   return { scene: { type: "etapes", debutMs: run[0].debutMs, finMs: run[run.length - 1].finMs, numeroDepart, elements }, sources: run };
 }
 
-/** Tailles des scènes d'étapes : 3 au plus, réparties à égalité (5 → 3 + 2, 4 → 2 + 2, 7 → 3 + 2 + 2). */
+/** Étapes au plus par scène : les étapes déjà lues restent affichées (jusqu'à 5 sur une même scène). */
+export const ETAPES_PAR_SCENE_MAX = 5;
+
+/** Tailles des scènes d'étapes : 5 au plus, réparties à égalité (5 → 5, 6 → 3 + 3, 7 → 4 + 3, 9 → 5 + 4). */
 export function repartirEtapes(n: number): number[] {
-  const k = Math.ceil(n / 3);
+  const k = Math.ceil(n / ETAPES_PAR_SCENE_MAX);
   const base = Math.floor(n / k);
   const reste = n % k;
   return Array.from({ length: k }, (_, i) => base + (i < reste ? 1 : 0));
@@ -333,7 +336,14 @@ function motBrut(m: string): string {
   return k[k.length - 1];
 }
 
-/** Mot clé d'une phrase : 3 × (dans le titre du chapitre) + 2 × (au moins 2 fois dans le chapitre) + longueur / 4. */
+/** Verbes banals : jamais retenus comme mot clé si une meilleure option existe. */
+const VERBES_BANALS = new Set(
+  "commande commandes commander passe passer suit suivent suivre dit part arrive arrivent fixez fixer montre montrer lit lire met mettre reste rester voir savoir savez sait faut donne donner prend prendre trouve trouver arrivez passez ouvrez choisissez reliez vérifiez ajoutez commencez".split(" "),
+);
+/** Adjectifs et adverbes qui forment un comparatif avec « plus » (« plus cher ») : tout mot plein qui n'est ni un mot vide ni un verbe banal. */
+const RE_PLUS = /(?:^|\s)plus\s+([\p{L}-]+)/giu;
+
+/** Mot clé d'une phrase : comparatif « plus + adjectif » (6) ; mot du titre du chapitre (3 + 2) ; 2 × (au moins 2 fois dans le chapitre) + longueur / 4 ; jamais un verbe banal s'il y a mieux. */
 export function motCle(texte: string, ctx: Pick<ContexteDeduction, "titre" | "texteChapitre">): string | null {
   const titre = new Set(mots(ctx.titre).map(normaliser));
   const comptes = new Map<string, number>();
@@ -343,54 +353,89 @@ export function motCle(texte: string, ctx: Pick<ContexteDeduction, "titre" | "te
   }
   let meilleur: string | null = null;
   let note = -1;
-  for (const m of mots(texte)) {
-    const n = normaliser(m);
-    if (n.length < 4 || MOTS_VIDES.has(n) || /\d/.test(n)) continue;
-    const s = 3 * (titre.has(n) ? 1 : 0) + 2 * ((comptes.get(n) ?? 0) >= 2 ? 1 : 0) + n.length / 4;
+  const proposer = (mot: string, s: number) => {
     if (s > note) {
       note = s;
-      meilleur = motBrut(m);
+      meilleur = mot;
     }
+  };
+  for (const m of mots(texte)) {
+    const n = normaliser(m);
+    const dansTitre = titre.has(n);
+    // Un mot du titre est gardé même s'il est « vide » (« avant »), à condition d'avoir 5 lettres au moins.
+    if (n.length < 4 || /\d/.test(n) || (MOTS_VIDES.has(n) && !(dansTitre && n.length >= 5))) continue;
+    const s = 5 * (dansTitre ? 1 : 0) + 2 * ((comptes.get(n) ?? 0) >= 2 ? 1 : 0) + n.length / 4 - (VERBES_BANALS.has(n) ? 6 : 0);
+    proposer(motBrut(m), s);
+  }
+  // Comparatif : « plus cher », « plus vite » (jamais « plus jamais », « plus besoin »).
+  const brut = texte;
+  for (const m of brut.matchAll(RE_PLUS)) {
+    const suivant = normaliser(m[1]);
+    if (suivant.length < 3 || MOTS_VIDES.has(suivant) || VERBES_BANALS.has(suivant) || suivant === "besoin") continue;
+    const idx = (m.index ?? 0) + m[0].toLowerCase().indexOf("plus");
+    const expr = brut.slice(idx, idx + 4 + 1 + m[1].length);
+    if (/[.,;:!?…]/.test(expr)) continue;
+    proposer(expr, 8);
   }
   return meilleur;
 }
 
-const FORMES_ORDRE: FormeLongue[] = ["horloge", "calendrier", "alerte", "cible", "coche", "graphique", "fleche", "cercle"];
+const FORMES_ORDRE: FormeLongue[] = ["horloge", "calendrier", "liste", "cible", "coche", "graphique", "fleche", "tableur", "cloche", "bouclier", "alerte", "cercle"];
 const REGLES_FORME: [FormeLongue, RegExp][] = [
   ["horloge", /^(?:heures?|minutes?|instants?|matin|matins)$/],
   ["calendrier", /^(?:jours?|journées?|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|semaines?|mois|ans?|années?)$/],
-  ["alerte", /^(?:alertes?|urgences?|ruptures?|manquer|manque|faux|fausses?|problèmes?|erreurs?)$/],
+  ["cloche", /^(?:alertes?|messages?|résumés?|notifications?|prévenir|prévient|avertit)$/],
+  ["alerte", /^(?:urgences?|ruptures?|manquer|manque|faux|fausses?|problèmes?|erreurs?)$/],
   ["cible", /^(?:seuils?|objectifs?|minimum|maximum)$/],
+  ["tableur", /^(?:tableurs?|remplis?|remplies?|feuilles?)$/],
+  ["bouclier", /^(?:jamais|protège|protégé|sécurité|fiables?)$/],
   ["coche", /^(?:justes?|solutions?|automatiquement|seule?|seuls|fini|finie|finis)$/],
   ["graphique", /^(?:chiffres?|stocks?|valeurs?|ventes?|tableaux?)$/],
-  ["fleche", /^(?:commander|commande|commandes|envoyer|part|arrive|arrivent|rendez-vous)$/],
+  ["liste", /^(?:listes?|tri|tris|trier|tri[ée]e?s?|commander)$/],
+  ["fleche", /^(?:commande|commandes|envoyer|part|arrive|arrivent|rendez-vous)$/],
 ];
 
-const RE_GRAPHIQUE_PRIORITAIRE = /(?:^|[^\p{L}])(?:listes?|tableaux?|tris?|tri[ée]e?s?|historiques?)(?![\p{L}])/iu;
+/** Liste, tableau, tri, historique : passent avant « urgence ». */
+const RE_LISTE_PRIORITAIRE = /(?:^|[^\p{L}])(?:listes?|tris?|tri[ée]e?s?|trier|à commander|historiques?)(?![\p{L}])/iu;
+const RE_TABLEUR_PRIORITAIRE = /(?:^|[^\p{L}])(?:tableurs?|remplie?s?)(?![\p{L}])/iu;
 const RE_ALERTE_ECRITE = /(?:^|[^\p{L}])alertes?(?![\p{L}])/iu;
+/** Phrase positive : jamais le triangle d'alerte (coche ou bouclier). */
+const RE_POSITIVE = /(?:vous savez|plus jamais|plus besoin|(?:^|[^\p{L}])justes?(?![\p{L}])|tout va bien|sans risque)/iu;
+const RE_PROTEGE = /(?:jamais|savez|manquer|rupture|risque|protég)/iu;
 
 /**
- * Forme de la phrase clé d'après les mots du texte, puis du titre du chapitre ; jamais deux fois la même de suite.
- * « liste, tableau, tri, trié, historique » (→ graphique) passent avant « urgence » (→ alerte) ; dans le chapitre
- * « La solution… », jamais « alerte » sauf si le mot est écrit dans la phrase.
+ * Forme de la phrase clé d'après les mots du texte, puis du titre du chapitre ; jamais deux fois la même de suite, ni deux fois
+ * dans le chapitre (`deja`) si une autre convient. Sens juste : « liste, trié, à commander » → liste ; « tableur, rempli » →
+ * tableur ; « message, alerte, résumé » → cloche ; phrase positive (« vous savez », « plus jamais », « juste ») → coche ou
+ * bouclier, jamais le triangle d'alerte ; dans le chapitre « La solution… », jamais le triangle sauf mot écrit.
  */
-export function formePour(texte: string, precedente: FormeLongue | null, titre = ""): FormeLongue {
+export function formePour(texte: string, precedente: FormeLongue | null, titre = "", deja: readonly FormeLongue[] = []): FormeLongue {
   const formesDe = (t: string) => {
     const ns = mots(t).map(normaliser);
     return REGLES_FORME.filter(([, re]) => ns.some((n) => re.test(n))).map(([f]) => f);
   };
   const solution = /(?:^|[^\p{L}])solutions?(?![\p{L}])/iu.test(titre);
-  const permise = (f: FormeLongue) => f !== precedente && !(f === "alerte" && solution && !RE_ALERTE_ECRITE.test(texte));
+  const positive = RE_POSITIVE.test(texte);
+  const interdite = (f: FormeLongue) => f === "alerte" && (positive || (solution && !RE_ALERTE_ECRITE.test(texte)));
   let trouvees = formesDe(texte);
-  if (RE_GRAPHIQUE_PRIORITAIRE.test(texte)) trouvees = ["graphique", ...trouvees.filter((f) => f !== "graphique")];
-  const choix = [...trouvees, ...formesDe(titre)].find(permise);
+  if (positive) trouvees = [RE_PROTEGE.test(texte) ? "bouclier" : "coche", ...trouvees];
+  if (RE_TABLEUR_PRIORITAIRE.test(texte)) trouvees = ["tableur", ...trouvees.filter((f) => f !== "tableur")];
+  if (RE_LISTE_PRIORITAIRE.test(texte)) trouvees = ["liste", ...trouvees.filter((f) => f !== "liste")];
+  const candidates = [...trouvees, ...formesDe(titre)].filter((f) => !interdite(f));
+  // Jamais deux fois la même forme dans un chapitre : d'abord les formes pas encore vues, puis (à défaut) seulement pas la précédente.
+  const choix = candidates.find((f) => f !== precedente && !deja.includes(f)) ?? ORDRE_SECOURS(precedente, deja, interdite) ?? candidates.find((f) => f !== precedente);
   if (choix) return choix;
+  return FORMES_ORDRE.find((f) => f !== precedente && !interdite(f)) ?? FORMES_ORDRE[0];
+}
+
+/** Première forme de l'ordre fixe, après la précédente, ni déjà vue dans le chapitre ni interdite. */
+function ORDRE_SECOURS(precedente: FormeLongue | null, deja: readonly FormeLongue[], interdite: (f: FormeLongue) => boolean): FormeLongue | undefined {
   const base = precedente ? FORMES_ORDRE.indexOf(precedente) : -1;
   for (let k = 1; k <= FORMES_ORDRE.length; k++) {
     const f = FORMES_ORDRE[(base + k) % FORMES_ORDRE.length];
-    if (permise(f)) return f;
+    if (f !== precedente && !deja.includes(f) && !interdite(f) && f !== "alerte" && f !== "cercle") return f;
   }
-  return FORMES_ORDRE[(base + 1) % FORMES_ORDRE.length];
+  return undefined;
 }
 
 function phraseCleDe(p: PhraseLue, ctx: ContexteDeduction, forcer?: string): ScenePortee {
@@ -402,8 +447,9 @@ function phraseCleDe(p: PhraseLue, ctx: ContexteDeduction, forcer?: string): Sce
     const idx = phrase.toLowerCase().indexOf(kw.toLowerCase());
     if (idx >= 0) motClePose = phrase.slice(idx, idx + kw.length);
   }
-  const forme = formePour(p.texte, ctx.etat.forme, ctx.titre);
+  const forme = formePour(p.texte, ctx.etat.forme, ctx.titre, ctx.etat.dejaChapitre ?? []);
   ctx.etat.forme = forme;
+  ctx.etat.dejaChapitre?.push(forme);
   return { scene: { type: "phrase-cle", debutMs: p.debutMs, finMs: p.finMs, phrase, motCle: motClePose, forme }, sources: [p] };
 }
 

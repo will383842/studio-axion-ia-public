@@ -17,7 +17,7 @@ export const ID_COMPOSITION_VIDEO_LONGUE = "VideoLongue" as const;
  * À augmenter à CHAQUE changement visible du dessin ou de la mise en page : entre dans l'empreinte des plages notées,
  * sinon un vieux morceau rendu avec l'ancien dessin serait recollé.
  */
-export const VERSION_DESSIN_LONGUE = 3;
+export const VERSION_DESSIN_LONGUE = 4;
 
 export const FORMAT_LONGUE = { largeur: 1920, hauteur: 1080, fps: 25 } as const;
 
@@ -124,7 +124,7 @@ export type FondScene = "ivoire" | "noir";
 
 export type TransitionLongue = "fondu" | "glisse" | "volet" | "aucune";
 /** Formes dessinées au trait par la composition (jamais une image). */
-export type FormeLongue = "cercle" | "cible" | "horloge" | "calendrier" | "alerte" | "coche" | "fleche" | "graphique";
+export type FormeLongue = "cercle" | "cible" | "horloge" | "calendrier" | "alerte" | "coche" | "fleche" | "graphique" | "liste" | "tableur" | "cloche" | "bouclier";
 
 export interface ChapitreStoryboard {
   id: string;

@@ -2,7 +2,7 @@
  * Police de la vidéo longue : Manrope variable (poids 200 à 800), fichier local du dépôt, aucune dépendance réseau.
  * Le rendu attend son chargement (`delayRender`) : jamais une image avec une police de secours.
  */
-import { continueRender, delayRender } from "remotion";
+import { cancelRender, continueRender, delayRender } from "remotion";
 import manrope from "../../../../src/app/polices/manrope-latin.woff2";
 
 export const FAMILLE_LONGUE = "Axion Manrope Longue";
@@ -18,5 +18,6 @@ export function chargerPoliceLongue(): void {
     .then(() => {
       document.fonts.add(face);
     })
+    .catch((e) => cancelRender(e))
     .finally(() => continueRender(attente));
 }
