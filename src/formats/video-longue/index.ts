@@ -5,7 +5,7 @@ import { briquesAuChoix, CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES }
 /**
  * FORMAT « VIDÉO LONGUE » (video-longue, code VL) — fiche VL-03, générateur DÉDIÉ (option C, décision du 18/11/2026), VITRINE.
  *
- * Une vidéo horizontale 16:9 de 4 à 12 minutes pour YouTube, découpée en chapitres, sur la voix validée par l'utilisateur.
+ * Une vidéo horizontale 16:9 de 4 à 12 minutes pour YouTube, découpée en chapitres, sur la voix validée par l'utilisateur, ou avec sous-titres seuls (sans voix).
  * La durée vient du script : au-delà de la zone, le studio ajoute une REMARQUE, jamais un refus. Aucune musique.
  * Statut `masque` mais `ouvertDansLaNavigation` : la carte est visible dans « Nouvelle vidéo » et le menu ; la page `/videos/longue` existe.
  * Le moteur `montage-video-longue` est écrit par VL-04 ; l'inscription dans `src/formats/index.ts` est faite (will-dc).

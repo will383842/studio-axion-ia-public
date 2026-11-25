@@ -1,4 +1,4 @@
-/** VL-03 : fiche du format « Vidéo longue » (masquée, inscrite dans `formats/index.ts`, absente des listes et de la navigation). */
+/** VL-03 : fiche du format « Vidéo longue » (masquée, inscrite dans `formats/index.ts`, absente des listes, présente dans la navigation et la création). */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
