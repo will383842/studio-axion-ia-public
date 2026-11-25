@@ -31,8 +31,8 @@ function Contenu({ d }: { d: DonneesCheckList }) {
     <div style={{ position: "absolute", left: zone.x, top: zone.y, width: zone.largeur, height: zone.hauteur, display: "flex", flexDirection: "column", justifyContent: "safe center", gap: ecart }}>
       <div style={{ marginBottom: ecart * 0.4 }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 24 * u }}>
-          {d.titre ? <MotsGeants texte={d.titre} debut={tTitre} taille={tTitre2} graisse={900} largeurMax={zone.largeur * 0.74} effet="ecrase" /> : <div />}
-          <div style={{ flex: "none", fontSize: tailleCompteur, fontWeight: 900, lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em", opacity: borne((t - entree) / 0.2), transform: `scale(${(1 + 0.3 * frappe).toFixed(4)}, ${(1 - 0.3 * frappe).toFixed(4)})`, transformOrigin: "100% 100%", color: fait === n ? COULEURS.orangeVif : COULEURS.creme, textShadow: fait === n ? `0 0 ${30 * u}px ${avecOpacite(COULEURS.orangeVif, 0.8)}` : undefined }}>
+          {d.titre ? <MotsGeants texte={d.titre} debut={tTitre} taille={tTitre2} graisse={800} largeurMax={zone.largeur * 0.74} effet="ecrase" /> : <div />}
+          <div style={{ flex: "none", fontSize: tailleCompteur, fontWeight: 800, lineHeight: 1, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.03em", opacity: borne((t - entree) / 0.2), transform: `scale(${(1 + 0.3 * frappe).toFixed(4)}, ${(1 - 0.3 * frappe).toFixed(4)})`, transformOrigin: "100% 100%", color: fait === n ? COULEURS.orangeVif : COULEURS.creme, textShadow: fait === n ? `0 0 ${30 * u}px ${avecOpacite(COULEURS.orangeVif, 0.8)}` : undefined }}>
             {fait}
             <span style={{ fontSize: "0.5em", color: COULEURS.cremeAttenuee }}>/{n}</span>
           </div>

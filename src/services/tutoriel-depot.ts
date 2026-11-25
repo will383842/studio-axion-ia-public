@@ -254,15 +254,16 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   }
 
   // Qui parle : le double par défaut. Personne de disponible : refus lisible, jamais un brouillon impossible à lancer.
-  // Valable aussi sans voix : la garde de fabrication exige encore une personne (format tutoriel-outil, personnages.min = 1).
+  // Sans voix : la voix n'est jamais lue, donc aucun double (ni visage ni voix de quelqu'un) : distribution vide, aucun refus.
   let distribution: Distribution[] = [];
-  try {
-    distribution = await (dep.distribution ?? distributionParDefautDuTutoriel)(ID_FORMAT_TUTORIEL);
-  } catch (e) {
-    return refus(e instanceof ErreurStudio ? e.message : PHRASE_PERSONNE_ABSENTE);
+  if (modeVoix !== MODE_SANS_VOIX) {
+    try {
+      distribution = await (dep.distribution ?? distributionParDefautDuTutoriel)(ID_FORMAT_TUTORIEL);
+    } catch (e) {
+      return refus(e instanceof ErreurStudio ? e.message : PHRASE_PERSONNE_ABSENTE);
+    }
+    if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
   }
-  if (modeVoix === MODE_SANS_VOIX) distribution = distribution.filter((d) => d?.personnageId).slice(0, 1);
-  if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
 
   const titre = depot ? titreDe(depot, nomFichier) : titreDuScript(script ?? "");
   // Mode script : pas de `depot`, une idée (le titre) et `scriptColle: true`, comme l'idée avec script de la réserve.
