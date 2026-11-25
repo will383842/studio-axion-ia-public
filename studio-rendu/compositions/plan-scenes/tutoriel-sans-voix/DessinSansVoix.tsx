@@ -6,7 +6,7 @@
  * Imports relatifs seulement (lu par Remotion).
  */
 import type { CSSProperties, ReactNode } from "react";
-import { COULEURS_HEX } from "../../../../src/briques/plan-scenes/tutoriel/sans-voix/grammaire";
+import { COULEURS_HEX, INTERLIGNE, PLANCHER_TEXTE } from "../../../../src/briques/plan-scenes/tutoriel/sans-voix/grammaire";
 import type { CouleurCharte, ElementVisible, FormatImage, ImageSansVoix } from "../../../../src/briques/plan-scenes/tutoriel/sans-voix/types";
 
 /** Table des couleurs nommées de la charte (celle de la grammaire, QUAL-1). */
@@ -18,19 +18,20 @@ const OMBRE_DOUCE = (() => {
   const [r, v, b] = [1, 3, 5].map((i) => parseInt(COULEURS_SANS_VOIX.noir.slice(i, i + 2), 16));
   return `0 10px 28px rgba(${r}, ${v}, ${b}, 0.12)`;
 })();
-/** Interligne de repli (rect ou lignes incohérents). */
-const INTERLIGNE_REPLI = 1.15;
+/** Interligne de repli (rect ou lignes incohérents) : l'interligne unique de la grammaire. */
+const INTERLIGNE_REPLI = INTERLIGNE;
 /**
- * Taille de repli d'un texte sans `taillePx` : le plancher de lisibilité de 32 px (même règle que le contrôle QUAL-4).
+ * Taille de repli d'un texte sans `taillePx` : le plancher de lisibilité de la grammaire (PLANCHER_TEXTE).
  * Un texte sans `taillePx` est une anomalie de la géométrie : on le signale (console.warn) au lieu de le taire.
  */
-export const TAILLE_REPLI_PX = 32;
+export const TAILLE_REPLI_PX = PLANCHER_TEXTE;
 const FAMILLE = "Manrope, sans-serif";
 
 function Icone({ el }: { el: ElementVisible }) {
   const { largeur: l, hauteur: h } = el.rect;
   const c = couleur(el.couleur ?? el.remplissage, "terracotta");
   const taille = Math.min(l, h);
+  const tour = Number.isFinite(el.progression) ? (((el.progression as number) % 1) + 1) % 1 : 0;
   const forme = (() => {
     switch (el.icone) {
       case "cloche":
@@ -48,7 +49,9 @@ function Icone({ el }: { el: ElementVisible }) {
         return (
           <>
             <circle cx={12} cy={12} r={9.5} fill="none" stroke={c} strokeWidth={2.2} />
-            <path d="M12 6.5 L12 12 L16 14.5" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+            {/* Petite aiguille fixe, grande aiguille qui TOURNE : `progression` 0..1 = un tour autour du centre (12, 12). */}
+            <path d="M12 12 L15.5 14" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
+            <path d="M12 12 L12 5.5" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" transform={`rotate(${tour * 360} 12 12)`} />
           </>
         );
       case "fleche":
