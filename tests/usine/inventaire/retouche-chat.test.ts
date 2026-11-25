@@ -23,7 +23,7 @@ export const DOMAINE: Domaine = {
     "retoucheChat.facecamAnimee": "eteint",
     "retoucheChat.tutorielOutil": "eteint",
     "retoucheChat.videoLongue": "eteint",
-    "retoucheChat.demoFacecam": "eteint",
+    "retoucheChat.demoFacecam": "allume",
   },
   exclusCles: {},
   parExpression: {

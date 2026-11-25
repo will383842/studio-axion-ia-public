@@ -28,6 +28,8 @@ export const DOMAINE: Domaine = {
     // POSTE-4 : capture automatique du film du tutoriel (éteinte ; seul `true` exact allume).
     { cle: "tutoriel.captureAuto", etat: "eteint", appel: "src/services/tutoriel-capture-auto.ts", motif: /lireParametre<unknown>\(PARAM_CAPTURE_AUTO, false\)\) === true/ },
     { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
+    { cle: "voix.refaireAvecPrononciation", etat: "allume", appel: "src/services/refaire-voix.ts", motif: /lireParametre<unknown>\(PARAM_REFAIRE_AVEC_PRONONCIATION, true\)\) !== false/ },
+    { cle: "voix.plafondRefaireCentimes", etat: "valeur", appel: "src/services/refaire-voix.ts", motif: /lireParametre<unknown>\(PARAM_PLAFOND_REFAIRE_CENTIMES, PLAFOND_REFAIRE_VOIX_CENTIMES_EUR\)/ },
     { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
     { cle: "imageVideo.accordEssaiReel", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /PARAM_ACCORD_ESSAI_IV, false\)/ },
     { cle: "imageVideo.sousTitresMinimal", etat: "eteint", appel: "src/services/image-video.ts", motif: /lireParametre<unknown>\(PARAM_SOUS_TITRES_MINIMAL_IV, false\)\.catch\(\(\) => false\)\) === true/ },
@@ -135,6 +137,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 21, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // parExpression 19 → 20 : 19 entrées d'avant + 1 ajoutée (services/video-longue-branchements.ts:cleParametrePlages(v)) = 20; constantes 20 → 21 : + tutoriel.captureAuto (POSTE-4)
+  nombre: { litterales: 8, constantes: 23, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // fusion master : parExpression 19 → 20 (cleParametrePlages) ; constantes 20 → 23 : 2 de cette branche + tutoriel.cap (master)
   retirees: [],
 };
