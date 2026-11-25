@@ -25,7 +25,7 @@ import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, texteDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
 import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe/scenariste";
-import { estSansVoix, lireEntreesTutoriel } from "./entrees";
+import { estSansVoix, lireEntreesTutoriel, NAVIGATION_REFUSEE_MAX } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import type { ResultatControleComposition } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
@@ -194,6 +194,20 @@ export function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
   return [...reserves, ...script, ...plan];
 }
 
+/** Erreurs du lecteur du film dites en phrase simple : jamais un code de version ni un nom de champ. */
+const phraseFilm = (erreur: string): string =>
+  erreur.startsWith("Version inconnue") ? "le fichier de navigation n'est pas d'une version connue"
+  : erreur.startsWith("La navigation filmée n'est pas un objet") ? "le fichier de navigation est illisible"
+  : erreur.startsWith("La clé du film") ? "le film doit être un fichier .mp4 ou .webm"
+  : erreur.startsWith("Les plages figées") ? "les arrêts sur image du film sont invalides"
+  : erreur.replace(/\.$/, "");
+
+/** Réserve « film refusé » : au plus NAVIGATION_REFUSEE_MAX raisons, « … » seulement s'il y en avait d'autres. */
+export function messageFilmRefuse(erreurs: readonly string[]): string {
+  const raisons = erreurs.slice(0, NAVIGATION_REFUSEE_MAX).map(phraseFilm).join(" ; ");
+  return `À vérifier · Navigation : film refusé (${raisons}${erreurs.length > NAVIGATION_REFUSEE_MAX ? "…" : ""}). La vidéo a été montée sans le film. Refaites la capture, puis déposez de nouveau le film.`;
+}
+
 function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): ResultatFabrication {
   // T-EXT-27 : la grille chiffrée n'est rangée dans l'état que par le pas « regarder » (27b). Absente : exactement comme avant.
   const grille = (etat as EtatTutoriel & AvecGrille).grille;
@@ -205,6 +219,9 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   const aCorrigerCompo = (composition?.defauts.length ?? 0) - bloquantsCompo + (composition ? 0 : 1);
   if (grille) for (const a of alertesDeGrille(grille)) alertesCommunes.push({ code: "defaut-visuel", gravite: a.bloquant ? "attention" : "info", message: a.message });
   if (commande.briques["mention-ia"] === true) alertesCommunes.push({ code: "defaut-visuel", gravite: "info", message: "Mention IA demandée : pas encore posée par le tutoriel" });
+  // ESS-6 : un film de navigation refusé n'est plus ignoré en silence ; le montage est resté sans film, on le dit.
+  const refusee = lireEntreesTutoriel(commande.entrees).navigationRefusee;
+  if (refusee?.length) alertesCommunes.push({ code: "defaut-visuel", gravite: "attention", message: messageFilmRefuse(refusee) });
   const cible = cibleSon(commande);
   const toutesAlertes: AlerteQualite[] = [...alertesCommunes];
   const reseaux = reseauxDeCommande(commande, [...RESEAUX_CONSEILLES]);
@@ -234,7 +251,9 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     return {
       ratio,
       fichierCle: r.sortie!.fichierCle,
-      vignetteCle: vignette ?? r.sortie!.fichierCle.replace(/\.mp4$/, ".jpg"),
+      // `SortieProduite.vignetteCle` est obligatoire : sans vignette produite, la chaîne vide est la valeur des autres moteurs pour « aucune »
+      // (fabrication.ts lit `vignetteCle ?? ""`). On n'invente plus une clé .jpg qui n'existe pas.
+      vignetteCle: vignette ?? "",
       resolution: `${largeur}x${hauteur}`,
       dureeSec: r.sortie!.dureeSec,
       taille: r.sortie!.taille,

@@ -87,7 +87,7 @@ export const OBJET_VOLET_AVANT_APRES: DefinitionObjet<ParametresVoletAvantApres>
       return (
         <g key={texte}>
           <rect x={f(bx)} y={MARGE_ETIQUETTE} width={largeur} height={52} rx={26} fill={c.panneau} stroke={c.filet} strokeWidth={2} />
-          <text x={f(bx + largeur / 2)} y={MARGE_ETIQUETTE + 35} textAnchor="middle" fontSize={26} fontWeight={600} fontFamily={FAMILLE_CSS_AXION} fill={c.texte}>
+          <text x={f(bx + largeur / 2)} y={MARGE_ETIQUETTE + 35} textAnchor="middle" fontSize={28} fontWeight={600} fontFamily={FAMILLE_CSS_AXION} fill={c.texte}>
             {texte}
           </text>
         </g>

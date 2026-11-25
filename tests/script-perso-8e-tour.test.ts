@@ -35,12 +35,15 @@ describe("règles 10 et 17 : douleur dite au début", () => {
     const v = validerFicheTableau(f, { ...c, texteScript: texteScriptDe(f) });
     expect(v.ok ? [] : v.problemes.map((p) => p.message)).toEqual([]);
   });
-  it("avec texteDeWill : les mots ÉCRITS et le geste fort restent exigés", () => {
+  it("avec texteDeWill : ni les mots écrits (regles.ts:742) ni le geste fort (regles.ts:1105) ne sont exigés ; sans texteDeWill ils le restent", () => {
     const f = ficheSansDouleurDite();
     f.douleur = "Une toute autre douleur sans rapport.";
     const c = { ...contexteDeFiche(f, true), motsDouleur: ["zébulon"] };
-    expect(regleDouleurEnTete(f, c).map((m) => m.detail).join(" | ")).toContain("n'est écrit dans la première scène");
-    expect(regleGesteFortDouleur(f, c).map((m) => m.detail).join(" | ")).toContain("aucun geste fort");
+    expect(regleDouleurEnTete(f, c).map((m) => m.detail).join(" | ")).not.toContain("n'est écrit dans la première scène");
+    expect(regleDouleurEnTete(f, { ...c, texteDeWill: undefined }).map((m) => m.detail).join(" | ")).toContain("n'est écrit dans la première scène");
+    // regles.ts:1105-1106 : texte dit de Will et aucune douleur écrite en première scène → pas de refus du geste fort non plus.
+    expect(regleGesteFortDouleur(f, c).map((m) => m.detail).join(" | ")).not.toContain("aucun geste fort");
+    expect(regleGesteFortDouleur(f, { ...c, texteDeWill: undefined }).map((m) => m.detail).join(" | ")).toContain("aucun geste fort");
   });
   it("le calage (après la voix) ne lève pas d'erreur sur ce texte de Will", () => {
     const f = ficheSansDouleurDite();

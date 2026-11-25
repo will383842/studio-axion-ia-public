@@ -208,7 +208,64 @@ export function zonePctDepuisRect(r: RectPx, largeur: number, hauteur: number): 
   };
 }
 
-/** Construit `navigation.json` : millisecondes entières, zones à 0,01 % ; `figees` absent quand non mesuré. */
+/**
+ * POSTE-7 : zone en % RAMENÉE DANS L'IMAGE filmée (intersection du rectangle et de la fenêtre 0-100 %), au centième,
+ * telle que `lireNavigationFilmee` l'accepte (x, y, largeur, hauteur dans 0-100, largeur et hauteur > 0, x + largeur ≤ 100
+ * et y + hauteur ≤ 100 en nombres flottants). Zone entièrement hors image (ou réduite à moins de 0,01 %) : `undefined`
+ * (la cible garde alors son clic, sans `zonePct`, ce que le lecteur accepte). Pure, ne lève jamais.
+ */
+export function zoneDansImage(r: RectPx, largeur: number, hauteur: number): RectPx | undefined {
+  if (![r.x, r.y, r.largeur, r.hauteur, largeur, hauteur].every(Number.isFinite) || largeur <= 0 || hauteur <= 0) return undefined;
+  // Calcul en centièmes de % entiers : aucune dérive d'arrondi aux bornes.
+  const borne = (debut: number, longueur: number, total: number): { d: number; l: number } | undefined => {
+    const a = Math.min(10000, Math.max(0, Math.round((debut / total) * 10000)));
+    const b = Math.min(10000, Math.max(0, Math.round(((debut + longueur) / total) * 10000)));
+    return b > a ? { d: a, l: b - a } : undefined;
+  };
+  const bx = borne(r.x, r.largeur, largeur);
+  const by = borne(r.y, r.hauteur, hauteur);
+  if (!bx || !by) return undefined;
+  const somme = (d: number, l: number) => d / 100 + l / 100;
+  let lx = bx.l;
+  while (lx > 0 && somme(bx.d, lx) > 100) lx -= 1;
+  let ly = by.l;
+  while (ly > 0 && somme(by.d, ly) > 100) ly -= 1;
+  if (lx <= 0 || ly <= 0) return undefined;
+  return { x: bx.d / 100, y: by.d / 100, largeur: lx / 100, hauteur: ly / 100 };
+}
+
+/**
+ * POSTE-7 : une remarque en français par cible dont la zone est omise (entièrement hors de l'image, ou sans surface visible)
+ * ou rognée (débord de plus d'un demi-pixel). Les étapes sans rectangle ne donnent rien. Pure, ne lève jamais.
+ */
+export function remarquesZones(mesures: MesureEtape[], largeur: number, hauteur: number): string[] {
+  const out: string[] = [];
+  for (const m of mesures) {
+    const r = m.rectPx;
+    if (!r) continue;
+    if (!zoneDansImage(r, largeur, hauteur)) {
+      const lisible = [r.x, r.y, r.largeur, r.hauteur, largeur, hauteur].every(Number.isFinite) && largeur > 0 && hauteur > 0;
+      const chevauche = lisible && r.largeur > 0 && r.hauteur > 0 && r.x < largeur && r.x + r.largeur > 0 && r.y < hauteur && r.y + r.hauteur > 0;
+      const horsChamp = lisible && r.largeur > 0 && r.hauteur > 0 && !chevauche;
+      out.push(
+        horsChamp
+          ? `Étape ${m.etapeId} : la cible est entièrement hors de l'image filmée ; ni caméra, ni curseur, ni projecteur pour cette étape.`
+          : `Étape ${m.etapeId} : la cible n'a aucune surface visible (taille nulle ou illisible) ; ni caméra, ni curseur, ni projecteur pour cette étape.`,
+      );
+      continue;
+    }
+    const deborde = r.x < -0.5 || r.y < -0.5 || r.x + r.largeur > largeur + 0.5 || r.y + r.hauteur > hauteur + 0.5;
+    if (!deborde) continue;
+    const vx = Math.max(0, Math.min(r.x + r.largeur, largeur) - Math.max(r.x, 0));
+    const vy = Math.max(0, Math.min(r.y + r.hauteur, hauteur) - Math.max(r.y, 0));
+    const part = Math.round(((vx * vy) / (r.largeur * r.hauteur)) * 100);
+    const visible = part < 1 ? "moins de 1 %" : part > 99 ? "plus de 99 %" : `${part} %`;
+    out.push(`Étape ${m.etapeId} : zone coupée par le bord de l'image, ${visible} visible.`);
+  }
+  return out;
+}
+
+/** Construit `navigation.json` : millisecondes entières, zones à 0,01 % ramenées dans l'image (POSTE-7) ; `figees` absent quand non mesuré. */
 export function navigationJson(p: {
   maquette: string;
   largeur: number;
@@ -220,7 +277,8 @@ export function navigationJson(p: {
 }): NavigationFilmee {
   const cibles: CibleNavigation[] = p.mesures.map((m) => {
     const c: CibleNavigation = { etapeId: m.etapeId, instantMs: ms(m.instantMs), finMs: ms(m.finMs) };
-    if (m.rectPx) c.zonePct = zonePctDepuisRect(m.rectPx, p.largeur, p.hauteur);
+    const zone = m.rectPx ? zoneDansImage(m.rectPx, p.largeur, p.hauteur) : undefined;
+    if (zone) c.zonePct = zone;
     return c;
   });
   const n: NavigationFilmee = {

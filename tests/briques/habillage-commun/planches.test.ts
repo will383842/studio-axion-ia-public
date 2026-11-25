@@ -55,6 +55,7 @@ const EXISTANTS = [
   "id=\"I10\"",
   "id=\"L7Objet\"",
   "id=\"Miniature\"",
+  "id=\"MontageDonnees\"",
   "id=\"PlanDeScenes\"",
   "id=\"PlancheLot2\"",
   "id=\"PlancheLot6\"",

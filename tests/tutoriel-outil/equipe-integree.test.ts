@@ -58,9 +58,10 @@ describe("T-EXT-55 · équipe éteinte (défaut) : rien ne change", () => {
     expect(await equipeTutorielActive(lire)).toBe(false);
   });
 
-  it("`tutoriel.equipe` sans `tutoriel.claude` (ou l'inverse) : éteint ; les deux exactement `true` : allumé ; lecture en échec : éteint", async () => {
+  it("`tutoriel.equipe` exactement `true` ouvre (Claude allumé par défaut, décision 21/11 07:20) ; `tutoriel.claude: false` ou `tutoriel.claude` seul : éteint ; lecture en échec : éteint", async () => {
     const lecteur = (valeurs: Record<string, unknown>) => (async (id: string, d: unknown) => (id in valeurs ? valeurs[id] : d)) as <T>(id: string, d: T) => Promise<T>;
-    expect(await equipeTutorielActive(lecteur({ "tutoriel.equipe": true }))).toBe(false);
+    expect(await equipeTutorielActive(lecteur({ "tutoriel.equipe": true }))).toBe(true);
+    expect(await equipeTutorielActive(lecteur({ "tutoriel.equipe": true, "tutoriel.claude": false }))).toBe(false);
     expect(await equipeTutorielActive(lecteur({ "tutoriel.claude": true }))).toBe(false);
     expect(await equipeTutorielActive(lecteur({ "tutoriel.equipe": true, "tutoriel.claude": true }))).toBe(true);
     expect(await equipeTutorielActive((async () => { throw new Error("lecture"); }) as never)).toBe(false);

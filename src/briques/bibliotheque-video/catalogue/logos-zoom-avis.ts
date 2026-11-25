@@ -8,6 +8,6 @@ export const LIGNES_LOGOS_ZOOM_AVIS: readonly LigneCatalogue[] = Object.freeze([
   { id: ID.cadrageZoomAvocat, etat: "prod", chantier: "8", decision: "AM-16" },
   { id: ID.cadrageZoomDemo, etat: "prod", chantier: "8", decision: "AM-16" },
   { id: ID.cadrageCameraCasConcret, etat: "prod", chantier: "8", decision: "AM-16" },
-  { id: ID.cadrageZoomV4, etat: "absent", chantier: "8", decision: "AM-16", note: "attend W-6" },
+  { id: ID.cadrageZoomV4, etat: "eteint", chantier: "8", decision: "AM-16", note: "branché, éteint : facecamAnimee.zoomGratuit ; allumage après la planche C8-Z10" },
   { id: ID.motionAvisClient, etat: "prevu", chantier: "8", decision: "AM-16" },
 ]);

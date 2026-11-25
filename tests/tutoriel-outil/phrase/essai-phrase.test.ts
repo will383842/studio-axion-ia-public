@@ -47,7 +47,8 @@ import { lirePropositionScripts } from "@/moteurs/montage-tutoriel-outil/equipe/
 import { controlerFluxCree, DOMAINE_COURRIEL_EXEMPLE, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
 import type { FluxAutomatisation } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { empreinteDescription, PARAM_ENTREE_PHRASE, PARAM_PIECE_CLAUDE, textesDeLaMaquette } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
-import { ETAPE_PIECE_TUTORIEL, PARAM_CLAUDE_TUTORIEL, plafondTutorielPhraseUsd } from "@/services/tutoriel-claude";
+import { ETAPE_PIECE_TUTORIEL, PARAM_CLAUDE_TUTORIEL } from "@/services/tutoriel-claude";
+import { PLAFOND_TUTORIEL_USD } from "@/services/plafond-tutoriel";
 import { deposerTutoriel, lireInterrupteursTutoriel, PARAM_FORMULAIRE, PHRASE_PHRASE_FERMEE, PHRASE_TUTORIEL_FERME } from "@/services/tutoriel-depot";
 import { equipeTutorielActive, PARAM_EQUIPE_TUTORIEL, portsEquipeAvecPhrase } from "@/services/tutoriel-equipe";
 import { autreProposition, corrigerTexte, enregistrerApercu, garderPiece, NOM_FICHIER_APERCU, vuePieceCreee, type DependancesPiece } from "@/services/tutoriel-piece-creee";
@@ -85,8 +86,18 @@ import {
 
 const T0 = Date.UTC(2026, 10, 20, 9);
 const T_ISO = new Date(T0).toISOString();
-const VIDEO = "v-phrase";
-const TRAVAIL = "t-phrase";
+/** Identifiants propres à CHAQUE test (réattribués avant chacun) : un travail resté en vol d'un test précédent ne peut pas écrire dans le cahier du suivant. */
+let VIDEO = "v-phrase-0";
+let TRAVAIL = "t-phrase-0";
+let numeroDeTest = 0;
+/** Opérations du « monde » (avancer, ranger) encore en cours : on les attend avant de vider les dépôts. */
+const enVol = new Set<Promise<unknown>>();
+const suivre = <T,>(p: Promise<T>): Promise<T> => {
+  enVol.add(p);
+  const retire = () => void enVol.delete(p);
+  p.then(retire, retire);
+  return p;
+};
 
 /** Fait casser le test avec le NOM du maillon (règle de la fiche : on nomme, on ne répare pas). */
 function maillon(nom: string, raison: string): never {
@@ -120,6 +131,8 @@ let appelsReseau = 0;
 
 /** Tout ce qu'il faut pour mener UNE vidéo partie d'une phrase : dépôt réel, moteur réel, doubles comptés. */
 async function monde(phrase: string, options: Options = {}) {
+  const video = VIDEO;
+  const travailId = TRAVAIL;
   const reglages = options.reglages ?? TOUT_ALLUME;
   const lire = async <T,>(id: string, defaut: T): Promise<T> => (id in reglages ? (reglages[id] as T) : defaut);
   const flux = phrase === PHRASE_TRI;
@@ -137,10 +150,10 @@ async function monde(phrase: string, options: Options = {}) {
       equipe: async () => true,
       brouillon: async (e) => {
         entrees = e.entrees;
-        return { id: VIDEO };
+        return { id: video };
       },
       ratios: async () => undefined,
-      lancer: async () => ({ statut: "lancee", travailId: TRAVAIL }),
+      lancer: async () => ({ statut: "lancee", travailId }),
       abandonner: async () => undefined,
     },
   );
@@ -164,7 +177,7 @@ async function monde(phrase: string, options: Options = {}) {
   let navigation: unknown;
   let textesPlan: [string, string] = ["", ""];
   const commande = (): CommandeFabrication =>
-    commandeTutoriel({ videoId: VIDEO, ratios: ["4:5"], script: { blocs: [], texteComplet: "" }, entrees: { [ENTREE_TUTORIEL]: { ...((entrees?.[ENTREE_TUTORIEL] as object | undefined) ?? {}), ...(navigation ? { navigationFilmee: navigation } : {}) } } });
+    commandeTutoriel({ videoId: video, ratios: ["4:5"], script: { blocs: [], texteComplet: "" }, entrees: { [ENTREE_TUTORIEL]: { ...((entrees?.[ENTREE_TUTORIEL] as object | undefined) ?? {}), ...(navigation ? { navigationFilmee: navigation } : {}) } } });
   const base = outilsDoubles(journal, { renduEchecs: options.renduEchecs });
   const voixDoubles = base.voix!;
   const voixBase = voixDoubles.voix();
@@ -177,7 +190,7 @@ async function monde(phrase: string, options: Options = {}) {
   };
   const outils = async (): Promise<OutilsTutoriel> => {
     const c = commande();
-    const equipe = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, VIDEO, { executer, lire }) : undefined;
+    const equipe = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, video, { executer, lire }) : undefined;
     return {
       ...base,
       voix: { ...voixDoubles, voix: () => voix as unknown as ReturnType<typeof voixDoubles.voix> },
@@ -191,16 +204,16 @@ async function monde(phrase: string, options: Options = {}) {
   const moteur = creerMoteurTutorielOutil({ outils });
 
   /* ---- Le travail vit dans le dépôt en mémoire (les gestes de validation de 33 le lisent là) ---- */
-  const travail = async (): Promise<Travail> => (await depots().travaux.obtenir(TRAVAIL)) as Travail;
-  const ranger = async (t: Travail) => void (await depots().travaux.enregistrer(t));
+  const travail = async (): Promise<Travail> => (await depots().travaux.obtenir(travailId)) as Travail;
+  const ranger = (t: Travail) => suivre((async () => void (await depots().travaux.enregistrer(t)))());
   let tours = 0;
   let resultat: Awaited<ReturnType<typeof moteur.avancer>>["resultat"];
-  if (depot.statut === "lancee") await ranger(await moteur.lancer(commande(), { travailId: TRAVAIL, versionId: "ver-1", titre: phrase, maintenant: T0 }));
+  if (depot.statut === "lancee") await ranger(await moteur.lancer(commande(), { travailId, versionId: "ver-1", titre: phrase, maintenant: T0 }));
   /** Avance jusqu'à une pause, un échec ou la fin. */
   const mener = async (): Promise<Travail> => {
     let t = await travail();
     for (let i = 0; i < 500; i++) {
-      const r = await moteur.avancer(t, commande(), T0 + tours++ * 1000);
+      const r = await suivre(moteur.avancer(t, commande(), T0 + tours++ * 1000));
       t = r.travail;
       resultat = r.resultat ?? resultat;
       if (["termine", "echec", "annule"].includes(t.statut) || t.parametres?.pause) break;
@@ -255,11 +268,11 @@ async function monde(phrase: string, options: Options = {}) {
   /** Le test dépose l'aperçu fabriqué par le poste : `apercu-piece.json` et ses images (vrai `enregistrerApercu`). */
   const deposerApercu = async (sortie: string) => {
     const json = JSON.parse(readFileSync(join(sortie, NOM_FICHIER_APERCU), "utf8")) as { images: { cle: string }[] };
-    const fichier = (id: string, nom: string): Fichier => ({ id, nom, mime: nom.endsWith(".json") ? "application/json" : "image/png", taille: 10, origine: "depot", statut: "pret", cleStockage: `studio/test/entree/${VIDEO}/${id}`, creeLe: T_ISO, modifieLe: T_ISO }) as unknown as Fichier;
+    const fichier = (id: string, nom: string): Fichier => ({ id, nom, mime: nom.endsWith(".json") ? "application/json" : "image/png", taille: 10, origine: "depot", statut: "pret", cleStockage: `studio/test/entree/${video}/${id}`, creeLe: T_ISO, modifieLe: T_ISO }) as unknown as Fichier;
     const lot = `${deposes.size}`;
     deposes.set(`f-json-${lot}`, { fichier: fichier(`f-json-${lot}`, NOM_FICHIER_APERCU), json });
     json.images.forEach((im, i) => deposes.set(`f-img-${lot}-${i}`, { fichier: fichier(`f-img-${lot}-${i}`, basename(im.cle)) }));
-    return enregistrerApercu(VIDEO, [...deposes.keys()].filter((k) => k.endsWith(`-${lot}`) || k.includes(`-${lot}-`)), ecran);
+    return enregistrerApercu(video, [...deposes.keys()].filter((k) => k.endsWith(`-${lot}`) || k.includes(`-${lot}-`)), ecran);
   };
 
   return {
@@ -325,13 +338,18 @@ async function duScriptALaVideo(m: Monde, avantLeFilm?: () => Promise<void>) {
 
 beforeEach(() => {
   reinitialiserDepots();
+  numeroDeTest++;
+  VIDEO = `v-phrase-${numeroDeTest}`;
+  TRAVAIL = `t-phrase-${numeroDeTest}`;
   appelsReseau = 0;
   vi.stubGlobal("fetch", () => {
     appelsReseau++;
     throw new Error("fetch interdit : l'essai « phrase » est à 0 €");
   });
 });
-afterEach(() => {
+afterEach(async () => {
+  // Rien ne doit rester en vol quand le test suivant remet les dépôts à zéro.
+  await Promise.allSettled([...enVol]);
   // Aucun réseau : un seul appel à `fetch`, même rattrapé par la production, fait échouer le test.
   expect(appelsReseau, "appels réseau pendant l'essai").toBe(0);
 });
@@ -351,7 +369,7 @@ describe("V2-10 · « un tableau de bord pour un atelier » (cas 2), de la phras
     /* ---- Chef de projet (règles, 0 €) puis UN appel du maquettiste, sous le plafond « phrase » ---- */
     await m.mener();
     if (await m.pause() !== CODE_PIECE_A_CONSTRUIRE) maillon("pas-piece-creee", `pause « ${await m.pause()} » au lieu de ${CODE_PIECE_A_CONSTRUIRE} (${JSON.stringify((await m.equipe()).pieceCreee?.erreurs ?? (await m.equipe()).remarques ?? [])})`);
-    expect(m.appels).toEqual([{ role: "maquettiste", etape: ETAPE_PIECE_TUTORIEL, plafond: plafondTutorielPhraseUsd(), proposition: 1 }]);
+    expect(m.appels).toEqual([{ role: "maquettiste", etape: ETAPE_PIECE_TUTORIEL, plafond: PLAFOND_TUTORIEL_USD, proposition: 1 }]);
     let e = await m.equipe();
     expect(e.cahier).toMatchObject({ entree: "C", cas: 2, manques: ["maquette"] });
     expect(e.pieceCreee).toMatchObject({ genre: "maquette", proposition: 1, statut: "a-construire" });
@@ -395,7 +413,7 @@ describe("V2-10 · « un tableau de bord pour un atelier » (cas 2), de la phras
     if (await m.pause() !== "TO_SCRIPT_A_VALIDER") maillon("équipe après la maquette gardée", `pause « ${await m.pause()} » (${JSON.stringify(e.remarques ?? e.pieceCreee?.erreurs ?? [])})`);
     expect(roles(m)).toEqual(["maquettiste", "stratege", "scenariste"]);
     expect(roles(m)).not.toContain("analyste");
-    expect(m.appels.every((a) => a.plafond === plafondTutorielPhraseUsd())).toBe(true);
+    expect(m.appels.every((a) => a.plafond === PLAFOND_TUTORIEL_USD)).toBe(true);
     expect(e.carte!.zones.map((z) => z.id)).toEqual(["commandes", "retards", "semaine"]);
     expect(e.verdict?.controles.filter((c) => c.etat !== "reussi")).toEqual([]);
     const empreinteGardee = e.pieceCreee!.gardee!.empreinte;
@@ -478,7 +496,7 @@ describe("V2-10 · « je veux un tri d'e-mails » (cas 3), le même chemin avec 
     await m.mener();
     let e = await m.equipe();
     if (await m.pause() !== CODE_PIECE_A_CONSTRUIRE) maillon("pas-piece-creee (flux)", `pause « ${await m.pause()} » (${JSON.stringify(e.pieceCreee?.erreurs ?? e.remarques ?? [])})`);
-    expect(m.appels).toEqual([{ role: "maquettiste", etape: ETAPE_PIECE_TUTORIEL, plafond: plafondTutorielPhraseUsd(), proposition: 1 }]);
+    expect(m.appels).toEqual([{ role: "maquettiste", etape: ETAPE_PIECE_TUTORIEL, plafond: PLAFOND_TUTORIEL_USD, proposition: 1 }]);
     expect(e.cahier).toMatchObject({ entree: "C", cas: 3, gabarits: ["G-Flux"], manques: ["flux-automatisation"] });
     expect(e.pieceCreee).toMatchObject({ genre: "flux", statut: "a-construire" });
     expect([m.journal.voix.length, m.journal.rendus.length]).toEqual([0, 0]);
@@ -572,10 +590,10 @@ describe("V2-10 · refus attendus (un cas chacun), toujours à 0 €", () => {
       expect((await m.equipe()).pieceCreee).toBeUndefined();
     }
 
-    // L'équipe ou Claude éteints : aucune pièce n'est proposée, aucun appel.
+    // L'équipe ou Claude éteints (`false` : Claude est allumé par défaut, décision 21/11 07:20) : aucune pièce n'est proposée, aucun appel.
     for (const cle of [PARAM_EQUIPE_TUTORIEL, PARAM_CLAUDE_TUTORIEL]) {
       reinitialiserDepots();
-      const m = await monde(PHRASE_ATELIER, { reglages: sans(cle) });
+      const m = await monde(PHRASE_ATELIER, { reglages: { ...TOUT_ALLUME, [cle]: false } });
       const t = await m.mener();
       expect(t.statut).toBe("en_file");
       expect(await m.pause()).toMatch(/^TO_/);
@@ -726,7 +744,7 @@ describe("V2-10 · maillons de la chaîne réelle, sans pont (rouge = raccord à
     if (maquettiste.length !== 2 || maquettiste[1]!.proposition !== 2) {
       maillon("autre proposition", `${maquettiste.length} appel(s) du maquettiste, pause « ${await m.pause()} » : l'orchestre ne demande une pièce que s'il n'y en a aucune, et toujours avec la proposition 1 (\`contextePiece(e, 1)\`) ; la demande de l'écran (proposition 2, « à construire ») ne déclenche aucun second appel`);
     }
-    expect(maquettiste.every((a) => a.plafond === plafondTutorielPhraseUsd())).toBe(true);
+    expect(maquettiste.every((a) => a.plafond === PLAFOND_TUTORIEL_USD)).toBe(true);
   });
 
   it("maillon maquettiste (flux) : le rôle sait rendre un flux pour le cas 3 (son schéma de sortie l'accepte)", () => {

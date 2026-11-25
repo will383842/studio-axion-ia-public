@@ -35,7 +35,7 @@ describe("police JetBrains Mono des objets (C9-05)", () => {
     expect(DROITS.filter((d) => /police-(kalam|caveat|permanent-marker)/.test(d.id))).toEqual([]);
   });
 
-  it("aucun fichier de studio-rendu/ ou src/ n'appelle chargerJetBrainsMono", () => {
+  it("un seul fichier de studio-rendu/ ou src/ appelle chargerJetBrainsMono : CalquePlanScenes.tsx (liste fermée exacte)", () => {
     const base = new URL("../../", import.meta.url).pathname;
     const appelants: string[] = [];
     const parcourir = (dir: string) => {
@@ -50,6 +50,6 @@ describe("police JetBrains Mono des objets (C9-05)", () => {
     };
     parcourir(join(base, "studio-rendu"));
     parcourir(join(base, "src"));
-    expect(appelants).toEqual([]);
+    expect(appelants.map((c) => c.slice(base.length))).toEqual(["studio-rendu/compositions/plan-scenes/CalquePlanScenes.tsx"]);
   });
 });

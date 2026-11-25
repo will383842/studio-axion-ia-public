@@ -71,18 +71,18 @@ describe("« Refaire » après un refus des vérifications : la reprise ne repai
     expect(compte(m)).toEqual(avant);
   });
 
-  it("un contrôle gratuit bloquant (mesure du fichier final absente, image E) bloque avant toute écoute ou relecture, même après « Refaire »", async () => {
+  it("un contrôle gratuit non fait (mesure du fichier final absente, image E) : panne réessayable IV_PANNE (GV-EC-05), avant toute écoute ou relecture, même après « Refaire »", async () => {
     // 25/10/2026 : la mise en page (Q21) n'est plus qu'une remarque ; un rendu dont le cadre n'est pas mesuré reste un refus.
     const carte = carteFixe("E");
     const m = monde();
     const o = outilsSimules(carte, m, { sansMesureFichier: ["hauteur"] });
     const refuse = await jusquAuBout(etatInitialIV(demandeEssai(carte)), o);
-    expect(refuse.refus).toMatchObject({ etape: "controles", code: "IV_CONTROLES", reessayable: false });
+    expect(refuse.refus).toMatchObject({ etape: "controles", code: "IV_PANNE", reessayable: true });
     const avant = compte(m);
     expect(m.ordre.filter((x) => x === "transcription" || /relecture/.test(x))).toEqual([]);
     expect(refusReessayableIV(refuse)).toBe(true);
     const apres = await avancerJusquAArretIV(reprendreIV(refuse), o);
-    expect(apres.refus).toMatchObject({ etape: "controles", code: "IV_CONTROLES" });
+    expect(apres.refus).toMatchObject({ etape: "controles", code: "IV_PANNE" });
     expect(compte(m)).toEqual(avant);
     expect(m.ordre.filter((x) => x === "transcription" || /relecture/.test(x))).toEqual([]);
   });

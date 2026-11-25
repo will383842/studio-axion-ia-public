@@ -27,6 +27,7 @@ Object.assign(process.env, {
   PEXELS_API_KEY: "cle-pexels-essai-a1",
   PIXABAY_API_KEY: "cle-pixabay-essai-a1",
   BUFFER_API_KEY: "cle-buffer-essai-a1",
+  ZERNIO_API_KEY: "cle-zernio-essai-a1",
   R2_ACCOUNT_ID: "compte-essai",
   R2_ACCESS_KEY_ID: "ACCES-ESSAI",
   R2_SECRET_ACCESS_KEY: "secret-essai",
@@ -155,7 +156,7 @@ beforeEach(async () => {
   for (const m of SUJET.matieres) await depots().matieres.enregistrer(m);
   for (const p of SUJET.preuves) await depots().preuves.enregistrer(p);
   // Réglages posés EN BASE en production.
-  await ecrireParametre("fournisseur.publication", "buffer");
+  await ecrireParametre("fournisseur.publication", "zernio");
   await ecrireParametre("fournisseur.texte-reseaux", "claude");
   await ecrireParametre("fournisseur.miniature", "studio-rendu");
   await ecrireParametre("fournisseur.etalonnage", "studio-rendu");

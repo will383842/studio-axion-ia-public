@@ -1,0 +1,12 @@
+# Minuterie du veilleur (POSTE-2) : non activée tant que la section 8 du plan n'est pas jouée.
+[Unit]
+Description=Minuterie du veilleur du poste de capture (toutes les 30 s)
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=30s
+AccuracySec=5s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

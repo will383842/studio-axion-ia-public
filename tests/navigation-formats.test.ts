@@ -58,7 +58,7 @@ describe("listerFormatsNavigation", () => {
   it("actifs avant bientôt, dans l'ordre du registre", () => {
     const rangs = liste.map((f) => (statutNavigation(f) === "actif" ? 0 : 1));
     expect(rangs).toEqual([...rangs].sort((a, b) => a - b));
-    expect(liste.filter((f) => statutNavigation(f) === "actif").map((f) => f.id)).toEqual(["avocat", "facecam", "tableau-anime", "cas-concret", "facecam-animee", "image-video"]);
+    expect(liste.filter((f) => statutNavigation(f) === "actif").map((f) => f.id)).toEqual(["avocat", "facecam", "tableau-anime", "cas-concret", "facecam-animee", "image-video", "tutoriel-outil", "video-longue"]);
   });
 });
 
@@ -68,6 +68,32 @@ describe("image-video : exception de navigation seulement", () => {
     expect(f.statut).toBe("masque");
     expect(listerFormats().some((x) => x.id === "image-video")).toBe(false);
     expect(listerFormats({ inclureReservesAWill: true }).some((x) => x.id === "image-video")).toBe(false);
+  });
+  it("actif et en essai pour la navigation", () => {
+    expect(statutNavigation(f)).toBe("actif");
+    expect(formatEnEssai(f)).toBe(true);
+  });
+});
+
+describe("tutoriel-outil : exception de navigation seulement", () => {
+  const f = trouverFormat("tutoriel-outil")!;
+  it("reste masqué partout ailleurs", () => {
+    expect(f.statut).toBe("masque");
+    expect(listerFormats().some((x) => x.id === "tutoriel-outil")).toBe(false);
+    expect(listerFormats({ inclureReservesAWill: true }).some((x) => x.id === "tutoriel-outil")).toBe(false);
+  });
+  it("actif et en essai pour la navigation", () => {
+    expect(statutNavigation(f)).toBe("actif");
+    expect(formatEnEssai(f)).toBe(true);
+  });
+});
+
+describe("video-longue : exception de navigation seulement", () => {
+  const f = trouverFormat("video-longue")!;
+  it("reste masqué partout ailleurs", () => {
+    expect(f.statut).toBe("masque");
+    expect(listerFormats().some((x) => x.id === "video-longue")).toBe(false);
+    expect(listerFormats({ inclureReservesAWill: true }).some((x) => x.id === "video-longue")).toBe(false);
   });
   it("actif et en essai pour la navigation", () => {
     expect(statutNavigation(f)).toBe("actif");
