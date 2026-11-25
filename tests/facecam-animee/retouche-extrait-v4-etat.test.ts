@@ -146,6 +146,7 @@ describe("R4-03-c1 · état de retouche d'extrait", () => {
       }
     };
     marche(racine);
-    expect(importeurs).toEqual([]);
+    // MAJ 25/11 (R4-03-c2-v20j, voulue, à relire) : `index.ts` du moteur est le SEUL importeur permis (import dynamique dans `retoucher`, derrière le réglage éteint). Tout AUTRE fichier reste refusé.
+    expect(importeurs).toEqual([join(racine, "moteurs/montage-facecam-animee/index.ts")]);
   });
 });

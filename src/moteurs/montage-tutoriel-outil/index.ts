@@ -27,6 +27,7 @@ import { scriptRetenu } from "./script";
 import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe/scenariste";
 import { estSansVoix, lireEntreesTutoriel, NAVIGATION_REFUSEE_MAX } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
+import type { ResultatControleComposition } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, prochainPasPaye, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel, sortieGardee } from "./chaine";
 import { etapeIdsDuFilm, lireReglagesFilm, REMARQUE_REGLAGES_ILLISIBLES } from "@/services/retouche-chat/tutoriel-retouche-film";
@@ -166,11 +167,30 @@ function erreurLisible(err: unknown): ErreurTravail {
   return { code: "TO_ETAPE", reessayable: true, messagePourWill: `Une étape s'est arrêtée (${message}) : « Réessayer » ne refait que cette étape et la suite.` };
 }
 
+const REMARQUES_PLAN_GRAVES: ReadonlySet<string> = new Set(["SCENE_RETIREE", "SOUS_TITRES", "LITTERALITE", "TROP_COURT", "DENSITE", "TEXTE_TROP_LONG"]);
+
+/** QUAL-4 : poids de la note sans grille (mêmes poids que `grille-qualite.ts`, + 10 par alerte « attention » comme avant). */
+export function noteSansGrille(e: { bloquants: number; aCorriger: number; attention: number }): number {
+  return Math.max(0, Math.min(100, 100 - 25 * e.bloquants - 8 * e.aCorriger - 10 * e.attention));
+}
+
+/** QUAL-4 : le contrôle de composition en alertes lisibles (absent : « non vérifiée », jamais réussi ; même règle que la grille, où l'absence vaut « non fait » et la note ne peut pas être de 100). */
+function alertesComposition(compo: ResultatControleComposition | undefined): AlerteQualite[] {
+  if (!compo) return [{ code: "defaut-visuel", gravite: "info", message: "Composition de l'image : non vérifiée (la note ne peut pas être de 100)" }];
+  return compo.defauts.map((d) => ({ code: "defaut-visuel" as const, gravite: d.gravite === "bloquant" ? ("bloquant" as const) : ("attention" as const), message: `Composition · ${d.message}` }));
+}
+
+/** Avec une grille, le critère « composition » y est déjà (alertes de `alertesDeGrille`) : on n'ajoute les alertes de composition que sans grille, pour ne pas les dire deux fois. */
+export function alertesCompositionSansDoublon(grille: unknown, compo: ResultatControleComposition | undefined): AlerteQualite[] {
+  return grille ? [] : alertesComposition(compo);
+}
+
 /** Réserves (« À vérifier · … ») et remarques du plan, en alertes de la fiche vidéo. */
-function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
+export function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
   const reserves = etat.reserves.map((message) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message }));
   const script = (etat.script?.remarques ?? []).map((m) => ({ code: "duree" as const, gravite: "info" as const, message: `Script : ${m}` }));
-  const plan = (etat.plan?.remarques ?? []).filter((r) => r.code !== "LLM_INDISPONIBLE" && r.code !== "LLM_ILLISIBLE").map((r) => ({ code: "defaut-visuel" as const, gravite: "info" as const, message: `Plan · ${r.message}` }));
+  // QUAL-4 : une scène retirée ou déplacée, un texte trop long ou un plan trop dense changent ce que voit le spectateur : « attention », plus « info ».
+  const plan = (etat.plan?.remarques ?? []).filter((r) => r.code !== "LLM_INDISPONIBLE" && r.code !== "LLM_ILLISIBLE").map((r) => ({ code: "defaut-visuel" as const, gravite: REMARQUES_PLAN_GRAVES.has(r.code) ? ("attention" as const) : ("info" as const), message: `Plan · ${r.message}` }));
   return [...reserves, ...script, ...plan];
 }
 
@@ -192,6 +212,11 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   // T-EXT-27 : la grille chiffrée n'est rangée dans l'état que par le pas « regarder » (27b). Absente : exactement comme avant.
   const grille = (etat as EtatTutoriel & AvecGrille).grille;
   const alertesCommunes = alertesDe(etat);
+  // QUAL-4 : lu de façon tolérante (le pas qui le calcule vient d'un autre lot) ; absent = non vérifié.
+  const composition = (etat as EtatTutoriel & { composition?: ResultatControleComposition }).composition;
+  const alertesCompo = alertesCompositionSansDoublon(grille, composition);
+  const bloquantsCompo = composition?.defauts.filter((d) => d.gravite === "bloquant").length ?? 0;
+  const aCorrigerCompo = (composition?.defauts.length ?? 0) - bloquantsCompo + (composition ? 0 : 1);
   if (grille) for (const a of alertesDeGrille(grille)) alertesCommunes.push({ code: "defaut-visuel", gravite: a.bloquant ? "attention" : "info", message: a.message });
   if (commande.briques["mention-ia"] === true) alertesCommunes.push({ code: "defaut-visuel", gravite: "info", message: "Mention IA demandée : pas encore posée par le tutoriel" });
   // ESS-6 : un film de navigation refusé n'est plus ignoré en silence ; le montage est resté sans film, on le dit.
@@ -219,8 +244,10 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
       ...(vignette ? [] : [{ code: "defaut-visuel" as const, gravite: "info" as const, message: "Vignette non produite" }]),
     ];
     const alertes = [...alertesCommunes, ...alertesSon];
+    const alertesAffichees = [...alertes, ...alertesCompo];
     for (const a of alertesSon) if (!toutesAlertes.some((x) => x.message === a.message)) toutesAlertes.push(a);
     const attention = alertes.filter((a) => a.gravite === "attention").length;
+    const noteSortie = grille ? grille.note : noteSansGrille({ bloquants: bloquantsCompo, aCorriger: aCorrigerCompo, attention });
     return {
       ratio,
       fichierCle: r.sortie!.fichierCle,
@@ -230,10 +257,12 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
       resolution: `${largeur}x${hauteur}`,
       dureeSec: r.sortie!.dureeSec,
       taille: r.sortie!.taille,
-      rapportQualite: { note: grille ? grille.note : Math.max(50, 100 - 10 * attention), verifie: { image: true, son: son.sonVerifie, sousTitres: commande.briques["sous-titres"] !== false, mentionIA: false, droits: grille ? marqueReussie(grille) : false }, alertes, niveauSonoreLufs: son.niveauSonoreLufs },
+      rapportQualite: { note: noteSortie, verifie: { image: true, son: son.sonVerifie, sousTitres: commande.briques["sous-titres"] !== false, mentionIA: false, droits: grille ? marqueReussie(grille) : false }, alertes: alertesAffichees, niveauSonoreLufs: son.niveauSonoreLufs },
       ...(servis.length ? { reseaux: servis } : {}),
     };
   });
+  const attentionGlobale = toutesAlertes.filter((a) => a.gravite === "attention").length;
+  for (const a of alertesCompo) toutesAlertes.push(a);
   const lignesReelles: LigneCout[] = [];
   if (etat.audio && etat.audio.caracteres > 0) lignesReelles.push(ligne("Voix", etat.audio.fournisseur, "caractere", etat.audio.caracteres, "reel"));
   // T-EXT-55 : une ligne réelle par rôle de l'équipe (appels REVENUS ; un appel repris par `payerUneFois` n'est pas recompté).
@@ -243,7 +272,7 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   lignesReelles.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "reel"));
   return {
     sorties,
-    noteQualite: { globale: grille ? grille.note : Math.max(50, 100 - 10 * toutesAlertes.filter((a) => a.gravite === "attention").length), alertes: toutesAlertes },
+    noteQualite: { globale: grille ? grille.note : noteSansGrille({ bloquants: bloquantsCompo, aCorriger: aCorrigerCompo, attention: attentionGlobale }), alertes: toutesAlertes },
     lignesReelles,
     ...(etat.sousTitres && commande.briques["sous-titres"] !== false ? { sousTitres: etat.sousTitres } : {}),
     projetMontage: {

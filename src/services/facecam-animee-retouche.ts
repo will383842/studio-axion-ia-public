@@ -5,7 +5,7 @@
  */
 import "server-only";
 import type { CommandeFabrication } from "@/domaine/types";
-import { CLE_RETOUCHE_GRATUITE_FA, ID_MOTEUR_FACECAM_ANIMEE } from "@/moteurs/montage-facecam-animee";
+import { CLE_RETOUCHE_EXTRAITS_FA, CLE_RETOUCHE_GRATUITE_FA, ID_MOTEUR_FACECAM_ANIMEE } from "@/moteurs/montage-facecam-animee";
 import { retoucheChatActif, type LireReglage } from "./retouche-chat/generateurs";
 import { lireParametre } from "./_commun";
 
@@ -13,6 +13,12 @@ export async function actualiserRetoucheGratuiteFA(lire: LireReglage = lireParam
   (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_GRATUITE_FA] = await retoucheChatActif("facecam-animee", lire);
 }
 
+/** R4-03-c2 : réglage « changer un extrait » (éteint par défaut) ; seul `true` exact allume, une lecture qui lève éteint. */
+export const PARAM_RETOUCHE_EXTRAITS_FA = "retoucheChat.facecamAnimeeExtraits";
+export async function actualiserRetoucheExtraitsFA(lire: LireReglage = lireParametre): Promise<void> {
+  (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_EXTRAITS_FA] = (await Promise.resolve().then(() => lire(PARAM_RETOUCHE_EXTRAITS_FA, false)).catch(() => false)) === true;
+}
+
 export async function preparerRetoucheGratuiteFA(commande: Pick<CommandeFabrication, "moteurId">): Promise<void> {
-  if (commande.moteurId === ID_MOTEUR_FACECAM_ANIMEE) await actualiserRetoucheGratuiteFA();
+  if (commande.moteurId === ID_MOTEUR_FACECAM_ANIMEE) { await actualiserRetoucheGratuiteFA(); await actualiserRetoucheExtraitsFA(); }
 }
