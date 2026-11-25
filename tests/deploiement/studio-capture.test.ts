@@ -364,18 +364,18 @@ describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", 
     expect(lancer).toMatch(/^set -eu\s*$/m);
     expect(lancer).not.toMatch(/\beval\b|`|\$\(\s*\$|bash -c|sh -c/);
     const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
-    expect(execs).toHaveLength(2);
-    for (const l of execs) expect(l).toMatch(/"\$@"\s*$/);
+    expect(execs).toHaveLength(3);
+    for (const l of execs.filter((x) => !/ffprobe/.test(x))) expect(l).toMatch(/"\$@"\s*$/);
     expect(lancer).not.toMatch(/\$\*|\$@[^"]|[^"]\$@/);
   });
   it("liste fermée de modes : capturer (défaut, 900 s) et decompresser (300 s) ; mode inconnu refusé", () => {
     expect(lancer).toMatch(/exec timeout --kill-after=30 900 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/capturer\.mts "\$@"/);
     expect(lancer).toMatch(/exec timeout --kill-after=30 300 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/decompresser\.mts "\$@"/);
-    expect(lancer).toMatch(/capturer \| decompresser\)/);
+    expect(lancer).toMatch(/capturer \| decompresser \| verifier\)/);
     expect(lancer).toMatch(/^mode=capturer\s*$/m);
     expect(lancer).toMatch(/exit 66/);
     const cases = [...lancer.matchAll(/^ {2}(\w+)\)\s*$/gm)].map((m) => m[1]);
-    expect(cases).toEqual(["capturer", "decompresser"]);
+    expect(cases).toEqual(["capturer", "decompresser", "verifier"]);
   });
   it("la commande de décompression est documentée : même service, zip en /entree :ro, sortie /sortie, pas de --entrypoint", () => {
     expect(compose).toMatch(/^\s*#\s+decompresser --zip \/entree\/<fichier>\.zip --sortie \/sortie\/maquette\s*$/m);
@@ -400,9 +400,9 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
   it("réserve 2 : `init: false` EN CLAIR (timeout doit être PID 1, insensible à SIGSTOP ; ni init: true ni clé absente) ; lancer.sh fait `exec timeout` dans les deux modes", () => {
     expect(service.split("\n").filter((l) => /^\s+init:/.test(l))).toEqual(["    init: false"]);
     const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
-    expect(execs).toHaveLength(2);
+    expect(execs).toHaveLength(3);
     for (const l of execs) expect(l).toMatch(/^\s*exec timeout /);
-    expect(lancer.match(/\bexec\b/g)).toHaveLength(2); // aucun autre exec (ex. `exec "$@"`) ailleurs que sur ces deux lignes
+    expect(lancer.match(/\bexec\b/g)).toHaveLength(3); // aucun autre exec (ex. `exec "$@"`) ailleurs que sur ces deux lignes
     expect(compose).toMatch(/PAS d'`init: true`/);
     expect(compose).toMatch(/`init: false` ÉCRIT EN CLAIR/);
   });
@@ -650,5 +650,36 @@ describe("T-EXT-51c · lancer.sh EXÉCUTÉ (faux grep, df, timeout dans un PATH 
   it("sans argument : mode capturer par défaut", () => {
     const r = lancerEn({ FAUX_DF: "3094126592" });
     expect(r.args).toEqual(["--kill-after=30", "900", TSX, CAP]);
+  });
+});
+
+describe("POSTE-1 · mode verifier (ffprobe sur la copie, dans un conteneur jetable)", () => {
+  const brut = lire("deploiement/studio-capture/lancer.sh");
+  const ligneVerifier = lancer.split("\n").find((l) => /^\s*exec\s.*ffprobe/.test(l)) ?? "";
+  it("exactement trois modes : capturer | decompresser | verifier, chacun sous exec timeout --kill-after=30 (900/300/60)", () => {
+    expect(lancer).toMatch(/capturer \| decompresser \| verifier\)/);
+    expect(lancer).not.toMatch(/construire/);
+    const durees = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l)).map((l) => /^\s*exec timeout --kill-after=30 (\d+) /.exec(l)?.[1]);
+    expect(durees).toEqual(["900", "300", "60"]);
+  });
+  it("verifier : ffprobe sur /entree/navigation.mp4 seul, sortie vers /sortie/ffprobe.json, aucun \"$@\"", () => {
+    expect(ligneVerifier).toMatch(/exec timeout --kill-after=30 60 ffprobe -v error -show_entries format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate -of json \/entree\/navigation\.mp4 > \/sortie\/ffprobe\.json\s*$/);
+    expect(ligneVerifier).not.toMatch(/\$@|\$\*/);
+  });
+  it("verifier refuse tout argument (code 66) avant l'exec", () => {
+    const bloc = /^ {2}verifier\)\n([\s\S]*?)^ {4};;/m.exec(lancer)?.[1] ?? "";
+    expect(bloc.indexOf('"$#" -gt 0')).toBeGreaterThanOrEqual(0);
+    expect(bloc.indexOf("exit 66")).toBeLessThan(bloc.indexOf("exec timeout"));
+  });
+  it("les contrôles de /sortie (64, 65) précèdent le choix du mode et tout exec", () => {
+    expect(lancer.indexOf("exit 64")).toBeLessThan(lancer.indexOf("case \"$1\" in"));
+    expect(lancer.indexOf("exit 65")).toBeLessThan(lancer.indexOf("case \"$mode\" in"));
+    expect(lancer.indexOf("exit 65")).toBeLessThan(lancer.indexOf("exec timeout"));
+  });
+  it("lancer.sh passe sh -n et reste de la POSIX sh ; le Dockerfile ne change aucune garde", () => {
+    expect(spawnSync("sh", ["-n", join(RACINE, "deploiement/studio-capture/lancer.sh")]).status).toBe(0);
+    expect(brut.split("\n")[0]).toBe("#!/bin/sh");
+    expect(dockerfileCode).not.toMatch(/ecrire-maquette|constructeur/);
+    expect(dockerfileCode).toMatch(/^RUN chmod 0711 \/usr\/bin\/timeout\s*$/m);
   });
 });
