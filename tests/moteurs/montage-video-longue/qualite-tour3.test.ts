@@ -106,7 +106,8 @@ describe("étapes : trois au plus par scène (3 + 2), texte ≥ 64 px", () => {
       }
     }
   });
-  it("étapes : texte ≥ 64 px (1 à 3 lignes) ; listes : ≥ 56 px, 2 lignes ; 1 ou 2 éléments : icône à droite ; 3 ou plus : pleine largeur sans icône", () => {
+  it("étapes : toujours toute la largeur, jamais d'icône, texte ≥ 64 px sur 2 lignes au plus, 32 px de marge intérieure ; listes : même taille partout", () => {
+    const taillesListes = new Set<number>();
     for (const s of sb.scenes) {
       if (s.type !== "etapes" && !(s.type === "liste" && s.compte === null)) continue;
       const els = poserScene(s, s.finMs - 200);
@@ -115,17 +116,42 @@ describe("étapes : trois au plus par scène (3 + 2), texte ≥ 64 px", () => {
       const textes = els.filter((x) => /:texte\d$/.test(x.id));
       expect(textes, s.id).toHaveLength(n);
       for (const x of textes) {
-        expect(x.lignes!.length, `${x.id}`).toBeLessThanOrEqual(s.type === "etapes" ? 3 : 2);
-        expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(s.type === "etapes" ? 64 : n <= 2 ? 60 : 56);
+        expect(x.lignes!.length, `${x.id}`).toBeLessThanOrEqual(2);
+        if (s.type === "etapes") expect(x.taillePx!, `${x.id}`).toBeGreaterThanOrEqual(64);
+        else taillesListes.add(Math.round(x.taillePx! / 1.0));
       }
-      if (n <= 2) {
-        expect(f, s.id).toBeDefined();
-        expect(f!.rect.largeur).toBeGreaterThanOrEqual(400);
-      } else {
-        expect(f, s.id).toBeUndefined();
-        expect(Math.max(...els.filter((x) => /:carte\d$/.test(x.id)).map((x) => x.rect.x + x.rect.largeur))).toBeGreaterThan(1700);
+      if (s.type === "etapes") {
+        expect(f, `${s.id} : pas d'icône`).toBeUndefined();
+        expect(Math.max(...els.filter((x) => /:carte\d$/.test(x.id)).map((x) => x.rect.x + x.rect.largeur)), s.id).toBeGreaterThan(1700);
+        for (let i = 0; i < n; i++) {
+          const c = els.find((x) => x.id === `${s.id}:carte${i}`)!;
+          const t = els.find((x) => x.id === `${s.id}:texte${i}`)!;
+          expect(t.rect.x - c.rect.x, `${s.id} marge gauche`).toBeGreaterThanOrEqual(32);
+          expect(c.rect.x + c.rect.largeur - (t.rect.x + t.rect.largeur), `${s.id} marge droite`).toBeGreaterThanOrEqual(32);
+        }
       }
     }
+    // Toutes les listes ont le même corps (à la pulsation de la carte active près : 4 % au plus).
+    const lt = [...taillesListes];
+    expect(Math.max(...lt) / Math.min(...lt), "même taille dans toutes les listes").toBeLessThanOrEqual(1.05);
+    expect(Math.min(...lt)).toBeGreaterThanOrEqual(56);
+  });
+  it("étapes : un trait terracotta avance en continu le long du connecteur vers l'étape suivante", () => {
+    const e = sb.scenes.find((s) => s.type === "etapes")!;
+    const hauteurs: number[] = [];
+    for (let t = e.debutMs + 3000; t < e.debutMs + 3900; t += 100) {
+      const a = poserScene(e, t).find((x) => /:avance\d$/.test(x.id));
+      if (a) hauteurs.push(a.rect.hauteur);
+    }
+    expect(hauteurs.length).toBeGreaterThan(5);
+    expect(Math.max(...hauteurs) - Math.min(...hauteurs)).toBeGreaterThan(20);
+  });
+  it("repère : la bande ne répète pas une phrase dont tous les mots sont à l'écran (titre + éléments)", () => {
+    const l = sb.scenes.find((s) => s.type === "liste" && s.compte !== null)!;
+    const ligne = sb.sousTitres.find((x) => x.debutMs >= l.debutMs - 50 && x.debutMs < l.finMs)!;
+    expect(sousTitreRedondant(l, ligne)).toBe(true);
+    expect(ligne.texte).toContain(" et ");
+    expect(sousTitreRedondant(l, { ...ligne, texte: ligne.texte + " Une phrase de plus qui n'est pas à l'écran." })).toBe(false);
   });
   it("étapes : numéros ≥ 72 px dans des disques ≥ 96 px, marge haute ≥ 120 px, ≥ 24 px entre le disque et le cadre de la carte active", () => {
     for (const e of sb.scenes.filter((s) => s.type === "etapes")) {
@@ -429,5 +455,15 @@ describe("tour 10 : cartons de chapitre, tuiles, fin", () => {
     const haut = Math.min(...els.map((e) => e.rect.y), 115);
     const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
     expect(Math.abs((haut + bas) / 2 - 540)).toBeLessThanOrEqual(40);
+  });
+});
+
+describe("tour 11 : fin", () => {
+  it("le soulignement sous la question se redessine en boucle (2,5 s)", () => {
+    const f = sb.scenes.find((s) => s.type === "fin")!;
+    const larg = (dt: number) => poserScene(f, f.debutMs + dt).find((e) => e.id.endsWith(":souligne"))!.rect.largeur;
+    expect(larg(1000)).toBeGreaterThan(300);
+    expect(larg(2500 + 100)).toBeLessThan(150);
+    expect(larg(2500 + 1500)).toBeGreaterThan(300);
   });
 });

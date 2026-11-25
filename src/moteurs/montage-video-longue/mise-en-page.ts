@@ -74,6 +74,8 @@ const cercleFlotte = (tl: number, r: number, periodeMs = 3000) => ({ dx: r * Mat
 const kPulse = (tl: number, i: number, courant: boolean) => (courant ? 1 + 0.04 * onde(tl, 1200) : 1 + 0.015 * onde(tl, 1500 + i * 260, i * 1.9));
 /** Rectangle agrandi de `k` autour du point `c`. */
 const grandir = (r: Rect, c: { x: number; y: number }, k: number): Rect => ({ x: c.x + (r.x - c.x) * k, y: c.y + (r.y - c.y) * k, largeur: r.largeur * k, hauteur: r.hauteur * k });
+/** Taille du texte de toutes les listes (cartes numérotées ou à puces) : la même dans toute la vidéo. */
+export const TAILLE_LISTE = 56;
 /** Cascade d'entrée : tous les éléments d'une liste, d'étapes ou de tuiles entrent dès le début de la scène, un toutes les 300 ms. */
 const entreeCascade = (debutMs: number, i: number) => debutMs + i * 300;
 /** Élément « en cours de lecture » : le dernier dont l'apparition lue est passée (le premier tant que rien n'est lu). */
@@ -595,7 +597,8 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   const minH = n <= 2 ? 210 : n === 3 ? 170 : n === 4 ? 120 : 92;
   // Taille et colonnes : la plus grande taille qui tient (60 px et plus tant que possible, 56 px au moins avant de descendre).
   let choix: { colonnes: number; taille: number; hLigne: number; lignes: string[][][] } | null = null;
-  const tailles = n <= 2 ? [76, 72, 68, 64, 60, 56, 52, 48, 44] : [70, 66, 64, 62, 60, 58, 56, 52, 50, 48, 46, 44];
+  // Même taille de texte pour TOUTES les listes de la vidéo (le repli sur plus petit n'arrive que si rien ne tient).
+  const tailles = [TAILLE_LISTE, ...[58, 56, 52, 50, 48, 46, 44].filter((x) => x < TAILLE_LISTE)];
   for (const taille of tailles) {
     for (const colonnes of n >= 3 ? [1, 2] : [1]) {
       const largeurCarte = (largeurListe - (colonnes - 1) * gap) / colonnes;
@@ -701,7 +704,8 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   const S = ZONES_LONGUE.scene;
   const out: ElementPose[] = [];
   const n = s.elements.length;
-  const avecIcone = n <= 2;
+  // Les étapes prennent toujours toute la largeur utile (jamais d'icône à droite).
+  const avecIcone = false;
   const d = n >= 4 ? 96 : 120;
   // Trois étapes au plus par scène : marge haute de 134 px (au moins 120 px à l'écran).
   const haut = HAUT_SCENE;
@@ -712,7 +716,7 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   // Au moins 24 px entre le disque et le cadre de la carte active, filet et pulsation compris (30 + 6 px).
   const xCarte = S.x + Math.round(1.1 * d) + 64;
   const lCarte = S.x + largeurZone - 36 - xCarte;
-  const lTexte = lCarte - 48;
+  const lTexte = lCarte - 64; // 32 px de marge intérieure de chaque côté
   // Construction rapide : toutes les étapes entrent dès le début de la scène (cascade de 300 ms), puis l'étape en cours de lecture
   // s'allume (carte blanche à bord d'accent, disque plein, pulsation) ; les autres restent lisibles mais calmes.
   const app = s.elements.map((_e, i) => entreeCascade(s.debutMs, i));
@@ -721,8 +725,8 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   // Texte 52 px au moins (56 et plus si possible, 60 et plus avec 3 ou 4 étapes, 68 et plus avec 1 ou 2), 1 à 2 lignes,
   // avec au moins 20 px d'air entre le texte et le cadre de sa carte (haut et bas). Chaque carte a la hauteur de ses lignes.
   const IL = 1.05;
-  const AIR = 42;
-  const minH = n <= 2 ? 200 : n === 3 ? 170 : n === 4 ? 130 : 0;
+  const AIR = 64; // 32 px de marge intérieure en haut et en bas
+  const minH = n <= 2 ? 260 : n === 3 ? 190 : n === 4 ? 150 : 0;
   const maxH = n <= 3 ? 280 : 200;
   const gap0 = n >= 5 ? 14 : 28;
   const tailles = [72, 68, 64];
@@ -733,8 +737,8 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
     taille = cand;
     lignesDe = s.elements.map((e) => coupe(e.texte, cand, 600, lTexte * 1.02));
     hautes = lignesDe.map((l) => Math.min(maxH, Math.max(minH, hauteurLignes(l.length, cand, IL) + AIR)));
-    // 2 lignes au plus à 68 px et plus ; à 64 px (plancher) 3 lignes sont permises.
-    if (Math.max(...lignesDe.map((l) => l.length)) <= (cand <= 64 ? 3 : 2) && hautes.reduce((a, b) => a + b, 0) + (n - 1) * 8 <= dispo) break;
+    // Deux lignes au plus, texte de 64 px au moins.
+    if (Math.max(...lignesDe.map((l) => l.length)) <= 2 && hautes.reduce((a, b) => a + b, 0) + (n - 1) * 8 <= dispo) break;
   }
   const somme = hautes.reduce((a, b) => a + b, 0);
   let gap = gap0;
@@ -765,7 +769,7 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
     out.push(carteEl(idCarte, rectA, st.fond, st.bordure, st.opacite, 32, st.epaisseur));
     const lignes = lignesDe[i];
     const hT = hauteurLignes(lignes.length, taille, IL);
-    const tr = grandir({ x: xCarte + 24, y: ry + (hRang - hT) / 2, largeur: lTexte, hauteur: hT }, C, k);
+    const tr = grandir({ x: xCarte + 32, y: ry + (hRang - hT) / 2, largeur: lTexte, hauteur: hT }, C, k);
     out.push(texteEl({ id: `${s.id}:texte${i}`, x: tr.x, y: tr.y, largeur: tr.largeur, texte: el.texte, taille: taille * k, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: IL, lignes, opacite: courant ? e : e * 0.75, dans: idCarte }));
     // Disque : plein et pulsant pour l'étape lue, au trait pour les autres.
     const pop = courant ? Math.min(1, 0.82 + 0.18 * rebond(prog(t, app[i] + 120, 450))) * (0.9 + 0.1 * onde(tl, 1200)) : 1;
@@ -777,7 +781,16 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
       const haut2 = tops[i - 1] + FLOTTE_CARTE_PX * souffle(tl, 3000 + (i - 1) * 260, (i - 1) * 1.7) + hautes[i - 1] / 2 + d / 2 + 6;
       const bas = cy - d / 2 - 6;
       const q = douce(prog(t, app[i], 520));
-      if (q > 0 && bas > haut2) out.push({ ...traitEl(`${s.id}:lien${i}`, { x: cx - 3, y: haut2, largeur: 6, hauteur: (bas - haut2) * q }, p.accent, 1, 1), trace: arrondi(q) });
+      const gris: CouleurLongue = p.fond === "noir" ? "grisSurNoir" : "gris";
+      if (q > 0 && bas > haut2) {
+        // Connecteur : terracotta jusqu'à l'étape lue, gris au-delà ; vers l'étape suivante, un trait terracotta avance en continu.
+        const lu2 = i <= actif;
+        out.push({ ...traitEl(`${s.id}:lien${i}`, { x: cx - 3, y: haut2, largeur: 6, hauteur: (bas - haut2) * q }, lu2 ? p.accent : gris, 1, 1), trace: arrondi(q) });
+        if (i === actif + 1) {
+          const f = ((tl % 1800) / 1800) * q;
+          out.push(traitEl(`${s.id}:avance${i}`, { x: cx - 3, y: haut2, largeur: 6, hauteur: Math.max(2, (bas - haut2) * f) }, p.accent, 1, 1, `${s.id}:lien${i}`));
+        }
+      }
     }
   });
   if (avecIcone) out.push(iconeDroite(s, tl, p));
@@ -1059,6 +1072,12 @@ function fin(s: SceneFin, t: number): ElementPose[] {
     const e = douce(prog(tl, 0, 350));
     out.push(texteEl({ id: `${s.id}:question`, x: (1920 - 1640) / 2, y: g.yQ, largeur: 1640, texte: s.question, taille: g.qA.taille, graisse: 700, couleur: p.texte, interligne: 1.2, alignement: "centre", lignes: g.qA.lignes, opacite: e, dy: MONTEE_PX * (1 - e) }));
   }
+  if (g.qA && s.question) {
+    // Soulignement sous la question : il se redessine en boucle (2,5 s).
+    const cy25 = (tl % 2500) / 2500;
+    const q25 = douce(Math.min(1, cy25 / 0.7));
+    out.push(traitEl(`${s.id}:souligne`, { x: 960 - 180, y: g.yQ + g.hQ + 14, largeur: Math.max(2, 360 * q25), hauteur: 6 }, p.accent, 1, cy25 > 0.9 ? (1 - cy25) / 0.1 : 1));
+  }
   const tA0 = TAILLES_LONGUE.finAppel;
   const wTexte0 = largeurLigne(nettoie(s.appel).split(" "), tA0, 800);
   const wBouton = Math.min(1000, wTexte0 + 160);
@@ -1223,10 +1242,19 @@ export function sousTitreRedondant(scene: SceneLongue, ligne: LigneSousTitre): b
       return normeTexte(scene.contexte) === l;
     case "liste":
     case "etapes":
-      return scene.elements.some((e) => normeTexte(e.texte) === l);
+      if (scene.elements.some((e) => normeTexte(e.texte) === l)) return true;
+      // Tous les mots de la ligne sont à l'écran (titre + éléments, ponctuation ignorée ; « et » et « ou » séparent seulement les éléments).
+      return motsDeLigne(l).every((m) => motsEcran(scene).has(m));
     default:
       return false;
   }
+}
+
+const motsDeLigne = (texte: string) => normeTexte(texte).split(/[\s']+/).filter((m) => m && m !== "et" && m !== "ou");
+/** Mots affichés par une liste ou des étapes : le titre (s'il y en a) et tous les éléments. */
+function motsEcran(scene: SceneListe | SceneEtapes): Set<string> {
+  const textes = [scene.type === "liste" ? (scene.titre ?? "") : "", ...scene.elements.map((e) => e.texte)];
+  return new Set(textes.flatMap((t) => motsDeLigne(t)));
 }
 
 /** Repère de chapitre affiché dans la bande à la place d'un sous-titre redondant : « 01 · Le problème : compter à la main ». */
