@@ -4,7 +4,7 @@ import { fabriquerSousTitres } from "@/briques/sous-titres";
 import { horodaterTexte } from "@/domaine/derivations";
 import { planCarteFin } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix, viderDoublonsAffiches } from "@/moteurs/montage-tutoriel-outil/sous-titres-sans-voix";
+import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "@/moteurs/montage-tutoriel-outil/sous-titres-sans-voix";
 
 const TEXTE = "Vous perdez du temps à compter vos stocks à la main ? Voici un tableau de bord qui le fait pour vous. En haut, trois chiffres : les articles en stock, ceux qui passent sous le seuil, et la valeur totale. Vous décidez en une minute au lieu d'une heure.";
 
@@ -47,25 +47,14 @@ describe("sous-titres sans voix", () => {
     expect(finsDePhrase).toBeGreaterThanOrEqual(4);
   });
 
-  it("doublons : la carte déjà affichée en grand (titre, question de l'appel) est vidée, bande et horaires conservés", () => {
+  it("aucun trou > 0,6 s sans carte entre le premier et le dernier mot (accroche et question finale sous-titrées aussi)", () => {
     const T2 = "Vous perdez du temps à compter vos stocks à la main\u00A0? Voici un tableau de bord qui le fait pour vous. Vous voulez le même pour votre entreprise\u00A0? Prenez rendez-vous.";
     const mots = T2.split(" ").map((mot, i) => ({ mot, debutSec: i * 0.4, finSec: i * 0.4 + 0.38 }));
-    const brut = normaliserSegments([{ id: "x", debutSec: 0, finSec: 12, mots }]);
-    const n = brut.flatMap((g) => g.mots).length;
-    const iQ = brut.flatMap((g) => g.mots).findIndex((m) => m.mot === "voulez") - 1;
-    const plan = {
-      scenes: [
-        { genre: "titre", id: "a", debutMs: 0, finMs: 5000, mots: { premier: 0, dernier: 10 }, texte: "Suivre ses stocks", surTitre: "Vous perdez du temps à compter vos stocks à la main ?" },
-        { genre: "appel", id: "b", debutMs: 20000, finMs: 30000, mots: { premier: iQ, dernier: n - 1 }, question: "Vous voulez le même pour votre entreprise ?", bouton: "x", clicAMs: 1 },
-      ],
-    } as never;
-    const vide = viderDoublonsAffiches(brut, plan);
-    expect(vide.map((g) => [g.debutSec, g.finSec])).toEqual(brut.map((g) => [g.debutSec, g.finSec]));
-    const gardes = vide.filter((g) => g.mots.length).map((g) => g.mots.map((m) => m.mot).join(" "));
-    expect(gardes.join(" ")).toBe("Voici un tableau de bord qui le fait pour vous. Prenez rendez-vous.");
-    expect(vide.filter((g) => !g.mots.length).length).toBeGreaterThanOrEqual(2);
-    // sans correspondance de texte, rien n'est vidé
-    expect(viderDoublonsAffiches(brut, { scenes: [{ genre: "titre", id: "a", debutMs: 0, finMs: 5000, mots: { premier: 0, dernier: 10 }, texte: "Autre chose", surTitre: "Un autre texte" }] } as never)).toEqual(brut);
+    const s = normaliserSegments([{ id: "x", debutSec: 0, finSec: 12, mots }]);
+    expect(s.flatMap((g) => g.mots)).toEqual(mots);
+    expect(s.every((g) => g.mots.length > 0)).toBe(true);
+    expect(s[0].debutSec).toBe(mots[0].debutSec);
+    s.slice(1).forEach((g, i) => expect(g.debutSec - s[i].finSec).toBeLessThanOrEqual(0.6 + 1e-9));
   });
 
   it("calque : bande réservée, couleurs charte, taille 60 px", () => {

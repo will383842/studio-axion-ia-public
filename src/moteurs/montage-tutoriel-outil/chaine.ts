@@ -54,7 +54,7 @@ import { controlerApresCalage } from "./equipe/controleur";
 import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
 import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
 import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
-import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix, viderDoublonsAffiches } from "./sous-titres-sans-voix";
+import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "./sous-titres-sans-voix";
 import { composerPlanSansVoix } from "./plan-sans-voix";
 import { rectsSousTitresA } from "./geometrie-plan-valide";
 import { controlerComposition } from "../../briques/plan-scenes/tutoriel/controle-composition";
@@ -690,7 +690,7 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
   const sousTitres =
     avecSousTitres && etat.sousTitres?.length
       ? etat.compose?.[ratio]
-        ? calqueSansVoix({ segments: viderDoublonsAffiches(etat.sousTitres, etat.compose[ratio]), ratio, basPct: etat.compose[ratio].basPct, dureeMs: etat.compose[ratio].dureeMs })
+        ? calqueSansVoix({ segments: etat.sousTitres, ratio, basPct: etat.compose[ratio].basPct, dureeMs: etat.compose[ratio].dureeMs })
         : donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) })
       : undefined;
   const compositionSansVoix = etat.compose?.[ratio];

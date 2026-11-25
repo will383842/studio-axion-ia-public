@@ -7,7 +7,6 @@
  * `src/briques/sous-titres` (aucun fichier de cette brique n'est modifié).
  */
 import { donneesCalque, GABARITS, positionsVerticales, tailleQuiTient, type DonneesCalque } from "../../briques/sous-titres";
-import type { PlanComposeSansVoix } from "../../briques/plan-scenes/tutoriel/sans-voix/types";
 import type { BaseSousTitres, MotHorodate, IntensiteSousTitres, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "../../domaine/types";
 
 /** Couleurs de la charte (src/briques/jetons-motion.ts CHARTE_AXION) : noir, terracotta, ivoire, gris. */
@@ -137,36 +136,11 @@ export function normaliserSegments(segments: SegmentSousTitres[]): SegmentSousTi
   });
 }
 
-/** Texte comparable : minuscules, espaces insécables et ponctuation d'espacement ramenés à l'espace simple. */
-const comparable = (t: string) => t.toLowerCase().replace(/[\s\u00A0\u202F]+/gu, " ").replace(/\s+([?!:;.,])/gu, "$1").trim();
-
-/**
- * Doublons (QUAL-5, tour 7) : une carte dont le texte est DÉJÀ affiché en grand à ce moment (titre = phrase d'accroche,
- * question de l'appel) est vidée : même carte, mêmes horaires, aucun mot, de sorte que la bande grise reste en place.
- * Les autres cartes ne sont pas touchées. `segments` doit être dans l'ordre des mots du plan (indices de `mots`).
- */
-export function viderDoublonsAffiches(segments: SegmentSousTitres[], plan: Pick<PlanComposeSansVoix, "scenes">): SegmentSousTitres[] {
-  const affiches = plan.scenes.flatMap((sc) => {
-    const textes = sc.genre === "titre" ? [sc.texte, sc.surTitre] : sc.genre === "appel" ? [sc.question] : [];
-    return textes.filter((t): t is string => !!t?.trim()).map((t) => ({ plage: sc.mots, texte: comparable(t) }));
-  });
-  if (!affiches.length) return segments;
-  let rang = 0;
-  return segments.map((s) => {
-    const premier = rang;
-    rang += s.mots.length;
-    if (!s.mots.length) return s;
-    const texte = comparable(s.mots.map((m) => m.mot).join(" "));
-    const doublon = affiches.some((a) => premier >= a.plage.premier && rang - 1 <= a.plage.dernier && a.texte.includes(texte));
-    return doublon ? { ...s, mots: [] } : s;
-  });
-}
-
 /** Calque de sous-titres du tutoriel sans voix : segments normalisés, couleurs charte, bande de fond gris opaque. */
 export function calqueSansVoix(entree: { segments: SegmentSousTitres[]; ratio: Ratio; basPct?: number; dureeMs?: number }): DonneesCalque {
   const basPct = entree.basPct ?? basPctSansVoix(entree.ratio);
   // La bande grise reste jusqu'à la dernière image : le dernier groupe se prolonge jusqu'à la fin du plan (sinon la bande fond après lui).
-  // Segments déjà regroupés par `normaliserSegments` (à la calibration) et éventuellement vidés (doublons) : on ne regroupe plus ici.
+  // Segments déjà regroupés par `normaliserSegments` (à la calibration) : on ne regroupe plus ici.
   const segments = entree.segments.map((g) => {
     const reste: SegmentSousTitres = { ...g };
     delete reste.importance;

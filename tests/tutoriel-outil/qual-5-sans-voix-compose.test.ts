@@ -66,19 +66,19 @@ describe("tutoriel sans voix composé", () => {
     expect(st.segments.every((s) => s.position === "auto" && s.style === "base" && !s.inclinaison)).toBe(true);
   });
 
-  it("tour 7 : cartes par proposition (≥ 1,5 s) ; la carte déjà affichée en grand (appel, titre) est vidée, la bande reste", async () => {
+  it("tour 8 : cartes par proposition (≥ 1,5 s), toutes les phrases sous-titrées (accroche et question), aucun trou > 0,6 s", async () => {
     const { props, etat } = await fabriquer("sans-voix", { idee: "Vous perdez du temps à compter vos stocks à la main ?" });
     const segs = props[0].sousTitres!.segments;
-    const pleines = segs.filter((g) => g.mots.length);
-    for (const g of pleines.slice(0, -1)) expect(g.mots.length).toBeGreaterThanOrEqual(3);
+    expect(segs.every((g) => g.mots.length > 0)).toBe(true);
+    for (const g of segs.slice(0, -1)) expect(g.mots.length).toBeGreaterThanOrEqual(3);
     for (const g of segs.slice(0, -1)) expect(g.finSec - g.debutSec).toBeGreaterThanOrEqual(1.5 - 1e-9);
-    segs.slice(1).forEach((g, i) => expect(g.debutSec).toBeGreaterThanOrEqual(segs[i].finSec - 1e-9));
-    const textes = pleines.map((g) => g.mots.map((m) => m.mot).join(" "));
-    // la question de l'appel est dessinée en grand : pas de carte pour elle ; la dernière phrase reste sous-titrée
-    expect(textes.some((t) => t.includes("même pour votre entreprise"))).toBe(false);
+    segs.slice(1).forEach((g, i) => {
+      expect(g.debutSec).toBeGreaterThanOrEqual(segs[i].finSec - 1e-9);
+      expect(g.debutSec - segs[i].finSec).toBeLessThanOrEqual(0.6 + 1e-9);
+    });
+    const textes = segs.map((g) => g.mots.map((m) => m.mot).join(" "));
+    expect(textes.join(" ")).toContain("Vous voulez le même pour votre entreprise");
     expect(textes.at(-1)).toBe("Prenez rendez-vous.");
-    expect(segs.some((g) => g.mots.length === 0)).toBe(true);
-    // les cartes vidées gardent leurs horaires : les mots du plan (calage) ne bougent pas
     expect(etat.motsPlan!.length).toBe(etat.sousTitres!.flatMap((g) => g.mots).length);
     expect(props[0].fin).toBeUndefined();
     expect(props[0].finMs).toBe(0);
