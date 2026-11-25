@@ -53,6 +53,7 @@ export const CLE_RETOUCHE_PARTIELLE = "tutoriel.retouchePartielle"; // lue par t
 export const CLE_PERFORMANCE = "tutoriel.performance"; // lue par tutoriel-branchements.ts
 export const CLE_SUIVI_CLOCHE = REGLAGE_SUIVI_CLOCHE;
 export const CLE_RETOUCHE_CHAT_TUTORIEL = "retoucheChat.tutorielOutil"; // lue via CLES_REGLAGE_RETOUCHE (retouche-chat/generateurs.ts)
+export const CLE_CAPTURE_AUTO = "tutoriel.captureAuto"; // lue par src/services/tutoriel-capture-auto.ts (PARAM_CAPTURE_AUTO) ; non importée : la garde de POSTE-4 réserve cet import à boucle.ts
 
 /** Phrase d'état éteint des réglages payants : elle annonce la dépense. */
 const ANNONCE_PAYANT = "allumer = appels Claude payants, sous le plafond par vidéo.";
@@ -84,6 +85,7 @@ export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
   { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
   { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = chaque retouche relance un rendu payant (la voix et le script sont repris ; si le regard de Claude est allumé, un appel Claude de plus, sous le plafond par vidéo)." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
+  { cle: CLE_CAPTURE_AUTO, libelle: "Capture automatique du film", phraseEteint: "Éteint : le film d'une vidéo partie d'un dossier .zip se dépose à la main. Allumé, le poste de capture le filme tout seul ; il doit d'abord être installé sur le serveur. Les vidéos parties d'une phrase attendent encore." },
 ];
 
 export type LireReglage = <T>(id: string, defaut: T) => Promise<T>;
