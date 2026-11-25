@@ -15,6 +15,7 @@ import { creerMoteurGabarit, type DefinitionGabarit } from "../gabarit";
 import { lireEntreesVideoLongue, type EntreesVideoLongue } from "./entrees";
 import { controlerStoryboard } from "./controle";
 import { alertesQualiteDepuisControle } from "./controle-alertes";
+import { minuterSansVoix } from "./minutage";
 import { poserScene, poserSousTitre } from "./mise-en-page";
 import { storyboardVideoLongue } from "./storyboard";
 import { avancerVideoLongue, estimerMotsSansVoix, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
@@ -44,11 +45,10 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     resultat(commande, etat) {
       const duree = etat.voix?.dureeSec ?? 0;
       const sansVoix = lireEntreesVideoLongue(commande).sansVoix;
-      // Qualité : recalculée depuis l'état (mots, chapitres, durée, question). Sans voix ni chapitres : note d'avant (80).
-      const controle =
-        etat.voix && etat.chapitres?.length
-          ? controlerStoryboard(storyboardVideoLongue({ question: lireEntreesVideoLongue(commande).question ?? null }, { mots: etat.voix.mots, chapitres: etat.chapitres, dureeSec: etat.voix.dureeSec }), { scene: poserScene, sousTitre: poserSousTitre })
-          : undefined;
+      // Qualité : recalculée depuis le minutage du script, SANS voix seulement (cartons et plan existent). Avec voix : 80 et aucune alerte du contrôle.
+      const question = lireEntreesVideoLongue(commande).question ?? null;
+      const minutage = sansVoix ? minuterSansVoix(lireEntreesVideoLongue(commande)) : undefined;
+      const controle = minutage?.chapitres.length ? controlerStoryboard(storyboardVideoLongue({ question }, { mots: minutage.mots, chapitres: minutage.chapitres, dureeSec: minutage.dureeSec }), { scene: poserScene, sousTitre: poserSousTitre }) : undefined;
       const note = controle?.note ?? 80;
       const alertesControle = controle ? alertesQualiteDepuisControle(controle) : [];
       const sorties: SortieProduite[] = commande.ratios

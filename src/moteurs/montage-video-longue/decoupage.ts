@@ -81,7 +81,12 @@ function fusionnerCourts<T extends ChapitreSimple>(liste: T[], avecQuestion: boo
     const a = court < out.length - 1 ? court : court - 1;
     const b = a + 1;
     const garder = compter(out[b].texte) > compter(out[a].texte) ? out[b] : out[a];
-    out.splice(a, 2, { ...out[a], titre: garder.titre, texte: `${out[a].texte} ${out[b].texte}`.trim() });
+    const autre = garder === out[a] ? out[b] : out[a];
+    // Le titre donné par l'utilisateur n'est jamais perdu : celui du chapitre gardé, sinon celui de l'autre ; les deux, joints, s'ils existent.
+    const titre = !titreManquant(garder.titre) && !titreManquant(autre.titre) && garder.titre.trim() !== autre.titre.trim()
+      ? joindreTitres(out[a].titre.trim(), out[b].titre.trim())
+      : !titreManquant(garder.titre) ? garder.titre : !titreManquant(autre.titre) ? autre.titre : garder.titre;
+    out.splice(a, 2, { ...out[a], titre, texte: `${out[a].texte} ${out[b].texte}`.trim() });
   }
 }
 
@@ -99,6 +104,7 @@ export function chapitresDuScript(script: string): ChapitreDecoupe[] {
   if (lignes.some((l) => /^#+\s*\S/.test(l))) {
     const blocs: { titre: string; texte: string[] }[] = [];
     for (const l of lignes) {
+      if (/^#+\s*$/.test(l.trim())) continue; // un « # » seul n'est ni un titre ni du texte
       const m = /^#+\s*(.+)$/.exec(l.trim());
       if (m) blocs.push({ titre: m[1].trim(), texte: [] });
       else if (l.trim()) {
@@ -106,10 +112,23 @@ export function chapitresDuScript(script: string): ChapitreDecoupe[] {
         blocs[blocs.length - 1].texte.push(l.trim());
       }
     }
-    return blocs
-      .map((b) => ({ titre: b.titre, texte: b.texte.join(" ") }))
-      .filter((b) => b.texte !== "" || b.titre !== "")
-      .map((b, i) => ({ id: ID(i), titre: b.titre, explique: "", texte: b.texte }));
+    // Un titre « # » sans texte devient le titre du chapitre suivant ; un titre final sans texte rejoint le chapitre précédent.
+    const avec: { titre: string; texte: string }[] = [];
+    let enAttente = "";
+    for (const bl of blocs) {
+      const texte = bl.texte.join(" ");
+      if (texte === "") {
+        enAttente = joindreTitres(enAttente, bl.titre);
+        continue;
+      }
+      avec.push({ titre: joindreTitres(enAttente, bl.titre), texte });
+      enAttente = "";
+    }
+    if (enAttente) {
+      if (avec.length) avec[avec.length - 1].texte += ` ${enAttente}`;
+      else avec.push({ titre: "", texte: enAttente });
+    }
+    return fusionnerCourts(avec.map((c, i) => ({ id: ID(i), titre: c.titre, texte: c.texte })), false).map((c, i) => ({ id: ID(i), titre: c.titre, explique: "", texte: c.texte }));
   }
   const chapitres: { titre: string; texte: string }[] = [];
   let attente = "";
@@ -148,6 +167,11 @@ export function normaliserChapitres<T extends ChapitreSimple>(chapitres: readonl
   const out: T[] = [];
   let attente = "";
   for (const c of chapitres) {
+    // Chapitre sans texte : son titre (s'il existe) ouvre le chapitre suivant ; sans titre, il est ignoré.
+    if (!c.texte.trim()) {
+      if (!titreManquant(c.titre)) attente = joindreTitres(attente, c.titre.trim());
+      continue;
+    }
     if (titreManquant(c.titre) && !/\n/.test(c.texte.trim()) && estLigneTitre(c.texte)) {
       attente = joindreTitres(attente, c.texte.trim());
       continue;
@@ -160,4 +184,15 @@ export function normaliserChapitres<T extends ChapitreSimple>(chapitres: readonl
     else if (chapitres.length) out.push({ ...chapitres[chapitres.length - 1], titre: "", texte: attente });
   }
   return fusionnerCourts(out, options.question === true);
+}
+
+/** Question nettoyée comme le serveur (espaces réduits, 200 caractères au plus). */
+export const questionPropre = (question?: string): string => (question ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+
+/**
+ * Les chapitres tels que la fabrication les lira : normalisés (lignes-titres, chapitres courts fusionnés, la question ouvre
+ * sur un carton de titre) et chacun avec un titre (déduit du texte s'il manque). UNE seule règle pour l'écran et le serveur.
+ */
+export function chapitresNormalises<T extends ChapitreSimple>(chapitres: readonly T[], question?: string): T[] {
+  return normaliserChapitres(chapitres, { question: questionPropre(question) !== "" }).map((c) => ({ ...c, titre: titreManquant(c.titre) ? titreDeduit(c.texte) || c.titre.trim() : c.titre }));
 }

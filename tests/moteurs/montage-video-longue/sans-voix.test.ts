@@ -61,3 +61,20 @@ describe("VL-SV cadence de lecture", () => {
     expect(MOTS_PAR_SECONDE_LECTURE).toBe(MOTS_PAR_SECONDE);
   });
 });
+
+describe("QUALL-8 : étape montage sans voix sur un ancien état", () => {
+  it("les mots (collés, sans trous) et chapitres de l'ancien état sont recalculés par le minutage : les cartons existent", async () => {
+    const entrees = lireEntreesVideoLongue(cmd(true));
+    const attendu = estimerMotsSansVoix(entrees);
+    const monter = vi.fn(async () => ({ fichierCle: "k.mp4" }));
+    const def = definitionVideoLongue(() => null);
+    const ctx = { commande: cmd(true), entrees, travailId: "t", versionId: "v", tentative: 1, etapes: def.etapesFabrication };
+    // Ancien état : mots bout à bout sans carton ni respiration, un seul chapitre « au prorata ».
+    const vieux = Array.from({ length: 8 }, (_, i) => ({ mot: `m${i}`, debutSec: i * 0.4, finSec: (i + 1) * 0.4 }));
+    const etat = { faites: ["reception", "voix", "chapitres"], voix: { mots: vieux, dureeSec: 3.2, morceaux: 0 }, chapitres: [{ debutSec: 0, finSec: 3.2, libelle: "x", blocRecette: "chapitres" }], remarques: [], sorties: {} };
+    await avancerVideoLongue(etat as never, ctx as never, { voix: { lire: vi.fn() }, monter } as never);
+    const recu = (monter.mock.calls[0] as unknown as [string, { mots: { debutSec: number }[]; dureeSec: number }])[1];
+    expect(recu.dureeSec).toBe(attendu.dureeSec);
+    expect(recu.mots[0].debutSec).toBeGreaterThanOrEqual(2.5);
+  });
+});

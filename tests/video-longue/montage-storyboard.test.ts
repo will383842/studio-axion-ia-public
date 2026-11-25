@@ -127,8 +127,19 @@ describe("QUALL-5 : la note n'est plus un 80 en dur", () => {
     expect(bon.note).not.toBe(80);
   });
 
-  it("sans voix ni chapitres dans l'état : comportement d'avant (80)", () => {
-    const { commande } = fabriquer();
+  it("AVEC voix : note 80 et aucune alerte du contrôle (le contrôle ne regarde que le story-board sans voix)", () => {
+    const { commande, minutage } = fabriquer();
+    const avecVoix = { ...commande, entrees: { videoLongue: { ...(commande.entrees as never as { videoLongue: object }).videoLongue, sansVoix: false } } } as unknown as CommandeFabrication;
+    const etat = { faites: [], voix: { mots: minutage.mots, dureeSec: minutage.dureeSec, morceaux: 0 }, chapitres: minutage.chapitres, remarques: [], sorties: { "16:9": "k.mp4" } };
+    const r = definitionVideoLongue(() => null).resultat(avecVoix, etat as never, lireEntreesVideoLongue(avecVoix));
+    expect(r.noteQualite.globale).toBe(80);
+    expect(r.noteQualite.alertes).toEqual([]);
+    expect(r.sorties[0].rapportQualite.alertes).toEqual([]);
+  });
+
+  it("avec voix et sans chapitres dans l'état : comportement d'avant (80)", () => {
+    const { commande: c0 } = fabriquer();
+    const commande = { ...c0, entrees: { videoLongue: { ...(c0.entrees as never as { videoLongue: object }).videoLongue, sansVoix: false } } } as unknown as CommandeFabrication;
     const r = definitionVideoLongue(() => null).resultat(commande, { faites: [], remarques: [], sorties: { "16:9": "k.mp4" } } as never, lireEntreesVideoLongue(commande));
     expect(r.noteQualite.globale).toBe(80);
   });

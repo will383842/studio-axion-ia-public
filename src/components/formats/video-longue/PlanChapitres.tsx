@@ -7,7 +7,7 @@ import { Pastille } from "@/components/ui/Pastille";
 import { RemarquesFiche } from "@/components/formats/vitrines/RemarquesFiche";
 import { verifierChapitres } from "@/briques/geo";
 import type { ChapitreWeb } from "@/domaine/site-videos/types";
-import { chapitresDuScript, decouperEnPhrases, titreDeduit, titreManquant } from "@/moteurs/montage-video-longue/decoupage";
+import { chapitresDuScript, chapitresNormalises, decouperEnPhrases, questionPropre, titreDeduit, titreManquant } from "@/moteurs/montage-video-longue/decoupage";
 import { dureeChapitreSansVoixMs, minuterSansVoix } from "@/moteurs/montage-video-longue/minutage";
 
 /** Mots par seconde de la voix : celui de la recette du format (2,6), pour que l'écran et la fabrication comptent pareil. */
@@ -39,7 +39,7 @@ export { chapitresDuScript, decouperEnPhrases };
 
 /** Chapitres minutés (début, fin) comme à la fabrication sans voix : chacun commence sur son carton, au format attendu par YouTube. */
 export function chapitresMinutes(chapitres: readonly ChapitrePlan[], question?: string): ChapitreWeb[] {
-  return minuterSansVoix({ chapitres, question }).chapitres;
+  return minuterSansVoix({ chapitres: chapitresNormalises(chapitres, question), question: questionPropre(question) }).chapitres;
 }
 
 /**
@@ -52,17 +52,17 @@ export function planDepuisValide(valide: readonly { id: string; titre: string; e
     .map((c) => ({ id: c.id, titre: c.titre, explique: c.explique ?? plan.find((p) => p.id === c.id)?.explique ?? "", texte: c.phrases.join(" ") }));
 }
 
-export const dureeTotaleSec = (chapitres: readonly ChapitrePlan[], question?: string): number => minuterSansVoix({ chapitres, question }).dureeSec;
+export const dureeTotaleSec = (chapitres: readonly ChapitrePlan[], question?: string): number => minuterSansVoix({ chapitres: chapitresNormalises(chapitres, question), question: questionPropre(question) }).dureeSec;
 
 /** Remarques de l'écran 2 : durée hors zone et règles YouTube. Toujours des conseils, jamais un refus. */
-export function remarquesDuPlan(chapitres: readonly ChapitrePlan[]): string[] {
+export function remarquesDuPlan(chapitres: readonly ChapitrePlan[], question?: string): string[] {
   if (chapitres.length === 0) return [];
-  const total = dureeTotaleSec(chapitres);
+  const total = dureeTotaleSec(chapitres, question);
   const r: string[] = [];
   if (total < ZONE_CONSEILLEE_SEC[0] || total > ZONE_CONSEILLEE_SEC[1]) {
     r.push(`Votre vidéo dure environ ${formaterDuree(total)} : la zone conseillée va de 4 à 12 minutes. Ce n'est qu'un conseil.`);
   }
-  return [...r, ...verifierChapitres(chapitresMinutes(chapitres)).map((x) => x.message)];
+  return [...r, ...verifierChapitres(chapitresMinutes(chapitres, question)).map((x) => x.message)];
 }
 
 export function PlanChapitres({
@@ -70,14 +70,23 @@ export function PlanChapitres({
   onChange,
   onSuivant,
   onRetour,
+  question,
 }: {
+  /** Question de la vidéo : elle ouvre la vidéo sur un carton de titre (comptée dans la durée, comme à la fabrication). */
+  question?: string;
   chapitres: ChapitrePlan[];
   onChange: (suite: ChapitrePlan[]) => void;
   onSuivant: () => void;
   onRetour?: () => void;
 }) {
-  const total = dureeTotaleSec(chapitres);
-  const minutes = chapitresMinutes(chapitres);
+  // Même règle que la fabrication : chapitres courts réunis, carton de titre compté. Chapitre réuni = absent de `minutes`.
+  const retenus = chapitresNormalises(chapitres, question);
+  const total = dureeTotaleSec(chapitres, question);
+  const minutes = chapitresMinutes(chapitres, question);
+  const minutesDe = (id: string) => {
+    const k = retenus.findIndex((c) => c.id === id);
+    return k >= 0 ? minutes[k] : undefined;
+  };
   const remplacer = (i: number, patch: Partial<ChapitrePlan>) => onChange(chapitres.map((c, k) => (k === i ? { ...c, ...patch } : c)));
   const deplacer = (i: number, sens: -1 | 1) => {
     const j = i + sens;
@@ -90,7 +99,7 @@ export function PlanChapitres({
     <section className="space-y-5" aria-label="Les chapitres">
       <p className="text-base font-semibold text-texte">Voici le plan proposé. Rien n&apos;est payé à cette étape.</p>
       <Pastille ton="neutre" icone="video">
-        ≈ {formaterDuree(total)} · {chapitres.length} chapitre{chapitres.length > 1 ? "s" : ""}
+        ≈ {formaterDuree(total)} · {retenus.length} chapitre{retenus.length > 1 ? "s" : ""}
       </Pastille>
       {chapitres.length > 0 && (
         // Aperçu 16:9 du plan : environ deux tiers de la largeur (la planche VL-00 les montrait à un tiers : trop petit).
@@ -110,7 +119,7 @@ export function PlanChapitres({
           </ol>
         </div>
       )}
-      <RemarquesFiche remarques={remarquesDuPlan(chapitres)} />
+      <RemarquesFiche remarques={remarquesDuPlan(chapitres, question)} />
       <ol className="space-y-3">
         {chapitres.map((c, i) => (
           <li key={c.id}>
@@ -120,7 +129,7 @@ export function PlanChapitres({
               <Champ libelle={`Ce que ce chapitre explique (chapitre ${i + 1})`} value={c.explique} onChange={(e) => remplacer(i, { explique: e.target.value })} />
               <p className="text-sm text-texte-doux">
                 Durée estimée : {formaterDuree(dureeSecDuTexte(c.texte))}
-                {minutes[i] ? ` · commence à ${formaterDuree(minutes[i].debutSec)}` : ""}
+                {minutesDe(c.id) ? ` · commence à ${formaterDuree(minutesDe(c.id)!.debutSec)}` : " · trop court : réuni au chapitre voisin dans la vidéo"}
               </p>
               <div className="flex flex-wrap gap-2">
                 <Bouton type="button" variante="secondaire" disabled={i === 0} onClick={() => deplacer(i, -1)}>

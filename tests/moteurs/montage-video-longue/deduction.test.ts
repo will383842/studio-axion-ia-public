@@ -161,10 +161,10 @@ describe("avant / après", () => {
     if (s.type !== "avant-apres") throw new Error("type");
     expect([s.avant, s.apres]).toEqual(["Tableur", "Tout se met à jour seul"]);
   });
-  it("« X, et plus jamais Y » : l'avant est Y", () => {
+  it("« X, et plus jamais Y » n'est PAS un avant/après (le sens serait retourné) : phrase clé, phrase entière citée telle quelle", () => {
     const [s] = un("Vous savez avant de manquer, et plus jamais par un client mécontent.");
-    if (s.type !== "avant-apres") throw new Error("type");
-    expect([s.avant, s.apres]).toEqual(["Par un client mécontent", "Vous savez avant de manquer"]);
+    expect(s.type).toBe("phrase-cle");
+    if (s.type === "phrase-cle") expect(s.phrase).toBe("Vous savez avant de manquer, et plus jamais par un client mécontent");
   });
   it("« au lieu de X, Y »", () => {
     const [s] = un("Au lieu de recopier, vous cliquez une fois.");

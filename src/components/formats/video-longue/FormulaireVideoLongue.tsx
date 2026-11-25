@@ -12,6 +12,7 @@ import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { modeleDescription } from "@/briques/geo";
 import { AvantDeLancer } from "./AvantDeLancer";
 import { KitGeo } from "./KitGeo";
+import { chapitresNormalises, titreDeduit } from "@/moteurs/montage-video-longue/decoupage";
 import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, dureeTotaleSec, PlanChapitres, planDepuisValide, type ChapitrePlan } from "./PlanChapitres";
 import type { Resultat } from "@/services/_commun";
 import type { DemandeVideoLongue, IssueVideoLongue } from "@/services/video-longue-creation";
@@ -61,8 +62,8 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
   const texteComplet = valide ? valide.map((c) => c.phrases.join(" ")).filter((t) => t.trim() !== "").join("\n\n") : "";
   // Écrans 4 et 6 : calculés sur le texte VALIDÉ (une fois posé), pas sur le plan proposé.
   const planFinal = useMemo(() => (valide ? planDepuisValide(valide, chapitres) : chapitres), [valide, chapitres]);
-  const chapitresWeb = useMemo(() => chapitresMinutes(planFinal), [planFinal]);
-  const dureeSec = dureeTotaleSec(planFinal);
+  const chapitresWeb = useMemo(() => chapitresMinutes(planFinal, question), [planFinal, question]);
+  const dureeSec = dureeTotaleSec(planFinal, question);
 
   function proposer() {
     const propose = chapitresDuScript(script);
@@ -178,7 +179,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
             {pause && <PauseVitrine phrase={pause} />}
           </form>
         )}
-        {etape === 1 && <PlanChapitres chapitres={chapitres} onChange={setChapitres} onSuivant={() => aller(2)} onRetour={() => aller(0)} />}
+        {etape === 1 && <PlanChapitres question={question} chapitres={chapitres} onChange={setChapitres} onSuivant={() => aller(2)} onRetour={() => aller(0)} />}
         {etape === 2 && (
           <>
             <TexteParChapitre
@@ -222,7 +223,7 @@ export function FormulaireVideoLongue({ actif, depensesCoupees, lancer, phraseVo
                 description={modeleDescription({ chapitres: chapitresWeb })}
                 chapitres={chapitresWeb}
                 texteComplet={texteComplet}
-                courts={courts ? planFinal.map((c, i) => ({ id: c.id, titre: c.titre.trim() || `Chapitre ${i + 1}` })) : undefined}
+                courts={courts ? chapitresNormalises(planFinal, question).map((c) => ({ id: c.id, titre: c.titre.trim() || titreDeduit(c.texte) })) : undefined}
               />
             )}
           </>

@@ -172,12 +172,11 @@ describe("storyboard de l'essai : scènes déduites du texte", () => {
     expect(a.apparitionApresMs).toBeLessThan(a.finMs);
   });
 
-  it("avant/après « par un client mécontent » → « Vous savez avant de manquer »", () => {
-    const a = sb.scenes.find((s) => s.type === "avant-apres" && norm(s.avant).includes("client mécontent"));
-    expect(a?.type).toBe("avant-apres");
-    if (a?.type !== "avant-apres") return;
-    expect(a.avant).toBe("Par un client mécontent");
-    expect(a.apres).toBe("Vous savez avant de manquer");
+  it("« Vous savez avant de manquer, et plus jamais par un client mécontent » : jamais un AVANT faux, phrase citée telle quelle", () => {
+    expect(sb.scenes.some((x) => x.type === "avant-apres" && /client mécontent/i.test(x.avant))).toBe(false);
+    const p = sb.scenes.find((x) => x.type === "phrase-cle" && /client mécontent/i.test(x.phrase));
+    expect(p?.type).toBe("phrase-cle");
+    if (p?.type === "phrase-cle") expect(p.phrase).toBe("Vous savez avant de manquer, et plus jamais par un client mécontent");
   });
 
   it("5 étapes en 2 scènes (1 à 3, puis 4 à 5)", () => {

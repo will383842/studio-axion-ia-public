@@ -264,7 +264,6 @@ function avantApresDe(p: PhraseLue, suivante?: PhraseLue): { portee: ScenePortee
   let cotes: { avant: string; apres: string; tApres: number; fin: number; sources: PhraseLue[] } | null = null;
   let m = /plus besoin\s+(?:de\s+|d['’]|du\s+|des\s+)?(.+?)\s*[:,]\s+(.+)$/i.exec(t);
   if (m) cotes = { avant: m[1], apres: m[2], tApres: tempsAu(p, t.lastIndexOf(m[2])), fin: p.finMs, sources: [p] };
-  if (!cotes && (m = /^(.+?),\s*(?:et\s+)?plus jamais\s+(.+)$/i.exec(t))) cotes = { avant: m[2], apres: m[1], tApres: p.debutMs, fin: p.finMs, sources: [p] };
   if (!cotes && (m = /au lieu\s+(?:de\s+|d['’])(.+?),\s+(.+)$/i.exec(t))) cotes = { avant: m[1], apres: m[2], tApres: tempsAu(p, t.lastIndexOf(m[2])), fin: p.finMs, sources: [p] };
   if (!cotes && suivante && /^avant\s*,/i.test(t) && /^(?:maintenant|aujourd['’]hui|désormais)\s*,/i.test(suivante.texte)) {
     const ii = suivante.mots.findIndex((x) => /,$/.test(x.mot));
@@ -451,7 +450,7 @@ function sceneUnePhrase(p: PhraseLue, suivante: PhraseLue | undefined, ctx: Cont
     portee = chiffreDe(p);
   }
   if (!portee) {
-    const forcer = PLUS_BESOIN.exec(p.texte)?.[0] ?? PLUS_JAMAIS.exec(p.texte)?.[0];
+    const forcer = PLUS_BESOIN.exec(p.texte)?.[0] ?? (nbMots(p.texte) <= 4 ? PLUS_JAMAIS.exec(p.texte)?.[0] : undefined);
     portee = phraseCleDe(p, ctx, forcer);
   }
   // Une phrase de plus de 20 mots n'est jamais abrégée : deux scènes complètes (coupe à une ponctuation ou une conjonction).

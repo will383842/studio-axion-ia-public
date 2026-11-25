@@ -52,6 +52,12 @@ function segments(texte: string): Jeton[][] {
       courant = [];
     }
     let pos = m.index;
+    // « Deux-Sèvres » : nom propre à trait d'union (majuscule après le trait), jamais un nombre.
+    if (/-\p{Lu}/u.test(m[0])) {
+      courant.push({ t: "#nom", debut: pos, fin: pos + m[0].length });
+      finPrecedent = m.index + m[0].length;
+      continue;
+    }
     for (const part of m[0].split("-")) {
       courant.push({ t: canon(part), debut: pos, fin: pos + part.length });
       pos += part.length + 1;
@@ -192,6 +198,10 @@ const AVANT_NEUF_OK = new Set(["les", "ces", "ses", "nos", "vos", "leurs", "mes"
 function exclu(texte: string, debut: number, fin: number, valeur: number): boolean {
   const avant = texte.slice(0, debut);
   if (/(?:tous|toutes)\s+(?:les|ces)\s*$/i.test(avant)) return true;
+  // « pour cent » : « cent » est l'unité %, jamais un 100 (le nombre qui précède porte le %).
+  if (valeur === 100 && /^cent$/i.test(texte.slice(debut, fin)) && /\bpour\s+$/i.test(avant)) return true;
+  // « mille fois merci » : une formule, pas une quantité.
+  if (valeur === 1000 && /^mille$/i.test(texte.slice(debut, fin)) && /^\s+fois\b/i.test(texte.slice(fin))) return true;
   if (valeur === 9 && /^neuf$/i.test(texte.slice(debut, fin))) {
     const m = /(\p{L}+)['’]?\s*$/u.exec(avant);
     if (m && !AVANT_NEUF_OK.has(m[1].toLowerCase())) return true;
@@ -199,16 +209,41 @@ function exclu(texte: string, debut: number, fin: number, valeur: number): boole
   return false;
 }
 
-const RE_CHIFFRES = /(?<![\p{L}\d,.])((?:\d{1,3}(?:[   ]\d{3})+|\d+)(?:,\d+)?)(\s?(?:%|€|h|min|s)(?![\p{L}\d'’]))?/gu;
+const RE_CHIFFRES = /(?<![\p{L}\d,.])((?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:[,.]\d+)?)(?![,.]?\d)(\s?(?:%|€|h|min|s)(?![\p{L}\d'’]))?/gu;
+/** « 10h30 », « 10 h 30 » : une heure, lue d'un bloc (jamais « 10 » seul). */
+const RE_HEURE = /(?<![\p{L}\d,.])([01]?\d|2[0-3])\s?h\s?([0-5]\d)(?![\p{L}\d])/gu;
+/** Ordinaux collés au chiffre : « 3e », « 2nd », « 1er », « 2ème », « 1re ». */
+const RE_ORDINAL = /^(?:er|ers|re|res|ère|ères|e|es|ème|èmes|eme|emes|nd|nde|nds|ndes)(?![\p{L}\d])/iu;
+/** « pour cent » / « pourcent » juste après un nombre. */
+const RE_POUR_CENT = /^\s+pour\s?cent(?![\p{L}\d])/iu;
 
 /** Tous les nombres écrits du texte, dans l'ordre. Rien d'autre n'est jamais compté. */
 export function nombresEcrits(texte: string): NombreEcrit[] {
   const res: NombreEcrit[] = [];
+  const pris: [number, number][] = [];
+  const dejaPris = (d: number, f: number) => pris.some(([a, b]) => d < b && f > a);
+  for (let m = RE_HEURE.exec(texte); m; m = RE_HEURE.exec(texte)) {
+    const fin = m.index + m[0].length;
+    pris.push([m.index, fin]);
+    res.push({ ecrit: m[0], valeur: parseInt(m[1], 10) + parseInt(m[2], 10) / 60, affiche: `${parseInt(m[1], 10)} h ${m[2]}`, debut: m.index, fin });
+  }
   for (let m = RE_CHIFFRES.exec(texte); m; m = RE_CHIFFRES.exec(texte)) {
-    const valeur = parseFloat(m[1].replace(/[\s  ]/g, "").replace(",", "."));
+    const fin0 = m.index + m[0].length;
+    if (dejaPris(m.index, fin0)) continue;
+    // « 1.200 » (trois décimales après un point) : séparateur de milliers ambigu, on ne devine pas.
+    if (/\.\d{3}$/.test(m[1])) continue;
+    const valeur = parseFloat(m[1].replace(/[\s\u00a0\u202f]/g, "").replace(",", "."));
     if (!Number.isFinite(valeur)) continue;
-    if (exclu(texte, m.index, m.index + m[0].length, valeur)) continue;
-    res.push({ ecrit: m[0], valeur, affiche: m[0].replace(/[  ]/g, " "), debut: m.index, fin: m.index + m[0].length });
+    if (!m[2] && RE_ORDINAL.test(texte.slice(fin0))) continue;
+    let fin = fin0;
+    let affiche = m[0].replace(/[\u00a0\u202f]/g, " ").replace(/^([\d ]+)\.(\d+)/, "$1,$2");
+    const pc = !m[2] ? RE_POUR_CENT.exec(texte.slice(fin0)) : null;
+    if (pc) {
+      fin = fin0 + pc[0].length;
+      affiche = `${affiche} %`;
+    }
+    if (exclu(texte, m.index, fin0, valeur)) continue;
+    res.push({ ecrit: texte.slice(m.index, fin), valeur, affiche, debut: m.index, fin });
   }
   for (const seg of segments(texte)) {
     let i = 0;
@@ -219,12 +254,40 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
         continue;
       }
       const debut = seg[i].debut;
-      const fin = seg[i + r.n - 1].fin;
-      if (!exclu(texte, debut, fin, r.v)) res.push({ ecrit: texte.slice(debut, fin), valeur: r.v, affiche: formaterNombre(r.v), debut, fin });
-      i += r.n;
+      let fin = seg[i + r.n - 1].fin;
+      let n = r.n;
+      let affiche = formaterNombre(r.v);
+      // « cinq pour cent » : un seul nombre (5), unité %, le « cent » n'est jamais lu comme 100.
+      const apres = seg[i + n]?.t;
+      if (apres === "pourcent") {
+        fin = seg[i + n].fin;
+        n += 1;
+        affiche += " %";
+      } else if (apres === "pour" && seg[i + n + 1]?.t === "cent") {
+        fin = seg[i + n + 1].fin;
+        n += 2;
+        affiche += " %";
+      }
+      else if (/^\s?%/.test(texte.slice(fin))) {
+        fin += /^\s?%/.exec(texte.slice(fin))![0].length;
+        affiche += " %";
+      }
+      // « cent pour cent » : une formule, jamais un 100 affiché.
+      const formule = r.v === 100 && n > r.n;
+      if (!formule && !exclu(texte, debut, seg[i + r.n - 1].fin, r.v) && !dejaPris(debut, fin)) res.push({ ecrit: texte.slice(debut, fin), valeur: r.v, affiche, debut, fin });
+      i += n;
     }
   }
-  return res.sort((a, b) => a.debut - b.debut);
+  const tries = res.sort((a, b) => a.debut - b.debut);
+  // « deux ou trois » : une approximation, aucun des deux n'est affiché.
+  const retires = new Set<number>();
+  for (let k = 0; k + 1 < tries.length; k++) {
+    if (/^\s+ou\s+$/i.test(texte.slice(tries[k].fin, tries[k + 1].debut))) {
+      retires.add(k);
+      retires.add(k + 1);
+    }
+  }
+  return tries.filter((_, k) => !retires.has(k));
 }
 
 const MOTS_ARRET_UNITE = new Set(["qui", "que", "qu", "de", "d", "du", "des", "pour", "à", "au", "aux", "et", "ou", "mais", "dans", "sur", "avec", "par", "en", "est", "sont", "a", "ont"]);

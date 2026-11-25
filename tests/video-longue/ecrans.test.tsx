@@ -17,7 +17,9 @@ import { remarqueChapitre, TexteParChapitre } from "../../src/components/formats
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
 
 const noop = () => {};
-const SCRIPT = "# Pourquoi\nPremière phrase. Deuxième phrase.\n# Comment\nTroisième phrase.";
+// Chapitres d'au moins 10 s : sinon le découpage les fusionne (règle commune écran / serveur).
+const REMPLISSAGE = " Encore une phrase ici. Et une autre phrase là. Puis une dernière phrase ci.";
+const SCRIPT = `# Pourquoi\nPremière phrase. Deuxième phrase.${REMPLISSAGE}\n# Comment\nTroisième phrase.${REMPLISSAGE}`;
 const rendre = (el: Parameters<typeof renderToStaticMarkup>[0]) => renderToStaticMarkup(el);
 const texteVisible = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/&#x27;|&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
 const FICHIERS = [
@@ -77,7 +79,7 @@ describe("VL-06 écran 2 : les chapitres", () => {
   });
   it("les titres viennent du script de l'utilisateur", () => {
     expect(chapitres.map((c) => c.titre)).toEqual(["Pourquoi", "Comment"]);
-    expect(chapitres[0].texte).toBe("Première phrase. Deuxième phrase.");
+    expect(chapitres[0].texte).toBe(`Première phrase. Deuxième phrase.${REMPLISSAGE}`);
   });
   it("sans script, aucun chapitre inventé", () => {
     expect(chapitresDuScript("")).toEqual([]);
@@ -226,11 +228,11 @@ describe("VL-06 sécurité, argent et périmètre", () => {
 });
 
 describe("VL-06 : écrans 4 et 6 calculés sur le texte validé", () => {
-  const plan = chapitresDuScript("# Un\nUne deux trois quatre cinq six. Sept huit neuf dix onze douze. Treize quatorze quinze seize.\n# Deux\nAlpha bêta gamma delta.");
+  const plan = chapitresDuScript(`# Un\nUne deux trois quatre cinq six. Sept huit neuf dix onze douze. Treize quatorze quinze seize.${REMPLISSAGE}\n# Deux\nAlpha bêta gamma delta.${REMPLISSAGE}`);
   const toutes = plan.map((c) => ({ id: c.id, titre: c.titre, phrases: decouperEnPhrases(c.texte) }));
   it("une phrase retirée fait baisser la durée et le finSec du chapitre", () => {
     const avant = chapitresMinutes(planDepuisValide(toutes, plan));
-    const retiree = toutes.map((c, i) => (i === 0 ? { ...c, phrases: c.phrases.slice(0, 1) } : c));
+    const retiree = toutes.map((c, i) => (i === 0 ? { ...c, phrases: c.phrases.slice(0, -1) } : c));
     const apres = chapitresMinutes(planDepuisValide(retiree, plan));
     expect(apres[0].finSec).toBeLessThan(avant[0].finSec);
     expect(apres[1].debutSec).toBeLessThan(avant[1].debutSec);
@@ -252,7 +254,7 @@ describe("VL-06 : écrans 4 et 6 calculés sur le texte validé", () => {
 
 describe("VL-06 : petits points du verdict Opus (accessibilité, paragraphe vide)", () => {
   it("chaque champ « Ce que ce chapitre explique » porte le numéro de son chapitre", () => {
-    const chapitres = chapitresDuScript("# Un\nUne phrase ici.\n# Deux\nAlpha bêta gamma.");
+    const chapitres = chapitresDuScript(`# Un\nUne phrase ici.${REMPLISSAGE}\n# Deux\nAlpha bêta gamma.${REMPLISSAGE}`);
     const t = texteVisible(rendre(createElement(PlanChapitres, { chapitres, onChange: noop, onSuivant: noop })));
     expect(t).toContain("Ce que ce chapitre explique (chapitre 1)");
     expect(t).toContain("Ce que ce chapitre explique (chapitre 2)");

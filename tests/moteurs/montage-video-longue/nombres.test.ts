@@ -55,7 +55,7 @@ describe("nombresEcrits : nombres en lettres", () => {
   });
 
   it("deux nombres collés par une virgule restent deux nombres", () => {
-    expect(valeurs("Trois, quatre ou cinq articles.")).toEqual([3, 4, 5]);
+    expect(valeurs("Trois, quatre articles, puis cinq.")).toEqual([3, 4, 5]);
     expect(valeurs("Deux trois fois.")).toEqual([2, 3]);
   });
 });
@@ -131,5 +131,32 @@ describe("formaterNombre et uniteApres", () => {
     expect(uniteApres(t3, nombresEcrits(t3)[0].fin)).toBe("");
     const t4 = "Il y a deux fois de trop.";
     expect(uniteApres(t4, nombresEcrits(t4)[0].fin)).toBe("fois");
+  });
+});
+
+describe("QUALL-8 : pour cent, ordinaux, décimales, heures, formules", () => {
+  const vus = (t: string) => nombresEcrits(t).map((n) => [n.valeur, n.affiche]);
+  it("« cinq pour cent » = 5 % (un seul chiffre) ; jamais un 100 tiré de « pour cent »", () => {
+    expect(vus("Cinq pour cent des clients.")).toEqual([[5, "5 %"]]);
+    expect(vus("cinq %")).toEqual([[5, "5 %"]]);
+    expect(vus("5 pour cent des clients")).toEqual([[5, "5 %"]]);
+    expect(vus("Le pour cent.")).toEqual([]);
+    expect(vus("Un gain de cent pour cent.")).toEqual([]);
+  });
+  it("ordinaux exclus : 3e, 2nd, 1er, 2ème", () => {
+    expect(nombresEcrits("Le 3e client, le 2nd, le 1er, la 4ème, la 1re.")).toEqual([]);
+  });
+  it("décimales : « 3.5 » et « 3,5 » entiers, affichés avec la virgule ; une date n'est pas un nombre", () => {
+    expect(vus("Il vaut 3.5 euros et 3,5 aussi.")).toEqual([[3.5, "3,5"], [3.5, "3,5"]]);
+    expect(nombresEcrits("Le 12.05.2024 et 1.200 pièces.")).toEqual([]);
+  });
+  it("heures : « 10h30 » → « 10 h 30 », jamais 10 seul", () => {
+    expect(vus("À 10h30 et à 10 h 30.")).toEqual([[10.5, "10 h 30"], [10.5, "10 h 30"]]);
+  });
+  it("formules et noms propres : pas de chiffre", () => {
+    expect(nombresEcrits("Mille fois merci.")).toEqual([]);
+    expect(nombresEcrits("Dans les Deux-Sèvres.")).toEqual([]);
+    expect(nombresEcrits("Deux ou trois articles, 2 ou 3 jours.")).toEqual([]);
+    expect(valeurs("Mille clients.")).toEqual([1000]);
   });
 });

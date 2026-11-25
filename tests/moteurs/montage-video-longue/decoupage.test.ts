@@ -46,9 +46,9 @@ describe("QUALL-1 découpage : lignes-titres", () => {
     expect(c).toHaveLength(1);
     expect(c[0].texte.endsWith("Pour finir")).toBe(true);
   });
-  it("avec « # », la règle d'origine est inchangée (aucune fusion)", () => {
+  it("avec « # », les titres sont ceux de l'utilisateur ; les chapitres courts sont fusionnés comme sans « # » (titres joints)", () => {
     const c = chapitresDuScript("# Un\nCourt.\n# Deux\nAussi court.");
-    expect(c.map((x) => [x.titre, x.texte])).toEqual([["Un", "Court."], ["Deux", "Aussi court."]]);
+    expect(c.map((x) => [x.titre, x.texte])).toEqual([["Un — Deux", "Court. Aussi court."]]);
   });
   it("script vide : aucun chapitre ; sans titre : un bloc = un chapitre", () => {
     expect(chapitresDuScript("  \n ")).toEqual([]);
@@ -57,11 +57,11 @@ describe("QUALL-1 découpage : lignes-titres", () => {
 });
 
 describe("QUALL-1 découpage : fusion des chapitres courts", () => {
-  it("un chapitre de 6 s est fusionné avec le suivant (le titre du plus long reste)", () => {
+  it("un chapitre de 6 s est fusionné avec le suivant (les deux titres sont gardés)", () => {
     const court = "Une phrase courte ici.";
     const c = chapitresDuScript(`Court\n${court}\n\nLong\n${phrases(8)}\n\nAutre\n${phrases(8)}`);
     expect(c).toHaveLength(2);
-    expect(c[0].titre).toBe("Long");
+    expect(c[0].titre).toBe("Court — Long");
     expect(c[0].texte.startsWith(court)).toBe(true);
   });
   it("le dernier trop court est fusionné avec le précédent, sans fin trompeuse : la fin (5 s) compte", () => {
@@ -70,16 +70,16 @@ describe("QUALL-1 découpage : fusion des chapitres courts", () => {
       { id: "b", titre: "B", texte: "Mot." },
     ]);
     expect(c).toHaveLength(1);
-    expect(c[0]).toMatchObject({ id: "a", titre: "A" });
+    expect(c[0]).toMatchObject({ id: "a", titre: "A — B" });
     expect(c[0].texte.endsWith("Mot.")).toBe(true);
   });
-  it("égalité : le titre du premier", () => {
+  it("égalité : les deux titres, le premier d'abord", () => {
     const c = normaliserChapitres([
       { id: "a", titre: "A", texte: "Un deux. Trois quatre." },
       { id: "b", titre: "B", texte: "Cinq six. Sept huit." },
     ]);
     expect(c).toHaveLength(1);
-    expect(c[0].titre).toBe("A");
+    expect(c[0].titre).toBe("A — B");
   });
   it("un seul chapitre court reste seul", () => expect(normaliserChapitres([{ id: "a", titre: "A", texte: "Oui." }])).toHaveLength(1));
 });
@@ -123,5 +123,47 @@ describe("QUALL-1 découpage : chapitres déjà créés", () => {
   it("un titre déjà posé n'est pas écrasé", () => {
     const r = normaliserChapitres([{ id: "a", titre: "Le mien", texte: phrases(8) }]);
     expect(r[0].titre).toBe("Le mien");
+  });
+});
+
+describe("QUALL-8 : le titre de l'utilisateur n'est jamais perdu", () => {
+  it("fusion d'un chapitre court : titre de l'autre gardé si le gardé n'en a pas, les deux joints sinon", () => {
+    const court = "Un mot de plus pour finir.";
+    const r1 = normaliserChapitres([
+      { id: "a", titre: "Mon titre", texte: court },
+      { id: "b", titre: "", texte: phrases(8) },
+    ]);
+    expect(r1).toHaveLength(1);
+    expect(r1[0].titre).toBe("Mon titre");
+    const r2 = normaliserChapitres([
+      { id: "a", titre: "Premier", texte: court },
+      { id: "b", titre: "Second", texte: phrases(8) },
+    ]);
+    expect(r2[0].titre).toBe("Premier — Second");
+  });
+});
+
+describe("QUALL-8 : script avec « # »", () => {
+  it("un « # Titre » sans texte devient le titre du chapitre suivant", () => {
+    const r = chapitresDuScript(`# Intro\n# Le vrai titre\n${phrases(8)}\n# Suite\n${phrases(8)}`);
+    expect(r.map((c) => c.titre)).toEqual(["Intro — Le vrai titre", "Suite"]);
+  });
+  it("un « # » seul est ignoré : jamais un titre ni un texte « # »", () => {
+    const r = chapitresDuScript(`# Un\n${phrases(8)}\n#\n# Deux\n${phrases(8)}\n##`);
+    expect(r.map((c) => c.titre)).toEqual(["Un", "Deux"]);
+    expect(r.some((c) => /(^|\s)#+(\s|$)/.test(c.texte) || c.titre === "#")).toBe(false);
+  });
+  it("un chapitre « # » court est fusionné comme sans « # », titre gardé", () => {
+    const r = chapitresDuScript(`# Court\nUn mot.\n# Long\n${phrases(8)}`);
+    expect(r).toHaveLength(1);
+    expect(r[0].titre).toBe("Court — Long");
+  });
+  it("côté serveur : un chapitre titré sans texte ouvre le suivant", () => {
+    const r = normaliserChapitres([
+      { id: "a", titre: "Ouverture", texte: "" },
+      { id: "b", titre: "Corps", texte: phrases(8) },
+    ]);
+    expect(r).toHaveLength(1);
+    expect(r[0].titre).toBe("Ouverture — Corps");
   });
 });
