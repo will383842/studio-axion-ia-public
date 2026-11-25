@@ -24,7 +24,7 @@ export function FenetreApp({ image, fond, accent, parametres: p, enfants }: Prop
         {p.onglets.length > 0 && (
           <div style={{ display: "flex", gap: 34, padding: "0 32px", height: 66, alignItems: "flex-end", borderBottom: `2px solid ${c.filet}` }}>
             {p.onglets.map((o, i) => (
-              <span key={o + i} style={{ fontSize: 24, fontWeight: i === p.ongletActif ? 700 : 500, color: i === p.ongletActif ? c.texte : c.texteDoux, paddingBottom: 14, borderBottom: `4px solid ${i === p.ongletActif ? c.accent : "transparent"}` }}>
+              <span key={o + i} style={{ fontSize: 28, fontWeight: i === p.ongletActif ? 700 : 500, color: i === p.ongletActif ? c.texte : c.texteDoux, paddingBottom: 14, borderBottom: `4px solid ${i === p.ongletActif ? c.accent : "transparent"}` }}>
                 {o}
               </span>
             ))}
