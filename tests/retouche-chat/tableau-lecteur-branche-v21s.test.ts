@@ -105,7 +105,9 @@ const historique = () => historiqueModifications(VIDEO);
 const allumer = () => commun.ecrireParametre(CLE_REGLAGE_LECTEUR_TABLEAU, true);
 
 describe("S-06-b-v21s · tableau : règles muettes → une opération du lecteur commun", () => {
-  it("(a) éteint = identique : clé absente, \"true\", lecture qui lève → incomprise d'aujourd'hui (phrase et exemples), 0 appel, 0 dépense", async () => {
+  // ALLUMER-LECTEUR-CHAT-v20k (seconde lecture du pilote) : la clé absente est désormais ALLUMÉE ; « éteint = identique » est GARDÉ pour `false` écrit.
+  it("(a) éteint = identique : `false`, \"true\", lecture qui lève → incomprise d'aujourd'hui (phrase et exemples), 0 appel, 0 dépense", async () => {
+    await commun.ecrireParametre(CLE_REGLAGE_LECTEUR_TABLEAU, false);
     const appels = brancherClaude();
     const temoin = await proposerModification(VIDEO, NON_COMPRISE);
     expect(temoin.statut).toBe("incomprise");
