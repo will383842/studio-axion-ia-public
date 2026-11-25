@@ -52,7 +52,7 @@ export function Forme({ forme, trace, couleur, epaisseur, t, largeur }: { forme:
   const e = (epaisseur * 100) / Math.max(1, largeur);
   const fini = trace > 0.9;
   // Mouvement continu de l'ensemble : léger balancement et respiration ; chaque forme s'anime en plus selon sa nature.
-  const angle = forme === "cloche" ? 0 : 3 * Math.sin(t * 0.9);
+  const angle = forme === "cloche" ? 0 : 5 * Math.sin(t * 1.85);
   const echelle = 1 + 0.04 * Math.sin(t * 1.7 + 1);
   const cloche = forme === "cloche" ? `rotate(${16 * Math.sin(t * 3.2)} 50 8)` : undefined;
   const dessiner = (d: string, i: number) => {
@@ -82,7 +82,6 @@ export function Forme({ forme, trace, couleur, epaisseur, t, largeur }: { forme:
         <line x1="50" y1="50" x2="50" y2="34" transform={`rotate(${(t * 8) % 360} 50 50)`} />
       </g>
     );
-  if (forme === "cercle" && fini) extra = <circle cx="50" cy="50" r={30 + 6 * onde(t, 2)} fill="none" stroke={couleur} strokeWidth={e} opacity={0.25 + 0.4 * onde(t, 2)} />;
   if (forme === "fleche" && fini) {
     // Trois points qui avancent le long de la flèche.
     extra = (

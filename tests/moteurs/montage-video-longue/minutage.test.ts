@@ -22,12 +22,12 @@ describe("QUALL-1 minutage", () => {
     const r = minuterSansVoix({ chapitres: [{ titre: "A", texte: `${dix("a")} ${dix("b")}.` }] });
     expect(r.dureeSec).toBe(Math.round((2.5 + 20 / 2.6 + 0.3 + 5) * 10) / 10);
   });
-  it("la question ajoute 3 s de carton de titre ; le chapitre 1 commence quand même à 0", () => {
+  it("la question ajoute 4 s de carton de titre ; le chapitre 1 commence quand même à 0", () => {
     const sans = minuterSansVoix({ chapitres: [{ titre: "A", texte: "Un deux." }] });
     const avec = minuterSansVoix({ chapitres: [{ titre: "A", texte: "Un deux." }], question: "Comment faire ?" });
-    expect(avec.dureeSec).toBeCloseTo(sans.dureeSec + 3, 5);
+    expect(avec.dureeSec).toBeCloseTo(sans.dureeSec + 4, 5);
     expect(avec.chapitres[0].debutSec).toBe(0);
-    expect(avec.mots[0].debutSec).toBe(5.5);
+    expect(avec.mots[0].debutSec).toBe(6.5);
   });
   it("chapitres suivants : début de leur carton ; le dernier finit à la durée ; titre manquant déduit", () => {
     const r = minuterSansVoix({ chapitres: [{ titre: "A", texte: "Un deux." }, { titre: "", texte: "Bonjour tout le monde, voilà." }] });

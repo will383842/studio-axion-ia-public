@@ -17,7 +17,7 @@ export const ID_COMPOSITION_VIDEO_LONGUE = "VideoLongue" as const;
  * À augmenter à CHAQUE changement visible du dessin ou de la mise en page : entre dans l'empreinte des plages notées,
  * sinon un vieux morceau rendu avec l'ancien dessin serait recollé.
  */
-export const VERSION_DESSIN_LONGUE = 5;
+export const VERSION_DESSIN_LONGUE = 6;
 
 export const FORMAT_LONGUE = { largeur: 1920, hauteur: 1080, fps: 25 } as const;
 
@@ -31,7 +31,7 @@ export const ADRESSE_LONGUE_DEFAUT = "axion-ia.com";
 
 export const TEMPS_LONGUE = {
   /** Carton de la question, au tout début (dans le chapitre 1). Absent si la question est vide. */
-  cartonTitreMs: 3000,
+  cartonTitreMs: 4000,
   /** Carton de chapitre, avant la première phrase de CHAQUE chapitre (chapitre 1 compris). */
   cartonChapitreMs: 2500,
   /** Carte de fin « Prendre rendez-vous » (dans le dernier chapitre). */

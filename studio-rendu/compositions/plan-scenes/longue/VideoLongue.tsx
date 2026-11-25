@@ -14,7 +14,7 @@ const fondDe = (s: SceneLongue) => (s.fond === "noir" ? COULEURS_LONGUE.noir : C
 function Couche({ scene, t, style }: { scene: SceneLongue; t: number; style?: React.CSSProperties }) {
   const bande = sceneAvecBande(scene.type);
   const lg = scene.type === "fin" ? logoFin(scene) : { x: 0, y: 0, hauteur: 0, largeur: 0 };
-  // Zoom lent du groupe de scène (1 → 1,06 sur la durée de la scène) : jamais deux images identiques.
+  // Zoom lent du groupe de scène (1 → 1,08 sur la durée de la scène) : jamais deux images identiques.
   const avance = Math.min(1, Math.max(0, (t - scene.debutMs) / Math.max(1, scene.finMs - scene.debutMs)));
   const zoom = 1 + (ZOOM_SCENE - 1) * avance;
   const centreY = bande ? ORIGINE_ZOOM_Y : 540;

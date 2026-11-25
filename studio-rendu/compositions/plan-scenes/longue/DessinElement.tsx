@@ -40,7 +40,7 @@ export function DessinElement({ el, tMs }: { el: ElementPose; tMs: number }) {
               const reste = m.texte.slice(mot.length);
               return (
                 <span key={k}>
-                  <span style={{ color: couleurAccent, backgroundImage: `linear-gradient(${couleurAccent}, ${couleurAccent})`, backgroundRepeat: "no-repeat", backgroundPosition: "0 calc(100% - 6px)", backgroundSize: `${el.trace * 100}% 8px` }}>{mot}</span>
+                  <span style={{ color: couleurAccent, opacity: 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(tMs / 190)), backgroundImage: `linear-gradient(${couleurAccent}, ${couleurAccent})`, backgroundRepeat: "no-repeat", backgroundPosition: "0 calc(100% - 6px)", backgroundSize: `${el.trace * 100}% 8px` }}>{mot}</span>
                   {reste}
                 </span>
               );

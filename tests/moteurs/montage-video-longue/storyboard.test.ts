@@ -80,11 +80,11 @@ describe("storyboard de l'essai : structure", () => {
     for (const s of sb.scenes) expect(ids.has(s.chapitreId)).toBe(true);
   });
 
-  it("carton-titre au début : la question, 3 s, fond ivoire", () => {
+  it("carton-titre au début : la question, 4 s, fond ivoire", () => {
     const [s] = sb.scenes;
     expect(s.type).toBe("carton-titre");
     if (s.type === "carton-titre") expect(s.question).toBe(QUESTION);
-    expect(s.finMs).toBe(3000);
+    expect(s.finMs).toBe(4000);
     expect(s.fond).toBe("ivoire");
   });
 

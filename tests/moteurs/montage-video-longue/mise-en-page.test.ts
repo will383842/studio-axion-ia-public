@@ -178,18 +178,21 @@ describe("mise en page de la vidéo longue", () => {
     }
   });
 
-  it("étapes : grille fixée dès le début de la scène (aucune remontée de bloc), étapes à venir en filigrane", () => {
+  it("étapes : grille fixée dès le début (aucune remontée), cartes de même hauteur, étapes à venir en simples numéros estompés", () => {
     for (const s of sb.scenes) {
       if (s.type !== "etapes") continue;
-      const fin = poserScene(s, s.finMs - 100).filter((e) => /:carte\d$/.test(e.id));
+      const fin = poserScene(s, s.finMs - 100);
       const debut = poserScene(s, s.debutMs + 1000);
-      expect(fin).toHaveLength(s.elements.length);
-      const fili = debut.filter((e) => /:fili\d$/.test(e.id));
-      expect(fili.length + debut.filter((e) => /:carte\d$/.test(e.id)).length, s.id).toBe(s.elements.length);
-      for (const c of fin) {
+      const cartes = fin.filter((e) => /:carte\d$/.test(e.id));
+      expect(cartes).toHaveLength(s.elements.length);
+      expect(Math.max(...cartes.map((c) => c.rect.hauteur)) - Math.min(...cartes.map((c) => c.rect.hauteur)), s.id).toBeLessThanOrEqual(6);
+      expect(debut.filter((e) => /:num\d$/.test(e.id)), s.id).toHaveLength(s.elements.length);
+      expect(debut.some((e) => e.nature === "carte" && !/:(carte\d|progres)/.test(e.id) && !e.id.endsWith(":halo")), "aucun cadre vide").toBe(false);
+      for (const c of cartes) {
         const i = /(\d+)$/.exec(c.id)![1];
-        const avant = debut.find((e) => e.id === c.id || e.id.endsWith(`:fili${i}`));
-        expect(Math.abs(avant!.rect.y - c.rect.y), `${c.id}`).toBeLessThanOrEqual(14);
+        const a = debut.find((e) => e.id === `${s.id}:num${i}`)!;
+        const b = fin.find((e) => e.id === `${s.id}:num${i}`)!;
+        expect(Math.abs(a.rect.y - b.rect.y), `${c.id}`).toBeLessThanOrEqual(40);
       }
     }
   });

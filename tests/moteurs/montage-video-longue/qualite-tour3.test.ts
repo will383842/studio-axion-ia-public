@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { storyboardVideoLongue } from "../../../src/moteurs/montage-video-longue/storyboard";
 import { motCle } from "../../../src/moteurs/montage-video-longue/deduction";
-import { formeDeListe, poserScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
+import { ORIGINE_ZOOM_Y, ZOOM_SCENE, formeDeListe, poserScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
 import { TEMPS_LONGUE, ZONES_LONGUE, type ElementPose, type MotLu, type SceneLongue, type StoryboardVideoLongue, type TempsStoryboard } from "../../../src/moteurs/montage-video-longue/storyboard-types";
 
 const SCRIPT = `Le problème : compter à la main
@@ -50,20 +50,21 @@ const sb: StoryboardVideoLongue = storyboardVideoLongue({ question: QUESTION }, 
 const sceneA = (t: number): SceneLongue | undefined => sb.scenes.find((s) => t >= s.debutMs && t < s.finMs);
 const estProgres = (e: ElementPose) => /:progres|:seg\d/.test(e.id);
 
-/** Vrai si un élément (hors barre de progression) a bougé d'au moins 3 px ou changé d'opacité d'au moins 0,05. */
+/** Vrai si un élément (hors barre de progression) a bougé d'au moins 6 px, ou changé d'échelle d'au moins 1 %. */
 function aBouge(a: ElementPose[], b: ElementPose[]): boolean {
   const ids = new Map(b.filter((e) => !estProgres(e)).map((e) => [e.id, e]));
   return a
     .filter((e) => !estProgres(e))
     .some((e) => {
       const f = ids.get(e.id);
-      if (!f) return e.opacite >= 0.05;
-      return Math.hypot(f.rect.x - e.rect.x, f.rect.y - e.rect.y) >= 3 || Math.abs(f.rect.largeur - e.rect.largeur) >= 3 || Math.abs(f.rect.hauteur - e.rect.hauteur) >= 3 || Math.abs(f.opacite - e.opacite) >= 0.05;
+      if (!f || e.rect.largeur < 1 || e.rect.hauteur < 1) return false;
+      const echelle = Math.max(Math.abs(f.rect.largeur - e.rect.largeur) / e.rect.largeur, Math.abs(f.rect.hauteur - e.rect.hauteur) / e.rect.hauteur);
+      return Math.hypot(f.rect.x - e.rect.x, f.rect.y - e.rect.y) >= 6 || echelle >= 0.01;
     });
 }
 
 describe("mouvement : à toute image, autre chose que la barre de progression bouge", () => {
-  it("à t et t + 300 ms, un élément de contenu a bougé (≥ 3 px ou ≥ 0,05 d'opacité), toutes les 100 ms de la vidéo (donc aussi toutes les 500 ms)", () => {
+  it("à t et t + 300 ms, un élément de contenu a bougé (≥ 6 px) ou changé d'échelle (≥ 1 %), toutes les 100 ms de la vidéo (donc aussi toutes les 500 ms)", () => {
     const rates: string[] = [];
     for (let t = 0; t + 300 < sb.dureeMs; t += 100) {
       const s = sceneA(t);
@@ -82,6 +83,7 @@ describe("marges", () => {
         for (const e of poserScene(s, t)) {
           if (e.opacite <= 0 || estProgres(e)) continue;
           expect(e.rect.y, `${e.id} à ${t} ms`).toBeGreaterThanOrEqual(80);
+          if (s.type !== "carton-titre" && s.type !== "carton-chapitre" && s.type !== "fin") expect(ORIGINE_ZOOM_Y - (ORIGINE_ZOOM_Y - e.rect.y) * ZOOM_SCENE, `${e.id} à ${t} ms (après zoom)`).toBeGreaterThanOrEqual(100);
           if (s.type !== "carton-titre" && s.type !== "carton-chapitre" && s.type !== "fin") expect(e.rect.y + e.rect.hauteur, `${e.id} à ${t} ms`).toBeLessThanOrEqual(BARRE - 40);
         }
       }
@@ -126,9 +128,10 @@ describe("étapes : jusqu'à cinq sur une même scène, toutes lues restent affi
   it("5 étapes : marge haute ≥ 100 px, étapes à venir en filigrane dès le début, numéros visibles", () => {
     const e = sb.scenes.find((s) => s.type === "etapes")!;
     const els = poserScene(e, e.debutMs + 1000);
-    expect(els.filter((x) => /:fili\d$/.test(x.id)).length).toBeGreaterThanOrEqual(4);
     expect(els.filter((x) => /:num\d$/.test(x.id))).toHaveLength(5);
-    for (const x of poserScene(e, e.debutMs + 3000)) if (!/:progres/.test(x.id)) expect(x.rect.y).toBeGreaterThanOrEqual(100);
+    expect(els.filter((x) => /:carte\d$/.test(x.id)).length).toBeLessThanOrEqual(2);
+    // Après le zoom 1,08 autour de y = 440, le haut du bloc reste à 100 px de l'écran au moins.
+    for (const x of poserScene(e, e.debutMs + 3000)) if (!/:progres/.test(x.id)) expect(ORIGINE_ZOOM_Y - (ORIGINE_ZOOM_Y - x.rect.y) * ZOOM_SCENE, x.id).toBeGreaterThanOrEqual(100);
   });
   it("deux scènes voisines n'ont jamais la même icône de liste ou d'étapes", () => {
     const formes = (s: SceneLongue) => poserScene(s, s.debutMs + 1000).find((x) => x.nature === "forme" && /:forme$/.test(x.id))?.forme;
