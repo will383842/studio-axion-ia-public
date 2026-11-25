@@ -78,6 +78,8 @@ export class ErreurClaude extends Error {
      * « hors flux » autorise le passage au compte Claude suivant ; un billing_error DANS le flux ne le permet jamais.
      */
     public readonly horsFlux: boolean = false,
+    /** `fetch` rejeté avant toute réponse HTTP ; la requête a pu partir : l'argent garde son pire cas, seule la place d'une retouche est rendue. */
+    public readonly sansReponseHttp: boolean = false,
   ) {
     super(message);
     this.name = "ErreurClaude";
@@ -304,7 +306,7 @@ export async function envoyerMessage(r: RequeteClaude, o: OptionsClient): Promis
       });
     } catch {
       if (raison) throw new ErreurClaude("delai", `Claude n'a pas répondu à temps (${raison === "total" ? "300 s" : "150 s sans nouvelles"}).`, undefined, true);
-      throw new ErreurClaude("reseau", "Claude ne répond pas (réseau).", undefined, true);
+      throw new ErreurClaude("reseau", "Claude ne répond pas (réseau).", undefined, true, undefined, false, true);
     }
     if (!reponse.ok) {
       let type: string | undefined;

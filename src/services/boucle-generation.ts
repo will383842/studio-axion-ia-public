@@ -1292,6 +1292,13 @@ export async function ajouterDeclinaison(scriptMaitreId: Id, options: { formatId
 /** Plafond de retouches payantes par version (vérification E2E n° 1, n° 20) : au-delà, corriger une phrase (gratuit). */
 export const RETOUCHES_MAX_PAR_VERSION = 5;
 export const cleRetouches = (code: string) => `generateur.retouches.${code}`;
+/**
+ * FIX-RETOUCHE-COUPEE : retouche « sans rien reçu » de Claude : au moins une étape, et CHAQUE étape sans `jetons`, close par
+ * un refus net (`termineLe`) ou marquée « sans réponse HTTP ». Une seule réponse reçue (jetons), un flux coupé ou un délai : faux.
+ */
+export function retoucheSansRienRecu(etapes: GenerationScript["etapes"]): boolean {
+  return etapes.length > 0 && etapes.every((e) => !e.jetons && (!!e.termineLe || e.sansReponseHttp === true));
+}
 
 /** Voyant « Corps court » (contrôle C12) : « Plus court » n'a plus de sens sur cette version. Une phrase courte ou un appel court n'y comptent pas. */
 export const estCorpsCourt = (x: { controle: string }): boolean => x.controle === "C12";
@@ -1339,8 +1346,9 @@ export async function regenererVariante(varianteId: Id, demande: "autre-accroche
     retouchesEnVol().delete(g.id);
     const fin = await d.generations.obtenir(g.id);
     if (fin && fin.statut !== "terminee") await d.generations.modifier(g.id, { statut: nv ? "terminee" : "echec" });
-    // Une retouche qui ne donne rien et n'a rien payé ne compte pas dans les 5 ; une retouche payée compte toujours.
-    if (!nv && (!fin || depenseGenerationUsd(fin) === 0)) {
+    // Une retouche qui ne donne rien et n'a rien payé, ou n'a RIEN reçu de Claude (refus net, coupée avant toute réponse HTTP :
+    // son pire cas reste compté en argent), ne compte pas dans les 5 ; une retouche dont une réponse a été reçue compte toujours.
+    if (!nv && (!fin || depenseGenerationUsd(fin) === 0 || retoucheSansRienRecu(fin.etapes))) {
       await sousVerrou(async () => ecrireParametre(cleRetouches(v.code), Math.max(0, (await lireParametre<number>(cleRetouches(v.code), 1)) - 1)));
     }
   }

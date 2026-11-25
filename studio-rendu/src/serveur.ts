@@ -82,7 +82,7 @@ function cleValide(req: IncomingMessage, cle?: string): boolean {
 }
 
 export function creerServeur(files: FilesRendu, options: { cle?: string } = {}): Server {
-  return createServer(async (req, res) => {
+  const serveur = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://studio-rendu");
       if (req.method === "GET" && url.pathname === "/sante") return repondre(res, 200, { ok: true, files: files.resume() });
@@ -99,6 +99,7 @@ export function creerServeur(files: FilesRendu, options: { cle?: string } = {}):
         if (probleme) return repondre(res, 400, { erreur: probleme });
         if (adressesRefusees(demande as DemandeRendu)) return repondre(res, 400, { erreur: "adresse refusée" });
         const r = files.soumettre(demande as DemandeRendu);
+        if (r.conflit) return repondre(res, 409, { erreur: `Un autre rendu, différent, porte déjà cet identifiant : ${r.idRendu}. Changez l'identifiant (ou attendez l'oubli du premier) avant de relancer.` });
         return repondre(res, 202, { idRendu: r.idRendu, nouveau: r.nouveau });
       }
 
@@ -112,4 +113,9 @@ export function creerServeur(files: FilesRendu, options: { cle?: string } = {}):
       return repondre(res, 500, { erreur: e instanceof Error ? e.message : "erreur" });
     }
   });
+  // Coupure d'une connexion gardée ouverte pendant un gel (essai du 25/11) : les délais de Node (5 s, 60 s) sont
+  // relevés pour que le suivi du studio, qui réutilise sa connexion, ne soit pas coupé. `headersTimeout` > `keepAliveTimeout`.
+  serveur.keepAliveTimeout = 65_000;
+  serveur.headersTimeout = 66_000;
+  return serveur;
 }

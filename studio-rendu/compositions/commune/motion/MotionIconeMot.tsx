@@ -85,7 +85,7 @@ function Contenu({ d }: { d: DonneesIconeMot }) {
       </div>
       <div style={{ position: "absolute", left: g.texte.x, width: g.texte.largeur, top: g.texte.y, display: "flex", flexDirection: "column", alignItems: g.texte.centre ? "center" : "flex-start", gap: 26 * u }}>
         <div style={{ textShadow: `0 ${8 * u}px ${40 * u}px ${avecOpacite(COULEURS.fondProfond, 0.8)}` }}>
-          <TexteCinetique texte={motMarque(d.mot)} niveau="affiche" mode="lettres" debut={tMot} alignement={g.texte.centre ? "center" : "left"} graisse={900} taillePx={g.tailleMot} largeurMax={g.texte.largeur} />
+          <TexteCinetique texte={motMarque(d.mot)} niveau="affiche" mode="lettres" debut={tMot} alignement={g.texte.centre ? "center" : "left"} graisse={800} taillePx={g.tailleMot} largeurMax={g.texte.largeur} />
         </div>
         <Trait debut={finMot - 0.25} largeur={g.texte.largeur * (g.texte.centre ? 0.24 : 0.4)} epaisseur={Math.max(5, 8 * u)} />
         {d.sousTitre && <TexteCinetique texte={d.sousTitre} niveau="corps" debut={finMot - 0.05} alignement={g.texte.centre ? "center" : "left"} couleur={COULEURS.cremeAttenuee} graisse={600} largeurMax={g.texte.largeur * (g.texte.centre ? 0.9 : 1)} />}
