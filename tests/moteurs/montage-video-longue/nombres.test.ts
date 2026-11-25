@@ -196,3 +196,17 @@ describe("QUALL-9 : 2e passe", () => {
     expect(vals("Appelez le 0612345678")).toEqual([]);
   });
 });
+
+describe("QUALL-9 : 3e passe", () => {
+  const vals = (t: string) => nombresEcrits(t).map((n) => n.valeur);
+  it("N cents : multiplie seulement de 11 à 19, sinon rien", () => {
+    expect(vals("vingt cents la pièce")).toEqual([]);
+    expect(vals("cinquante cents")).toEqual([]);
+    expect(vals("quatre-vingt-dix-neuf cents euros")).toEqual([]);
+    expect(vals("5 cents")).toEqual([]);
+    expect(vals("dix-huit cents exemplaires")).toEqual([1800]);
+  });
+  it("signe moins avec espace : exclu", () => {
+    expect(vals("reculé de - 5 %")).toEqual([]);
+  });
+});

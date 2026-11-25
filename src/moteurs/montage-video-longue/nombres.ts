@@ -204,6 +204,8 @@ function exclu(texte: string, debut: number, fin: number, valeur: number): boole
   if (/(?:tous|toutes)\s+(?:les|ces)\s*$/i.test(avant)) return true;
   // « pour cent » : « cent » est l'unité %, jamais un 100 (le nombre qui précède porte le %).
   if (valeur === 100 && /^cent$/i.test(texte.slice(debut, fin)) && /\bpour\s+$/i.test(avant)) return true;
+  // « cents » seul (« 5 cents ») : une sous-unité, jamais un 100.
+  if (valeur === 100 && /^cents$/i.test(texte.slice(debut, fin))) return true;
   // « mille fois merci » : une formule, pas une quantité.
   if (valeur === 1000 && /^mille$/i.test(texte.slice(debut, fin)) && /^\s+fois\b/i.test(texte.slice(fin))) return true;
   // « version 2.0 », « n° 12 », « page 3 », « article 5 » : une référence, pas une quantité.
@@ -238,7 +240,7 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
     const fin0 = m.index + m[0].length;
     if (dejaPris(m.index, fin0)) continue;
     // Signe moins perdu (« -5 % », « −12 degrés ») : on n'affiche jamais la valeur sans son signe.
-    if (/[-\u2212\u2013]$/.test(texte.slice(0, m.index))) continue;
+    if (/[-\u2212\u2013]\s?$/.test(texte.slice(0, m.index))) continue;
     // Fractions et dates (« 1/3 », « 12/05/2026 ») : jamais deux chiffres.
     if (/^\/\d/.test(texte.slice(fin0)) || /\d\/$/.test(texte.slice(0, m.index))) continue;
     // « 1.200 » (trois décimales après un point) : séparateur de milliers ambigu, on ne devine pas.
@@ -246,6 +248,8 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
     const valeur = parseFloat(m[1].replace(/[\s\u00a0\u202f]/g, "").replace(",", "."));
     if (!Number.isFinite(valeur)) continue;
     if (!m[2] && RE_ORDINAL.test(texte.slice(fin0))) continue;
+    // « 5 cents » : une sous-unité (centimes), jamais un nombre à afficher.
+    if (/^\s+cents(?![\p{L}\d])/iu.test(texte.slice(fin0))) continue;
     // Suffixe collé (« 10k », « 3x », « 2×», « 5M ») : valeur tronquée, jamais affichée.
     if (!m[2] && /^[\p{L}×]/u.test(texte.slice(fin0))) continue;
     let fin = fin0;
@@ -267,7 +271,14 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
         continue;
       }
       // « dix-huit cents » : le cent(s) qui suit un nombre de 10 à 99 le multiplie (1 800), jamais deux chiffres.
-      if (r.v >= 10 && r.v <= 99 && seg[i + r.n]?.t === "cent" && seg[i + r.n + 1]?.t !== "pour") r = { v: r.v * 100, n: r.n + 1 };
+      // Seulement de 11 à 19 ; de 20 à 99 (« vingt cents la pièce ») c'est une autre unité : tout le passage est exclu.
+      if (r.v >= 10 && r.v <= 99 && seg[i + r.n]?.t === "cent" && seg[i + r.n + 1]?.t !== "pour") {
+        if (r.v >= 11 && r.v <= 19) r = { v: r.v * 100, n: r.n + 1 };
+        else {
+          i += r.n + 1;
+          continue;
+        }
+      }
       const debut = seg[i].debut;
       let fin = seg[i + r.n - 1].fin;
       let n = r.n;
