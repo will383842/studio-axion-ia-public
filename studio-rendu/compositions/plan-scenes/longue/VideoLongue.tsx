@@ -3,8 +3,8 @@
  * la bande des sous-titres et le sous-titre. Tout vient de `mise-en-page.ts` (le contrôle voit la même chose).
  */
 import { AbsoluteFill, Img, useCurrentFrame, useVideoConfig } from "remotion";
-import { poserScene, poserSousTitre, repereSousTitre, sceneAvecBande, logoFin, zoomScene } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
-import { COULEURS_LONGUE, TEMPS_LONGUE, ZONES_LONGUE, type ProprietesVideoLongue, type SceneLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
+import { opacitesTransition, poserScene, poserSousTitre, repereSousTitre, sceneAvecBande, logoFin, zoomScene } from "../../../../src/moteurs/montage-video-longue/mise-en-page";
+import { COULEURS_LONGUE, ZONES_LONGUE, type ProprietesVideoLongue, type SceneLongue } from "../../../../src/moteurs/montage-video-longue/storyboard-types";
 import logo from "../../commune/fin/logo-axion-fond-sombre.png";
 import { DessinElement } from "./DessinElement";
 import { chargerPoliceLongue } from "./police";
@@ -45,14 +45,13 @@ export function VideoLongue({ storyboard }: ProprietesVideoLongue) {
   if (idx < 0) idx = t < scenes[0].debutMs ? 0 : scenes.length - 1;
   const s = scenes[idx];
   const tl = t - s.debutMs;
-  // Fondu au noir vers un carton de chapitre (250 ms pour sortir, 250 ms pour entrer) ; fondu enchaîné ou glisse ailleurs (400 ms).
-  const carton = s.entree === "volet";
-  const duree = carton ? 500 : TEMPS_LONGUE.transitionMs;
+  // Jamais deux scènes visibles en même temps : la sortante disparaît (0 → 200 ms), puis l'entrante apparaît (200 → 400 ms) ;
+  // vers un carton de chapitre, fondu au noir (250 ms + 250 ms).
+  const op = opacitesTransition(s.entree, tl);
+  const duree = op.duree;
   const prev = idx > 0 && tl < duree && s.entree !== "aucune" ? scenes[idx - 1] : null;
-  const clamp = (v: number) => Math.min(1, Math.max(0, v));
-  // Sortie 0 → 250 ms ; entrée 150 → 400 ms (chevauchement minimal : jamais d'image vide) ; vers un carton 250 → 500 ms (fondu au noir).
-  const sortie = clamp(tl / 250);
-  const entree = carton ? clamp((tl - 250) / 250) : clamp((tl - 150) / 250);
+  const sortie = 1 - op.sortie;
+  const entree = op.entree;
   const ee = 1 - (1 - entree) ** 3;
   let contenu;
   if (!prev) contenu = <Couche scene={s} t={t} />;

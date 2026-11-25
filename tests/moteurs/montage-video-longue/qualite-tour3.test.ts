@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { storyboardVideoLongue } from "../../../src/moteurs/montage-video-longue/storyboard";
 import { motCle } from "../../../src/moteurs/montage-video-longue/deduction";
-import { ZOOM_SCENE, formeDeListe, poserScene, zoomScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
+import { ZOOM_SCENE, formeDeListe, opacitesTransition, poserScene, zoomScene, poserSousTitre, repereChapitre, sousTitreRedondant } from "../../../src/moteurs/montage-video-longue/mise-en-page";
 import { TEMPS_LONGUE, ZONES_LONGUE, type ElementPose, type MotLu, type SceneLongue, type StoryboardVideoLongue, type TempsStoryboard } from "../../../src/moteurs/montage-video-longue/storyboard-types";
 
 const SCRIPT = `Le problème : compter à la main
@@ -282,5 +282,56 @@ describe("bande : repère vu par le contrôle, deux lignes au plus, jamais d'ell
     expect(texte).not.toContain("…");
     expect(long.startsWith(texte)).toBe(true);
     expect(e.taillePx!).toBeGreaterThanOrEqual(44);
+  });
+});
+
+describe("tour 8 : transitions sans superposition, carton de titre, frise du chiffre, pulsation", () => {
+  it("à aucun instant deux scènes n'ont chacune une opacité > 0 (fondu par l'ivoire, fondu au noir vers un carton)", () => {
+    for (const type of ["fondu", "glisse", "volet"] as const) {
+      for (let tl = 0; tl <= 600; tl += 5) {
+        const o = opacitesTransition(type, tl);
+        expect(o.sortie > 0 && o.entree > 0, `${type} à +${tl} ms`).toBe(false);
+        expect(o.sortie).toBeGreaterThanOrEqual(0);
+        expect(o.entree).toBeLessThanOrEqual(1);
+      }
+      expect(opacitesTransition(type, opacitesTransition(type, 0).duree).entree).toBe(1);
+    }
+    // Un seul trou : l'image intermédiaire (ivoire) dure un instant, jamais plus de 40 ms entre deux contenus.
+    expect([0, 200, 400].map((tl) => opacitesTransition("fondu", tl).entree)).toEqual([0, 0, 1]);
+  });
+  it("carton de titre : question ≥ 96 px, bloc centré verticalement dans le plein cadre", () => {
+    const c = sb.scenes.find((s) => s.type === "carton-titre")!;
+    const els = poserScene(c, c.debutMs + 3000).filter((e) => e.opacite > 0 && !/:progres|:forme|:barre/.test(e.id));
+    const q = els.find((e) => e.id.endsWith(":question"))!;
+    expect(q.taillePx!).toBeGreaterThanOrEqual(96);
+    const haut = Math.min(...els.map((e) => e.rect.y));
+    const bas = Math.max(...els.map((e) => e.rect.y + e.rect.hauteur));
+    expect(Math.abs((haut + bas) / 2 - 540)).toBeLessThanOrEqual(20);
+  });
+  it("chiffre : blocs de la frise tous de la même teinte, un seul accent qui balaie", () => {
+    const c = sb.scenes.find((s) => s.type === "chiffre" && s.chiffres.length === 1 && s.chiffres[0].valeur === 12)!;
+    for (const dt of [2500, 3200, 4100]) {
+      const els = poserScene(c, c.debutMs + dt);
+      const pleins = els.filter((e) => /:bloc\d+-plein$/.test(e.id));
+      expect(pleins).toHaveLength(12);
+      expect(new Set(pleins.map((e) => `${e.fond}|${e.couleur}`)).size).toBe(1);
+      expect(pleins.filter((e) => e.opacite > 0.55).length, "seuls les blocs proches de l'aiguille se distinguent").toBeLessThanOrEqual(3);
+      expect(els.filter((e) => /:bloc\d+$/.test(e.id))[0].rect.largeur).toBeGreaterThanOrEqual(90);
+    }
+  });
+  it("carte active : pulsation jusqu'à 5 % en largeur et bord qui s'épaissit en respirant", () => {
+    const e = sb.scenes.find((s) => s.type === "etapes")!;
+    const larg: number[] = [];
+    const bord: number[] = [];
+    for (let t = e.debutMs + 6000; t < e.debutMs + 7300; t += 50) {
+      const els = poserScene(e, t);
+      const act = els.find((x) => /:carte\d$/.test(x.id) && x.bordure === "terracotta");
+      if (act) {
+        larg.push(act.rect.largeur);
+        bord.push(act.epaisseurPx!);
+      }
+    }
+    expect(Math.min(...larg) / Math.max(...larg)).toBeLessThanOrEqual(0.955);
+    expect(Math.max(...bord) - Math.min(...bord)).toBeGreaterThanOrEqual(2);
   });
 });
