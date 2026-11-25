@@ -58,15 +58,19 @@ describe("sans film : identique à l'octet", () => {
     expect(alertes(r).some((m) => m.includes("Navigation"))).toBe(false);
   });
 
-  it("entrée illisible : comme sans film", async () => {
+  it("entrée illisible : montée comme sans film, mais la réserve « film refusé » le dit (ESS-6)", async () => {
     const sans = await fabriquer(avecFilm(undefined));
     for (const illisible of [{ ...film(), version: "autre" }, "x", null, [], { ...film(), videoCle: "a.mov" }]) {
       const r = await fabriquer(avecFilm(illisible));
       expect(r.rendus.map((d) => d.entrees)).toEqual(sans.rendus.map((d) => d.entrees));
       expect(r.rendus.map((d) => d.parametres)).toEqual(sans.rendus.map((d) => d.parametres));
-      expect(alertes(r)).toEqual(alertes(sans));
+      // AUTORISATION PERMANENTE (b) : avant ESS-6, l'alerte attendue était celle du montage sans film (refus silencieux) ;
+      // elle est désormais celle du montage sans film PLUS la réserve « À vérifier · Navigation : film refusé ». Le montage, lui, ne change pas (égalités ci-dessus).
+      expect(alertes(r).filter((m) => !m.includes("film refusé"))).toEqual(alertes(sans));
+      expect(alertes(r).filter((m) => m.startsWith("À vérifier · Navigation : film refusé"))).toHaveLength(1);
     }
-    expect(lireEntreesTutoriel({ tutorielOutil: { navigationFilmee: "x" } })).toEqual({});
+    // AUTORISATION PERMANENTE (b) : l'attente exacte passe de `{}` à `{ navigationRefusee: [...] }` (le refus est exposé, plus avalé).
+    expect(lireEntreesTutoriel({ tutorielOutil: { navigationFilmee: "x" } })).toEqual({ navigationRefusee: expect.any(Array) });
   });
 });
 

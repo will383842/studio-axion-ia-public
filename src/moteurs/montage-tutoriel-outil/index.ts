@@ -180,6 +180,9 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   const alertesCommunes = alertesDe(etat);
   if (grille) for (const a of alertesDeGrille(grille)) alertesCommunes.push({ code: "defaut-visuel", gravite: a.bloquant ? "attention" : "info", message: a.message });
   if (commande.briques["mention-ia"] === true) alertesCommunes.push({ code: "defaut-visuel", gravite: "info", message: "Mention IA demandée : pas encore posée par le tutoriel" });
+  // ESS-6 : un film de navigation refusé n'est plus ignoré en silence ; le montage est resté sans film, on le dit.
+  const refusee = lireEntreesTutoriel(commande.entrees).navigationRefusee;
+  if (refusee?.length) alertesCommunes.push({ code: "defaut-visuel", gravite: "attention", message: `À vérifier · Navigation : film refusé (${refusee.map((e) => e.replace(/\.$/, "")).join(" ; ")}…). La vidéo a été montée sans le film.` });
   const cible = cibleSon(commande);
   const toutesAlertes: AlerteQualite[] = [...alertesCommunes];
   const reseaux = reseauxDeCommande(commande, [...RESEAUX_CONSEILLES]);
@@ -207,7 +210,9 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
     return {
       ratio,
       fichierCle: r.sortie!.fichierCle,
-      vignetteCle: vignette ?? r.sortie!.fichierCle.replace(/\.mp4$/, ".jpg"),
+      // `SortieProduite.vignetteCle` est obligatoire : sans vignette produite, la chaîne vide est la valeur des autres moteurs pour « aucune »
+      // (fabrication.ts lit `vignetteCle ?? ""`). On n'invente plus une clé .jpg qui n'existe pas.
+      vignetteCle: vignette ?? "",
       resolution: `${largeur}x${hauteur}`,
       dureeSec: r.sortie!.dureeSec,
       taille: r.sortie!.taille,
