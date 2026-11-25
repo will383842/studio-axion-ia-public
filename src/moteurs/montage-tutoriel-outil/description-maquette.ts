@@ -85,7 +85,7 @@ export type LectureDonneesExemple = { ok: true; donnees: DonneesExemple } | { ok
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const IDENTIFIANT = /^[a-z][a-z0-9-]{0,39}$/;
 /** Lettres, chiffres, espace et ponctuation courante : ni `<`, `>`, `{`, `}`, `=`, `@`, guillemets droits, accent grave. */
-const CARACTERES_AUTORISES = /^[\p{L}\p{N} '’\-–,.:;()%/!?«»·+&]+$/u;
+export const CARACTERES_AUTORISES = /^[\p{L}\p{N} '’\-–,.:;()%/!?«»·+&]+$/u;
 const PALETTE_HEX = new Set(Object.values(PALETTE).map((c) => c.toLowerCase()));
 
 const normaliser = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();

@@ -55,14 +55,33 @@ const DATE_EXEMPLE = "2026-01-01";
 export type PropositionPiece = { genre: "maquette"; proposition: 1 | 2; contenu: DescriptionMaquette } | { genre: "flux"; proposition: 1 | 2; contenu: FluxAutomatisation };
 
 /**
- * Relit la proposition par les contrôles des textes créés. Erreurs : « à revoir » (rien n'est construit, aucune reprise
- * automatique). Sinon « à construire » avec l'empreinte. Ne lève jamais.
+ * PHRASE-1 : tous les contrôles qu'une maquette doit passer AVANT le oui : les textes créés, puis ce que `appliquerPieceGardee`
+ * déduira après (la carte des zones, les données chiffrées), avec la même date fixe. Une maquette impossible à garder est
+ * ainsi refusée avant que Williams ne la voie. Les erreurs ne sont jamais répétées. Ne lève jamais.
+ */
+export function controlerMaquetteGardable(d: DescriptionMaquette, nomsPermis: readonly string[] = []): string[] {
+  try {
+    const erreurs = controlerTextesCrees(d, nomsPermis);
+    const carte = carteDepuisDescription(d);
+    if (!carte.ok) erreurs.push(...carte.erreurs);
+    const donnees = tableauDepuisDescription(d, DATE_EXEMPLE);
+    if (!donnees.ok) erreurs.push(...donnees.erreurs);
+    return [...new Set(erreurs)];
+  } catch {
+    return ["Proposition illisible."];
+  }
+}
+
+/**
+ * Relit la proposition par les contrôles des textes créés et par les déductions de la pièce gardée (maquette). Erreurs : « à
+ * revoir » (rien n'est construit ; la reprise automatique de la proposition n° 1 est décidée par l'orchestre, qui lit ces erreurs).
+ * Sinon « à construire » avec l'empreinte. Ne lève jamais.
  */
 export function recevoirProposition<E extends EtatPiece>(e: E, p: PropositionPiece, nomsPermis: readonly string[] = []): E & EtatPiece {
   let erreurs: string[];
   let empreinte = "";
   try {
-    erreurs = p.genre === "maquette" ? controlerTextesCrees(p.contenu, nomsPermis) : controlerFluxCree(p.contenu, nomsPermis);
+    erreurs = p.genre === "maquette" ? controlerMaquetteGardable(p.contenu, nomsPermis) : controlerFluxCree(p.contenu, nomsPermis);
     empreinte = p.genre === "maquette" ? empreinteDescription(p.contenu) : empreinteFlux(p.contenu);
   } catch {
     erreurs = ["Proposition illisible."];

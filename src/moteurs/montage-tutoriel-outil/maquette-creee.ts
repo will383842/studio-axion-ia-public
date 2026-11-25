@@ -60,12 +60,17 @@ function contientMot(texte: string, mot: string): boolean {
 const toutesZones = (d: DescriptionMaquette): ZoneDecrite[] => d.ecrans.flatMap((e) => e.zones);
 const estChiffree = (x: DonneeExemple) => x.exemple === true && (typeof x.valeur === "number" || nombresAffirmes(x.valeur).length > 0);
 
+/** Nombre de données chiffrées de toute la maquette (un chiffre « avant » et un chiffre « maintenant » comptent pour 2). */
+export const compterDonneesChiffrees = (d: DescriptionMaquette): number => toutesZones(d).reduce((n, z) => n + z.donnees.filter(estChiffree).length, 0);
+
 /* ------------------------------------------------------------------ */
 /* 2. Contrôle des textes créés                                        */
 /* ------------------------------------------------------------------ */
 
-const MOTS_PAR_LIBELLE_MAX = 6;
-const CARACTERES_ETAT_MAX = 60;
+export const MOTS_PAR_LIBELLE_MAX = 6;
+export const CARACTERES_ETAT_MAX = 60;
+/** Au plus 12 données chiffrées dans toute la maquette : chacune devient un indicateur, et `schemaTableauDeBord` en refuse plus de 12. */
+export const DONNEES_CHIFFREES_MAX = 12;
 
 type GenreTexte = "metier" | "titre" | "libelle" | "valeur" | "etat";
 

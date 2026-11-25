@@ -2,7 +2,10 @@
  * PHRASE-1 : l'écran « Votre maquette » et « En proposer une autre » suivent les appels déjà faits au maquettiste.
  * Les 2 appels permis (PROPOSITIONS_PIECE_MAX) faits : plus d'autre proposition (écran et geste). Doubles seulement : 0 €.
  */
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { PieceCreee } from "@/components/tutoriel-outil/PieceCreee";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
 import { exempleSortieMaquette } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { empreinteDescription, PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
@@ -16,9 +19,9 @@ const description = (): DescriptionMaquette => {
 };
 
 /** L'équipe rangée dans le travail : la pièce et le nombre d'appels faits au maquettiste. */
-function monde(appels: number, proposition: 1 | 2 = 1) {
+function monde(appels: number, proposition: 1 | 2 = 1, statut: "a-construire" | "a-revoir" = "a-construire") {
   const d = description();
-  const equipe = { demande: { phrase: "un tableau de bord pour un atelier" }, appels: { maquettiste: appels }, pieceCreee: { genre: "maquette" as const, proposition, contenu: d, empreinte: empreinteDescription(d), statut: "a-construire" as const } };
+  const equipe = { demande: { phrase: "un tableau de bord pour un atelier" }, appels: { maquettiste: appels }, pieceCreee: { genre: "maquette" as const, proposition, contenu: d, empreinte: empreinteDescription(d), statut, ...(statut === "a-revoir" ? { erreurs: ["« x » : un libellé court, pas une phrase (6 mots au plus, sans point final)."] } : {}) } };
   const compteurs = { ecritures: 0, relances: 0 };
   const depot: DepotPiece = { lire: async () => etatEcranDepuisPiece(equipe), ecrire: async () => void compteurs.ecritures++ };
   const dep: DependancesPiece = {
@@ -58,5 +61,38 @@ describe("PHRASE-1 · « En proposer une autre » et les appels déjà faits", (
   it("déjà à la proposition 2 : toujours refusé, avec la phrase d'avant", async () => {
     const m = monde(2, 2);
     expect(await autreProposition(VIDEO, m.dep)).toEqual({ ok: false, message: "Vous avez déjà demandé une autre proposition" });
+  });
+});
+
+describe("PHRASE-1 · l'écran quand les 2 essais sont faits", () => {
+  const rendu = (vue: NonNullable<Awaited<ReturnType<typeof vuePieceCreee>>>) => renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue }));
+
+  it("proposition n° 1 et 2 appels faits : le texte dit que les deux essais sont faits, jamais « une autre proposition déjà demandée »", async () => {
+    const vue = await vuePieceCreee(VIDEO, monde(PROPOSITIONS_PIECE_MAX).dep);
+    expect(vue?.essaisEpuises).toBe(true);
+    const html = rendu(vue!);
+    expect(html).toContain("Les deux essais de création sont faits : il n&#x27;y a pas d&#x27;autre proposition possible.");
+    expect(html).not.toContain("Vous avez déjà demandé une autre proposition");
+  });
+
+  it("proposition n° 2 demandée par Williams : le texte d'avant reste", async () => {
+    const vue = await vuePieceCreee(VIDEO, monde(2, 2).dep);
+    expect(vue?.essaisEpuises).toBeUndefined();
+    expect(rendu(vue!)).toContain("Vous avez déjà demandé une autre proposition");
+  });
+
+  it("un seul essai fait : « Il vous reste 1 autre proposition »", async () => {
+    const vue = await vuePieceCreee(VIDEO, monde(1).dep);
+    expect(rendu(vue!)).toContain("Il vous reste 1 autre proposition.");
+  });
+
+  it("pièce « à revoir » après 2 essais : le geste ne propose que d'arrêter, sans parler de garder ou corriger", async () => {
+    const m = monde(PROPOSITIONS_PIECE_MAX, 1, "a-revoir");
+    const r = await autreProposition(VIDEO, m.dep);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/plus d'autre proposition/);
+    expect(r.message).toMatch(/arrêter/);
+    expect(r.message).not.toMatch(/Gardez|corrigez/);
+    expect(m.compteurs).toEqual({ ecritures: 0, relances: 0 });
   });
 });

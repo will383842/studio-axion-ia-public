@@ -134,6 +134,8 @@ export interface VuePieceCreee {
   chiffres: ChiffreARelire[];
   defauts: string[];
   propositionsRestantes: 0 | 1;
+  /** PHRASE-1 : les deux essais de création sont faits alors que la proposition n° 1 est affichée (l'écran le dit, sans parler d'une « autre proposition » déjà demandée). */
+  essaisEpuises?: true;
   statut: StatutPiece;
   /** Une autre proposition est demandée et pas encore arrivée : corriger et déposer sont fermés. */
   autreEnAttente: boolean;
@@ -471,6 +473,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     chiffres: tableau?.ok ? chiffresARelire(tableau.donnee).filter((c) => c.cle.startsWith("indicateur:")) : [],
     defauts: [...new Set(defauts)],
     propositionsRestantes: etat.proposition >= PROPOSITIONS_PIECE_MAX || etat.appelsEpuises === true ? 0 : 1,
+    ...(etat.proposition < PROPOSITIONS_PIECE_MAX && etat.appelsEpuises === true ? { essaisEpuises: true as const } : {}),
     statut: etat.statut,
     autreEnAttente: autreEnAttente(etat),
     nomsIllisibles,
@@ -722,7 +725,10 @@ async function autrePropositionSeul(videoId: string, d: DependancesPiece): Promi
   const etat = await depot.lire(videoId);
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
   if (etat.proposition >= PROPOSITIONS_PIECE_MAX) return refus("Vous avez déjà demandé une autre proposition");
-  if (etat.appelsEpuises === true) return refus("Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Gardez-la, corrigez un texte ou arrêtez.");
+  if (etat.appelsEpuises === true) {
+    // Une maquette « à revoir » ne se garde ni ne se corrige : il ne reste qu'à arrêter.
+    return refus(etat.statut === "a-revoir" ? "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Il ne reste qu'à arrêter, puis reformuler votre phrase." : "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Gardez-la, corrigez un texte ou arrêtez.");
+  }
   if (etat.statut === "gardee" || etat.statut === "refusee") return refus("Cette maquette n'est plus modifiable.");
   await depot.ecrire(videoId, { ...sansAperceu(etat), proposition: 2, statut: "a-construire", aRelancer: true });
   await d.relancer?.(videoId);

@@ -1,7 +1,13 @@
 /** PHRASE-1 : la phrase et la sortie RÉELLE relevées sur le serveur (doubles de test, aucun appel). */
 export const PHRASE_STOCKS = "Un tableau de bord qui suit les stocks d'une PME et prévient avant la rupture, pour ne plus compter à la main.";
 
-/** La sortie RÉELLE relevée sur le serveur (Opus) : « titre » dans les zones, « modele » qui n'est pas un identifiant. */
+/**
+ * RECONSTITUTION de la sortie relevée sur le serveur (Opus), PAS le relevé lui-même. Ce que le relevé établit : « titre » dans les
+ * zones (au lieu de « libelle ») et « modele » qui n'est pas un identifiant. Ce qu'il ne permet pas de reproduire : il décrit
+ * « etats avant/maintenant avec 3 données chacun » (forme exacte inconnue) alors que ce double met deux textes dans `etats` ;
+ * le relevé compte aussi 6 erreurs (tronquées à 6 par l'ancien code) là où ce double en donne 7. Aucun test ne doit en déduire
+ * davantage que « refusée, avec ces deux défauts ».
+ */
 export const SORTIE_REELLE_SERVEUR = {
   manque: "maquette",
   contenu: {

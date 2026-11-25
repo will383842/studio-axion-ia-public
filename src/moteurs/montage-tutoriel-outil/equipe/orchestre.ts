@@ -171,10 +171,58 @@ const empreinteDe = (role: IdRole, entree: EntreeRole): string => fnv1a64(jsonCa
 /** Nombre d'appels déjà faits à un rôle payant. */
 const appelsFaits = (e: EtatEquipe, role: IdRole): number => e.appels?.[role] ?? 0;
 
-/** L'entrée du rôle, avec ses remarques d'un refus précédent (donnée, jamais une consigne). */
+/** Remarques renvoyées au rôle : 6 au plus (la dernière peut résumer les autres), chacune de 200 caractères au plus, 1 200 au total. */
+export const REMARQUES_MAX = 6;
+export const REMARQUE_CARACTERES_MAX = 200;
+export const REMARQUES_TOTAL_MAX = 1200;
+
+const echapperBalises = (t: string): string => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** Une remarque d'une seule ligne, bornée (le texte fautif cité par une erreur vient de Claude : jamais de longueur libre). */
+const remarqueBornee = (t: string): string => {
+  const seule = t.replace(/\s+/g, " ").trim();
+  return seule.length > REMARQUE_CARACTERES_MAX ? `${seule.slice(0, REMARQUE_CARACTERES_MAX - 3)}...` : seule;
+};
+
+/** La nature d'une remarque, sans le lieu, les chiffres ni le texte cité : deux remarques de même nature ne sont pas « distinctes ». */
+const natureRemarque = (t: string): string => (t.split(" : ").slice(1).join(" : ") || t).replace(/«[^»]*»/g, "«»").replace(/\d+/g, "#");
+
+/**
+ * Les remarques gardées dans l'état après un refus : sans doublon, UNE remarque de chaque nature d'abord (le reste ensuite),
+ * 6 au plus ; quand il y en a davantage, la dernière dit combien d'autres restent (rien n'est tronqué sans le dire).
+ */
+export function remarquesDuRefus(erreurs: readonly unknown[]): string[] {
+  const toutes = [...new Set(erreurs.filter((x): x is string => typeof x === "string").map(remarqueBornee).filter(Boolean))];
+  const natures = new Set<string>();
+  const distinctes: string[] = [];
+  const autres: string[] = [];
+  for (const t of toutes) {
+    const n = natureRemarque(t);
+    if (natures.has(n)) autres.push(t);
+    else {
+      natures.add(n);
+      distinctes.push(t);
+    }
+  }
+  const ordre = [...distinctes, ...autres];
+  if (ordre.length <= REMARQUES_MAX) return ordre;
+  const gardees = ordre.slice(0, REMARQUES_MAX - 1);
+  return [...gardees, `et ${ordre.length - gardees.length} autres remarques du même genre`];
+}
+
+/** L'entrée du rôle, avec ses remarques d'un refus précédent : une donnée échappée (aucune balise n'en sort) et bornée, jamais une consigne. */
 function avecRemarques(e: EtatEquipe, role: IdRole, entree: EntreeRole): EntreeRole {
-  const r = e.remarques?.[role];
-  return r?.length ? { ...entree, variable: `${entree.variable}\n<remarques_precedentes>${r.join(" | ")}</remarques_precedentes>` } : entree;
+  const brutes = e.remarques?.[role];
+  if (!Array.isArray(brutes)) return entree;
+  const retenues: string[] = [];
+  let total = 0;
+  for (const t of brutes.filter((x): x is string => typeof x === "string").slice(0, REMARQUES_MAX)) {
+    const r = echapperBalises(remarqueBornee(t)).slice(0, REMARQUE_CARACTERES_MAX).replace(/&[a-z]{0,3}$/, "");
+    if (!r || total + r.length > REMARQUES_TOTAL_MAX) continue;
+    retenues.push(r);
+    total += r.length + 3;
+  }
+  return retenues.length ? { ...entree, variable: `${entree.variable}\n<remarques_precedentes>${retenues.join(" | ")}</remarques_precedentes>` } : entree;
 }
 
 /** Le rôle ne peut plus être rejoué : il a épuisé ses essais sans sortie valable. */
@@ -395,7 +443,12 @@ async function appliquerPropositionPiece(
   if (genre === "maquette") {
     const p = await completerManque({ manque: "maquette", contexte: contextePiece(e, numero), appeler: async () => sortie });
     if (p.statut !== "proposition" || p.manque !== "maquette") return refus(p.statut === "a-revoir" ? p.erreurs : ["pièce à compléter inconnue"]);
-    return accepte(recevoirProposition(faits, { genre: "maquette", proposition: numero, contenu: p.description }), "Une maquette est proposée : vous la verrez avant tout.");
+    const recue = recevoirProposition(faits, { genre: "maquette", proposition: numero, contenu: p.description });
+    // PHRASE-1 : les contrôles des textes créés et les déductions de la pièce gardée (carte, chiffres) valent un refus du lecteur pour la
+    // proposition n° 1 : remarques gardées, reprise automatique dans les 2 appels déjà comptés. La proposition n° 2 (ou la reprise
+    // elle-même) n'a plus d'appel : la pièce reste « à revoir », avec ses erreurs, comme avant.
+    if (numero === 1 && recue.pieceCreee?.statut === "a-revoir" && appelsFaits(faits, "maquettiste") < PROPOSITIONS_PIECE_MAX) return refus(recue.pieceCreee.erreurs ?? []);
+    return accepte(recue, "Une maquette est proposée : vous la verrez avant tout.");
   }
   // en attendant T-EXT-25b : le maquettiste ne sait pas encore rendre un flux ; la sortie est relue ici par le lecteur du flux (T-EXT-50).
   const contenu = sortie && typeof sortie === "object" ? (sortie as { contenu?: unknown }).contenu : undefined;
@@ -426,7 +479,7 @@ export async function appliquerSortie(e: EtatEquipe, role: IdRole, sortie: unkno
   // PHRASE-1 : la proposition n° 1 d'une maquette partie d'une phrase a droit à une reprise : elle n'est bloquée qu'aux PROPOSITIONS_PIECE_MAX appels.
   const repriseMaquette = role === "maquettiste" && !entrees.dossier && !!e.cahier && manquePiece(e.cahier) === "maquette" && (e.pieceCreee?.proposition ?? 1) === 1;
   const refus = (erreurs: string[]): Appliquee => {
-    const etat: EtatEquipe = { ...faits, remarques: { ...faits.remarques, [role]: erreurs.length ? erreurs.slice(0, 6) : ["réponse illisible"] } };
+    const etat: EtatEquipe = { ...faits, remarques: { ...faits.remarques, [role]: remarquesDuRefus(erreurs).length ? remarquesDuRefus(erreurs) : ["réponse illisible"] } };
     return { ok: false, etat, bloquee: epuise(etat, role, repriseMaquette ? Math.max(essaisMaxDe(role), PROPOSITIONS_PIECE_MAX) : undefined) };
   };
   const accepte = (etat: EtatEquipe, resume: string): Appliquee => ({

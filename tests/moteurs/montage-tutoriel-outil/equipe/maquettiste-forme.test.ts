@@ -56,12 +56,13 @@ describe("PHRASE-1 · l'exemple de la consigne passe le lecteur ET le contrôle 
   });
 });
 
-describe("PHRASE-1 · la sortie réelle du serveur est refusée, avec les remarques relevées", () => {
+describe("PHRASE-1 · la sortie du serveur (reconstitution, voir sortie-reelle-phrase1.ts) est refusée, avec les remarques relevées", () => {
   it("lireDescriptionMaquette : « titre » inconnu dans les zones, libellé absent, modèle sans identifiant", () => {
     const r = lireDescriptionMaquette(SORTIE_REELLE_SERVEUR.contenu, { interdits: INTERDITS });
     expect(r.ok).toBe(false);
     if (r.ok) return;
-    expect(r.erreurs).toHaveLength(7);
+    // Le relevé en compte 6 (tronquées à 6) ; ce double reconstitué en donne 7 (zone 3 sans libellé en plus) : au moins 6, jamais moins.
+    expect(r.erreurs.length).toBeGreaterThanOrEqual(6);
     expect(r.erreurs.join(" | ")).toContain("Écran 1 : modèle : identifiant attendu");
     expect(r.erreurs.join(" | ")).toContain("Écran 1, zone 1 : champ inconnu « titre »");
     expect(r.erreurs.join(" | ")).toContain("Écran 1, zone 1 : libellé : texte attendu, non vide.");
