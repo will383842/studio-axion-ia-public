@@ -53,6 +53,18 @@ describe("sous-titres sans voix", () => {
     expect(c.segments.every((x) => x.position === "auto" && x.style === "base")).toBe(true);
   });
 
+  it("4:5 : la bande va jusqu'au bas (≤ 8 % ajoutés) ; 9:16 : elle garde sa hauteur normale (basPct−9 → basPct+6)", () => {
+    const c45 = calqueSansVoix({ segments: segments("4:5"), ratio: "4:5" });
+    expect(c45.bandeFond!.yPx + c45.bandeFond!.hauteurPx).toBe(c45.hauteur);
+    const bas = basPctSansVoix("9:16");
+    const c916 = calqueSansVoix({ segments: segments("9:16"), ratio: "9:16" });
+    const b = c916.bandeFond!;
+    expect(b.yPx + b.hauteurPx).toBeLessThan(c916.hauteur);
+    expect(b.yPx).toBe(Math.round(((bas - 9) / 100) * c916.hauteur));
+    expect(b.yPx + b.hauteurPx).toBe(Math.round(((bas + 6) / 100) * c916.hauteur));
+    expect(b.hauteurPx / c916.hauteur).toBeLessThan(0.2);
+  });
+
   it("police : pas d'`encre` (Inter Bold) donc Manrope ; mots composés intacts", () => {
     const c = calqueSansVoix({ segments: segments(), ratio: "4:5" });
     expect(c.encre).toBeUndefined();

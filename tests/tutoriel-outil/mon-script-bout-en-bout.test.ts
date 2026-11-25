@@ -140,6 +140,22 @@ describe("« Mon script » sans voix : dépôt → lancement → rendu simulé, 
     expect(sansVoixReel.journal.rendus.some((r) => r.operation === "composition")).toBe(true);
   });
 
+  it("plan composé multi-format (4:5, 9:16, 1:1) : 0 appel Claude, une composition sans voix par format, contrôle ok en 4:5, fin dans le plan", async () => {
+    const commande = await deposer("sans-voix");
+    const { t } = await aller(commande, "t-ms-multi");
+    expect(t.statut).toBe("termine");
+    expect(sansVoixReel.journal.claude).toEqual([]);
+    expect(pieges.appels.filter((a) => /depense|claude/.test(a))).toEqual([]);
+    const props = sansVoixReel.journal.rendus.filter((r) => r.operation === "composition").map((r) => r.parametres.proprietes as unknown as { compositionSansVoix?: { format: { largeur: number; hauteur: number }; dureeMs: number }; plan: { dureeMs: number }; finMs: number });
+    expect(props).toHaveLength(3);
+    expect(props.every((p) => p.compositionSansVoix !== undefined)).toBe(true);
+    expect(props.map((p) => `${p.compositionSansVoix!.format.largeur}x${p.compositionSansVoix!.format.hauteur}`).sort()).toEqual(["1080x1080", "1080x1350", "1080x1920"]);
+    expect(props.every((p) => p.finMs === 0 && p.plan.dureeMs === p.compositionSansVoix!.dureeMs)).toBe(true);
+    const etat = t.parametres?.tutoriel as { composition?: { ok: boolean }; compose?: Record<string, unknown> };
+    expect(Object.keys(etat.compose ?? {}).sort()).toEqual(["1:1", "4:5", "9:16"]);
+    expect(etat.composition?.ok).toBe(true);
+  });
+
   it("0 appel HeyGen, 0 appel ElevenLabs : aucune voix, aucun module de voix ni de crédit touché, le chemin avec voix n'est pas pris", async () => {
     const commande = await deposer("sans-voix");
     await aller(commande, "t-ms-voix");
@@ -181,7 +197,7 @@ describe("« Mon script » sans voix : dépôt → lancement → rendu simulé, 
     try {
       const commande = await deposer("sans-voix");
       await aller(commande, "t-ms-claude-allume");
-      expect(pieges.appels.filter((a) => /depense|claude/.test(a)).length).toBeGreaterThan(0);
+      expect(pieges.appels).toContain("depense.executerRolePourVideo");
     } finally {
       await ecrireParametre("tutoriel.claude", false); // remis éteint (la mémoire est aussi remise à zéro par `reinitialiserDepots`)
       await ecrireParametre("tutoriel.regardeur", false);

@@ -46,7 +46,7 @@ import { noterTutoriel, type GrilleTutoriel } from "./grille-qualite";
 import { ENTREE_TUTORIEL, estSansVoix, lireEntreesTutoriel } from "./entrees";
 import { cibleSon, lireMesure, parametresMesure, parametresMixage, parametresVignette, type MesureSon } from "./finitions";
 import { finDuTutoriel, type FinDuTutoriel } from "./fin";
-import { COMPOSITION_TUTORIEL, dureeImagesTutoriel, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
+import { COMPOSITION_TUTORIEL, DUREE_CARTE_FIN_MS, dureeImagesTutoriel, formatDuRatio, type ProprietesTutorielOutil } from "./proprietes";
 import { MOTS_PAR_SECONDE, remarquesScript, scriptRetenu, type SourceScript } from "./script";
 import type { EntreeRole } from "@/generateur/roles/types";
 import { calerScenario } from "./calage-scenario";
@@ -538,7 +538,8 @@ function pasCalage(etat: EtatTutoriel, commande: CommandeFabrication, outils: Ou
   const audio = etat.audio!;
   const st = outils.sousTitres;
   // QUAL-5 : sans voix, sous-titres sobres de la bande réservée (base minimal, aucun accent) ; sinon réglages du studio.
-  const sansVoix = estSansVoix(commande.entrees);
+  // Seul le plan composé (sans voix ET sans film de navigation) a la bande réservée ; sinon, comportement de master.
+  const sansVoix = estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee;
   const options = sansVoix ? optionsSousTitresSansVoix(etat.ratios[0]) : { ...(st?.style !== undefined ? { style: st.style } : {}), ...(st?.base ? { base: st.base } : {}), ...(st?.intensite ? { intensite: st.intensite } : {}) };
   const fabriques = fabriquerSousTitres({
     texte: etat.script!.texte,
@@ -608,10 +609,13 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
     const phraseTitre = entrees.depot?.mode === "phrase" ? entrees.depot.phrase : entrees.idee;
     const fin = entrees.fin;
     const compose: Record<string, PlanComposeSansVoix> = {};
+    // Le plan composé couvre la parole ET la fin (2,5 s) : la scène « appel » dure jusqu'au bout, le plan nu a la MÊME durée.
+    // TODO(QUAL-5) : poser `site: CARTE_FIN_AXION.sousTitre` (« axion-ia.com ») sur la scène « appel » dès que le type `SceneSansVoix` (src/briques/plan-scenes/tutoriel/sans-voix/types.ts) porte ce champ facultatif : il n'existe pas encore dans QUAL-1.
+    const dureeMs = (mots.at(-1)?.finMs ?? 0) + DUREE_CARTE_FIN_MS;
     for (const ratio of etat.ratios) {
-      compose[ratio] = composerPlanSansVoix({ texte, mots, format: formatDuRatio(ratio), basPct: basPctSansVoix(ratio), ...(phraseTitre ? { phraseTitre } : {}), ...(fin ? { fin } : {}) }).plan;
+      compose[ratio] = composerPlanSansVoix({ texte, mots, format: formatDuRatio(ratio), basPct: basPctSansVoix(ratio), dureeMs, ...(phraseTitre ? { phraseTitre } : {}), ...(fin ? { fin } : {}) }).plan;
     }
-    const nu = planNu({ mots, format, facecam: false, dureeMs: mots.at(-1)?.finMs ?? 0 });
+    const nu = planNu({ mots, format, facecam: false, dureeMs });
     return { statut: "faite", etat: { ...etat, compose, plan: { plan: nu, remarques: [], source: "compose", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };
   }
   // X3-06 : cran du dosage figé dans la commande. Absent (dosage éteint) = chemin d'avant, inchangé.
@@ -668,7 +672,11 @@ export function planPourRatio(plan: PlanValide, ratio: Ratio): PlanValide {
 }
 
 /** T-EXT-26a : la fin retenue (état d'abord : une fois choisie, elle ne change plus ; puis celle du parent ; puis l'entrée et l'interrupteur). */
+/** QUAL-5 (tour 5) : en sans voix composé, le plan couvre déjà la parole ET la fin (scène « appel » jusqu'au bout) : aucune carte de fin séparée. */
+const FIN_COMPOSEE: FinDuTutoriel = { finMs: 0, choix: "aucune" };
+
 function finRetenue(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees">, outils: Pick<OutilsTutoriel, "fin">): FinDuTutoriel {
+  if (etat.compose) return FIN_COMPOSEE;
   return etat.fin ?? etat.parent?.fin ?? finDuTutoriel(lireEntreesTutoriel(commande.entrees).fin, outils.fin?.actif === true);
 }
 
@@ -678,11 +686,11 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
   const sousTitres =
     avecSousTitres && etat.sousTitres?.length
       ? etat.compose?.[ratio]
-        ? calqueSansVoix({ segments: etat.sousTitres, ratio, basPct: etat.compose[ratio].basPct })
+        ? calqueSansVoix({ segments: etat.sousTitres, ratio, basPct: etat.compose[ratio].basPct, dureeMs: etat.compose[ratio].dureeMs })
         : donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) })
       : undefined;
   const compositionSansVoix = etat.compose?.[ratio];
-  const laFin = commande ? finRetenue(etat, commande, outils) : (etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true));
+  const laFin = commande ? finRetenue(etat, commande, outils) : (etat.compose ? FIN_COMPOSEE : (etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true)));
   const { videoCle: _cle, ...sansFilm } = navigation ?? ({} as NavigationFilmee);
   void _cle;
   // T-EXT-44 : la caméra garde la zone visée au-dessus de la bande des sous-titres (lue dans les sous-titres déjà calculés).
@@ -1086,12 +1094,22 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
   return { statut: ratios.every(faitRatio) ? "faite" : "en-cours", etat: e };
 }
 
+/** Champs du plan composé qui portent un texte VISIBLE (jamais un id, un genre, une cible de caméra ou un instant). */
+const CHAMPS_TEXTE_VISIBLE = new Set(["texte", "surTitre", "titreFenetre", "avant", "apres", "question", "bouton", "site", "libelle", "titre", "etiquette"]);
+
+/** Textes visibles d'un plan composé : seulement les champs de `CHAMPS_TEXTE_VISIBLE`, en parcourant scènes, événements, cartes et rubriques. */
+export function textesVisiblesCompose(v: unknown): string[] {
+  if (Array.isArray(v)) return v.flatMap(textesVisiblesCompose);
+  if (!v || typeof v !== "object") return [];
+  return Object.entries(v).flatMap(([cle, valeur]) => (typeof valeur === "string" ? (CHAMPS_TEXTE_VISIBLE.has(cle) ? [valeur] : []) : textesVisiblesCompose(valeur)));
+}
+
 /** Textes permis à l'écran pour le regard : le registre des textes choisis quand l'état le porte ; sinon le script validé, les textes du plan et la carte de fin. */
 function textesPermisDuRegard(etat: EtatTutoriel, laFin: FinDuTutoriel): string[] {
   const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
   const dansPlan = (v: unknown): string[] => (typeof v === "string" ? [v] : Array.isArray(v) ? v.flatMap(dansPlan) : v && typeof v === "object" ? Object.values(v).flatMap(dansPlan) : []);
   // QUAL-5 : les textes du plan composé (titre, libellés, bouton) sont permis à l'écran au même titre que ceux d'un plan de scènes.
-  const dansCompose = etat.compose ? Object.values(etat.compose).flatMap((c) => dansPlan(c.scenes)) : [];
+  const dansCompose = etat.compose ? Object.values(etat.compose).flatMap((c) => textesVisiblesCompose(c.scenes)) : [];
   if (registre?.entrees) return [...textesPermisDuRegistre(registre), ...dansCompose];
   return [...dansCompose, etat.script?.texte ?? "", ...(etat.plan ? dansPlan(etat.plan.plan.scenes.map((sc) => [sc.parametres, sc.calques])) : []), ...(laFin.fin ? [laFin.fin.titre, laFin.fin.sousTitre] : [])];
 }
@@ -1103,7 +1121,7 @@ async function pasRegarder(pas: PasTutoriel, outils: OutilsTutoriel): Promise<Pa
   // T-EXT-52b : un maître repris n'a ni film, ni sous-titres, ni fin dans sa demande : aucun regard payé (rien n'a changé dans ce format).
   if (!outils.regarder || pas.statut !== "faite" || etat.regard || !etat.plan || !maitre?.sortie || maitre.reprise) return pas;
   const registre = (etat as EtatTutoriel & { registre?: RegistreTextes }).registre;
-  const laFin = etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true);
+  const laFin = etat.compose ? FIN_COMPOSEE : (etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true));
   const instants = instantsTutoriel(etat.plan.plan, { finMs: laFin.finMs, ...(registre?.entrees ? { registre } : {}) });
   let lecture: LectureRegard | null = null;
   try {

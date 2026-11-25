@@ -17,6 +17,9 @@ export const LARGEUR_MAX_SANS_VOIX_PCT = 90;
 /** Bande réservée (grammaire B1) : de `basPct − 9` à `basPct + 6` % de la hauteur (≈ 202 px sur 1350, centre 87 %). */
 export const BANDE_SANS_VOIX_PCT = { avantPct: 9, apresPct: 6 } as const;
 
+/** La bande de fond va jusqu'au bas de l'image seulement si cela ajoute au plus ce pourcentage de la hauteur. */
+export const BANDE_BAS_MAX_PCT = 8;
+
 /** Centre vertical de la bande des sous-titres (« bas » du registre des réseaux) pour un ratio, en % de la hauteur. */
 export function basPctSansVoix(ratio: Ratio): number {
   return positionsVerticales(ratio, []).basPct;
@@ -54,10 +57,14 @@ export function normaliserSegments(segments: SegmentSousTitres[]): SegmentSousTi
 }
 
 /** Calque de sous-titres du tutoriel sans voix : segments normalisés, couleurs charte, bande de fond gris opaque. */
-export function calqueSansVoix(entree: { segments: SegmentSousTitres[]; ratio: Ratio; basPct?: number }): DonneesCalque {
+export function calqueSansVoix(entree: { segments: SegmentSousTitres[]; ratio: Ratio; basPct?: number; dureeMs?: number }): DonneesCalque {
   const basPct = entree.basPct ?? basPctSansVoix(entree.ratio);
+  // La bande grise reste jusqu'à la dernière image : le dernier groupe se prolonge jusqu'à la fin du plan (sinon la bande fond après lui).
+  const segments = normaliserSegments(entree.segments);
+  const dernier = segments.at(-1);
+  if (dernier && entree.dureeMs !== undefined && entree.dureeMs / 1000 > dernier.finSec) segments[segments.length - 1] = { ...dernier, finSec: entree.dureeMs / 1000 };
   const calque = donneesCalque({
-    segments: normaliserSegments(entree.segments),
+    segments,
     base: "minimal",
     ratio: entree.ratio,
     style: styleSansVoix(entree.ratio, basPct),
@@ -66,13 +73,17 @@ export function calqueSansVoix(entree: { segments: SegmentSousTitres[]; ratio: R
   });
   const { largeur, hauteur } = calque;
   const yPx = Math.round(((basPct - BANDE_SANS_VOIX_PCT.avantPct) / 100) * hauteur);
+  // La bande ne descend jusqu'au bas de l'image que si cela ajoute au plus 8 % de la hauteur ; sinon (9:16) elle garde sa hauteur normale.
+  const finNormalePx = Math.round(((basPct + BANDE_SANS_VOIX_PCT.apresPct) / 100) * hauteur);
+  const jusquAuBas = hauteur - finNormalePx <= (BANDE_BAS_MAX_PCT / 100) * hauteur;
+  const hauteurBandePx = jusquAuBas ? hauteur - yPx : Math.min(hauteur, finNormalePx) - yPx;
   return {
     ...calque,
     // Texte et bande lisibles à toute largeur : l'échelle suit le petit côté (60 px sur 1080), jamais la largeur du 16:9.
     echelleTexte: Math.min(largeur, hauteur) / 1080,
     // PAS d'`encre` : ce drapeau fait dessiner en Inter Bold (police de titre) ; sans lui, le rendu charge Manrope (Medium,
     // police du style « minimal »). L'ombre du style est de la teinte de la bande : elle ne se voit pas.
-    // La bande de fond va de son haut jusqu'au BAS de l'image (plus de bande ivoire vide) ; le texte reste centré sur basPct.
-    bandeFond: { couleur: COULEURS_SANS_VOIX.bande, opacite: 1, xPx: 0, yPx, largeurPx: largeur, hauteurPx: hauteur - yPx, fonduPx: 0 },
+    // La bande de fond va de son haut jusqu au bas (ou à basPct+6 si le bas est trop loin, voir ci-dessus) ; le texte reste centré sur basPct.
+    bandeFond: { couleur: COULEURS_SANS_VOIX.bande, opacite: 1, xPx: 0, yPx, largeurPx: largeur, hauteurPx: hauteurBandePx, fonduPx: 0 },
   };
 }
