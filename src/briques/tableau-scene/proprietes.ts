@@ -33,6 +33,8 @@ export interface EntreeScenes {
    * chaque bloc, mots importants, mot d'après d'une transformation. Absentes : le rendu garde son rythme naturel.
    */
   temps3?: Readonly<Record<string, number>>;
+  /** BOUCLE-TABLEAU-b : seul `true` pose le fondu vers la page vide sur la DERNIÈRE scène ; absent : identique à avant. */
+  finEnBoucle?: true;
 }
 
 /** Début de chaque écran du style « blocs/2 » (le premier d'une scène part avec elle, le suivant à son heure). */
@@ -232,6 +234,7 @@ function proprietesReference(entree: EntreeScenes, s: SceneCalee, k: number, heu
     finVoixMs: derniers ?? Math.max(0, finVideoMs - TENUE_FIN_TOTALE_MS),
     finVideoMs,
     derniere: s === scenes[scenes.length - 1],
+    ...(entree.finEnBoucle === true && s === scenes[scenes.length - 1] ? { finEnBoucle: true as const } : {}),
     heuresPage: Object.fromEntries(heures.filter((h) => ids.has(h.sceneId)).map((h) => [h.elementId, h.debutMs])),
     scenesPage: surPage.map((x) => ({ id: x.id, debutMs: x.debutMs ?? 0, finMs: x.finMs ?? 0 })),
     ...(accroche ? { accroche } : {}),
