@@ -49,6 +49,7 @@ describe("TELEPHONE-LARGEUR-a-v21r : le téléphone finit au-dessus des sous-tit
     expect(ok(g)).toBe(true);
   });
   it("(f) l'arbre AbsoluteFill > TelephoneVideo et largeur={LARGEUR_TELEPHONE_VIDEO} restent", () => {
-    expect(TEXTE).toMatch(/<AbsoluteFill[^>]*paddingTop: HAUT_TELEPHONE_VIDEO[^>]*>\s*<TelephoneVideo[^>]*largeur=\{LARGEUR_TELEPHONE_VIDEO\}/);
+    // `justifyContent: "flex-start"` fige la position « haut à 300 px » (centré sous le padding, le téléphone passerait sous les sous-titres).
+    expect(TEXTE).toMatch(/<AbsoluteFill style=\{\{ alignItems: "center", justifyContent: "flex-start", paddingTop: HAUT_TELEPHONE_VIDEO \}\}>\s*<TelephoneVideo[^>]*largeur=\{LARGEUR_TELEPHONE_VIDEO\}/);
   });
 });
