@@ -36,6 +36,7 @@ import type { RecetteComposition } from "./recette";
 import { poserEcransPartages } from "../habillage-facecam/ecran-partage";
 import { poserMisesEnPage, type CoteWill, type MiseEnPageScene, type ModeMiseEnPage } from "../habillage-facecam/mise-en-page";
 import { plagesLookBroll } from "../habillage-facecam/broll";
+import { NOIR_BLANC_ACTIF, plagesNoirBlancDesFaits } from "./plages-noir-blanc";
 import { centreJonctionPct } from "../habillage-facecam/sous-titres";
 import { poserCartesPleinEcran } from "../motion/pose";
 import { poserPlansCamera, type MulticameraComposition } from "../multicamera/composition";
@@ -449,7 +450,10 @@ export function parametresComposition(c: CommandeFabrication, e: EntreeCompositi
     }
   }
   const realisme = c.profilRealisme ?? c.profilRendu?.realisme;
-  const couleurs: ParametresCouleurs = { luts: c.briques.etalonnage === false ? [] : luts, grainPct: realisme?.grainPct ?? recette.realisme.grainPct, grainTaillePx: recette.realisme.grainTaillePx, vignettePct: realisme?.vignettePct ?? recette.realisme.vignettePct };
+  // NOIR-BLANC-b (C10-05, éteint) : plages « de A à B » du script en noir et blanc, jamais sur un plan où Williams est visible (visage, mise en page).
+  const interditsNb: [number, number][] = plans.filter((p) => p.type === "double" || p.miseEnPage).map((p) => [p.debutSec, p.finSec]);
+  const plagesNb = NOIR_BLANC_ACTIF && c.briques.etalonnage !== false && e.mots?.length ? plagesNoirBlancDesFaits(e.mots.map((m) => ({ texte: m.mot, debutMs: Math.round(m.debutSec * 1000), finMs: Math.round(m.finSec * 1000) })), { dureeSec: e.dureeSec, plansInterdits: interditsNb, actif: true }) : [];
+  const couleurs: ParametresCouleurs = { luts: c.briques.etalonnage === false ? [] : luts, grainPct: realisme?.grainPct ?? recette.realisme.grainPct, grainTaillePx: recette.realisme.grainTaillePx, vignettePct: realisme?.vignettePct ?? recette.realisme.vignettePct, ...(plagesNb.length ? { noirBlanc: plagesNb } : {}) };
 
   // --- Son ---
   const ps = c.styles.profilSon?.valeur;
