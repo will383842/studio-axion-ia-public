@@ -64,7 +64,7 @@ const HORS_OBJET_MASTER = [
   "cadrage.zoom-avocat|prod",
   "cadrage.zoom-demo|prod",
   "cadrage.camera-cas-concret|prod",
-  "cadrage.zoom-v4|absent",
+  "cadrage.zoom-v4|eteint", // C8-X01-b-v20j (seconde lecture du pilote)
   "motion.avis-client|prevu",
   // CATALOGUE-C10-C11-v21p
   "accroche.script|prevu",
