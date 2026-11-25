@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { EmpreinteVideo } from "@/briques/variete-commune/types";
 import { versCommun } from "@/briques/variete-commune/vocabulaire";
 import { tirer, type Tirage } from "@/moteurs/montage-cas-concret/variete";
@@ -66,13 +66,13 @@ describe("refusCommunCasConcret (X2-11b-a)", () => {
     expect(console.warn).toHaveBeenCalledTimes(1);
   });
 
-  it("garde statique : imports interdits absents, aucun importeur hors du dossier", () => {
+  it("garde statique : imports interdits absents, un seul importeur hors du dossier (X2-11b-c)", () => {
     const racine = resolve(__dirname, "../..");
     const src = readFileSync(join(racine, "src/services/variete-commune/refus-commun-cas-concret.ts"), "utf8");
     expect(src).not.toMatch(/from\s+["'][^"']*(fabrication|publications|reglages|travaux|image-video)/);
     const parcourir = (d: string): string[] =>
       readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? parcourir(p) : /\.(ts|tsx)$/.test(n) ? [p] : []; });
-    const importeurs = parcourir(join(racine, "src")).filter((p) => !p.includes("src/services/variete-commune/") && /refus-commun-cas-concret/.test(readFileSync(p, "utf8")));
-    expect(importeurs).toEqual([]);
+    const importeurs = parcourir(join(racine, "src")).filter((p) => !p.includes("src/services/variete-commune/") && /refus-commun-cas-concret/.test(readFileSync(p, "utf8"))).map((p) => relative(racine, p).replace(/\\/g, "/"));
+    expect(importeurs).toEqual(["src/services/cas-concret-variete.ts"]);
   });
 });
