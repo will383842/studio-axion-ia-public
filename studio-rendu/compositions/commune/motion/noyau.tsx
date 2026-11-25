@@ -429,7 +429,7 @@ export function IconeTracee({ nom, taille, debut, couleur = COULEURS.creme, epai
 
 /** Nombre à la française (espace fine insécable entre les milliers, virgule décimale). */
 export function formaterNombre(v: number, decimales = 0): string {
-  return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales }).format(v);
+  return new Intl.NumberFormat("fr-FR", { minimumFractionDigits: decimales, maximumFractionDigits: decimales }).format(v).replace(/\s/g, "\u00a0");
 }
 
 /** Valeur d'un compteur à l'instant t : sortie expo (vite puis se pose), durée 1,2 s par défaut. */
@@ -479,7 +479,7 @@ export function Filigrane({ texte, x, y, taille, debut = 0 }: { texte: string; x
         left: x,
         top: y,
         fontSize: taille,
-        fontWeight: 900,
+        fontWeight: 800,
         lineHeight: 0.8,
         color: "transparent",
         WebkitTextStroke: `${Math.max(2, 3 * u)}px ${avecOpacite(COULEURS.orange, 0.5)}`,

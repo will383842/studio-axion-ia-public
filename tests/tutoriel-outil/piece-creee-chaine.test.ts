@@ -8,7 +8,8 @@ import type { CommandeFabrication } from "@/domaine/types";
 import { appliquerSortie, prochainPas, ROLES_APPELES, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import { payerUneFois } from "@/moteurs/montage-tutoriel-outil/reprise";
 import { PARAM_ENTREE_PHRASE, PARAM_PIECE_CLAUDE } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
-import { ETAPE_PIECE_TUTORIEL, plafondTutorielPhraseUsd } from "@/services/tutoriel-claude";
+import { ETAPE_PIECE_TUTORIEL } from "@/services/tutoriel-claude";
+import { PLAFOND_TUTORIEL_USD } from "@/services/plafond-tutoriel";
 import { phraseOuverteTutoriel, portsEquipeAvecPhrase } from "@/services/tutoriel-equipe";
 import { fauxScenariste } from "./equipe-doubles";
 
@@ -106,18 +107,17 @@ describe("V2-08 : la chaîne depuis une phrase", () => {
     expect(port.phraseOuverte).toBe(true);
     const r = await courir(neuf(), port);
     expect(d.appels).toHaveLength(1);
-    expect(d.appels[0]).toEqual({ role: "maquettiste", etape: ETAPE_PIECE_TUTORIEL, plafond: plafondTutorielPhraseUsd() });
+    expect(d.appels[0]).toEqual({ role: "maquettiste", etape: ETAPE_PIECE_TUTORIEL, plafond: PLAFOND_TUTORIEL_USD });
     expect(r.pause?.code).toBe("TO_PIECE_A_CONSTRUIRE");
     expect(r.e.pieceCreee?.statut).toBe("a-construire");
   });
 
-  it("une vidéo partie d'un dossier garde le plafond d'aujourd'hui", async () => {
+  it("une vidéo partie d'un dossier garde le plafond de 1 € (1,11 $)", async () => {
     const d = double();
     const dossier = { origine: undefined, entrees: { tutorielOutil: { depot: { mode: "dossier", fichierId: "f1", attestationImages: true } } } } as unknown as Pick<CommandeFabrication, "origine" | "entrees">;
     const port = await portsEquipeAvecPhrase(dossier, "v1", { executer: d.executer, lire: lecteur(LES_DEUX) });
     await port.appelerRole("chef-de-projet", { contexte: {}, variable: "{}" });
-    const { plafondTutorielParDefautUsd } = await import("@/services/tutoriel-claude");
-    expect(d.appels[0]?.plafond).toBe(plafondTutorielParDefautUsd());
+    expect(d.appels[0]?.plafond).toBe(PLAFOND_TUTORIEL_USD);
   });
 
   it("une vidéo partie d'une idée (sans dépôt), les deux réglages à `true` : phraseOuverte false, TO_CAS_V2, 0 appel", async () => {

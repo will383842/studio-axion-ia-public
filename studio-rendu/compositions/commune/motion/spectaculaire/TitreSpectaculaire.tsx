@@ -34,7 +34,7 @@ function TitreLettres({ texte, debut, taille }: { texte: string; debut: number; 
   let rang = 0;
   const finCles = debut + (texte.replace(/\s|\*/g, "").length + 2) * DECALAGE_LETTRE + 0.35;
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", columnGap: "0.24em", fontSize: taille, fontWeight: 900, lineHeight: 1.0, letterSpacing: "-0.035em" }}>
+    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", columnGap: "0.24em", fontSize: taille, fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.035em" }}>
       {mots.map((mot, i) => (
         <span key={i} style={{ display: "inline-flex", whiteSpace: "nowrap" }}>
           {cles.has(i) ? (

@@ -109,10 +109,18 @@ describe("gardes statiques", () => {
     });
   const dossier = join(racine, "studio-rendu/compositions/commune/titres-couverture");
   const siens = ["EtapeMontante.tsx", "PastilleContexte.tsx"].map((n) => join(dossier, n));
+  // ÉLARGISSEMENT DU PILOTE n° 2 (C11-C2-a-v20k) : ces deux fichiers DÉCLARENT un identifiant de catalogue, ils n'importent aucun composant.
+  const declarations = ["src/briques/bibliotheque-video/noms.ts", "src/briques/bibliotheque-video/catalogue/couverture.ts"].map((c) => join(racine, c));
   it("rien n'importe les composants", () => {
     const tous = ["src", "studio-rendu/src", "studio-rendu/compositions"].flatMap((d) => sources(join(racine, d)));
-    for (const f of tous.filter((f) => !siens.includes(f) && !f.endsWith("composants.test.tsx"))) {
+    for (const f of tous.filter((f) => !siens.includes(f) && !declarations.includes(f) && !f.endsWith("composants.test.tsx"))) {
       expect(readFileSync(f, "utf8"), f).not.toMatch(/EtapeMontante|PastilleContexte/);
+    }
+  });
+  it("les deux fichiers de déclaration du catalogue n'importent rien de titres-couverture", () => {
+    for (const f of declarations) {
+      // Texte entier : couvre import multi-ligne, import() dynamique et ré-export.
+      expect(readFileSync(f, "utf8"), f).not.toMatch(/titres-couverture/);
     }
   });
   it("aucun service, fournisseur ni useCurrentFrame", () => {

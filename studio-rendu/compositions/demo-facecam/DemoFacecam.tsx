@@ -5,27 +5,14 @@
  * Mise en page, zooms et pistes calculés côté studio (`src/moteurs/montage-demo-facecam/`) ; ici : le dessin.
  * Le son est celui de la facecam (la voix réelle) ; l'écran est muet.
  */
-import { AbsoluteFill, continueRender, delayRender, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
+import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame } from "remotion";
 import { ImagePlan } from "../../../src/briques/plan-scenes/rendu";
 import { adoucir, CHARTE_AXION, FAMILLE_CSS_AXION, avecOpacite } from "../../../src/briques/jetons-motion";
 import { miseEnPageDemo, transformZoom, zoomA, type RectPx } from "../../../src/moteurs/montage-demo-facecam/mise-en-page";
 import type { ProprietesDemoFacecam } from "../../../src/moteurs/montage-demo-facecam/proprietes";
 import { cadrageDuMoment } from "./PassagesDemo";
 import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
-import manrope from "../../../src/app/polices/manrope-latin.woff2";
-
-let chargement: Promise<void> | null = null;
-function chargerManrope(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope");
-  const face = new FontFace("Manrope", `url(${manrope})`, { weight: "200 800" });
-  chargement = face
-    .load()
-    .then(() => {
-      document.fonts.add(face);
-    })
-    .finally(() => continueRender(attente));
-}
+import { chargerPoliceMarque } from "../commune/police-marque";
 
 const borne01 = (t: number) => Math.max(0, Math.min(1, t));
 
@@ -44,7 +31,7 @@ function SourceRecadree({ src, boite, recadrage, source, muet, debutImage }: { s
 }
 
 export function DemoFacecam(p: ProprietesDemoFacecam) {
-  chargerManrope();
+  chargerPoliceMarque();
   const image = useCurrentFrame();
   const ms = (image * 1000) / p.fps;
   const { miseEnPage: { ecran, facecam, sousTitres }, recadrageEcran, recadrageFacecam } = cadrageDuMoment(p, ms);

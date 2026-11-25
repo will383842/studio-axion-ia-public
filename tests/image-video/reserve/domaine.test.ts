@@ -48,8 +48,8 @@ describe("ajouterIV", () => {
     expect(a.ok && a.element.resserre).toBeUndefined();
   });
 
-  it("301 mots : le script devient une idée resserrée (texte gardé)", () => {
-    const t = Array.from({ length: 301 }, () => "mot").join(" ");
+  it("451 mots : le script devient une idée resserrée (texte gardé, seuil 450, #286)", () => {
+    const t = Array.from({ length: 451 }, () => "mot").join(" ");
     const a = ajouterIV(reserveVideIV(), { nature: "script", texte: t, reseaux: [] }, "s", T0);
     expect(a.ok && a.element).toMatchObject({ nature: "idee", resserre: true, texte: t });
   });

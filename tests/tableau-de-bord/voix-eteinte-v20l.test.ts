@@ -90,7 +90,7 @@ describe("voix du tableau de bord (G4-09c-a, éteinte)", () => {
   it("e) plafond proposé : 100 centimes, marqué non accepté", () => {
     expect(PLAFOND_VOIX_TDB_CENTIMES_PROPOSE).toBe(100);
     const source = readFileSync(join(__dirname, "..", "..", "src", "services", "tableau-de-bord-voix.ts"), "utf8");
-    expect(source).toMatch(/proposé, NON accepté/);
+    expect(source).toMatch(/accepté le 21\/11 07:20/);
   });
 
   it("f) éteint : aucun importeur ; le module ne lit aucun réglage, ne cite ni crédits, ni porte d'argent, ni montage-donnees", () => {
@@ -98,7 +98,7 @@ describe("voix du tableau de bord (G4-09c-a, éteinte)", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
     parcourir(racine);
-    expect(fichiers.filter((f) => !f.endsWith("tableau-de-bord-voix.ts") && readFileSync(f, "utf8").includes("tableau-de-bord-voix"))).toEqual([]);
+    expect(fichiers.filter((f) => !f.endsWith("tableau-de-bord-voix.ts") && readFileSync(f, "utf8").includes("tableau-de-bord-voix")).map((f) => f.slice(racine.length - 3))).toEqual(["src/services/tableau-de-bord-branchements.ts"]);
     const source = readFileSync(join(racine, "services", "tableau-de-bord-voix.ts"), "utf8");
     expect(source).not.toMatch(/lireParametre|credits|verifierEtReserver|verifierBudget|depenser|montage-donnees/);
     expect(source).not.toMatch(/^\s*import /m);

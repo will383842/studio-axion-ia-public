@@ -182,14 +182,18 @@ describe("G4 · limite, retouches, fabrication intérimaire", () => {
     return r;
   }
 
-  it("limite proposée par la machine : « Valider les N » refusé tant que Will ne l'a pas validée, puis accepté", async () => {
+  it("limite proposée par la machine : « Valider les N » non refusé (remarque au journal, 08/11), rien validé tant que la limite manque ; validée par Will : accepté", async () => {
     // Aucune limite dans le stock : la machine ne peut que la PROPOSER (K19).
     for (const m of await depots().matieres.lister((x) => x.type === "limite")) await depots().matieres.modifier(m.id, { archiveLe: new Date().toISOString() });
     const r = await sujetEcrit({ ...BRIEF, idee: SUJETS_BANC[1].idee, reseaux: SUJETS_BANC[1].reseaux, pilier: SUJETS_BANC[1].pilier.id });
     const m = await depots().scriptsMaitres.obtenir(r.scriptMaitreId);
     expect(m?.exception?.source).toBe("proposition-machine");
     const ids = (await depots().variantes.lister((v) => v.scriptMaitreId === r.scriptMaitreId)).map((v) => v.id);
-    await expect(bg.validerVariantes(ids)).rejects.toThrow(/limite proposée/);
+    // 08/11 (docs/blocages-inventaire.md:40) : la limite non validée ne refuse plus « Valider les N » ; une remarque va au journal.
+    // Les versions portent encore l'emplacement de la limite (« à compléter ») : aucune n'est validée à ce stade.
+    expect((await depots().variantes.lister((v) => v.scriptMaitreId === r.scriptMaitreId)).map((v) => v.etat)).toEqual(["a-completer", "a-completer"]);
+    expect(await bg.validerVariantes(ids)).toBe(0);
+    expect((await depots().evenements.lister()).map((e) => e.message)).toContain("Remarque : la limite proposée par la machine n'est pas validée ; la fabrication continue (le script de Williams fait foi).");
     await bg.validerException(r.scriptMaitreId, "c-est-juste");
     const apres = await depots().scriptsMaitres.obtenir(r.scriptMaitreId);
     expect(apres?.exception?.valideeParWill).toBe(true);
