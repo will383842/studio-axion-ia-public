@@ -10,7 +10,7 @@ export const DOMAINE: Domaine = {
     "style.faconDeParler": "valeur",
   },
   constantes: [
-    { cle: "varieteCommune", etat: "eteint", appel: "src/services/variete-commune/lire-reglage.ts", declare: "src/briques/variete-commune/reglage.ts", motif: /lireParametre<unknown>\(cle, false\)/ }, // BR-TABLEAU-STYLE-b2 : seul true ou { seuil } allume
+    { cle: "varieteCommune", etat: "allume", appel: "src/services/variete-commune/lire-reglage.ts", declare: "src/briques/variete-commune/reglage.ts", motif: /lireParametre<unknown>\(cle, true\)/ }, // ALLUMER-VARIETE-COMMUNE-v21o : absent ou null = allumé ; false éteint
     // (a) ALLUMER-CAS-CONCRET-GRATUITS-v21o : allumée par défaut depuis ALLUMER-TRANSITIONS-CC-v20g ; l'ancien motif `estAllume(await lire(` visait les deux AUTRES clés (reglage.ts:22).
     { cle: "habillage.transitionsPlanScenes", etat: "allume", appel: "src/briques/motion/habillage-commun/reglage.ts", motif: /nom === "transitionsPlanScenes"\) return \(await lire\(CLES_REGLAGE_HABILLAGE\[nom\], true\)\) !== false;/ },
     { cle: "pioche.commune", etat: "eteint", appel: "src/services/pioche-commune.ts", motif: /lireParametre<unknown>\(PARAM_PIOCHE_COMMUNE, false\)\) !== true/ },
