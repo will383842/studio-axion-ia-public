@@ -181,7 +181,7 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
     titre,
     sujet: titre,
     distribution,
-    entrees: { videoLongue: { chapitres: chapitres.map((c) => ({ id: c.id, titre: c.titre, texte: c.texte })), ...(sansVoix ? { sansVoix: true } : {}) } },
+    entrees: { videoLongue: { chapitres: chapitres.map((c) => ({ id: c.id, titre: c.titre, texte: c.texte })), ...(question ? { question: question.slice(0, 200) } : {}), ...(sansVoix ? { sansVoix: true } : {}) } },
   });
   const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
   try {

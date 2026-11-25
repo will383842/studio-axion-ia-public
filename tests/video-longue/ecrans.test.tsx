@@ -81,7 +81,10 @@ describe("VL-06 écran 2 : les chapitres", () => {
     expect(chapitresDuScript("")).toEqual([]);
     expect(chapitresDuScript("   \n ")).toEqual([]);
   });
-  it("sans titre, un bloc = un chapitre sans titre", () => expect(chapitresDuScript("Un.\n\nDeux.").map((c) => c.titre)).toEqual(["", ""]));
+  it("sans titre, un bloc = un chapitre sans titre", () => {
+    const bloc = (n: string) => Array.from({ length: 6 }, (_, i) => `Phrase ${n} numéro ${i + 1} du texte.`).join(" ");
+    expect(chapitresDuScript(`${bloc("A")}\n\n${bloc("B")}`).map((c) => c.titre)).toEqual(["", ""]);
+  });
   it("l'aperçu 16:9 vise environ deux tiers de la largeur (leçon VL-00 : un tiers était trop petit)", () => {
     expect(html).toContain('data-apercu-plan="16:9"');
     expect(html).toMatch(/aspect-video[^"]*md:w-2\/3|md:w-2\/3[^"]*aspect-video/);

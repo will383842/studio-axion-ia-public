@@ -7,6 +7,8 @@ import { Pastille } from "@/components/ui/Pastille";
 import { RemarquesFiche } from "@/components/formats/vitrines/RemarquesFiche";
 import { verifierChapitres } from "@/briques/geo";
 import type { ChapitreWeb } from "@/domaine/site-videos/types";
+import { chapitresDuScript, decouperEnPhrases, titreDeduit, titreManquant } from "@/moteurs/montage-video-longue/decoupage";
+import { dureeChapitreSansVoixMs, minuterSansVoix } from "@/moteurs/montage-video-longue/minutage";
 
 /** Mots par seconde de la voix : celui de la recette du format (2,6), pour que l'écran et la fabrication comptent pareil. */
 export const MOTS_PAR_SECONDE = 2.6;
@@ -24,7 +26,8 @@ export interface ChapitrePlan {
 }
 
 export const compterMots = (texte: string): number => texte.split(/\s+/).filter(Boolean).length;
-export const dureeSecDuTexte = (texte: string): number => compterMots(texte) / MOTS_PAR_SECONDE;
+/** Durée d'un chapitre à l'écran = celle de la fabrication (carton compris, voir `minutage.ts`). */
+export const dureeSecDuTexte = (texte: string): number => dureeChapitreSansVoixMs(texte) / 1000;
 
 /** « 6 min 40 », « 45 s ». */
 export function formaterDuree(sec: number): string {
@@ -32,52 +35,11 @@ export function formaterDuree(sec: number): string {
   return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`;
 }
 
-/** Découpe une phrase par phrase (le texte reste celui de l'utilisateur, aucun mot ajouté ni changé). */
-export function decouperEnPhrases(texte: string): string[] {
-  return texte
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(/(?<=[.!?…])\s+/)
-    .filter(Boolean);
-}
+export { chapitresDuScript, decouperEnPhrases };
 
-/**
- * Chapitres tirés du script collé : un titre « # … » ouvre un chapitre ; sans titre, un bloc séparé par une ligne vide
- * est un chapitre sans titre (l'utilisateur le nomme lui-même). Script vide : aucun chapitre, rien n'est inventé.
- */
-export function chapitresDuScript(script: string): ChapitrePlan[] {
-  const brut = script.replace(/\r\n/g, "\n").trim();
-  if (!brut) return [];
-  const lignes = brut.split("\n");
-  const avecTitres = lignes.some((l) => /^#+\s*\S/.test(l));
-  const blocs: { titre: string; texte: string[] }[] = [];
-  if (avecTitres) {
-    for (const l of lignes) {
-      const m = /^#+\s*(.+)$/.exec(l.trim());
-      if (m) blocs.push({ titre: m[1].trim(), texte: [] });
-      else if (l.trim()) {
-        if (blocs.length === 0) blocs.push({ titre: "", texte: [] });
-        blocs[blocs.length - 1].texte.push(l.trim());
-      }
-    }
-  } else {
-    for (const b of brut.split(/\n\s*\n/)) blocs.push({ titre: "", texte: [b.replace(/\s*\n\s*/g, " ").trim()] });
-  }
-  return blocs
-    .map((b) => ({ titre: b.titre, texte: b.texte.join(" ") }))
-    .filter((b) => b.texte !== "" || b.titre !== "")
-    .map((b, i) => ({ id: `chapitre-${i + 1}`, titre: b.titre, explique: "", texte: b.texte }));
-}
-
-/** Chapitres minutés (début, fin) sur la durée du texte de chacun, au format attendu par YouTube. */
-export function chapitresMinutes(chapitres: readonly ChapitrePlan[]): ChapitreWeb[] {
-  let debut = 0;
-  return chapitres.map((c, i) => {
-    const fin = debut + dureeSecDuTexte(c.texte);
-    const web: ChapitreWeb = { debutSec: Math.round(debut * 10) / 10, finSec: Math.round(fin * 10) / 10, libelle: c.titre.trim() || `Chapitre ${i + 1}`, blocRecette: "chapitres" };
-    debut = fin;
-    return web;
-  });
+/** Chapitres minutés (début, fin) comme à la fabrication sans voix : chacun commence sur son carton, au format attendu par YouTube. */
+export function chapitresMinutes(chapitres: readonly ChapitrePlan[], question?: string): ChapitreWeb[] {
+  return minuterSansVoix({ chapitres, question }).chapitres;
 }
 
 /**
@@ -90,7 +52,7 @@ export function planDepuisValide(valide: readonly { id: string; titre: string; e
     .map((c) => ({ id: c.id, titre: c.titre, explique: c.explique ?? plan.find((p) => p.id === c.id)?.explique ?? "", texte: c.phrases.join(" ") }));
 }
 
-export const dureeTotaleSec = (chapitres: readonly ChapitrePlan[]): number => chapitres.reduce((t, c) => t + dureeSecDuTexte(c.texte), 0);
+export const dureeTotaleSec = (chapitres: readonly ChapitrePlan[], question?: string): number => minuterSansVoix({ chapitres, question }).dureeSec;
 
 /** Remarques de l'écran 2 : durée hors zone et règles YouTube. Toujours des conseils, jamais un refus. */
 export function remarquesDuPlan(chapitres: readonly ChapitrePlan[]): string[] {
@@ -141,7 +103,7 @@ export function PlanChapitres({
                 className="flex min-w-0 basis-0 flex-col justify-end border-r border-trait p-2 text-xs text-texte last:border-r-0"
               >
                 <span className="font-semibold text-accent">{i + 1}</span>
-                <span className="truncate">{c.titre.trim() || `Chapitre ${i + 1}`}</span>
+                <span className="truncate">{titreManquant(c.titre) ? titreDeduit(c.texte) : c.titre.trim()}</span>
                 <span className="text-texte-doux">{formaterDuree(dureeSecDuTexte(c.texte))}</span>
               </li>
             ))}

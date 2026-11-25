@@ -29,7 +29,8 @@ describe("VL-SV durée de lecture", () => {
   it("chaque mot reste le temps de le lire, chapitres bout à bout", () => {
     const { mots, dureeSec } = estimerMotsSansVoix(lireEntreesVideoLongue(cmd(true)));
     expect(mots).toHaveLength(8);
-    expect(dureeSec).toBeCloseTo(8 / MOTS_PAR_SECONDE_LECTURE, 1);
+    // Deux chapitres de moins de 10 s sont fusionnés (QUALL-1) : un carton de 2,5 s, une phrase de 8 mots, sa respiration, la fin de 5 s.
+    expect(dureeSec).toBeCloseTo(2.5 + Math.max(2, 8 / MOTS_PAR_SECONDE_LECTURE) + 0.3 + 5, 1);
     for (let i = 1; i < mots.length; i++) expect(mots[i].debutSec).toBeGreaterThanOrEqual(mots[i - 1].finSec - 0.002);
   });
 });
