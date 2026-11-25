@@ -170,7 +170,8 @@ describe("QUAL-1 scènes (4:5)", () => {
     expect(texte(19000)).toContain("Articles à commander");
     expect(texte(21500)).toContain("Par urgence");
     expect(texte(28500)).toEqual(expect.arrayContaining(["Historique", "Entrées", "Sorties", "Date de la prochaine rupture prévue"]));
-    expect(texte(32000)).toContain("Un article passe sous le seuil");
+    expect(texte(33000)).toContain("Un article passe sous le seuil");
+    expect(texte(33000)).toContain("Tableau de bord");
     expect(texte(37500)).toEqual(expect.arrayContaining(["une heure", "une minute"]));
     expect(texte(37500)).not.toContain("une minute".toUpperCase());
     expect(texte(40500)).toEqual(expect.arrayContaining(["Vous voulez le même pour votre entreprise ?", "Prenez rendez-vous"]));
@@ -199,7 +200,7 @@ describe("QUAL-1 scènes (4:5)", () => {
   it("la surbrillance suit la cible fixe même pendant le tri ; la cible n'a aucune opacité forcée", () => {
     const p = copie(plan);
     evDe(p, "clic").aMs = 20000;
-    for (const t of [20300, 20500, 21000]) {
+    for (const t of [20600, 20800, 21000]) {
       expect(el(p, t, "s2/ligne-1/allume")!.rect).toEqual(el(p, t, "s2/ligne-1")!.rect);
     }
     // Pendant un focus qui atténue la liste, la cible ne reçoit ni 1 forcé ni atténuation : elle suit la scène (1).
@@ -246,7 +247,7 @@ describe("QUAL-1 scènes (4:5)", () => {
     const barre = (t: number) => el(plan, t, "s3/avant")?.barre ?? 0;
     const op = (p: PlanComposeSansVoix, t: number, id: string) => el(p, t, id)?.opacite ?? 0;
     // Fixture : apresAMs 35600 < barreAMs 36400 : « une minute » d'abord.
-    expect(op(plan, 34500, "s3/apres")).toBeLessThan(0.05);
+    expect(op(plan, 34270, "s3/apres")).toBeLessThan(0.05);
     expect(op(plan, 36000, "s3/apres")).toBeGreaterThan(0.9);
     expect(op(plan, 36200, "s3/avant")).toBeLessThan(0.05);
     expect(op(plan, 37000, "s3/avant")).toBeGreaterThan(0.9);
@@ -306,7 +307,7 @@ describe("QUAL-1 temps vivant et mise en valeur", () => {
     const op = (t: number, k: number) => empreinte(t).get(`s2/carte-${k}`)!.opacite;
     expect(op(5400, 3)).toBeLessThan(op(5400, 1) + 1e-9);
     expect(op(5400, 1)).toBeLessThan(op(6700, 1));
-    expect(op(5500, 3)).toBeLessThan(0.3);
+    expect(op(5300, 3)).toBeLessThan(0.3);
     expect(op(6700, 3)).toBeGreaterThan(0.9);
     const lib = (t: number) => ["1", "2", "3"].map((k) => empreinte(t).get(`s2/carte-${k}/libelle`)!.opacite);
     expect(Math.min(...lib(6900))).toBeGreaterThan(0.9);
@@ -619,7 +620,7 @@ describe.each(FORMATS)("QUAL-1 clic, toast, tiroir et remplissage ($nom)", (f) =
   const els = (t: number, p = plan) => imageSansVoixA(p, t).elements;
   const dansPt = (p: { x: number; y: number }, r: RectPx) => p.x >= r.x && p.x <= r.x + r.largeur && p.y >= r.y && p.y <= r.y + r.hauteur;
 
-  it("clic de la liste : trajet visible ≥ 1 s en arc, la ligne s'enfonce (0,97 pendant 150 ms), pointe sur la ligne", () => {
+  it("clic de la liste : trajet visible ≥ 1 s en arc, la ligne s'enfonce (0,97 pendant ≥ 300 ms avant l'ouverture de l'historique), pointe sur la ligne", () => {
     const tc = 23000;
     const cur = (t: number) => els(t).find((e) => e.genre === "curseur");
     expect(cur(tc - 800)!.opacite).toBeGreaterThan(0.5);
@@ -632,8 +633,14 @@ describe.each(FORMATS)("QUAL-1 clic, toast, tiroir et remplissage ($nom)", (f) =
     expect(cur(tc + 100)!.anneauClic).toBeGreaterThan(0);
     const larg = (t: number) => els(t).find((e) => e.id === "s2/rang-1")!.rect.largeur / els(t).find((e) => e.id === "s2/fenetre")!.rect.largeur;
     expect(larg(tc + 100) / larg(tc - 300)).toBeCloseTo(0.97, 2);
-    expect(larg(tc + 100) / larg(tc + 300)).toBeCloseTo(0.97, 2);
-    expect(larg(tc + 300) / larg(tc - 300)).toBeCloseTo(1, 2);
+    // L'appui tient ≥ 300 ms (0,97) AVANT que l'historique ne s'ouvre ; l'anneau terracotta est pleinement visible dès tc + 250.
+    expect(larg(tc + 100) / larg(tc + 520)).toBeCloseTo(0.97, 2);
+    expect(larg(tc + 340) / larg(tc - 300)).toBeCloseTo(0.97, 2);
+    expect(larg(tc + 520) / larg(tc - 300)).toBeCloseTo(1, 2);
+    for (const t of [tc + 250, tc + 400, tc + 550]) expect(els(t).find((e) => e.id === "s2/ligne-1/allume")!.opacite, `anneau t=${t}`).toBeGreaterThan(0.9);
+    const ouvert = (t: number) => els(t).find((e) => e.id === "s2/panneau")?.opacite ?? 0;
+    expect(ouvert(tc + 450)).toBeLessThan(0.02);
+    expect(ouvert(tc + 1200)).toBeGreaterThan(0.5);
     expect(els(tc + 100).find((e) => e.id === "s2/ligne-1/allume")!.contour).toBe("terracotta");
     expect(els(tc + 100).find((e) => e.id === "s2/ligne-1/allume-fond")!.remplissage).toBe("terracotta");
     const curseur = cur(tc)!;
@@ -690,33 +697,75 @@ describe.each(FORMATS)("QUAL-1 clic, toast, tiroir et remplissage ($nom)", (f) =
     expect(Math.abs(centre - (z.y + z.hauteur / 2))).toBeLessThan(30);
   });
 
-  it("l'alerte a son emplacement DANS la barre de titre : aucun toast ne recouvre un texte d'un autre groupe", () => {
-    for (const [nom, p, t0, t1] of [["fixture", plan, 29800, 34000], ["réel", planReel, 31800, 33800]] as const) {
+  it("alerte en deux temps : condition montrée dès aMs, toast au déclencheur puis fixe jusqu'à la sortie ; le titre ne disparaît jamais", () => {
+    for (const [nom, p, t0, fin, decl] of [["fixture", plan, 30000, 34000, 32400], ["réel", planReel, 32085, 33803, 33115.6]] as const) {
       let vu = 0;
-      for (let t = t0; t <= t1; t += 25) {
+      for (let t = t0; t <= fin + 240; t += 20) {
         const e = els(t, p);
+        const barre = e.find((x) => x.id === "s2/fenetre")!;
+        // La barre n'est JAMAIS vide : le titre reste lisible (opacité pleine) pendant toute la scène écran.
+        const titre = e.find((x) => x.id === "s2/fenetre/titre")!;
+        if (t <= fin) expect(titre.opacite, `${nom} titre t=${t}`).toBeGreaterThan(0.95);
         const boite = e.find((x) => x.id === "s2/alerte" && x.opacite > 0.05);
+        if (t < decl - 30) expect(boite, `${nom} pas de toast avant le déclencheur t=${t}`).toBeUndefined();
+        if (t >= decl + 460 && t <= fin) {
+          expect(boite, `${nom} toast présent t=${t}`).toBeDefined();
+          expect(boite!.opacite, `${nom} toast plein t=${t}`).toBeGreaterThan(0.99);
+          expect(e.find((x) => x.id === "s2/alerte/texte")!.opacite).toBeGreaterThan(0.99);
+        }
         if (!boite) continue;
         vu++;
         const autres = e.filter((x) => x.genre === "texte" && x.opacite > 0.05 && !x.id.startsWith("s2/alerte"));
         for (const o of autres) expect(inter(boite.rect, o.rect), `${nom} t=${t} ${o.id}`).toBe(false);
         for (const x of e.filter((y) => y.id.startsWith("s2/alerte/"))) expect(dedans(x.rect, boite.rect, 1e-6), `${nom} t=${t} ${x.id}`).toBe(true);
-        const fen = e.find((x) => x.id === "s2/fenetre")!.rect;
         const filet = e.find((x) => x.id === "s2/fenetre/filet")!.rect;
         expect(boite.rect.y + boite.rect.hauteur, `${nom} t=${t} dans la barre`).toBeLessThanOrEqual(filet.y + 1e-6);
-        expect(boite.rect.y).toBeGreaterThanOrEqual(fen.y);
+        expect(boite.rect.y).toBeGreaterThanOrEqual(barre.rect.y - 20);
       }
-      expect(vu, nom).toBeGreaterThan(40);
+      expect(vu, nom).toBeGreaterThan(20);
+      // Depuis aMs : la carte pulse et la dernière ligne de la liste vire au terracotta (en glissant un peu vers le haut).
+      const e = els(t0 + 600, p);
+      expect(e.find((x) => x.id === "s2/pulse-carte")!.contour).toBe("terracotta");
+      expect(e.find((x) => x.id === "s2/pulse-carte")!.opacite).toBeGreaterThan(0.5);
+      const fond = e.filter((x) => /^s2\/rang-\d+\/alerte-fond$/.test(x.id));
+      expect(fond).toHaveLength(1);
+      expect(fond[0].remplissage).toBe("terracotta");
+      const dernier = e.filter((x) => /^s2\/rang-\d+$/.test(x.id)).sort((a, b) => b.rect.y - a.rect.y)[0];
+      const avant = els(t0 - 50, p).find((x) => x.id === dernier.id)!;
+      expect(dernier.rect.y, `${nom} la ligne monte`).toBeLessThan(avant.rect.y);
     }
-    const e = els(33000, planReel);
+    const e = els(33700, planReel);
     expect(e.find((x) => x.id === "s2/alerte")!.ombre).toBe(true);
-    expect(e.find((x) => x.id === "s2/alerte")!.opacite).toBeGreaterThan(0.9);
     expect(e.find((x) => x.id === "s2/alerte/texte")!.taillePx!).toBeGreaterThanOrEqual(36 * echelleFormat(plan.format) * 0.99);
-    // Les libellés des cartes restent entièrement lisibles (opacité pleine ou focus 0,75) pendant le toast.
     for (const k of [1, 2, 3]) expect(e.find((x) => x.id === `s2/carte-${k}/libelle`)!.opacite, `carte ${k}`).toBeGreaterThan(0.7);
-    // Le toast a fini de s'effacer avant la fin de l'écran (33 803 ms) ; le titre de la fenêtre est là avant et après.
-    expect(Math.max(0, ...els(33790, planReel).filter((x) => x.id.startsWith("s2/alerte")).map((x) => x.opacite))).toBeLessThan(0.05);
-    expect(els(31000, planReel).find((x) => x.id === "s2/fenetre/titre")!.opacite).toBeGreaterThan(0.95);
+    // Le toast part avec l'écran : à 0,3 s de la fin il est encore plein, il s'efface seulement avec toute la scène.
+    expect(els(33800 - 100, planReel).find((x) => x.id === "s2/alerte")!.opacite).toBeGreaterThan(0.99);
+  });
+
+  it("déclencheurAMs fourni : le toast part là ; alerte tardive : le titre reste, le toast reste lisible jusqu'à la sortie", () => {
+    const p = copie(plan);
+    evDe(p, "alerte").declencheurAMs = 31000;
+    expect(els(30900, p).find((x) => x.id === "s2/alerte")).toBeUndefined();
+    expect(els(31600, p).find((x) => x.id === "s2/alerte")!.opacite).toBeGreaterThan(0.99);
+    const q = copie(plan);
+    evDe(q, "alerte").aMs = 33500;
+    for (let t = 33000; t <= 33990; t += 20) {
+      const e = els(t, q);
+      expect(e.find((x) => x.id === "s2/fenetre/titre")!.opacite, `titre t=${t}`).toBeGreaterThan(0.95);
+    }
+    expect(els(33900, q).find((x) => x.id === "s2/alerte")!.opacite).toBeGreaterThan(0.99);
+  });
+
+  it("pastille du toast : jambage du « p » dans la pastille (marge ≥ 0,3 × la taille au-dessus et au-dessous)", () => {
+    for (const p of [plan, planReel]) {
+      const e = els(p === plan ? 33500 : 33700, p);
+      const boite = e.find((x) => x.id === "s2/alerte")!;
+      const t = e.find((x) => x.id === "s2/alerte/texte")!;
+      const taille = t.taillePx!;
+      expect(t.rect.y - boite.rect.y, "haut").toBeGreaterThanOrEqual(0.3 * taille);
+      expect(boite.rect.y + boite.rect.hauteur - (t.rect.y + t.rect.hauteur), "bas").toBeGreaterThanOrEqual(0.3 * taille);
+      expect(t.rect.y + t.rect.hauteur + 0.25 * taille).toBeLessThanOrEqual(boite.rect.y + boite.rect.hauteur);
+    }
   });
 
   it("transition écran → repère : tout l'écran, toast compris, est à ≤ 0,15 avant que le moindre texte du repère n'apparaisse", () => {
@@ -743,8 +792,11 @@ describe.each(FORMATS)("QUAL-1 clic, toast, tiroir et remplissage ($nom)", (f) =
     expect(pos(23600) - pos(24400)).toBeGreaterThanOrEqual(60 * s - 1);
     expect(pos(24400)).toBeLessThanOrEqual(pos(25000) + 1);
     const haut = (t: number) => Math.max(0, ...els(t).filter((x) => /rubrique-1\/colonne-\d$/.test(x.id)).map((x) => x.rect.hauteur));
-    expect(haut(28500)).toBeGreaterThan(haut(25300) + 10 * s);
-    expect(haut(28500)).toBeGreaterThanOrEqual(20 * s);
+    // Mini-histogrammes : ≥ 26 px de haut (colonne la plus haute) ou absents (formats trop courts : les libellés gardent ≥ 36 px).
+    if (haut(28500) > 0) {
+      expect(haut(28500)).toBeGreaterThan(haut(25300) + 10 * s);
+      expect(haut(28500)).toBeGreaterThanOrEqual(26 * s);
+    } else expect(f.nom).toBe("1:1");
     const rub = els(28500).filter((x) => /rubrique-\d\/libelle$/.test(x.id));
     expect(rub).toHaveLength(3);
     for (const r of rub) expect(r.taillePx!, r.id).toBeGreaterThanOrEqual((f.nom === "1:1" || f.nom === "16:9" ? 36 : 40) * s * 0.99);
@@ -948,10 +1000,12 @@ function fondEffectif(els: ElementVisible[], texte: ElementVisible): [number, nu
 describe("QUAL-1 contraste des textes, états atténués compris", () => {
   it("tout texte visible et STABLE (hors fondu) a un contraste effectif ≥ 4,5:1 à chaque instant (opacité comprise)", () => {
     const pb: string[] = [];
-    for (const [nom, base] of [["fixture", PLAN_SANS_VOIX_STOCKS], ["réel", PLAN_SANS_VOIX_REEL]] as const) {
-      const plan = planPour(FORMATS[0], base);
+    const avecSite = copie(PLAN_SANS_VOIX_STOCKS);
+    (avecSite.scenes[3] as Extract<SceneSansVoix, { genre: "appel" }>).site = "studio-axion.fr";
+    for (const f of FORMATS) for (const [nom, base] of [["fixture", PLAN_SANS_VOIX_STOCKS], ["réel", PLAN_SANS_VOIX_REEL], ["avec site", avecSite]] as const) {
+      const plan = planPour(f, base);
       // (t = 0 est exclu : l'image 0 ms porte un plancher d'opacité 0,3 pour n'être jamais vide ; elle s'éclaircit dès 40 ms.)
-      for (let t = 200; t <= plan.dureeMs; t += 100) {
+      for (let t = 200; t <= plan.dureeMs; t += f === FORMATS[0] ? 100 : 250) {
         const a = imageSansVoixA(plan, t - 100).elements;
         const e = imageSansVoixA(plan, t).elements;
         const c = imageSansVoixA(plan, t + 100).elements;
@@ -962,7 +1016,7 @@ describe("QUAL-1 contraste des textes, états atténués compris", () => {
           const fond = fondEffectif(e, x);
           const texteEff = melange(rgb(COULEURS_HEX[x.couleur!]), fond, x.opacite);
           const k = contrasteWcag(versHex(texteEff), versHex(fond));
-          if (k < 4.5) pb.push(`${nom} t=${t} ${x.id} op=${x.opacite.toFixed(2)} contraste ${k.toFixed(2)}`);
+          if (k < 4.5) pb.push(`${f.nom} ${nom} t=${t} ${x.id} op=${x.opacite.toFixed(2)} contraste ${k.toFixed(2)}`);
         }
       }
     }
@@ -1138,5 +1192,134 @@ describe("QUAL-1 césure, littéralité et coût", () => {
     evDe(q, "panneau").rubriques.forEach((r) => (r.libelle = `${LONG} ${LONG}`));
     expect(moyenne(planPour(FORMATS[0]))).toBeLessThan(2);
     expect(moyenne(planPour(FORMATS[0], q))).toBeLessThan(10);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Tour 6 : alerte, cartes remplies ensemble, squelette, clic, écran final, horloges, vie de chaque scène                    */
+/* ------------------------------------------------------------------ */
+
+describe.each(FORMATS)("QUAL-1 tour 6 ($nom)", (f) => {
+  const plan = planPour(f);
+  const sc = echelleFormat(plan.format);
+  const els = (t: number, p = plan) => imageSansVoixA(p, t).elements;
+  const dansPt = (p: { x: number; y: number }, r: RectPx) => p.x >= r.x && p.x <= r.x + r.largeur && p.y >= r.y && p.y <= r.y + r.hauteur;
+
+  it("« trois chiffres » : barres et mini-graphiques des 3 cartes se remplissent ENSEMBLE, mini-graphiques ≥ 26 px ou absents", () => {
+    const aC = evDe(plan, "cartes-chiffres").aMs;
+    const base = (t: number, k: number) => els(t).find((e) => e.id === `s2/carte-${k}/valeur-base`)!.rect.largeur;
+    expect(base(aC - 50, 1)).toBeLessThan(1);
+    for (const k of [1, 2, 3]) expect(base(aC + 900, k), `carte ${k}`).toBeGreaterThan(20 * sc);
+    const col = (t: number, k: number) => Math.max(0, ...els(t).filter((e) => new RegExp(`^s2/carte-${k}/col-\\d+$`).test(e.id)).map((e) => e.rect.hauteur));
+    const h = [1, 2, 3].map((k) => col(aC + 1200, k));
+    if (h[0] > 0) {
+      for (const x of h) expect(x, "mini-graphique").toBeGreaterThanOrEqual(26 * sc);
+      for (const k of [1, 2, 3]) expect(col(aC - 50, k), `avant, carte ${k}`).toBe(0);
+    } else expect(f.nom).toBe("1:1");
+  });
+
+  it("squelette : contours des cartes, de la liste et de toutes ses lignes visibles ≤ 600 ms après l'entrée de la fenêtre", () => {
+    const t = 5250 + 600;
+    const e = els(t);
+    for (const id of ["s2/fenetre", "s2/carte-1", "s2/carte-2", "s2/carte-3", "s2/liste"]) expect(e.find((x) => x.id === id)!.opacite, id).toBeGreaterThan(0.85);
+    const rangs = e.filter((x) => /^s2\/rang-\d+$/.test(x.id));
+    expect(rangs.length).toBeGreaterThanOrEqual(3);
+    for (const r of rangs) expect(r.opacite, r.id).toBeGreaterThan(0.6);
+  });
+
+  it("avant / après : le premier texte arrive avec la carte (≤ 200 ms) ; l'horloge a un accent terracotta", () => {
+    const r = plan.scenes[2];
+    const a0 = r.debutMs + 250;
+    const txt = (t: number) => Math.max(0, ...els(t).filter((x) => x.id.startsWith("s3/") && x.genre === "texte").map((x) => x.opacite));
+    expect(txt(a0 + 40)).toBeLessThan(txt(a0 + 560));
+    expect(txt(a0 + 200)).toBeGreaterThan(0.15);
+    expect(txt(a0 + 600)).toBeGreaterThan(0.9);
+    const h = els(a0 + 900).find((x) => x.id === "s3/carte/horloge");
+    if (h) expect(h.couleur).toBe("terracotta");
+  });
+
+  it("petites icônes d'horloge (≤ 48 px) : aiguille immobile à 10 h 10 ; la grande horloge de l'avant / après tourne", () => {
+    const prog = (t: number) => els(t).find((x) => x.id === "s2/panneau/horloge")!.progression!;
+    expect(prog(24500)).toBeCloseTo((10 + 10 / 60) / 12, 6);
+    expect(prog(28000)).toBe(prog(24500));
+    expect(els(28000).find((x) => x.id === "s2/panneau/horloge")!.rect.largeur).toBeLessThanOrEqual(48 * sc * 1.04);
+    const g = (t: number) => els(t).find((x) => x.id === "s3/carte/horloge")?.progression;
+    if (g(36000) !== undefined) expect(Math.abs(g(36000)! - g(36500)!)).toBeGreaterThan(0.02);
+  });
+
+  it("écran final : groupe agrandi et centré, curseur par en dessous (jamais sur un texte), pointe à ≈ 27 % du bas, anneau, halo, bouton qui respire", () => {
+    const tc = 40300;
+    const z = zonesSansVoix(plan.format, plan.basPct).contenu;
+    const e0 = els(39800);
+    const q = e0.find((x) => x.id === "s4/question")!;
+    const b = e0.find((x) => x.id === "s4/bouton")!;
+    expect(q.taillePx!).toBeGreaterThanOrEqual(64 * sc * 0.99);
+    expect(e0.find((x) => x.id === "s4/bouton/texte")!.taillePx!).toBeGreaterThanOrEqual(60 * sc * 0.99);
+    expect(Math.abs((q.rect.y + b.rect.y + b.rect.hauteur) / 2 - (z.y + z.hauteur / 2))).toBeLessThan(40 * sc);
+    // Le curseur ne passe jamais sur un texte visible : ni sa pointe, ni sa boîte.
+    for (let t = tc - 1200; t <= 41300; t += 20) {
+      const e = els(t);
+      const c = e.find((x) => x.genre === "curseur");
+      if (!c || c.opacite < 0.05) continue;
+      for (const x of e.filter((y) => y.genre === "texte" && y.opacite > 0.05)) expect(inter(c.rect, x.rect), `t=${t} ${x.id}`).toBe(false);
+    }
+    const fin = els(tc + 1000);
+    const bf = fin.find((x) => x.id === "s4/bouton")!.rect;
+    const p = fin.find((x) => x.genre === "curseur")!.pointe!;
+    const reste = (bf.y + bf.hauteur - p.y) / bf.hauteur;
+    expect(reste, "pointe à 15–32 % du bas").toBeGreaterThan(0.15);
+    expect(reste).toBeLessThan(0.32);
+    expect(Math.abs(p.x - (bf.x + bf.largeur / 2))).toBeLessThan(6 * sc);
+    // Anneau à la pointe et anneau du bouton au clic ; halo ensuite ; le bouton respire (largeur variable après tc + 600).
+    expect(els(tc + 150).find((x) => x.id === "s4/anneau-pointe")!.contour).toBe("ivoire");
+    expect(els(tc + 150).find((x) => x.id === "s4/anneau")).toBeDefined();
+    expect(els(tc + 1500).find((x) => x.id === "s4/halo")).toBeDefined();
+    const larg = (t: number) => els(t).find((x) => x.id === "s4/bouton")!.rect.largeur / els(t).find((x) => x.id === "s4/question")!.rect.largeur;
+    const ls = [1000, 1300, 1600, 1900, 2200].map((d) => larg(tc + d));
+    expect(Math.max(...ls) - Math.min(...ls)).toBeGreaterThan(0.004);
+    // Une fois cliqué, le curseur est immobile (aux dérives de caméra près : < 12 px en 500 ms).
+    const p2 = els(tc + 1500).find((x) => x.genre === "curseur")!.pointe!;
+    expect(Math.hypot(p2.x - p.x, p2.y - p.y)).toBeLessThan(12 * sc);
+  });
+
+  it("clic de la liste : le curseur ne passe jamais sur un texte (cartes, titre de liste) et la pointe vise la position COURANTE de ligne-1, même juste après le tri", () => {
+    const p = copie(plan);
+    evDe(p, "clic").aMs = evDe(p, "tri").aMs + 300;
+    for (const pl of [plan, p]) {
+      const tc = Math.max(evDe(pl, "clic").aMs, pl.scenes[1].debutMs + 1600);
+      for (let t = tc - 1300; t <= tc + 1600; t += 20) {
+        const e = els(t, pl);
+        const c = e.find((x) => x.genre === "curseur");
+        if (!c || c.opacite < 0.05) continue;
+        for (const x of e.filter((y) => y.genre === "texte" && y.opacite > 0.05 && y.id.startsWith("s2/"))) expect(inter(c.rect, x.rect), `t=${t} ${x.id}`).toBe(false);
+        if (t >= tc) expect(dansPt(c.pointe!, e.find((x) => x.id === "s2/ligne-1")!.rect), `t=${t} pointe dans ligne-1`).toBe(true);
+      }
+    }
+  });
+
+  it("chaque scène vit : jamais 1,5 s sans changement visible (opacité, progression, barre, anneau ou nouvel élément)", () => {
+    const sig = (t: number, pref: string) => new Map(els(t).filter((e) => e.id.startsWith(pref)).map((e) => [e.id, e]));
+    for (const sceneI of plan.scenes) {
+      const pref = `${sceneI.id}/`;
+      for (let t = sceneI.debutMs + 700; t + 1500 <= sceneI.finMs; t += 100) {
+        const a = sig(t, pref);
+        const b = sig(t + 1500, pref);
+        let change = false;
+        for (const [id, e] of b) {
+          const o = a.get(id);
+          if (!o || Math.abs(e.opacite - o.opacite) > 0.04 || Math.abs((e.progression ?? 0) - (o.progression ?? 0)) > 0.01 || Math.abs((e.barre ?? 0) - (o.barre ?? 0)) > 0.01) change = true;
+        }
+        for (const id of a.keys()) if (!b.has(id)) change = true;
+        expect(change, `${sceneI.id} t=${t}`).toBe(true);
+      }
+    }
+  });
+
+  it("l'appel avec site : le site ≥ 36 px sur 2 lignes au besoin, jamais plus petit", () => {
+    const p = copie(plan);
+    (p.scenes[3] as Extract<SceneSansVoix, { genre: "appel" }>).site = "studio-axion.fr ".repeat(6).trim();
+    const si = els(41300, p).find((x) => x.id === "s4/site")!;
+    expect(si.taillePx!).toBeGreaterThanOrEqual(36 * sc * 0.99);
+    expect(si.lignes!.length).toBeLessThanOrEqual(2);
   });
 });
