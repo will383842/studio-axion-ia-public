@@ -272,11 +272,11 @@ export class FilesRendu {
     try {
       dossier = await this.o.creerDossier();
       travail = operation(demande, {
-          dossier,
-          signal: controleur.signal,
-          progression: (pc) => {
-            if (entree.etat.statut === "en_cours") entree.etat = { statut: "en_cours", progression: Math.max(0, Math.min(99, Math.round(pc))) };
-          },
+        dossier,
+        signal: controleur.signal,
+        progression: (pc) => {
+          if (entree.etat.statut === "en_cours") entree.etat = { statut: "en_cours", progression: Math.max(0, Math.min(99, Math.round(pc))) };
+        },
       });
       const resultat = await Promise.race([
         travail as Promise<Awaited<ReturnType<Operation>>>,

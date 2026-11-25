@@ -98,7 +98,7 @@ describe("rendu dans un processus enfant", () => {
   });
 
   it("le dossier temporaire du rendu devient le TMPDIR de l'enfant (profil Chrome effacé avec le rendu)", async () => {
-    let env: NodeJS.ProcessEnv = {};
+    let env: Partial<NodeJS.ProcessEnv> = {};
     const enfant = new FauxEnfant();
     const p = lancerRenduEnfant(demandeEnfant, { progression: () => undefined, signal: new AbortController().signal }, { lancer: (_m, e) => ((env = e), enfant), dossierTemp: "/tmp/rendu-x/tmp" }).catch(() => undefined);
     expect(env.TMPDIR).toBe("/tmp/rendu-x/tmp");
@@ -220,7 +220,7 @@ describe("dossier du rendu après un dépassement de délai", () => {
   const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const existe = (d: string) => readdir(d).then(() => true, () => false);
 
-  it("l'opération écrit encore après le dépassement : le dossier reste jusqu'à sa fin, puis disparaît", async () => {
+  it("dépassement de délai : l'échec est déjà écrit, mais le dossier reste tant que le travail n'est pas fini, puis disparaît", async () => {
     const dossier = await mkdtemp(join(tmpdir(), "ess3-depasse-"));
     let finir!: () => void;
     const f = new FilesRendu({
