@@ -137,7 +137,7 @@ function portRenduPlage(commande: CommandeFabrication, ports: PortsMontageVideoL
   return {
     async rendre(d: DemandePlage) {
       // Le réglage peut avoir été éteint pendant un long montage : relu avant chaque plage.
-      if (ports.actif && (await ports.actif()) !== true) throw new ErreurMontageVideoLongue("La vidéo longue a été éteinte : le montage s'arrête, rien de plus n'est lancé. Rallumez-la puis réessayez.", [], true);
+      if (ports.actif && (await ports.actif()) !== true) throw new Error("La vidéo longue a été éteinte : le montage s'arrête, rien de plus n'est lancé.");
       const cle = ports.cle(commande, `video-longue-plages/${d.idRendu}.mp4`);
       const signe = await ports.signer({}, [{ cle, mime: "video/mp4" }]);
       const demande: DemandeRendu = { idRendu: d.idRendu, operation: "composition", file: d.file, entrees: {}, sortie: { urlDepot: signe.depots[cle], cle }, parametres: d.parametres };
