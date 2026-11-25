@@ -290,7 +290,7 @@ function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { g
   }
   const source = plageDe(Math.min(base + choisi.premier, k), Math.max(base + choisi.dernier, k));
   // aMs : la conjonction de la condition si elle existe (où qu'elle soit dans la phrase), sinon le début du texte AFFICHÉ.
-  const aMs = cond ? t[cond.conj].debut : t[source.premier].debut;
+  const aMs = cond && cond.conj <= source.premier ? t[cond.conj].debut : t[source.premier].debut;
   const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs, texte: choisi.texte, declencheurAMs: t[k].debut, source };
   if (cartePulse !== undefined) ev.cartePulse = cartePulse;
   return ev;
@@ -350,7 +350,13 @@ const POLITESSES_FINALES: string[][] = [["merci"], ["bonne"], ["belle"], ["bon",
 
 /** Phrase de politesse finale : elle COMMENCE par merci, bonne (journée), à bientôt, au revoir… */
 function politesseFinale(t: Tok[], p: Phrase): boolean {
-  return POLITESSES_FINALES.some((m) => suiteA(t, p.premier, m, p.dernier));
+  if (!POLITESSES_FINALES.some((m) => suiteA(t, p.premier, m, p.dernier))) return false;
+  // « Merci de nous contacter », « Bonne nouvelle, prenez rendez-vous » : un mot d'appel => c'est l'appel, pas une politesse.
+  for (let i = p.premier; i <= p.dernier; i++) {
+    const c = nu(t[i].texte.split("-")[0]);
+    if (MOTS_APPEL.has(t[i].m) || MOTS_APPEL.has(t[i].n) || MOTS_APPEL.has(c) || VERBES_APPEL.has(t[i].m) || VERBES_APPEL.has(t[i].n) || VERBES_APPEL.has(c)) return false;
+  }
+  return true;
 }
 
 /** Titre plafonné (60 car.) : groupe de mots du début du script, coupé au mot, suite contiguë. */
@@ -427,12 +433,18 @@ function remapperIndices(plan: PlanComposeSansVoix, t: Tok[], nMots: number): vo
 }
 
 /** dureeMs plus courte que la parole : retire les scènes entièrement au-delà, et les événements hors de leur scène (ou les ramène à sa fin). */
-function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[]): void {
+function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[], t: Tok[]): void {
   const avant = scenes.length;
   for (let k = scenes.length - 1; k > 0; k--) if (scenes[k].debutMs >= dureeMs) scenes.splice(k, 1);
   if (scenes.length < avant) remarques.push(`${avant - scenes.length} scène(s) au-delà de dureeMs retirée(s).`);
   const dernier = scenes[scenes.length - 1];
-  if (dernier) dernier.finMs = Math.max(dernier.debutMs, dureeMs);
+  if (dernier) {
+    dernier.finMs = Math.max(dernier.debutMs, dureeMs);
+    // Dernier mot de la dernière scène : le dernier mot qui COMMENCE avant dureeMs.
+    let lim = dernier.mots.premier;
+    for (let k = 0; k < t.length; k++) if (t[k].debut < dureeMs) lim = k;
+    if (dernier.mots.dernier > lim) dernier.mots = plageDe(dernier.mots.premier, Math.max(dernier.mots.premier, lim));
+  }
   for (const sc of scenes) {
     if (sc.genre === "appel" && sc.clicAMs > sc.finMs) sc.clicAMs = sc.finMs;
     if (sc.genre === "repere") {
@@ -661,7 +673,7 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
     scenes.push({ ...b.scene, debutMs: debut, finMs: fin } as SceneSansVoix);
     borne = fin;
   });
-  if (dureeMs < finMots) tronquerA(scenes, dureeMs, remarques);
+  if (dureeMs < finMots) tronquerA(scenes, dureeMs, remarques, t);
   const plan: PlanComposeSansVoix = { version: VERSION_SANS_VOIX, format: e.format, dureeMs, basPct: e.basPct, scenes };
   remapperIndices(plan, t, nMots);
   return { plan, remarques };

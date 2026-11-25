@@ -524,3 +524,43 @@ describe("QUAL-2 — rythme de l'alerte et points mineurs", () => {
     });
   });
 });
+
+describe("QUAL-2 — politesse ou appel, aMs de l'alerte, mots tronqués", () => {
+  const appelDe = (texte: string) => composer(texte).plan.scenes.find((s) => s.genre === "appel");
+  it("« Merci de nous contacter. » reste un appel", () => {
+    const a = appelDe("Voici un tableau de bord pour vos stocks. Une alerte part. Merci de nous contacter.");
+    expect(a).toBeDefined();
+    if (a?.genre === "appel") expect(a.bouton).toMatch(/contact/i);
+  });
+  it("« Bonne nouvelle, prenez rendez-vous dès aujourd'hui. » reste un appel", () => {
+    const a = appelDe("Voici un tableau de bord pour vos stocks. Une alerte part. Bonne nouvelle, prenez rendez-vous dès aujourd'hui.");
+    expect(a).toBeDefined();
+    if (a?.genre === "appel") expect(norm(a.bouton)).toContain("rendez vous");
+  });
+  it("une vraie politesse est fondue dans l'appel", () => {
+    const { plan } = composer("Voici un tableau de bord pour vos stocks. Une alerte part. Prenez rendez-vous. Merci, bonne journée.");
+    const appels = plan.scenes.filter((s) => s.genre === "appel");
+    expect(appels).toHaveLength(1);
+    expect(plan.scenes[plan.scenes.length - 1].genre).toBe("appel");
+  });
+  it("alerte : conjonction après le texte affiché => aMs = début du texte affiché", () => {
+    const script = "Voici un tableau de bord pour vos stocks. Une alerte part quand le stock baisse. Prenez rendez-vous.";
+    const mots = motsDe(script);
+    const { plan } = composer(script);
+    const ev = plan.scenes.flatMap((s) => (s.genre === "ecran" ? s.evenements : [])).find((e) => e.genre === "alerte");
+    expect(ev).toBeDefined();
+    if (ev?.genre === "alerte") {
+      const i = mots.findIndex((m) => m.texte === "Une");
+      expect(ev.aMs).toBe(mots[i].debutMs);
+    }
+  });
+  it("troncature : le dernier mot de la dernière scène commence avant dureeMs", () => {
+    const script = FONDATEUR;
+    const mots = motsDe(script);
+    const dureeMs = Math.round(mots[mots.length - 6].debutMs + 10);
+    const { plan } = composer(script, { dureeMs });
+    const der = plan.scenes[plan.scenes.length - 1];
+    expect(mots[der.mots.dernier].debutMs).toBeLessThan(dureeMs);
+    expect(der.mots.dernier).toBeLessThanOrEqual(mots.length - 6);
+  });
+});
