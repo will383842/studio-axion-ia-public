@@ -69,7 +69,20 @@ function coupe(texte: string, taille: number, graisse: Graisse, largeur: number)
   let r = cacheCoupe.get(cle);
   if (!r) {
     if (cacheCoupe.size > 4000) cacheCoupe.clear();
-    r = couperLignes(texte.replace(/\*/g, ""), taille, graisse, largeur * UTILE, 0);
+    const propre = texte.replace(/\*/g, "");
+    r = couperLignes(propre, taille, graisse, largeur * UTILE, 0);
+    // Lignes équilibrées : même nombre de lignes, largeur la plus étroite possible (pas de mot orphelin en dernière ligne).
+    if (r.length >= 2) {
+      let bas = Math.max(...propre.split(/\s+/).filter(Boolean).map((m) => largeurMotMotion(m, taille, graisse, 0)));
+      let haut = largeur * UTILE;
+      const n = r.length;
+      for (let k = 0; k < 14; k++) {
+        const mil = (bas + haut) / 2;
+        if (couperLignes(propre, taille, graisse, mil, 0).length <= n) haut = mil;
+        else bas = mil;
+      }
+      r = couperLignes(propre, taille, graisse, haut, 0);
+    }
     cacheCoupe.set(cle, r);
   }
   return r;
@@ -418,7 +431,7 @@ function tuiles(s: SceneListe, t: number): ElementPose[] {
     if (pad + icone + 30 + Math.max(...lignes.map((l) => hauteurLignes(l.length, cand, 1.2))) + pad <= zoneH - entre - 20) break;
   }
   const hTexteMax = Math.max(...lignes.map((l) => hauteurLignes(l.length, taille, 1.2)));
-  const hTuile = Math.min(zoneH - entre - 20, Math.max(pad + icone + 30 + hTexteMax + pad, aT ? 400 : 520));
+  const hTuile = Math.max(pad + icone + 30 + hTexteMax + pad, Math.min(zoneH - entre - 20, aT ? 400 : 520));
   const total = entre + hTuile;
   const y0 = S.y + (zoneH - total) / 2;
   if (aT) {
@@ -477,7 +490,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   const n = s.elements.length;
   const dispo = zoneH - hTitre;
   const gap = 32;
-  const marque = s.titre ? 28 : 64;
+  const marque = s.titre ? 28 : 68;
   const pad = 32;
   // Colonnes et taille : la plus grande qui tient.
   let choix: { colonnes: number; taille: number; hLigne: number; lignes: string[][][] } | null = null;
@@ -504,7 +517,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
   }
   const { colonnes, taille, lignes } = choix;
   const rangs = Math.ceil(n / colonnes);
-  const hRang = Math.min(190, Math.max(choix.hLigne, (dispo - (rangs - 1) * gap) / rangs));
+  const hRang = Math.max(choix.hLigne, Math.min(190, (dispo - (rangs - 1) * gap) / rangs));
   const hBloc = rangs * hRang + (rangs - 1) * gap;
   // Tout le bloc (titre compris) est centré dans la zone, sur sa taille finale.
   const yTop = S.y + Math.max(0, (zoneH - hTitre - hBloc) / 2);
@@ -534,7 +547,7 @@ function liste(s: SceneListe, t: number): ElementPose[] {
       const d = 28 * (0.35 + 0.65 * rebond(prog(t, app[i], 450))) + (e >= 1 ? 3 * souffle(tl, 2200, i) : 0);
       out.push(disqueEl(`${s.id}:puce${i}`, cx + pad + marque / 2, cy + hRang / 2, Math.max(8, d), p.accent, undefined, e, 0, `${s.id}:carte${i}`));
     } else {
-      out.push(texteEl({ id: `${s.id}:num${i}`, x: cx + pad, y: cy + (hRang - 72) / 2, largeur: marque, texte: String(i + 1), taille: 72, graisse: 800, couleur: p.accent, interligne: 1.0, opacite: e, dy: 20 * (1 - e), dans: `${s.id}:carte${i}` }));
+      out.push(texteEl({ id: `${s.id}:num${i}`, x: cx + pad, y: cy + (hRang - 80) / 2, largeur: marque, texte: String(i + 1), taille: 80, graisse: 800, couleur: p.accent, interligne: 1.0, opacite: e, dy: 20 * (1 - e), dans: `${s.id}:carte${i}` }));
     }
     out.push(
       texteEl({
@@ -586,12 +599,8 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   const S = ZONES_LONGUE.scene;
   const out: ElementPose[] = [];
   const n = s.elements.length;
-  const gap = 44;
-  const d = 112;
+  const d = 128;
   const dispo = BAS_SCENE - S.y;
-  const hRang = Math.min(240, (dispo - (n - 1) * gap) / Math.max(1, n));
-  const hBloc = n * hRang + (n - 1) * gap;
-  const y0 = S.y + (dispo - hBloc) / 2;
   const xCarte = S.x + d + 40;
   const lCarte = S.largeur - d - 40;
   const lTexte = lCarte - 96;
@@ -600,21 +609,33 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
   app.forEach((a, i) => {
     if (t >= a) actif = i;
   });
-  // Même taille pour toutes les étapes de la scène.
-  let taille: number = 56;
-  for (const cand of [56, 52, TAILLES_LONGUE.etape, 46, 44]) {
+  // Même taille pour toutes les étapes ; chaque carte a la hauteur de ses lignes réelles ; le bloc est centré sur sa taille finale.
+  let taille: number = 60;
+  let gap = 40;
+  let lignesDe: string[][][] = [];
+  let hautes: number[] = [];
+  for (const cand of [60, 56, 52, TAILLES_LONGUE.etape, 46, 44]) {
     taille = cand;
-    const maxH = Math.max(...s.elements.map((e) => hauteurLignes(coupe(e.texte, cand, 600, lTexte).length, cand, 1.2)));
-    if (maxH <= hRang - 36) break;
+    lignesDe = s.elements.map((e) => coupe(e.texte, cand, 600, lTexte));
+    hautes = lignesDe.map((l) => Math.min(260, Math.max(190, hauteurLignes(l.length, cand, 1.2) + 64)));
+    gap = 40;
+    if (hautes.reduce((a, b) => a + b, 0) + (n - 1) * gap <= dispo) break;
   }
+  const somme = hautes.reduce((a, b) => a + b, 0);
+  if (somme + (n - 1) * gap > dispo) gap = Math.max(16, (dispo - somme) / Math.max(1, n - 1));
+  const hBloc = somme + (n - 1) * gap;
+  const y0 = S.y + Math.max(0, (dispo - hBloc) / 2);
+  const tops: number[] = [];
+  hautes.reduce((acc, h, i) => ((tops[i] = acc), acc + h + gap), y0);
   s.elements.forEach((el, i) => {
     if (t <= app[i]) return; // aucune case fantôme : ni carte, ni disque avant le texte
-    const ry = y0 + i * (hRang + gap);
+    const ry = tops[i];
+    const hRang = hautes[i];
     const e = douce(prog(t, app[i], 380));
     const courant = i === actif;
     const idCarte = `${s.id}:carte${i}`;
     out.push(carteEl(idCarte, { x: xCarte, y: ry, largeur: lCarte, hauteur: hRang }, p.carte, courant ? p.accent : p.bordure, e, 32, courant ? 4 : 2));
-    const lignes = coupe(el.texte, taille, 600, lTexte);
+    const lignes = lignesDe[i];
     const hT = hauteurLignes(lignes.length, taille, 1.2);
     out.push(texteEl({ id: `${s.id}:texte${i}`, x: xCarte + 48, y: ry + (hRang - hT) / 2, largeur: lTexte, texte: el.texte, taille, graisse: 600, couleur: p.texte, accent: el.accent, couleurAccent: p.accent, interligne: 1.2, lignes, opacite: e, dy: 20 * (1 - e), dans: idCarte }));
     // Disque : plein pour l'étape lue (il pulse), au trait sinon.
@@ -624,12 +645,12 @@ function etapes(s: SceneEtapes, t: number): ElementPose[] {
     const cy = ry + hRang / 2;
     const dd = d * pop;
     out.push(disqueEl(idD, cx, cy, dd, courant ? p.accent : p.fond === "noir" ? "noir" : "ivoire", p.accent, e, courant ? 0 : 5));
-    out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - dd / 2, y: cy - 38, largeur: dd, texte: String(s.numeroDepart + i), taille: 76, graisse: 800, couleur: courant ? p.surAccent : p.accent, interligne: 1.0, alignement: "centre", opacite: e, dans: idD }));
+    out.push(texteEl({ id: `${s.id}:num${i}`, x: cx - dd / 2, y: cy - 44, largeur: dd, texte: String(s.numeroDepart + i), taille: 88, graisse: 800, couleur: courant ? p.surAccent : p.accent, interligne: 1.0, alignement: "centre", opacite: e, dans: idD }));
     if (i > 0) {
-      const haut = y0 + (i - 1) * (hRang + gap) + hRang / 2 + d / 2 + 8;
-      const bas = ry + hRang / 2 - d / 2 - 8;
+      const haut = tops[i - 1] + hautes[i - 1] / 2 + d / 2 + 8;
+      const bas = cy - d / 2 - 8;
       const q = douce(prog(t, app[i], 520));
-      if (q > 0) out.push({ ...traitEl(`${s.id}:lien${i}`, { x: cx - 3, y: haut, largeur: 6, hauteur: Math.max(0, bas - haut) * q }, p.accent, 1, 1), trace: arrondi(q) });
+      if (q > 0 && bas > haut) out.push({ ...traitEl(`${s.id}:lien${i}`, { x: cx - 3, y: haut, largeur: 6, hauteur: (bas - haut) * q }, p.accent, 1, 1), trace: arrondi(q) });
     }
   });
   return out;
@@ -764,8 +785,9 @@ function avantApres(s: SceneAvantApres, t: number): ElementPose[] {
   const out: ElementPose[] = [];
   const lCarte = 680;
   const lT = lCarte - 96;
-  const a = ajuster(s.avant, 56, 44, 600, lT, 480, 1.2);
   const b = ajuster(s.apres, 72, 44, 800, lT, 480, 1.15);
+  // « Après » reste au moins 1,3 fois plus grand que « avant » (hiérarchie).
+  const a = ajuster(s.avant, Math.max(44, Math.min(56, Math.floor(b.taille / 1.32))), 44, 600, lT, 480, 1.2);
   const hA = hauteurLignes(a.lignes.length, a.taille, 1.2);
   const hB = hauteurLignes(b.lignes.length, b.taille, 1.15);
   const hC = Math.min(BAS_SCENE - S.y - 40, Math.max(560, 140 + Math.max(hA, hB) + 90));
