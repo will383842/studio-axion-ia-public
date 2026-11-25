@@ -282,7 +282,7 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
     expect(await ls.portsLecteurTableauStudio("v-03").claudeAllume()).toBe(false);
   });
 
-  it("j) gardes de texte : aucun importeur dans src/**, une seule lecture de réglage, clés de lecteur aux seuls endroits connus", () => {
+  it("j) gardes de texte : un seul importeur dans src/** : la route (S-05-b), une seule lecture de réglage, clés de lecteur aux seuls endroits connus", () => {
     const src = readFileSync("src/services/retouche-chat/lecteur-studio.ts", "utf8");
     expect(src.match(/lireParametre</g)).toHaveLength(1);
     expect(src).toContain("lireParametre<unknown>(cle, false)) === true");
@@ -294,7 +294,8 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
         const p = join(d, n);
         return statSync(p).isDirectory() ? fichiers(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
       });
-    expect(fichiers("src").filter((f) => !f.endsWith("lecteur-studio.ts") && /lecteur-studio/.test(readFileSync(f, "utf8")))).toEqual([]);
+    // S-05-b-v21s (25/11, ÉLARGISSEMENT, seconde lecture du pilote) : la route du chat est le SEUL importeur permis (liste exacte).
+    expect(fichiers("src").filter((f) => !f.endsWith("lecteur-studio.ts") && /lecteur-studio/.test(readFileSync(f, "utf8")))).toEqual(["src/app/api/retouche-chat/route.ts"]);
     const trouves = execSync(`git grep -l -E "retoucheChat\\..*Lecteur" -- src`, { encoding: "utf8" }).split("\n").filter(Boolean).sort();
     expect(trouves).toEqual(["src/services/retouche-chat/lecteur-generateurs.ts", "src/services/retouche-chat/lecteur-studio.ts", "src/services/tutoriel-claude.ts"]);
   });
