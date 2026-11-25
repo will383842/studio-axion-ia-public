@@ -5,10 +5,14 @@
 import { AbsoluteFill, continueRender, delayRender, useCurrentFrame } from "remotion";
 import { ImagePlan, dureeImagesPlan } from "../../../src/briques/plan-scenes/rendu";
 import type { PlanValide } from "../../../src/briques/plan-scenes/schema";
+import type { DonneesCalque } from "../../../src/briques/sous-titres/scene";
+import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
 import manrope from "../../../src/app/polices/manrope-latin.woff2";
 
 export type ProprietesPlanDeScenes = {
   plan: PlanValide;
+  /** Sous-titres facultatifs (vidéo longue sans voix) : sans eux, le rendu est strictement inchangé. */
+  sousTitres?: DonneesCalque;
 };
 
 let chargement: Promise<void> | null = null;
@@ -24,12 +28,13 @@ export function chargerManrope(): void {
     .finally(() => continueRender(attente));
 }
 
-export function PlanDeScenes({ plan }: ProprietesPlanDeScenes) {
+export function PlanDeScenes({ plan, sousTitres }: ProprietesPlanDeScenes) {
   chargerManrope();
   const image = useCurrentFrame();
   return (
     <AbsoluteFill>
       <ImagePlan plan={plan} image={image} />
+      {sousTitres ? <CalqueSousTitres donnees={sousTitres} /> : null}
     </AbsoluteFill>
   );
 }

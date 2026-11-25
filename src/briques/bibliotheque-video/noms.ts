@@ -17,7 +17,7 @@ export const FAMILLES_CAPACITE = [
 
 /**
  * Identifiants fixes (PLAN-FINAL § 3.3, AM-16, AM-08, AM-09). Clé = identifiant en camelCase (sans point ni tiret).
- * Hors périmètre ici : chantier 10 (C10-15) : il ajoutera ses noms.
+ * Chantiers 10 (C10-15) et 11 (C11) : leurs 10 noms sont inscrits en fin de table (CATALOGUE-C10-C11-v21p).
  */
 export const ID = {
   // texte
@@ -110,6 +110,18 @@ export const ID = {
   accrocheMotCle: "accroche.mot-cle",
   mentionIa: "mention.ia",
   rythmeBoucle: "rythme.boucle",
+  // C10-15 (chantier 10, `prevu`)
+  accrocheScript: "accroche.script",
+  rythmeMesure: "rythme.mesure",
+  etalonnageNoirBlanc: "etalonnage.noir-blanc",
+  texteLueur: "texte.lueur",
+  texteFondClair: "texte.fond-clair",
+  // C11 (chantier 11)
+  texteMarquesAuMot: "texte.marques-au-mot",
+  texteSelectif: "texte.selectif",
+  texteModeCarte: "texte.mode-carte",
+  texteEffets: "texte.effets",
+  texteAccentsRole: "texte.accents-role",
 } as const satisfies Record<string, IdCapacite>;
 
 /** Préfixe des 13 coulisses v4 : leurs identifiants sont construits par C1-U1, jamais écrits ici. */

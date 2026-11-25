@@ -12,7 +12,15 @@ studio-rendu/.essai-local
 studio-rendu/.remotion
 # Image du studio (Next) : ni les outils, ni les tests, ni le conteneur de rendu (qui a sa propre image)
 tests
-outils
+outils/*
+# Seules exceptions : les 7 maquettes de démo (RES-8, lues à l'exécution par tutoriel-reserve-maquettes.ts) et leur feuille de
+# style. Dockerignore : la dernière règle qui correspond l'emporte ; un dossier exclu doit être ré-inclus avant ses enfants.
+!outils/maquettes-tableaux-de-bord
+outils/maquettes-tableaux-de-bord/*
+!outils/maquettes-tableaux-de-bord/0[1-7]-*
+!outils/maquettes-tableaux-de-bord/charte
+outils/maquettes-tableaux-de-bord/charte/*
+!outils/maquettes-tableaux-de-bord/charte/charte.css
 studio-rendu
 docs
 **/*.test.ts

@@ -43,11 +43,11 @@ export interface StylePastille {
 }
 
 /**
- * C2-U14 : la Pastille en Manrope Bold (700), police de la charte, au lieu de la police de titre actuelle. ÉTEINTE : tant
- * qu'elle vaut `false` (et que le style ne porte pas `enManrope: true`), mesure, dessin et polices chargées sont ceux
- * d'aujourd'hui. Elle s'allume par une PR d'une ligne, sur geste de Williams, avec un rendu témoin avant/après.
+ * C2-U14 · ALLUMER-PASTILLE-MANROPE-v21q (décision de Williams du 21/11 00:35, « Manrope partout ») : la Pastille est
+ * mesurée ET dessinée en Manrope Bold (700), police de la charte. Un style qui porte `enManrope: false` garde la police
+ * du gabarit (mesure) et la police de titre au rendu, comme avant. Seul `true` allume.
  */
-export const PASTILLE_EN_MANROPE = false;
+export const PASTILLE_EN_MANROPE = true;
 
 /** Seul `true` allume (jamais une valeur « vraie » d'un autre type). */
 export function pastilleEnManrope(p: StylePastille, constante: boolean = PASTILLE_EN_MANROPE): boolean {

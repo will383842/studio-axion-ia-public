@@ -97,6 +97,6 @@ describe("BR-MOT-CLE-a · poserMotCleAuPlan", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
     parcourir("src");
-    expect(fichiers.filter((f) => !f.endsWith("mot-cle-au-plan.ts") && readFileSync(f, "utf8").includes("mot-cle-au-plan"))).toEqual([]);
+    expect(fichiers.filter((f) => !f.endsWith("mot-cle-au-plan.ts") && readFileSync(f, "utf8").includes("mot-cle-au-plan")).map((f) => f.split("\\").join("/"))).toEqual(["src/moteurs/montage-cas-concret/plan-scenes.ts"]);
   });
 });

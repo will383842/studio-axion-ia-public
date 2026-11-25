@@ -14,6 +14,8 @@ import { cartesDesPassages } from "@/moteurs/montage-facecam/raccords";
 import type { PassageMonteur } from "@/moteurs/montage-facecam/monteur";
 import type { ImageRvb } from "@/moteurs/montage-facecam/effets-chaine";
 import { depots, fournisseur, maintenant } from "./_commun";
+import { lireVarieteCommune } from "./variete-commune/lire-reglage";
+import { memoireCartesCommune } from "./variete-commune/memoire-cartes-commune";
 
 /** Début du travail (le plafond du monteur pour cette version court depuis lui) ; inconnu : maintenant. */
 async function debutDuTravail(travailId?: string): Promise<string> {
@@ -212,4 +214,9 @@ export async function memoireCartesFacecam(videoIdEnCours?: string): Promise<{ d
 }
 
 // GV-MD-05b : la chaîne lit cet historique une fois au premier habillage et le fige dans l'état du travail.
-brancherServicesFacecam({ memoireCartes: (c) => memoireCartesFacecam(c.videoId) });
+/** Réseau de la vidéo (variété commune) ; vidéo absente, sans réseau ou illisible : aucun réseau, ne lève jamais. */
+async function reseauDeLaVideo(videoId: string): Promise<string[]> {
+  try { const video = await depots().videos.obtenir(videoId); return video?.reseau ? [video.reseau] : []; } catch { return []; }
+}
+// Ordre : la mémoire propre D'ABORD ; si elle lève, l'erreur remonte telle quelle (GV-FIN-01).
+brancherServicesFacecam({ memoireCartes: async (c) => memoireCartesCommune({ memoire: await memoireCartesFacecam(c.videoId), reseaux: await reseauDeLaVideo(c.videoId), videoIdEnCours: c.videoId, lire: lireVarieteCommune }) });
