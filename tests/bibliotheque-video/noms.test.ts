@@ -43,6 +43,10 @@ const IDENTIFIANTS_PLAN = [
   "objet.trait", "objet.marque", "objet.etiquette", "objet.appel", "objet.chiffre", "objet.etape", "objet.cartes", "objet.schema", "objet.ecran", "objet.reseau-schema", "objet.manuscrit", "objet.emoji",
   // X1-00
   "texte.poids-variable", "texte.minimal-dynamique", "ecran.fenetre-inclinee", "fond.verre-depoli", "transition.zoom-mot", "transition.raccord-forme", "accroche.apercu-fin", "accroche.mot-cle", "mention.ia", "rythme.boucle",
+  // C10-15
+  "accroche.script", "rythme.mesure", "etalonnage.noir-blanc", "texte.lueur", "texte.fond-clair",
+  // C11
+  "texte.marques-au-mot", "texte.selectif", "texte.mode-carte", "texte.effets", "texte.accents-role",
 ];
 
 const FAMILLES_ATTENDUES = [

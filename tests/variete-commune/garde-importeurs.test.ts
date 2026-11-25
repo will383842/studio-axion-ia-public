@@ -15,6 +15,7 @@ const PERMIS_SERVICES: readonly string[] = [
   "src/services/tableau-branchements.ts", // X2-12b-b
   "src/services/facecam-branchements.ts", // X2-13b-b
   "src/services/avocat-branchements.ts", // X2-13b-b
+  "src/services/tableau-creation.ts", // BR-TABLEAU-STYLE-b2
   "src/services/facecam-animee.ts", // X2-14b-b (chef)
   "scripts/variete-commune/", // préfixe : tout le dossier du rapport
 ];

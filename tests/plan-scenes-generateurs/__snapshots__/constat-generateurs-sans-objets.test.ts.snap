@@ -5,6 +5,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > c
   "codes": [
     "PARAMETRES_REPARES",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -48,7 +50,9 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > c
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / chiffres : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -164,6 +168,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > c
   "codes": [
     "PARAMETRES_REPARES",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -207,7 +213,10 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > c
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / enumeration : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -263,6 +272,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > c
   "codes": [
     "PARAMETRES_REPARES",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -306,7 +317,9 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > c
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > cas-concret / etapes : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -401,6 +414,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -444,7 +459,9 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / chiffres : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -561,6 +578,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -604,7 +623,10 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / enumeration : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -661,6 +683,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -704,7 +728,9 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam / etapes : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -799,6 +825,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -842,7 +870,9 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / chiffres : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -959,6 +989,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -1002,7 +1034,10 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / enumeration : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -1059,6 +1094,8 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "laissees": [],
   "plan": {
@@ -1102,7 +1139,9 @@ exports[`adaptateur sans objets : sortie figée pour les trois générateurs > f
 
 exports[`adaptateur sans objets : sortie figée pour les trois générateurs > facecam-animee / etapes : stock (sans LLM) figé, déterministe, aucun appel 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "laissees": [],
   "plan": {
     "empreintes": [
@@ -1203,6 +1242,8 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "entree": "df968c45a86e5db5",
   "plan": {
@@ -1456,7 +1497,9 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
 
 exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / chiffres : sans LLM, plan figé et déterministe 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "entree": "cd4df5e267f12dc2",
   "plan": {
     "dureeMs": 13950,
@@ -1781,6 +1824,8 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "entree": "23d0718b5aa3b83a",
   "plan": {
@@ -1984,7 +2029,10 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
 
 exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / enumeration : sans LLM, plan figé et déterministe 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+    "RYTHME",
+  ],
   "entree": "2dd346cd0b59596b",
   "plan": {
     "dureeMs": 10450,
@@ -2201,6 +2249,8 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "entree": "fdb55be18e5ccb7d",
   "plan": {
@@ -2429,7 +2479,9 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
 
 exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam / etapes : sans LLM, plan figé et déterministe 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "entree": "377e1f2772f63b6e",
   "plan": {
     "dureeMs": 12200,
@@ -2707,6 +2759,8 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "entree": "39ac7a4c0f2b8d49",
   "plan": {
@@ -2960,7 +3014,9 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
 
 exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / chiffres : sans LLM, plan figé et déterministe 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "entree": "520996e7ae10de2e",
   "plan": {
     "dureeMs": 13950,
@@ -3285,6 +3341,8 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "entree": "aa66d785580a6c8e",
   "plan": {
@@ -3488,7 +3546,10 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
 
 exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / enumeration : sans LLM, plan figé et déterministe 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+    "RYTHME",
+  ],
   "entree": "bf55827c98a060c7",
   "plan": {
     "dureeMs": 10450,
@@ -3705,6 +3766,8 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
     "PARAMETRES_REPARES",
     "DEVANT_LE_VISAGE",
     "TRANSITION_ADOUCIE",
+    "RYTHME",
+    "RYTHME",
   ],
   "entree": "57c8339fa68fe717",
   "plan": {
@@ -3933,7 +3996,9 @@ exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face c
 
 exports[`vidéo entière sans objets : planPourVideo figé (face caméra, face caméra animée) > facecam-animee / etapes : sans LLM, plan figé et déterministe 1`] = `
 {
-  "codes": [],
+  "codes": [
+    "RYTHME",
+  ],
   "entree": "4450cbdefc09f050",
   "plan": {
     "dureeMs": 12200,

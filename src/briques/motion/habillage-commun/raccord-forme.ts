@@ -3,7 +3,8 @@
  * chemins SVG de même structure (8 segments), prêts pour `interpolatePath` de `@remotion/paths` (MIT, déjà au dépôt).
  *
  * PUR : aucun hook, aucun hasard, aucune horloge, imports relatifs seulement (dossier lu par le rendu). Même entrée =
- * même chemin. Couleurs de la charte seulement. Jamais sur un plan avec visage. Éteint : rien ne l'importe.
+ * même chemin. Couleurs de la charte seulement. Jamais sur un plan avec visage. Branché par `plan-scenes/rendu.tsx` (BR-RACCORD-FORME-a),
+ * qui n'a rien à dessiner tant que la porte `RACCORD_FORME_ACTIF` (cas concret) reste éteinte.
  */
 import { CHARTE_AXION, type NomCouleurAxion } from "../../jetons-motion";
 
@@ -89,4 +90,25 @@ export function choisirRaccordForme(entree: EntreeRaccordForme): RaccordForme | 
   const nom = entree.couleur ?? "terracotta";
   if (!Object.prototype.hasOwnProperty.call(CHARTE_AXION, nom)) return null;
   return { de, vers, cheminDe: chemin(de, boite), cheminVers: chemin(vers, boite), couleur: CHARTE_AXION[nom] };
+}
+
+/** Durée d'un raccord, en images (la forme est tracée de la première à la dernière). */
+export const DUREE_RACCORD_IMAGES = 14;
+
+const NOMBRE = /-?\d+(?:\.\d+)?/g;
+
+/**
+ * Chemin à l'avancement `t` (0 : forme de départ, 1 : forme d'arrivée, borné). Les deux chemins ont la même suite de
+ * commandes (8 segments cubiques) : on interpole nombre à nombre, sans `@remotion/paths` (absent à la racine). PUR.
+ */
+export function cheminAuTemps(raccord: Pick<RaccordForme, "cheminDe" | "cheminVers">, t: number): string {
+  if (!(t > 0)) return raccord.cheminDe;
+  if (t >= 1) return raccord.cheminVers;
+  const arrivee = raccord.cheminVers.match(NOMBRE) ?? [];
+  let i = 0;
+  return raccord.cheminDe.replace(NOMBRE, (x) => {
+    const a = Number(x);
+    const b = Number(arrivee[i++] ?? x);
+    return String(r(a + (b - a) * t));
+  });
 }

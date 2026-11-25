@@ -38,11 +38,11 @@ export function lireVersionFfmpeg(texte: string): string | undefined {
   return m ? m[1] : undefined;
 }
 
-/** Noms des filtres de `ffmpeg -filters` (colonne 2 de chaque ligne de la liste). */
+/** Noms des filtres de `ffmpeg -filters` (colonne 2 de chaque ligne : 2 options en FFmpeg 8, 3 avant). */
 export function lireFiltres(texteFiltres: string): string[] {
   const noms: string[] = [];
   for (const ligne of String(texteFiltres ?? "").split(/\r?\n/)) {
-    const m = /^\s*[A-Z.|]{3}\s+(\S+)\s+\S+->\S+\s/.exec(ligne);
+    const m = /^\s*[A-Z.|]{2,3}\s+(\S+)\s+\S+->\S+\s/.exec(ligne);
     if (m) noms.push(m[1]);
   }
   return noms;

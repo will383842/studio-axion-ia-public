@@ -92,7 +92,7 @@ async function portsParDefaut(dep: DependancesRelecteurTableau, videoId: string)
       const octets = await lireOctets(await signerLecture(cle));
       return octets ? { octets, type: octets[0] === 0x89 ? "image/png" : "image/jpeg" } : null;
     },
-    appeler: (entree, options) => executerRolePourVideo(videoId, roleRegard, entree, { etape: options.etape, ...(options.origine ? { origine: options.origine } : {}) }),
+    appeler: async (entree, options) => executerRolePourVideo(videoId, roleRegard, entree, { etape: options.etape, plafondPropre: (await import("./plafond-regard-tableau")).PLAFOND_REGARD_TABLEAU, ...(options.origine ? { origine: options.origine } : {}) }),
   };
 }
 

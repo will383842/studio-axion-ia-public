@@ -88,6 +88,6 @@ describe("suiteDuRegard (S-12-TABLEAU-REPRISE-v19c)", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
     parcourir(racine);
-    expect(fichiers.filter((f) => !f.endsWith("reprise-du-regard.ts") && readFileSync(f, "utf8").includes("reprise-du-regard"))).toEqual([]);
+    expect(fichiers.filter((f) => !f.endsWith("reprise-du-regard.ts") && readFileSync(f, "utf8").includes("reprise-du-regard"))).toEqual([join(racine, "moteurs/montage-tableau/reprise-fabrication.ts")]);
   });
 });

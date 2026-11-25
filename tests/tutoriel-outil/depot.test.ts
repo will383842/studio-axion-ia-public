@@ -32,6 +32,7 @@ function banc(options: { interrupteurs?: typeof TOUT; extraire?: ResultatZip; la
   const compte = { brouillons: [] as { entrees: Record<string, unknown>; titre: string }[], extraire: [] as { attestationImages: boolean }[], octets: 0, lancements: [] as string[], abandons: [] as string[], ratios: [] as string[][] };
   const dep: import("@/services/tutoriel-depot").DependancesDepotTutoriel = {
     interrupteurs: async () => options.interrupteurs ?? TOUT,
+    equipe: async () => true,
     fichier: async (id) => ({ id, nom: "Mon-dossier_ventes.zip", taille: options.taille ?? 1000, cleStockage: `studio/dev/entree/e1/${id}.zip` }),
     octets: async () => {
       compte.octets++;

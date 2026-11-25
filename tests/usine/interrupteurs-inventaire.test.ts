@@ -1,8 +1,19 @@
 /**
  * Inventaire G7-06. Lit des constantes de zones argent et publication SANS les modifier ni les importer. Constate, n'exige pas.
- * C5-5.02 changera `planScenes.facecam` (ligne marquée `// CHANGERA : C5-5.02`).
+ * C5-5.02 changera `planScenes.facecam` (ligne marquée `// CHANGERA : C5-5.02`, dans tests/usine/inventaire/habillage-et-briques.test.ts).
  *
- * Trois sources : (1) la table figée ci-dessous ; (2) les fichiers purs importés (réglages plan de scènes, retouche chat) ;
+ * Les tables sont dans `tests/usine/inventaire/<domaine>.test.ts` (12 domaines, liste fermée `DOMAINES`), rangées par la règle
+ * `domaineDe` ci-dessous (tables A et B figées par INV-DOMAINES-a-v21p). Ce fichier ne garde que la logique et les tests ; chaque
+ * fichier de domaine l'importe en première ligne, donc lancer UN seul domaine rejoue l'inventaire ENTIER sur l'union des 12.
+ * Historique du compteur des clés littérales (figé) : 30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec
+ * `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`,
+ * rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec
+ * `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec
+ * `tutoriel.devisAvantDepense`, T-EXT-42 ; 41 avec `zernio.rapatriement_actif`, RAP-2 ; 42 avec `tutoriel.finCommune`, T-EXT-26a.
+ * 42 à a0fc572d, réparties par INV-DOMAINES-a-v21p ; depuis, chaque domaine porte son propre compteur (`nombre`), et la somme
+ * des compteurs doit égaler l'union (test « compteurs de domaine »).
+ *
+ * Trois sources : (1) les tables figées des domaines ; (2) les fichiers purs importés (réglages plan de scènes, retouche chat) ;
  * (3) le texte de `src/**` (clés littérales passées à `lireParametre`). Une clé neuve absente de la table doit être éteinte
  * par défaut (seul `true` allume, R-9). Aucune lecture de la base, aucun import de fichier d'argent.
  *
@@ -27,512 +38,264 @@
  * generation-claude.ts), et les mémoires/données (`*.validations`, `*.lots`, `parcours.conversations*`, `zernio.bascules`,
  * `zernio.mode_envoi`, `zernio.tests`, etc.).
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { ALLUME_PAR_DEFAUT, CLES_REGLAGE_PLAN_SCENES } from "@/briques/plan-scenes-generateurs/reglage";
 import { CLES_REGLAGE_RETOUCHE } from "@/services/retouche-chat/generateurs";
 
-type Etat = "allume" | "eteint" | "valeur" | "env";
-
-/** Clés littérales de `lireParametre("…", défaut)` dans src/** (30 sur master 240a0e6 ; 31 avec `retoucheChat.coller`, C7 ; 32 avec `zernio.synchro_etape_visuels`, L5-06 ; 33 avec `mesures.lecture_par_liste`, L8-02b ; 34 avec `mesures.tentatives_lecture`, rotation des lectures ; 35 avec `accueil.bilan_semaine`, L8-04a ; 36 avec `mesures.relecture_automatique`, L5-18b ; 37 avec `tutoriel.finitions`, T-EXT-31 ; 38 avec `tutoriel.suiviCloche`, T-EXT-34 ; 39 avec `videoLongue.actif`, VL-07 ; 40 avec `tutoriel.devisAvantDepense`, T-EXT-42 ; 41 avec `zernio.rapatriement_actif`, RAP-2 ; 42 avec `tutoriel.finCommune`, T-EXT-26a). */
-const LITTERALES: Record<string, Etat> = {
-  "accueil.bilan_semaine": "eteint",
-  afficherExemples: "allume",
-  "alignement.voixSynthese": "eteint",
-  "budget.mensuel": "valeur",
-  "budget.seuilConfirmation": "valeur",
-  "casConcret.catalogueEtendu": "eteint",
-  "casConcret.stockMetiers": "eteint",
-  "fabrication.concurrence": "valeur",
-  "formats.prevenir": "valeur",
-  "fournisseur.alignement": "valeur",
-  "fournisseur.illustration": "valeur",
-  "fournisseur.montage": "valeur",
-  "fournisseur.notification": "valeur",
-  "fournisseur.stockage": "valeur",
-  "illustrations.economique": "eteint",
-  "mentionIA.parDefaut": "valeur",
-  "mesures.lecture_par_liste": "eteint",
-  "mesures.relecture_automatique": "eteint",
-  "mesures.tentatives_lecture": "valeur",
-  "miniature.gabarit": "valeur",
-  "mots.registre": "valeur",
-  notifications: "valeur",
-  "parcours.oppositions.file": "valeur",
-  "publication.heureParReseau": "valeur",
-  "publication.ordreParDefaut": "valeur",
-  "publication.pageSuivie": "valeur",
-  "publication.routage": "valeur",
-  "push.abonnements": "valeur",
-  "retoucheChat.coller": "eteint",
-  "reseaux.parDefaut": "valeur",
-  "site.lienDansYoutube": "eteint",
-  "style.faconDeParler": "valeur",
-  "taux.usdEur": "valeur",
-  "tutoriel.devisAvantDepense": "eteint",
-  "tutoriel.finCommune": "eteint",
-  "tutoriel.finitions": "eteint",
-  "tutoriel.suiviCloche": "eteint",
-  "videoLongue.actif": "eteint",
-  "veille.derniereLecture": "valeur",
-  "veille.resumeSemaine": "valeur",
-  "zernio.rapatriement_actif": "allume",
-  "zernio.synchro_etape_visuels": "eteint",
-};
+export type Etat = "allume" | "eteint" | "valeur" | "env";
 
 /**
  * Clés passées par constante : lues dans le TEXTE (jamais importé). `appel` : fichier où la clé est lue ; `declare` : fichier
  * de la déclaration de la constante (par défaut `appel`) ; `motif` doit figurer dans `appel` et contient le DÉFAUT constaté.
  */
-type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
-const PAR_CONSTANTE: Constante[] = [
-  { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
-  { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
-  { cle: "aPublier.page", etat: "allume", appel: "src/services/a-publier.ts", motif: /lireParametre<unknown>\(PARAM_PAGE_A_PUBLIER, true\)\) !== false/ },
-  { cle: "zernio.envoi_autorise", etat: "allume", appel: "src/services/zernio.ts", motif: /PARAM_ARRET_ZERNIO, true\)\) !== false/ },
-  { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
-  { cle: "publication.editoriale_active", etat: "eteint", appel: "src/services/zernio.ts", motif: /PARAM_EDITORIALE_ACTIVE, false\)\) === true/ },
-  { cle: "idees.comite", etat: "eteint", appel: "src/services/comite-editorial.ts", motif: /PARAM_COMITE, false\)\) === true/ },
-  { cle: "gardien.chiffres.actif", etat: "eteint", appel: "src/services/gardien-chiffres.ts", motif: /REGLAGE_GARDIEN_CHIFFRES, false\)\) === true/ },
-  { cle: "comite.source_usine.actif", etat: "eteint", appel: "src/services/branchement-idees-usine.ts", motif: /REGLAGE_SOURCE_USINE, false\)\) === true/ },
-  { cle: "facecamAnimee.calageAuMot", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /PARAM_CALAGE_AU_MOT_FA, false\)\) === true/ },
-  { cle: "facecamAnimee.finDouce", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /PARAM_FIN_DOUCE_FA, false\)\) === true/ },
-  { cle: "facecamAnimee.extraitsMaison", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/realisateur/consigne-extraits-maison.ts", motif: /PARAM_EXTRAITS_MAISON_FA, false\)\) === true/ },
-  { cle: "facecamAnimee.zoomGratuit", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/zoom-gratuit-v4.ts", motif: /PARAM_ZOOM_GRATUIT_FA, false\)\) === true/ },
-  { cle: "facecamAnimee.garderMaster", etat: "eteint", appel: "src/services/facecam-animee.ts", declare: "src/moteurs/montage-facecam-animee/master-v4.ts", motif: /PARAM_GARDER_MASTER_FA, false\)\) === true/ },
-  { cle: "facecamAnimee.accordEssaiReel", etat: "eteint", appel: "src/services/facecam-animee.ts", motif: /lireParametre<boolean>\(PARAM_ACCORD_ESSAI_FA, false\)/ },
-  { cle: "facecamAnimee.plafondClaudeUsd", etat: "valeur", appel: "src/services/facecam-animee.ts", motif: /lireParametre<number>\(PARAM_PLAFOND_CLAUDE_FA, PLAFOND_CLAUDE_FA_USD\)/ },
-  { cle: "facecamAnimee.plafondVideosUsd", etat: "valeur", appel: "src/services/depense-claude-video.ts", motif: /parametre: PARAM_PLAFOND_VIDEOS_FA, defautUsd: PLAFOND_VIDEOS_FA_USD/ },
-  { cle: "imageVideo.accordEssaiReel", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /PARAM_ACCORD_ESSAI_IV, false\)/ },
-  { cle: "imageVideo.sousTitresMinimal", etat: "eteint", appel: "src/services/image-video.ts", motif: /lireParametre<unknown>\(PARAM_SOUS_TITRES_MINIMAL_IV, false\)\.catch\(\(\) => false\)\) === true/ },
-  { cle: "facecamAnimee.telephoneVideo", etat: "eteint", appel: "src/moteurs/montage-facecam-animee/realisateur/consigne-telephone-video.ts", motif: /lire\(PARAM_TELEPHONE_VIDEO_FA, false\)\) === true/ },
-  { cle: "habillage.transitionsPlanScenes", etat: "eteint", appel: "src/briques/motion/habillage-commun/reglage.ts", motif: /estAllume\(await lire\(/ },
-  { cle: "imageVideo.relireScript", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /lireParametre<boolean>\(PARAM_RELIRE_SCRIPT_IV, false\)/ },
-  { cle: "usine.autonomie", etat: "eteint", appel: "src/services/autonomie-usine.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE, null\)/ },
-  { cle: "usine.autonomie.porte", etat: "eteint", appel: "src/services/autonomie-usine.ts", motif: /lireParametre<unknown>\(CLE_PORTE, null\)/ },
-  { cle: "carrousels.actif", etat: "eteint", appel: "src/visuels/interrupteur.ts", motif: /lireParametre<unknown>\(cleDe\(famille\), false\)\) === true/ },
-  { cle: "infographies.actif", etat: "eteint", appel: "src/visuels/interrupteur.ts", motif: /lireParametre<unknown>\(cleDe\(famille\), false\)\) === true/ },
-  { cle: "avocat.multicamera", etat: "eteint", appel: "src/services/multicamera-avocat.ts", declare: "src/briques/multicamera/reglage.ts", motif: /lireParametre<unknown>\(PARAM_MULTICAMERA_AVOCAT, null\)/ },
-  { cle: "facecam.multicamera", etat: "eteint", appel: "src/services/multicamera.ts", declare: "src/briques/multicamera/reglage.ts", motif: /lireParametre<unknown>\(paramMulticamera\(format\), null\)/ },
-  { cle: "zernio.youtube_actif", etat: "eteint", appel: "src/services/youtube-zernio.ts", declare: "src/fournisseurs/publication/zernio-youtube.ts", motif: /lireParametre<unknown>\(CLE_YOUTUBE_ACTIF, false\)/ },
-  { cle: "limite_appels.active", etat: "eteint", appel: "src/services/limite-appels.ts", motif: /lireParametre<boolean>\(PARAM_LIMITE_ACTIVE, false\)\) !== true/ },
-  { cle: "kb_site.lecture.actif", etat: "eteint", appel: "src/services/kb-site.ts", motif: /REGLAGE_LECTURE_SITE, false\)\) === true/ },
-  { cle: "kb_site.methode.actif", etat: "eteint", appel: "src/services/kb-site.ts", motif: /REGLAGE_METHODE_SITE, false\)\) === true/ },
-  { cle: "ecriture.memoireCasConcret", etat: "eteint", appel: "src/services/memoire-cas-concret.ts", motif: /REGLAGE_MEMOIRE_CAS_CONCRET, false\)\) === true/ },
-  { cle: "ecriture.memoireCentrale", etat: "eteint", appel: "src/services/memoire-centrale.ts", motif: /REGLAGE_MEMOIRE_CENTRALE, false\)\) === true/ },
-  { cle: "site.passeportParClaude", etat: "eteint", appel: "src/services/site-videos.ts", motif: /PARAM_PASSEPORT_PAR_CLAUDE, false\)\) === true/ },
-  { cle: "parcours.instagram_suivre", etat: "eteint", appel: "src/services/parcours-instagram.ts", motif: /lireParametre<unknown>\(PARAM_INSTAGRAM_SUIVRE, false\)/ },
-  { cle: "parcours.instagram_public", etat: "eteint", appel: "src/services/parcours-instagram.ts", motif: /lireParametre<unknown>\(PARAM_INSTAGRAM_PUBLIC, false\)/ },
-  { cle: "pioche.commune", etat: "eteint", appel: "src/services/pioche-commune.ts", motif: /lireParametre<unknown>\(PARAM_PIOCHE_COMMUNE, false\)\) !== true/ },
-  { cle: "parcours.mots_multiples", etat: "eteint", appel: "src/services/parcours-mots-multiples.ts", motif: /lireParametre<unknown>\(PARAM_MOTS_MULTIPLES, false\)/ },
-  { cle: "couverture.titreParDefaut", etat: "eteint", appel: "src/services/miniatures.ts", declare: "src/domaine/vignettes.ts", motif: /lireParametre<boolean>\(REGLAGE_TITRE_COUVERTURE, false\)\) !== true/ },
-  { cle: "generateur.apprentissage", etat: "eteint", appel: "src/services/apprentissage.ts", declare: "src/domaine/apprentissage.ts", motif: /lireParametre<boolean>\(PARAM_APPRENTISSAGE, false\)\) === true/ },
-  { cle: "sujets.garde", etat: "valeur", appel: "src/services/sujets-traites.ts", motif: /lireParametre<unknown>\(REGLAGE_GARDE_SUJETS, "bloquant"\)/ },
-  { cle: "republication.proposition_auto", etat: "eteint", appel: "src/services/republication-auto.ts", motif: /lireParametre<boolean>\(PARAM_PROPOSITION_AUTO, false\)\) === true/ },
-  { cle: "zernio.envoi_calendrier_autorise", etat: "eteint", appel: "src/services/zernio.ts", motif: /PARAM_ENVOI_CALENDRIER, false\)\) === true/ },
-  { cle: "publication.premier_commentaire_coupe", etat: "eteint", appel: "src/fournisseurs/publication/zernio.ts", declare: "src/domaine/interrupteurs/registre.ts", motif: /CLE_PREMIER_COMMENTAIRE_COUPE, false\)/ },
-  { cle: "ecriture.memoireTableau", etat: "eteint", appel: "src/services/tableau-scripts/memoire.ts", motif: /PARAM_MEMOIRE_TABLEAU, false\)\) === true/ },
-  { cle: "tableau.styleTire", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ },
-  { cle: "planScenes.facecamDessin", etat: "allume", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, true\)\) !== false/ },
-  {
-    cle: "adaptations_reseaux.actif",
-    etat: "eteint",
-    appel: "src/services/interrupteurs-ecriture.ts",
-    declare: "src/reseaux/adaptations.ts",
-    motif: /lireParametre<unknown>\(cle, false\)\) === true/,
-    // Aussi lue au lancement avec une constante pour défaut : elle doit rester `false`.
-    aussi: [
-      ["src/services/fabrication-reseaux.ts", /lireParametre<unknown>\(CLE_ADAPTATIONS_RESEAUX, ADAPTATIONS_RESEAUX_PAR_DEFAUT\)/],
-      ["src/reseaux/adaptations.ts", /export const ADAPTATIONS_RESEAUX_PAR_DEFAUT = false;/],
-    ],
-  },
-  { cle: "casConcret.porteB", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
-  { cle: "casConcret.retouches", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
-  { cle: "casConcret.documentPromis", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
-  { cle: "casConcret.ecranFourni", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
-  { cle: "casConcret.releves", etat: "eteint", appel: "src/services/cas-concret-reglages.ts", motif: /lireParametre<unknown>\(id, false\)\) === true/ },
-  { cle: "retoucheSegments.liberer", etat: "eteint", appel: "src/components/videos/fiche/LibererPlace.tsx", motif: /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) !== true/, aussi: [["src/components/videos/fiche/actions-liberer.ts", /lireParametre<unknown>\("retoucheSegments\.liberer", false\)\.catch\(\(\) => false\)\) === true/]] },
-  { cle: "demoFacecam.reel", etat: "eteint", appel: "src/services/entrees-demo-facecam.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE_DEMO_REEL, false\)\) === true/ },
-  { cle: "demoFacecam.envoi", etat: "eteint", appel: "src/app/(studio)/demo-facecam/actions.ts", motif: /lireParametre<unknown>\(CLE_ENVOI_DEMO_FACECAM, false\)\) === true/ },
-  { cle: "demoFacecam.planClaude", etat: "allume", appel: "src/services/demo-facecam-claude.ts", motif: /l<unknown>\(PARAM_PLAN_CLAUDE_DEMO, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
-  { cle: "tableau.lectureCaptureClaude", etat: "allume", appel: "src/services/lecture-capture-claude.ts", motif: /l<unknown>\(PARAM_LECTURE_CAPTURE_CLAUDE, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
-  { cle: "bibliothequeVideo.archive.inscription", etat: "eteint", appel: "src/services/archive-extraits.ts", motif: /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) !== true/, aussi: [["src/app/(studio)/bibliotheque/source-extraits/page.tsx", /lireParametre<unknown>\(REGLAGE_INSCRIPTION, false\)\) === true/], ["src/services/extraits-de-la-video.ts", /archive = await lire\(REGLAGE_INSCRIPTION, false\);[\s\S]*?if \(archive !== true\) return eteint;/]] },
-  { cle: "bibliothequeVideo.archive.effacerFicheASuppression", etat: "eteint", appel: "src/services/suppression-video.ts", motif: /lireParametre<unknown>\(REGLAGE_EFFACER_FICHE_EXTRAITS, false\)\) === true/ },
-  { cle: "avocat.bandeauNom", etat: "eteint", appel: "src/services/bandeau-nom.ts", motif: /lireParametre<unknown>\(PARAM_BANDEAU_AVOCAT, false\)\) !== true/ },
-  { cle: "optionsPayantes.coupees", etat: "eteint", appel: "src/services/options-payantes.ts", motif: /PARAM_OPTIONS_COUPEES, false\)\) === true/ },
-  { cle: "a_traiter.reseaux_manuels", etat: "eteint", appel: "src/services/a-traiter-manuel.ts", motif: /PARAM_RESEAUX_MANUELS, false\)\) === true/ },
-  { cle: "a_traiter.rappels_actifs", etat: "eteint", appel: "src/services/a-traiter-suivi.ts", motif: /REGLAGE_RAPPELS_ACTIFS, false\)\);\s*if \(\(await lireReglage\(\)\) !== true\)/ },
-  // Montage avocat (voisin de zone interdite) : lecture du texte seulement, jamais d'import.
-  {
-    cle: "avocat.motionCommune",
-    etat: "allume",
-    appel: "src/services/avocat-branchements.ts",
-    declare: "src/moteurs/montage-avocat/motion.ts",
-    motif: /motionAllumeeParDefaut\(PARAM_MOTION_AVOCAT\)/,
-    aussi: [["src/services/avocat-branchements.ts", /async function motionAllumeeParDefaut[\s\S]*?lireParametre<unknown>\(param, null\);\s*if \(v === false\) return null;/]],
-  },
-  {
-    cle: "avocat.monteur",
-    etat: "eteint",
-    appel: "src/services/avocat-branchements.ts",
-    declare: "src/moteurs/montage-avocat/monteur.ts",
-    motif: /await allume\(PARAM_MONTEUR_AVOCAT\)/,
-    aussi: [["src/services/avocat-branchements.ts", /async function allume\(param: string\)[\s\S]*?lireParametre<unknown>\(param, null\);\s*if \(v === true\) return \{\};/]],
-  },
-  { cle: "site.reglages", etat: "allume", appel: "src/services/source-axion.ts", motif: /lireParametre<ReglagesSite>\(PARAM_REGLAGES, \{ actif: true \}\)/ },
-  { cle: "matieres.rappelHebdo", etat: "eteint", appel: "src/services/matieres.ts", motif: /lireParametre\(CLE_RAPPEL, \{ actif: false \}\)/ },
-  { cle: "retoucheChat.sansGenerateur", etat: "eteint", appel: "src/services/retouche-chat/garde-acces.ts", motif: /lire\(CLE_REGLAGE_SANS_GENERATEUR, false\)\) === true/ },
-  {
-    cle: "buffer.gele",
-    etat: "allume",
-    appel: "src/services/buffer-gel.ts",
-    motif: /lireParametre<unknown>\(PARAM_GELE, undefined\);\s*if \(v === false\) return false;/,
-  },
-  {
-    cle: "voix.ressemblance",
-    etat: "allume",
-    appel: "src/services/voix-ressemblance.ts",
-    declare: "src/briques/voix-maitre/reference.ts",
-    motif: /lireReglageRessemblance\(await lireParametre<unknown>\(PARAM_RESSEMBLANCE_VOIX, null\)\)/,
-    aussi: [["src/briques/voix-maitre/reference.ts", /RESSEMBLANCE_VOIX_PAR_DEFAUT[^=]*= Object\.freeze\(\{ actif: true/]],
-  },
-  {
-    cle: "facecam.decorIa",
-    etat: "eteint",
-    appel: "src/services/decor-ia.ts",
-    motif: /lireReglageBrut\(await lireParametre<unknown>\(PARAM_DECOR_IA, null\)\)/,
-    aussi: [["src/services/decor-ia.ts", /actif: o\.actif === true/]],
-  },
-  {
-    cle: "facecam.effetRealiste",
-    etat: "eteint",
-    appel: "src/services/effet-realiste-ia.ts",
-    motif: /lireParametre<\{ reel\?: unknown \}>\(PARAM_REGLAGE_EFFET, \{\}\);\s*return \{ reel: r\?\.reel === true \}/,
-  },
-  // Avatar HeyGen PAYANT (zone argent) : lecture du texte seulement, jamais d'import.
-  {
-    cle: "double.rendu",
-    etat: "eteint",
-    appel: "src/services/rendu-double.ts",
-    motif: /lireParametre<Partial<ReglageRenduDouble> \| null>\(CLE, null\);\s*return \{ allume: v\?\.allume === true/,
-  },
-  {
-    cle: "double.looks",
-    etat: "eteint",
-    appel: "src/services/rendu-double.ts",
-    motif: /lireParametre<\{ allume\?: boolean \} \| null>\(CLE_LOOKS, null\);\s*return v\?\.allume === true \|\| \(v === null && LOOKS_HEYGEN_PAR_LE_STUDIO\)/,
-    // Absent → constante : la passer à `true` allumerait une dépense, l'inventaire doit rougir.
-    aussi: [["src/fournisseurs/heygen/rendus.ts", /export const LOOKS_HEYGEN_PAR_LE_STUDIO = false;/]],
-  },
-];
+export type Constante = { cle: string; etat: Etat; appel: string; motif: RegExp; declare?: string; aussi?: [fichier: string, motif: RegExp][] };
 
 /**
  * Gabarits de clés construites (`moteur.${formatId}.…`, src/services/reglages.ts, zone interdite : lecture du texte ;
  * `siteGenerateurs.${formatId}` et `siteAuto.${formatId}`, site-videos.ts ; `illustrations.economique.${videoId}`, choix par
  * vidéo, défaut `null` qui retombe sur le réglage général éteint). `declare` : motif de la fabrique de la clé.
  */
-const GABARITS: { gabarit: string; etat: Etat; appel: string; motif: RegExp; declare?: RegExp }[] = [
-  { gabarit: "moteur.*.jeLis", etat: "eteint", appel: "src/services/reglages.ts", motif: /lireParametre<boolean>\(`moteur\.\$\{formatId\}\.jeLis`, false\)\) === true/ },
-  { gabarit: "moteur.*.montageReel", etat: "eteint", appel: "src/services/reglages.ts", motif: /lireParametre<boolean>\(`moteur\.\$\{formatId\}\.montageReel`, false\)\) === true/ },
-  {
-    gabarit: "siteGenerateurs.*",
-    etat: "eteint",
-    appel: "src/services/site-videos.ts",
-    motif: /lireParametre<boolean>\(cleSiteGenerateur\(formatId\), false\)\) === true/,
-    declare: /cleSiteGenerateur = \(formatId: string\) => `siteGenerateurs\.\$\{formatId\}`/,
-  },
-  {
-    gabarit: "siteAuto.*",
-    etat: "eteint",
-    appel: "src/services/site-videos.ts",
-    motif: /lireParametre<boolean>\(cleSiteAuto\(f\.id\), false\)\) === true/,
-    declare: /cleSiteAuto = \(formatId: string\) => `siteAuto\.\$\{formatId\}`/,
-  },
-  {
-    gabarit: "illustrations.economique.*",
-    etat: "eteint",
-    appel: "src/services/illustrations.ts",
-    motif: /lireParametre<boolean \| null>\(cleEconomique\(videoId\), null\);\s*return v \?\? \(await lireParametre<boolean>\("illustrations\.economique", false\)\)/,
-    declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
-  },
-  {
-    // Texte de légende enregistré d'un carrousel (page de détail) : une valeur, pas un interrupteur ; `simulation === true` est un champ de la donnée.
-    gabarit: "visuels.legende.*.*",
-    etat: "valeur",
-    appel: "src/app/(studio)/carrousels/[id]/page.tsx",
-    motif: /lireParametre<\{ texte\?: unknown; simulation\?: unknown \} \| null>\(`visuels\.legende\.\$\{id\}\.\$\{r\}`, null\)/,
-  },
-  {
-    // Défaut `undefined` → `interpreterReglageBibliotheque` rend `{ actif: false }` (seul `true` ou `{ capacites }` allume).
-    gabarit: "bibliothequeVideo.*",
-    etat: "eteint",
-    appel: "src/services/bibliotheque-video.ts",
-    motif: /lireReglageBibliotheque\(video\.formatId, \(cle\) => lireParametre\(cle, undefined\)\);\s*if \(!reglage\.actif\) return \{\}/,
-  },
-];
+export type Gabarit = { gabarit: string; etat: Etat; appel: string; motif: RegExp; declare?: RegExp };
 
-const ENV: { nom: string; fichier: string }[] = [
-  { nom: "USINE_TOUT_ARRETER", fichier: "src/app/api/usine/commandes/route.ts" },
-  { nom: "STUDIO_PORTE_SECRET", fichier: "src/usine/garde-porte.ts" },
-];
-
-/** Planscènes et retouche : lus par import (fichiers purs), valeurs constatées. */
-const PLAN_SCENES: Record<string, Etat> = {
-  "planScenes.casConcret": "allume",
-  "planScenes.facecam": "allume", // CHANGERA : C5-5.02
-  "planScenes.facecamAnimee": "eteint",
-};
-const RETOUCHE: Record<string, Etat> = {
-  "retoucheChat.avocat": "eteint",
-  "retoucheChat.imageVideo": "eteint",
-  "retoucheChat.facecamAnimee": "eteint",
-  "retoucheChat.tutorielOutil": "eteint",
-  "retoucheChat.videoLongue": "eteint",
-};
-
-const lire = (f: string) => readFileSync(f, "utf8");
+export type Env = { nom: string; fichier: string };
 
 /**
  * RECENSEMENT (clôture G7-06) : tout appel `lireParametre(` de src/** (grep `lireParametre(<[^()]*>)?\(`, méthode `d.lireParametre(`
- * comprise) est soit EN TABLE (clé, constante, gabarit ou liste ci-dessus), soit EXCLU ci-dessous avec son motif. Le test
+ * comprise) est soit EN TABLE (clé, constante, gabarit ou liste), soit EXCLU (`exclusCles`, `parExpression`) avec son motif. Le test
  * « recensement » échoue sur tout appel ni en table ni exclu, et sur toute exclusion devenue sans appel.
  * Motifs : `dedoublonnage` (marque « déjà fait / déjà prévenu », pas un interrupteur), `memoire` (données, journaux, lots,
  * verrous, comptes, connexions), `valeur` (réglage non booléen : nombre, plafond, texte, liste, choix), `relais` (définition
  * de la fonction, ou passe-plat `(id, défaut) => lireParametre(id, défaut)` dont les clés sont inventoriées ailleurs).
+ * `exclusCles` : clés (ou gabarits `*`) résolues dans le texte mais HORS table. `parExpression` : appels à clé NON résolue dans
+ * le texte (variable, fonction-clé, concaténation), par `fichier:expression` (expression du 1er argument, blancs réduits) : la
+ * clé de la table qu'ils lisent, ou leur motif d'exclusion.
  */
-type Motif = "dedoublonnage" | "memoire" | "valeur" | "relais";
+export type Motif = "dedoublonnage" | "memoire" | "valeur" | "relais";
+export type Couverture = { couvre: string } | { exclu: Motif };
 
-/** Clés (ou gabarits `*`) résolues dans le texte mais HORS table. */
-const EXCLUS_CLES: Record<string, Motif> = {
-  "budget.engage.*": "dedoublonnage",
-  "credits.alertes.*": "dedoublonnage",
-  "credits.cleRefusee.*": "dedoublonnage",
-  "credits.epuise.*": "dedoublonnage",
-  "credits.expiration.*": "dedoublonnage",
-  "credits.lancementPret.*": "dedoublonnage",
-  "credits.rapprochement.*": "dedoublonnage",
-  "credits.test.*": "dedoublonnage",
-  "parcours.alertes_refus": "dedoublonnage", // marques « alerte déjà envoyée » des refus de messages privés
-  "a_traiter.cartes": "memoire",
-  "a_traiter.copies": "memoire",
-  "auth.empreinteB64": "memoire",
-  "bases.empreinte": "memoire",
-  "bibliothequeVideo.archive.dernierPassage": "memoire",
-  "bibliothequeVideo.archive.examinees": "memoire",
-  "budget.engages": "memoire",
-  "buffer.canaux": "memoire",
-  "buffer.correspondance": "memoire",
-  "cas-concret.ecrans-fournis": "memoire",
-  "tutoriel.index-scenes": "memoire",
-  "casConcret.casAjoutes": "memoire",
-  "casConcret.casRemis": "memoire",
-  "casConcret.casRetires": "memoire",
-  "casConcret.casTraites": "memoire",
-  "casConcret.historiqueTirages": "memoire",
-  "casConcret.motsBranches": "memoire",
-  "casConcret.scriptsValides": "memoire",
-  "casConcret.scriptsValidesHistorique": "memoire",
-  "casConcret.validations": "memoire",
-  "cibles.miroir": "memoire",
-  "claude.sources": "memoire",
-  "commentaires.depot": "memoire",
-  "corbeille-visuels.dernierPassage": "memoire",
-  "corbeille.dernierPassage": "memoire",
-  "decors.lots": "memoire",
-  "ecriture.memoirePosts": "memoire",
-  "ecriture.scriptsCentraux": "memoire",
-  "ecriture.tiragesCommuns": "memoire",
-  "facecam.habitudes": "memoire",
-  "facecam.look": "memoire",
-  "fal.demande.*": "memoire",
-  "gardien.chiffres.dernier": "memoire",
-  "gardien.chiffres.empreintes": "memoire",
-  "generateur.chaine-options.*": "memoire",
-  "generateur.modeleBloque": "memoire",
-  "generateur.serie.derniere": "memoire",
-  "googleDrive.connexion": "memoire",
-  "googleDrive.etatConnexion": "memoire",
-  "googleDrive.imports": "memoire",
-  "guides.reconciliation": "memoire",
-  "idees.comite.dernierEnvoi": "memoire",
-  "idees.comite.lot": "memoire",
-  "infographies.fiche.*": "memoire",
-  "infographies.index": "memoire",
-  "illustrations.compteurVideos": "memoire",
-  "imageVideo.cartesValidees": "memoire",
-  "imageVideo.lots": "memoire",
-  "imageVideo.reserve": "memoire",
-  "limite_appels.compte": "memoire",
-  "motion.animations-gardees": "memoire",
-  "mots.a_traiter": "memoire",
-  "mots.gardes": "memoire",
-  "mots.oppositions": "memoire",
-  "mots.validation.guide-parcours": "memoire",
-  "mots.validations": "memoire",
-  "mots.validations.par-mot": "memoire",
-  "oppositions.sante": "memoire",
-  "optionsPayantes.demandes": "memoire",
-  "parcours.conversations": "memoire",
-  "parcours.conversations.alias": "memoire",
-  "parcours.conversations.compteurs": "memoire",
-  "parcours.merci.journal": "memoire",
-  "parcours.oppositions.page": "memoire",
-  "parcours.oppositions.site": "memoire",
-  "parcours.validation.adresse_refusee": "memoire",
-  "parcours.validation.formulations": "memoire",
-  "parcours.validation.merci": "memoire",
-  "partages.codesSupprimes": "memoire",
-  "site.depart": "memoire",
-  "site.dernierBilan": "memoire",
-  "site.derniereLecture": "memoire",
-  "sonde-publication.marques": "memoire",
-  "stock.signatures": "memoire",
-  "suivi.miroir_site": "memoire",
-  "surveillance.heure-h": "memoire",
-  "surveillance.heure-h.derniere": "memoire",
-  "tableau.historiqueStyles": "memoire",
-  "zernio.alertes_jetons": "memoire",
-  "zernio.bascules": "memoire",
-  "zernio.budget_info": "memoire",
-  "zernio.canaux": "memoire",
-  "zernio.comptes": "memoire",
-  "zernio.mode_envoi": "memoire",
-  "zernio.tests": "memoire",
-  "zernio.essai_brouillon": "memoire", // brouillon de l'essai Zernio (creneauId), pas un interrupteur
-  "calendrier.proposerSemaine.compteur": "memoire", // compteur { jour, n } des propositions de semaine
-  "buffer.mode": "valeur",
-  "bibliothequeVideo.archive.cochees": "valeur", // liste d'identifiants de vidéos cochées
-  "bibliothequeVideo.archive.sources": "valeur", // choix « pretes » | « cochees » | « publiees », défaut null → politique du code
-  "casConcret.cameraPlus": "valeur", // nombre : lireCameraPlus rend undefined si absent ou ≤ 1,035
-  "cadence.reglages": "valeur",
-  "claude.plafondKitUsd": "valeur",
-  "claude.plafondMensuelUsd": "valeur",
-  "claude.quotaAppelsParJour": "valeur",
-  "facecam.plafondVersionUsd": "valeur",
-  "fournisseur.*": "valeur",
-  "generateur.chaine": "valeur",
-  "generateur.plafondSujetUsd": "valeur",
-  "hashtags.parReseau": "valeur",
-  "hashtags.placement": "valeur",
-  "idees.plafondMoisUsd": "valeur",
-  "limite_appels.par_jour": "valeur",
-  "moteur.*": "valeur",
-  "optionsPayantes.prixCreditHiggsfieldCentimes": "valeur",
-  "parcours.conversations.plafonds": "valeur",
-  "plafond.quotas-usine": "valeur",
-  "tableau.methode": "valeur",
-  "zernio.youtube_reglages": "valeur",
+/** Listes de src/** lues par clé variable, comptées par le test « listes lues par clé variable ». */
+export type Listes = { REGLAGES_CAS_CONCRET?: number; CLES_INTERRUPTEURS_ECRITURE?: number; INTERRUPTEURS_PRODUCTION?: number; INTERRUPTEURS_PUBLICATION?: string[] };
+
+/** Les 8 tables d'un domaine (ordre fixe). `planScenes` et `retouche` : lues par import (fichiers purs), valeurs constatées. */
+export const TABLES = ["litterales", "constantes", "gabarits", "planScenes", "retouche", "exclusCles", "parExpression", "env"] as const;
+export type Table = (typeof TABLES)[number];
+
+export type Domaine = {
+  nom: string;
+  /** Clés littérales de `lireParametre("…", défaut)` dans src/**. */
+  litterales: Record<string, Etat>;
+  constantes: Constante[];
+  gabarits: Gabarit[];
+  planScenes: Record<string, Etat>;
+  retouche: Record<string, Etat>;
+  exclusCles: Record<string, Motif>;
+  parExpression: Record<string, Couverture>;
+  env: Env[];
+  listes?: Listes;
+  /** Compteur LOCAL de chaque table (remplace le compteur global `toHaveLength(42)`). */
+  nombre: Record<Table, number>;
+  /** Clés d'avant le découpage (AVANT_DECOUPAGE) retirées volontairement par une fiche, avec leur ligne. */
+  retirees: string[];
+};
+
+/** Liste FERMÉE des domaines : un fichier `tests/usine/inventaire/<nom>.test.ts` chacun, aucun autre. */
+export const DOMAINES = [
+  "argent-et-fournisseurs",
+  "cas-concret",
+  "divers",
+  "facecam-animee",
+  "formats",
+  "habillage-et-briques",
+  "parcours-et-ecriture",
+  "publication-et-mesures",
+  "retouche-chat",
+  "site-et-visuels",
+  "tableau",
+  "tableau-de-bord",
+] as const;
+export type NomDomaine = (typeof DOMAINES)[number];
+
+/**
+ * RÈGLE DE PLACEMENT (figée). Préfixe d'une clé = le texte avant le premier `.` (la clé entière sans `.`).
+ * Table A : préfixe → domaine ; préfixe absent → règle de repli de la table (voir `domaineDe`).
+ */
+export const TABLE_A_PREFIXES: Record<Exclude<NomDomaine, "divers">, readonly string[]> = {
+  "facecam-animee": ["facecamAnimee"],
+  tableau: ["tableau", "regardeur"],
+  "tableau-de-bord": ["tableauDeBord"],
+  "retouche-chat": ["retoucheChat", "retoucheSegments"],
+  "cas-concret": ["casConcret", "cas-concret"],
+  "habillage-et-briques": ["habillage", "planScenes", "bibliothequeVideo", "varieteCommune", "motion", "decors", "pioche", "illustrations", "couverture", "miniature", "style", "dosageMotion"],
+  formats: ["avocat", "imageVideo", "videoLongue", "tutoriel", "demoFacecam", "facecam", "double", "voix", "moteur", "formats", "afficherExemples", "alignement"],
+  "publication-et-mesures": ["zernio", "publication", "buffer", "reseaux", "adaptations_reseaux", "hashtags", "republication", "aPublier", "calendrier", "sonde-publication", "push", "notifications", "cadence", "a_traiter", "mesures", "veille", "accueil", "surveillance"],
+  "site-et-visuels": ["site", "siteGenerateurs", "siteAuto", "kb_site", "carrousels", "infographies", "visuels", "corbeille-visuels", "corbeille", "partages", "suivi", "cibles"],
+  "argent-et-fournisseurs": ["budget", "credits", "claude", "fournisseur", "taux", "optionsPayantes", "limite_appels", "plafond", "fal", "generateur", "usine", "fabrication", "mentionIA"],
+  "parcours-et-ecriture": ["parcours", "mots", "ecriture", "sujets", "guides", "matieres", "stock", "commentaires", "googleDrive", "oppositions", "auth", "bases", "idees", "comite", "gardien"],
+};
+
+/** Table B : début de chemin (sans le `src/` de tête) → domaine. ORDONNÉE : le premier qui correspond gagne ; sinon `divers`. */
+export const TABLE_B_FICHIERS: readonly [debuts: readonly string[], domaine: NomDomaine][] = [
+  [["services/facecam-animee", "moteurs/montage-facecam-animee/"], "facecam-animee"],
+  [["services/tableau-de-bord"], "tableau-de-bord"],
+  [["services/tableau", "moteurs/montage-tableau/"], "tableau"],
+  [["services/retouche-chat/", "app/api/retouche-chat/"], "retouche-chat"],
+  [["services/cas-concret", "moteurs/montage-cas-concret/"], "cas-concret"],
+  [["visuels/", "app/(studio)/carrousels/", "app/(studio)/infographies/", "app/api/usine/visuels/", "services/site-"], "site-et-visuels"],
+  [
+    ["services/zernio", "services/publication", "services/branchement-envoi-calendrier", "services/garde-creneau-diffuseur", "services/calendrier-", "app/(studio)/reglages/", "services/fabrication-reseaux", "services/notifications", "services/mesures"],
+    "publication-et-mesures",
+  ],
+  [["services/parcours", "services/oppositions-", "services/guides-", "services/serie-ecriture", "services/memoire-"], "parcours-et-ecriture"],
+  [
+    ["services/boucle", "services/generation-claude", "services/credit", "services/couts", "services/budget-", "services/mode-budget", "services/plafond-fournisseur", "services/source-claude", "services/autonomie-usine", "services/depense-claude-video", "services/apprentissage"],
+    "argent-et-fournisseurs",
+  ],
+  [
+    ["services/image-video", "services/video-longue", "services/tutoriel-", "services/zip-tutoriel", "services/avocat-", "services/effet-realiste-ia", "services/monteur-facecam", "services/multicamera", "services/generateur-ecran", "services/express", "services/modifications"],
+    "formats",
+  ],
+  [["services/dosage-motion", "services/decors", "services/illustrations", "services/bibliotheque-video", "services/extraits-de-la-video", "services/variete-commune/"], "habillage-et-briques"],
+];
+
+/** Listes de src/** comptées : leur domaine (fixe). */
+export const DOMAINE_DES_LISTES: Record<keyof Listes, NomDomaine> = {
+  REGLAGES_CAS_CONCRET: "cas-concret",
+  CLES_INTERRUPTEURS_ECRITURE: "parcours-et-ecriture",
+  INTERRUPTEURS_PRODUCTION: "publication-et-mesures",
+  INTERRUPTEURS_PUBLICATION: "publication-et-mesures",
+};
+
+const prefixeDe = (cle: string) => (cle.includes(".") ? cle.slice(0, cle.indexOf(".")) : cle);
+const domaineDuPrefixe = (cle: string): NomDomaine | null => {
+  const p = prefixeDe(cle);
+  for (const [d, prefixes] of Object.entries(TABLE_A_PREFIXES)) if (prefixes.includes(p)) return d as NomDomaine;
+  return null;
+};
+const domaineDuFichier = (fichier: string): NomDomaine => {
+  const court = fichier.replace(/^src\//, "");
+  for (const [debuts, d] of TABLE_B_FICHIERS) if (debuts.some((x) => court.startsWith(x))) return d;
+  return "divers";
 };
 
 /**
- * Appels à clé NON résolue dans le texte (variable, fonction-clé, concaténation), par `fichier:expression` (expression du
- * 1er argument, blancs réduits) : la clé de la table qu'ils lisent, ou leur motif d'exclusion.
+ * Domaine qu'une ligne DOIT avoir (fonction pure). `ligne.cle` : la clé (`gabarit` pour les gabarits, `nom` pour l'env,
+ * `fichier:expression` pour parExpression, nom de la liste pour les listes) ; `ligne.appel` (constantes) ; `ligne.valeur` (parExpression).
+ * - litterales, gabarits, planScenes, retouche, exclusCles : table A, sinon `divers` ;
+ * - constantes : table A, sinon domaine du fichier `appel` (table B) ;
+ * - parExpression : `{ couvre: K }` → domaine de K (règle des constantes si K y est, sinon table A puis `divers`) ;
+ *   `{ exclu }` → domaine du fichier (texte avant le premier `:`, table B) ;
+ * - env → `divers` ; listes → `DOMAINE_DES_LISTES`.
  */
-const PAR_EXPRESSION: Record<string, { couvre: string } | { exclu: Motif }> = {
-  "app/(studio)/carrousels/[id]/actions.ts:cle": { exclu: "memoire" },
-  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, reseau)": { exclu: "memoire" },
-  "app/(studio)/carrousels/[id]/actions.ts:cleLegende(id, r as ReseauLegende)": { exclu: "memoire" },
-  "app/(studio)/reglages/actions-zernio.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" },
-  "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
-  "app/(studio)/infographies/actions.ts:cleFiche(id)": { exclu: "memoire" },
-  "app/(studio)/reglages/page.tsx:id": { exclu: "relais" }, // etatProduction : INTERRUPTEURS_PRODUCTION, vérifiés plus bas
-  "app/api/retouche-chat/route.ts:id": { couvre: "retoucheChat.sansGenerateur" },
-  "app/api/usine/visuels/route.ts:`${PREFIXE_COMMANDE}${cle}`": { exclu: "dedoublonnage" },
-  "app/api/usine/visuels/route.ts:`${PREFIXE_COTE}${cle}`": { exclu: "dedoublonnage" },
-  "services/_commun.ts:id: string": { exclu: "relais" },
-  "services/zip-tutoriel.ts:id": { exclu: "relais" }, // port réel de l'entrée zip : la clé est PARAM_ENTREE_ZIP, tutoriel.entreeZip en table
-  "services/tutoriel-depot.ts:id": { exclu: "relais" }, // lecteur des 3 interrupteurs du formulaire (T-EXT-33) : la clé est passée en paramètre (tutoriel.formulaire, tutoriel.entreeZip, tutoriel.entreePhrase)
-  // VL-07 : registre de dépense et morceaux déjà lus de la vidéo longue (mémoire par vidéo, pas des interrupteurs).
-  "services/video-longue-branchements.ts:cleDepense(videoId)": { exclu: "memoire" },
-  "services/video-longue-branchements.ts:cle": { exclu: "memoire" },
-  "services/apprentissage.ts:cleGagnants(formatId)": { exclu: "memoire" },
-  "services/autonomie-usine.ts:cleAccord(cle)": { exclu: "memoire" },
-  "services/autonomie-usine.ts:cleEngagement(cle)": { exclu: "memoire" },
-  "services/autonomie-usine.ts:cleIndex(mois)": { exclu: "memoire" },
-  "services/autonomie-usine.ts:cleIndex(j.mois)": { exclu: "memoire" },
-  "services/autonomie-usine.ts:cle": { exclu: "dedoublonnage" },
-  "services/avocat-branchements.ts:param": { couvre: "avocat.motionCommune" }, // et avocat.monteur (enveloppe allume())
-  "services/boucle-generation.ts:cleEtat(generationId)": { exclu: "memoire" },
-  "services/boucle-generation.ts:reglageSupplement(adresse)": { exclu: "valeur" },
-  "services/boucle-generation.ts:cleOptions(o.depuisGenerationId)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleOptions(x.id)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleOptions(doublon.id)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleOptions(g.id)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleOptions(liste[0].g.id)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleOptions(origine)": { exclu: "memoire" },
-  "services/boucle-generation.ts:clePanne(c.id)": { exclu: "memoire" },
-  "services/boucle-generation.ts:clePanne(g.id)": { exclu: "memoire" },
-  "services/boucle-generation.ts:clePanne(generationId)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleRetouches(v.code)": { exclu: "memoire" },
-  "services/boucle-generation.ts:cleOperation(options.operationId)": { exclu: "dedoublonnage" },
-  "services/boucle-generation.ts:cleBrouillonDeVersion(varianteId)": { exclu: "memoire" },
-  "services/boucle.ts:cleLectureEnVol(t.id)": { exclu: "memoire" },
-  "services/boucle.ts:cleLectureEnVol(lu.travail.id)": { exclu: "memoire" },
-  "services/branchement-envoi-calendrier.ts:PREFIXE_ETATS_ENVOI_CALENDRIER + cle": { exclu: "memoire" }, // états de promotion « envoi-calendrier:* »
-  "services/bibliotheque-video.ts:cle": { couvre: "bibliothequeVideo.*" }, // cleReglageBibliotheque(formatId)
-  "services/budget-mensuel.ts:cleBudgetUsine(mois)": { exclu: "valeur" },
-  "services/budget-mensuel.ts:cle": { exclu: "dedoublonnage" },
-  "services/calendrier-fiche.ts:cleStockage(cle)": { exclu: "memoire" },
-  "services/cas-concret-branchements.ts:cle(c)": { exclu: "memoire" },
-  "services/cas-concret-reglages.ts:id": { couvre: "casConcret.porteB" }, // les 7 de REGLAGES_CAS_CONCRET
-  "services/cas-concret-retouches.ts:cleParametre(videoId)": { exclu: "memoire" },
-  "services/couts.ts:cleEngagement(travailId)": { exclu: "memoire" },
-  "services/couts.ts:cleAlerteBudget()": { exclu: "dedoublonnage" },
-  "services/credit-claude.ts:paramCycleCredit(id)": { exclu: "valeur" },
-  "services/credit-claude.ts:paramReleveCredit(id)": { exclu: "valeur" },
-  "services/credits.ts:cle": { exclu: "dedoublonnage" },
-  "services/decors.ts:cleLot(id)": { exclu: "memoire" },
-  "services/depense-claude-video.ts:p.parametre": { couvre: "facecamAnimee.plafondVideosUsd" },
-  "services/dosage-motion-defauts.ts:id": { exclu: "relais" }, // passe-plat vers defautsLus/dosageActif (briques/dosage-motion/reglage.ts : dosageMotion.defauts valeur, dosageMotion.actif `=== true` défaut false)
-  "services/dosage-motion.ts:id": { exclu: "relais" }, // idem
-  "services/effet-realiste-ia.ts:PARAM_RESULTATS(d.videoId)": { exclu: "memoire" },
-  "services/effet-realiste-ia.ts:PARAM_RESULTATS(videoId)": { exclu: "memoire" },
-  "services/express.ts:cleDecorHabituel(formatId)": { exclu: "valeur" },
-  "services/extraits-de-la-video.ts:id": { exclu: "relais" }, // passe-plat vers lire(REGLAGE_INSCRIPTION…) (couvert, bibliothequeVideo.archive.inscription) et lireNoteInteret
-  "services/fabrication-reseaux.ts:cleOperation(options.operationId)": { exclu: "dedoublonnage" },
-  "services/fabrication-reseaux.ts:cle": { exclu: "dedoublonnage" },
-  "services/fabrication-reseaux.ts:cleDebit(video.formatId)": { exclu: "memoire" },
-  "services/fabrication-reseaux.ts:cleDebit(formatId)": { exclu: "memoire" },
-  "services/garde-creneau-diffuseur.ts:`${PREFIXE_ETATS_GARDE}${nom}:${cle}`": { exclu: "memoire" }, // état de la garde par créneau (marques « envoi-calendrier:<nom>:<clé> », lecture seule) : pas un interrupteur
-  "services/generateur-ecran.ts:cleRetouches(c)": { exclu: "memoire" },
-  "services/generateur-ecran.ts:cleScriptRelu(o.operationId)": { exclu: "memoire" },
-  "services/generation-claude.ts:paramAttente(generationId)": { exclu: "memoire" },
-  "services/generation-claude.ts:paramAttente(g.id)": { exclu: "memoire" },
-  "services/generation-claude.ts:paramRepriseDeWill(generationId)": { exclu: "dedoublonnage" },
-  "services/generation-claude.ts:reglagePlafond(chaine)": { exclu: "valeur" },
-  "services/generation-claude.ts:paramReserveChaine(generationId)": { exclu: "memoire" },
-  "services/guides-fabrique.ts:PREFIXE_PARAM_REDACTION + p.id": { exclu: "memoire" },
-  "services/guides-fabrique.ts:PREFIXE_PARAM_FABRIQUE + p.id": { exclu: "memoire" },
-  "services/guides-fabrique.ts:cle": { exclu: "memoire" },
-  "services/guides-redaction.ts:cleParam": { exclu: "memoire" },
-  "services/illustrations.ts:cleRang(videoId)": { exclu: "memoire" },
-  "services/illustrations.ts:cleEconomique(videoId)": { couvre: "illustrations.economique.*" },
-  "services/image-video-lot.ts:cleLot(id)": { exclu: "memoire" },
-  "services/image-video-carte.ts:`${PREFIXE_DECISIONS}${videoId}`": { exclu: "memoire" },
-  "services/image-video.ts:`${PREFIXE_DECISIONS}${dep.videoId}`": { exclu: "memoire" },
-  "services/interrupteurs-ecriture.ts:cle": { couvre: "adaptations_reseaux.actif" }, // les 4 de CLES_INTERRUPTEURS_ECRITURE
-  "services/mode-budget.ts:cle": { exclu: "dedoublonnage" },
-  "services/modifications.ts:cle(videoId)": { exclu: "memoire" },
-  "services/monteur-facecam.ts:CLE_FIL(videoId)": { exclu: "memoire" },
-  "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
-  "services/notifications.ts:cle": { exclu: "dedoublonnage" },
-  "services/oppositions-mots.ts:`${PARAM_CONVERSATIONS_ETAT}.alias`": { exclu: "memoire" },
-  "services/oppositions-transmission.ts:`${PARAM_CONVERSATIONS}.alias`": { exclu: "memoire" },
-  "services/plafond-fournisseur.ts:cle": { exclu: "dedoublonnage" }, // :74 marque ; :99 et :113 compteur (mémoire)
-  "services/publication-editoriale-interrupteurs.ts:cle": { couvre: "publication.premier_commentaire_coupe" }, // INTERRUPTEURS_PUBLICATION
-  "services/retouche-chat/generateurs-studio.ts:id": { couvre: "retoucheChat.avocat" }, // les 5 de CLES_REGLAGE_RETOUCHE
-  "services/serie-ecriture.ts:cleSerie(cle)": { exclu: "memoire" },
-  "services/site-videos.ts:cleSiteGenerateur(formatId)": { couvre: "siteGenerateurs.*" },
-  "services/site-videos.ts:cleSiteAuto(f.id)": { couvre: "siteAuto.*" },
-  "services/site-videos.ts:cleSiteAuto(video.formatId)": { couvre: "siteAuto.*" },
-  "services/source-claude.ts:paramJourRenouvellement(s)": { exclu: "valeur" },
-  "services/source-claude.ts:paramEpuise(id)": { exclu: "dedoublonnage" },
-  "services/source-claude.ts:paramEpuise(s)": { exclu: "dedoublonnage" },
-  "visuels/interrupteur.ts:cleDe(famille)": { couvre: "carrousels.actif" }, // et infographies.actif (CLES_INTERRUPTEURS_VISUELS)
-  "visuels/services/carrousels.ts:CLE_SESSION + empreinteSession": { exclu: "memoire" },
-  "visuels/services/production.ts:PREFIXE_REGISTRE + empreinte": { exclu: "dedoublonnage" },
+export function domaineDe(table: Table | "listes", ligne: { cle: string; appel?: string; valeur?: Couverture }, constantes: readonly Constante[] = []): NomDomaine {
+  switch (table) {
+    case "env":
+      return "divers";
+    case "listes":
+      return DOMAINE_DES_LISTES[ligne.cle as keyof Listes] ?? "divers";
+    case "constantes":
+      return domaineDuPrefixe(ligne.cle) ?? (ligne.appel ? domaineDuFichier(ligne.appel) : "divers");
+    case "parExpression": {
+      const v = ligne.valeur;
+      if (v && "couvre" in v) {
+        const c = constantes.find((x) => x.cle === v.couvre);
+        return c ? domaineDe("constantes", c) : (domaineDuPrefixe(v.couvre) ?? "divers");
+      }
+      return domaineDuFichier(ligne.cle.slice(0, ligne.cle.indexOf(":")));
+    }
+    default:
+      return domaineDuPrefixe(ligne.cle) ?? "divers";
+  }
+}
+
+/** Les 12 fichiers de domaine, chargés PARESSEUSEMENT (dans `beforeAll`), liste écrite en dur. */
+const CHARGEURS: Record<NomDomaine, () => Promise<{ DOMAINE?: Domaine }>> = {
+  "argent-et-fournisseurs": () => import("./inventaire/argent-et-fournisseurs.test"),
+  "cas-concret": () => import("./inventaire/cas-concret.test"),
+  divers: () => import("./inventaire/divers.test"),
+  "facecam-animee": () => import("./inventaire/facecam-animee.test"),
+  formats: () => import("./inventaire/formats.test"),
+  "habillage-et-briques": () => import("./inventaire/habillage-et-briques.test"),
+  "parcours-et-ecriture": () => import("./inventaire/parcours-et-ecriture.test"),
+  "publication-et-mesures": () => import("./inventaire/publication-et-mesures.test"),
+  "retouche-chat": () => import("./inventaire/retouche-chat.test"),
+  "site-et-visuels": () => import("./inventaire/site-et-visuels.test"),
+  tableau: () => import("./inventaire/tableau.test"),
+  "tableau-de-bord": () => import("./inventaire/tableau-de-bord.test"),
 };
+
+/** Commit de départ du découpage : ses clés doivent toutes rester dans l'union (test « aucune clé d'avant perdue »). */
+const AVANT_DECOUPAGE = "a0fc572d3c8832d943eb9b951fc7eefd476c87e7";
+
+// Union des domaines, remplie par `chargerDomaines` (beforeAll) et lue au moment de l'appel.
+let CHARGES: { fichier: NomDomaine; module: { DOMAINE?: Domaine } }[] = [];
+let LES_DOMAINES: Domaine[] = [];
+let LITTERALES: Record<string, Etat> = {};
+let PAR_CONSTANTE: Constante[] = [];
+let GABARITS: Gabarit[] = [];
+let ENV: Env[] = [];
+let PLAN_SCENES: Record<string, Etat> = {};
+let RETOUCHE: Record<string, Etat> = {};
+let EXCLUS_CLES: Record<string, Motif> = {};
+let PAR_EXPRESSION: Record<string, Couverture> = {};
+let LISTES: Listes = {};
+
+async function chargerDomaines() {
+  CHARGES = await Promise.all(DOMAINES.map(async (fichier) => ({ fichier, module: await CHARGEURS[fichier]() })));
+  LES_DOMAINES = CHARGES.flatMap((c) => (c.module.DOMAINE ? [c.module.DOMAINE] : []));
+  LITTERALES = Object.assign({}, ...LES_DOMAINES.map((d) => d.litterales));
+  PAR_CONSTANTE = LES_DOMAINES.flatMap((d) => d.constantes);
+  GABARITS = LES_DOMAINES.flatMap((d) => d.gabarits);
+  ENV = LES_DOMAINES.flatMap((d) => d.env);
+  PLAN_SCENES = Object.assign({}, ...LES_DOMAINES.map((d) => d.planScenes));
+  RETOUCHE = Object.assign({}, ...LES_DOMAINES.map((d) => d.retouche));
+  EXCLUS_CLES = Object.assign({}, ...LES_DOMAINES.map((d) => d.exclusCles));
+  PAR_EXPRESSION = Object.assign({}, ...LES_DOMAINES.map((d) => d.parExpression));
+  LISTES = Object.assign({}, ...LES_DOMAINES.map((d) => d.listes ?? {}));
+}
+
+/** Les lignes d'une table d'un domaine, sous forme `{ cle, appel?, valeur? }` (clé = identifiant de la ligne). */
+function lignesDe(d: Domaine, t: Table): { cle: string; appel?: string; valeur?: Couverture }[] {
+  switch (t) {
+    case "constantes":
+      return d.constantes.map((c) => ({ cle: c.cle, appel: c.appel }));
+    case "gabarits":
+      return d.gabarits.map((g) => ({ cle: g.gabarit }));
+    case "env":
+      return d.env.map((e) => ({ cle: e.nom }));
+    case "parExpression":
+      return Object.entries(d.parExpression).map(([cle, valeur]) => ({ cle, valeur }));
+    default:
+      return Object.keys(d[t]).map((cle) => ({ cle }));
+  }
+}
+
+/** Clés de chaque table, extraites du TEXTE de l'ancien fichier (tables encore en place avant le découpage). */
+export function clesDuFichierAvant(texte: string): Record<Table, string[]> {
+  const lignes = texte.split("\n");
+  const bloc = (nom: string) => {
+    const i = lignes.findIndex((l) => new RegExp(`^const ${nom}\\b`).test(l));
+    if (i < 0) throw new Error(`table ${nom} introuvable dans ${AVANT_DECOUPAGE}`);
+    let j = i + 1;
+    while (j < lignes.length && !/^[}\]];$/.test(lignes[j])) j++;
+    return lignes.slice(i + 1, j).join("\n");
+  };
+  const par = (nom: string, re: RegExp) => [...bloc(nom).matchAll(re)].map((m) => m[1] ?? m[2]);
+  const objet = /^ {2}(?:"([^"]+)"|([A-Za-z_$][\w$]*)):/gm;
+  return {
+    litterales: par("LITTERALES", objet),
+    constantes: par("PAR_CONSTANTE", /\bcle: "([^"]+)"/g),
+    gabarits: par("GABARITS", /\bgabarit: "([^"]+)"/g),
+    planScenes: par("PLAN_SCENES", objet),
+    retouche: par("RETOUCHE", objet),
+    exclusCles: par("EXCLUS_CLES", objet),
+    parExpression: par("PAR_EXPRESSION", objet),
+    env: par("ENV", /\bnom: "([^"]+)"/g),
+  };
+}
+
+const lire = (f: string) => readFileSync(f, "utf8");
 
 /** Premier argument d'un appel (texte entre la parenthèse ouvrante et la 1re virgule ou parenthèse fermante de niveau 0). */
 function argument(t: string, i: number): [texte: string, fin: number] {
@@ -668,6 +431,8 @@ export function nonRecenses(fichier: string, texte: string, connues: Set<string>
 }
 
 describe("Inventaire des interrupteurs (G7-06)", () => {
+  beforeAll(chargerDomaines);
+
   it("plan de scènes : valeurs par défaut constatées (import du fichier pur)", () => {
     for (const [g, cle] of Object.entries(CLES_REGLAGE_PLAN_SCENES)) {
       expect(PLAN_SCENES[cle], `${cle} absent de la table`).toBe(ALLUME_PAR_DEFAUT[g as keyof typeof ALLUME_PAR_DEFAUT] ? "allume" : "eteint");
@@ -675,7 +440,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(Object.keys(PLAN_SCENES).sort()).toEqual(Object.values(CLES_REGLAGE_PLAN_SCENES).sort());
   });
 
-  it("retouche du chat : cinq clés, toutes éteintes (AM-24 / C-7)", () => {
+  it("retouche du chat : les clés de CLES_REGLAGE_RETOUCHE, toutes éteintes (AM-24 / C-7)", () => {
     expect(Object.values(CLES_REGLAGE_RETOUCHE).sort()).toEqual(Object.keys(RETOUCHE).sort());
     expect(Object.values(RETOUCHE).every((e) => e === "eteint")).toBe(true);
     const texte = lire("src/services/retouche-chat/generateurs.ts");
@@ -715,15 +480,15 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     const cst = toutesConstantes();
     const casConcret = lire("src/services/cas-concret-reglages.ts").match(/REGLAGES_CAS_CONCRET = \{([^}]*)\}/)![1];
     const idsCas = [...casConcret.matchAll(/:\s*"([^"]+)"/g)].map((x) => x[1]);
-    expect(idsCas).toHaveLength(7);
+    expect(idsCas).toHaveLength(LISTES.REGLAGES_CAS_CONCRET ?? -1);
     for (const k of idsCas) expect(cles.has(k), `REGLAGES_CAS_CONCRET : ${k} absente de la table`).toBe(true);
     const ecriture = lire("src/services/interrupteurs-ecriture.ts").match(/CLES_INTERRUPTEURS_ECRITURE = \[([^\]]*)\]/)![1];
     const idsEcr = [...ecriture.matchAll(/"([^"]+)"/g)].map((x) => x[1]);
-    expect(idsEcr).toHaveLength(4);
+    expect(idsEcr).toHaveLength(LISTES.CLES_INTERRUPTEURS_ECRITURE ?? -1);
     for (const k of idsEcr) expect(cles.has(k), `CLES_INTERRUPTEURS_ECRITURE : ${k} absente de la table`).toBe(true);
     const registre = lire("src/domaine/interrupteurs/registre.ts");
     const idsPub = [...registre.matchAll(/\bcle:\s*([A-Z][A-Z0-9_]*)/g)].flatMap((x) => [...(cst.get(x[1]) ?? [])]);
-    expect(idsPub.sort()).toEqual(["publication.editoriale_active", "publication.premier_commentaire_coupe"]);
+    expect(idsPub.sort()).toEqual(LISTES.INTERRUPTEURS_PUBLICATION);
     for (const k of idsPub) expect(cles.has(k), `INTERRUPTEURS_PUBLICATION : ${k} absente de la table`).toBe(true);
     expect(lire("src/services/publication-editoriale-interrupteurs.ts")).toMatch(/lireParametre<unknown>\(cle, false\)/);
   });
@@ -739,7 +504,7 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
   it("interrupteurs d'envoi affichés (INTERRUPTEURS_PRODUCTION, etat-production.ts) : chacun dans la table, même défaut", () => {
     const texte = lire("src/services/etat-production.ts").match(/INTERRUPTEURS_PRODUCTION = \[([\s\S]*?)\] as const/)![1];
     const lignes = [...texte.matchAll(/cle: "([^"]+)"[^}]*parDefaut: (true|false)/g)].map((x) => [x[1], x[2]] as const);
-    expect(lignes).toHaveLength(3);
+    expect(lignes).toHaveLength(LISTES.INTERRUPTEURS_PRODUCTION ?? -1);
     const etats = new Map(PAR_CONSTANTE.map((c) => [c.cle, c.etat]));
     for (const [cle, d] of lignes) expect(etats.get(cle), `INTERRUPTEURS_PRODUCTION : ${cle}`).toBe(d === "true" ? "allume" : "eteint");
   });
@@ -823,7 +588,79 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(interrupteursNeufsAllumes(`lireParametre("afficherExemples", true)`, toutesCles())).toEqual([]);
   });
 
-  it("les clés littérales de master sont toutes dans la table (30 sur 240a0e6, + retoucheChat.coller, + zernio.synchro_etape_visuels, + mesures.lecture_par_liste, + mesures.tentatives_lecture, + accueil.bilan_semaine, + mesures.relecture_automatique, + tutoriel.finitions, + tutoriel.suiviCloche, + videoLongue.actif, + tutoriel.devisAvantDepense, + tutoriel.finCommune)", () => {
-    expect(Object.keys(LITTERALES)).toHaveLength(42);
+  it("les clés littérales de master sont toutes dans la table : compteur LOCAL de chaque domaine, somme = union (historique dans l'en-tête)", () => {
+    for (const d of LES_DOMAINES) expect(Object.keys(d.litterales), `${d.nom} : nombre.litterales`).toHaveLength(d.nombre.litterales);
+    expect(LES_DOMAINES.reduce((n, d) => n + d.nombre.litterales, 0)).toBe(Object.keys(LITTERALES).length);
+  });
+
+  it("domaines : dossier fermé (12 fichiers, un DOMAINE chacun, nom = fichier, compteurs complets)", () => {
+    expect(readdirSync("tests/usine/inventaire").sort()).toEqual(DOMAINES.map((d) => `${d}.test.ts`).sort());
+    for (const { fichier, module } of CHARGES) {
+      expect(module.DOMAINE, `${fichier}.test.ts : export DOMAINE absent`).toBeDefined();
+      expect(module.DOMAINE!.nom, `${fichier}.test.ts : nom`).toBe(fichier);
+      const nombre = module.DOMAINE!.nombre as Partial<Record<string, unknown>> | undefined;
+      expect(Object.keys(nombre ?? {}).sort(), `${fichier} : nombre doit avoir les 8 champs`).toEqual([...TABLES].sort());
+      for (const t of TABLES) expect(Number.isInteger(nombre?.[t]), `${fichier} : nombre.${t} entier`).toBe(true);
+    }
+  });
+
+  it("domaines : une ligne, son domaine (règle domaineDe appliquée à chaque ligne et à chaque liste)", () => {
+    const refus: string[] = [];
+    for (const d of LES_DOMAINES) {
+      for (const t of TABLES)
+        for (const l of lignesDe(d, t)) {
+          const attendu = domaineDe(t, l, PAR_CONSTANTE);
+          if (attendu !== d.nom) refus.push(`${l.cle} : rangée dans ${d.nom}, la règle dit ${attendu}`);
+        }
+      for (const nom of Object.keys(d.listes ?? {})) {
+        const attendu = domaineDe("listes", { cle: nom });
+        if (attendu !== d.nom) refus.push(`${nom} : rangée dans ${d.nom}, la règle dit ${attendu}`);
+      }
+    }
+    expect(refus).toEqual([]);
+  });
+
+  it("domaines : une clé, un domaine (aucune clé, gabarit, fichier:expression ni liste déclarés deux fois)", () => {
+    const refus: string[] = [];
+    const parTable: [string, (d: Domaine) => string[]][] = [
+      ...TABLES.map((t) => [t, (d: Domaine) => lignesDe(d, t).map((l) => l.cle)] as [string, (d: Domaine) => string[]]),
+      ["listes", (d: Domaine) => Object.keys(d.listes ?? {})],
+    ];
+    for (const [t, cles] of parTable) {
+      const ou = new Map<string, string[]>();
+      for (const d of LES_DOMAINES) for (const k of cles(d)) ou.set(k, [...(ou.get(k) ?? []), d.nom]);
+      for (const [k, ds] of ou) if (ds.length > 1) refus.push(`${t} « ${k} » : déclarée dans ${ds.join(", ")}`);
+    }
+    expect(refus).toEqual([]);
+  });
+
+  it("domaines : compteurs de domaine (chaque table de chaque domaine = son nombre ; somme des nombre = taille de l'union)", () => {
+    for (const d of LES_DOMAINES) for (const t of TABLES) expect(lignesDe(d, t), `${d.nom} : nombre.${t}`).toHaveLength(d.nombre[t]);
+    const union: Record<Table, number> = {
+      litterales: Object.keys(LITTERALES).length,
+      constantes: new Set(PAR_CONSTANTE.map((c) => c.cle)).size,
+      gabarits: new Set(GABARITS.map((g) => g.gabarit)).size,
+      planScenes: Object.keys(PLAN_SCENES).length,
+      retouche: Object.keys(RETOUCHE).length,
+      exclusCles: Object.keys(EXCLUS_CLES).length,
+      parExpression: Object.keys(PAR_EXPRESSION).length,
+      env: new Set(ENV.map((e) => e.nom)).size,
+    };
+    for (const t of TABLES) expect(LES_DOMAINES.reduce((n, d) => n + d.nombre[t], 0), `${t} : somme des nombre ≠ union (doublon caché ?)`).toBe(union[t]);
+  });
+
+  it(`domaines : aucune clé d'avant perdue (tables de ${AVANT_DECOUPAGE.slice(0, 8)} toutes dans l'union, sauf retirees)`, () => {
+    let texte: string;
+    try {
+      texte = execSync(`git show ${AVANT_DECOUPAGE}:tests/usine/interrupteurs-inventaire.test.ts`, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e) {
+      throw new Error(`git show ${AVANT_DECOUPAGE} impossible (historique absent ?) : le filet « aucune clé perdue » ne peut pas être vérifié. ${String(e)}`);
+    }
+    const avant = clesDuFichierAvant(texte);
+    const retirees = new Set(LES_DOMAINES.flatMap((d) => d.retirees));
+    const maintenant = Object.fromEntries(TABLES.map((t) => [t, new Set(LES_DOMAINES.flatMap((d) => lignesDe(d, t).map((l) => l.cle)))])) as Record<Table, Set<string>>;
+    const perdues = TABLES.flatMap((t) => avant[t].filter((k) => !maintenant[t].has(k) && !retirees.has(k)).map((k) => `${t} « ${k} »`));
+    expect(perdues, "clé d'avant le découpage absente de l'union (et pas dans retirees)").toEqual([]);
+    expect(TABLES.map((t) => avant[t].length)).toEqual([42, 77, 7, 3, 5, 119, 102, 2]);
   });
 });

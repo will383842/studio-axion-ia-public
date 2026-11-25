@@ -1,3 +1,4 @@
+import type { PlanHabille } from "../motion/habillage-commun/types";
 import type { PlanDeScenes } from "@/briques/plan-scenes/schema";
 
 /** Valeurs « à mesurer », jamais bloquantes : elles ne produisent qu'une réserve « À vérifier ». */
@@ -6,6 +7,9 @@ export const SEUIL_FLASHS_PAR_FENETRE = 3;
 
 /** Transitions de la famille « lumière » : un éclat bref (flash ivoire, reflet). */
 const TRANSITIONS_FLASH: ReadonlySet<string> = new Set(["flash-ivoire", "reflet-entree"]);
+
+/** BR-GARDE-FLASH-a : la mesure est branchée (transitions communes des tranches du cas concret). Coupe : `false`. */
+export const FLASH_MESURE_ACTIVE = true;
 
 export type MesureFlash = {
   flashs: number;
@@ -24,11 +28,16 @@ const secondes = (ms: number) => String(Math.round(ms / 100) / 10).replace(".", 
  */
 export function mesurerFlashs(plan: Pick<PlanDeScenes, "dureeMs" | "scenes">): MesureFlash {
   const instants: number[] = [];
+  const habillees = (plan as Partial<PlanHabille> | undefined)?.habillageCommun?.transitions;
   for (const s of Array.isArray(plan?.scenes) ? plan.scenes : []) {
-    const t = s?.transition;
-    if (!t || !fini(s.debutMs)) continue;
-    if (TRANSITIONS_FLASH.has(t.entree)) instants.push(s.debutMs);
-    if (TRANSITIONS_FLASH.has(t.sortie) && fini(s.finMs)) instants.push(s.finMs - (fini(t.dureeMs) ? t.dureeMs : 0));
+    if (!s || !fini(s.debutMs)) continue;
+    const t = s.transition;
+    if (t && TRANSITIONS_FLASH.has(t.entree)) instants.push(s.debutMs);
+    if (t && TRANSITIONS_FLASH.has(t.sortie) && fini(s.finMs)) instants.push(s.finMs - (fini(t.dureeMs) ? t.dureeMs : 0));
+    // Transitions communes posées par l'habillage (lues par scène, même liste de flashs).
+    const h = habillees?.[s.id];
+    if (h?.entree && TRANSITIONS_FLASH.has(h.entree)) instants.push(s.debutMs);
+    if (h?.sortie && TRANSITIONS_FLASH.has(h.sortie) && fini(s.finMs)) instants.push(s.finMs - (fini(t?.dureeMs) ? t.dureeMs : 0));
   }
   instants.sort((a, b) => a - b);
   let maxParSeconde = 0;

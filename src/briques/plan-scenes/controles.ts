@@ -151,6 +151,10 @@ export function affichageDeLaScene(scene: Pick<ScenePlan, "piece" | "parametres"
     case "graphique":
       texte(p.titre, 40, 700, 880, "chiffres");
       break;
+    case "courbe-series":
+      texte(p.titre, 40, 700, 880, "chiffres");
+      for (const s of elements(p.series)) for (const v of Array.isArray(s.valeurs) ? s.valeurs : []) nombre(v);
+      break;
     default:
       break;
   }
@@ -352,7 +356,7 @@ const duree = (s: ScenePlan) => s.finMs - s.debutMs;
  * Pièces « de données » (GV2-45), nées des faits du script. La densité et la répétition ne jugent qu'elles : les légendes et les
  * maquettes d'interface (fenêtre, tableau, carte KPI…) s'enchaînent par construction dans les plans composés et les tests existants.
  */
-export const PIECES_DE_DONNEES: readonly string[] = ["compteur", "jauge", "avant-apres", "barres", "etapes", "liste-au-mot", "citation", "repere"];
+export const PIECES_DE_DONNEES: readonly string[] = ["compteur", "jauge", "avant-apres", "barres", "etapes", "liste-au-mot", "citation", "repere", "courbe-series"];
 const estDonnee = (s: ScenePlan) => PIECES_DE_DONNEES.includes(s.piece);
 
 export function controlerDensite(toutes: ScenePlan[], figees: ReadonlySet<string> = new Set()): ResultatControlePlan {

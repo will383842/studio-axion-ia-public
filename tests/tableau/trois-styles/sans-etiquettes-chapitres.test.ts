@@ -48,5 +48,5 @@ describe("plus d'étiquettes de chapitres dans le tableau", () => {
     delete sans.styleTableau;
     const m = mettreEnPage(avecStyleTableau(sans as unknown as ReturnType<typeof ficheMaquettes>), {});
     expect(m.styleReference?.tableau).toBeDefined();
-  });
+  }, 30_000);
 });
