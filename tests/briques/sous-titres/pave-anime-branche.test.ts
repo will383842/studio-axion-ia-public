@@ -58,7 +58,7 @@ const FPS = 25;
 const sansImage = { encadre: undefined, incrustations: [] as never[] };
 
 /** Empreintes figées sur master AVANT le changement (plaque fixe d'aujourd'hui, champs absents). */
-const EMPREINTE_HTML = "6770517b7e027d6bd8abb4f8e1969b729c480fe868356c0bfd6eab53c9ec46a3";
+const EMPREINTE_HTML = "ad848b26b2bad7b27f5b316b68f7e337d23c96461d45d16454fd60da5f2476c3"; // CONTOURS-b-v21s : contour V2 seul (trait 6→3 px, ombre 8→10,4 px / 0,65→0,55, taille/gap/padding Impact dérivés)
 const EMPREINTE_INSTANTS = "31e81284f297fa22f7233bcdb2b7d40aeeb557aee0838aa71ae348f694c29023";
 
 describe("(a) éteint = identique au caractère près (champs absents)", () => {
