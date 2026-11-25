@@ -55,7 +55,7 @@ export const PLAN_SANS_VOIX_STOCKS: PlanComposeSansVoix = {
       ],
     },
     { id: "s3", genre: "repere", debutMs: 34000, finMs: 38000, mots: { premier: 86, dernier: 95 }, avant: "une heure", apres: "une minute", barreAMs: 36400, apresAMs: 35600 },
-    { id: "s4", genre: "appel", debutMs: 38000, finMs: 41400, mots: { premier: 96, dernier: 106 }, question: "Vous voulez le même pour votre entreprise ?", bouton: "Prenez rendez-vous", clicAMs: 40300 },
+    { id: "s4", genre: "appel", debutMs: 38000, finMs: 41400, mots: { premier: 96, dernier: 106 }, question: "Vous voulez le même pour votre entreprise ?", bouton: "Prenez rendez-vous", clicAMs: 40300, marque: "Axion IA", site: "axion-ia.com" },
   ],
 };
 
