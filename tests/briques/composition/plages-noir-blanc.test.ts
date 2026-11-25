@@ -66,7 +66,7 @@ describe("plagesNoirBlancDesFaits", () => {
     expect(plagesNoirBlancDesFaits(m, ON)).toEqual(r1);
     expect(JSON.stringify(m)).toBe(avant);
   });
-  it("(h) gardes de texte : imports relatifs seuls, sans importeur", () => {
+  it("(h) gardes de texte : imports relatifs seuls, importeur unique : parametres.ts (NOIR-BLANC-b)", () => {
     const src = readFileSync(SRC, "utf8");
     for (const interdit of ["@/", "react", "remotion", "studio-rendu", "v4"]) expect(src).not.toContain(`from "${interdit}`);
     expect(/from "(@\/|react|remotion|[^"]*studio-rendu|[^"]*v4)/.test(src)).toBe(false);
@@ -82,6 +82,7 @@ describe("plagesNoirBlancDesFaits", () => {
     };
     parcourir(fileURLToPath(new URL("../../../src", import.meta.url)).replace(/\/$/, ""));
     parcourir(fileURLToPath(new URL("../../../studio-rendu", import.meta.url)).replace(/\/$/, ""));
-    expect(citeurs).toEqual([]);
+    // MAJ 25/11 (NOIR-BLANC-b-v21s, voulue, à relire) : `parametres.ts` est le SEUL importeur permis (il porte les plages jusqu'au filtre, derrière NOIR_BLANC_ACTIF = false) ; tout AUTRE fichier reste refusé.
+    expect(citeurs).toEqual([fileURLToPath(new URL("../../../src/briques/composition/parametres.ts", import.meta.url))]);
   });
 });

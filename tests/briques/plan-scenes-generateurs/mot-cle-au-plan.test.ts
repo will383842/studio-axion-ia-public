@@ -36,7 +36,7 @@ describe("BR-MOT-CLE-a · poserMotCleAuPlan", () => {
     expect(s).toBeDefined();
     expect(s!.piece).toBe("legende");
     expect(s!.position).toBe("haut");
-    expect(s!.parametres).toEqual({ texte: "relancer", sousTexte: "", style: "etiquette" });
+    expect(s!.parametres).toEqual({ texte: "relancer", sousTexte: "", style: "bandeau" });
     expect(s!.debutMs).toBe(800);
     expect(s!.finMs - s!.debutMs).toBeGreaterThanOrEqual(DUREE_MOT_CLE_MS);
     expect(s!.mots).toEqual({ premier: 2, dernier: 2 });

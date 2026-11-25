@@ -416,6 +416,8 @@ export interface ParametresCouleurs {
   grainTaillePx: number;
   /** Assombrissement des coins, %. */
   vignettePct: number;
+  /** NOIR-BLANC-b (C10-05, éteint) : plages [début, fin) en secondes passées en noir et blanc, jamais sur Williams. Absent = comme avant. */
+  noirBlanc?: [number, number][];
 }
 
 /** Son (B.4, B.7) : chaîne de la voix, ton de pièce, niveau. Toutes les mesures se font sur le fichier exporté. */

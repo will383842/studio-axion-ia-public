@@ -1,4 +1,4 @@
-/** X1-00 : 10 lignes `prevu` « tendances 2027 » : jamais permises, catalogue existant inchangé. */
+/** X1-00 : 10 lignes « tendances 2027 » (7 eteint, 3 prevu depuis TENDANCES-2027-CAT-v20l) : jamais permises, catalogue existant inchangé. */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -102,6 +102,12 @@ const INSTANTANE_MASTER: string[] = [
   "texte.mode-carte|prevu|11|",
   "texte.effets|prevu|11|",
   "texte.accents-role|prevu|11|",
+  // C11-C2-a-v20k
+  "cadrage.camera-couverture|eteint|11|",
+  "ecran.carte-video-arrondie|prevu|11|",
+  "ecran.grilles-archive|prevu|11|",
+  "ecran.ecrans-composes|prevu|11|",
+  "motion.titre-etape-montante|prevu|11|",
   "motion.v4-coulisse.LogoOutil|coulisse||",
   "motion.v4-coulisse.Equation|coulisse||",
   "motion.v4-coulisse.FriseEtapes|coulisse||",
@@ -117,13 +123,20 @@ const INSTANTANE_MASTER: string[] = [
   "motion.v4-coulisse.panneau-fin|coulisse||",
 ];
 
+/** TENDANCES-2027-CAT-v20l : table EXACTE par identifiant (Williams, 21/11 00:25). */
+const ETAT_ATTENDU: Record<string, string> = {
+  "texte.poids-variable": "eteint", "texte.minimal-dynamique": "eteint", "fond.verre-depoli": "eteint", "transition.raccord-forme": "eteint",
+  "accroche.apercu-fin": "eteint", "accroche.mot-cle": "eteint", "rythme.boucle": "eteint",
+  "ecran.fenetre-inclinee": "prevu", "transition.zoom-mot": "prevu", "mention.ia": "prevu",
+};
+
 describe("X1-00 · tendances 2027", () => {
-  it("chaque identifiant : une fois dans ID, une fois au catalogue, prevu, chantier X1", () => {
+  it("chaque identifiant : une fois dans ID, une fois au catalogue, état attendu (7 eteint, 3 prevu), chantier X1", () => {
     for (const id of DIX) {
       expect(Object.values(ID).filter((v) => v === id), id).toHaveLength(1);
       const l = CATALOGUE_CAPACITES.filter((x) => x.id === id);
       expect(l, id).toHaveLength(1);
-      expect(l[0].etat).toBe("prevu");
+      expect(l[0].etat, id).toBe(ETAT_ATTENDU[id]);
       expect(l[0].chantier).toBe("X1");
     }
     expect(LIGNES_TENDANCES_2027).toHaveLength(10);

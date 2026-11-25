@@ -786,6 +786,8 @@ async function traiterEchec(g: GenerationScript, appelId: string, lignes: LigneC
     // Refus net de l'API : rien n'a été produit, rien n'est compté.
     await majEtape(g.id, appelId, { termineLe: maintenant(), resultat: "rejete" });
   }
+  // FIX-RETOUCHE-COUPEE : `fetch` rejeté avant toute réponse HTTP → étape marquée, SANS `termineLe` (le pire cas reste compté) ni réservation rendue.
+  if (err?.code === "reseau" && err.sansReponseHttp) await majEtape(g.id, appelId, { sansReponseHttp: true });
   // Le message de l'API (déjà masqué) ne va qu'au journal du serveur ; le Journal du studio dit l'essentiel.
   console.warn(`[studio] générateur : écriture interrompue (${libelleSource(source)}) : ${err?.code ?? "erreur"} — ${message}`);
   await journaliser("generateur", PHRASES_INTERRUPTION[err?.code ?? ""] ?? "Écriture interrompue : Claude n'a pas répondu. Elle attend « Reprendre ».", { type: "sujet", id: g.scriptMaitreId });
