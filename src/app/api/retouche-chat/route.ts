@@ -6,6 +6,7 @@ import { estGenerateurRetouche } from "@/services/retouche-chat/generateurs";
 import { FABRIQUER_PAR_GENERATEUR, STATUT_REFUS_FABRIQUER } from "@/services/retouche-chat/tutoriel-fabriquer";
 import { portsGenerateurStudio, retoucheChatActifServeur } from "@/services/retouche-chat/generateurs-studio";
 import { portsStudio } from "@/services/retouche-chat/studio";
+import { CLES_REGLAGE_LECTEUR } from "@/services/retouche-chat/lecteur-generateurs";
 import { sansGenerateurActif, versionDeLaVideo, videoEnDiffusion } from "@/services/retouche-chat/garde-acces";
 import { historiqueVersions, versionARetablir } from "@/services/retouche-chat/historique";
 import { apercevoirRetoucheTutoriel, appliquerRetoucheTutoriel, etapeIdsDuFilm, type PortsFilm } from "@/services/retouche-chat/tutoriel-retouche-film";
@@ -81,6 +82,11 @@ export async function POST(requete: NextRequest) {
   if (c.action === "appliquer" && c.generateur === "demo-facecam") {
     const [{ appliquerRetoucheDemo }, { lancerRetoucheDemo }, { depsLancerDemoStudio }] = await Promise.all([import("@/services/retouche-chat/appliquer-demo"), import("@/services/retouche-chat/lancer-demo"), import("@/services/retouche-chat/deps-demo-studio")]);
     return NextResponse.json(await appliquerRetoucheDemo(c.videoId, { demande: c.demande, operations: c.operations }, ports, (d) => lancerRetoucheDemo(d, depsLancerDemoStudio(d.videoId, d.versionId))));
+  }
+  // S-05-b : l'aperçu d'un générateur à clé de lecteur passe par le lecteur commun (clé éteinte : les MÊMES ports).
+  if (c.action === "apercu" && c.generateur !== undefined && Object.hasOwn(CLES_REGLAGE_LECTEUR, c.generateur)) {
+    const { avecLecteurStudio } = await import("@/services/retouche-chat/lecteur-studio");
+    return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, await avecLecteurStudio(c.generateur, c.videoId, ports)));
   }
   if (c.action === "apercu") return NextResponse.json(await apercevoirRetouche(c.videoId, c.demande, ports));
   if (c.action === "appliquer") return NextResponse.json(await appliquerRetouche(c.videoId, { demande: c.demande, operations: c.operations }, ports));

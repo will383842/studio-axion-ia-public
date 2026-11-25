@@ -82,6 +82,10 @@ describe("N-26-c2 · filet G14-13 : réglages éteints = comportement d'aujourd'
     for (const [nom, regler] of VALEURS) {
       it(`${g} · réglage ${nom} : les 5 actions répondent 403, aucun port, aucune lecture ni écriture de dépôt, aucun appel de la branche démo`, async () => {
         regler();
+        if (g === "demo-facecam" && (nom === "absent" || nom === "null")) { // ALLUMER-RETOUCHE-DEMO-v21r : démo allumée par défaut (null en base = absent pour lireParametre), la garde laisse passer
+          for (const a of ACTIONS) expect(await poster({ ...a, generateur: g, videoId: "vid" }).then((r) => r.status, () => 500), `${g} ${a.action}`).not.toBe(403); // les ports doublés ({}) font lever le gestionnaire : la garde est passée
+          return;
+        }
         for (const a of ACTIONS) {
           const r = await poster({ ...a, generateur: g, videoId: "vid" });
           expect(r.status, `${g} ${a.action}`).toBe(403);
