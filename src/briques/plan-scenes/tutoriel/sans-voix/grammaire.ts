@@ -64,10 +64,11 @@ export const OPACITE_ATTENUEE = 0.75;
 /** Durées (ms), pas de rebond. */
 export const DUREES_MS = {
   entree: 500,
-  /** Entre deux scènes : la sortante finit de s'effacer (250 ms) AVANT que l'entrante n'affiche du texte (elle entre de +250 à +650 ms). */
-  sortieScene: 250,
-  decalageEntreeScene: 250,
-  entreeScene: 400,
+  /** Entre deux scènes (tour 7, transitions vives) : la sortante finit de s'effacer en 130 ms (≤ 0,15 dès +115 ms) AVANT que l'entrante
+   *  n'affiche du texte (elle entre de +130 à +330 ms : lisible à ≥ 0,85 avant +350 ms). */
+  sortieScene: 130,
+  decalageEntreeScene: 130,
+  entreeScene: 200,
   transition: 600,
   glisseTransitionPx: 14,
   /** Montée/descente de la mise en valeur d'un `focus` (pas de zoom : contour terracotta + atténuation du reste). */
