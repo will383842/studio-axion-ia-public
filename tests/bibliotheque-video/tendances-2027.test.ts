@@ -36,7 +36,7 @@ const INSTANTANE_MASTER: string[] = [
   "texte.sortie-animee|eteint|2 (U19)|",
   "texte.escalier|eteint|2 (U20a, U20b)|",
   "ecran.clip-v4|prod||",
-  "ecran.mosaique-extraits|prevu|4 (U4.1 à U4.6)|",
+  "ecran.mosaique-extraits|eteint|4 (U4.1 à U4.6)|", // C4-U4.13-b-v20j
   "ecran.telephone-extrait|eteint|4 (U4.7 à U4.9c)|", // C4-U4.13a 19/11 : livré, éteint
   "calque.texte-derriere-double|absent||",
   "calque.texte-derriere-prise|absent||",
@@ -98,7 +98,7 @@ const INSTANTANE_MASTER: string[] = [
   "etalonnage.lut|prevu|E2 (G2-02, G2-03)|",
   // CATALOGUE-C10-C11-v21p
   "texte.marques-au-mot|eteint|11|",
-  "texte.selectif|prevu|11|",
+  "texte.selectif|eteint|11|",
   "texte.mode-carte|prevu|11|",
   "texte.effets|prevu|11|",
   "texte.accents-role|prevu|11|",

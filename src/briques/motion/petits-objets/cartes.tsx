@@ -4,7 +4,7 @@
  * Coche sauge seulement avec une `preuve` non vide ; sinon ton neutre. Aucun filtre, aucune couleur : un ton. Imports relatifs seulement.
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import { couleursSur } from "../../jetons-motion";
 import { MOTS_MAX, SURFACE_MAX, type DefinitionObjet, type TonObjet } from "./contrat";
 import { phaseObjet } from "./progres";
@@ -109,7 +109,7 @@ export const OBJET_CARTES_COCHE: DefinitionObjet<ParametresCartes> = {
               <g key={i}>
                 <TraceSvg d={cadre} t={t} ton={tonCadre} fond={fond} epaisseur={EPAISSEUR} />
                 <TraceSvg d={coche} t={tc} ton={tonCoche} fond={fond} epaisseur={EPAISSEUR + 2} />
-                <text x={f(tx)} y={f(y + hc / 2)} dominantBaseline="central" fontFamily={FAMILLE_CSS} fontWeight={700} fontSize={f(taille)} fill={encre} fillOpacity={borne01(t * 2 - 0.4)}>
+                <text x={f(tx)} y={f(y + hc / 2)} dominantBaseline="central" fontFamily={PILE_CSS} fontWeight={700} fontSize={f(taille)} fill={encre} fillOpacity={borne01(t * 2 - 0.4)}>
                   {texte}
                 </text>
               </g>

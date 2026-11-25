@@ -7,6 +7,9 @@ import {
   DESCRIPTION_VERRE,
   CarteVerre,
   styleVerre,
+  MESURE_VERRE,
+  CARTES_VERRE_MAX,
+  PART_VISIBLE_VERRE_MAX,
 } from "../../../src/briques/motion/habillage-commun/verre";
 import { IDS_FONDS_VIVANTS } from "../../../src/briques/motion/habillage-commun/fonds";
 import { CHARTE_AXION, TEINTES_INTERDITES, couleursSur, type FondAxion } from "../../../src/briques/jetons-motion";
@@ -77,5 +80,17 @@ describe("carte en verre dépoli (X1-04)", () => {
     expect(readFileSync(join(dir, "index.ts"), "utf8")).not.toMatch(/verre/);
     expect(readFileSync(join(dir, "fonds.tsx"), "utf8")).not.toMatch(/verre/);
     expect(readdirSync(dir)).toContain("verre.tsx");
+  });
+});
+
+describe("carte en verre dépoli : réglage mesuré (CHIFFRAGE-VERRE-MESURE-2)", () => {
+  it("flou 6 px sur les deux fonds, 1 carte au plus, visible 30 % de la durée au plus, mesure écrite", () => {
+    for (const f of FONDS) expect(DESCRIPTION_VERRE[f].flouPx).toBe(6);
+    expect(String(styleVerre("noir").backdropFilter)).toBe("blur(6px)");
+    expect(CARTES_VERRE_MAX).toBe(1);
+    expect(PART_VISIBLE_VERRE_MAX).toBe(0.3);
+    expect(MESURE_VERRE).toContain("+78 %");
+    expect(MESURE_VERRE).toContain("+6 %");
+    expect(MESURE_VERRE).toContain("3 s sur 10");
   });
 });

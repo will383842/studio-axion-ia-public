@@ -19,7 +19,7 @@ Tests déjà présents (cités, non dupliqués) :
 
 | Générateur | Déclaration | Chemin et ligne |
 |---|---|---|
-| gabarit | `ratios: ["9:16"]` | src/formats/_gabarit/index.ts:39 |
+| gabarit (modèle, non inscrit) | `ratios: ["9:16"]` | src/formats/_gabarit/index.ts:39 |
 | avocat | `ratios: ["9:16", "4:5", "1:1"]` | src/formats/avocat/index.ts:133 |
 | cas concret | `ratios: ["9:16"]` | src/formats/cas-concret/index.ts:112 |
 | démo face caméra | `ratios: ["9:16"]` | src/formats/demo-facecam/index.ts:30 |
