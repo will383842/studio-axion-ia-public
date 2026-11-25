@@ -1,6 +1,9 @@
 /** QUAL-5 : sous-titres du tutoriel sans voix composé (base minimal, sobre, bande de fond gris, couleurs charte). */
 import { describe, expect, it } from "vitest";
 import { fabriquerSousTitres } from "@/briques/sous-titres";
+import { horodaterTexte } from "@/domaine/derivations";
+import { planCarteFin } from "@/moteurs/montage-tutoriel-outil/proprietes";
+import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "@/moteurs/montage-tutoriel-outil/sous-titres-sans-voix";
 
 const TEXTE = "Vous perdez du temps à compter vos stocks à la main ? Voici un tableau de bord qui le fait pour vous. En haut, trois chiffres : les articles en stock, ceux qui passent sous le seuil, et la valeur totale. Vous décidez en une minute au lieu d'une heure.";
@@ -35,13 +38,14 @@ describe("sous-titres sans voix", () => {
     const basPct = basPctSansVoix("4:5");
     const c = calqueSansVoix({ segments: segments(), ratio: "4:5" });
     expect(c.positions.milieuPct).toBe(basPct);
-    expect(c.couleurs).toEqual({ texte: "#141413", accent: "#B23F16", contour: "#FAF9F5" });
+    expect(c.couleurs).toEqual({ texte: "#141413", accent: "#B23F16", contour: "#E8E6DC" });
     expect(c.base).toBe("minimal");
     expect(c.largeurMaxPx).toBe(Math.floor(0.9 * 1080));
     expect(c.bandeFond).toMatchObject({ couleur: "#E8E6DC", opacite: 1, xPx: 0, largeurPx: 1080, fonduPx: 0 });
     const b = c.bandeFond!;
+    // tour 4 : la bande grise va jusqu'au BAS de l'image (aucune bande ivoire vide dessous)
+    expect(b.yPx + b.hauteurPx).toBe(c.hauteur);
     expect(b.hauteurPx).toBeGreaterThanOrEqual(195);
-    expect(b.hauteurPx).toBeLessThanOrEqual(210);
     // la ligne (centre = basPct) est DANS la bande
     const centrePx = (basPct / 100) * c.hauteur;
     expect(centrePx).toBeGreaterThan(b.yPx);
@@ -49,9 +53,35 @@ describe("sous-titres sans voix", () => {
     expect(c.segments.every((x) => x.position === "auto" && x.style === "base")).toBe(true);
   });
 
+  it("police : pas d'`encre` (Inter Bold) donc Manrope ; mots composés intacts", () => {
+    const c = calqueSansVoix({ segments: segments(), ratio: "4:5" });
+    expect(c.encre).toBeUndefined();
+    expect(c.pastille).toBeUndefined();
+    const mots = horodaterTexte("Prenez rendez-vous. Peut-être c'est-à-dire.", 2.5);
+    const s2 = fabriquerSousTitres({ texte: "Prenez rendez-vous. Peut-être c'est-à-dire.", dureeSec: 5, mots, ratio: "4:5", ...optionsSousTitresSansVoix("4:5") });
+    const texte = normaliserSegments(s2).flatMap((g) => g.mots.map((m) => m.mot)).join(" ");
+    expect(texte).toBe("Prenez rendez-vous. Peut-être c'est-à-dire.");
+  });
+
   it("16:9 : l'échelle suit le petit côté", () => {
     const c = calqueSansVoix({ segments: segments("16:9"), ratio: "16:9" });
     expect(c.echelleTexte).toBe(1);
     expect(c.bandeFond!.largeurPx).toBe(1920);
+  });
+});
+
+describe("carte de fin sans voix (tour 4)", () => {
+  const plan = { version: "plan-scenes-1", format: { largeur: 1080, hauteur: 1350, fps: 25 }, dureeMs: 1000, habillage: { fond: "ivoire", accent: "terracotta" }, mots: [], scenes: [] } as unknown as PlanValide;
+  const base = { plan, fin: { titre: "Prendre rendez-vous", sousTitre: "axion-ia.com" }, finMs: 2500 };
+  it("avec voix : identique à avant (sortie en fondu dans la durée)", () => {
+    const s = planCarteFin(base).scenes[0];
+    expect(s.finMs).toBe(2500);
+    expect(s.transition.sortie).toBe("fondu");
+  });
+  it("sans voix composé : la scène dépasse la durée, la sortie n'est jamais jouée", () => {
+    const p = planCarteFin({ ...base, compositionSansVoix: {} as never });
+    expect(p.dureeMs).toBe(2500);
+    expect(p.scenes[0].finMs - p.scenes[0].transition.dureeMs).toBeGreaterThanOrEqual(2500);
+    expect(p.scenes[0].parametres).toMatchObject({ texte: "Prendre rendez-vous" });
   });
 });

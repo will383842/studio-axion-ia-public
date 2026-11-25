@@ -54,7 +54,7 @@ describe("tutoriel sans voix composé", () => {
     const { props } = await fabriquer("sans-voix");
     const st = props[0].sousTitres!;
     expect(st.positions.milieuPct).toBeCloseTo(props[0].compositionSansVoix!.basPct, 1);
-    expect(st.couleurs).toEqual({ texte: "#141413", accent: "#B23F16", contour: "#FAF9F5" });
+    expect(st.couleurs).toEqual({ texte: "#141413", accent: "#B23F16", contour: "#E8E6DC" });
     expect(st.bandeFond).toMatchObject({ couleur: "#E8E6DC", opacite: 1 });
     expect(st.segments.every((s) => s.position === "auto" && s.style === "base" && !s.inclinaison)).toBe(true);
   });

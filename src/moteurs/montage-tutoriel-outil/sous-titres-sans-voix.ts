@@ -61,17 +61,18 @@ export function calqueSansVoix(entree: { segments: SegmentSousTitres[]; ratio: R
     base: "minimal",
     ratio: entree.ratio,
     style: styleSansVoix(entree.ratio, basPct),
-    couleurs: { texte: COULEURS_SANS_VOIX.texte, accent: COULEURS_SANS_VOIX.accent, contour: COULEURS_SANS_VOIX.contour },
+    // Contour (= teinte de l'ombre douce du style « minimal ») : le gris de la bande, donc invisible sur elle.
+    couleurs: { texte: COULEURS_SANS_VOIX.texte, accent: COULEURS_SANS_VOIX.accent, contour: COULEURS_SANS_VOIX.bande },
   });
   const { largeur, hauteur } = calque;
   const yPx = Math.round(((basPct - BANDE_SANS_VOIX_PCT.avantPct) / 100) * hauteur);
-  const basPx = Math.round(((basPct + BANDE_SANS_VOIX_PCT.apresPct) / 100) * hauteur);
   return {
     ...calque,
     // Texte et bande lisibles à toute largeur : l'échelle suit le petit côté (60 px sur 1080), jamais la largeur du 16:9.
     echelleTexte: Math.min(largeur, hauteur) / 1080,
-    // Ni ombre ni contour : le noir sur le gris se lit seul.
-    encre: true,
-    bandeFond: { couleur: COULEURS_SANS_VOIX.bande, opacite: 1, xPx: 0, yPx, largeurPx: largeur, hauteurPx: basPx - yPx, fonduPx: 0 },
+    // PAS d'`encre` : ce drapeau fait dessiner en Inter Bold (police de titre) ; sans lui, le rendu charge Manrope (Medium,
+    // police du style « minimal »). L'ombre du style est de la teinte de la bande : elle ne se voit pas.
+    // La bande de fond va de son haut jusqu'au BAS de l'image (plus de bande ivoire vide) ; le texte reste centré sur basPct.
+    bandeFond: { couleur: COULEURS_SANS_VOIX.bande, opacite: 1, xPx: 0, yPx, largeurPx: largeur, hauteurPx: hauteur - yPx, fonduPx: 0 },
   };
 }
