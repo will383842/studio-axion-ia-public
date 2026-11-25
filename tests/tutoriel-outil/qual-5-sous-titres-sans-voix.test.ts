@@ -57,6 +57,15 @@ describe("sous-titres sans voix", () => {
     s.slice(1).forEach((g, i) => expect(g.debutSec - s[i].finSec).toBeLessThanOrEqual(0.6 + 1e-9));
   });
 
+  it("calque : apostrophe typographique à l'affichage (« d’une »), horaires inchangés", () => {
+    const brut = segments();
+    const c = calqueSansVoix({ segments: brut, ratio: "4:5" });
+    const json = JSON.stringify(c);
+    expect(json).toContain("d\u2019une");
+    expect(json).not.toMatch(/d'une/);
+    expect(brut.flatMap((g) => g.mots).some((m) => m.mot.includes("'"))).toBe(true);
+  });
+
   it("calque : bande réservée, couleurs charte, taille 60 px", () => {
     const basPct = basPctSansVoix("4:5");
     const c = calqueSansVoix({ segments: segments(), ratio: "4:5" });

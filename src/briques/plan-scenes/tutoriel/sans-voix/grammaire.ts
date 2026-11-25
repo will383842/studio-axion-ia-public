@@ -73,7 +73,7 @@ export const DUREES_MS = {
   glisseTransitionPx: 14,
   /** Montée/descente de la mise en valeur d'un `focus` (pas de zoom : contour terracotta + atténuation du reste). */
   camera: 600,
-  tri: 500,
+  tri: 450,
   panneau: 500,
   alerteTenue: 3200,
   clic: 500,
