@@ -16,7 +16,7 @@ export const COMPOSITION_VIDEO_LONGUE = "PlanDeScenes";
 
 export const ETAPES_FABRICATION: DefinitionEtapeMoteur[] = [
   { cle: "reception", nom: "Votre script reçu", icone: "camera", dependDe: [], dureeEstimeeSec: 1 },
-  { cle: "voix", nom: "Voix de votre double", icone: "son", dependDe: ["reception"], dureeEstimeeSec: 120 },
+  { cle: "voix", nom: "Voix ou temps de lecture", icone: "son", dependDe: ["reception"], dureeEstimeeSec: 120 },
   { cle: "chapitres", nom: "Les chapitres", icone: "texte", dependDe: ["voix"], dureeEstimeeSec: 2 },
   { cle: "montage", nom: "L'assemblage", icone: "ecran-partage", dependDe: ["chapitres"], dureeEstimeeSec: 3600 },
   { cle: "controle", nom: "La vérification", icone: "bouclier", dependDe: ["montage"], dureeEstimeeSec: 2 },
@@ -28,10 +28,29 @@ export const ETAPES_RETOUCHE: DefinitionEtapeMoteur[] = [
   { cle: "controle", nom: "La vérification", icone: "bouclier", dependDe: ["montage"], dureeEstimeeSec: 2 },
 ];
 
+/**
+ * Suivi du montage pas à pas d'un format (JSON seulement, gardé dans l'état du gabarit : un redémarrage reprend là).
+ * `plages` : morceaux terminés (idRendu -> clé du morceau). `enCours` / `collage` : la demande soumise dont on attend la fin
+ * (`depuisMs` : heure de soumission, pour le délai ; `erreurs` : lectures d'état réessayables de suite).
+ */
+export interface SuiviMontageVideoLongue {
+  plages: Record<string, string>;
+  enCours?: { idRendu: string; depuisMs: number; erreurs: number };
+  collage?: { idRendu: string; depuisMs: number; erreurs: number };
+}
+
+/** Résultat d'un pas de montage : fini, ou encore en cours (à rappeler avec le nouveau suivi). */
+export type PasMontageVideoLongue = { fini: { fichierCle: string } } | { enCours: { suivi: SuiviMontageVideoLongue; fait: number; total: number } };
+
+type ContexteMontage = { chapitres: ChapitreWeb[]; mots: MotHorodate[]; dureeSec: number };
+
 /** Dépendances reliées (ou `null` : pause). Aucune n'est payante par elle-même ici ; l'accord relève de VL-07. */
 export interface DependancesVideoLongue {
   voix: FournisseurVoixLongue;
-  monter(ratio: Ratio, ctx: { chapitres: ChapitreWeb[]; mots: MotHorodate[]; dureeSec: number }): Promise<{ fichierCle: string }>;
+  /** Montage « tout d'un coup » (garde-fou et tests) : à éviter pour une vraie vidéo, la boucle n'accorde que 30 s à un pas. */
+  monter(ratio: Ratio, ctx: ContexteMontage): Promise<{ fichierCle: string }>;
+  /** Montage PAS À PAS : une seule action de rendu par appel (soumettre ou relire), puis retour. Préféré à `monter` quand présent. */
+  monterPas?(ratio: Ratio, ctx: ContexteMontage, suivi?: SuiviMontageVideoLongue): Promise<PasMontageVideoLongue>;
 }
 
 export interface EtatVideoLongue extends EtatGabarit {
@@ -39,6 +58,8 @@ export interface EtatVideoLongue extends EtatGabarit {
   chapitres?: ChapitreWeb[];
   remarques: RemarqueChapitres[];
   sorties: Partial<Record<Ratio, string>>;
+  /** Montage pas à pas : suivi par format tant que le collage n'est pas terminé. */
+  montageSuivi?: Partial<Record<Ratio, SuiviMontageVideoLongue>>;
 }
 
 export interface RepriseVideoLongue {
@@ -101,9 +122,24 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
     }
     case "montage": {
       if (ctx.commande.simulerEchecEtape === "montage" && ctx.tentative === 1) return { ...etat, echec: { etape, message: "L'assemblage a eu un souci, vous pouvez réessayer.", reessayable: true } };
-      const sorties: EtatVideoLongue["sorties"] = {};
-      for (const ratio of ctx.commande.ratios) sorties[ratio] = (await deps.monter(ratio, { chapitres: etat.chapitres ?? [], mots: etat.voix?.mots ?? [], dureeSec: etat.voix?.dureeSec ?? 0 })).fichierCle;
-      return faite({ ...etat, sorties });
+      const ctxMontage = { chapitres: etat.chapitres ?? [], mots: etat.voix?.mots ?? [], dureeSec: etat.voix?.dureeSec ?? 0 };
+      const sorties: EtatVideoLongue["sorties"] = { ...etat.sorties };
+      // Sans montage pas à pas : tout d'un coup (comme avant).
+      if (!deps.monterPas) {
+        for (const ratio of ctx.commande.ratios) sorties[ratio] = (await deps.monter(ratio, ctxMontage)).fichierCle;
+        return faite({ ...etat, sorties });
+      }
+      // Pas à pas : un seul format, une seule action de rendu, puis retour. L'étape n'est faite qu'une fois tout collé.
+      const suivis = { ...etat.montageSuivi };
+      const ratio = ctx.commande.ratios.find((r) => !sorties[r]);
+      if (ratio) {
+        const pas = await deps.monterPas(ratio, ctxMontage, suivis[ratio]);
+        if ("enCours" in pas) return { ...etat, sorties, montageSuivi: { ...suivis, [ratio]: pas.enCours.suivi } };
+        sorties[ratio] = pas.fini.fichierCle;
+        delete suivis[ratio];
+        if (ctx.commande.ratios.some((r) => !sorties[r])) return { ...etat, sorties, montageSuivi: suivis };
+      }
+      return faite({ ...etat, sorties, montageSuivi: undefined });
     }
     default:
       return { ...faite(etat), fini: true };
