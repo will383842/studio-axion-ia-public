@@ -34,7 +34,7 @@ export default async function PageSuiviTutoriel({ params }: { params: Promise<{ 
             <Link href={`/videos/${videoId}`}>Voir la vidéo</Link>
           </Bouton>
         )}
-        <SuiviTravail initial={travail} sansPrix />
+        <SuiviTravail initial={travail} sansPrix signalerPause />
         <SuiviRoles initial={travail} videoId={videoId} />
       </div>
     </GabaritCreation>

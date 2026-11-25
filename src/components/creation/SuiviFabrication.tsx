@@ -20,6 +20,8 @@ export interface VueSuiviFabrication {
   /** Phrase lisible (ErreurLisible / ErreurStudio seulement). */
   message?: string;
   lien?: { href: string; libelle: string };
+  /** Facultatif : le travail est en pause (la barre dit « En pause » au lieu d'un temps restant). */
+  enPause?: boolean;
 }
 
 const STATUT = { faite: "terminee", "en-cours": "en_cours", "a-venir": "en_attente", arretee: "echec", ignoree: "ignoree" } as const;
@@ -86,6 +88,7 @@ export function SuiviFabrication({
         reessaiEnCours={reessaiEnCours}
         compacte={compacte}
         aRelire={aRelire}
+        enPause={vue.enPause}
         action={actions}
         message={message ?? (vue.etat === "coincee" ? vue.message : undefined)}
       />
