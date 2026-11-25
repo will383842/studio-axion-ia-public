@@ -146,7 +146,9 @@ export function calqueSansVoix(entree: { segments: SegmentSousTitres[]; ratio: R
   const segments = entree.segments.map((g) => {
     const reste: SegmentSousTitres = { ...g };
     delete reste.importance;
-    return { ...reste, position: "auto" as const, inclinaison: 0, style: "base" as const, souligne: null };
+    // Apostrophe TYPOGRAPHIQUE à l'affichage (« d’une heure ») : les mots et horaires restent ceux de la calibration.
+    const mots = reste.mots.map((m) => (m.mot.includes("'") ? { ...m, mot: m.mot.replace(/'/g, "\u2019") } : m));
+    return { ...reste, mots, position: "auto" as const, inclinaison: 0, style: "base" as const, souligne: null };
   });
   const dernier = segments.at(-1);
   if (dernier && entree.dureeMs !== undefined && entree.dureeMs / 1000 > dernier.finSec) segments[segments.length - 1] = { ...dernier, finSec: entree.dureeMs / 1000 };
