@@ -126,7 +126,7 @@ describe("interrupteurs", () => {
     expect(lire("src/formats/tutoriel-outil/index.ts")).toContain(`ID_FORMAT_TUTORIEL_OUTIL = "${c.FORMAT_TUTORIEL}"`);
     expect(c.CLE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.actif");
     expect(c.CLE_TEXTE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.texte");
-    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "tutoriel.captureAuto", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
   });
 });
 
@@ -483,5 +483,29 @@ describe("T-EXT-36 · liens du panneau vers des pages qui existent", () => {
     expect(panneau).toContain('href="/tutoriel-outil/scenes"');
     expect(statSync(join(process.cwd(), "src/app/(studio)/tutoriel-outil/scenes/page.tsx")).isFile()).toBe(true);
     expect(statSync(join(process.cwd(), "src/app/(studio)/tutoriel-outil/suivi/[videoId]/page.tsx")).isFile()).toBe(true);
+  });
+});
+
+describe("interrupteur « Capture automatique du film » (POSTE-5)", () => {
+  const ligne = () => c.REGLAGES_TUTORIEL.find((r) => r.cle === "tutoriel.captureAuto");
+  it("est dans la liste, avec libellé et phrase d'extinction", () => {
+    expect(ligne()?.libelle).toBe("Capture automatique du film");
+    expect(ligne()?.phraseEteint).toMatch(/^Éteint : /);
+    expect(ligne()?.phraseEteint).toContain(".zip");
+  });
+  it("sa clé est celle que lit tutoriel-capture-auto.ts", () => {
+    expect(c.CLE_CAPTURE_AUTO).toBe("tutoriel.captureAuto");
+    expect(lire("src/services/tutoriel-capture-auto.ts")).toContain(`PARAM_CAPTURE_AUTO = "${c.CLE_CAPTURE_AUTO}"`);
+  });
+  it("reste éteinte quand la clé est absente, \"true\" ou 1, et ne s'allume que sur true", async () => {
+    for (const v of [undefined, "true", 1]) {
+      const lignes = await c.lireReglagesTutoriel({ lire: (async (id: string, d: unknown) => (id === "tutoriel.captureAuto" && v !== undefined ? v : d)) as never });
+      expect(lignes.find((l) => l.cle === "tutoriel.captureAuto")?.allume).toBe(false);
+    }
+    const lignes = await c.lireReglagesTutoriel({ lire: (async (id: string, d: unknown) => (id === "tutoriel.captureAuto" ? true : d)) as never });
+    expect(lignes.find((l) => l.cle === "tutoriel.captureAuto")?.allume).toBe(true);
+  });
+  it("aucun mot de prix ni montant dans sa phrase", () => {
+    expect(`${ligne()?.libelle} ${ligne()?.phraseEteint}`).not.toMatch(/€|\$|euro|dollar|co[uû]t|prix|budget|plafond|tarif|devis|\d/i);
   });
 });

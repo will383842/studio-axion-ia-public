@@ -106,7 +106,12 @@ describe("C4-U4.13t : capacités écran livrées et éteintes", () => {
     };
     parcourir("src");
     // BR-TELEPHONE-b 18/11 (amendement pilote 10:30) : `telephone-extrait-v4.ts` est le seul autre importeur permis (branchement du téléphone qui joue un extrait) ; tout AUTRE importeur reste refusé.
-    expect(importeurs.filter((f) => f !== "src/services/extraits-maison-v4.ts" && f !== "src/services/telephone-extrait-v4.ts")).toEqual([]);
+    // MAJ 25/11 (FIX-ROUGES-ECRAN-EFFETS-v21s, voulue, à relire) : `src/services/facecam-animee.ts` est le SEUL autre importeur permis (FA-SERVICE-INV-v20h #1535), en import dynamique derrière `facecamAnimee.extraitsMaison` (éteint) ; tout AUTRE fichier reste refusé.
+    expect(importeurs.filter((f) => f !== "src/services/extraits-maison-v4.ts" && f !== "src/services/telephone-extrait-v4.ts")).toEqual(["src/services/facecam-animee.ts"]);
+    const service = readFileSync("src/services/facecam-animee.ts", "utf8");
+    expect(service).not.toMatch(/^import .*extraits-maison-v4/m);
+    expect(service.indexOf("if (extraitsMaison)")).toBeLessThan(service.indexOf('import("./extraits-maison-v4")'));
+    expect(service).toContain("(await lireParametre<unknown>(PARAM_EXTRAITS_MAISON_FA, false)) === true");
   });
 
   it("table complète : les ids testés = les lignes écran prevu ou eteint", () => {

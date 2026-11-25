@@ -61,7 +61,7 @@ const reglages = (valeurs: Record<string, unknown>) =>
     return defaut;
   });
 
-const LISTE_MASTER = ["appelerRealisateur", "finDouce", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"];
+const LISTE_MASTER = ["appelerRealisateur", "finDouce", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"];
 
 beforeEach(() => {
   lire.mockReset();
