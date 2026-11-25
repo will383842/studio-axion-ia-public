@@ -23,12 +23,20 @@ const C11 = [
   ["texte.effets", "texteEffets", "prevu"],
   ["texte.accents-role", "texteAccentsRole", "prevu"],
 ] as const;
+// C11-C2-a-v20k : 5 lignes COUVERTURE de plus, à la suite des 5 de C11 (attente exacte des 10 lignes, seconde lecture du pilote).
+const C11_C2 = [
+  ["cadrage.camera-couverture", "cadrageCameraCouverture", "eteint"],
+  ["ecran.carte-video-arrondie", "ecranCarteVideoArrondie", "prevu"],
+  ["ecran.grilles-archive", "ecranGrillesArchive", "prevu"],
+  ["ecran.ecrans-composes", "ecranEcransComposes", "prevu"],
+  ["motion.titre-etape-montante", "motionTitreEtapeMontante", "prevu"],
+] as const;
 const DIX = [...C10, ...C11].map(([id]) => id as IdCapacite);
 
 describe("CATALOGUE-C10-C11-v21p", () => {
   it("5 lignes FINITION (chantier 10) et 5 lignes COUVERTURE (chantier 11), états exacts", () => {
     expect(LIGNES_FINITION.map((l) => [l.id, l.etat, l.chantier])).toEqual(C10.map(([id, , etat]) => [id, etat, "10"]));
-    expect(LIGNES_COUVERTURE.map((l) => [l.id, l.etat, l.chantier])).toEqual(C11.map(([id, , etat]) => [id, etat, "11"]));
+    expect(LIGNES_COUVERTURE.map((l) => [l.id, l.etat, l.chantier])).toEqual([...C11, ...C11_C2].map(([id, , etat]) => [id, etat, "11"]));
   });
   it("aucune des 10 n'est prod, demande, coulisse ni absent", () => {
     for (const id of DIX) expect(["prevu", "eteint"]).toContain(ligneCapacite(id)?.etat);

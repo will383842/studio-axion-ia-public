@@ -16,7 +16,7 @@ vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => undefined) 
 
 import { demandeRenduV4, outilsFacecamAnimee } from "@/services/facecam-animee";
 
-const CLES_OUTILS = ["appelerRealisateur", "finDouce", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"];
+const CLES_OUTILS = ["appelerRealisateur", "finDouce", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"];
 const EMPREINTE_DEMANDE_RENDRE = "63b9f4aa26ce7751f614f237b9287424c37523bc17e6fabc629953804415814c";
 const EMPREINTE_DEMANDE_PURE = "47c1309caa502ff8d1aeac577885d510be0d823826c7375ffe53f1538e6b2f6d";
 

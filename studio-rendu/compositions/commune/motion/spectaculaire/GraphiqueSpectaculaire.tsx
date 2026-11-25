@@ -82,7 +82,7 @@ function Barres({ d, z, heures, fort }: { d: DonneesGraphique; z: Zone; heures: 
               <div style={{ position: "absolute", left: 0, top: 0, width: l, height: profondeur, transformOrigin: "50% 0%", transform: "rotateX(-90deg)", background: estFort ? `linear-gradient(0deg, ${COULEURS.orangeVif}, ${avecOpacite(COULEURS.creme, 0.85)})` : `linear-gradient(0deg, ${COULEURS.surfaceHaute}, ${avecOpacite(COULEURS.cremeAttenuee, 0.5)})` }} />
               <div style={{ position: "absolute", left: l, top: 0, width: profondeur, height: epaisseur, transformOrigin: "0% 50%", transform: "rotateY(90deg)", background: estFort ? COULEURS.orangeProfond : COULEURS.filet }} />
             </FlouFort>
-            <div style={{ position: "absolute", left: x0 + l + 26 * u, top: y + epaisseur / 2 - tVal * 0.62, fontSize: tVal, fontWeight: 900, lineHeight: 1.2, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", opacity: borne((t - h - 0.05) / 0.12), transform: `scale(${(1 + 0.25 * r).toFixed(4)}, ${(1 - 0.25 * r).toFixed(4)})`, transformOrigin: "0% 50%" }}>
+            <div style={{ position: "absolute", left: x0 + l + 26 * u, top: y + epaisseur / 2 - tVal * 0.62, fontSize: tVal, fontWeight: 800, lineHeight: 1.2, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", opacity: borne((t - h - 0.05) / 0.12), transform: `scale(${(1 + 0.25 * r).toFixed(4)}, ${(1 - 0.25 * r).toFixed(4)})`, transformOrigin: "0% 50%" }}>
               {estFort ? <MotCle mot={texteValeur(v, unite, d.decimales)} t={t} arrivee={arrivee} balayage={heures[n - 1] + 0.9} u={u} /> : <span style={{ color: COULEURS.creme }}>{texteValeur(v, unite, d.decimales)}</span>}
             </div>
             {estFort && <Eclats x={x0 + (serie.valeur / max) * longueur} y={y + epaisseur / 2} debut={arrivee} rayon={170 * u} nombre={22} graine={7} />}
@@ -165,7 +165,7 @@ function Courbe({ d, z, heures, fort }: { d: DonneesGraphique; z: Zone; heures: 
             {/* Anneau d'impact. */}
             {t > h && t < h + 0.6 && <div style={{ position: "absolute", left: p.x - 60 * u, top: p.y - 60 * u, width: 120 * u, height: 120 * u, borderRadius: "50%", border: `${(4 * u * (1 - (t - h) / 0.6)).toFixed(2)}px solid ${COULEURS.orangeVif}`, transform: `scale(${(0.2 + 1.3 * courbe("signature")((t - h) / 0.6)).toFixed(3)})`, opacity: 1 - (t - h) / 0.6 }} />}
             <div style={{ position: "absolute", left: p.x - rayon, top: p.y - rayon, width: 2 * rayon, height: 2 * rayon, borderRadius: "50%", background: estFort ? `radial-gradient(circle at 35% 30%, ${COULEURS.creme}, ${COULEURS.orangeVif} 55%)` : COULEURS.creme, boxShadow: `0 0 0 ${5 * u}px ${avecOpacite(COULEURS.fondProfond, 0.9)}, 0 0 ${(estFort ? 60 : 24) * u}px ${avecOpacite(COULEURS.orangeVif, 0.85)}` }} />
-            <div style={{ position: "absolute", left: p.x - 220 * u, width: 440 * u, top: p.y - 30 * u - tVal * 1.3, textAlign: "center", fontSize: tVal * (estFort ? 1.12 : 1), fontWeight: 900, lineHeight: 1.2, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", opacity: visible, transform: `translateY(${((1 - courbe("signature")(borne((t - h) / 0.3))) * -60 * u).toFixed(2)}px) scale(${(1 + 0.22 * r).toFixed(4)}, ${(1 - 0.22 * r).toFixed(4)})`, transformOrigin: "50% 100%" }}>
+            <div style={{ position: "absolute", left: p.x - 220 * u, width: 440 * u, top: p.y - 30 * u - tVal * 1.3, textAlign: "center", fontSize: tVal * (estFort ? 1.12 : 1), fontWeight: 800, lineHeight: 1.2, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", opacity: visible, transform: `translateY(${((1 - courbe("signature")(borne((t - h) / 0.3))) * -60 * u).toFixed(2)}px) scale(${(1 + 0.22 * r).toFixed(4)}, ${(1 - 0.22 * r).toFixed(4)})`, transformOrigin: "50% 100%" }}>
               {estFort ? <MotCle mot={texteValeur(v, unite, d.decimales)} t={t} arrivee={h + 0.25} balayage={h + 0.8} u={u} /> : <span style={{ color: COULEURS.creme }}>{texteValeur(v, unite, d.decimales)}</span>}
             </div>
             <div style={{ position: "absolute", left: p.x - 220 * u, width: 440 * u, top: hautEtiquette(i), display: "flex", justifyContent: "center" }}>
@@ -242,7 +242,7 @@ function Disque({ d, z, heures, fort }: { d: DonneesGraphique; z: Zone; heures: 
         const m = 1 + 1.4 * (1 - courbe("signature")(borne((t - heures[i]) / 0.3)));
         return (
           <div key={i} style={{ position: "absolute", left: cx - rs * 1.3, width: rs * 2.6, top: cy - grand * 0.62, display: "flex", flexDirection: "column", alignItems: "center", opacity: borne((t - heures[i]) / 0.1) * (1 - sortie), transform: `scale(${(m * (1 + 0.2 * r)).toFixed(4)}, ${(m * (1 - 0.2 * r)).toFixed(4)})` }}>
-            <div style={{ fontSize: grand, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textShadow: `0 ${8 * u}px ${36 * u}px ${avecOpacite(COULEURS.fondProfond, 0.9)}` }}>
+            <div style={{ fontSize: grand, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.04em", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", textShadow: `0 ${8 * u}px ${36 * u}px ${avecOpacite(COULEURS.fondProfond, 0.9)}` }}>
               {i === fort ? <MotCle mot={texteValeur(v, unite, d.decimales)} t={t} arrivee={heures[i] + 0.3} balayage={tFort + 0.3} u={u} /> : <span>{texteValeur(v, unite, d.decimales)}</span>}
             </div>
           </div>
@@ -259,7 +259,7 @@ function Disque({ d, z, heures, fort }: { d: DonneesGraphique; z: Zone; heures: 
             <FlouFort key={i} dx={x * 0.08} style={{ height: g.ligneLeg, display: "flex", alignItems: "center", gap: 20 * u, opacity: e, transform: `translateX(${x.toFixed(2)}px) scale(${(1 + 0.04 * allume).toFixed(3)})`, transformOrigin: "0% 50%", fontSize: tLib, fontWeight: 700, whiteSpace: "nowrap" }}>
               <div style={{ flex: "none", width: tLib * 0.62, height: tLib * 0.62, borderRadius: tLib * 0.18, background: teintePart(i, fort), boxShadow: `0 0 ${(i === fort ? 22 : 8) * u}px ${avecOpacite(i === fort ? COULEURS.orangeVif : COULEURS.creme, i === fort ? 0.8 : 0.2)}` }} />
               <span style={{ flex: "1 1 auto", color: i === fort ? COULEURS.orangeVif : COULEURS.creme }}>{serie.libelle}</span>
-              {!g.cote && <span style={{ flex: "none", fontWeight: 900, fontVariantNumeric: "tabular-nums", color: i === fort ? COULEURS.orangeVif : COULEURS.cremeAttenuee }}>{texteValeur(serie.valeur, unite, d.decimales)}</span>}
+              {!g.cote && <span style={{ flex: "none", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: i === fort ? COULEURS.orangeVif : COULEURS.cremeAttenuee }}>{texteValeur(serie.valeur, unite, d.decimales)}</span>}
             </FlouFort>
           );
         })}
@@ -287,7 +287,7 @@ function Contenu({ d }: { d: DonneesGraphique }) {
     <>
       {d.titre && (
         <div style={{ position: "absolute", left: zc.x, width: zc.largeur, top: zc.y, display: "flex", justifyContent: centre ? "center" : "flex-start" }}>
-          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tTitre} graisse={900} largeurMax={zc.largeur} effet="ecrase" alignement={centre ? "center" : "left"} />
+          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tTitre} graisse={800} largeurMax={zc.largeur} effet="ecrase" alignement={centre ? "center" : "left"} />
         </div>
       )}
       {d.variante === "barres" && <Barres d={d} z={z} heures={heures} fort={fort} />}

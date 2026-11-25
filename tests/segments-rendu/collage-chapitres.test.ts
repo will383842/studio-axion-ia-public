@@ -9,7 +9,7 @@ vi.mock("../../studio-rendu/src/outils", async (importOriginal) => ({
   deposer: async (url: string, chemin: string) => void deposes.push(`${url}|${chemin}`),
   executer: async (commande: string, args: string[]) => (appels.push({ commande, args }), ""),
 }));
-vi.mock("node:fs/promises", async (importOriginal) => ({ ...(await importOriginal<typeof import("node:fs/promises")>()), writeFile: async () => undefined }));
+vi.mock("node:fs/promises", async (importOriginal) => ({ ...(await importOriginal<typeof import("node:fs/promises")>()), writeFile: async () => undefined, stat: async () => ({ size: 1234 }) }));
 
 import { argumentsCollage, argumentsPoseVoix, collageChapitres, contenuListe, lireParametresCollage } from "../../studio-rendu/src/operations/collage-chapitres";
 import type { DemandeRendu } from "../../studio-rendu/src/contrat";
@@ -49,13 +49,16 @@ describe("collage-chapitres : opération (FFmpeg et réseau simulés)", () => {
     expect(appels[0].args).toContain("concat");
     expect(appels[1].args).toContain("-c:v");
     expect(deposes[0]).toContain("collage.mp4");
-    expect(r.mesures).toEqual({ morceaux: 2, voix: 1 });
+    // AUTORISATION PERMANENTE (b) : valeur attendue qui change, ESS-6L ajoute `taille` (mesure du fichier déposé, ici le faux `stat`) ; aucune attente retirée.
+    expect(r.mesures).toEqual({ morceaux: 2, voix: 1, taille: 1234 });
   });
   it("sans voix : une seule passe, fichier muet déposé", async () => {
     appels.length = deposes.length = 0;
-    await collageChapitres(demande({ morceaux: ["m0"] }, { m0: "u0" }), contexte);
+    const r = await collageChapitres(demande({ morceaux: ["m0"] }, { m0: "u0" }), contexte);
     expect(appels).toHaveLength(1);
     expect(deposes[0]).toContain("video-muette.mp4");
+    // AUTORISATION PERMANENTE (c) : attente ajoutée (ESS-6L), `taille` présente aussi sans voix.
+    expect(r.mesures).toEqual({ morceaux: 1, voix: 0, taille: 1234 });
   });
   it("entrée manquante : refus, rien n'est lancé", async () => {
     appels.length = 0;

@@ -75,12 +75,12 @@ function Contenu({ d }: { d: DonneesChiffre }) {
       )}
       <div style={{ position: "absolute", left: 0, width: largeur, top: cy - grand * 0.55, display: "flex", justifyContent: "center", alignItems: "baseline", opacity: visible }}>
         <div style={{ display: "flex", alignItems: "baseline", transform: `scale(${(echelle * (1 + 0.3 * r)).toFixed(4)}, ${(echelle * (1 - 0.3 * r)).toFixed(4)})`, transformOrigin: "50% 80%" }}>
-          {d.prefixe && <span style={{ fontSize: grand * 0.5, fontWeight: 900, color: COULEURS.orangeVif, marginRight: 10 * u }}>{d.prefixe}</span>}
+          {d.prefixe && <span style={{ fontSize: grand * 0.5, fontWeight: 800, color: COULEURS.orangeVif, marginRight: 10 * u }}>{d.prefixe}</span>}
           <FlouFort dy={flou} style={{ display: "inline-block" }}>
-            <span style={{ fontSize: grand, fontWeight: 900, letterSpacing: "-0.05em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: COULEURS.creme, textShadow: `0 ${10 * u}px ${50 * u}px ${avecOpacite(COULEURS.fondProfond, 0.8)}, 0 0 ${(80 * u * progres(t, ti, 0.2) * (1 - progres(t, ti + 0.3, 0.8))).toFixed(1)}px ${avecOpacite(COULEURS.orangeVif, 0.9)}` }}>{texte}</span>
+            <span style={{ fontSize: grand, fontWeight: 800, letterSpacing: "-0.05em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: COULEURS.creme, textShadow: `0 ${10 * u}px ${50 * u}px ${avecOpacite(COULEURS.fondProfond, 0.8)}, 0 0 ${(80 * u * progres(t, ti, 0.2) * (1 - progres(t, ti + 0.3, 0.8))).toFixed(1)}px ${avecOpacite(COULEURS.orangeVif, 0.9)}` }}>{texte}</span>
           </FlouFort>
           {d.unite && (
-            <FlouFort dx={unite.dx} style={{ display: "inline-block", marginLeft: 14 * u, opacity: unite.opacite, transform: `translateX(${unite.tx.toFixed(2)}px) scale(${unite.sx.toFixed(4)}, ${unite.sy.toFixed(4)})`, transformOrigin: "0% 100%", fontSize: grand * 0.4, fontWeight: 900 }}>
+            <FlouFort dx={unite.dx} style={{ display: "inline-block", marginLeft: 14 * u, opacity: unite.opacite, transform: `translateX(${unite.tx.toFixed(2)}px) scale(${unite.sx.toFixed(4)}, ${unite.sy.toFixed(4)})`, transformOrigin: "0% 100%", fontSize: grand * 0.4, fontWeight: 800 }}>
               <MotCle mot={d.unite} t={t} arrivee={ti + 0.75} balayage={ti + 1.6} u={u} />
             </FlouFort>
           )}
