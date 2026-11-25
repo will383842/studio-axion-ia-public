@@ -323,6 +323,11 @@ export interface ApercuPiece {
   empreinteDescription: string;
   images: { ecranId: string; etat: "avant" | "maintenant"; cle: string }[];
   controle: { ok: boolean; defauts: string[] };
+  /**
+   * PHRASE-3 : `studio` = aperçu calculé par le Studio lui-même (maquette construite sans IA et contrôlée, SANS image : le Studio n'a pas de
+   * navigateur ; l'image sera filmée après l'accord de Williams). Absent = aperçu déposé à la main (poste de capture), avec ses images.
+   */
+  source?: "studio";
 }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -331,15 +336,22 @@ const inconnus = (o: Record<string, unknown>, permis: readonly string[], lieu: s
 };
 const cleSure = (c: string) => c.length > 0 && c.length <= 200 && !c.startsWith("/") && !c.includes("..") && !c.includes("\\") && !c.includes("\0") && !/^[a-z]+:/i.test(c);
 
-export function lireApercu(brut: unknown): { ok: true; apercu: ApercuPiece } | { ok: false; erreurs: string[] } {
+/**
+ * `studioPermis` : seul l'appelant qui relit un aperçu rangé par le Studio le passe à `true`. Un aperçu DÉPOSÉ À LA MAIN garde ses règles
+ * d'avant : champ `source` refusé, au moins une image.
+ */
+export function lireApercu(brut: unknown, options: { studioPermis?: boolean } = {}): { ok: true; apercu: ApercuPiece } | { ok: false; erreurs: string[] } {
   const erreurs: string[] = [];
   try {
     if (!estObjet(brut)) return { ok: false, erreurs: ["L'aperçu doit être un objet."] };
-    inconnus(brut, ["version", "empreinteDescription", "images", "controle"], "Aperçu", erreurs);
+    const studio = options.studioPermis === true && brut.source === "studio";
+    inconnus(brut, studio ? ["version", "empreinteDescription", "images", "controle", "source"] : ["version", "empreinteDescription", "images", "controle"], "Aperçu", erreurs);
     if (brut.version !== VERSION_APERCU) erreurs.push(`Version inconnue : attendu « ${VERSION_APERCU} ».`);
     if (typeof brut.empreinteDescription !== "string" || brut.empreinteDescription.trim() === "") erreurs.push("« empreinteDescription » : texte non vide attendu.");
     const images: ApercuPiece["images"] = [];
-    if (!Array.isArray(brut.images) || brut.images.length === 0) erreurs.push("Il faut au moins une image.");
+    if (studio && Array.isArray(brut.images) && brut.images.length === 0) {
+      // Aperçu du Studio : aucune image (rien à ranger), l'image se filme après l'accord.
+    } else if (!Array.isArray(brut.images) || brut.images.length === 0) erreurs.push("Il faut au moins une image.");
     else if (brut.images.length > IMAGES_APERCU_MAX) erreurs.push(`Trop d'images : ${IMAGES_APERCU_MAX} au plus.`);
     else {
       brut.images.forEach((im, i) => {
@@ -362,7 +374,7 @@ export function lireApercu(brut: unknown): { ok: true; apercu: ApercuPiece } | {
       else controle = { ok: brut.controle.ok, defauts: [...(d as string[])] };
     }
     if (erreurs.length > 0 || !controle) return { ok: false, erreurs };
-    return { ok: true, apercu: { version: VERSION_APERCU, empreinteDescription: brut.empreinteDescription as string, images, controle } };
+    return { ok: true, apercu: { version: VERSION_APERCU, empreinteDescription: brut.empreinteDescription as string, images, controle, ...(studio ? { source: "studio" as const } : {}) } };
   } catch {
     return { ok: false, erreurs: ["Aperçu illisible."] };
   }

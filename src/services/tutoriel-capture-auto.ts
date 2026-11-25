@@ -10,8 +10,12 @@ import "server-only";
  * ÉTEINT par défaut : réglage absent, `false`, `"true"`, `1` ou lecture en échec = retour immédiat, AVANT tout import du module de la boîte
  * et de tout autre module lourd : aucun accès disque, aucune écriture, aucun `fetch`.
  *
- * POSTE-1b (REPORTÉ, décision du chef) : le mode `construire` du poste n'existe pas encore. Les vidéos en pause `TO_PIECE_A_CONSTRUIRE` et
- * les vidéos parties d'une phrase (types `apercu` et `film-description`) ne reçoivent AUCUNE demande : comportement actuel inchangé.
+ * POSTE-1b (REPORTÉ, décision du chef) : le mode `construire` du poste n'existe pas encore. Les vidéos en pause `TO_PIECE_A_CONSTRUIRE`
+ * (l'aperçu est fait par le Studio lui-même, PHRASE-3) et les types `apercu` et `film-description` ne reçoivent AUCUNE demande.
+ *
+ * PHRASE-3 : une vidéo partie d'une PHRASE, en pause `TO_FILM_A_CAPTURER`, dont la maquette créée est GARDÉE (même empreinte que le oui de
+ * Williams), est candidate comme un dossier : le Studio fabrique lui-même le .zip de la maquette gardée (`tutoriel-piece-construite.ts`, sans IA)
+ * et l'envoie au poste comme une demande `film-zip`. Même interrupteur, mêmes bornes, mêmes contrôles de la réponse.
  *
  * Sécurité : tout ce qui revient de la boîte est hostile (relu par `lireReponse`, puis revérifié ici : signature, relevé ffprobe contre le
  * calage ET le scénario DE LA DEMANDE, navigation.json, empreinte au dépôt). Zéro appel HeyGen, ElevenLabs ou Claude : ce module ne lit ni
@@ -25,6 +29,7 @@ import { join } from "node:path";
 import type { Fichier, Id, Notification, Travail, TypeNotification, Video } from "@/domaine/types";
 import type { StockageFichiers } from "@/fournisseurs/types";
 import type { EtatTutoriel } from "@/moteurs/montage-tutoriel-outil";
+import type { PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import {
   BORNES,
   PHRASES_CODE,
@@ -94,6 +99,8 @@ export interface DependancesCaptureAuto {
   stockage?: () => Promise<StockageFichiers>;
   /** Remplace la cloche réelle (tests). */
   cloche?: CreerNotification;
+  /** Remplace la lecture de la charte et de la police pour le zip d'une maquette créée (tests). */
+  lireFichier?: (chemin: string) => Promise<Buffer>;
 }
 
 // --- mémoire du processus ---------------------------------------------------------------------------------------------------
@@ -174,7 +181,10 @@ async function signalerUneFois(video: Video, type: TypeNotification, titre: stri
 interface Candidat {
   travail: Travail;
   video: Video;
-  fichierId: string;
+  /** Dossier .zip déposé par Williams (absent pour une maquette créée depuis une phrase). */
+  fichierId?: string;
+  /** PHRASE-3 : la maquette créée GARDÉE d'une vidéo partie d'une phrase (le zip est fabriqué par le Studio). */
+  piece?: PieceCreee;
   etat: EtatTutoriel;
 }
 
@@ -184,8 +194,18 @@ const pauseDe = (t: Travail): string | undefined => {
 };
 
 /**
- * Vidéos en pause `TO_FILM_A_CAPTURER` dont l'entrée est un dossier .zip (`film-zip`), la plus ancienne d'abord.
- * POSTE-1b : `TO_PIECE_A_CONSTRUIRE` et les vidéos parties d'une phrase (`entrees.depot.mode !== "dossier"`) sont ignorées ici.
+ * PHRASE-3 · La maquette créée GARDÉE de l'état (décision sur l'ÉTAT du travail, jamais sur un réglage ni un port) : une maquette (pas un flux),
+ * statut « gardée », et le oui de Williams porte l'empreinte exacte de la pièce actuelle. Sinon `null` : aucun film n'est demandé.
+ */
+function pieceGardee(etat: EtatTutoriel): PieceCreee | null {
+  const p = etat.equipe?.pieceCreee;
+  if (!p || typeof p !== "object" || p.genre !== "maquette" || p.statut !== "gardee") return null;
+  return typeof p.empreinte === "string" && p.empreinte !== "" && p.gardee?.empreinte === p.empreinte ? p : null;
+}
+
+/**
+ * Vidéos en pause `TO_FILM_A_CAPTURER` dont l'entrée est un dossier .zip (`film-zip`), ou une phrase dont la maquette créée est GARDÉE
+ * (PHRASE-3), la plus ancienne d'abord. `TO_PIECE_A_CONSTRUIRE` est ignorée ici (le Studio fait l'aperçu lui-même).
  */
 async function candidats(): Promise<Candidat[]> {
   const { lireEntreesTutoriel } = await import("@/moteurs/montage-tutoriel-outil/entrees");
@@ -200,11 +220,16 @@ async function candidats(): Promise<Candidat[]> {
     const version = travail.versionId ? await d.versions.obtenir(travail.versionId) : null;
     if (!version || version.commande.moteurId !== MOTEUR_TUTORIEL) continue;
     const depot = lireEntreesTutoriel(version.commande.entrees as Record<string, unknown> | undefined).depot;
-    if (depot?.mode !== "dossier") continue; // POSTE-1b : phrase / pièce à construire, comportement actuel inchangé
+    if (depot?.mode !== "dossier" && depot?.mode !== "phrase") continue; // une idée seule : comportement actuel inchangé
     const video = await d.videos.obtenir(travail.cibleId);
     const etat = travail.parametres?.tutoriel as EtatTutoriel | undefined;
     if (!video || !etat || typeof etat !== "object") continue;
-    sortie.push({ travail, video, fichierId: depot.fichierId, etat });
+    if (depot.mode === "dossier") {
+      sortie.push({ travail, video, fichierId: depot.fichierId, etat });
+      continue;
+    }
+    const piece = pieceGardee(etat); // phrase : seulement une maquette créée et gardée, sinon rien n'est demandé
+    if (piece) sortie.push({ travail, video, piece, etat });
   }
   return sortie;
 }
@@ -333,13 +358,33 @@ function erreurBoite(code: CodeReponse, message: string): Error {
 
 // --- écriture d'une demande ------------------------------------------------------------------------------------------------------
 
-async function ecrireLaDemande(c: Candidat, ident: Identite, racine: string, fs: SystemeFichiers, dep: DependancesCaptureAuto): Promise<void> {
-  const [{ ecrireDemande }, { fichierDepotSansSession }] = await Promise.all([import("./tutoriel-capture-boite"), import("./tutoriel-dossier-fond")]);
-  const fichier = await fichierDepotSansSession(c.fichierId, "entree");
+/** Le zip du dossier déposé, relu au stockage (borne 50 Mo). */
+async function zipDuDossier(c: Candidat, dep: DependancesCaptureAuto): Promise<Uint8Array> {
+  const { fichierDepotSansSession } = await import("./tutoriel-dossier-fond");
+  const fichier = await fichierDepotSansSession(c.fichierId ?? "", "entree");
   if (fichier.taille > BORNES.zip) throw erreurBoite("TROP_GROS", "Le dossier dépasse la taille permise.");
   const stockage = await (dep.stockage ?? (() => fournisseur("stockage")))();
   if (!stockage.urlLectureDuree) throw new ErreurStudio("CAPTURE_STOCKAGE", "Le stockage ne sait pas relire le dossier.");
-  const zip = await lireZipBorne(await stockage.urlLectureDuree(fichier.cleStockage, VALIDITE_LECTURE_SEC));
+  return lireZipBorne(await stockage.urlLectureDuree(fichier.cleStockage, VALIDITE_LECTURE_SEC));
+}
+
+/**
+ * PHRASE-3 · Le zip de la maquette créée GARDÉE, fabriqué par le Studio (sans IA, en mémoire, rien d'écrit au stockage). L'empreinte de la
+ * pièce est revérifiée AVANT (`gardee.empreinte` = empreinte de la description relue), et le parcours du réalisateur doit tomber sur des
+ * écrans et des zones qui existent dans la page construite. Refus : phrase fixe, aucune donnée du client.
+ */
+async function zipDeLaPiece(c: Candidat, ident: Identite, dep: DependancesCaptureAuto): Promise<Uint8Array> {
+  if (!c.piece) throw new ErreurCapture(null, PHRASE_DOSSIER_ILLISIBLE);
+  const { zipDeLaPieceGardee } = await import("./tutoriel-piece-construite");
+  const r = await zipDeLaPieceGardee(c.piece, ident.scenario, dep.lireFichier ? { lireFichier: dep.lireFichier } : {});
+  if (!r.ok) throw new ErreurCapture(null, r.phrase);
+  if (r.zip.length > BORNES.zip) throw erreurBoite("TROP_GROS", "Le dossier dépasse la taille permise.");
+  return r.zip;
+}
+
+async function ecrireLaDemande(c: Candidat, ident: Identite, racine: string, fs: SystemeFichiers, dep: DependancesCaptureAuto): Promise<void> {
+  const { ecrireDemande } = await import("./tutoriel-capture-boite");
+  const zip = c.piece ? await zipDeLaPiece(c, ident, dep) : await zipDuDossier(c, dep);
   ecrireDemande(racine, "film-zip", ident.id, { "dossier.zip": zip, "scenario.json": ident.scenarioOctets, "calage.json": ident.calageOctets }, fs);
   memoire().set(ident.id, { dansDemandes: true });
   await journaliser("fabrication", messageDemandee(ident.id), { type: "video", id: c.video.id });

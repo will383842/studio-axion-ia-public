@@ -100,7 +100,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
             ))}
           </ul>
         ) : (
-          <p className="text-[15px] text-texte-doux">L&apos;aperçu se prépare.</p>
+          <p className="text-[15px] text-texte-doux">{vue.apercuDuStudio ? "L'image de votre maquette sera filmée après votre accord." : "L'aperçu se prépare."}</p>
         )}
         {vue.statut === "a-construire" && (
           <div className="mt-4">

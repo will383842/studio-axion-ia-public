@@ -166,6 +166,8 @@ export interface DepsEquipe {
   lire?: <T>(id: string, defaut: T) => Promise<T>;
   /** Octets du dossier déposé (extraction contrôlée) ; défaut : le fichier envoyé, relu par `extraireZipSur`. */
   fichiersDuDossier?: (fichierId: string, attestationImages: boolean) => Promise<ReadonlyMap<string, Uint8Array> | null>;
+  /** PHRASE-3 : lecture de la charte et de la police pour l'aperçu fait par le Studio (tests) ; défaut : le disque. */
+  lireFichier?: (chemin: string) => Promise<Buffer>;
 }
 
 /** Cache borné du dossier extrait : évite de retélécharger et réextraire le zip (jusqu'à 50 Mo) à chaque tour de boucle. */
@@ -270,5 +272,31 @@ export function portsEquipe(commande: Pick<CommandeFabrication, "origine" | "ent
  * (`{ phraseOuverte: port.phraseOuverte }`). Éteint, ou vidéo partie d'une idée / d'un dossier (champ `false`) : rien ne change (pause « création pas ouverte ») (pause « création pas ouverte »).
  */
 export async function portsEquipeAvecPhrase(commande: Pick<CommandeFabrication, "origine" | "entrees">, videoId: Id, deps: DepsEquipe = {}): Promise<PortEquipe & { phraseOuverte: boolean }> {
-  return { ...portsEquipe(commande, videoId, deps), phraseOuverte: partiDUnePhrase(commande) && (await phraseOuverteTutoriel(deps.lire)) };
+  const phraseOuverte = partiDUnePhrase(commande) && (await phraseOuverteTutoriel(deps.lire));
+  return { ...portsEquipe(commande, videoId, deps), phraseOuverte, ...(phraseOuverte ? { apercuStudio: apercuStudioDeLaVideo(videoId, deps) } : {}) };
+}
+
+const MESSAGE_APERCU_IMPOSSIBLE = "L'aperçu de la maquette n'a pas pu être préparé par le Studio : la charte n'est pas lisible. La vidéo reprend dès que c'est réparé.";
+
+/**
+ * PHRASE-3 · Le port « aperçu fait par le Studio » : construit la maquette sans IA et la contrôle (0 €, rien d'envoyé nulle part).
+ * Une panne d'installation (charte illisible) ne casse pas la vidéo : la pièce reste « à construire » et le journal le dit UNE fois
+ * (aucune donnée du client).
+ */
+function apercuStudioDeLaVideo(videoId: Id, deps: DepsEquipe): NonNullable<PortEquipe["apercuStudio"]> {
+  return async (piece) => {
+    const { apercuDuStudio } = await import("./tutoriel-piece-construite");
+    try {
+      return await apercuDuStudio(piece, deps.lireFichier ? { lireFichier: deps.lireFichier } : {});
+    } catch {
+      try {
+        const { depots, journaliser } = await import("./_commun");
+        const deja = await depots().evenements.lister((e) => e.entite === "video" && e.entiteId === videoId && e.message === MESSAGE_APERCU_IMPOSSIBLE);
+        if (deja.length === 0) await journaliser("echec", MESSAGE_APERCU_IMPOSSIBLE, { type: "video", id: videoId });
+      } catch {
+        // Le journal ne bloque jamais.
+      }
+      return null;
+    }
+  };
 }

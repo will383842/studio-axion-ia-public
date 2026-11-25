@@ -55,6 +55,8 @@ import { scenarioCalable } from "./film-dossier";
 import { lireScenarioMaquette, type ScenarioMaquette } from "./scenario-maquette";
 import { controlerApresCalage } from "./equipe/controleur";
 import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
+import { CODE_PIECE_A_CONSTRUIRE, type PieceCreee } from "./equipe/pas-piece-creee";
+import { lireApercu, type ApercuPiece } from "./maquette-creee";
 import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
 import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
 import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "./sous-titres-sans-voix";
@@ -178,6 +180,12 @@ export interface PortEquipe {
   maintenant?: () => string;
   /** V2-08 : vidéo partie d'une phrase ET création ouverte (lu par le service). Absent ou autre que `true` : comportement d'avant. */
   phraseOuverte?: boolean;
+  /**
+   * PHRASE-3 · Aperçu d'une MAQUETTE créée depuis une phrase, calculé par le Studio lui-même (maquette construite sans IA, contrôlée par la
+   * charte ; 0 €, aucun navigateur donc aucune image). Rend l'aperçu `source: "studio"` de CETTE pièce, ou `null` (rien n'est rangé).
+   * Absent = comportement d'avant : la pièce attend l'aperçu déposé à la main.
+   */
+  apercuStudio?: (piece: PieceCreee) => Promise<ApercuPiece | null>;
   /**
    * Briques du tronc commun des scripts (chantier SC), si elles sont sur master : elles COMMENTENT, jamais ne réécrivent.
    * Absent = rien (cas de master).
@@ -464,6 +472,29 @@ export async function prochainPasPaye(etat: EtatTutoriel, commande: CommandeFabr
   }
 }
 
+/**
+ * PHRASE-3 · Range l'aperçu fait par le Studio sur la pièce, SEULEMENT si l'ÉTAT dit : maquette, « à construire », sans aperçu à jour.
+ * L'aperçu doit être celui de CETTE pièce (même empreinte) et relu par `lireApercu` (fait par le Studio, sans image) ; sinon rien n'est rangé.
+ * Contrôle réussi : « à valider » (Williams relit et garde). Contrôle échoué : « à revoir », avec les défauts en phrases simples. Ne lève jamais.
+ */
+async function apercuDuStudio(etat: EtatTutoriel, port: PortEquipe): Promise<EtatTutoriel | null> {
+  const equipe = etat.equipe;
+  const piece = equipe?.pieceCreee;
+  if (!port.apercuStudio || !equipe || !piece || piece.genre !== "maquette" || piece.statut !== "a-construire") return null;
+  if (piece.apercu && piece.apercu.empreinteDescription === piece.empreinte) return null;
+  try {
+    const rendu = await port.apercuStudio(piece);
+    if (!rendu) return null;
+    const lu = lireApercu(rendu, { studioPermis: true });
+    if (!lu.ok || lu.apercu.source !== "studio" || lu.apercu.empreinteDescription !== piece.empreinte) return null;
+    const ok = lu.apercu.controle.ok;
+    const rangee: PieceCreee = { ...piece, apercu: lu.apercu, statut: ok ? "a-valider" : "a-revoir", ...(ok ? {} : { erreurs: lu.apercu.controle.defauts.slice(0, 6) }) };
+    return { ...etat, equipe: { ...equipe, pieceCreee: rangee } };
+  } catch {
+    return null;
+  }
+}
+
 const ROLES_LIBELLE: Partial<Record<IdRole, string>> = { "chef-de-projet": "le chef de projet", analyste: "l'analyste", maquettiste: "le maquettiste", stratege: "le stratège de valeur", scenariste: "le scénariste" };
 
 /** Note l'état d'un rôle au journal (jamais ses sorties). */
@@ -492,6 +523,11 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
   if ("fini" in pas) return { statut: "faite", etat };
   if ("pause" in pas) {
     let suite: EtatTutoriel = { ...etat, equipe: pas.etat ?? equipe };
+    // PHRASE-3 : une maquette « à construire » reçoit son aperçu du Studio (décision sur l'ÉTAT de la pièce ; le port ne fait que le calcul).
+    if (pas.pause.code === CODE_PIECE_A_CONSTRUIRE) {
+      const avecApercu = await apercuDuStudio(suite, port);
+      if (avecApercu) return { statut: "en-cours", etat: avecApercu };
+    }
     if (pas.pause.code === "TO_SCRIPT_A_VALIDER" && suite.roles?.findLast((l) => l.role === "scenariste")?.etat !== "attend-williams") suite = noter(suite, "scenariste", "attend-williams", le, "Deux versions attendent votre choix.");
     return { statut: "pause", etat: suite, code: pas.pause.code, message: pas.pause.message };
   }

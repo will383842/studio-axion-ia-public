@@ -128,6 +128,8 @@ export interface VuePieceCreee {
   message: string | null;
   empreinte: string;
   apercu: ApercuVue[];
+  /** PHRASE-3 : l'aperçu a été fait par le Studio, sans image : l'image sera filmée après l'accord de Williams. */
+  apercuDuStudio: boolean;
   textes: { ecranId: string; titre: string; textes: string[] }[];
   chiffres: ChiffreARelire[];
   defauts: string[];
@@ -463,6 +465,7 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     etapes: fluxLu ? etapesDuFlux(fluxLu) : [],
     message: etat.statut === "a-revoir" ? (flux ? MESSAGE_FLUX_A_REVOIR : MESSAGE_PIECE_A_REVOIR) : null,
     empreinte: etat.empreinte,
+    apercuDuStudio: etat.apercu?.source === "studio",
     apercu: (etat.apercu?.images ?? []).flatMap((i) => (urls[i.cle] ? [{ url: urls[i.cle]!, ecranId: i.ecranId, titre: titres.get(i.ecranId) ?? i.ecranId, etat: i.etat }] : [])),
     textes: textes.map((t) => ({ ...t, titre: titres.get(t.ecranId) ?? t.ecranId })),
     chiffres: tableau?.ok ? chiffresARelire(tableau.donnee).filter((c) => c.cle.startsWith("indicateur:")) : [],
