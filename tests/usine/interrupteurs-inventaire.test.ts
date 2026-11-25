@@ -440,9 +440,9 @@ describe("Inventaire des interrupteurs (G7-06)", () => {
     expect(Object.keys(PLAN_SCENES).sort()).toEqual(Object.values(CLES_REGLAGE_PLAN_SCENES).sort());
   });
 
-  it("retouche du chat : les clés de CLES_REGLAGE_RETOUCHE, toutes éteintes (AM-24 / C-7)", () => {
+  it("retouche du chat : les clés de CLES_REGLAGE_RETOUCHE, toutes éteintes sauf la démo (AM-24 / C-7 ; ALLUMER-RETOUCHE-DEMO)", () => {
     expect(Object.values(CLES_REGLAGE_RETOUCHE).sort()).toEqual(Object.keys(RETOUCHE).sort());
-    expect(Object.values(RETOUCHE).every((e) => e === "eteint")).toBe(true);
+    expect(Object.entries(RETOUCHE).filter(([, e]) => e !== "eteint")).toEqual([["retoucheChat.demoFacecam", "allume"]]);
     const texte = lire("src/services/retouche-chat/generateurs.ts");
     expect(texte).toMatch(/seulement par la valeur `true`/);
   });
