@@ -99,10 +99,16 @@ describe("catalogue des capacités (C1-U1)", () => {
         id: `objet.${o}`, etat: "prevu", chantier: "9", decision: "D3 § C", ...(o === "emoji" ? { note: "attend W-K / W-14" } : {}),
       })),
     );
-    for (const t of [LIGNES_ARCHIVE, LIGNES_FINITION, LIGNES_COUVERTURE]) {
-      expect(Array.isArray(t)).toBe(true);
-      expect(t).toHaveLength(0);
-    }
+    expect(Array.isArray(LIGNES_ARCHIVE)).toBe(true);
+    expect(LIGNES_ARCHIVE).toHaveLength(0);
+    // CATALOGUE-C10-C11-v21p : FINITION (chantier 10) et COUVERTURE (chantier 11) sortent de la liste « vide ».
+    expect(LIGNES_FINITION.map((l) => ({ id: l.id, etat: l.etat, chantier: l.chantier }))).toEqual(
+      ["accroche.script", "rythme.mesure", "etalonnage.noir-blanc", "texte.lueur", "texte.fond-clair"].map((id) => ({ id, etat: "prevu", chantier: "10" })),
+    );
+    expect(LIGNES_COUVERTURE.map((l) => ({ id: l.id, etat: l.etat, chantier: l.chantier }))).toEqual(
+      [["texte.marques-au-mot", "eteint"], ["texte.selectif", "eteint"], ["texte.mode-carte", "prevu"], ["texte.effets", "prevu"], ["texte.accents-role", "prevu"]]
+        .map(([id, etat]) => ({ id, etat, chantier: "11" })),
+    );
     const index = readFileSync(join(racine, "src/briques/bibliotheque-video/catalogue/index.ts"), "utf8");
     for (const n of ["ARCHIVE", "OBJETS", "FINITION", "GENERIQUES", "COUVERTURE"]) expect(index).toContain(`...LIGNES_${n}`);
   });

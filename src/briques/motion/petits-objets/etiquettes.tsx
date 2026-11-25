@@ -5,7 +5,7 @@
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import { createElement, type JSX } from "react";
-import { FAMILLE_CSS, PALETTE } from "../../charte/axion-2026";
+import { PILE_CSS, PALETTE } from "../../charte/axion-2026";
 import { couleursSur } from "../../jetons-motion";
 import { MOTS_MAX, type DefinitionObjet, type ProprietesObjet, type TonObjet } from "./contrat";
 import { iconeObjet } from "./icones-objets";
@@ -117,7 +117,7 @@ function pilule(habillage: Habillage, majuscules = false) {
           <path d={d} fill={h.fond} stroke="none" opacity={entree(phase.trace)} />
           <Trace d={d} t={phase.trace} couleur={h.trait} epaisseur={4} />
           {avecIcone && parametres.role ? <Icone role={parametres.role} x={x0 + 40} y={CENTRE.y - ICONE / 2} t={phase.trace} couleur={h.trait} /> : null}
-          <text x={xTexte} y={CENTRE.y + taille * 0.35} fontFamily={FAMILLE_CSS} fontWeight={700} fontSize={taille.toFixed(1)} fill={h.encre} opacity={entree(phase.trace)}>
+          <text x={xTexte} y={CENTRE.y + taille * 0.35} fontFamily={PILE_CSS} fontWeight={700} fontSize={taille.toFixed(1)} fill={h.encre} opacity={entree(phase.trace)}>
             {affiche}
           </text>
         </g>
@@ -166,7 +166,7 @@ function rendreTampon(pr: ProprietesObjet<ParametresEtiquette>): JSX.Element {
       <g opacity={phase.opacite} transform={`translate(${t.dx.toFixed(2)} ${t.dy.toFixed(2)}) rotate(${angle.toFixed(2)} ${CENTRE.x} ${CENTRE.y})`}>
         <TraceSvg d={cadre(0)} t={phase.trace} ton={ton} fond={fond} epaisseur={8} />
         <TraceSvg d={cadre(16)} t={phase.trace} ton={ton} fond={fond} epaisseur={3} />
-        <text x={CENTRE.x} y={CENTRE.y + taille * 0.35} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleursSur(fond).texte} opacity={entree(phase.trace)}>
+        <text x={CENTRE.x} y={CENTRE.y + taille * 0.35} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleursSur(fond).texte} opacity={entree(phase.trace)}>
           {affiche}
         </text>
       </g>

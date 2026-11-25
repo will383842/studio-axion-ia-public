@@ -11,7 +11,8 @@ import { FLASH_MESURE_ACTIVE, mesurerFlashs } from "@/briques/composition/garde-
 import { jsonCanonique, fnv1a64 } from "@/briques/plan-scenes/empreinte";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import type { Remarque } from "@/briques/plan-scenes/validateur";
+import { validerPlan, type Remarque } from "@/briques/plan-scenes/validateur";
+import { poserMotCleAuPlan } from "@/briques/plan-scenes-generateurs/mot-cle-au-plan";
 import { adapterPlan } from "@/briques/plan-scenes-generateurs/adaptateur";
 import { tranchePlan } from "@/briques/plan-scenes-generateurs/tranche";
 import { PLAFONDS_PAR_DEFAUT } from "@/briques/motion/habillage-commun/types";
@@ -45,7 +46,7 @@ export const FORMAT_PLAN_CAS_CONCRET = { largeur: 1080, hauteur: 1920, fps: 25 a
 
 export const cleTranche = (groupe: string, ecran: string) => `${groupe}/${ecran}`;
 
-export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appeler?: AppelClaude; memo?: MemoPlanScenes; format?: typeof FORMAT_PLAN_CAS_CONCRET; habillage?: { actif: boolean; graine: string }; objetsPermis?: readonly string[] }): Promise<ResultatPlanCasConcret> {
+export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appeler?: AppelClaude; memo?: MemoPlanScenes; format?: typeof FORMAT_PLAN_CAS_CONCRET; habillage?: { actif: boolean; graine: string }; objetsPermis?: readonly string[]; motCle?: { actif: boolean; sujet: string; motsInterdits: string[] } }): Promise<ResultatPlanCasConcret> {
   const format = o.format ?? FORMAT_PLAN_CAS_CONCRET;
   const tranches: Record<string, PlanValide> = {};
   const memo: MemoPlanScenes = {};
@@ -59,15 +60,21 @@ export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appel
     memo[g.id] = r;
     remarques.push(...r.remarques);
     if (!r.plan) continue;
+    // BR-MOT-CLE-b : mot-clé posé APRÈS le plan (hors mémo, aucun appel Claude refait) puis plan revalidé ; absent ou éteint = plan identique.
+    let plan: PlanValide = r.plan;
+    if (o.motCle?.actif === true) {
+      const pose = poserMotCleAuPlan(plan, plan.mots, o.motCle.sujet, o.motCle.motsInterdits);
+      if (pose !== plan) plan = validerPlan(pose, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs }).plan;
+    }
     for (const e of g.ecrans) {
-      const t = tranchePlan(r.plan, e.debutMs, e.finMs);
+      const t = tranchePlan(plan, e.debutMs, e.finMs);
       if (t) tranches[cleTranche(g.id, e.id)] = t;
     }
     // BR-TRANSITIONS-CC-a : habillage posé APRÈS le plan (hors empreinte `entree`, aucun appel Claude refait) ; éteint = rien ne change.
     if (o.habillage?.actif === true) {
       const habillees = habillerTranches({
         actif: true,
-        plan: r.plan,
+        plan,
         ecrans: g.ecrans.map((e) => ({ cle: cleTranche(g.id, e.id), debutMs: e.debutMs, finMs: e.finMs })),
         tranches,
         plafonds: PLAFONDS_PAR_DEFAUT,

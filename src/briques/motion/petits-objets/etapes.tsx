@@ -1,10 +1,10 @@
 /**
  * PETITS OBJETS — étapes (C9-14) : pastille « Étape n/N » et compteur « n/N » à segments. Pièces pures, NON inscrites (rien ne les importe).
- * Contours et segments tracés par `TraceSvg` ; textes en Manrope (`FAMILLE_CSS`), ≤ 4 mots ; aucun filtre.
+ * Contours et segments tracés par `TraceSvg` ; textes en Manrope (`PILE_CSS`), ≤ 4 mots ; aucun filtre.
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS, GRAISSES } from "../../charte/axion-2026";
+import { PILE_CSS, GRAISSES } from "../../charte/axion-2026";
 import type { DefinitionObjet, ProprietesObjet } from "./contrat";
 import { phaseObjet } from "./progres";
 import { couleurDuTon } from "./tons";
@@ -60,7 +60,7 @@ function Pastille(pr: ProprietesObjet<ParametresEtape>): JSX.Element {
           x={PASTILLE.x + PASTILLE.l / 2}
           y={PASTILLE.y + PASTILLE.h / 2 + 26}
           textAnchor="middle"
-          fontFamily={FAMILLE_CSS}
+          fontFamily={PILE_CSS}
           fontWeight={GRAISSES.gras}
           fontSize={76}
           fill={couleurDuTon(ton, fond)}
@@ -98,7 +98,7 @@ function Segments(pr: ProprietesObjet<ParametresEtape>): JSX.Element {
           x={L / 2}
           y={90}
           textAnchor="middle"
-          fontFamily={FAMILLE_CSS}
+          fontFamily={PILE_CSS}
           fontWeight={GRAISSES.gras}
           fontSize={72}
           fill={couleurDuTon("neutre", fond)}

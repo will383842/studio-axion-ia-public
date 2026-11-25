@@ -168,19 +168,68 @@ export interface DepsEquipe {
   fichiersDuDossier?: (fichierId: string, attestationImages: boolean) => Promise<ReadonlyMap<string, Uint8Array> | null>;
 }
 
+/** Cache borné du dossier extrait : évite de retélécharger et réextraire le zip (jusqu'à 50 Mo) à chaque tour de boucle. */
+const CACHE_DOSSIER_ENTREES_MAX = 2;
+const CACHE_DOSSIER_OCTETS_MAX = 64 * 1024 * 1024;
+const CACHE_DOSSIER_DUREE_MS = 10 * 60 * 1000;
+const cacheDossier = new Map<string, { fichiers: ReadonlyMap<string, Uint8Array>; octets: number; expire: number }>();
+
+/** Vide le cache du dossier extrait (tests, vidage manuel). */
+export function viderCacheDossier(): void {
+  cacheDossier.clear();
+}
+
+function lireCacheDossier(cle: string, maintenant: number): ReadonlyMap<string, Uint8Array> | undefined {
+  for (const [k, v] of cacheDossier) if (v.expire <= maintenant) cacheDossier.delete(k);
+  const e = cacheDossier.get(cle);
+  if (!e) return undefined;
+  // LRU : l'entrée lue repasse en dernier.
+  cacheDossier.delete(cle);
+  cacheDossier.set(cle, e);
+  return e.fichiers;
+}
+
+function ranger(cle: string, fichiers: ReadonlyMap<string, Uint8Array>, maintenant: number): void {
+  let octets = 0;
+  for (const v of fichiers.values()) octets += v.byteLength;
+  if (octets > CACHE_DOSSIER_OCTETS_MAX) return; // trop gros : jamais gardé
+  for (const [k, v] of cacheDossier) if (v.expire <= maintenant) cacheDossier.delete(k);
+  cacheDossier.delete(cle);
+  cacheDossier.set(cle, { fichiers, octets, expire: maintenant + CACHE_DOSSIER_DUREE_MS });
+  let total = 0;
+  for (const v of cacheDossier.values()) total += v.octets;
+  // Le plus ancien (tête de la Map) sort d'abord ; la dernière entrée rangée reste.
+  for (const k of [...cacheDossier.keys()]) {
+    if (cacheDossier.size <= 1 || (cacheDossier.size <= CACHE_DOSSIER_ENTREES_MAX && total <= CACHE_DOSSIER_OCTETS_MAX)) break;
+    total -= cacheDossier.get(k)!.octets;
+    cacheDossier.delete(k);
+  }
+}
+
 async function fichiersParDefaut(fichierId: string, attestationImages: boolean): Promise<ReadonlyMap<string, Uint8Array> | null> {
   const { fichierEnvoye } = await import("./fichiers");
   const { fournisseur } = await import("./_commun");
-  const { extraireZipSur } = await import("./zip-tutoriel");
+  const { extraireZipSur, entreeZipAllumee } = await import("./zip-tutoriel");
+  // La lecture du fichier (droits, existence) est refaite à chaque appel : seul le téléchargement + l'extraction sont gardés.
   const fichier = await fichierEnvoye(fichierId, "entree");
   const stockage = await fournisseur("stockage");
   const cle = fichier.cleStockage ?? "";
+  const cleCache = `${fichierId}\u0000${cle}\u0000${attestationImages ? 1 : 0}`;
+  // L'interrupteur passe avant le cache : éteint, le cache est vidé et `extraireZipSur` refuse.
+  if (await entreeZipAllumee()) {
+    const deja = lireCacheDossier(cleCache, Date.now());
+    if (deja) return deja;
+  } else {
+    viderCacheDossier();
+  }
   const adresse = stockage.urlLectureDuree ? await stockage.urlLectureDuree(cle, 300) : await stockage.urlLecture(cle);
   if (!adresse) return null;
   const r = await fetch(adresse);
   if (!r.ok) return null;
   const extrait = await extraireZipSur(new Uint8Array(await r.arrayBuffer()), { attestationImages });
-  return extrait.ok ? extrait.fichiers : null;
+  if (!extrait.ok) return null;
+  ranger(cleCache, extrait.fichiers, Date.now());
+  return extrait.fichiers;
 }
 
 /** V2-08 : UNE seule condition « vidéo partie d'une phrase » (dépôt « phrase », pas une idée) : elle ouvre la création payante ET choisit le plafond. */

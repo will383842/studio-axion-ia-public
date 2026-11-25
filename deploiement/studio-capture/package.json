@@ -1,0 +1,13 @@
+{
+  "name": "studio-capture-poste",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dépendances EXACTES du poste de capture (T-EXT-51c) ; installées par `npm ci --ignore-scripts` dans le Dockerfile. Versions = pnpm-lock.yaml du dépôt (get-tsconfig 4.14.3 est embarqué par tsx, pas une dépendance séparée).",
+  "dependencies": {
+    "@playwright/test": "1.63.0",
+    "tsx": "4.23.15"
+  },
+  "overrides": {
+    "esbuild": "0.28.2"
+  }
+}

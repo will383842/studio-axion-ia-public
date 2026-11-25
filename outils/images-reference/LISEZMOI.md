@@ -20,4 +20,4 @@ Depuis la racine du Studio, **à la main**, par la session qui déploie (jamais 
 Jamais pour faire passer le test, et **jamais sans une ligne au journal** (règle 13 de G13-04). `--mettre-a-jour <id>` réécrit l'image et le dit à l'écran.
 
 ## Version des compositions
-`versionCompositions` de `references.json` doit égaler `version` de `tests/segments-rendu/version-compositions.json` (G13-04). Si les compositions ont monté, revoir chaque pièce, puis mettre le nombre à jour ; sinon le script refuse de comparer.
+`versionCompositions` de `references.json` doit égaler la version DÉRIVÉE des empreintes de `tests/segments-rendu/version-compositions.json` (`versionDerivee`, `tests/segments-rendu/version-derivee.ts` ; le script l'affiche en cas d'écart). Si une composition a changé, revoir chaque pièce, puis recopier la valeur affichée ; sinon le script refuse de comparer.

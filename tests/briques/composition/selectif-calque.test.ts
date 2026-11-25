@@ -70,8 +70,9 @@ describe("garde statique : pièce en avance", () => {
   const racine = join(__dirname, "../../../src");
   const sources = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? sources(p) : /\.(ts|tsx)$/.test(n) ? [p] : []; });
   const propre = join(racine, "briques/composition/selectif-calque.ts");
-  it("(f) aucun fichier de src n'importe selectif-calque", () => {
-    expect(sources(racine).filter((p) => p !== propre && /selectif-calque/.test(readFileSync(p, "utf8")))).toEqual([]);
+  it("(f) seul parametres.ts de src importe selectif-calque (liste blanche exacte, K2-T2-b2)", () => {
+    const importeurs = sources(racine).filter((p) => p !== propre && /selectif-calque/.test(readFileSync(p, "utf8"))).map((p) => p.slice(racine.length - 3).replace(/\\/g, "/"));
+    expect(importeurs).toEqual(["src/briques/composition/parametres.ts"]);
   });
   it("(f) ni @/ ni lireParametre dans le module", () => {
     const t = readFileSync(propre, "utf8");

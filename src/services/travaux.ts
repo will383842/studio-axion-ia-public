@@ -673,7 +673,33 @@ export async function ecrireAvancement(lu: InstantaneTravail, sortie: { travail:
     if (lues.length) await enregistrerDepensePayee(travail, lues, { versionAussi: !reexport });
   }
   const suites = sortie.resultat ? await appliquerResultat(travail, sortie.resultat) : [];
+  await signalerPauseTutoriel(lu.moteur.id, actuel, travail);
   return { ecrit: true, suites };
+}
+
+/** Code de la pause du moteur tutoriel d'outil posée sur ce travail (`parametres.pause.code`), ou `null`. */
+function codeDePause(t: Travail): string | null {
+  const code = (t.parametres as { pause?: { code?: unknown } } | undefined)?.pause?.code;
+  return typeof code === "string" ? code : null;
+}
+
+/**
+ * AUD-8 : le tutoriel d'outil qui ENTRE en pause (le travail attend Williams) pose la cloche du suivi tout de suite, sans
+ * attendre qu'il ouvre la page. Une seule fois par pause (le code de pause doit avoir changé ; `signalerSuivi` dédoublonne
+ * aussi). Éteint par défaut (réglage « tutoriel.suiviCloche »). Jamais bloquant : l'avancement est déjà écrit, une erreur
+ * est seulement journalisée.
+ */
+async function signalerPauseTutoriel(moteurId: string, avant: Travail, apres: Travail): Promise<void> {
+  if (moteurId !== "montage-tutoriel-outil") return;
+  const code = codeDePause(apres);
+  if (!code || code === codeDePause(avant)) return;
+  try {
+    const { signalerSuivi } = await import("./tutoriel-suivi"); // chargé à l'usage : ce module relit déjà ce fichier
+    await signalerSuivi(apres);
+  } catch (e) {
+    console.error("[studio] cloche du suivi non posée", apres.id, e instanceof Error ? e.name : "");
+    await journaliser("echec", `Cloche du suivi non posée : « ${apres.titre} » (${e instanceof Error ? e.name : "erreur"})`, { type: "video", id: apres.cibleId }).catch(() => undefined);
+  }
 }
 
 /**
@@ -1259,6 +1285,9 @@ export async function signalerTravailEnErreur(lu: InstantaneTravail, e: unknown)
   await journaliser("echec", `Un travail a levé une erreur pendant le tour (il sera relu au tour suivant) : ${e instanceof Error ? e.name : "erreur"}`, { type: "video", id: lu.travail.cibleId }).catch(() => undefined);
 }
 
+/** Pauses du tutoriel d'outil qui attendent un geste de Williams (accord, validation, film à déposer, pièce à valider, cas V2). */
+const PAUSES_ATTENTE_WILLIAMS_TUTORIEL: readonly string[] = ["TO_DEVIS_A_ACCEPTER", "TO_SCRIPT_A_VALIDER", "TO_FILM_A_CAPTURER", "TO_PIECE_A_VALIDER", "TO_CAS_V2"];
+
 /**
  * Garde « plus d'avancement » : un travail `en_cours` dont l'empreinte d'état n'a pas changé depuis plus que le délai de
  * son moteur échoue (`PANNE_SANS_NOUVELLE`, réessayable) ; la branche d'échec existante de `ecrireAvancement` fait le
@@ -1266,6 +1295,9 @@ export async function signalerTravailEnErreur(lu: InstantaneTravail, e: unknown)
  */
 function gardeSansAvancement(travail: Travail, actuel: Travail, moteurId: string, instant: number = Date.now()): Travail {
   const delai = delaiSansAvancementMs(moteurId);
+  // AUD-7 : la vraie boucle laisse « en_cours » un travail en pause ; une pause qui attend un geste de Williams (liste fermée) n'est pas une panne.
+  const codePause = travail.parametres?.pause && typeof travail.parametres.pause === "object" ? (travail.parametres.pause as { code?: unknown }).code : undefined;
+  if (typeof codePause === "string" && PAUSES_ATTENTE_WILLIAMS_TUTORIEL.includes(codePause)) return travail.garde ? { ...travail, garde: undefined } : travail;
   if (travail.statut !== "en_cours" || delai === null || actuel.reprise?.motif === "credit" || travail.reprise?.motif === "credit") return travail.garde ? { ...travail, garde: undefined } : travail;
   const empreinte = empreinteAvancement(travail);
   const iso = new Date(instant).toISOString();

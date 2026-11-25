@@ -66,6 +66,7 @@ const files = new FilesRendu({
     "assemblage-pdf": async (d, c) => (await charger("assemblage-pdf", () => import("./operations/assemblage-pdf.js"))).assemblagePdf(d, c),
     "toile-continue": async (d, c) => (await charger("toile-continue", () => import("./operations/toile-continue.js"))).toileContinue(d, c),
     "recollage-plages": async (d, c) => (await charger("recollage-plages", () => import("./operations/recollage-plages.js"))).recollagePlages(d, c),
+    "collage-chapitres": async (d, c) => (await charger("collage-chapitres", () => import("./operations/collage-chapitres.js"))).collageChapitres(d, c),
     // « tranches-audio » (lot M6) : refusée clairement tant qu'elle n'existe pas.
   },
 });
