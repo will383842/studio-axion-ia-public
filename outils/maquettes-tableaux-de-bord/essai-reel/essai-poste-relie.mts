@@ -15,6 +15,9 @@
  *               client (capturer.mts tourne ici HORS conteneur, réseau ouvert) ; il ne reçoit qu'un environnement réduit. Le `ffprobe.json` est celui de l'essai (local), pas celui du poste.
  *  --lire     : relit la réponse avec les règles du contrat (lstat, O_NOFOLLOW, fstat, noms en liste fermée, signature MP4) et affiche le verdict.
  *
+ * EN VRAI (veilleur, plan section 7 étape 3a) : la boîte doit être un point de montage appartenant à root, sans écriture pour le groupe ni les autres ;
+ * `--lire` d'une vraie réponse (uid 1001, mode 0700) se lance avec sudo. Cet essai-ci, lui, travaille dans un dossier neuf hors dépôt.
+ *
  * Codes de sortie : 0 ok · 3 environnement interdit · 4 entrée refusée · 5 capture en échec.
  * Zéro euro : ni Claude, ni HeyGen, ni ElevenLabs, ni rendu. Rien n'est écrit dans le dépôt (`--boite` doit être HORS du dépôt).
  */
@@ -109,9 +112,13 @@ export function boiteReelle(boite: string, reelles: readonly string[] = BOITES_R
   });
 }
 
-/** Environnement réduit pour `capturer.mts` hors conteneur : PATH, HOME, langue, dossier temporaire et variables du navigateur seulement. */
+/**
+ * Environnement réduit pour `capturer.mts` hors conteneur : PATH, HOME, langue, dossier temporaire, variables du navigateur (dont `SWIFTSHADER_*` : sans elles Chromium ne photographie pas dans le cloud) et les quatre
+ * indicateurs de la garde de capture (`CI`, `CLAUDE_CODE_REMOTE`, `CAPTURE_CHROMIUM`, `CAPTURE_CONTENEUR` : aucun secret) seulement.
+ * Sans eux, la garde de `capturer.mts` refuserait le cloud ou la CI qui a pourtant autorisé `--direct`. Les secrets restent retirés.
+ */
 export function environnementReduit(env: Record<string, string | undefined>): Record<string, string> {
-  const garde = /^(PATH|HOME|LANG|LC_[A-Z]+|TMPDIR|TZ|DISPLAY|XDG_RUNTIME_DIR|PLAYWRIGHT_[A-Z_]+|CHROME_[A-Z_]+|CHROMIUM_[A-Z_]+|FONTCONFIG_[A-Z_]+)$/;
+  const garde = /^(PATH|HOME|LANG|LC_[A-Z]+|TMPDIR|TZ|DISPLAY|XDG_RUNTIME_DIR|PLAYWRIGHT_[A-Z_]+|CHROME_[A-Z_]+|CHROMIUM_[A-Z_]+|FONTCONFIG_[A-Z_]+|SWIFTSHADER_[A-Z_]+|CI|CLAUDE_CODE_REMOTE|CAPTURE_CHROMIUM|CAPTURE_CONTENEUR)$/;
   const sortie: Record<string, string> = {};
   for (const [k, v] of Object.entries(env)) if (v !== undefined && garde.test(k)) sortie[k] = v;
   return sortie;
