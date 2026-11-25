@@ -26,7 +26,7 @@ describe("GV-MD-03b : réglage du calage au mot", () => {
     const o = await outilsAvec();
     expect(o.calageAuMot).toBeUndefined();
     expect("calageAuMot" in o).toBe(false);
-    expect(Object.keys(o).sort()).toEqual(["appelerRealisateur", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
+    expect(Object.keys(o).sort()).toEqual(["appelerRealisateur", "finDouce", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
   });
 
   it("réglage éteint, autre valeur ou lecture en échec : calageAuMot absent", async () => {

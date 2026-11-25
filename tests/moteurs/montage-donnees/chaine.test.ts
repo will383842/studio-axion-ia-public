@@ -163,7 +163,7 @@ describe("garde statique : moteur inscrit, masqué, sans dépense, imports inter
       .filter((f) => /montage-donnees/.test(readFileSync(f, "utf8")))
       .map((f) => relative(racine, f).split(sep).join("/"))
       .sort();
-    expect(citeurs).toEqual(["src/formats/tableau-de-bord/index.ts", "src/moteurs/ids.ts", "src/moteurs/index.ts"]);
+    expect(citeurs).toEqual(["src/formats/tableau-de-bord/index.ts", "src/moteurs/ids.ts", "src/moteurs/index.ts", "src/services/tableau-de-bord-branchements.ts"]);
   });
   it("ids.ts le cite une fois", () => {
     expect(readFileSync(join(racine, "src/moteurs/ids.ts"), "utf8").match(/montage-donnees/g)).toHaveLength(1);
