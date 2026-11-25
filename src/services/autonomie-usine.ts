@@ -78,6 +78,41 @@ export async function lireAutonomieUsine(): Promise<AutonomieUsine> {
   return interpreter(brut);
 }
 
+/** Qui règle l'autonomie : l'Usine (clé porte présente), le Studio (ancienne clé seule) ou personne (aucune clé). */
+export interface ReglageEnVigueur {
+  pilote: "usine" | "studio" | "aucun";
+  actif: boolean;
+  plafondCents: number;
+}
+
+/** Valeur lisible d'une clé : `actif` comme `interpreter` (allumé SEULEMENT si plafond > 0), plafond rendu aussi quand c'est éteint. */
+function valeurLisible(brut: unknown): { actif: boolean; plafondCents: number } {
+  const plafond = brut !== null && typeof brut === "object" && !Array.isArray(brut) ? (brut as Record<string, unknown>).plafondCents : undefined;
+  return { actif: interpreter(brut).etat === "active", plafondCents: plafondValide(plafond) ? plafond : 0 };
+}
+
+/**
+ * LECTURE SEULE (porte de lecture et écran). Même source que `lireAutonomieUsine` : la clé porte, si elle existe, est seule lue ;
+ * sinon l'ancienne clé ; sinon `aucun`. Une lecture qui lève : éteint, plafond 0 (échec fermé).
+ */
+export async function lireReglageEnVigueur(): Promise<ReglageEnVigueur> {
+  let recu: unknown;
+  try {
+    recu = await lireParametre<unknown>(CLE_PORTE, null);
+  } catch {
+    return { pilote: "usine", actif: false, plafondCents: 0 };
+  }
+  if (recu !== null && recu !== undefined) return { pilote: "usine", ...valeurLisible(recu) };
+  let brut: unknown;
+  try {
+    brut = await lireParametre<unknown>(CLE_REGLAGE, null);
+  } catch {
+    return { pilote: "aucun", actif: false, plafondCents: 0 };
+  }
+  if (brut === null || brut === undefined) return { pilote: "aucun", actif: false, plafondCents: 0 };
+  return { pilote: "studio", ...valeurLisible(brut) };
+}
+
 /**
  * PUR. Contrôle la paire reçue par la porte (`automatique`, `plafond_automatique_cents`) : les deux ensemble ou aucun ; booléen ;
  * centimes entiers 0..10 000 000 ; allumer avec 0 refusé. ÉTEINDRE n'est jamais refusé pour un montant valide (0 permis).
@@ -138,6 +173,26 @@ export async function reglerAutonomieUsine(demande: { actif: boolean; plafondCen
   const valeur: ReglageAutonomie = { actif, plafondCents, le: maintenant(), version: 1 };
   await ecrireParametre(CLE_REGLAGE, valeur);
   await journaliser("budget", actif ? `Usine en automatique : allumée, plafond ${formaterMontant(centimes(plafondCents))} par mois` : "Usine en automatique : éteinte (retour au mode confirmation)");
+}
+
+/**
+ * Bouton d'urgence « Éteindre » du Studio : le fondateur connecté éteint l'autonomie quand c'est l'Usine qui la règle (clé porte).
+ * ÉTEINDRE SEULEMENT : cette fonction n'écrit jamais l'état allumé. Sans clé porte, rien n'est écrit (`eteinte: false`). Déjà éteinte :
+ * rien n'est écrit, ni journalisé, ni sonné. Le plafond est gardé. Cloche sans montant, puis ligne de journal, puis écriture
+ * (la trace précède l'écriture). Ne touche jamais à `usine.autonomie`, au registre ni aux dépenses.
+ */
+export async function eteindreDepuisStudio(): Promise<{ eteinte: boolean; deja: boolean }> {
+  await exigerSession();
+  const actuel = await lireParametre<unknown>(CLE_PORTE, null);
+  if (actuel === null || actuel === undefined) return { eteinte: false, deja: false };
+  const { plafondCents } = valeurLisible(actuel);
+  const a = actuel as Partial<ReglageAutonomie> | null;
+  if (a && typeof a === "object" && a.actif === false && a.plafondCents === plafondCents) return { eteinte: true, deja: true };
+  await creerNotification({ type: "budget", titre: "L'Usine ne dépense plus seule", message: "Vous avez éteint l'autonomie de l'Usine depuis le Studio. La confirmation reste demandée.", lien: "/" });
+  await journaliser("budget", "Usine en automatique : éteinte depuis le Studio (bouton Éteindre), retour au mode confirmation");
+  const valeur: ReglageAutonomie = { actif: false, plafondCents, le: maintenant(), version: 1 };
+  await ecrireParametre(CLE_PORTE, valeur);
+  return { eteinte: true, deja: false };
 }
 
 /* --- Origine ----------------------------------------------------------- */
@@ -350,6 +405,8 @@ export interface VueAutonomie {
   utiliseCents: number;
   pourcentage: number;
   mois: string;
+  /** Qui règle l'autonomie (voir `lireReglageEnVigueur`). */
+  pilote: ReglageEnVigueur["pilote"];
 }
 
 /** Pour l'écran Réglages : état, plafond, utilisé, pourcentage, mois de Paris. */
@@ -357,6 +414,7 @@ export async function vueAutonomieUsine(): Promise<VueAutonomie> {
   const mois = moisParis(maintenant());
   const r = await lireAutonomieUsine();
   const utiliseCents = await usageDuMoisUsine(mois);
-  if (r.etat !== "active") return { etat: "confirmation", actif: false, plafondCents: 0, utiliseCents, pourcentage: 0, mois };
-  return { etat: "active", actif: true, plafondCents: r.plafondCents, utiliseCents, pourcentage: Math.round((utiliseCents * 100) / r.plafondCents), mois };
+  const { pilote } = await lireReglageEnVigueur();
+  if (r.etat !== "active") return { etat: "confirmation", actif: false, plafondCents: 0, utiliseCents, pourcentage: 0, mois, pilote };
+  return { etat: "active", actif: true, plafondCents: r.plafondCents, utiliseCents, pourcentage: Math.round((utiliseCents * 100) / r.plafondCents), mois, pilote };
 }
