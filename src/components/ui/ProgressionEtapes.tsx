@@ -83,7 +83,6 @@ export function ProgressionEtapes({
   message,
   compacte,
   aRelire,
-  enPause,
   className,
 }: {
   etapes: EtapeTravail[];
@@ -100,13 +99,11 @@ export function ProgressionEtapes({
   compacte?: boolean;
   /** Clé de l'étape arrêtée pour que Will relise (le script à valider) : une étape « À relire », pas un échec. */
   aRelire?: string;
-  /** Facultatif (absent : affichage d'aujourd'hui). Le travail est en pause : « En pause » remplace le temps restant. */
-  enPause?: boolean;
   className?: string;
 }) {
   const echec = etapes.find((e) => e.statut === "echec" && e.cle !== aRelire);
   // À relire : rien ne tourne, aucun temps restant n'est annoncé.
-  const temps = enPause && !echec ? "En pause" : !echec && !aRelire && progression < 100 ? texteTemps({ ...suivi, resteSec }) : null;
+  const temps = !echec && !aRelire && progression < 100 ? texteTemps({ ...suivi, resteSec }) : null;
   return (
     <div className={className}>
       <div className="mb-3 flex items-end justify-between gap-3">

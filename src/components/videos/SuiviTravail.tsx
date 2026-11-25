@@ -14,7 +14,7 @@ import { notifier } from "@/components/ui/Toast";
 import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import { useTravaux } from "@/hooks/useTravaux";
 import type { VueTravail } from "@/services/vues";
-import { estEnPause } from "@/moteurs/montage-tutoriel-outil/vue-roles";
+import { estEnPause, estSansReprise } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 import { BoutonAnnuler } from "./BoutonAnnuler";
 import { BoutonArreter } from "./BoutonArreter";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
@@ -42,7 +42,7 @@ export function SuiviTravail({ initial, compacte, sansPrix, signalerPause }: { i
   const vue = signalerPause && estEnPause(t) ? { ...versSuiviFabrication(t), enPause: true } : versSuiviFabrication(t);
   return (
     <div className="space-y-4">
-      {vue.etat !== "prete" && <EnTeteSuivi etat={vue.etat} sansTemps />}
+      {vue.etat !== "prete" && !(signalerPause && estSansReprise(t)) && <EnTeteSuivi etat={vue.etat} sansTemps />}
       <SuiviFabrication
         vue={vue}
         compacte={compacte}

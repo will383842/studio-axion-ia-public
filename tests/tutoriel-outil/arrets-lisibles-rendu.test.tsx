@@ -10,12 +10,13 @@ vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/services/auth", () => ({ exigerSession: vi.fn(async () => ({})) }));
+vi.mock("@/hooks/useTravaux", () => ({ useTravaux: ({ initial }: { initial: unknown[] }) => ({ travail: initial[0] }) }));
 vi.mock("@/components/tutoriel-outil/PieceCreee", () => ({ PieceCreee: () => <div data-testid="piece" /> }));
 
 import type { Travail } from "@/domaine/types";
 import { CarteArret } from "@/components/tutoriel-outil/CarteArret";
-import { ListeRoles } from "@/components/tutoriel-outil/SuiviRoles";
-import { ProgressionEtapes } from "@/components/ui/ProgressionEtapes";
+import { ListeRoles, SuiviRoles } from "@/components/tutoriel-outil/SuiviRoles";
+import { SuiviFabrication } from "@/components/creation/SuiviFabrication";
 import { arretLisible, vueRoles } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 
 const { depots, reinitialiserDepots } = await import("@/donnees/memoire");
@@ -71,15 +72,34 @@ describe("composants", () => {
     expect(html).toMatch(new RegExp(`<a[^>]*href="/tutoriel-outil/maquette/${VIDEO}"[^>]*>Voir la maquette</a>`));
   });
 
-  it("ListeRoles : la ligne du maquettiste porte la cause", () => {
+  it("ListeRoles : la ligne du maquettiste porte la cause (sans carte)", () => {
     const html = renderToStaticMarkup(<ListeRoles lignes={vueRoles(travailPilote())} />);
     expect(html).toContain("La maquette proposée n&#x27;avait pas la forme attendue");
   });
 
   it("barre : « En pause » remplace « encore … min » ; sans l'option, l'affichage d'avant", () => {
-    const base = { etapes: [], progression: 0, suivi: { resteMin: 2 } };
-    expect(renderToStaticMarkup(<ProgressionEtapes {...base} enPause />)).toContain("En pause");
-    expect(renderToStaticMarkup(<ProgressionEtapes {...base} enPause />)).not.toContain("encore");
-    expect(renderToStaticMarkup(<ProgressionEtapes {...base} />)).toContain("encore 2 min");
+    const vue = { etat: "en-cours" as const, etapes: [], progression: 0, resteSec: 120, suivi: { resteMin: 2 } };
+    const pause = renderToStaticMarkup(<SuiviFabrication vue={{ ...vue, enPause: true } as never} />);
+    expect(pause).toContain("En pause");
+    expect(pause).not.toContain("encore");
+    expect(renderToStaticMarkup(<SuiviFabrication vue={vue as never} />)).toContain("encore 2 min");
+  });
+});
+
+describe("la cause ne s'affiche qu'une fois", () => {
+  const compter = (html: string, texte: string) => html.split(texte).length - 1;
+  it.each([
+    ["TO_EQUIPE_BLOQUEE", "La maquette proposée n&#x27;avait pas la forme attendue"],
+    ["TO_PIECE_A_REVOIR", "La pièce de la vidéo a un point à revoir"],
+    ["TO_DEVIS_A_ACCEPTER", "Le devis attend votre accord."],
+    ["TO_CAS_V2", "Une décision message unique"],
+    ["TO_CODE_INCONNU", "Un message unique du moteur"],
+    ["TO_SCRIPT_NON_ECRIT", "Le script attend votre texte"],
+  ])("%s : une seule occurrence (carte ou ligne)", (code, texte) => {
+    const t = travailPilote();
+    (t.parametres as Record<string, unknown>).pause = { code, message: code === "TO_CAS_V2" ? "Une décision message unique" : code === "TO_CODE_INCONNU" ? "Un message unique du moteur" : undefined };
+    if (code === "TO_EQUIPE_BLOQUEE") (t.parametres as Record<string, unknown>).pause = { code, message: "Une étape de préparation n'a pas abouti : réessayez ou collez votre script." };
+    const html = renderToStaticMarkup(<SuiviRoles initial={t as never} videoId={VIDEO} />);
+    expect(compter(html, texte)).toBe(1);
   });
 });

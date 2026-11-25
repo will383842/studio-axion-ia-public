@@ -50,9 +50,11 @@ export const PHRASE_DEVIS_A_ACCEPTER = "Le devis attend votre accord.";
 export const PHRASE_DEVIS_ATTEINT = "Le devis de cette vidéo est atteint : rien de plus n'est lancé sans votre accord.";
 export const PHRASE_OUTILS_ATTENDUS = "En attente des outils de fabrication : rien n'a échoué.";
 export const PHRASE_FILM_A_CAPTURER = "Le film de navigation attend d'être déposé : rien n'a échoué.";
-export const PHRASE_SCRIPT_NON_ECRIT = "Le script attend votre texte : collez-le, la vidéo reprend.";
+export const PHRASE_SCRIPT_NON_ECRIT = "Le script attend votre texte : collez-le dans une nouvelle demande.";
+/** Le bouton mène au formulaire, qui crée une NOUVELLE demande : la phrase ne promet jamais une reprise. */
+export const PHRASE_SCRIPT_ABSENT = "Le script n'est pas encore là : collez-le dans une nouvelle demande.";
 export const PHRASE_DOSSIER_INCOMPLET = "Votre dossier n'est pas encore lisible : la vidéo reprend dès qu'il l'est.";
-export const PHRASE_DEMANDE_VIDE = "Votre demande est trop courte : précisez-la pour que la vidéo démarre.";
+export const PHRASE_DEMANDE_VIDE = "Votre demande est trop courte : faites une nouvelle demande plus précise.";
 export const PHRASE_DEMANDE_ARRETEE = "Cette demande a été arrêtée : rien de plus n'est lancé.";
 /** Phrase de repli (rôle inconnu). Aucun geste ne relance un rôle arrêté : la phrase ne dit donc jamais « réessayez ». */
 export const PHRASE_EQUIPE_BLOQUEE = "Une étape de préparation n'a pas abouti et cette demande ne repart pas seule : collez votre script pour une nouvelle demande.";
@@ -125,10 +127,20 @@ function roleBloque(travail: TravailPourVue): IdRole | null {
   return null;
 }
 
+/** La raison du réalisateur, entre parenthèses à la fin du message du moteur (le réalisateur ne note aucune ligne « à revoir » au journal). */
+function raisonRealisateur(travail: TravailPourVue): string | undefined {
+  const message = pauseDe(travail)?.message ?? "";
+  return /\(([^()]+)\)\s*$/.exec(message)?.[1]?.trim().replace(/[.\s]+$/, "") || undefined;
+}
+
+/** Le rôle dont la ligne porte l'arrêt de l'équipe : le réalisateur si sa raison est là, sinon celui du journal, sinon le chef de projet. */
+function roleArrete(travail: TravailPourVue): IdRole {
+  return raisonRealisateur(travail) ? "realisateur" : (roleBloque(travail) ?? "chef-de-projet");
+}
+
 /** Ce qui s'est passé quand l'équipe est arrêtée, en une phrase simple. La raison du réalisateur, entre parenthèses dans le message du moteur, est reprise. */
 export function causeEquipeBloquee(travail: TravailPourVue): string {
-  const message = pauseDe(travail)?.message ?? "";
-  const raison = /\(([^()]+)\)\s*$/.exec(message)?.[1]?.trim().replace(/[.\s]+$/, "");
+  const raison = raisonRealisateur(travail);
   if (raison) return `${CAUSE_PAR_ROLE.realisateur} Raison : ${raison}.${SUITE_BLOQUEE}`;
   const role = roleBloque(travail);
   const cause = role ? CAUSE_PAR_ROLE[role] : undefined;
@@ -180,7 +192,10 @@ function deduire(travail: TravailPourVue): LigneJournal[] {
   return [etat("scenariste", etatDesEtapes(travail, ["script"])), etat("realisateur", etatDesEtapes(travail, ["calage", "plan"]))];
 }
 
-export function vueRoles(travail: TravailPourVue): LigneRole[] {
+/**
+ * `causeSurCarte` : la carte d'arrêt dit déjà la cause, la ligne du rôle garde alors sa phrase courte (jamais la même phrase deux fois).
+ */
+export function vueRoles(travail: TravailPourVue, options?: { causeSurCarte?: boolean }): LigneRole[] {
   const journal = lireJournalRoles(travail.parametres);
   const notes = new Map<IdRole, LigneJournal>((journal.length ? journal : deduire(travail)).map((l) => [l.role, l]));
   const lignes = ROLES.map((r) => {
@@ -191,11 +206,11 @@ export function vueRoles(travail: TravailPourVue): LigneRole[] {
   if (!pause) return lignes;
   const remplacer = (role: IdRole, etat: EtatRole, phrase?: string) => {
     const i = ROLES.indexOf(role);
-    lignes[i] = ligne(role, etat, phrase, lignes[i].detail);
+    lignes[i] = ligne(role, etat, options?.causeSurCarte ? undefined : phrase, lignes[i].detail);
   };
   const connue = PAUSES_CONNUES[pause.code];
   // Équipe arrêtée : la phrase se pose sur la ligne du rôle qui a vraiment échoué (sinon sur le chef de projet).
-  if (pause.code === "TO_EQUIPE_BLOQUEE") remplacer(roleBloque(travail) ?? "chef-de-projet", "a-revoir", causeEquipeBloquee(travail));
+  if (pause.code === "TO_EQUIPE_BLOQUEE") remplacer(roleArrete(travail), "a-revoir", causeEquipeBloquee(travail));
   else if (connue) remplacer(connue.role, connue.etat, connue.phraseDuMoteur ? pause.message : connue.phrase);
   // Code inconnu : on montre le message du moteur plutôt que rien.
   else if (pause.message) remplacer("chef-de-projet", "a-venir", pause.message);
@@ -238,13 +253,16 @@ function aUnePiece(travail: TravailPourVue): boolean {
   return !!equipe && typeof equipe.pieceCreee === "object" && equipe.pieceCreee !== null;
 }
 
+/** Tout ce qui ressemble à un montant (symbole, monnaie, centimes, nombre à virgule) : écarté des remarques. */
+const MONTANT = /[€$¢]|\b(usd|eur|euros?|dollars?|centimes?|cts?)\b|\d[.,]\d/i;
+
 /** Remarques du rôle arrêté, nettoyées : textes seulement, jamais de montant, jamais d'objet. */
 function relevesDe(travail: TravailPourVue, role: IdRole | null): string[] {
   if (!role) return [];
   const brutes = (travail.parametres as { tutoriel?: { equipe?: { remarques?: Record<string, unknown> } } } | undefined)?.tutoriel?.equipe?.remarques?.[role];
   if (!Array.isArray(brutes)) return [];
   return brutes
-    .filter((r): r is string => typeof r === "string" && !!r.trim() && !/[€$]|\b(usd|eur|euros?|dollars?)\b/i.test(r))
+    .filter((r): r is string => typeof r === "string" && !!r.trim() && !MONTANT.test(r))
     .map((r) => r.replace(/\s+/g, " ").trim().slice(0, RELEVE_LONGUEUR))
     .slice(0, RELEVES_MAX);
 }
@@ -265,7 +283,7 @@ export function arretLisible(travail: TravailPourVue, videoId: string): ArretLis
   const fait = (cause: string, boutons: BoutonArret[], releves: string[] = [], enPause = true): ArretLisible => ({ code: pause.code, cause, releves, boutons, enPause });
   switch (pause.code) {
     case "TO_EQUIPE_BLOQUEE":
-      return fait(causeEquipeBloquee(travail), [...(aUnePiece(travail) ? [maquette] : []), coller], relevesDe(travail, roleBloque(travail)));
+      return fait(causeEquipeBloquee(travail), [...(aUnePiece(travail) ? [maquette] : []), coller], relevesDe(travail, roleArrete(travail)));
     case "TO_PIECE_A_VALIDER":
     case "TO_PIECE_A_REVOIR":
       return fait(connue!.phrase!, [maquette]);
@@ -274,7 +292,7 @@ export function arretLisible(travail: TravailPourVue, videoId: string): ArretLis
     case "TO_SCRIPT_A_VALIDER":
       return fait(pause.message ?? "Le script attend votre choix.", [valider]);
     case "TO_SCRIPT_ABSENT":
-      return fait("Le script n'est pas encore là : collez-le, la vidéo reprend.", [coller]);
+      return fait(PHRASE_SCRIPT_ABSENT, [coller]);
     case "TO_SCRIPT_NON_ECRIT":
       return fait(PHRASE_SCRIPT_NON_ECRIT, [coller]);
     case "TO_DEVIS_A_ACCEPTER":
@@ -296,4 +314,10 @@ export function arretLisible(travail: TravailPourVue, videoId: string): ArretLis
 /** Vrai quand la barre doit dire « En pause » : une pause où rien ne tourne (la pièce « se prépare » n'en est pas une). */
 export function estEnPause(travail: TravailPourVue): boolean {
   return arretLisible(travail, "x")?.enPause === true;
+}
+
+/** Vrai quand rien ne reprendra cette demande toute seule (le bouton mène à une nouvelle demande) : « Vous pouvez fermer » serait faux. */
+export function estSansReprise(travail: TravailPourVue): boolean {
+  const code = pauseDe(travail)?.code;
+  return !!code && ["TO_EQUIPE_BLOQUEE", "TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEMANDE_VIDE", "TO_DEMANDE_ARRETEE"].includes(code);
 }

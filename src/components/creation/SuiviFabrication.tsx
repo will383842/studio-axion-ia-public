@@ -82,16 +82,20 @@ export function SuiviFabrication({
       <ProgressionEtapes
         etapes={etapesDeVue(vue)}
         progression={vue.progression ?? progressionDeVue(vue)}
-        resteSec={vue.resteSec}
-        suivi={vue.suivi}
+        resteSec={vue.enPause ? undefined : vue.resteSec}
+        suivi={vue.enPause && vue.suivi ? { ...vue.suivi, resteMin: undefined, heureFin: undefined, rang: undefined } : vue.suivi}
         onReessayer={onReessayer}
         reessaiEnCours={reessaiEnCours}
         compacte={compacte}
         aRelire={aRelire}
-        enPause={vue.enPause}
         action={actions}
         message={message ?? (vue.etat === "coincee" ? vue.message : undefined)}
       />
+      {vue.enPause && (
+        <p role="status" className="mt-2 text-sm text-texte-doux">
+          En pause
+        </p>
+      )}
       {specifiqueSuivi && <div className="mt-4">{specifiqueSuivi}</div>}
       {pied && <div className="mt-3 flex justify-end text-xs tabular-nums text-texte-faible">{pied}</div>}
       {vue.lien && (

@@ -99,6 +99,11 @@ describe("autres rôles arrêtés", () => {
     const a = arretLisible(t, VIDEO)!;
     expect(a.cause).toContain("Le découpage de la vidéo en scènes n'a pas pu se faire.");
     expect(a.cause).toContain("Le tableau n'a aucune ligne à montrer.");
+    // La cause est sur la ligne « Réalisateur » ; le chef de projet reste « Terminé ».
+    const l = vueRoles(etatPilote({ roles: [{ role: "chef-de-projet", etat: "fait", le }, { role: "scenariste", etat: "fait", le }], pause: { code: "TO_EQUIPE_BLOQUEE", message: `${MESSAGE_MOTEUR} (Le tableau n'a aucune ligne à montrer.)` } }));
+    expect(l.find((x) => x.role === "realisateur")).toMatchObject({ etat: "a-revoir", phrase: expect.stringContaining("Le tableau n'a aucune ligne à montrer.") });
+    expect(l.find((x) => x.role === "chef-de-projet")!.etat).toBe("fait");
+    expect(l.find((x) => x.role === "chef-de-projet")!.phrase).not.toContain("découpage");
   });
 
   it("rôle inconnu : phrase de repli, jamais « réessayez »", () => {
@@ -137,5 +142,22 @@ describe("toutes les autres pauses : une phrase simple et le bon bouton", () => 
   it("aucune pause : rien à dire", () => {
     expect(arretLisible({ statut: "en_cours", etapes: [], parametres: {} }, VIDEO)).toBeNull();
     expect(estEnPause({ statut: "en_cours", etapes: [], parametres: {} })).toBe(false);
+  });
+});
+
+describe("boutons honnêtes : un bouton vers le formulaire ne promet jamais une reprise", () => {
+  it.each(["TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEMANDE_VIDE", "TO_EQUIPE_BLOQUEE"])("%s : « nouvelle demande », ni « reprend » ni « démarre »", (code) => {
+    const a = arretLisible(avecPause(code), VIDEO)!;
+    expect(a.boutons.some((b) => b.href === "/tutoriel-outil")).toBe(true);
+    expect(a.cause).toMatch(/nouvelle demande/);
+    expect(a.cause).not.toMatch(/reprend|démarre|repart dès/i);
+  });
+});
+
+describe("remarques : jamais de montant", () => {
+  it.each(["Coût 6 centimes dépassé", "Prix : 12 cts", "5 ct de trop", "Total 1,11", "3 euros", "2 USD", "7 dollars", "4 €", "$5"])("« %s » est écarté", (r) => {
+    const t = etatPilote({ roles: [{ role: "maquettiste", etat: "a-revoir", le }] });
+    (t.parametres as { tutoriel: { equipe: { remarques: Record<string, string[]> } } }).tutoriel.equipe.remarques.maquettiste = [r, "Écran 1, zone 1 : champ inconnu « titre »"];
+    expect(arretLisible(t, VIDEO)!.releves).toEqual(["Écran 1, zone 1 : champ inconnu « titre »"]);
   });
 });

@@ -64,7 +64,8 @@ export function MessagePause({ message, lienValidation }: { message: string; lie
 export function SuiviRoles({ initial, videoId }: { initial: VueTravail; videoId: string }) {
   const { travail } = useTravaux({ travailId: initial.id, initial: [initial] });
   const t = travail ?? initial;
-  const lignes = vueRoles(t);
+  // La cause est dite une fois, sur la carte : les lignes gardent la phrase courte de leur rôle.
+  const lignes = vueRoles(t, { causeSurCarte: true });
   const arret = arretLisible(t, videoId);
   return (
     <div className="space-y-3">
