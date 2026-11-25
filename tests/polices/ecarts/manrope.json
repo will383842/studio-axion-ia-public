@@ -1,51 +1,51 @@
 [
   {
-    "hote": "tableau/TableauScene.tsx",
+    "hote": "plan-scenes/CalquePlanScenes.tsx",
     "objet": "carton-definition",
     "famille": "Manrope"
   },
   {
-    "hote": "tableau/TableauScene.tsx",
+    "hote": "plan-scenes/CalquePlanScenes.tsx",
     "objet": "carton-magazine",
     "famille": "Manrope"
   },
   {
-    "hote": "tableau/TableauScene.tsx",
+    "hote": "plan-scenes/CalquePlanScenes.tsx",
     "objet": "pellicule",
     "famille": "Manrope"
   },
   {
-    "hote": "tableau/TableauScene.tsx",
+    "hote": "plan-scenes/CalquePlanScenes.tsx",
     "objet": "post-it",
     "famille": "Manrope"
   },
   {
-    "hote": "tableau/TableauScene.tsx",
+    "hote": "plan-scenes/CalquePlanScenes.tsx",
     "objet": "volet-avant-apres",
     "famille": "Manrope"
   },
   {
-    "hote": "petits-objets/planche/RacinePlanches.tsx",
+    "hote": "commune/PlanSousTexte.tsx",
     "objet": "carton-definition",
     "famille": "Manrope"
   },
   {
-    "hote": "petits-objets/planche/RacinePlanches.tsx",
+    "hote": "commune/PlanSousTexte.tsx",
     "objet": "carton-magazine",
     "famille": "Manrope"
   },
   {
-    "hote": "petits-objets/planche/RacinePlanches.tsx",
+    "hote": "commune/PlanSousTexte.tsx",
     "objet": "pellicule",
     "famille": "Manrope"
   },
   {
-    "hote": "petits-objets/planche/RacinePlanches.tsx",
+    "hote": "commune/PlanSousTexte.tsx",
     "objet": "post-it",
     "famille": "Manrope"
   },
   {
-    "hote": "petits-objets/planche/RacinePlanches.tsx",
+    "hote": "commune/PlanSousTexte.tsx",
     "objet": "volet-avant-apres",
     "famille": "Manrope"
   }
