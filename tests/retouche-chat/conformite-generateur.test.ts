@@ -45,9 +45,9 @@ describe("conformité des générateurs du chat de retouche", () => {
       expect(d?.ratios.length).toBeGreaterThan(0);
     });
 
-    it("2. a un interrupteur éteint par défaut", async () => {
+    it("2. a un interrupteur éteint par défaut (sauf la démo, allumée)", async () => {
       expect(CLES_REGLAGE_RETOUCHE[g]).toMatch(/^retoucheChat\.[A-Za-z]+$/);
-      expect(await retoucheChatActif(g, async (_id, defaut) => defaut)).toBe(false);
+      expect(await retoucheChatActif(g, async (_id, defaut) => defaut)).toBe(g === "demo-facecam");
     });
 
     it("3. déclare ses portées, sans jamais modifier-script", () => {

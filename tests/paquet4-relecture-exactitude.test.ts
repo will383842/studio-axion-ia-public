@@ -361,7 +361,7 @@ describe("Petit défaut 3 · seuil plus bas que le pire cas d'une étape d'écri
 
 /* ------------------------------------------------------------------ */
 describe("Petit défaut 5 · série : studio = part au prix du jour ; Usine = confirmation exigée pour le total du plan", () => {
-  it("studio, total d'un autre plan (taille différente) : la série part (journal « serie-seuil »), aucune confirmation", async () => {
+  it("studio, total d'un autre plan (taille différente) : la série part (journal « Budget indicatif dépassé (série) »), aucune confirmation", async () => {
     await brancherClaude();
     const prix = (await bg.prixLancement()).centimes;
     await ecrireParametre("budget.seuilConfirmation", { centimes: prix, devise: "EUR" });
@@ -369,7 +369,7 @@ describe("Petit défaut 5 · série : studio = part au prix du jour ; Usine = co
     const r = await serie.lancerSerie(textes.map((texte) => ({ texte })), REGLAGES, "serie-relecture-taille", 100 * prix, 5);
     expect(r.plan.totalPartant.centimes).toBe(2 * prix);
     expect(await depots().generations.compter((g) => !g.estDemo)).toBeGreaterThan(0);
-    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/serie-seuil/);
+    expect(JSON.stringify(await depots().evenements.lister())).toMatch(/Budget indicatif dépassé \(série\)/);
   });
 
   it("Usine : le total du plan (2 écritures) au-dessus du seuil exige la confirmation, montant juste : passe", async () => {

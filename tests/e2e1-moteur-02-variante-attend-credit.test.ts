@@ -66,7 +66,7 @@ async function tourner(jusqua: () => Promise<boolean>, tours = 120) {
 }
 
 describe("E2E-1 n° 2 · version bloquée faute de crédit", () => {
-  it("mère prête, budget épuisé : les versions attendent du crédit (plus « la mère »), puis partent après la recharge", async () => {
+  it("mère prête, budget du mois épuisé (repère, 08/11) : les versions partent sans attendre de crédit, aucune « attend du crédit », toutes prêtes sans recharge", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     const id = await sujetValide();
     // CORRECTEUR 1 — B6 : l'écran envoie le total que Will a confirmé sur la feuille.
@@ -84,25 +84,18 @@ describe("E2E-1 n° 2 · version bloquée faute de crédit", () => {
     const versions = r.videoIds.slice(1);
     for (const vid of versions) {
       const v = (await depots().videos.obtenir(vid))!;
-      expect(v.statut).toBe("brouillon");
+      // Décision du 08/11 : le budget du mois est un repère, les versions partent (en file ou en fabrication), rien n'attend.
+      expect(["en_file", "en_fabrication"]).toContain(v.statut);
       expect(fr.declinaisonDe(v)?.attendMere).toBe(false);
-      // Seconde relecture paquet 4 (R2) : l'accord gardé est le MONTANT du total confirmé, plus un simple `true`.
-      expect(v.lancementEnAttente).toMatchObject({ fournisseur: "budget", confirme: expect.any(Number), moteurId: "montage-avocat" });
+      expect(v.lancementEnAttente).toBeUndefined();
     }
     const etat = await fr.etatFabricationSujet(id);
-    for (const e of etat.filter((x) => versions.includes(x.videoId))) expect(e).toMatchObject({ attendMere: false, attendCredit: true });
-    expect(await depots().notifications.trouver((n) => /attend du crédit/.test(n.titre))).toBeTruthy();
-    // Tant que le budget ne le permet pas, personne n'annonce « Crédit disponible ».
-    await credits.surveillerCredits({ force: true });
-    expect(await depots().notifications.trouver((n) => n.titre === "Crédit disponible")).toBeFalsy();
-
-    // Recharge (budget relevé) : prévenu, puis lancées comme toute vidéo en attente.
-    await ecrireParametre("budget.mensuel", centimes(15000));
-    await credits.surveillerCredits({ force: true });
-    expect(await depots().notifications.trouver((n) => n.titre === "Crédit disponible")).toBeTruthy();
-    const { lancees } = await credits.lancerVideosEnAttente();
-    expect(lancees).toHaveLength(versions.length);
-    for (const vid of versions) expect((await depots().videos.obtenir(vid))!.statut).not.toBe("brouillon");
+    for (const e of etat.filter((x) => versions.includes(x.videoId))) expect(e).toMatchObject({ attendMere: false, attendCredit: false });
+    expect(await depots().notifications.trouver((n) => /attend du crédit/.test(n.titre))).toBeFalsy();
+    // Le dépassement est dit (journal + cloche), une seule fois.
+    expect((await depots().notifications.lister()).filter((n) => n.titre === "Budget indicatif du mois dépassé")).toHaveLength(1);
+    // Sans aucune recharge, toutes les versions vont au bout ; rien ne reste en attente.
     await tourner(async () => (await Promise.all(versions.map((v) => depots().videos.obtenir(v)))).every((v) => v?.statut === "prete"));
+    expect((await credits.lancerVideosEnAttente()).lancees).toEqual([]);
   });
 });

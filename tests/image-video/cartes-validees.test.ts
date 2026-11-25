@@ -19,6 +19,15 @@ vi.mock("@/services/_commun", () => ({
     await new Promise((ok) => setTimeout(ok, 5));
     parametres.set(cle, structuredClone(valeur));
   },
+  // Copie fidèle de _commun.ts:creerVerrou : file d'attente, une seule section à la fois.
+  creerVerrou: () => {
+    let queue: Promise<unknown> = Promise.resolve();
+    return <T>(f: () => Promise<T>): Promise<T> => {
+      const r = queue.then(f, f);
+      queue = r.catch(() => undefined);
+      return r;
+    };
+  },
   journaliser: async () => undefined,
   ErreurStudio: class extends Error {},
   depots: () => ({

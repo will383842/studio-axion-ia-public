@@ -62,9 +62,10 @@ export async function planScenesCasConcret(o: { groupes: GroupePourPlan[]; appel
     if (!r.plan) continue;
     // BR-MOT-CLE-b : mot-clé posé APRÈS le plan (hors mémo, aucun appel Claude refait) puis plan revalidé ; absent ou éteint = plan identique.
     let plan: PlanValide = r.plan;
-    if (o.motCle?.actif === true) {
+    // BR-MOT-CLE-c-v21s : seulement au début de la vidéo (premier groupe : le corps), jamais au début d'une fin.
+    if (o.motCle?.actif === true && g === o.groupes[0]) {
       const pose = poserMotCleAuPlan(plan, plan.mots, o.motCle.sujet, o.motCle.motsInterdits);
-      if (pose !== plan) plan = validerPlan(pose, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs }).plan;
+      if (pose !== plan) plan = validerPlan(pose, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs, ...(o.objetsPermis?.length ? { objetsPermis: o.objetsPermis } : {}) }).plan;
     }
     for (const e of g.ecrans) {
       const t = tranchePlan(plan, e.debutMs, e.finMs);
