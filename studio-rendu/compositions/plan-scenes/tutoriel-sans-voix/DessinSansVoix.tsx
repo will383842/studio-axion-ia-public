@@ -64,7 +64,7 @@ function Icone({ el }: { el: ElementVisible }) {
           </g>
         );
       case "seuil":
-        // Seuil : ligne horizontale en haut et flèche qui descend vers elle (sous le seuil).
+        // Seuil : une ligne horizontale en haut et, en dessous d'elle, une flèche verticale qui pointe vers le bas (sous le seuil).
         return (
           <g fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 6 L21 6" />
