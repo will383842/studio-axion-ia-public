@@ -26,6 +26,7 @@ const { PLAN_DEMO } = await import("@/briques/plan-scenes/demo");
 const { engageClaudeVideoCentimes } = await import("@/services/depense-claude-video");
 const { apercevoirRetouche } = await import("@/services/retouche-chat/service");
 const { portsGenerateurStudio } = await import("@/services/retouche-chat/generateurs-studio");
+const { adaptateurRetouche } = await import("@/services/retouche-chat/generateurs");
 const { PHRASE_LECTEUR_EPUISE } = await import("@/services/retouche-chat/lecteur-demande");
 const { ETAPE_LECTURE_CHAT, PARAM_PLAFOND_LECTURE_CHAT, PREFIXE_APPEL_CHAT } = await import("@/services/retouche-chat/appel-claude-chat");
 const ls = await import("@/services/retouche-chat/lecteur-studio");
@@ -113,6 +114,8 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
     const appels = brancherClaude();
     const ap = await apercevoirRetouche("v-04", NON_COMPRISE, await portsFa("v-04"));
     expect(appels).toHaveLength(1);
+    // La requête PAYANTE part avec la consigne du générateur (portsLecteurGenerateur), pas sans elle.
+    expect(appels[0]).toContain(JSON.stringify(adaptateurRetouche(FA).consigne).slice(1, -1));
     expect(ap.operations.map((o) => o.type)).toEqual(["ajouter-dynamisme"]);
     const dep = await depensesChat("v-04");
     expect(dep).toHaveLength(1);
