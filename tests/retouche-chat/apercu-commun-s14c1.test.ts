@@ -159,11 +159,23 @@ describe("S-14-c1 aperçu commun", () => {
     };
     expect(Object.keys(attendues).sort()).toEqual([...TYPES_OPERATIONS_RETOUCHE].sort());
     for (const t of TYPES_OPERATIONS_RETOUCHE) expect(apercuCommun(base({ operations: [un(t)] })).resume, t).toEqual([TITRE_RESUME, attendues[t], FIN_RESUME]);
-    // decaler-scene : décalage < 0 → « plus tôt », > 0 (et absent) → « plus tard ».
+    // decaler-scene : même ordre que appliquer.ts : `mots` d'abord, `decalageMs` sinon ; sens inconnu → rien n'est deviné.
     const decale = (decalageMs?: number) => apercuCommun(base({ operations: [{ type: "decaler-scene", sceneId: "s-beta", decalageMs } as OperationRetouche] })).resume[1];
     expect(decale(-200)).toBe("Scène 2 : elle commence plus tôt.");
     expect(decale(200)).toBe("Scène 2 : elle commence plus tard.");
-    expect(decale(undefined)).toBe("Scène 2 : elle commence plus tard.");
+    expect(decale(undefined)).toBe("Scène 2 : elle change de place.");
+    expect(decale(0)).toBe("Scène 2 : elle change de place.");
+    const planMots = { scenes: [{ id: "s-alpha", mots: { premier: 0, dernier: 9 } }, { id: "s-beta", mots: { premier: 10, dernier: 19 } }] } as never;
+    const decaleMots = (premier: number, decalageMs?: number, sceneId = "s-beta") =>
+      apercuCommun(base({ plan: planMots, operations: [{ type: "decaler-scene", sceneId, mots: { premier, dernier: premier + 9 }, ...(decalageMs === undefined ? {} : { decalageMs }) } as OperationRetouche] })).resume[1];
+    expect(decaleMots(5)).toBe("Scène 2 : elle commence plus tôt.");
+    expect(decaleMots(15)).toBe("Scène 2 : elle commence plus tard.");
+    // mots ET decalageMs qui se contredisent : le sens de `mots` gagne (appliquer.ts:294).
+    expect(decaleMots(5, 500)).toBe("Scène 2 : elle commence plus tôt.");
+    expect(decaleMots(15, -500)).toBe("Scène 2 : elle commence plus tard.");
+    // Sens inconnu : premier égal, scène absente du plan.
+    expect(decaleMots(10)).toBe("Scène 2 : elle change de place.");
+    expect(decaleMots(5, undefined, "s-absente")).toBe("Une scène : elle change de place.");
     // Variantes : une scène visée / plusieurs ; transition sur une scène.
     const une = (o: unknown) => apercuCommun(base({ operations: [o as OperationRetouche] })).resume[1];
     expect(une({ type: "ajouter-dynamisme", intensite: "leger", sceneIds: ["s-gamma"] })).toBe("Scène 3 : le mouvement change.");

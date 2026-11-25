@@ -45,7 +45,16 @@ const sceneDe = (plan: EntreeApercuCommun["plan"], id: string | undefined): stri
   const rang = id === undefined ? -1 : (plan?.scenes ?? []).findIndex((s) => s.id === id);
   return rang >= 0 ? `Scène ${rang + 1}` : "Une scène";
 };
-const PLUS_ou_MOINS = (o: { decalageMs?: number }) => ((o.decalageMs ?? 0) < 0 ? "plus tôt" : "plus tard");
+/** Même ordre que appliquer.ts (decaler-scene) : `mots` d'abord, `decalageMs` seulement sinon ; sens inconnu → rien n'est deviné. */
+function sensDecalage(o: Extract<OperationRetouche, { type: "decaler-scene" }>, plan: EntreeApercuCommun["plan"]): "plus tôt" | "plus tard" | null {
+  if (o.mots) {
+    const actuel = (plan?.scenes ?? []).find((sc) => sc.id === o.sceneId)?.mots?.premier;
+    if (typeof actuel !== "number" || o.mots.premier === actuel) return null;
+    return o.mots.premier < actuel ? "plus tôt" : "plus tard";
+  }
+  const d = o.decalageMs ?? 0;
+  return d < 0 ? "plus tôt" : d > 0 ? "plus tard" : null;
+}
 
 function phraseOperation(o: OperationRetouche, plan: EntreeApercuCommun["plan"]): string | null {
   const s = "sceneId" in o ? sceneDe(plan, o.sceneId) : "";
@@ -56,7 +65,10 @@ function phraseOperation(o: OperationRetouche, plan: EntreeApercuCommun["plan"])
     case "remplacer-piece": return `${s} : l'animation change.`;
     case "ajouter-piece": return `${s} : l'animation est ajoutée.`;
     case "retirer-piece": return `${s} : l'animation est retirée.`;
-    case "decaler-scene": return `${s} : elle commence ${PLUS_ou_MOINS(o)}.`;
+    case "decaler-scene": {
+      const sens = sensDecalage(o, plan);
+      return sens === null ? `${s} : elle change de place.` : `${s} : elle commence ${sens}.`;
+    }
     case "changer-habillage": return "Tout le film : l'habillage change.";
     case "changer-transition": return `${o.sceneId === undefined ? "Tout le film" : s} : le mouvement change.`;
     case "ajouter-dynamisme": return `${o.sceneIds?.length === 1 ? sceneDe(plan, o.sceneIds[0]) : "Tout le film"} : le mouvement change.`;
