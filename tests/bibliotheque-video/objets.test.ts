@@ -28,7 +28,7 @@ const HORS_OBJET_MASTER = [
   "texte.sortie-animee|eteint",
   "texte.escalier|eteint",
   "ecran.clip-v4|prod",
-  "ecran.mosaique-extraits|prevu",
+  "ecran.mosaique-extraits|eteint", // C4-U4.13-b-v20j 20/11 : livré, branché, éteint
   "ecran.telephone-extrait|eteint", // C4-U4.13a 19/11 : livré, éteint
   "calque.texte-derriere-double|absent",
   "calque.texte-derriere-prise|absent",
@@ -64,7 +64,7 @@ const HORS_OBJET_MASTER = [
   "cadrage.zoom-avocat|prod",
   "cadrage.zoom-demo|prod",
   "cadrage.camera-cas-concret|prod",
-  "cadrage.zoom-v4|absent",
+  "cadrage.zoom-v4|eteint", // C8-X01-b-v20j (seconde lecture du pilote)
   "motion.avis-client|prevu",
   // CATALOGUE-C10-C11-v21p
   "accroche.script|prevu",
@@ -82,6 +82,12 @@ const HORS_OBJET_MASTER = [
   "texte.mode-carte|prevu",
   "texte.effets|prevu",
   "texte.accents-role|prevu",
+  // C11-C2-a-v20k (seconde lecture du pilote)
+  "cadrage.camera-couverture|eteint",
+  "ecran.carte-video-arrondie|prevu",
+  "ecran.grilles-archive|prevu",
+  "ecran.ecrans-composes|prevu",
+  "motion.titre-etape-montante|prevu",
   "motion.v4-coulisse.LogoOutil|coulisse",
   "motion.v4-coulisse.Equation|coulisse",
   "motion.v4-coulisse.FriseEtapes|coulisse",
@@ -95,17 +101,17 @@ const HORS_OBJET_MASTER = [
   "motion.v4-coulisse.element-barre-pictos|coulisse",
   "motion.v4-coulisse.appel-final-pile|coulisse",
   "motion.v4-coulisse.panneau-fin|coulisse",
-  // X1-00
-  "texte.poids-variable|prevu",
-  "texte.minimal-dynamique|prevu",
+  // X1-00 (TENDANCES-2027-CAT-v20l : 7 validés sur planche → eteint ; zoom-mot, fenetre-inclinee, mention.ia restent prevu)
+  "texte.poids-variable|eteint",
+  "texte.minimal-dynamique|eteint",
   "ecran.fenetre-inclinee|prevu",
-  "fond.verre-depoli|prevu",
+  "fond.verre-depoli|eteint",
   "transition.zoom-mot|prevu",
-  "transition.raccord-forme|prevu",
-  "accroche.apercu-fin|prevu",
-  "accroche.mot-cle|prevu",
+  "transition.raccord-forme|eteint",
+  "accroche.apercu-fin|eteint",
+  "accroche.mot-cle|eteint",
   "mention.ia|prevu",
-  "rythme.boucle|prevu",
+  "rythme.boucle|eteint",
 ];
 
 describe("famille objet (C9-03)", () => {

@@ -11,7 +11,7 @@ export const DOMAINE: Domaine = {
     "tutoriel.devisAvantDepense": "eteint",
     "tutoriel.finCommune": "eteint",
     "tutoriel.finitions": "eteint",
-    "tutoriel.suiviCloche": "eteint",
+    "tutoriel.suiviCloche": "allume",
     "videoLongue.actif": "eteint",
   },
   constantes: [
@@ -25,7 +25,11 @@ export const DOMAINE: Domaine = {
       aussi: [["src/domaine/tutoriel-reserve.ts", /REGLAGES_RESERVE_DEFAUT: ReglagesReserve = \{\s*actif: false/]],
     },
     { cle: "tutoriel.entreeZip", etat: "eteint", appel: "src/services/zip-tutoriel.ts", motif: /lireParametre\(PARAM_ENTREE_ZIP, false\)\) === true/ },
+    // POSTE-4 : capture automatique du film du tutoriel (éteinte ; seul `true` exact allume).
+    { cle: "tutoriel.captureAuto", etat: "eteint", appel: "src/services/tutoriel-capture-auto.ts", motif: /lireParametre<unknown>\(PARAM_CAPTURE_AUTO, false\)\) === true/ },
     { cle: "tutoriel.scenesGardees", etat: "eteint", appel: "src/services/scenes-tutoriel.ts", motif: /lireParametre<unknown>\(PARAM_SCENES_TUTORIEL, false\)\) === true/ },
+    { cle: "voix.refaireAvecPrononciation", etat: "allume", appel: "src/services/refaire-voix.ts", motif: /lireParametre<unknown>\(PARAM_REFAIRE_AVEC_PRONONCIATION, true\)\) !== false/ },
+    { cle: "voix.plafondRefaireCentimes", etat: "valeur", appel: "src/services/refaire-voix.ts", motif: /lireParametre<unknown>\(PARAM_PLAFOND_REFAIRE_CENTIMES, PLAFOND_REFAIRE_VOIX_CENTIMES_EUR\)/ },
     { cle: "facecam.aligneur.reel", etat: "allume", appel: "src/services/fabrication.ts", motif: /lireParametre<boolean>\(PARAM_FACECAM_REEL, true\)\) === true/ },
     { cle: "imageVideo.accordEssaiReel", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /PARAM_ACCORD_ESSAI_IV, false\)/ },
     { cle: "imageVideo.sousTitresMinimal", etat: "eteint", appel: "src/services/image-video.ts", motif: /lireParametre<unknown>\(PARAM_SOUS_TITRES_MINIMAL_IV, false\)\.catch\(\(\) => false\)\) === true/ },
@@ -118,6 +122,7 @@ export const DOMAINE: Domaine = {
     // VL-07 : registre de dépense et morceaux déjà lus de la vidéo longue (mémoire par vidéo, pas des interrupteurs).
     "services/video-longue-branchements.ts:cleDepense(videoId)": { exclu: "memoire" },
     "services/video-longue-branchements.ts:cle": { exclu: "memoire" },
+    "services/video-longue-branchements.ts:cleParametrePlages(v)": { exclu: "memoire" }, // UI-4 : plages déjà rendues de la vidéo longue (mémoire par vidéo, pas un interrupteur)
     "services/avocat-branchements.ts:param": { couvre: "avocat.motionCommune" }, // et avocat.monteur (enveloppe allume())
     "services/effet-realiste-ia.ts:PARAM_RESULTATS(d.videoId)": { exclu: "memoire" },
     "services/effet-realiste-ia.ts:PARAM_RESULTATS(videoId)": { exclu: "memoire" },
@@ -132,6 +137,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 19, env: 0 },
+  nombre: { litterales: 8, constantes: 23, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // fusion master : parExpression 19 → 20 (cleParametrePlages) ; constantes 20 → 23 : 2 de cette branche + tutoriel.cap (master)
   retirees: [],
 };

@@ -101,7 +101,7 @@ describe("C11-T2-PLANCHE-v19c planche des sous-titres sélectifs", () => {
     for (const f of [...fichiers("src"), ...fichiers("studio-rendu")]) {
       const t = lire(f);
       expect(t, f).not.toMatch(/planche-selectif|PlancheSelectif/);
-      if (!f.endsWith("sous-titres/selectif.ts")) expect(t, f).not.toMatch(/from\s+["'][^"']*\/selectif["']/);
+      if (!f.endsWith("sous-titres/selectif.ts") && !f.endsWith("briques/composition/selectif-calque.ts")) expect(t, f).not.toMatch(/from\s+["'][^"']*\/selectif["']/);
     }
   });
   it("gardes statiques du composant et du script", () => {

@@ -2,13 +2,16 @@
  * PANNEAU DU TUTORIEL D'OUTIL DANS LA CONSOLE (T-EXT-36) : lit les interrupteurs, les vidéos en cours et ce qu'elles ont
  * consommé (EN QUANTITÉS, jamais un montant) ; écrit un interrupteur ou le texte de la mention IA, avec journal.
  *
- *  - Tout est éteint par défaut : seul le booléen exact `true` allume. Ce fichier n'écrit que la valeur reçue d'un clic
- *    (aucun `true` écrit en dur). Aucune clé n'est ajoutée à `reglages.ts`.
+ *  - Éteint par défaut (seul le booléen exact `true` allume), sauf les lignes `allumeParDefaut` (décision du 21/11 07:20 :
+ *    Claude et son regard, seul `false` les éteint). Ce fichier n'écrit que la valeur reçue d'un clic (aucun `true` écrit
+ *    en dur). Aucune clé n'est ajoutée à `reglages.ts`.
  *  - Le plafond Claude par vidéo est affiché seulement (« réglé » / « par défaut »), jamais modifiable ici.
  *  - Aucun appel payant : lecture des dépôts, écriture d'un réglage.
  *  - `PARAM_SCENES_TUTORIEL` (T-EXT-15), `lienSuivi` (T-EXT-34) et les clés des fiches 33 et 41 (`PARAM_FORMULAIRE`,
  *    `PARAM_ENTREE_ZIP`) sont importés. La clé de fin commune (26a) est écrite ici parce que 26a ne l'exporte pas :
  *    le test de la console la compare au texte de `tutoriel-branchements.ts`. Plus aucune attente.
+ *  - La clé `tutoriel.captureAuto` (POSTE-4) est aussi écrite ici en clair : la garde de POSTE-4 réserve à `boucle.ts`
+ *    l'import de `tutoriel-capture-auto` ; le test de la console la compare au texte de `PARAM_CAPTURE_AUTO`.
  */
 import "server-only";
 import {
@@ -52,6 +55,7 @@ export const CLE_RETOUCHE_PARTIELLE = "tutoriel.retouchePartielle"; // lue par t
 export const CLE_PERFORMANCE = "tutoriel.performance"; // lue par tutoriel-branchements.ts
 export const CLE_SUIVI_CLOCHE = REGLAGE_SUIVI_CLOCHE;
 export const CLE_RETOUCHE_CHAT_TUTORIEL = "retoucheChat.tutorielOutil"; // lue via CLES_REGLAGE_RETOUCHE (retouche-chat/generateurs.ts)
+export const CLE_CAPTURE_AUTO = "tutoriel.captureAuto"; // lue par src/services/tutoriel-capture-auto.ts (PARAM_CAPTURE_AUTO) ; non importée : la garde de POSTE-4 réserve cet import à boucle.ts
 
 /** Phrase d'état éteint des réglages payants : elle annonce la dépense. */
 const ANNONCE_PAYANT = "allumer = appels Claude payants, sous le plafond par vidéo.";
@@ -61,24 +65,27 @@ export interface ReglageTutoriel {
   libelle: string;
   /** Phrase simple affichée quand l'interrupteur est éteint. */
   phraseEteint: string;
+  /** Allumé quand la clé est absente : seul `false` éteint (décision du 21/11 07:20). */
+  allumeParDefaut?: true;
 }
 
 /** Liste FERMÉE des interrupteurs du panneau (ordre d'affichage). Le plafond n'y est pas. */
 export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
-  { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé." },
-  { cle: CLE_ENTREE_ZIP, libelle: "Envoi d'un dossier", phraseEteint: "Éteint : aucun dossier ne peut être envoyé." },
-  { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase", phraseEteint: "Éteint : pas d'entrée par une phrase." },
-  { cle: PARAM_CLAUDE_TUTORIEL, libelle: "Écriture et relecture par Claude", phraseEteint: "Éteint : Claude n'écrit ni ne relit rien." },
+  { cle: CLE_FORMULAIRE, libelle: "Formulaire du tutoriel", phraseEteint: "Éteint : le formulaire n'est pas proposé. Allumé : vous pouvez coller votre script (« Mon script ») ; avec votre script et sans voix, rien n'est payé si Claude reste éteint. Pour envoyer un dossier ou une phrase seule, ouvrez aussi « Envoi d'un dossier » ou « Entrée par une phrase »." },
+  { cle: CLE_ENTREE_ZIP, libelle: "Envoi d'un dossier", phraseEteint: "Éteint : aucun dossier ne peut être envoyé. Allumé, un dossier sans script a besoin de l'« Équipe de rôles » (appels Claude payants) ; ne pas l'ouvrir aux dossiers de clients avant le poste de capture." },
+  { cle: CLE_ENTREE_PHRASE, libelle: "Entrée par une phrase", phraseEteint: "Éteint : pas d'entrée par une phrase. Sans script collé, une phrase a besoin de l'« Équipe de rôles » (appels Claude payants)." },
+  { cle: PARAM_CLAUDE_TUTORIEL, libelle: "Écriture et relecture par Claude", phraseEteint: `Éteint : Claude n'écrit ni ne relit rien ; avec votre script et sans voix, la vidéo se fait quand même sans appel à Claude ; ${ANNONCE_PAYANT}`, allumeParDefaut: true },
   { cle: CLE_DEVIS_AVANT_DEPENSE, libelle: "Devis avant toute dépense", phraseEteint: "Éteint : aucun devis n'est présenté avant de lancer." },
   { cle: CLE_FINITIONS, libelle: "Son et vignette finis", phraseEteint: "Éteint : ni son fini ni vignette finie." },
   { cle: CLE_FIN_COMMUNE, libelle: "Fin choisie (« Aucune » ou « Prendre rendez-vous »)", phraseEteint: "Éteint : aucune fin n'est ajoutée." },
   { cle: CLE_SCENES_GARDEES, libelle: "Scènes gardées", phraseEteint: "Éteint : aucune scène n'est gardée." },
   { cle: CLE_EQUIPE, libelle: "Équipe de rôles", phraseEteint: `Éteint : l'équipe ne travaille pas (nécessite aussi « Écriture et relecture par Claude ») ; ${ANNONCE_PAYANT}` },
-  { cle: CLE_REGARDEUR, libelle: "Regard de Claude sur les images", phraseEteint: `Éteint : Claude ne regarde pas les images (nécessite aussi « Écriture et relecture par Claude ») ; ${ANNONCE_PAYANT}` },
+  { cle: CLE_REGARDEUR, libelle: "Regard de Claude sur les images", phraseEteint: `Éteint : Claude ne regarde pas les images (nécessite aussi « Écriture et relecture par Claude ») ; ${ANNONCE_PAYANT}`, allumeParDefaut: true },
   { cle: CLE_PIECE_CREEE_CLAUDE, libelle: "Pièce créée par Claude", phraseEteint: `Éteint : Claude ne crée aucune pièce (nécessite aussi « Entrée par une phrase » et « Équipe de rôles ») ; ${ANNONCE_PAYANT}` },
   { cle: CLE_RETOUCHE_PARTIELLE, libelle: "Retouche partielle", phraseEteint: "Éteint : une retouche refait toute la vidéo." },
   { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis (n'agit que si l'équipe tourne ; léger surcoût de l'appel du stratège, sous le plafond par vidéo)." },
-  { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
+  { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend.", allumeParDefaut: true },
+  { cle: CLE_CAPTURE_AUTO, libelle: "Capture automatique du film", phraseEteint: "Éteint : le film d'une vidéo partie d'un dossier .zip se dépose à la main. Allumé, le poste de capture fait ce film tout seul, sans aucun appel payant ; il doit d'abord être installé sur le serveur. Rien ne change pour les vidéos parties d'une phrase." },
   { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = chaque retouche relance un rendu payant (la voix et le script sont repris ; si le regard de Claude est allumé, un appel Claude de plus, sous le plafond par vidéo)." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
 ];
@@ -99,10 +106,13 @@ export interface LigneReglage extends ReglageTutoriel {
   allume: boolean;
 }
 
-/** État de chaque interrupteur : seul `true` exact est « allumé ». */
+/** État de chaque interrupteur : seul `true` exact est « allumé », sauf les lignes `allumeParDefaut` (seul `false` éteint). */
 export async function lireReglagesTutoriel(ports?: PortsConsole): Promise<LigneReglage[]> {
   const lire = lireDe(ports);
-  return Promise.all(REGLAGES_TUTORIEL.map(async (r) => ({ ...r, allume: (await lire<unknown>(r.cle, false)) === true })));
+  return Promise.all(REGLAGES_TUTORIEL.map(async (r) => {
+    const v = await lire<unknown>(r.cle, r.allumeParDefaut ? true : false);
+    return { ...r, allume: r.allumeParDefaut ? v !== false : v === true };
+  }));
 }
 
 /** Texte de la mention : celui enregistré s'il est valable, sinon le texte par défaut (comme `mentionIAAAfficher`). */

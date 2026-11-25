@@ -62,7 +62,13 @@ export async function payerUneFois<T>(
 type RenduRelance = RenduTutoriel & { serie?: number; aSoumettre?: true };
 
 export function relancerRendusTombes<E extends Pick<EtatTutoriel, "rendus">>(etat: E): E {
-  const rendus = etat.rendus.map((r: RenduRelance): RenduRelance => (r.sortie ? r : { ...r, serie: (r.serie ?? 0) + 1, essai: 0, aSoumettre: true }));
+  // Le compte d'attente réseau repart de zéro avec « Réessayer » : sinon le réseau encore coupé ferait échouer dès la première lecture.
+  const rendus = etat.rendus.map((r: RenduRelance): RenduRelance => {
+    if (r.sortie) return r;
+    const { attentesReseau: _n, ...sans } = r;
+    void _n;
+    return { ...sans, serie: (r.serie ?? 0) + 1, essai: 0, aSoumettre: true };
+  });
   return { ...etat, rendus };
 }
 

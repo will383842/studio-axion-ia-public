@@ -33,7 +33,7 @@ async function charger<T>(nom: string, importer: () => Promise<T>): Promise<T> {
 
 // Audit D : dossiers temporaires laissés par un processus tué (manque de mémoire, SIGKILL), effacés AVANT tout rendu.
 const orphelins = await nettoyerTemporairesOrphelins();
-if (orphelins.length) console.log(`[studio-rendu] ${orphelins.length} dossier(s) temporaire(s) d'un arrêt brutal effacé(s)`);
+if (orphelins.length) console.log(`[studio-rendu] ${orphelins.length} dossier(s) temporaire(s) d'un arrêt brutal (de plus de 6 h) effacé(s)`);
 
 const files = new FilesRendu({
   // Lot R4 (mesuré le 03/10 sur le poste de développement) : 3 miniatures demandées ensemble, compositions déjà

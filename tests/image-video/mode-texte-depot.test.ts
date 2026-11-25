@@ -37,6 +37,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   reinitialiserDepots();
   reinitialiserRequete();
+  // R5 : le défaut est « automatique » (carte validée seule). Ces tests exigent l'arrêt « carte à valider » : on pose le
+  // réglage du format « Vérifier ce que j'ai compris = Toujours » sur chaque brouillon créé, sans toucher au code.
+  const enregistrer = depots().videos.enregistrer.bind(depots().videos);
+  depots().videos.enregistrer = async (v) => enregistrer(v.formatId === ID_FORMAT_IMAGE_VIDEO ? { ...v, reglages: { ...v.reglages, validationCarte: "toujours" } } : v);
   lectures.length = 0;
   await auth.seConnecter(MDP, false);
   brancherServicesImageVideo({

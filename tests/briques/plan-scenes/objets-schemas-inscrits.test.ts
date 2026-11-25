@@ -4,7 +4,7 @@
  * (a) inscription, toile, capacité, exemple valide ; (b) éteint = identique ; (c) permis : gardé / retiré ;
  * (d) rendu par instants ; (e) une ligne « ce que la pièce montre ».
  * Modèle : objets-etiquettes-inscrits.test.ts, recopié. Aucun appel réel : Claude est simulé.
- * Note : `chargerJetBrainsMono` n'est appelé par personne, le terminal se rend en police de secours (acceptable porte fermée).
+ * Note : `chargerJetBrainsMono` n'est appelé que par `CalquePlanScenes.tsx` (FIX-POLICE-TERMINAL-v20l), seulement si le plan contient un terminal.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";

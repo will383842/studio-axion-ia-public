@@ -21,6 +21,7 @@ import { OBJET_PANNEAU_REGLAGES } from "../../../src/briques/motion/petits-objet
 import { OBJET_ANNEAU_DONNEES } from "../../../src/briques/motion/petits-objets/anneau-donnees";
 import type { DefinitionObjet } from "../../../src/briques/motion/petits-objets/contrat";
 import { CalqueObjet } from "../petits-objets/CalqueObjet";
+import { chargerPoliceMarque } from "../commune/police-marque";
 
 const OBJETS_PLAN_SCENES = [
   OBJET_GROS_CHIFFRE, OBJET_ETAPE, OBJET_CARTES_COCHE, OBJET_COCHE,
@@ -47,6 +48,7 @@ function definitionDe(id: string): DefinitionObjet<unknown> | undefined {
 
 export function ObjetsTableau({ objets, fps }: { objets: readonly ObjetScene[]; fps: number }) {
   if (objets.length === 0) return null;
+  chargerPoliceMarque();
   const dessines = objets.flatMap((objet, i) => {
     const def = definitionDe(objet.id);
     if (!def) return [];

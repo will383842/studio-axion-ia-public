@@ -238,7 +238,7 @@ export default async function PageReglages() {
             </CartePliante>
           </Apparition>
           <Apparition index={3}>
-            <CartePliante id="tutoriel-outil" icone="baguette" titre="Tutoriel d'outil" resume="Un interrupteur par réglage, tous éteints par défaut.">
+            <CartePliante id="tutoriel-outil" icone="baguette" titre="Tutoriel d'outil" resume="Un interrupteur par réglage ; Claude, son regard et la cloche allumés par défaut.">
               <Link href="/reglages/tutoriel-outil" className="flex min-h-11 items-center gap-3 rounded-carte px-1 text-sm font-semibold text-texte hover:underline">
                 <span className="flex-1">Ouvrir les réglages du tutoriel</span>
                 <Icone nom="chevron-droite" size={16} className="text-texte-faible" />
@@ -338,7 +338,7 @@ export default async function PageReglages() {
             </CartePliante>
           </Apparition>
           <Apparition index={2}>
-            <CartePliante id="usine-automatique" icone="jauge" titre="L'Usine en automatique" resume="Un plafond du mois, réglé par vous ; éteinte par défaut">
+            <CartePliante id="usine-automatique" icone="jauge" titre="L'Usine en automatique" resume={autonomieUsine.pilote === "usine" ? "Se règle dans l'Usine" : "Un plafond du mois, réglé par vous ; éteinte par défaut"}>
               <AutonomieUsine vue={autonomieUsine} />
             </CartePliante>
           </Apparition>

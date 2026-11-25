@@ -1,5 +1,5 @@
 /**
- * N-26-a-v21p — la démo face caméra est inscrite au registre du chat de retouche ; réglage `retoucheChat.demoFacecam` ÉTEINT.
+ * N-26-a-v21p — la démo face caméra est inscrite au registre du chat de retouche ; réglage `retoucheChat.demoFacecam` ALLUMÉ par défaut (ALLUMER-RETOUCHE-DEMO).
  * Doubles seulement : aucun appel réel, aucune écriture.
  */
 import { createHash } from "node:crypto";
@@ -77,16 +77,18 @@ describe("N-26-a-v21p (a) inscription au registre", () => {
 });
 
 describe("N-26-a-v21p (b) réglage : seul `true` allume", () => {
-  it("(b) absent, false, \"true\", 1, {}, lecture qui lève → éteint ; true → allumé", async () => {
+  it("(b) absent → allumé ; false, \"true\", 1, {}, null, lecture qui lève → éteint ; true → allumé", async () => {
     const lire = (v: unknown) => async (_i: string, d: unknown) => (v === undefined ? d : v);
-    expect(await retoucheChatActif("demo-facecam", lire(undefined))).toBe(false);
+    expect(await retoucheChatActif("demo-facecam", lire(undefined))).toBe(true);
     for (const v of [false, "true", 1, {}, null]) expect(await retoucheChatActif("demo-facecam", lire(v)), String(v)).toBe(false);
     expect(await retoucheChatActif("demo-facecam", async () => { throw new Error("panne"); })).toBe(false);
     expect(await retoucheChatActif("demo-facecam", lire(true))).toBe(true);
   });
-  it("(b) la clé lue est bien celle de la démo (pas celle d'un autre) ; version serveur : éteinte par défaut, 2e appel identique", async () => {
+  it("(b) la clé lue est bien celle de la démo (pas celle d'un autre) ; version serveur : ALLUMÉE par défaut, 2e appel identique", async () => {
     etat.reglages = { "retoucheChat.avocat": true };
-    expect(await retoucheChatActifServeur("demo-facecam")).toBe(false);
+    expect(await retoucheChatActifServeur("demo-facecam")).toBe(true);
+    expect(await retoucheChatActifServeur("demo-facecam")).toBe(true);
+    etat.reglages = { "retoucheChat.demoFacecam": false };
     expect(await retoucheChatActifServeur("demo-facecam")).toBe(false);
     etat.reglages = { "retoucheChat.demoFacecam": true };
     expect(await retoucheChatActifServeur("demo-facecam")).toBe(true);
@@ -94,8 +96,9 @@ describe("N-26-a-v21p (b) réglage : seul `true` allume", () => {
   });
 });
 
-describe("N-26-a-v21p (c) route : éteinte → 403 (et non plus 400)", () => {
-  it("(c) démo éteinte : 403 ; générateur inconnu : toujours 400", async () => {
+describe("N-26-a-v21p (c) route : éteinte (`false` écrit) → 403 (et non plus 400)", () => {
+  it("(c) démo éteinte par `false` écrit : 403 ; générateur inconnu : toujours 400", async () => {
+    etat.reglages = { "retoucheChat.demoFacecam": false };
     for (const action of ["apercu"] as const) {
       const r = await POST(requete({ action, videoId: "v", demande: "zoom", generateur: "demo-facecam" }));
       expect(r.status).toBe(403);

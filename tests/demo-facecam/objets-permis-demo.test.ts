@@ -226,7 +226,10 @@ for (const avecLlm of [true, false]) {
         expect(texte(avec.consigne)).toContain("- objet-compteur-rouleau (");
         // 19/11/2026 N-05-v19b : l'anneau de données (objet.chiffre) est aussi inscrit : la consigne le liste ; attente élargie, rien retiré.
         expect(texte(avec.consigne)).toContain("- objet-anneau-donnees (");
-        const sansBloc = texte(avec.consigne).replace(/- objet-gros-chiffre \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-compteur-rouleau \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-anneau-donnees \(.*\n  paramètres .*\n  schéma .*\n/, "");
+        // MAJ 25/11 (FIX-ROUGES-OBJETS-INSCRITS-v21t, voulue, à relire) : la barre de progression et le chrono (capacité objet.chiffre) sont inscrits par C9-34-FIN-v20h (#1499) : la consigne les liste ; attente élargie, rien retiré.
+        expect(texte(avec.consigne)).toContain("- objet-barre-progression (");
+        expect(texte(avec.consigne)).toContain("- objet-chrono (");
+        const sansBloc = texte(avec.consigne).replace(/- objet-gros-chiffre \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-compteur-rouleau \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-anneau-donnees \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-barre-progression \(.*\n  paramètres .*\n  schéma .*\n/, "").replace(/- objet-chrono \(.*\n  paramètres .*\n  schéma .*\n/, "");
         expect(sansBloc).toBe(texte(sans.consigne));
         expect(avec.consigne?.message).toBe(sans.consigne?.message);
       } else {

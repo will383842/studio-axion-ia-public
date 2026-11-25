@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 105 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -23,7 +23,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `texte.sortie-animee` | eteint | 2 (U19) | AM-08 |  |
 | `texte.escalier` | eteint | 2 (U20a, U20b) | AM-09 | permis: false |
 | `ecran.clip-v4` | prod | — |  | v4 seule |
-| `ecran.mosaique-extraits` | prevu | 4 (U4.1 à U4.6) | Q4, Q5 |  |
+| `ecran.mosaique-extraits` | eteint | 4 (U4.1 à U4.6) | Q4, Q5 |  |
 | `ecran.telephone-extrait` | eteint | 4 (U4.7 à U4.9c) | Q1, P-6 |  |
 | `calque.texte-derriere-double` | absent | — | V4 plus tard, P7 | PAYANT, 2e rendu HeyGen par vidéo, 5.10 à 5.17 suspendues |
 | `calque.texte-derriere-prise` | absent | — | Q6 | étude 5.20, 5.21 |
@@ -59,7 +59,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `cadrage.zoom-avocat` | prod | 8 | AM-16 |  |
 | `cadrage.zoom-demo` | prod | 8 | AM-16 |  |
 | `cadrage.camera-cas-concret` | prod | 8 | AM-16 |  |
-| `cadrage.zoom-v4` | absent | 8 | AM-16 | attend W-6 |
+| `cadrage.zoom-v4` | eteint | 8 | AM-16 | branché, éteint : facecamAnimee.zoomGratuit ; allumage après la planche C8-Z10 |
 | `motion.avis-client` | prevu | 8 | AM-16 |  |
 | `objet.trait` | prevu | 9 | D3 § C |  |
 | `objet.marque` | prevu | 9 | D3 § C |  |
@@ -87,16 +87,21 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `texte.mode-carte` | prevu | 11 |  | porte éteinte |
 | `texte.effets` | prevu | 11 |  | livrée, non branchée |
 | `texte.accents-role` | prevu | 11 |  | porte éteinte, rien ne l'importe |
-| `texte.poids-variable` | prevu | X1 |  |  |
-| `texte.minimal-dynamique` | prevu | X1 |  |  |
+| `cadrage.camera-couverture` | eteint | 11 |  | un seul importeur : le film du tutoriel ; le cran du dosage décide |
+| `ecran.carte-video-arrondie` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.grilles-archive` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.ecrans-composes` | prevu | 11 |  | inscrite, non branchée |
+| `motion.titre-etape-montante` | prevu | 11 |  | inscrite, non branchée |
+| `texte.poids-variable` | eteint | X1 |  |  |
+| `texte.minimal-dynamique` | eteint | X1 |  |  |
 | `ecran.fenetre-inclinee` | prevu | X1 |  |  |
-| `fond.verre-depoli` | prevu | X1 |  |  |
+| `fond.verre-depoli` | eteint | X1 |  |  |
 | `transition.zoom-mot` | prevu | X1 |  |  |
-| `transition.raccord-forme` | prevu | X1 |  |  |
-| `accroche.apercu-fin` | prevu | X1 |  |  |
-| `accroche.mot-cle` | prevu | X1 |  |  |
+| `transition.raccord-forme` | eteint | X1 |  |  |
+| `accroche.apercu-fin` | eteint | X1 |  |  |
+| `accroche.mot-cle` | eteint | X1 |  |  |
 | `mention.ia` | prevu | X1 |  |  |
-| `rythme.boucle` | prevu | X1 |  |  |
+| `rythme.boucle` | eteint | X1 |  |  |
 
 Résumé : 13 capacités `motion.v4-coulisse.*` en coulisse (préparées pour la v4, rien n'est visible) :
 

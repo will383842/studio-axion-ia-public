@@ -28,7 +28,7 @@ describe("S1.8 carte « Sur le site »", () => {
     expect(html).not.toContain('aria-checked="true"');
     expect(html).toContain("Conseillé");
     expect(html).toContain("Au cas par cas");
-    for (const l of lignes) expect(html).toContain(l.nom);
+    for (const l of lignes) expect(html.replace(/&#x27;/g, "'")).toContain(l.nom);
   });
 
   it("le conseil « non » s'écrit « Déconseillé »", () => {

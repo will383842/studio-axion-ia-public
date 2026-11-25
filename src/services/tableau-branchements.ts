@@ -20,8 +20,9 @@ import { brancherServicesTableau, ID_MOTEUR_TABLEAU, type OutilsTableau } from "
 import type { ResumeVisuel } from "@/briques/variete";
 import { resumeVisuelDepuisFiche } from "@/briques/variete/resume";
 import type { FicheScenes } from "@/briques/fiche-scenes";
-import { depots } from "./_commun";
+import { depots, lireParametre } from "./_commun";
 import { dejaVuUsine } from "./tableau-deja-vu-usine";
+import { preteAvecRemarquesActive } from "./tableau-remarques";
 import { lireEntreesTableau as lireEntreesSansVoix } from "@/moteurs/montage-tableau/etapes";
 import { MOTEUR_SANS_VOIX_PRET, RAISON_SANS_VOIX_MOTEUR_ABSENT } from "@/moteurs/montage-tableau/sans-voix";
 
@@ -67,6 +68,7 @@ async function creationVersionEnCours(travailId: string): Promise<string> {
   }
 }
 
+export const PARAM_RACCORDS_TABLEAU = "tableau.raccords"; // BR-TABLEAU-RACCORDS-c : éteint par défaut, seul true exact allume
 brancherServicesTableau({
   outils: async (c, travailId): Promise<OutilsTableau | null> => {
     // TA-SV : « sans voix » : jamais de voix résolue ni de budget « voix » ; refus net tant que le moteur ne le gère pas (rien n'est dépensé).
@@ -96,11 +98,15 @@ brancherServicesTableau({
     } catch {
       // Le code se reposera au prochain passage (même clé).
     }
+    const raccords = (await lireParametre<unknown>(PARAM_RACCORDS_TABLEAU, false).catch(() => false)) === true;
     const b = await branchementsReels(personnageId, c.videoId);
     const stockage = resoudreFournisseur("stockage");
     const d = depots();
     const [preuves, matieres] = await Promise.all([d.preuves.lister(), d.matieres.lister()]);
     return {
+      ...(raccords ? { raccords: true as const } : {}),
+      // S-13 : décisions n° 8 et 9, éteint par défaut (seul `true` exact allume).
+      ...((await preteAvecRemarquesActive()) ? { preteAvecRemarques: true as const } : {}),
       env: b.env,
       voix: b.voix,
       scenes: b.scenes,

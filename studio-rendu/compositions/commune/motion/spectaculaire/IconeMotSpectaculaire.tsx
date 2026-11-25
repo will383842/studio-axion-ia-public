@@ -48,7 +48,7 @@ function Contenu({ d }: { d: DonneesIconeMot }) {
         <IconeSpec nom={d.icone} taille={tailleIcone} debut={entree - 0.2} couleur={COULEURS.creme} epaisseur={1.7} duree={0.55} />
       </FlouFort>
       <div style={{ position: "absolute", left: g.texte.x, width: g.texte.largeur, top: yMot, display: "flex", flexDirection: "column", alignItems: g.texte.centre ? "center" : "flex-start", gap: 30 * u }}>
-        <MotsGeants texte={mot} debut={tMot} taille={tailleMot} graisse={900} effet="ecrase" alignement={g.texte.centre ? "center" : "left"} largeurMax={g.texte.largeur} interligne={1} />
+        <MotsGeants texte={mot} debut={tMot} taille={tailleMot} graisse={800} effet="ecrase" alignement={g.texte.centre ? "center" : "left"} largeurMax={g.texte.largeur} interligne={1} />
         {d.sousTitre && <MotsGeants texte={d.sousTitre} debut={tMot + 0.6} taille={Math.round(taille("corps") * 1.02)} graisse={700} effet="etire" alignement={g.texte.centre ? "center" : "left"} largeurMax={g.texte.largeur * (g.texte.centre ? 0.9 : 1)} couleur={COULEURS.creme} decalage={0.06} interligne={1.15} approche={-0.01} />}
       </div>
       <Eclats x={g.texte.x + g.texte.largeur / 2} y={yMot + hMot / 2} debut={tMot + 0.3} rayon={z.largeur * 0.42} nombre={30} graine={17} />

@@ -59,6 +59,7 @@ import { ecranVivantIV, ecransEnDefautIV, ficheAdapteeIV, mettreEnSceneAvecFilet
 import { ErreurCalageIV, heuresSimulees } from "./calage";
 import { mettreEnSceneIV, type EntreeMiseEnSceneIV, type LigneDeTempsIV } from "./mise-en-scene";
 import { porteUniqueIV, type EntreePorteIV, type OutilsPorteIV, type VerdictPorteIV } from "./porte";
+import { assouplirVerdictIV } from "./remarques-livraison";
 import { texteFilFacebookIV, textesDePublicationIV, type PublicationIV } from "./publication";
 import { chapitresDetachables } from "./recettes";
 import { ecrireScriptColleIV, manquementsDuScriptColle } from "./script-colle";
@@ -477,6 +478,8 @@ export interface OutilsFabricationIV {
   rendre: (d: DemandeRenduIV) => Promise<{ cle: string; empreinte?: string; dureeSec: number; mesures?: MesuresExport }>;
   /** S-04b : relit les mesures d'un rendu DÉJÀ fait, sans le refaire (absent : rien n'est remesuré). */
   remesurer?: (d: { id: string; cle: string; dureeSec: number }) => Promise<MesuresExport | undefined>;
+  /** S-13-f : vrai exact : un refus dont tous les blocages sont reclassables devient « prête, avec remarques » (absent : refus comme avant). */
+  preteAvecRemarques?: true;
   /** Porte unique : tout sauf la réservation et les identifiants d'appel, posés par la machine. */
   controles: Omit<OutilsPorteIV, "budget" | "idAppel">;
   /** Budget réel du studio (pré-vol ou réservation), appelé APRÈS le contrôle du plafond par la caisse. */
@@ -1886,7 +1889,7 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
     }
   }
   const { entree, publication, liens } = entreePorteIV(e, o.bruitagesValides ?? BRUITAGES_V4_IV);
-  const verdict = await porteUniqueIV(
+  const brut = await porteUniqueIV(
     entree,
     // Chaque tentative d'appel a son propre identifiant (compteur gardé dans l'état) : jamais la réservation d'un appel parti.
     {
@@ -1896,6 +1899,8 @@ async function pasControles(e: EtatFabricationIV, o: OutilsFabricationIV, caisse
       budget: caisse.controles(),
       idAppel: (prefixe) => `${prefixe}-n${(e.compteurAppels = (e.compteurAppels ?? 0) + 1)}` },
   );
+  // S-13-f : option « prête, avec remarques » (seul `true` agit) ; reclasse APRÈS la porte, dépense de la porte inchangée.
+  const verdict = o.preteAvecRemarques === true ? assouplirVerdictIV(brut, entree) : brut;
   // 15/10 : une version reprise d'un autre réseau (repli de secours) est dite dans le rapport.
   const replis = e.plan!.fins.flatMap((f) => (f.repli ? [phraseDeRepliIV(f.reseaux, f.repli)] : []));
   const resume: ResumePorteIV = { ok: verdict.ok, phrase: verdict.phrase, phrases: verdict.phrases, mentions: [...verdict.mentions, ...replis, ...(e.remarques ?? []), ...remarquesDeFinDeVoixIV(e)] };

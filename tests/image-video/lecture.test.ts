@@ -139,6 +139,8 @@ describe("préparation : format, dimensions, tuiles", () => {
 });
 
 describe("les 6 images redonnent exactement les cartes attendues (simulation)", () => {
+  // #108 : le nombre 1 sans unité est affiché seulement (c05 « 1 fois » : aDire false).
+  const cartePourF = { ...cartes.F, chiffres: cartes.F.chiffres.map((c) => (c.id === "c05" ? { ...c, aDire: false } : c)) };
   for (const l of LETTRES) {
     it(`${l}`, async () => {
       const lecture = lectureDeCarte(cartes[l]);
@@ -146,7 +148,7 @@ describe("les 6 images redonnent exactement les cartes attendues (simulation)", 
       const r = await lireImage({ videoId: `essai-${l}`, source: source(cartes[l]) }, o.outils);
       expect(r.ok).toBe(true);
       if (!r.ok) return;
-      expect(r.carte).toEqual(cartes[l]);
+      expect(r.carte).toEqual(l === "F" ? cartePourF : cartes[l]);
       expect(r.controle.erreurs).toEqual([]);
       expect(r.appels).toBe(2);
       expect(r.simule).toBe(true);

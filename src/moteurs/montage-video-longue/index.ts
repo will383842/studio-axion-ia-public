@@ -2,13 +2,17 @@
  * MOTEUR « VIDÉO LONGUE » (fiche VL-04) — moteur MINCE copié de `src/moteurs/gabarit/`, générateur DÉDIÉ, ÉTEINT (décision du 18/11).
  * Estimation à 0 € ; tant que rien n'est relié (`dependances` rend `null`), la fabrication reste en PAUSE claire : en file,
  * sans échec, sans dépense, jamais une vidéo d'essai. Aucun appel à Claude, aucun fournisseur payant, aucun import de `studio-rendu`.
- * Le script validé est lu tel quel (`entrees.ts`). Plan 16:9 et rendu par chapitre : VL-05. Branchements réels : VL-07.
+ * Le script validé est lu tel quel (`entrees.ts`). Plan 16:9 et rendu par plage : VL-05. Branchements réels : VL-07
+ * (montage réel relié pour le mode SANS voix seulement, derrière le réglage éteint). L'étape « montage » avance PAS À PAS
+ * (FIN-8) : chaque `avancer` soumet une plage ou relit un état, puis revient ; l'étape n'est faite qu'une fois le collage fini.
  */
 import type { CommandeFabrication } from "@/domaine/types";
 import { ZERO } from "@/lib/montants";
 import type { SortieProduite } from "../types";
 import { creerMoteurGabarit, type DefinitionGabarit } from "../gabarit";
 import { lireEntreesVideoLongue, type EntreesVideoLongue } from "./entrees";
+import { cibleSon, rapportSon } from "../montage-tutoriel-outil/finitions";
+import type { AlerteQualite } from "@/domaine/types";
 import { avancerVideoLongue, estimerMotsSansVoix, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
 
 export { COMPOSITION_VIDEO_LONGUE } from "./chaine";
@@ -36,6 +40,10 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     resultat(commande, etat) {
       const duree = etat.voix?.dureeSec ?? 0;
       const sansVoix = lireEntreesVideoLongue(commande).sansVoix;
+      // Aucune mesure de son n'est transportée jusqu'ici : avec voix, le niveau reste « non mesuré » (la cible n'est pas une mesure).
+      const son = rapportSon(null, cibleSon(commande), !sansVoix);
+      const messageSon = sansVoix ? "Son : vidéo sans voix, aucun niveau mesuré" : son.alerte;
+      const alerteSon: AlerteQualite[] = messageSon ? [{ code: "niveau-sonore", gravite: "info", message: messageSon }] : [];
       const sorties: SortieProduite[] = commande.ratios
         .filter((r) => etat.sorties[r])
         .map((ratio) => ({
@@ -44,10 +52,12 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
           vignetteCle: "",
           resolution: "1920x1080",
           dureeSec: duree,
-          taille: 0,
-          rapportQualite: { note: 80, verifie: { image: true, son: !sansVoix, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: [], niveauSonoreLufs: sansVoix ? -70 : -14 },
+          // Mesure réelle du collage (studio-rendu) quand elle a été renvoyée ; 0 = inconnue, jamais une taille inventée.
+          taille: etat.tailles?.[ratio] ?? 0,
+          // `niveauSonoreLufs` est obligatoire (type du domaine) : -70 sans voix, la cible avec voix ; `son` n'est vrai que si mesuré.
+          rapportQualite: { note: 80, verifie: { image: true, son: son.sonVerifie, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: alerteSon, niveauSonoreLufs: sansVoix ? -70 : son.niveauSonoreLufs },
         }));
-      const alertes = etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message }));
+      const alertes = [...alerteSon, ...etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message }))];
       const reprise: RepriseVideoLongue | undefined = etat.voix && etat.chapitres ? { voix: etat.voix, chapitres: etat.chapitres } : undefined;
       return {
         sorties,
@@ -78,5 +88,5 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
 
 export const creerMoteurVideoLongue = (dependances: (commande: CommandeFabrication, travailId?: string) => DependancesVideoLongue | null) => creerMoteurGabarit(definitionVideoLongue(dependances));
 
-/** Moteur inscrit : AUCUNE dépendance reliée (VL-07 les reliera derrière un réglage éteint) = pause sans dépense. */
+/** Moteur inscrit : AUCUNE dépendance reliée tant que le réglage n'est pas vu allumé (VL-07, éteint par défaut) = pause sans dépense. */
 export const moteurMontageVideoLongue = creerMoteurVideoLongue(() => null);
