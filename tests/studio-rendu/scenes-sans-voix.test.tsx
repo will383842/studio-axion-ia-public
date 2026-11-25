@@ -36,6 +36,7 @@ const PLAN_DE_SCENES = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan
 const DESSIN = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan-scenes/tutoriel-sans-voix/DessinSansVoix")) : null;
 const TUTORIEL = AVEC_RENDU ? await import(/* @vite-ignore */ chemin("plan-scenes/TutorielOutil")) : null;
 
+const COULEURS_NOMMEES = { noir: "#141413", grisTexte: "#5E5D59" };
 const html = (el: unknown) => renderToStaticMarkup(el as never);
 const FORMAT = { largeur: 1080, hauteur: 1350, fps: 25 };
 const FIN = { titre: "Axion IA", sousTitre: "axion-ia.com" };
@@ -87,14 +88,54 @@ describe.skipIf(!AVEC_RENDU)("DessinSansVoix (QUAL-3)", () => {
     expect(h.indexOf('data-id="carte"')).toBeLessThan(h.indexOf('data-id="titre"'));
   });
 
-  it("horloge : la grande aiguille tourne de progression × 360° autour du centre (12, 12)", () => {
+  it("horloge : deux aiguilles du centre (12, 12) ; la petite FIXE à 300° (longueur 4, trait 2,2), la grande tourne de progression × 360° (longueur 6,5, trait 1,8), bouts ronds ; plus de chemin en L", () => {
     const rendu = (progression?: number) =>
       html(createElement(DESSIN!.DessinSansVoix, { image: { tMs: 0, fond: "ivoire", elements: [el({ id: "h", genre: "forme", icone: "horloge", couleur: "noir", progression, rect: { x: 0, y: 0, largeur: 48, hauteur: 48 } })] }, format: FORMAT }));
-    expect(rendu(0.25)).toContain('transform="rotate(90 12 12)"');
-    expect(rendu(0.5)).toContain('transform="rotate(180 12 12)"');
-    expect(rendu(undefined)).toContain('transform="rotate(0 12 12)"');
-    expect(rendu(1.25)).toContain('transform="rotate(90 12 12)"');
+    const aiguilles = (h: string) => [...h.matchAll(/<path d="(M12 12 L12 [\d.]+)"[^>]*stroke-width="([\d.]+)"[^>]*stroke-linecap="round"[^>]*transform="rotate\(([\d.]+) 12 12\)"/g)].map((m) => ({ d: m[1], trait: Number(m[2]), angle: Number(m[3]) }));
+    for (const [p, angle] of [[0.25, 90], [0.5, 180], [undefined, 0], [1.25, 90], [0.1, 36]] as const) {
+      const a = aiguilles(rendu(p));
+      expect(a, `progression ${p}`).toHaveLength(2);
+      // Petite aiguille : fixe à 300°, longueur 4 (de 12 à 8), trait 2,2.
+      expect(a[0]).toEqual({ d: "M12 12 L12 8", trait: 2.2, angle: 300 });
+      // Grande aiguille : longueur 6,5 (de 12 à 5,5), trait 1,8, angle = progression × 360.
+      expect(a[1].d).toBe("M12 12 L12 5.5");
+      expect(a[1].trait).toBe(1.8);
+      expect(a[1].angle).toBeCloseTo(angle, 6);
+      // Jamais à moins de 60° de la petite pour une progression de l'icône statique (0,1) : angle 36° → écart 96°.
+      if (p === 0.1) expect(Math.min(Math.abs(a[1].angle - 300), 360 - Math.abs(a[1].angle - 300))).toBeGreaterThanOrEqual(60);
+    }
     expect(rendu(0.25)).not.toBe(rendu(0.5));
+    // L'ancien chemin en L fixe a disparu.
+    expect(rendu(0.25)).not.toContain("M12 12 L15.5 14");
+  });
+
+  it("pictogrammes boite / seuil / valeur : SVG 24 × 24 dessiné dans la couleur de la charte de l'élément, distincts, sans texte ni chiffre", () => {
+    const rendu = (icone: "boite" | "seuil" | "valeur", couleur?: "noir" | "terracotta" | "grisTexte") =>
+      html(createElement(DESSIN!.DessinSansVoix, { image: { tMs: 0, fond: "ivoire", elements: [el({ id: "i", genre: "forme", icone, couleur, rect: { x: 0, y: 0, largeur: 40, hauteur: 40 } })] }, format: FORMAT }));
+    const sorties = (["boite", "seuil", "valeur"] as const).map((i) => rendu(i, "terracotta"));
+    for (const h of sorties) {
+      expect(h).toContain('viewBox="0 0 24 24"');
+      expect(h).toContain('stroke="#B23F16"');
+      expect(h).not.toContain("<text");
+      expect(h).not.toMatch(/€|>\s*\d/);
+    }
+    expect(new Set(sorties).size).toBe(3);
+    expect(sorties[0]).toContain("M12 3 L20 7.5 L20 16.5 L12 21 L4 16.5 L4 7.5 Z"); // cube
+    expect(sorties[1]).toContain("M3 6 L21 6"); // ligne de seuil
+    expect(sorties[1]).toContain("M7.5 15.5 L12 20 L16.5 15.5"); // flèche vers le bas
+    expect((sorties[2].match(/<ellipse/g) ?? []).length).toBe(3); // trois pièces
+    // La couleur suit l'élément (charte) : noir et gris texte aussi.
+    expect(rendu("boite", "noir")).toContain(`stroke="${COULEURS_NOMMEES.noir}"`);
+    expect(rendu("valeur", "grisTexte")).toContain(`stroke="${COULEURS_NOMMEES.grisTexte}"`);
+    // Aucune icône inconnue ne dessine quoi que ce soit : les trois sont bien des cas distincts.
+    expect(rendu("boite", "terracotta")).not.toBe(rendu("seuil", "terracotta"));
+  });
+
+  it("contour terracotta : UN trait de 3 px (carte de l'alerte), les autres contours à 2 px", () => {
+    const rendu = (contour: "terracotta" | "gris") =>
+      html(createElement(DESSIN!.DessinSansVoix, { image: { tMs: 0, fond: "ivoire", elements: [el({ id: "c", genre: "forme", contour, rayonPx: 20, rect: { x: 10, y: 10, largeur: 300, hauteur: 200 } })] }, format: FORMAT }));
+    expect(rendu("terracotta")).toContain("border:3px solid #B23F16");
+    expect(rendu("gris")).toContain("border:2px solid");
   });
 
   it("contrat du texte : nowrap, interligne de la grammaire, alignement, repli sur le plancher de la grammaire", () => {

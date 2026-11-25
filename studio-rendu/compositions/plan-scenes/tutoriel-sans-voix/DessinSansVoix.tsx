@@ -49,10 +49,39 @@ function Icone({ el }: { el: ElementVisible }) {
         return (
           <>
             <circle cx={12} cy={12} r={9.5} fill="none" stroke={c} strokeWidth={2.2} />
-            {/* Petite aiguille fixe, grande aiguille qui TOURNE : `progression` 0..1 = un tour autour du centre (12, 12). */}
-            <path d="M12 12 L15.5 14" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" />
-            <path d="M12 12 L12 5.5" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" transform={`rotate(${tour * 360} 12 12)`} />
+            {/* Deux aiguilles qui partent du centre (12, 12) et se lisent comme un chevron : la petite (heures, longueur 4, trait 2,2) est
+                FIXE à 300° (10 h) ; la grande (minutes, longueur 6,5, trait 1,8) TOURNE de `progression` × 360° depuis midi. Bouts ronds. */}
+            <path d="M12 12 L12 8" fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" transform="rotate(300 12 12)" />
+            <path d="M12 12 L12 5.5" fill="none" stroke={c} strokeWidth={1.8} strokeLinecap="round" transform={`rotate(${tour * 360} 12 12)`} />
           </>
+        );
+      case "boite":
+        // Cube (stock) : contour hexagonal, arêtes de la face du dessus et arête verticale du devant.
+        return (
+          <g fill="none" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3 L20 7.5 L20 16.5 L12 21 L4 16.5 L4 7.5 Z" />
+            <path d="M4 7.5 L12 12 L20 7.5 M12 12 L12 21" />
+          </g>
+        );
+      case "seuil":
+        // Seuil : ligne horizontale en haut et flèche qui descend vers elle (sous le seuil).
+        return (
+          <g fill="none" stroke={c} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6 L21 6" />
+            <path d="M12 10 L12 20 M7.5 15.5 L12 20 L16.5 15.5" />
+          </g>
+        );
+      case "valeur":
+        // Pile de pièces (sans « € » ni chiffre) : trois pièces empilées, vues en perspective.
+        return (
+          <g fill="none" stroke={c} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+            {[16.5, 11, 5.5].map((y) => (
+              <g key={y}>
+                <ellipse cx={12} cy={y} rx={7.5} ry={2.5} />
+                <path d={`M4.5 ${y} v2.6 a7.5 2.5 0 0 0 15 0 v-2.6`} />
+              </g>
+            ))}
+          </g>
         );
       case "fleche":
         return <path d="M4 12 L19 12 M13 6 L19 12 L13 18" fill="none" stroke={c} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />;
@@ -121,7 +150,8 @@ function Element({ el }: { el: ElementVisible }) {
     boxSizing: "border-box",
     borderRadius: el.rayonPx ?? 0,
     background: el.remplissage ? COULEURS_SANS_VOIX[el.remplissage] : "transparent",
-    border: el.contour ? `2px solid ${COULEURS_SANS_VOIX[el.contour]}` : undefined,
+    // Contour terracotta (carte de l'alerte, mise en valeur) : UN SEUL trait de 3 px ; les autres contours restent à 2 px.
+    border: el.contour ? `${el.contour === "terracotta" ? 3 : 2}px solid ${COULEURS_SANS_VOIX[el.contour]}` : undefined,
     boxShadow: el.ombre ? OMBRE_DOUCE : undefined,
   };
   let contenu: ReactNode = null;
