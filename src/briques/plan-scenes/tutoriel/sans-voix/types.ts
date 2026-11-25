@@ -88,6 +88,9 @@ export type SceneSansVoix =
       /** Libellé de la carte de fin (ex. « axion-ia.com ») : texte PERMIS (comme le libellé de fin), affiché sous le bouton
        *  (≥ 36 px) une fois le clic fait. La scène peut durer jusqu'à la fin de la vidéo (elle absorbe la carte de fin). */
       site?: string;
+      /** Nom de marque de la carte de fin (ex. « Axion IA ») : texte PERMIS (comme le libellé de fin), affiché entre le bouton et le
+       *  site une fois le clic fait (Manrope ExtraBold noir, ≥ 56 px, avec un filet terracotta dessous). FACULTATIF. */
+      marque?: string;
     })
   /** Repli générique : le groupe nominal principal de la phrase sur une carte ivoire avec filet (jamais un fond nu). */
   | (BaseScene & { genre: "carte-phrase"; texte: string });
