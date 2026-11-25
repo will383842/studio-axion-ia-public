@@ -39,7 +39,7 @@ describe("BR-MOT-CLE-c-v21s · fabrication", () => {
   it("(a) allumé par défaut : le plan reçoit motCle actif, sujet = titre du cas, mot interdit = cas.mot", async () => {
     const x = await fabriquer();
     expect(x.appels.length).toBeGreaterThan(0);
-    const cas = trouverCas(x.d.options.entrees.casId)!;
+    const cas = trouverCas(x.d.options.entrees.casId as string)!;
     for (const a of x.appels) {
       expect(a.motCle).toEqual({ actif: true, sujet: cas.titre || cas.theme || cas.promesse, motsInterdits: [cas.mot] });
     }
