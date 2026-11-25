@@ -60,12 +60,19 @@ export async function register() {
       assurerBoucleGeneration();
       console.log("[studio] boucle d'écriture démarrée (toutes les 4 s)");
     }
+    // Réserve de tutoriels (lot Z, RES-4) : minuterie au rythme (un tour toutes les 10 min), éteinte par défaut côté réglage.
+    // Coupée par STUDIO_RESERVE_TUTORIELS=0. Le tirage garde ses plafonds ; rien n'est jamais publié.
+    if (process.env.STUDIO_RESERVE_TUTORIELS !== "0") {
+      const { demarrerTirageReserve } = await import("@/services/tutoriel-reserve-minuterie");
+      if (demarrerTirageReserve()) console.log("[studio] minuterie de la réserve de tutoriels démarrée");
+    }
   };
   // Relecture paquet 4 (exactitude D1) : verrou perdu, la boucle d'écriture et la veille s'arrêtent aussi ; elles
   // repartent à la reprise du verrou (`avecLeVerrou` est relancé).
   const arreterSansLeVerrou = () => {
     void import("@/services/boucle-generation").then((m) => m.arreterBoucleGeneration());
     void import("@/services/veille").then((m) => m.arreterVeille());
+    void import("@/services/tutoriel-reserve-minuterie").then((m) => m.arreterTirageReserve());
   };
   // Lot 4c : branchement du parcours de conversation (vérification de configuration SANS réseau, aucun interrupteur allumé).
   // Hors du bloc DATABASE_URL ; un échec ne bloque jamais le démarrage (code seulement dans le journal, jamais de valeur).

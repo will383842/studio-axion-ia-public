@@ -18,8 +18,8 @@
  *    qui n'est pas déjà fait est payé.
  *  - Rien n'est payé tant que le montage n'est pas prêt (les voix ne partent pas pour rien).
  *
- * Pas encore branché (dit clairement) : le montage réel (plan, rendu par chapitres, collage : l'opération de collage attend sa
- * déclaration dans le contrat de `studio-rendu`, zone de will-dc) ; l'aligneur réel (HeyGen rend déjà l'horodatage des mots).
+ * Montage réel (UI-4) : `video-longue-montage.ts`, relié pour le mode SANS voix seulement (`MONTAGE_AVEC_VOIX_RELIE` faux :
+ * avec voix, pause et rien n'est payé). Pas encore branché : l'aligneur réel (HeyGen rend déjà l'horodatage des mots).
  * Tant que le montage n'est pas relié, `montagePret()` est faux : AUCUNE voix n'est lue, rien n'est payé.
  */
 import "server-only";
@@ -28,13 +28,15 @@ import type { CommandeFabrication, MotHorodate, Ratio } from "@/domaine/types";
 import { CENTIMES_USD_PAR_CARACTERE_HEYGEN } from "@/fournisseurs/heygen/voix";
 import { decouperScript, type LectureMorceau, type MorceauVoix } from "@/briques/voix-longue";
 import { lireEntreesVideoLongue } from "@/moteurs/montage-video-longue/entrees";
-import { creerMoteurVideoLongue, moteurMontageVideoLongue } from "@/moteurs/montage-video-longue";
+import { creerMoteurVideoLongue, moteurMontageVideoLongue, DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
 import type { DependancesVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 
 /** Réglage de dépenses : seul `true` exact allume. */
 export const PARAM_VIDEO_LONGUE_ACTIF = "videoLongue.actif";
-/** Montage réel relié ? Faux tant que l'opération de collage n'est pas déclarée dans le contrat de rendu (zone will-dc). Faux = PAUSE, jamais un échec. */
-export const MONTAGE_VIDEO_LONGUE_RELIE = false;
+/** Montage réel relié (plan, plages, collage : `video-longue-montage.ts`) ? Faux = PAUSE, jamais un échec. */
+export const MONTAGE_VIDEO_LONGUE_RELIE = true;
+/** Voix posée au collage ? Pas encore : seul le mode SANS voix est relié ; avec voix, pause et rien n'est payé (aucune voix lue pour rien). */
+export const MONTAGE_AVEC_VOIX_RELIE = false;
 /** Plafond par vidéo : 10 $ (décision du 18/11), en centimes de dollar. */
 export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
 
@@ -42,7 +44,7 @@ export const PLAFOND_VIDEO_LONGUE_CENTIMES_USD = 1000;
 export type LectureGardee = LectureMorceau & { fichierCle?: string; copieEnAttente?: { adresse: string; idDemande: string; idExterne?: string } };
 
 /** Pourquoi rien n'est parti. */
-export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix" | "sans-personnage";
+export type MotifRefusVideoLongue = "eteint" | "sans-accord" | "accord-depasse" | "plafond" | "montage-non-relie" | "fournisseur" | "sans-voix" | "sans-personnage" | "duree-depassee";
 
 export class ErreurVideoLongue extends Error {
   constructor(readonly motif: MotifRefusVideoLongue, message: string) {
@@ -109,6 +111,7 @@ const PHRASES: Record<MotifRefusVideoLongue, string> = {
   "montage-non-relie": "Le montage de la vidéo longue n'est pas encore relié : aucune voix n'est lue, rien n'est payé.",
   "sans-voix": "Mode sans voix : aucune voix n'est lue, rien n'est payé pour la voix.",
   "sans-personnage": "Choisissez qui parle : rien n'est parti, rien n'est payé.",
+  "duree-depassee": "La vidéo dépasse la durée maximale prévue (20 minutes) : rien n'a été monté, rien n'est payé. Raccourcissez le script.",
   fournisseur: "La voix n'a pas pu être lue : vous pouvez réessayer, ce qui est déjà fait est conservé.",
 };
 const refus = (m: MotifRefusVideoLongue): ErreurVideoLongue => new ErreurVideoLongue(m, PHRASES[m]);
@@ -176,6 +179,8 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
     },
     async monter(ratio, ctx) {
       await garder();
+      // Durée trop longue : refus net AVANT tout rendu (le mode sans voix n'a pas d'accord qui la borne).
+      if (ctx.dureeSec > DUREE_MAX_SEC) throw refus("duree-depassee");
       if (!ports.monter || !(await ports.montagePret())) throw refus("montage-non-relie");
       return ports.monter(ratio, ctx);
     },
@@ -209,7 +214,22 @@ async function portsReels(commande: CommandeFabrication, travailId: string): Pro
     actif: async () => (await lireParametre<unknown>("videoLongue.actif", false)) === true,
     registre,
     // Montage réel pas encore relié (collage de chapitres : déclaration du contrat de rendu, zone de will-dc) : rien n'est lu.
-    montagePret: async () => MONTAGE_VIDEO_LONGUE_RELIE,
+    montagePret: async () => MONTAGE_VIDEO_LONGUE_RELIE && (lireEntreesVideoLongue(commande).sansVoix || MONTAGE_AVEC_VOIX_RELIE),
+    // Montage : rendu et stockage seulement (`branchementsReelsSansVoix`), jamais HeyGen, même quand la commande a une voix.
+    monter: async (_ratio, ctx) => {
+      const { branchementsReelsSansVoix } = await import("./tableau-outils");
+      const { montage } = await branchementsReelsSansVoix(commande.videoId);
+      const { monterVideoLongue, cleParametrePlages } = await import("./video-longue-montage");
+      const { ecrireParametre } = await import("./_commun");
+      return monterVideoLongue(commande, travailId, ctx, {
+        rendu: montage.rendu(),
+        signer: montage.signer,
+        cle: montage.cle,
+        actif: async () => (await lireParametre<unknown>("videoLongue.actif", false)) === true,
+        lirePlages: async (v) => (await lireParametre<Record<string, { sortieCle: string; empreinte: string }> | null>(cleParametrePlages(v), null)) ?? {},
+        ecrirePlages: (v, plages) => ecrireParametre(cleParametrePlages(v), plages),
+      });
+    },
     idVoix: async () => (await branchements()).voix.idVoix,
     reserver: async (e) => {
       const { verifierEtReserverSelonOrigine } = await import("./credits");
@@ -236,19 +256,25 @@ const DUREE_CACHE_MS = 5_000;
 
 function rafraichirActif(): void {
   if (etatActif.enCours || Date.now() - etatActif.deLe < DUREE_CACHE_MS) return;
+  void rafraichirVideoLongueActif();
+}
+
+/**
+ * Relit `videoLongue.actif` EN BASE (attendu, sans cache), met la dernière lecture à jour et la rend. Seul `true` exact allume.
+ * À appeler avant de lancer ou d'avancer une vidéo longue : le moteur ne reste jamais sur une valeur périmée.
+ */
+export async function rafraichirVideoLongueActif(): Promise<boolean> {
   etatActif.enCours = true;
-  void import("./_commun")
-    .then(({ lireParametre }) => lireParametre<unknown>("videoLongue.actif", false))
-    .then((v) => {
-      etatActif.vu = v === true;
-    })
-    .catch(() => {
-      etatActif.vu = false;
-    })
-    .finally(() => {
-      etatActif.deLe = Date.now();
-      etatActif.enCours = false;
-    });
+  try {
+    const { lireParametre } = await import("./_commun");
+    etatActif.vu = (await lireParametre<unknown>("videoLongue.actif", false)) === true;
+  } catch {
+    etatActif.vu = false;
+  } finally {
+    etatActif.deLe = Date.now();
+    etatActif.enCours = false;
+  }
+  return etatActif.vu;
 }
 
 /** Lecture de test : le réglage a-t-il été vu allumé (`true` exact) ? Ne décide de rien d'autre. */
@@ -260,6 +286,7 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
   if (!etatActif.vu) return null;
   // Pause (jamais un échec) tant que le montage réel n'est pas relié, et tant que l'accord de CETTE vidéo manque.
   if (!MONTAGE_VIDEO_LONGUE_RELIE) return null;
+  if (!lireEntreesVideoLongue(commande).sansVoix && !MONTAGE_AVEC_VOIX_RELIE) return null;
   if (!lireEntreesVideoLongue(commande).sansVoix && !lireAccordVideoLongue(commande)) return null;
   let ports: Promise<PortsVideoLongue> | undefined;
   const p = (): Promise<PortsVideoLongue> => (ports ??= portsReels(commande, travailId));
@@ -275,17 +302,27 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
     reserver: async (e) => (await p()).reserver(e),
     lireMorceau: async (t) => (await p()).lireMorceau(t),
     idVoix: async () => (await p()).idVoix?.() ?? "",
+    monter: async (r, c) => (await p()).monter!(r, c),
   };
   return creerDependancesVideoLongue(commande, paresseux);
 }
 
-/** Pose les raccords sur le moteur inscrit (une fois par processus). */
+/** Pose les raccords sur le moteur inscrit (une fois par copie du moteur : le garde est posé sur l'objet moteur lui-même). */
 export function brancherVideoLongue(): void {
-  const g = globalThis as typeof globalThis & { [k: symbol]: unknown };
+  // Le garde porte sur CETTE copie du moteur (sous `next start`, l'action serveur et la boucle peuvent charger chacune la leur) :
+  // un drapeau global ferait croire qu'une copie non reliée l'est.
+  const g = moteurMontageVideoLongue as unknown as { [k: symbol]: unknown };
   const cle = Symbol.for("studio-axion-ia.video-longue-branche");
   if (g[cle]) return;
   g[cle] = true;
-  Object.assign(moteurMontageVideoLongue, creerMoteurVideoLongue((c) => dependancesVideoLongue(c)));
+  const moteur = creerMoteurVideoLongue((c, t) => dependancesVideoLongue(c, t));
+  // Lancement et avancement relisent le réglage (attendu) : jamais de pause posée sur une valeur périmée.
+  Object.assign(moteurMontageVideoLongue, moteur, {
+    lancer: async (...a: Parameters<typeof moteur.lancer>) => (await rafraichirVideoLongueActif(), moteur.lancer(...a)),
+    avancer: async (...a: Parameters<typeof moteur.avancer>) => (await rafraichirVideoLongueActif(), moteur.avancer(...a)),
+    retoucher: async (...a: Parameters<typeof moteur.retoucher>) => (await rafraichirVideoLongueActif(), moteur.retoucher(...a)),
+    reexporter: async (...a: Parameters<typeof moteur.reexporter>) => (await rafraichirVideoLongueActif(), moteur.reexporter(...a)),
+  });
   rafraichirActif();
 }
 

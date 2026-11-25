@@ -193,6 +193,7 @@ async function amont() {
     const dep: DependancesDepotTutoriel = {
       interrupteurs: async () => ({ formulaire: true, dossier: true, phrase: false }),
       fichier: async (id) => ({ id, nom: "atelier.zip", taille: zip.length, cleStockage: `essai/${id}.zip` }),
+      equipe: async () => true,
       octets: async () => zip,
       extraire: (o, opts) => extraireZipSur(o, opts, PORTS_MEMOIRE),
       brouillon: async () => {

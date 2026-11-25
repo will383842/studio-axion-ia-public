@@ -11,7 +11,8 @@ export const DOMAINE: Domaine = {
   },
   constantes: [
     { cle: "varieteCommune", etat: "eteint", appel: "src/services/variete-commune/lire-reglage.ts", declare: "src/briques/variete-commune/reglage.ts", motif: /lireParametre<unknown>\(cle, false\)/ }, // BR-TABLEAU-STYLE-b2 : seul true ou { seuil } allume
-    { cle: "habillage.transitionsPlanScenes", etat: "eteint", appel: "src/briques/motion/habillage-commun/reglage.ts", motif: /estAllume\(await lire\(/ },
+    // (a) ALLUMER-CAS-CONCRET-GRATUITS-v21o : allumée par défaut depuis ALLUMER-TRANSITIONS-CC-v20g ; l'ancien motif `estAllume(await lire(` visait les deux AUTRES clés (reglage.ts:22).
+    { cle: "habillage.transitionsPlanScenes", etat: "allume", appel: "src/briques/motion/habillage-commun/reglage.ts", motif: /nom === "transitionsPlanScenes"\) return \(await lire\(CLES_REGLAGE_HABILLAGE\[nom\], true\)\) !== false;/ },
     { cle: "pioche.commune", etat: "eteint", appel: "src/services/pioche-commune.ts", motif: /lireParametre<unknown>\(PARAM_PIOCHE_COMMUNE, false\)\) !== true/ },
     { cle: "couverture.titreParDefaut", etat: "eteint", appel: "src/services/miniatures.ts", declare: "src/domaine/vignettes.ts", motif: /lireParametre<boolean>\(REGLAGE_TITRE_COUVERTURE, false\)\) !== true/ },
     { cle: "planScenes.facecamDessin", etat: "allume", appel: "src/briques/plan-scenes-generateurs/dessin-facecam-porte.ts", motif: /lire\(CLE_REGLAGE_DESSIN_FACECAM, true\)\) !== false/ },
@@ -27,11 +28,27 @@ export const DOMAINE: Domaine = {
       declare: /cleEconomique = \(videoId: Id\) => `illustrations\.economique\.\$\{videoId\}`/,
     },
     {
-      // Défaut `undefined` → `interpreterReglageBibliotheque` rend `{ actif: false }` (seul `true` ou `{ capacites }` allume).
+      // Défaut `undefined` → `lireReglageBibliotheque` prend `PAR_DEFAUT[formatId]` : éteint pour tout format SAUF « avocat » et « tableau-anime » (entrées ci-dessous) ; seul `true` ou `{ capacites }` allume.
       gabarit: "bibliothequeVideo.*",
       etat: "eteint",
       appel: "src/services/bibliotheque-video.ts",
       motif: /lireReglageBibliotheque\(video\.formatId, \(cle\) => lireParametre\(cle, undefined\)\);\s*if \(!reglage\.actif\) return \{\}/,
+    },
+    {
+      // (b) ALLUMER-CAS-CONCRET-GRATUITS-v21o : allumé par défaut depuis ALLUMER-BIBLIO-DEFAUTS-v20g (`PAR_DEFAUT`, reglage.ts:40) ; une valeur écrite en base l'emporte (reglage.ts:50, `declare`).
+      gabarit: "bibliothequeVideo.avocat",
+      etat: "allume",
+      appel: "src/briques/bibliotheque-video/reglage.ts",
+      motif: /avocat: \{ capacites: \["texte\.nom-outil-autonome", "texte\.sortie-animee", "texte\.style-varie"\] \},/,
+      declare: /interpreterReglageBibliotheque\(v === undefined \|\| v === null \? PAR_DEFAUT\[formatId\] : v\)/,
+    },
+    {
+      // (b) idem pour le tableau animé (sans effet tant que son profil garde ces objets non permis, reglage.ts:38).
+      gabarit: "bibliothequeVideo.tableau-anime",
+      etat: "allume",
+      appel: "src/briques/bibliotheque-video/reglage.ts",
+      motif: /"tableau-anime": \{ capacites: \["objet\.chiffre", "objet\.etape", "objet\.marque"\] \},/,
+      declare: /interpreterReglageBibliotheque\(v === undefined \|\| v === null \? PAR_DEFAUT\[formatId\] : v\)/,
     },
   ],
   planScenes: {
@@ -60,6 +77,6 @@ export const DOMAINE: Domaine = {
     "services/illustrations.ts:cleEconomique(videoId)": { couvre: "illustrations.economique.*" },
   },
   env: [],
-  nombre: { litterales: 3, constantes: 7, gabarits: 2, planScenes: 3, retouche: 0, exclusCles: 7, parExpression: 8, env: 0 },
+  nombre: { litterales: 3, constantes: 7, gabarits: 4, planScenes: 3, retouche: 0, exclusCles: 7, parExpression: 8, env: 0 },
   retirees: [],
 };
