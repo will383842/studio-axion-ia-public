@@ -85,8 +85,18 @@ import {
 
 const T0 = Date.UTC(2026, 10, 20, 9);
 const T_ISO = new Date(T0).toISOString();
-const VIDEO = "v-phrase";
-const TRAVAIL = "t-phrase";
+/** Identifiants propres à CHAQUE test (réattribués avant chacun) : un travail resté en vol d'un test précédent ne peut pas écrire dans le cahier du suivant. */
+let VIDEO = "v-phrase-0";
+let TRAVAIL = "t-phrase-0";
+let numeroDeTest = 0;
+/** Opérations du « monde » (avancer, ranger) encore en cours : on les attend avant de vider les dépôts. */
+const enVol = new Set<Promise<unknown>>();
+const suivre = <T,>(p: Promise<T>): Promise<T> => {
+  enVol.add(p);
+  const retire = () => void enVol.delete(p);
+  p.then(retire, retire);
+  return p;
+};
 
 /** Fait casser le test avec le NOM du maillon (règle de la fiche : on nomme, on ne répare pas). */
 function maillon(nom: string, raison: string): never {
@@ -120,6 +130,8 @@ let appelsReseau = 0;
 
 /** Tout ce qu'il faut pour mener UNE vidéo partie d'une phrase : dépôt réel, moteur réel, doubles comptés. */
 async function monde(phrase: string, options: Options = {}) {
+  const video = VIDEO;
+  const travailId = TRAVAIL;
   const reglages = options.reglages ?? TOUT_ALLUME;
   const lire = async <T,>(id: string, defaut: T): Promise<T> => (id in reglages ? (reglages[id] as T) : defaut);
   const flux = phrase === PHRASE_TRI;
@@ -137,10 +149,10 @@ async function monde(phrase: string, options: Options = {}) {
       equipe: async () => true,
       brouillon: async (e) => {
         entrees = e.entrees;
-        return { id: VIDEO };
+        return { id: video };
       },
       ratios: async () => undefined,
-      lancer: async () => ({ statut: "lancee", travailId: TRAVAIL }),
+      lancer: async () => ({ statut: "lancee", travailId }),
       abandonner: async () => undefined,
     },
   );
@@ -164,7 +176,7 @@ async function monde(phrase: string, options: Options = {}) {
   let navigation: unknown;
   let textesPlan: [string, string] = ["", ""];
   const commande = (): CommandeFabrication =>
-    commandeTutoriel({ videoId: VIDEO, ratios: ["4:5"], script: { blocs: [], texteComplet: "" }, entrees: { [ENTREE_TUTORIEL]: { ...((entrees?.[ENTREE_TUTORIEL] as object | undefined) ?? {}), ...(navigation ? { navigationFilmee: navigation } : {}) } } });
+    commandeTutoriel({ videoId: video, ratios: ["4:5"], script: { blocs: [], texteComplet: "" }, entrees: { [ENTREE_TUTORIEL]: { ...((entrees?.[ENTREE_TUTORIEL] as object | undefined) ?? {}), ...(navigation ? { navigationFilmee: navigation } : {}) } } });
   const base = outilsDoubles(journal, { renduEchecs: options.renduEchecs });
   const voixDoubles = base.voix!;
   const voixBase = voixDoubles.voix();
@@ -177,7 +189,7 @@ async function monde(phrase: string, options: Options = {}) {
   };
   const outils = async (): Promise<OutilsTutoriel> => {
     const c = commande();
-    const equipe = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, VIDEO, { executer, lire }) : undefined;
+    const equipe = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, video, { executer, lire }) : undefined;
     return {
       ...base,
       voix: { ...voixDoubles, voix: () => voix as unknown as ReturnType<typeof voixDoubles.voix> },
@@ -191,16 +203,16 @@ async function monde(phrase: string, options: Options = {}) {
   const moteur = creerMoteurTutorielOutil({ outils });
 
   /* ---- Le travail vit dans le dépôt en mémoire (les gestes de validation de 33 le lisent là) ---- */
-  const travail = async (): Promise<Travail> => (await depots().travaux.obtenir(TRAVAIL)) as Travail;
-  const ranger = async (t: Travail) => void (await depots().travaux.enregistrer(t));
+  const travail = async (): Promise<Travail> => (await depots().travaux.obtenir(travailId)) as Travail;
+  const ranger = (t: Travail) => suivre((async () => void (await depots().travaux.enregistrer(t)))());
   let tours = 0;
   let resultat: Awaited<ReturnType<typeof moteur.avancer>>["resultat"];
-  if (depot.statut === "lancee") await ranger(await moteur.lancer(commande(), { travailId: TRAVAIL, versionId: "ver-1", titre: phrase, maintenant: T0 }));
+  if (depot.statut === "lancee") await ranger(await moteur.lancer(commande(), { travailId, versionId: "ver-1", titre: phrase, maintenant: T0 }));
   /** Avance jusqu'à une pause, un échec ou la fin. */
   const mener = async (): Promise<Travail> => {
     let t = await travail();
     for (let i = 0; i < 500; i++) {
-      const r = await moteur.avancer(t, commande(), T0 + tours++ * 1000);
+      const r = await suivre(moteur.avancer(t, commande(), T0 + tours++ * 1000));
       t = r.travail;
       resultat = r.resultat ?? resultat;
       if (["termine", "echec", "annule"].includes(t.statut) || t.parametres?.pause) break;
@@ -255,11 +267,11 @@ async function monde(phrase: string, options: Options = {}) {
   /** Le test dépose l'aperçu fabriqué par le poste : `apercu-piece.json` et ses images (vrai `enregistrerApercu`). */
   const deposerApercu = async (sortie: string) => {
     const json = JSON.parse(readFileSync(join(sortie, NOM_FICHIER_APERCU), "utf8")) as { images: { cle: string }[] };
-    const fichier = (id: string, nom: string): Fichier => ({ id, nom, mime: nom.endsWith(".json") ? "application/json" : "image/png", taille: 10, origine: "depot", statut: "pret", cleStockage: `studio/test/entree/${VIDEO}/${id}`, creeLe: T_ISO, modifieLe: T_ISO }) as unknown as Fichier;
+    const fichier = (id: string, nom: string): Fichier => ({ id, nom, mime: nom.endsWith(".json") ? "application/json" : "image/png", taille: 10, origine: "depot", statut: "pret", cleStockage: `studio/test/entree/${video}/${id}`, creeLe: T_ISO, modifieLe: T_ISO }) as unknown as Fichier;
     const lot = `${deposes.size}`;
     deposes.set(`f-json-${lot}`, { fichier: fichier(`f-json-${lot}`, NOM_FICHIER_APERCU), json });
     json.images.forEach((im, i) => deposes.set(`f-img-${lot}-${i}`, { fichier: fichier(`f-img-${lot}-${i}`, basename(im.cle)) }));
-    return enregistrerApercu(VIDEO, [...deposes.keys()].filter((k) => k.endsWith(`-${lot}`) || k.includes(`-${lot}-`)), ecran);
+    return enregistrerApercu(video, [...deposes.keys()].filter((k) => k.endsWith(`-${lot}`) || k.includes(`-${lot}-`)), ecran);
   };
 
   return {
@@ -325,13 +337,18 @@ async function duScriptALaVideo(m: Monde, avantLeFilm?: () => Promise<void>) {
 
 beforeEach(() => {
   reinitialiserDepots();
+  numeroDeTest++;
+  VIDEO = `v-phrase-${numeroDeTest}`;
+  TRAVAIL = `t-phrase-${numeroDeTest}`;
   appelsReseau = 0;
   vi.stubGlobal("fetch", () => {
     appelsReseau++;
     throw new Error("fetch interdit : l'essai « phrase » est à 0 €");
   });
 });
-afterEach(() => {
+afterEach(async () => {
+  // Rien ne doit rester en vol quand le test suivant remet les dépôts à zéro.
+  await Promise.allSettled([...enVol]);
   // Aucun réseau : un seul appel à `fetch`, même rattrapé par la production, fait échouer le test.
   expect(appelsReseau, "appels réseau pendant l'essai").toBe(0);
 });

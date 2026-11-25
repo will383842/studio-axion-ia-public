@@ -39,7 +39,7 @@ COPY outils/maquettes-tableaux-de-bord/capture /app/outils/maquettes-tableaux-de
 COPY outils/maquettes-tableaux-de-bord/poste /app/outils/maquettes-tableaux-de-bord/poste
 COPY src/moteurs/montage-tutoriel-outil/scenario-maquette.ts src/moteurs/montage-tutoriel-outil/etapes-tutoriel.ts /app/src/moteurs/montage-tutoriel-outil/
 COPY src/app/polices/manrope-latin.woff2 /app/src/app/polices/manrope-latin.woff2
-# Point d'entrée : borne /sortie, choisit le mode (capturer | decompresser), applique le `timeout`.
+# Point d'entrée : borne /sortie, choisit le mode (capturer | decompresser | verifier), applique le `timeout`.
 COPY --chmod=0555 deploiement/studio-capture/lancer.sh /app/lancer.sh
 
 # Points de montage (le système de fichiers est en lecture seule à l'exécution) : la maquette et sa charte (../charte)
@@ -64,6 +64,6 @@ RUN test "$(id -u pwuser)" = "1001" && test "$(id -g pwuser)" = "1001"
 USER 1001:1001
 RUN --network=none env CI=true node_modules/.bin/tsx outils/maquettes-tableaux-de-bord/poste/verifier-poste.mts --sortie /tmp/poste-construction
 
-# Durée bornée par lancer.sh (capturer : 15 min, decompresser : 5 min, chacun SIGTERM puis SIGKILL 30 s après) ; le compose n'a
+# Durée bornée par lancer.sh (capturer : 15 min, decompresser : 5 min, verifier : 1 min, chacun SIGTERM puis SIGKILL 30 s après) ; le compose n'a
 # pas de limite de durée. Arguments : voir le commentaire du service dans docker-compose.yml. Jamais `--entrypoint`.
 ENTRYPOINT ["/app/lancer.sh"]

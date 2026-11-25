@@ -57,7 +57,7 @@ const extraire = vi.fn(async (octets: Uint8Array, o: { attestationImages: boolea
 let cleStockage = "cle-a";
 let interrupteur = true;
 
-vi.mock("@/services/fichiers", () => ({ fichierEnvoye: vi.fn(async () => ({ cleStockage })) }));
+vi.mock("@/services/tutoriel-dossier-fond", () => ({ fichierDepotSansSession: vi.fn(async () => ({ cleStockage })) }));
 vi.mock("@/services/_commun", () => ({ fournisseur: vi.fn(async () => ({ urlLecture: async (c: string) => `https://exemple.invalide/${c}` })) }));
 vi.mock("@/services/zip-tutoriel", async (orig) => ({
   ...(await orig<object>()),
