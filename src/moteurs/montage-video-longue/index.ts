@@ -5,12 +5,18 @@
  * Le script validé est lu tel quel (`entrees.ts`). Plan 16:9 et rendu par plage : VL-05. Branchements réels : VL-07
  * (montage réel relié pour le mode SANS voix seulement, derrière le réglage éteint). L'étape « montage » avance PAS À PAS
  * (FIN-8) : chaque `avancer` soumet une plage ou relit un état, puis revient ; l'étape n'est faite qu'une fois le collage fini.
+ * QUALITÉ (QUALL-5) : la Qualité affichée sur une vidéo ratée venait d'un 80 en dur qui ne regardait ni le plan ni l'image.
+ * Elle est désormais recalculée, purement, depuis l'état : story-board reconstruit puis `controlerStoryboard` (note et alertes).
  */
 import type { CommandeFabrication } from "@/domaine/types";
 import { ZERO } from "@/lib/montants";
 import type { SortieProduite } from "../types";
 import { creerMoteurGabarit, type DefinitionGabarit } from "../gabarit";
 import { lireEntreesVideoLongue, type EntreesVideoLongue } from "./entrees";
+import { controlerStoryboard } from "./controle";
+import { alertesQualiteDepuisControle } from "./controle-alertes";
+import { poserScene, poserSousTitre } from "./mise-en-page";
+import { storyboardVideoLongue } from "./storyboard";
 import { avancerVideoLongue, estimerMotsSansVoix, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
 
 export { COMPOSITION_VIDEO_LONGUE } from "./chaine";
@@ -38,6 +44,13 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     resultat(commande, etat) {
       const duree = etat.voix?.dureeSec ?? 0;
       const sansVoix = lireEntreesVideoLongue(commande).sansVoix;
+      // Qualité : recalculée depuis l'état (mots, chapitres, durée, question). Sans voix ni chapitres : note d'avant (80).
+      const controle =
+        etat.voix && etat.chapitres?.length
+          ? controlerStoryboard(storyboardVideoLongue({ question: lireEntreesVideoLongue(commande).question ?? null }, { mots: etat.voix.mots, chapitres: etat.chapitres, dureeSec: etat.voix.dureeSec }), { scene: poserScene, sousTitre: poserSousTitre })
+          : undefined;
+      const note = controle?.note ?? 80;
+      const alertesControle = controle ? alertesQualiteDepuisControle(controle) : [];
       const sorties: SortieProduite[] = commande.ratios
         .filter((r) => etat.sorties[r])
         .map((ratio) => ({
@@ -47,13 +60,13 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
           resolution: "1920x1080",
           dureeSec: duree,
           taille: 0,
-          rapportQualite: { note: 80, verifie: { image: true, son: !sansVoix, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: [], niveauSonoreLufs: sansVoix ? -70 : -14 },
+          rapportQualite: { note, verifie: { image: true, son: !sansVoix, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: alertesControle, niveauSonoreLufs: sansVoix ? -70 : -14 },
         }));
-      const alertes = etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message }));
+      const alertes = [...etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message })), ...alertesControle];
       const reprise: RepriseVideoLongue | undefined = etat.voix && etat.chapitres ? { voix: etat.voix, chapitres: etat.chapitres } : undefined;
       return {
         sorties,
-        noteQualite: { globale: 80, alertes },
+        noteQualite: { globale: note, alertes },
         lignesReelles: [{ etape: "Montage vidéo longue", fournisseur: "studio", unite: "forfait", quantite: 1, prixUnitaire: ZERO, total: ZERO, nature: "reel" }],
         projetMontage: { version: "video-longue-1", ...(reprise ? { reprise } : {}) },
       };

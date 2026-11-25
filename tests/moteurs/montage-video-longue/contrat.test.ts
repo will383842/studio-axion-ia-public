@@ -99,7 +99,7 @@ describe("VL-04 · chaîne branchée sur des doubles", () => {
     const lu = appels.voix.map((m) => m.texte).join(" ");
     for (const n of [1, 2, 3]) expect(lu).toContain(chapitre(n).texte);
     expect(fin.resultat!.sorties.map((s) => `${s.ratio} ${s.resolution}`)).toEqual(["16:9 1920x1080"]);
-    expect(fin.resultat!.noteQualite.alertes.every((a) => a.gravite === "info")).toBe(true);
+    expect(fin.resultat!.noteQualite.alertes.every((a) => a.gravite !== "bloquant")).toBe(true);
     expect(fin.resultat!.lignesReelles.every((l) => l.total.centimes === 0)).toBe(true);
   });
 
