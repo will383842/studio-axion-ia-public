@@ -58,3 +58,206 @@ export const PLAN_SANS_VOIX_STOCKS: PlanComposeSansVoix = {
     { id: "s4", genre: "appel", debutMs: 38000, finMs: 41400, mots: { premier: 96, dernier: 106 }, question: "Vous voulez le même pour votre entreprise ?", bouton: "Prenez rendez-vous", clicAMs: 40300 },
   ],
 };
+
+/** Plan RÉEL du rendu de contrôle du tour 4 (sortie de QUAL-2 sur le script du fondateur) : alerte à 32,1 s alors que l'écran
+ *  se termine à 33,8 s ; clic de liste à 22 s ; « une minute » dit AVANT « une heure ». Sert aux tests de timing réel. */
+const REEL_BRUT = {
+ "version": "sans-voix-1",
+ "format": {
+  "largeur": 1080,
+  "hauteur": 1350,
+  "fps": 25
+ },
+ "dureeMs": 41925,
+ "basPct": 87,
+ "scenes": [
+  {
+   "id": "s1-titre",
+   "genre": "titre",
+   "texte": "Suivre ses stocks avec un tableau de bord simple",
+   "surTitre": "Vous perdez du temps à compter vos stocks à la main ?",
+   "mots": {
+    "premier": 0,
+    "dernier": 10
+   },
+   "debutMs": 0,
+   "finMs": 4795
+  },
+  {
+   "id": "s2-ecran",
+   "genre": "ecran",
+   "titreFenetre": "Tableau de bord",
+   "evenements": [
+    {
+     "genre": "cartes-chiffres",
+     "aMs": 9671,
+     "cartes": [
+      {
+       "libelle": "Articles en stock",
+       "aMs": 11289,
+       "source": {
+        "premier": 26,
+        "dernier": 28
+       }
+      },
+      {
+       "libelle": "Passent sous le seuil",
+       "aMs": 13292,
+       "source": {
+        "premier": 31,
+        "dernier": 34
+       }
+      },
+      {
+       "libelle": "Valeur totale",
+       "aMs": 15680,
+       "source": {
+        "premier": 37,
+        "dernier": 38
+       }
+      }
+     ]
+    },
+    {
+     "genre": "liste",
+     "aMs": 18248,
+     "titre": "Articles à commander",
+     "lignes": 4,
+     "source": {
+      "premier": 43,
+      "dernier": 47
+     }
+    },
+    {
+     "genre": "tri",
+     "aMs": 20251,
+     "etiquette": "Par urgence",
+     "source": {
+      "premier": 48,
+      "dernier": 50
+     }
+    },
+    {
+     "genre": "clic",
+     "aMs": 21969,
+     "cible": "ligne-1",
+     "source": {
+      "premier": 52,
+      "dernier": 55
+     }
+    },
+    {
+     "genre": "panneau",
+     "aMs": 23508,
+     "titre": "Historique",
+     "rubriques": [
+      {
+       "libelle": "Entrées",
+       "aMs": 25126,
+       "source": {
+        "premier": 59,
+        "dernier": 59
+       }
+      },
+      {
+       "libelle": "Sorties",
+       "aMs": 25591,
+       "source": {
+        "premier": 60,
+        "dernier": 60
+       }
+      },
+      {
+       "libelle": "Date de la prochaine rupture prévue",
+       "aMs": 26440,
+       "source": {
+        "premier": 62,
+        "dernier": 67
+       }
+      }
+     ],
+     "source": {
+      "premier": 56,
+      "dernier": 67
+     }
+    },
+    {
+     "genre": "alerte",
+     "aMs": 32085,
+     "texte": "Un article passe sous le seuil",
+     "source": {
+      "premier": 69,
+      "dernier": 76
+     },
+     "cartePulse": 1
+    },
+    {
+     "genre": "focus",
+     "aMs": 4795,
+     "finMs": 8595,
+     "cible": "ensemble",
+     "source": {
+      "premier": 11,
+      "dernier": 20
+     }
+    },
+    {
+     "genre": "focus",
+     "aMs": 8822,
+     "finMs": 16403,
+     "cible": "cartes",
+     "source": {
+      "premier": 21,
+      "dernier": 38
+     }
+    },
+    {
+     "genre": "focus",
+     "aMs": 16629,
+     "finMs": 21358,
+     "cible": "liste",
+     "source": {
+      "premier": 39,
+      "dernier": 50
+     }
+    }
+   ],
+   "mots": {
+    "premier": 11,
+    "dernier": 79
+   },
+   "debutMs": 4795,
+   "finMs": 33803
+  },
+  {
+   "id": "s3-repere",
+   "genre": "repere",
+   "avant": "une heure",
+   "apres": "une minute",
+   "barreAMs": 36495,
+   "apresAMs": 34957,
+   "mots": {
+    "premier": 80,
+    "dernier": 88
+   },
+   "debutMs": 33803,
+   "finMs": 37445
+  },
+  {
+   "id": "s4-appel",
+   "genre": "appel",
+   "question": "Vous voulez le même pour votre entreprise ?",
+   "bouton": "Prendre rendez-vous",
+   "clicAMs": 41086,
+   "mots": {
+    "premier": 89,
+    "dernier": 97
+   },
+   "debutMs": 37445,
+   "finMs": 41925
+  }
+ ]
+} as unknown as PlanComposeSansVoix;
+
+/** Mêmes scènes, identifiants normalisés en s1..s4 (comme la fixture à la main). */
+export const PLAN_SANS_VOIX_REEL: PlanComposeSansVoix = { ...REEL_BRUT, scenes: REEL_BRUT.scenes.map((sc, i) => ({ ...sc, id: `s${i + 1}` })) };

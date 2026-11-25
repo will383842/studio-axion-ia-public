@@ -72,7 +72,15 @@ export type SceneSansVoix =
   /** « en X au lieu de Y » : Y barré (gris) puis X qui monte. */
   | (BaseScene & { genre: "repere"; avant: string; apres: string; barreAMs: number; apresAMs: number })
   /** Question finale + appel : texte de la question puis bouton pilule cliqué par un curseur. */
-  | (BaseScene & { genre: "appel"; question?: string; bouton: string; clicAMs: number })
+  | (BaseScene & {
+      genre: "appel";
+      question?: string;
+      bouton: string;
+      clicAMs: number;
+      /** Libellé de la carte de fin (ex. « axion-ia.com ») : texte PERMIS (comme le libellé de fin), affiché sous le bouton
+       *  (≥ 36 px) une fois le clic fait. La scène peut durer jusqu'à la fin de la vidéo (elle absorbe la carte de fin). */
+      site?: string;
+    })
   /** Repli générique : le groupe nominal principal de la phrase sur une carte ivoire avec filet (jamais un fond nu). */
   | (BaseScene & { genre: "carte-phrase"; texte: string });
 
@@ -142,6 +150,8 @@ export interface ElementVisible {
    *  Le contrôle de composition doit le signaler ; la mise en page change d'abord de disposition avant de couper. */
   tronque?: true;
   texteSource?: string;
+  /** Un mot a été coupé par un trait d'union (césure : « Réapprovi- » « sionnements »). Ne pas confondre avec une coupe du cadre. */
+  cesure?: true;
   /** Texte barré (repère « avant ») : part 0..1 du trait terracotta déjà tracé. */
   barre?: number;
   /** Forme « filet » ou barre squelette qui se trace/pousse : part 0..1. */
