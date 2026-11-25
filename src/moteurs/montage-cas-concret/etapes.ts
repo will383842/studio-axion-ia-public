@@ -74,6 +74,7 @@ export interface EntreesCasConcret {
   cameraPlus?: number;
   /** BR-TRANSITIONS-CC-a · transitions dessinées entre écrans, figées au lancement par `habillage.transitionsPlanScenes` ; absent : coupes sèches. */
   habillageTransitions?: true;
+  boucleEffet?: true; // BOUCLE-EFFET-b : fin en boucle permise (seul `true`) ; absent : fin propre habituelle
   /** FIX-CC-FIN-CHOIX-b1 · « La phrase de fin » choisie (D1) ; absent : aucune fin. */
   finDemandee?: "rendez-vous";
   /**
@@ -111,6 +112,7 @@ export function lireEntreesCasConcret(entrees: CommandeFabrication["entrees"] | 
     ...(porte === "porte-b" && Array.isArray(b.faitsConfirmes) ? { faitsConfirmes: b.faitsConfirmes.filter(texteNonVide) } : {}),
     ...(lireCameraPlus(b.cameraPlus) !== undefined ? { cameraPlus: lireCameraPlus(b.cameraPlus) } : {}),
     ...(b.habillageTransitions === true ? { habillageTransitions: true as const } : {}),
+    ...(b.boucleEffet === true ? { boucleEffet: true as const } : {}),
     ...(lireFinDemandee(b.finDemandee) ? { finDemandee: "rendez-vous" as const } : {}),
     ...(b.sansVoix === true ? { sansVoix: true as const } : {}),
   };
