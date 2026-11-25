@@ -12,7 +12,7 @@ import { formatAvocat, RECETTE_MONTAGE_AVOCAT } from "@/formats/avocat";
 import { RECETTE_COMPOSITION_AVOCAT } from "@/moteurs/montage-avocat/recette-composition";
 import type { PlanProduit } from "@/moteurs/types";
 import { parametresComposition } from "@/briques/composition";
-import { NOIR_BLANC_ACTIF, plagesNoirBlancDesFaits } from "@/briques/composition/plages-noir-blanc";
+import { NOIR_BLANC_ACTIF } from "@/briques/composition/plages-noir-blanc";
 
 // La constante de la pièce a reste fausse en vrai ; ce double la lit par un getter pour (b) à (f).
 const MAINTENANT = "2026-10-02T08:00:00.000Z";
@@ -25,7 +25,6 @@ function mots(debuts: Record<number, number> = {}): MotHorodate[] {
     return { mot, debutSec, finSec: debutSec + 0.3 };
   });
 }
-const enMs = (m: MotHorodate[]) => m.map((x) => ({ texte: x.mot, debutMs: Math.round(x.debutSec * 1000), finMs: Math.round(x.finSec * 1000) }));
 
 function plan(ordre: number, de: number, a: number, extra: Partial<PlanProduit> = {}): PlanProduit {
   return { ordre, debutSec: de, finSec: a, texte: "texte", segmentId: `s${ordre}`, sourceImage: "double", motsEnValeur: [], cadrage: { pointInteret: { x: 0.5, y: 0.38 }, zoom: 1, valeur: "large" }, transition: "coupe", angle: "trois-quarts", ...extra };
