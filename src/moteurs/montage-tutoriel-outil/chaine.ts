@@ -26,6 +26,7 @@ import { planNiveau1, planNu } from "@/briques/plan-scenes/plan-nu";
 import { baseRetenue, donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
 import { avancerVoixMaitre, type EtatVoixMaitre, type OutilsVoixMaitre } from "@/briques/voix-maitre/machine";
 import { exigerVoixMaitre, VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/voix-epinglee";
+import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import type { AudioMaitre } from "@/briques/voix-maitre/types";
 import { horodaterTexte } from "@/domaine/derivations";
 import type { BaseSousTitres, CommandeFabrication, IntensiteSousTitres, MotHorodate, Ratio, SegmentSousTitres, ValeurStyleSousTitres } from "@/domaine/types";
@@ -67,8 +68,8 @@ export const ESSAIS_RENDU_TUTORIEL = 3;
 /** La voix : mêmes outils que la sous-machine `voix-maitre` (comme le tableau animé), plus la clé des fichiers. */
 export type OutilsVoixTutoriel = Pick<
   OutilsVoixMaitre,
-  "voix" | "stockage" | "aligneur" | "rendu" | "renduEstSimule" | "idVoix" | "reglages" | "tauxUsdEur" | "fournisseurVoix" | "caler" | "regles" | "erreurStockage" | "ressemblance" | "avantLecture"
-> & { cle: (nom: string) => string };
+  "voix" | "stockage" | "aligneur" | "rendu" | "renduEstSimule" | "idVoix" | "reglages" | "tauxUsdEur" | "fournisseurVoix" | "caler" | "regles" | "erreurStockage" | "ressemblance"
+> & { cle: (nom: string) => string; avantLecture?: (l: { caracteres: number; lecturesMax: number }) => void | Promise<void> };
 
 export interface OutilsTutoriel {
   /** Absente : aucune voix reliée (la vidéo sort muette, avec une réserve). */
@@ -494,7 +495,7 @@ export function outilsVoixMaitre(o: OutilsVoixTutoriel, commande: CommandeFabric
     avantLecture: async () => {
       // Voix HeyGen épinglée, rien d'autre (L1-05) : refus avant toute dépense.
       exigerVoixMaitre(o.fournisseurVoix ?? "heygen", o.idVoix);
-      await o.avantLecture?.();
+      await o.avantLecture?.({ caracteres: texteLu(texte, commande.prononciations).length, lecturesMax: lecturesVoixMax(o.ressemblance) });
     },
   };
 }

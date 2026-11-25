@@ -45,3 +45,13 @@ export function pavePermis(entrees: unknown): boolean {
     return false;
   }
 }
+
+/** K2-T2-b2 : sous-titres sélectifs (les groupes sans nombre ni mot fort n'affichent plus de mots), seulement si la capacité est permise. */
+export function selectifPermis(entrees: unknown): boolean {
+  try {
+    const p = porteCapacite(entrees, ID.texteSelectif);
+    return p.bibliotheque === true && p.permis === true;
+  } catch {
+    return false;
+  }
+}

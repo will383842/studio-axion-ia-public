@@ -5,7 +5,7 @@
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import type { DefinitionObjet } from "./contrat";
 import { phaseObjet } from "./progres";
 import { couleurDuTon } from "./tons";
@@ -105,11 +105,11 @@ export const OBJET_GROS_CHIFFRE: DefinitionObjet<ParametresGrosChiffre> = {
     return (
       <svg viewBox={`0 0 ${L} ${H}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <g opacity={phase.opacite}>
-          <text data-role="chiffre" x={500} y={520} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur}>
+          <text data-role="chiffre" x={500} y={520} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur}>
             {affiche}
           </text>
           {parametres.unite ? (
-            <text data-role="unite" x={500} y={600} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={600} fontSize={TAILLE_UNITE} fill={couleur}>
+            <text data-role="unite" x={500} y={600} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={600} fontSize={TAILLE_UNITE} fill={couleur}>
               {parametres.unite}
             </text>
           ) : null}
