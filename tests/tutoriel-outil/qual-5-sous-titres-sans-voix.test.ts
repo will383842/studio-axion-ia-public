@@ -4,7 +4,7 @@ import { fabriquerSousTitres } from "@/briques/sous-titres";
 import { horodaterTexte } from "@/domaine/derivations";
 import { planCarteFin } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
-import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "@/moteurs/montage-tutoriel-outil/sous-titres-sans-voix";
+import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix, viderDoublonsAffiches } from "@/moteurs/montage-tutoriel-outil/sous-titres-sans-voix";
 
 const TEXTE = "Vous perdez du temps à compter vos stocks à la main ? Voici un tableau de bord qui le fait pour vous. En haut, trois chiffres : les articles en stock, ceux qui passent sous le seuil, et la valeur totale. Vous décidez en une minute au lieu d'une heure.";
 
@@ -22,16 +22,50 @@ describe("sous-titres sans voix", () => {
     expect(o.style.largeurMaxPct).toBe(90);
   });
 
-  it("groupes de 3 à 6 mots, aucun accent après normalisation", () => {
+  it("groupes par proposition : 4 à 9 mots, aucun accent après normalisation", () => {
     const s = normaliserSegments(segments());
     expect(s.length).toBeGreaterThan(3);
-    for (const g of s.slice(0, -1)) expect(g.mots.length).toBeGreaterThanOrEqual(2);
     for (const g of s) {
-      expect(g.mots.length).toBeLessThanOrEqual(6);
+      expect(g.mots.length).toBeLessThanOrEqual(9);
       expect(g.position).toBe("auto");
       expect(g.inclinaison).toBe(0);
       expect(g.style).toBe("base");
     }
+  });
+
+  it("fondateur : aucune carte < 3 mots sauf la dernière, toutes ≥ 1,5 s, jamais deux cartes à la fois, mots inchangés", () => {
+    const brut = segments();
+    const s = normaliserSegments(brut);
+    for (const g of s.slice(0, -1)) expect(g.mots.length).toBeGreaterThanOrEqual(3);
+    for (const g of s.slice(0, -1)) expect(g.finSec - g.debutSec).toBeGreaterThanOrEqual(1.5 - 1e-9);
+    s.slice(1).forEach((g, i) => expect(g.debutSec).toBeGreaterThanOrEqual(s[i].finSec - 1e-9));
+    expect(s.flatMap((g) => g.mots)).toEqual(brut.flatMap((g) => g.mots));
+    // coupe à la ponctuation : « à la main ? » n'est plus seul
+    const textes = s.map((g) => g.mots.map((m) => m.mot).join(" "));
+    expect(textes.some((t) => t === "à la main\u00A0?")).toBe(false);
+    const finsDePhrase = s.filter((g) => /[.?!]$/.test(g.mots.at(-1)!.mot)).length;
+    expect(finsDePhrase).toBeGreaterThanOrEqual(4);
+  });
+
+  it("doublons : la carte déjà affichée en grand (titre, question de l'appel) est vidée, bande et horaires conservés", () => {
+    const T2 = "Vous perdez du temps à compter vos stocks à la main\u00A0? Voici un tableau de bord qui le fait pour vous. Vous voulez le même pour votre entreprise\u00A0? Prenez rendez-vous.";
+    const mots = T2.split(" ").map((mot, i) => ({ mot, debutSec: i * 0.4, finSec: i * 0.4 + 0.38 }));
+    const brut = normaliserSegments([{ id: "x", debutSec: 0, finSec: 12, mots }]);
+    const n = brut.flatMap((g) => g.mots).length;
+    const iQ = brut.flatMap((g) => g.mots).findIndex((m) => m.mot === "voulez") - 1;
+    const plan = {
+      scenes: [
+        { genre: "titre", id: "a", debutMs: 0, finMs: 5000, mots: { premier: 0, dernier: 10 }, texte: "Suivre ses stocks", surTitre: "Vous perdez du temps à compter vos stocks à la main ?" },
+        { genre: "appel", id: "b", debutMs: 20000, finMs: 30000, mots: { premier: iQ, dernier: n - 1 }, question: "Vous voulez le même pour votre entreprise ?", bouton: "x", clicAMs: 1 },
+      ],
+    } as never;
+    const vide = viderDoublonsAffiches(brut, plan);
+    expect(vide.map((g) => [g.debutSec, g.finSec])).toEqual(brut.map((g) => [g.debutSec, g.finSec]));
+    const gardes = vide.filter((g) => g.mots.length).map((g) => g.mots.map((m) => m.mot).join(" "));
+    expect(gardes.join(" ")).toBe("Voici un tableau de bord qui le fait pour vous. Prenez rendez-vous.");
+    expect(vide.filter((g) => !g.mots.length).length).toBeGreaterThanOrEqual(2);
+    // sans correspondance de texte, rien n'est vidé
+    expect(viderDoublonsAffiches(brut, { scenes: [{ genre: "titre", id: "a", debutMs: 0, finMs: 5000, mots: { premier: 0, dernier: 10 }, texte: "Autre chose", surTitre: "Un autre texte" }] } as never)).toEqual(brut);
   });
 
   it("calque : bande réservée, couleurs charte, taille 60 px", () => {
@@ -90,10 +124,10 @@ describe("carte de fin sans voix (tour 4)", () => {
     expect(s.finMs).toBe(2500);
     expect(s.transition.sortie).toBe("fondu");
   });
-  it("sans voix composé : la scène dépasse la durée, la sortie n'est jamais jouée", () => {
-    const p = planCarteFin({ ...base, compositionSansVoix: {} as never });
-    expect(p.dureeMs).toBe(2500);
-    expect(p.scenes[0].finMs - p.scenes[0].transition.dureeMs).toBeGreaterThanOrEqual(2500);
+  it("sans voix composé : branche retirée, la carte est celle de la voix (durée du plan, voix inchangée)", () => {
+    const p = planCarteFin({ ...base, compositionSansVoix: {} as never } as never);
+    expect(p).toEqual(planCarteFin(base));
+    expect(p.scenes[0].finMs).toBe(2500);
     expect(p.scenes[0].parametres).toMatchObject({ texte: "Prendre rendez-vous" });
   });
 });

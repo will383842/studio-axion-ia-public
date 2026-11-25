@@ -69,14 +69,8 @@ export type ProprietesTutorielOutil = {
 };
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */
-export function planCarteFin(p: Pick<ProprietesTutorielOutil, "plan" | "fin" | "finMs"> & Partial<Pick<ProprietesTutorielOutil, "compositionSansVoix">>): PlanValide {
+export function planCarteFin(p: Pick<ProprietesTutorielOutil, "plan" | "fin" | "finMs">): PlanValide {
   const fin = p.fin ?? CARTE_FIN_AXION;
-  // QUAL-5 (tour 4) : en sans voix composé SEULEMENT, la carte reste à pleine opacité jusqu'à la dernière image. La pièce
-  // « légende » n'a ni bouton pilule terracotta ni fond plein (« bandeau » = noir, « étiquette » = panneau) : on garde le
-  // texte, mais la scène se prolonge au-delà de la durée du plan, de sorte que la transition de sortie (les dernières
-  // images de la scène) n'est jamais jouée. Le mode avec voix reste strictement identique.
-  const sansFondu = p.compositionSansVoix !== undefined;
-  const finSceneMs = sansFondu ? p.finMs + 2 * 400 : p.finMs;
   return {
     version: p.plan.version,
     format: p.plan.format,
@@ -91,7 +85,7 @@ export function planCarteFin(p: Pick<ProprietesTutorielOutil, "plan" | "fin" | "
         empreinte: "0000000000000000",
         mots: { premier: 0, dernier: 0 },
         debutMs: 0,
-        finMs: finSceneMs,
+        finMs: p.finMs,
         niveau: 1,
         position: "centre",
         transition: { entree: "fondu", sortie: "fondu", dureeMs: 400 },

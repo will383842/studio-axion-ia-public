@@ -54,7 +54,7 @@ import { controlerApresCalage } from "./equipe/controleur";
 import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
 import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
 import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
-import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix } from "./sous-titres-sans-voix";
+import { basPctSansVoix, calqueSansVoix, normaliserSegments, optionsSousTitresSansVoix, viderDoublonsAffiches } from "./sous-titres-sans-voix";
 import { composerPlanSansVoix } from "./plan-sans-voix";
 import { rectsSousTitresA } from "./geometrie-plan-valide";
 import { controlerComposition } from "../../briques/plan-scenes/tutoriel/controle-composition";
@@ -612,6 +612,8 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
     // Le plan composé couvre la parole ET la fin (2,5 s) : la scène « appel » dure jusqu'au bout, le plan nu a la MÊME durée.
     // Fin « rendez-vous » : la scène « appel » porte le libellé de la carte de fin Axion (« axion-ia.com »), affiché sous le bouton après le clic.
     const site = fin === "rendez-vous" ? CARTE_FIN_AXION.sousTitre : undefined;
+    // TODO QUAL-5 (tour 7, point 3) : poser aussi `marque: CARTE_FIN_AXION.titre` dès que le type `appel` de QUAL-1 porte `marque?: string`
+    // (pas encore sur origin/tdb/QUAL-1 à cette date).
     const dureeMs = (mots.at(-1)?.finMs ?? 0) + DUREE_CARTE_FIN_MS;
     for (const ratio of etat.ratios) {
       compose[ratio] = composerPlanSansVoix({ texte, mots, format: formatDuRatio(ratio), basPct: basPctSansVoix(ratio), dureeMs, ...(phraseTitre ? { phraseTitre } : {}), ...(fin ? { fin } : {}) }).plan;
@@ -688,7 +690,7 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
   const sousTitres =
     avecSousTitres && etat.sousTitres?.length
       ? etat.compose?.[ratio]
-        ? calqueSansVoix({ segments: etat.sousTitres, ratio, basPct: etat.compose[ratio].basPct, dureeMs: etat.compose[ratio].dureeMs })
+        ? calqueSansVoix({ segments: viderDoublonsAffiches(etat.sousTitres, etat.compose[ratio]), ratio, basPct: etat.compose[ratio].basPct, dureeMs: etat.compose[ratio].dureeMs })
         : donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) })
       : undefined;
   const compositionSansVoix = etat.compose?.[ratio];

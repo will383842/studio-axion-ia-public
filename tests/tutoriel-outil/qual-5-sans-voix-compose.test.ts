@@ -17,11 +17,11 @@ import { commandeTutoriel, outilsDoubles, une, type Journal } from "./doubles";
 
 const SCRIPT = "Vous perdez du temps à compter vos stocks à la main ? Voici un tableau de bord qui le fait pour vous. En haut, trois chiffres : les articles en stock, ceux qui passent sous le seuil, et la valeur totale. Juste en dessous, la liste des articles à commander, triée par urgence. Un clic sur un article ouvre son historique : entrées, sorties, et date de la prochaine rupture prévue. Quand un article passe sous le seuil, une alerte part toute seule. Vous décidez en une minute au lieu d'une heure. Vous voulez le même pour votre entreprise ? Prenez rendez-vous.";
 
-async function fabriquer(modeVoix?: "sans-voix", sup?: { avantMontage?: (e: EtatTutoriel) => EtatTutoriel; regarder?: boolean; ratios?: ("4:5" | "9:16")[]; navigation?: boolean }) {
+async function fabriquer(modeVoix?: "sans-voix", sup?: { avantMontage?: (e: EtatTutoriel) => EtatTutoriel; regarder?: boolean; ratios?: ("4:5" | "9:16")[]; navigation?: boolean; idee?: string }) {
   const c = commandeTutoriel({
     ratios: sup?.ratios ?? ["4:5"], dureeCibleSec: 45, ...(modeVoix ? { distribution: [] } : {}),
     script: { blocs: [], texteComplet: SCRIPT } as never,
-    entrees: { tutorielOutil: { scriptColle: true, ...(modeVoix ? { modeVoix } : {}), fin: "prendre-rendez-vous", idee: "Suivre ses stocks avec un tableau de bord simple" } },
+    entrees: { tutorielOutil: { scriptColle: true, ...(modeVoix ? { modeVoix } : {}), fin: "prendre-rendez-vous", idee: sup?.idee ?? "Suivre ses stocks avec un tableau de bord simple" } },
   });
   const journal: Journal = { voix: [], claude: [], rendus: [] };
   const o = outilsDoubles(journal);
@@ -64,6 +64,24 @@ describe("tutoriel sans voix composé", () => {
     expect(st.couleurs).toEqual({ texte: "#141413", accent: "#B23F16", contour: "#E8E6DC" });
     expect(st.bandeFond).toMatchObject({ couleur: "#E8E6DC", opacite: 1 });
     expect(st.segments.every((s) => s.position === "auto" && s.style === "base" && !s.inclinaison)).toBe(true);
+  });
+
+  it("tour 7 : cartes par proposition (≥ 1,5 s) ; la carte déjà affichée en grand (appel, titre) est vidée, la bande reste", async () => {
+    const { props, etat } = await fabriquer("sans-voix", { idee: "Vous perdez du temps à compter vos stocks à la main ?" });
+    const segs = props[0].sousTitres!.segments;
+    const pleines = segs.filter((g) => g.mots.length);
+    for (const g of pleines.slice(0, -1)) expect(g.mots.length).toBeGreaterThanOrEqual(3);
+    for (const g of segs.slice(0, -1)) expect(g.finSec - g.debutSec).toBeGreaterThanOrEqual(1.5 - 1e-9);
+    segs.slice(1).forEach((g, i) => expect(g.debutSec).toBeGreaterThanOrEqual(segs[i].finSec - 1e-9));
+    const textes = pleines.map((g) => g.mots.map((m) => m.mot).join(" "));
+    // la question de l'appel est dessinée en grand : pas de carte pour elle ; la dernière phrase reste sous-titrée
+    expect(textes.some((t) => t.includes("même pour votre entreprise"))).toBe(false);
+    expect(textes.at(-1)).toBe("Prenez rendez-vous.");
+    expect(segs.some((g) => g.mots.length === 0)).toBe(true);
+    // les cartes vidées gardent leurs horaires : les mots du plan (calage) ne bougent pas
+    expect(etat.motsPlan!.length).toBe(etat.sousTitres!.flatMap((g) => g.mots).length);
+    expect(props[0].fin).toBeUndefined();
+    expect(props[0].finMs).toBe(0);
   });
 
   it("contrôle de composition propre : 0 défaut, note 100", async () => {
@@ -184,4 +202,5 @@ describe("sans voix AVEC film de navigation : comportement de master (pas de pla
       expect(p.sousTitres?.bandeFond).toBeUndefined();
     }
   });
+
 });
