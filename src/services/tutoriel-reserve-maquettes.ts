@@ -41,13 +41,13 @@ export const MAQUETTES_DEMO: readonly MaquetteDemo[] = [
 const RACINE_MAQUETTES = ["outils", "maquettes-tableaux-de-bord"] as const;
 const RACINE_CHARTE = [...RACINE_MAQUETTES, "charte"] as const;
 const FICHIER_EXCLU = "PROVENANCE.md";
-const POLICE = "manrope-latin.woff2";
+export const POLICE = "manrope-latin.woff2";
 const LIEN_CHARTE_SOURCE = 'href="../charte/charte.css"';
 const LIEN_CHARTE_ZIP = 'href="charte/charte.css"';
 const POLICE_SOURCE = 'url("../../../src/app/polices/manrope-latin.woff2")';
 const POLICE_ZIP = 'url("manrope-latin.woff2")';
 /** Date fixe : le même dossier donne toujours les mêmes octets. */
-const DATE_ZIP = new Date(2026, 0, 1, 0, 0, 0);
+export const DATE_ZIP = new Date(2026, 0, 1, 0, 0, 0);
 const VALIDITE_DEPOT_SEC = 600;
 const MIME_ZIP = "application/zip";
 export const ENTITE_RESERVE = "tutoriel-reserve";
@@ -67,10 +67,32 @@ async function lireDossierParDefaut(chemin: string): Promise<{ nom: string; donn
 }
 
 /** Un fichier régulier (jamais un lien symbolique ni un dossier), sinon erreur. */
-async function lireFichierParDefaut(chemin: string): Promise<Buffer> {
+export async function lireFichierParDefaut(chemin: string): Promise<Buffer> {
   const st = await lstat(chemin);
   if (!st.isFile() || st.isSymbolicLink()) throw new Error("Pas un fichier régulier.");
   return readFile(chemin);
+}
+
+/**
+ * La charte (`charte.css`, déjà réécrite : la police se lit à côté du fichier) et la police Manrope, lues à l'exécution dans `outils/`.
+ * Deux fichiers, chemins constants : jamais un dossier entier. L'un des deux absent, ou la charte sans le lien de police attendu : refus.
+ * Partagé par le zip d'une maquette de démonstration et par celui d'une maquette créée depuis une phrase (PHRASE-3).
+ */
+export async function lireCharteEtPolice(lire: (chemin: string) => Promise<Buffer>): Promise<{ css: string; police: Uint8Array }> {
+  const racine = process.cwd();
+  const lireOuNull = async (chemin: string): Promise<Uint8Array | null> => {
+    try {
+      return new Uint8Array(await lire(chemin));
+    } catch {
+      return null;
+    }
+  };
+  const css = await lireOuNull(path.join(racine, ...RACINE_CHARTE, "charte.css"));
+  const police = (await lireOuNull(path.join(racine, ...RACINE_CHARTE, POLICE))) ?? (await lireOuNull(path.join(racine, "src", "app", "polices", POLICE)));
+  if (!css || !police) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte ou la police des maquettes de démonstration est introuvable.");
+  const texteCss = new TextDecoder("utf-8").decode(css);
+  if (!texteCss.includes(POLICE_SOURCE)) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte des maquettes de démonstration n'a pas la forme attendue.");
+  return { css: texteCss.split(POLICE_SOURCE).join(POLICE_ZIP), police };
 }
 
 /**
@@ -97,24 +119,10 @@ export async function zipDeMaquetteDemo(dossier: string, dep: { lireDossier?: (c
   if (index) {
     const html = new TextDecoder("utf-8").decode(index.donnees);
     if (html.includes(LIEN_CHARTE_SOURCE)) {
-      const lire = dep.lireFichier ?? lireFichierParDefaut;
-      const racine = process.cwd();
-      const lireOuNull = async (chemin: string): Promise<Uint8Array | null> => {
-        try {
-          return new Uint8Array(await lire(chemin));
-        } catch {
-          return null;
-        }
-      };
-      // Deux fichiers, chemins constants : jamais un dossier entier.
-      const css = { donnees: await lireOuNull(path.join(racine, ...RACINE_CHARTE, "charte.css")) };
-      const police = { donnees: (await lireOuNull(path.join(racine, ...RACINE_CHARTE, POLICE))) ?? (await lireOuNull(path.join(racine, "src", "app", "polices", POLICE))) };
-      if (!css.donnees || !police.donnees) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte ou la police des maquettes de démonstration est introuvable.");
-      const texteCss = new TextDecoder("utf-8").decode(css.donnees);
-      if (!texteCss.includes(POLICE_SOURCE)) throw new ErreurStudio("RESERVE_MAQUETTE", "La charte des maquettes de démonstration n'a pas la forme attendue.");
+      const { css, police } = await lireCharteEtPolice(dep.lireFichier ?? lireFichierParDefaut);
       index.donnees = new TextEncoder().encode(html.split(LIEN_CHARTE_SOURCE).join(LIEN_CHARTE_ZIP));
-      sortie.push({ nom: "charte/charte.css", donnees: new TextEncoder().encode(texteCss.split(POLICE_SOURCE).join(POLICE_ZIP)), date: DATE_ZIP });
-      sortie.push({ nom: `charte/${POLICE}`, donnees: police.donnees, date: DATE_ZIP });
+      sortie.push({ nom: "charte/charte.css", donnees: new TextEncoder().encode(css), date: DATE_ZIP });
+      sortie.push({ nom: `charte/${POLICE}`, donnees: police, date: DATE_ZIP });
     }
   }
   return creerZip(sortie);

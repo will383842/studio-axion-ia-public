@@ -190,7 +190,10 @@ async function monde(phrase: string, options: Options = {}) {
   };
   const outils = async (): Promise<OutilsTutoriel> => {
     const c = commande();
-    const equipe = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, video, { executer, lire }) : undefined;
+    // PHRASE-3 : ce essai garde le chemin du poste (aperçu et images déposés à la main) : sans le port « aperçu fait par le Studio », la pièce attend le dépôt.
+    // Le nouveau chemin (aperçu du Studio, sans geste) est prouvé par `capture-auto/phrase-piece-filmee.test.ts`.
+    const complet = (await equipeTutorielActive(lire)) ? await portsEquipeAvecPhrase(c, video, { executer, lire }) : undefined;
+    const equipe = complet ? (({ apercuStudio: _studio, ...reste }) => (void _studio, reste))(complet) : undefined;
     return {
       ...base,
       voix: { ...voixDoubles, voix: () => voix as unknown as ReturnType<typeof voixDoubles.voix> },
