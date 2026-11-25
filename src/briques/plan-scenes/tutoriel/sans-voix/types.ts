@@ -32,7 +32,7 @@ export interface PlageMots {
   dernier: number;
 }
 
-/** Couleurs de la charte, par NOM (jamais une valeur libre) : ivoire, gris, noir, terracotta ; blanc pour les panneaux. */
+/** Couleurs de la charte, par NOM (jamais une valeur libre) : ivoire, gris, noir, terracotta ; blanc pour les panneaux ; grisTexte (gris foncé lisible) pour les barres et textes secondaires. */
 export type CouleurCharte = "ivoire" | "gris" | "noir" | "terracotta" | "blanc" | "grisTexte";
 
 /* ------------------------------------------------------------------ */
@@ -52,8 +52,16 @@ export type EvenementEcran =
   /** Panneau latéral (« Historique ») qui glisse dans la fenêtre ; rubriques apparaissant chacune sur son mot. */
   | { genre: "panneau"; aMs: number; titre: string; rubriques: { libelle: string; aMs: number; source: PlageMots }[]; source: PlageMots }
   /** Notification qui tombe en haut de la fenêtre ; `cartePulse` = index de la carte-chiffre qui pulse (ou absent). */
-  | { genre: "alerte"; aMs: number; texte: string; cartePulse?: number; source: PlageMots }
-  /** Caméra douce vers une partie de l'écran (zoom ≤ 1,25) ; jamais d'élément hors cadre après zoom. */
+  | {
+      genre: "alerte";
+      aMs: number;
+      texte: string;
+      /** Instant (ms) du mot déclencheur : la notification apparaît là ; avant, depuis `aMs`, l'écran montre la condition. */
+      declencheurAMs?: number;
+      cartePulse?: number;
+      source: PlageMots;
+    }
+  /** Mise en valeur d'une partie de l'écran (contour terracotta et atténuation du reste ; AUCUN zoom, aucune caméra mobile). */
   | { genre: "focus"; aMs: number; finMs: number; cible: "cartes" | "liste" | "panneau" | "alerte" | "ensemble"; source: PlageMots };
 
 interface BaseScene {
@@ -72,7 +80,19 @@ export type SceneSansVoix =
   /** « en X au lieu de Y » : Y barré (gris) puis X qui monte. */
   | (BaseScene & { genre: "repere"; avant: string; apres: string; barreAMs: number; apresAMs: number })
   /** Question finale + appel : texte de la question puis bouton pilule cliqué par un curseur. */
-  | (BaseScene & { genre: "appel"; question?: string; bouton: string; clicAMs: number })
+  | (BaseScene & {
+      genre: "appel";
+      question?: string;
+      bouton: string;
+      /** Instant du mot du clic. Le clic réel arrive à min(clicAMs, début de scène + 1,5 s) : jamais avant que le bouton soit là. */
+      clicAMs: number;
+      /** Libellé de la carte de fin (ex. « axion-ia.com ») : texte PERMIS (comme le libellé de fin), affiché sous le bouton
+       *  (≥ 40 px) DÈS L'ENTRÉE de la scène (≤ 600 ms), avant le clic. La scène peut durer jusqu'à la fin de la vidéo (elle absorbe la carte de fin). */
+      site?: string;
+      /** Nom de marque de la carte de fin (ex. « Axion IA ») : texte PERMIS (comme le libellé de fin), affiché entre le bouton et le
+       *  site dès l'entrée de la scène (Manrope ExtraBold noir, ≥ 72 px en portrait, ≥ 56 px en format bas, avec un filet terracotta dessous). FACULTATIF. */
+      marque?: string;
+    })
   /** Repli générique : le groupe nominal principal de la phrase sur une carte ivoire avec filet (jamais un fond nu). */
   | (BaseScene & { genre: "carte-phrase"; texte: string });
 
@@ -138,12 +158,22 @@ export interface ElementVisible {
   graisse?: 500 | 600 | 700 | 800;
   couleur?: CouleurCharte;
   alignement?: "gauche" | "centre";
+  /** Texte raccourci faute de place (coupé à une FRONTIÈRE DE MOT, fini par « … ») : `texteSource` = texte complet du plan.
+   *  Le contrôle de composition doit le signaler ; la mise en page change d'abord de disposition avant de couper. */
+  tronque?: true;
+  texteSource?: string;
+  /** Un mot a été coupé par un trait d'union (césure : « Réapprovi- » « sionnements »). Ne pas confondre avec une coupe du cadre. */
+  cesure?: true;
   /** Texte barré (repère « avant ») : part 0..1 du trait terracotta déjà tracé. */
   barre?: number;
   /** Forme « filet » ou barre squelette qui se trace/pousse : part 0..1. */
   progression?: number;
-  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, historique. */
-  icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche";
+  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, horloge (historique, avant / après),
+   *  et les pictogrammes des cartes-chiffres : « boite » (cube : stock), « seuil » (ligne horizontale et flèche vers le bas : seuil),
+   *  « valeur » (pile de pièces, sans « € » ni chiffre).
+   *  Pour « horloge » : la petite aiguille (heures) est FIXE à 300° (10 h) ; `progression` (0..1) = angle de la grande aiguille (0 = midi,
+   *  1 = un tour) : elle reste TOUJOURS à ≥ 60° de la petite (les deux partent du centre, jamais en ligne droite) ; icônes statiques : 0,25 (3 h). */
+  icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche" | "boite" | "seuil" | "valeur";
   /** Curseur : point cliquant et anneau de clic (0..1, 0 = pas de clic). */
   pointe?: { x: number; y: number };
   anneauClic?: number;
