@@ -137,7 +137,7 @@ describe("QUAL-2 — script du fondateur", () => {
     if (rep.genre !== "repere") throw new Error("repere");
     const iAu = mots.findIndex((m) => m.texte === "lieu");
     expect(rep.apresAMs).toBe(mots[iAu - 3].debutMs);
-    expect(rep.barreAMs).toBe(mots.find((m, k) => k > iAu && m.texte === "une")!.debutMs);
+    expect(rep.barreAMs).toBe(mots[iAu + 1].debutMs);
   });
 
   it("littéralité, aucun chiffre, pavage, déterminisme", () => {
