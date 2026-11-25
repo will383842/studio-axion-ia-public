@@ -206,7 +206,9 @@ case "$1" in
                     [ -f "${faux}/pas-de-maquette" ] || { mkdir -p "$STUDIO_CAPTURE_SORTIE/maquette/site"; echo "<html>" > "$STUDIO_CAPTURE_SORTIE/maquette/site/index.html"; }
                     [ -f "${faux}/lien-dans-sortie" ] && ln -s /etc/passwd "$STUDIO_CAPTURE_SORTIE/maquette/site/lien" ;;
       capturer) mkdir -p "$STUDIO_CAPTURE_SORTIE/film-abc"; echo "MP4" > "$STUDIO_CAPTURE_SORTIE/film-abc/navigation.mp4"; echo "{}" > "$STUDIO_CAPTURE_SORTIE/film-abc/navigation.json" ;;
-      verifier) if [ -f "${faux}/ffprobe-gros" ]; then head -c 70000 /dev/zero | tr '\\0' 'x' > "$STUDIO_CAPTURE_SORTIE/ffprobe.json"; else echo "{}" > "$STUDIO_CAPTURE_SORTIE/ffprobe.json"; fi
+      verifier) if [ -f "${faux}/ffprobe-lien" ]; then ln -s /dev/null "$STUDIO_CAPTURE_SORTIE/ffprobe.json"
+                  elif [ -f "${faux}/ffprobe-dossier" ]; then mkdir "$STUDIO_CAPTURE_SORTIE/ffprobe.json"
+                  elif [ -f "${faux}/ffprobe-gros" ]; then head -c 70000 /dev/zero | tr '\\0' 'x' > "$STUDIO_CAPTURE_SORTIE/ffprobe.json"; else echo "{}" > "$STUDIO_CAPTURE_SORTIE/ffprobe.json"; fi
                   ls "$STUDIO_CAPTURE_ENTREE" > "${faux}/entree-verifier" ;;
     esac
     echo "$nom" ;;
@@ -684,6 +686,29 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     expect(b.lancer().status).toBe(0);
     expect(etat(b, NOM)).toBe("refus\nFILM_INVALIDE\n");
     expect(existsSync(join(b.boite, "reponses", NOM, "ffprobe.json"))).toBe(false);
+  });
+  it("verifier : ffprobe.json en LIEN symbolique (vers /dev/null) ou dossier : refusé même avec le code 0", () => {
+    for (const piege of ["lien", "dossier"]) {
+      const b = banc();
+      b.demande(NOM);
+      writeFileSync(join(b.faux, `ffprobe-${piege}`), "");
+      const r = b.lancer();
+      expect(r.status, piege + String(r.stderr)).toBe(0);
+      expect(etat(b, NOM)).toMatch(/^refus\n(FILM_INVALIDE|CONTROLE_SOURCE)\n$/);
+      expect(existsSync(join(b.boite, "reponses", NOM, "ffprobe.json"))).toBe(false);
+    }
+  });
+  it("verifier : kill de l'hôte court (120 s) et /sortie neuf avant l'étape", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "timeout-124"), "");
+    writeFileSync(join(b.faux, "rc-decompresser"), "0");
+    expect(b.lancer().status).toBe(0);
+    const modes = b.appels().filter((l) => /^mount -o loop/.test(l) && l.includes("capture-sortie"));
+    expect(modes.length).toBeGreaterThanOrEqual(1);
+    expect(script).toMatch(/if \[ "\$1" = verifier \]; then delai=\$DELAI_VERIFIER_S/);
+    expect(script).toMatch(/lancer_conteneur "studio-capture-\$ID-verifier"/);
+    expect(script).toMatch(/etape_verifier\(\) \{\n[^}]*sortie_neuve/);
   });
   it("le film est DÉPLACÉ dans la réponse (mv), jamais recopié une seconde fois", () => {
     const b = banc();
