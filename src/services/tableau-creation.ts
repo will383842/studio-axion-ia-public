@@ -622,6 +622,8 @@ export interface DependancesCreationTableau {
 
 /** Réglage du tirage du style du tableau (BR-TABLEAU-STYLE-a) : ALLUMÉ par défaut depuis ALLUMER-INV-GROUPE-v21p ; `false` écrit en base éteint ; lecture en échec = éteint. */
 export const PARAM_STYLE_TIRE_TABLEAU = "tableau.styleTire";
+/** S2-16-c : la base de prononciation appliquée au tableau (vidéos NEUVES : drapeau figé au lancement) ; éteint, seul `true` allume. */
+export const PARAM_PRONONCIATIONS_TABLEAU = "tableau.prononciations";
 
 /** L'entrée du découpage d'un brouillon (PUR, exporté pour le test « contrat » générateur → découpage). */
 export function entreeDecoupage(donnees: DonneesScriptTableau, videoId: Id, versionId: string, controle: Omit<ContexteTableau, "texteScript">, preuves: readonly PreuveProposee[], tirage?: EntreeDecoupage["tirage"]): EntreeDecoupage {
@@ -1419,6 +1421,8 @@ export async function fabriquerVideoTableau(videoId: Id, accordBrut: AccordPrix 
     ...(dejaPayee?.etat === "reutilisee" ? { voixPayee: dejaPayee.reprise } : {}),
     // TA-SV : le mode sans voix est écrit dans les entrées (lu par le moteur et par les raccords).
     ...(sansVoix ? { sansVoix: true as const } : {}),
+    // S2-16-c : drapeau figé au lancement (réglage éteint par défaut) ; le moteur passe alors la base de prononciation à la voix.
+    ...((await lireParametre<unknown>(PARAM_PRONONCIATIONS_TABLEAU, false).catch(() => false)) === true ? { prononciations: true as const } : {}),
   };
   await depots().videos.modifier(video.id, { distribution, entrees: { ...aJour.entrees, [ENTREE_TABLEAU]: entreesTableau } });
 

@@ -28,7 +28,7 @@ import { alerteRemarque } from "@/domaine/livraison-avec-remarques";
 import type { CommandeFabrication, SegmentSousTitres, EtapeTravail, ErreurTravail, IdReseau, LigneCout, StyleResolu, Travail, ValeurStyleSousTitres } from "@/domaine/types";
 import { ZERO, centimes } from "@/lib/montants";
 import { decouperEnScenes, type EntreeDecoupage, type OutilsDecoupage } from "./decoupage";
-import { ETAPES_CHAINE, etapeDuMoteur, etapesTableau, ficheFournie, lireEntreesTableau, type CleEtapeTableau, type VoixPayee } from "./etapes";
+import { ENTREE_TABLEAU, ETAPES_CHAINE, etapeDuMoteur, etapesTableau, ficheFournie, lireEntreesTableau, type CleEtapeTableau, type VoixPayee } from "./etapes";
 import { formatImage, formatSortie, PORTRAIT_LINKEDIN, reseauxDeLaSortie, sansAppelAuMot, VERTICAL_LIENS, type IdSortie } from "./formats-sortie";
 import { intensiteSousTitresTableau } from "./dosage";
 import { INTENSITE_SOUS_TITRES_TABLEAU, intensiteEstLeRepli } from "./sous-titres-tableau";
@@ -417,6 +417,8 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsTableau
     ...(reste.intensiteSousTitres === undefined && intensiteEstLeRepli(commande) ? { intensiteSousTitres: INTENSITE_SOUS_TITRES_TABLEAU } : {}),
     // Case « déjà vu » cochée à la création : la relecture de la fabrication la lit (sans elle, la relecture bloque).
     ...(!reste.dejaVu && entrees.dejaVu ? { dejaVu: entrees.dejaVu } : {}),
+    // S2-16-c : la base de prononciation (liste de la commande) SEULEMENT si le drapeau a été figé au lancement ; sinon rien ne change.
+    ...(!reste.prononciations && (commande.entrees as Record<string, { prononciations?: unknown } | undefined> | undefined)?.[ENTREE_TABLEAU]?.prononciations === true && commande.prononciations?.length ? { prononciations: commande.prononciations } : {}),
     ...(tracer ? { tracer: (e) => tracer({ ...e, ...(versionId ? { versionId } : {}) }) } : {}),
     videoId: commande.videoId,
     lireFiche: async () => brute,

@@ -8,6 +8,7 @@ export const DOMAINE: Domaine = {
   constantes: [
     { cle: "tableau.styleTire", etat: "allume", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, true\)\.catch\(\(\) => false\)\) === true/ },
     { cle: "tableau.lectureCaptureClaude", etat: "allume", appel: "src/services/lecture-capture-claude.ts", motif: /l<unknown>\(PARAM_LECTURE_CAPTURE_CLAUDE, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
+    { cle: "tableau.prononciations", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /lireParametre<unknown>\(PARAM_PRONONCIATIONS_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ }, // S2-16-c-v20l : drapeau figé au lancement, base de prononciation passée au moteur
     { cle: "tableau.raccords", etat: "eteint", appel: "src/services/tableau-branchements.ts", motif: /lireParametre<unknown>\(PARAM_RACCORDS_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ }, // BR-TABLEAU-RACCORDS-c-v20j
   ],
   gabarits: [],
@@ -21,6 +22,6 @@ export const DOMAINE: Domaine = {
     "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
   },
   env: [],
-  nombre: { litterales: 0, constantes: 3, gabarits: 0, planScenes: 0, retouche: 0, exclusCles: 2, parExpression: 1, env: 0 },
+  nombre: { litterales: 0, constantes: 4, gabarits: 0, planScenes: 0, retouche: 0, exclusCles: 2, parExpression: 1, env: 0 },
   retirees: [],
 };
