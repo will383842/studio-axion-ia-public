@@ -3,7 +3,7 @@
  * puis EXÉCUTIONS sans root ni docker (mode essai explicite VEILLEUR_TEST=1 + faux docker/mount/… en tête du PATH).
  * Aucun réseau, aucune IA, aucune dépense.
  */
-import { spawnSync, execFileSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import {
   chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync,
 } from "node:fs";
@@ -195,6 +195,12 @@ describe("POSTE-2 · compose et unités", () => {
 // ---------------------------------------------------------------------------------------------------------------------
 const FAUX_OUTILS = (faux: string): Record<string, string> => ({
   docker: `#!/bin/bash
+# Points de rendez-vous des essais de concurrence : si « bloquer » existe, le premier appel signale « bloque » puis attend
+# « libere » (au plus 30 s : jamais d'attente sans fin).
+if [ -f "${faux}/bloquer" ]; then
+  touch "${faux}/bloque"
+  for _ in $(seq 1 600); do [ -f "${faux}/libere" ] && break; sleep 0.05; done
+fi
 echo "docker $*" >> "${faux}/appels"
 case "$1" in
   ps) [ -f "${faux}/occupe" ] && cat "${faux}/occupe"; exit 0 ;;
@@ -390,6 +396,8 @@ describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker
       [".env : STUDIO_CAPTURE_MAQUETTE", (b) => writeFileSync(join(b.racine, ".env"), "POSTGRES_PASSWORD=x\nSTUDIO_CAPTURE_MAQUETTE=/etc\n")],
       [".env : COMPOSE_PROFILES", (b) => writeFileSync(join(b.racine, ".env"), "COMPOSE_PROFILES=capture\n")],
       [".env : export COMPOSE_FILE", (b) => writeFileSync(join(b.racine, ".env"), "  export COMPOSE_FILE=/tmp/x.yml\n")],
+      [".env : BOM puis STUDIO_CAPTURE_SORTIE", (b) => writeFileSync(join(b.racine, ".env"), "\uFEFFSTUDIO_CAPTURE_SORTIE=/srv\n")],
+      [".env : BOM puis export COMPOSE_FILE", (b) => writeFileSync(join(b.racine, ".env"), "POSTGRES_PASSWORD=x\n\uFEFF  export COMPOSE_FILE=/tmp/x.yml\n")],
       [".env : STUDIO_CAPTURE_SORTIE", (b) => writeFileSync(join(b.racine, ".env"), "STUDIO_CAPTURE_SORTIE=/srv\n")],
       ["override", (b) => writeFileSync(join(b.deploiement, "docker-compose.override.yml"), "services: {}\n")],
       ["compose.yaml", (b) => writeFileSync(join(b.deploiement, "compose.yaml"), "services: {}\n")],
@@ -400,6 +408,22 @@ describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker
       expect(b.lancer().status, nom).toBe(2);
       expect(b.appels(), nom).toEqual([]);
     }
+  });
+  it("DEPLOIEMENT dont un maillon est un lien : refusé (code 2) ; le chemin réel, lui, passe", () => {
+    const b = banc();
+    const lien = join(tmpdir(), `veilleur-lien-${process.pid}-${Date.now()}`);
+    dossiers.push(lien);
+    symlinkSync(b.dossier, lien);
+    const nom = b.deploiement.slice(b.dossier.length); // /deploiement
+    const r = b.lancer({ DEPLOIEMENT: `${lien}${nom}` });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/DEPLOIEMENT contient un lien/);
+    expect(b.appels()).toEqual([]);
+    expect(b.lancer().status).toBe(0);
+  });
+  it("texte : le script finit par `principal; exit $?` (une réécriture en place ne fait rien exécuter de mélangé) ; garde explicite avant le rm -rf de $res", () => {
+    expect(script.trimEnd().split("\n").pop()).toBe("principal; exit $?");
+    expect(script).toContain('[ -n "${ID:-}" ] && [ "$res" = "$V/resultat-$ID" ] && [ -n "$V" ] || arret panne CAPTURE_ECHEC\n  rm -rf --one-file-system -- "$res"\n  mkdir -- "$res"');
   });
   it("sans VEILLEUR_TEST=1, les variables d'essai sont REFUSÉES (jamais ignorées)", () => {
     for (const v of ["VEILLEUR_RACINE", "VEILLEUR_PATH_TEST", "VEILLEUR_VERROU", "VEILLEUR_BUDGET"]) {
@@ -570,7 +594,19 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     b.demande(NOM);
     const ancien = "2000-01-01T00:00:00Z\n";
     writeFileSync(join(b.boite, "pouls"), ancien);
-    const r = spawnSync("bash", ["-c", `exec 8>"${verrou}"; flock -n 8; VEILLEUR_TEST=1 VEILLEUR_RACINE="${b.racine}" VEILLEUR_PATH_TEST="${b.faux}" VEILLEUR_BOITE="${b.boite}" DEPLOIEMENT="${b.deploiement}" VEILLEUR_VERROU="${verrou}" bash "${CHEMIN_SCRIPT}" --une-fois 9>&-; echo $?`], { encoding: "utf8" });
+    // Le verrou est tenu par le shell du test lui-même (descripteur 8 ; le script ouvre le sien sur le descripteur 9, donc un
+    // autre « open file description » : flock -n échoue À COUP SÛR). ENVIRONNEMENT PROPRE (comme banc().lancer) : l'environnement
+    // du processus de test peut contenir INVOCATION_ID / JOURNAL_STREAM (lanceur sous systemd, cas du CI), que le script refuse
+    // en mode essai (code 2) — c'était la cause du rouge en CI, pas une course de temps.
+    const r = spawnSync("bash", ["-c", `exec 8>"${verrou}"; flock -n 8 || exit 99; bash "${CHEMIN_SCRIPT}" --une-fois 9>&-; echo $?`], {
+      encoding: "utf8",
+      env: {
+        PATH: "/usr/local/bin:/usr/bin:/bin",
+        VEILLEUR_TEST: "1", VEILLEUR_RACINE: b.racine, VEILLEUR_PATH_TEST: b.faux, VEILLEUR_BOITE: b.boite, DEPLOIEMENT: b.deploiement,
+        VEILLEUR_VERROU: verrou,
+      } as NodeJS.ProcessEnv,
+    });
+    expect(r.stderr).toBe("");
     expect(r.stdout.trim()).toBe("0");
     expect(readdirSync(join(b.boite, "demandes"))).toEqual([NOM]);
     const pouls = readFileSync(join(b.boite, "pouls"), "utf8");
@@ -579,6 +615,35 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     expect(statSync(join(b.boite, "pouls")).mode & 0o777).toBe(0o444);
     expect(readdirSync(join(b.boite, ".veilleur"))).toEqual([]);
     expect(b.appels()).toEqual([]);
+  });
+  it("deux vrais passages : le premier est BLOQUÉ (signal) dans le faux docker pendant que le second tourne et sort (flock)", async () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "bloquer"), "");
+    const env = {
+      PATH: "/usr/local/bin:/usr/bin:/bin",
+      VEILLEUR_TEST: "1", VEILLEUR_RACINE: b.racine, VEILLEUR_PATH_TEST: b.faux, VEILLEUR_BOITE: b.boite, DEPLOIEMENT: b.deploiement,
+    } as NodeJS.ProcessEnv;
+    const premier = spawn("bash", [CHEMIN_SCRIPT, "--une-fois"], { env, stdio: "ignore" });
+    const fini = new Promise<number | null>((ok) => premier.on("close", (c) => ok(c)));
+    try {
+      // rendez-vous : le premier tient le verrou et attend dans docker (borne : 30 s)
+      const limite = Date.now() + 30_000;
+      while (!existsSync(join(b.faux, "bloque")) && Date.now() < limite) await new Promise((r) => setTimeout(r, 20));
+      expect(existsSync(join(b.faux, "bloque")), "le premier passage doit atteindre le faux docker").toBe(true);
+      writeFileSync(join(b.boite, "pouls"), "2000-01-01T00:00:00Z\n");
+      const second = spawnSync("bash", [CHEMIN_SCRIPT, "--une-fois"], { env, encoding: "utf8", timeout: 30_000 });
+      expect(second.status).toBe(0);
+      expect(second.stderr).toBe("");
+      // le second n'a rien pris, rien appelé, mais a rafraîchi le pouls
+      expect(readdirSync(join(b.boite, "demandes"))).toEqual([NOM]);
+      expect(readFileSync(join(b.boite, "pouls"), "utf8")).not.toBe("2000-01-01T00:00:00Z\n");
+      expect(b.appels()).toEqual([]);
+      expect(premier.exitCode, "le premier tient encore le verrou").toBeNull();
+    } finally {
+      writeFileSync(join(b.faux, "libere"), "");
+    }
+    expect(await fini).toBe(0);
   });
   it("pouls : le mode est posé AVANT le mv -T (jamais de fichier root 0600 visible dans la boîte)", () => {
     const b = banc();

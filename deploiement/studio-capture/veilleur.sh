@@ -191,6 +191,8 @@ controler_config() {
     fi
   done
   reel_dossier "$DEPLOIEMENT" || refuser_config "DEPLOIEMENT n'est pas un dossier"
+  # Aucun lien dans le chemin (un lien au milieu changerait ce que « le clone » désigne) : le chemin donné EST le chemin réel.
+  [ "$(realpath -e -- "$DEPLOIEMENT")" = "$DEPLOIEMENT" ] || refuser_config "DEPLOIEMENT contient un lien ou n'est pas canonique : $DEPLOIEMENT"
   root_sans_ecriture "$DEPLOIEMENT" "DEPLOIEMENT"
   # Le clone : le dossier qui contient DEPLOIEMENT, le dossier studio-capture (seccomp.json, ce script), ce script, et les dossiers
   # montés dans le conteneur (charte). Production : le script lancé par la .service EST celui du clone.
@@ -223,7 +225,8 @@ controler_config() {
   # compose lit STUDIO_CAPTURE_* et COMPOSE_* dans ce .env : le veilleur pose ses propres valeurs, un reste de la procédure
   # manuelle (ou un COMPOSE_PROFILES) ne doit pas les changer. Une erreur de lecture refuse aussi (échec fermé).
   rc=0
-  grep -Eq '^[[:space:]]*(export[[:space:]]+)?(STUDIO_CAPTURE_|COMPOSE_)' "$ENV_FICHIER" || rc=$?
+  # Une ligne précédée d'un BOM UTF-8 est refusée comme les autres (le BOM n'est pas une espace pour grep).
+  grep -Eq "^($(printf '\357\273\277'))?[[:space:]]*(export[[:space:]]+)?(STUDIO_CAPTURE_|COMPOSE_)" "$ENV_FICHIER" || rc=$?
   [ "$rc" = 1 ] || refuser_config ".env : aucune ligne STUDIO_CAPTURE_* ni COMPOSE_* n'est admise (ou fichier illisible)"
 }
 controler_config
@@ -462,8 +465,10 @@ etape_capturer() {
   [ -f "$d/navigation.mp4" ] && [ ! -L "$d/navigation.mp4" ] && [ -f "$d/navigation.json" ] && [ ! -L "$d/navigation.json" ] || arret panne CAPTURE_ECHEC
   fichier_sain "$d/navigation.mp4" "$MAX_FILM" || arret refus TROP_GROS
   fichier_sain "$d/navigation.json" "$MAX_JSON" || arret refus TROP_GROS
+  # Garde explicite : $res est exactement le dossier de résultat de CETTE demande, sous .veilleur (jamais vide, jamais ailleurs).
+  [ -n "${ID:-}" ] && [ "$res" = "$V/resultat-$ID" ] && [ -n "$V" ] || arret panne CAPTURE_ECHEC
   rm -rf --one-file-system -- "$res"
-  mkdir "$res"
+  mkdir -- "$res"
   for f in navigation.mp4 navigation.json; do copier "$d/$f" "$res/$f"; done
   controler_arbre "$res" refus CONTROLE_SOURCE
   fichier_sain "$res/navigation.mp4" "$MAX_FILM" || arret refus TROP_GROS
@@ -717,4 +722,6 @@ principal() {
     if [ "$UNE_FOIS" = 1 ]; then break; fi
   done
 }
-principal
+# `exit` juste après : bash lit le script au fil de l'eau ; une réécriture en place pendant un travail ne doit jamais faire
+# exécuter un mélange de l'ancien et du nouveau texte.
+principal; exit $?
