@@ -116,14 +116,16 @@ describe("cloche du suivi de fabrication", () => {
     }
   });
 
-  it("éteint par défaut : sans réglage, rien n'est posé ; seul `true` allume", async () => {
-    expect(await signalerSuivi(enPause("TO_SCRIPT_A_VALIDER"), { creer })).toEqual([]);
-    for (const v of ["true", 1, "oui"]) {
-      await depots().parametres.enregistrer({ id: "tutoriel.suiviCloche", valeur: v, creeLe: T, modifieLe: T });
-      expect(await signalerSuivi(enPause("TO_SCRIPT_A_VALIDER"), { creer })).toEqual([]);
-    }
-    await depots().parametres.enregistrer({ id: "tutoriel.suiviCloche", valeur: true, creeLe: T, modifieLe: T });
+  it("allumé par défaut : sans réglage, une notification ; `true`, `1`, `oui` : posée ; `false` écrit : rien n'est posé", async () => {
     expect(await signalerSuivi(enPause("TO_SCRIPT_A_VALIDER"), { creer })).toHaveLength(1);
+    for (const v of ["true", 1, "oui"]) {
+      const id = `vid_defaut_${String(v)}`;
+      await depots().videos.enregistrer({ id, titre: "Autre", creeLe: T, modifieLe: T } as Video);
+      await depots().parametres.enregistrer({ id: "tutoriel.suiviCloche", valeur: v, creeLe: T, modifieLe: T });
+      expect(await signalerSuivi({ ...enPause("TO_SCRIPT_A_VALIDER"), cibleId: id }, { creer })).toHaveLength(1);
+    }
+    await depots().parametres.enregistrer({ id: "tutoriel.suiviCloche", valeur: false, creeLe: T, modifieLe: T });
+    expect(await signalerSuivi(enPause("TO_SCRIPT_A_VALIDER"), { creer })).toEqual([]);
   });
 
   it("vidéo absente : rien n'est posé", async () => {

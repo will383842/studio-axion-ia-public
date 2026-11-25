@@ -41,7 +41,14 @@ describe("cloche posée par l'avancement", () => {
     expect(await cloches()).toHaveLength(1);
   });
 
-  it("éteint par défaut : aucune cloche, avancement écrit", async () => {
+  it("allumé par défaut : une cloche, avancement écrit", async () => {
+    const r = await avancer(travail(), travail({ statut: "en_file", parametres: pause("TO_SCRIPT_A_VALIDER") }));
+    expect(r.ecrit).toBe(true);
+    expect(await cloches()).toHaveLength(1);
+  });
+
+  it("`false` écrit : aucune cloche, avancement écrit", async () => {
+    await allumer(false);
     const r = await avancer(travail(), travail({ statut: "en_file", parametres: pause("TO_SCRIPT_A_VALIDER") }));
     expect(r.ecrit).toBe(true);
     expect(await cloches()).toHaveLength(0);
