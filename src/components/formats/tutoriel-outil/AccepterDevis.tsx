@@ -49,7 +49,7 @@ export function AccepterDevis({ videoId, phrases, empreinte }: { videoId: string
         </p>
       )}
       <Bouton variante="principal" taille="lg" pleineLargeur disabled={occupe} onClick={() => void accepter()}>
-        Accepter le devis
+        J&apos;accepte et je lance
       </Bouton>
     </section>
   );
