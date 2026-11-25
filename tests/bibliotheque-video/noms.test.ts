@@ -47,6 +47,8 @@ const IDENTIFIANTS_PLAN = [
   "accroche.script", "rythme.mesure", "etalonnage.noir-blanc", "texte.lueur", "texte.fond-clair",
   // C11
   "texte.marques-au-mot", "texte.selectif", "texte.mode-carte", "texte.effets", "texte.accents-role",
+  // C11-C2-a-v20k
+  "cadrage.camera-couverture", "ecran.carte-video-arrondie", "ecran.grilles-archive", "ecran.ecrans-composes"
 ];
 
 const FAMILLES_ATTENDUES = [

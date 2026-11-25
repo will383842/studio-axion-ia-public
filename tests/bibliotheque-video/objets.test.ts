@@ -82,6 +82,11 @@ const HORS_OBJET_MASTER = [
   "texte.mode-carte|prevu",
   "texte.effets|prevu",
   "texte.accents-role|prevu",
+  // C11-C2-a-v20k (seconde lecture du pilote)
+  "cadrage.camera-couverture|eteint",
+  "ecran.carte-video-arrondie|prevu",
+  "ecran.grilles-archive|prevu",
+  "ecran.ecrans-composes|prevu",
   "motion.v4-coulisse.LogoOutil|coulisse",
   "motion.v4-coulisse.Equation|coulisse",
   "motion.v4-coulisse.FriseEtapes|coulisse",

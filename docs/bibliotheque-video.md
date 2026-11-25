@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 104 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -87,6 +87,10 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `texte.mode-carte` | prevu | 11 |  | porte éteinte |
 | `texte.effets` | prevu | 11 |  | livrée, non branchée |
 | `texte.accents-role` | prevu | 11 |  | porte éteinte, rien ne l'importe |
+| `cadrage.camera-couverture` | eteint | 11 |  | un seul importeur : le film du tutoriel ; le cran du dosage décide |
+| `ecran.carte-video-arrondie` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.grilles-archive` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.ecrans-composes` | prevu | 11 |  | inscrite, non branchée |
 | `texte.poids-variable` | prevu | X1 |  |  |
 | `texte.minimal-dynamique` | prevu | X1 |  |  |
 | `ecran.fenetre-inclinee` | prevu | X1 |  |  |
