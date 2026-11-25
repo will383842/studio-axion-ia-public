@@ -2,7 +2,7 @@
  * CHAT DE RETOUCHE SUR LES GÉNÉRATEURS (lot R3) — branche le socle R1 (comprendre, appliquer, impact, versions) sur
  * Avocat, Image → vidéo et Facecam animée. PUR : aucun accès base ni réseau ; le LLM et le rendu sont des PORTS injectés
  * (doubles dans les tests, `generateurs-studio.ts` pour le studio).
- *  - Un RÉGLAGE par générateur (`retoucheChat.*`), ÉTEINT par défaut : allumé seulement par la valeur `true`.
+ *  - Un RÉGLAGE par générateur (`retoucheChat.*`), ÉTEINT par défaut : allumé seulement par la valeur `true` (sauf la démo face caméra, ALLUMÉE par défaut : `false` écrit l'éteint).
  *  - Un ADAPTATEUR par générateur : ce qui est retouchable (texte à l'écran, pièces, zooms, transitions), consigne
  *    ajoutée à celle de R1, liste des retouches permises. La voix n'est JAMAIS touchée sans demande explicite.
  *  - RENDU PARTIEL par empreinte de scène : seules les scènes à l'empreinte changée sont re-rendues, les autres reprennent
@@ -19,8 +19,11 @@ import type { EntreeRenduPartiel, PortsRetoucheChat, SortieRenduPartiel } from "
 export const GENERATEURS_RETOUCHE = ["avocat", "image-video", "facecam-animee", "tutoriel-outil", "video-longue", "demo-facecam"] as const;
 export type IdGenerateurRetouche = (typeof GENERATEURS_RETOUCHE)[number];
 
-/** Clé du réglage de la démo facecam : inscrite par N-26-a, éteinte (seul `true` l'allume ; Williams, après planche C7-25). */
+/** Clé du réglage de la démo facecam : inscrite par N-26-a, ALLUMÉE par défaut (ALLUMER-RETOUCHE-DEMO, décision Q3 du 20/11 19:45 : retouche à 0 € seulement) ; `false` écrit au panneau l'éteint. */
 export const CLE_REGLAGE_DEMO_FACECAM = "retoucheChat.demoFacecam";
+
+/** Seuls générateurs dont le chat est allumé quand le réglage est absent. */
+export const RETOUCHE_ALLUMEE_PAR_DEFAUT: readonly IdGenerateurRetouche[] = ["demo-facecam"];
 
 export const CLES_REGLAGE_RETOUCHE: Record<IdGenerateurRetouche, string> = {
   avocat: "retoucheChat.avocat",
@@ -46,7 +49,7 @@ export type LireReglage = (id: string, defaut: unknown) => Promise<unknown>;
 /** Allumé seulement par `true` exactement ; toute autre valeur, une absence ou une lecture en échec = éteint. */
 export async function retoucheChatActif(generateur: IdGenerateurRetouche, lire: LireReglage): Promise<boolean> {
   try {
-    return (await lire(CLES_REGLAGE_RETOUCHE[generateur], false)) === true;
+    return (await lire(CLES_REGLAGE_RETOUCHE[generateur], RETOUCHE_ALLUMEE_PAR_DEFAUT.includes(generateur))) === true;
   } catch {
     return false;
   }
