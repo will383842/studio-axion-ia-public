@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { OperationRetouche, TypeOperationRetouche } from "@/briques/operations";
 import { TYPES_OPERATIONS_RETOUCHE } from "@/briques/operations";
 import { PHRASES } from "@/briques/retouche-portee";
-import type { EstimationRefaireVoix } from "@/domaine/refaire-voix";
+import { estimerRefaireVoix, type EstimationRefaireVoix } from "@/domaine/refaire-voix";
 import {
   apercuCommun,
   sceneALInstant,
@@ -64,12 +64,19 @@ const un = (type: TypeOperationRetouche): OperationRetouche =>
     deplacer: { type, sceneId: "s-alpha", apresSceneId: "s-beta" },
   })[type] as unknown as OperationRetouche;
 
+// La phrase « format impossible » est CELLE de refaire-voix.ts (code « format-impossible »), pas une copie comparée à elle-même.
+const refusFormat = estimerRefaireVoix({ format: "avocat", texteLu: "x", phrasesVisees: ["x"], tarifCentimesParCaractere: 0.03, plafondCentimes: 60, dejaEngageCentimes: 0 });
+const FORMAT_IMPOSSIBLE_REFAIRE_VOIX = refusFormat.ok ? "" : refusFormat.phrase;
+
 describe("S-14-c1 aperçu commun", () => {
   it("(a) le coût, phrase exacte par cas", () => {
+    expect(refusFormat).toMatchObject({ ok: false, code: "format-impossible" });
+    expect(PHRASE_FORMAT_IMPOSSIBLE).toBe("Refaire la voix n'est pas possible pour ce format : pour ce changement, il faut refaire la vidéo. Votre vidéo reste telle quelle.");
+    expect(PHRASE_FORMAT_IMPOSSIBLE).toBe(FORMAT_IMPOSSIBLE_REFAIRE_VOIX);
     const cas: [Partial<EntreeApercuCommun>, string, string, boolean][] = [
       [{ operations: [{ type: "changer-brique", sceneId: "s-alpha", piece: "legende" }] }, "gratuite", PHRASE_GRATUIT, true],
       [{ operations: [{ type: "retirer-scene", sceneId: "s-alpha" } as OperationRetouche, { type: "inconnu" } as never] }, "refusee", `${PHRASE_PAYANT_REFUSE} ${PHRASES.ia}`, false],
-      [{ operations: [scriptOp], format: "avocat", estimationVoix: okVoix }, "refusee", PHRASE_FORMAT_IMPOSSIBLE, false],
+      [{ operations: [scriptOp], format: "avocat", estimationVoix: okVoix }, "refusee", FORMAT_IMPOSSIBLE_REFAIRE_VOIX, false],
       [{ operations: [scriptOp], estimationVoix: refuseVoix }, "refusee", refuseVoix.phrase, false],
       [{ operations: [scriptOp], estimationVoix: okVoix }, "dans-la-limite", PHRASE_VOIX_DANS_LA_LIMITE, true],
       [{ operations: [scriptOp] }, "inconnue", PHRASE_COUT_INCONNU, false],
@@ -130,6 +137,38 @@ describe("S-14-c1 aperçu commun", () => {
     expect(n(7).at(-2)).toBe("Et 2 autres changements.");
     expect(n(0)).toEqual([]);
     expect(apercuCommun(base({ operations: [{ type: "zzz" } as never] })).resume).toEqual([]);
+    // Phrase EXACTE de chacun des 17 types (CONCEPTION-S-14-c.md § 4), « Scène N » = rang + 1.
+    const attendues: Record<TypeOperationRetouche, string> = {
+      "changer-mot": "Scène 2 : le mot « a » devient « b ».",
+      "ajouter-chiffre": "Scène 1 : un chiffre est ajouté à l'écran.",
+      "changer-brique": "Scène 1 : l'animation change.",
+      "decaler-scene": "Scène 1 : elle commence plus tôt.",
+      "changer-habillage": "Tout le film : l'habillage change.",
+      "ajouter-piece": "Scène 1 : l'animation est ajoutée.",
+      "retirer-piece": "Scène 1 : l'animation est retirée.",
+      "remplacer-piece": "Scène 1 : l'animation change.",
+      "changer-transition": "Tout le film : le mouvement change.",
+      "ajouter-dynamisme": "Tout le film : le mouvement change.",
+      "ajuster-zoom": "Scène 3 : le mouvement change.",
+      "modifier-script": "Le texte lu change : la voix sera refaite.",
+      "couper-mots": "Des mots sont coupés : la suite du film se recale.",
+      "changer-sous-titre": "Les sous-titres changent.",
+      "retirer-scene": "Scène 3 : elle est retirée.",
+      "changer-son": "Le son change.",
+      deplacer: "Scène 1 : elle change de place.",
+    };
+    expect(Object.keys(attendues).sort()).toEqual([...TYPES_OPERATIONS_RETOUCHE].sort());
+    for (const t of TYPES_OPERATIONS_RETOUCHE) expect(apercuCommun(base({ operations: [un(t)] })).resume, t).toEqual([TITRE_RESUME, attendues[t], FIN_RESUME]);
+    // decaler-scene : décalage < 0 → « plus tôt », > 0 (et absent) → « plus tard ».
+    const decale = (decalageMs?: number) => apercuCommun(base({ operations: [{ type: "decaler-scene", sceneId: "s-beta", decalageMs } as OperationRetouche] })).resume[1];
+    expect(decale(-200)).toBe("Scène 2 : elle commence plus tôt.");
+    expect(decale(200)).toBe("Scène 2 : elle commence plus tard.");
+    expect(decale(undefined)).toBe("Scène 2 : elle commence plus tard.");
+    // Variantes : une scène visée / plusieurs ; transition sur une scène.
+    const une = (o: unknown) => apercuCommun(base({ operations: [o as OperationRetouche] })).resume[1];
+    expect(une({ type: "ajouter-dynamisme", intensite: "leger", sceneIds: ["s-gamma"] })).toBe("Scène 3 : le mouvement change.");
+    expect(une({ type: "ajouter-dynamisme", intensite: "leger", sceneIds: ["s-alpha", "s-beta"] })).toBe("Tout le film : le mouvement change.");
+    expect(une({ type: "changer-transition", sceneId: "s-beta" })).toBe("Scène 2 : le mouvement change.");
     for (const t of TYPES_OPERATIONS_RETOUCHE) {
       const r = apercuCommun(base({ operations: [un(t)] })).resume.join("\n");
       expect(r, t).not.toMatch(/s-(alpha|beta|gamma)/);
