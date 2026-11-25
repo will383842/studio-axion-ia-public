@@ -12,4 +12,5 @@ export const LIGNES_COUVERTURE: readonly LigneCatalogue[] = Object.freeze([
   { id: ID.ecranCarteVideoArrondie, etat: "prevu", chantier: "11", note: "inscrite, non branchée" },
   { id: ID.ecranGrillesArchive, etat: "prevu", chantier: "11", note: "inscrite, non branchée" },
   { id: ID.ecranEcransComposes, etat: "prevu", chantier: "11", note: "inscrite, non branchée" },
+  { id: ID.motionTitreEtapeMontante, etat: "prevu", chantier: "11", note: "inscrite, non branchée" },
 ] satisfies LigneCatalogue[]);

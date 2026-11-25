@@ -23,12 +23,13 @@ const C11 = [
   ["texte.effets", "texteEffets", "prevu"],
   ["texte.accents-role", "texteAccentsRole", "prevu"],
 ] as const;
-// C11-C2-a-v20k : 4 lignes COUVERTURE de plus, à la suite des 5 de C11 (attente exacte des 9 lignes, seconde lecture du pilote).
+// C11-C2-a-v20k : 5 lignes COUVERTURE de plus, à la suite des 5 de C11 (attente exacte des 10 lignes, seconde lecture du pilote).
 const C11_C2 = [
   ["cadrage.camera-couverture", "cadrageCameraCouverture", "eteint"],
   ["ecran.carte-video-arrondie", "ecranCarteVideoArrondie", "prevu"],
   ["ecran.grilles-archive", "ecranGrillesArchive", "prevu"],
   ["ecran.ecrans-composes", "ecranEcransComposes", "prevu"],
+  ["motion.titre-etape-montante", "motionTitreEtapeMontante", "prevu"],
 ] as const;
 const DIX = [...C10, ...C11].map(([id]) => id as IdCapacite);
 

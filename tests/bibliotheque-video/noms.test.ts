@@ -48,7 +48,8 @@ const IDENTIFIANTS_PLAN = [
   // C11
   "texte.marques-au-mot", "texte.selectif", "texte.mode-carte", "texte.effets", "texte.accents-role",
   // C11-C2-a-v20k
-  "cadrage.camera-couverture", "ecran.carte-video-arrondie", "ecran.grilles-archive", "ecran.ecrans-composes"
+  "cadrage.camera-couverture", "ecran.carte-video-arrondie", "ecran.grilles-archive", "ecran.ecrans-composes",
+  "motion.titre-etape-montante"
 ];
 
 const FAMILLES_ATTENDUES = [

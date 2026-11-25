@@ -107,6 +107,7 @@ const INSTANTANE_MASTER: string[] = [
   "ecran.carte-video-arrondie|prevu|11|",
   "ecran.grilles-archive|prevu|11|",
   "ecran.ecrans-composes|prevu|11|",
+  "motion.titre-etape-montante|prevu|11|",
   "motion.v4-coulisse.LogoOutil|coulisse||",
   "motion.v4-coulisse.Equation|coulisse||",
   "motion.v4-coulisse.FriseEtapes|coulisse||",

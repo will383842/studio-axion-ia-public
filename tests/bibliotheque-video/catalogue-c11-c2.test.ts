@@ -13,13 +13,14 @@ const CINQ = [
   ["ecran.carte-video-arrondie", "ecranCarteVideoArrondie", "prevu"],
   ["ecran.grilles-archive", "ecranGrillesArchive", "prevu"],
   ["ecran.ecrans-composes", "ecranEcransComposes", "prevu"],
+  ["motion.titre-etape-montante", "motionTitreEtapeMontante", "prevu"],
 ] as const;
 const IDS = CINQ.map(([id]) => id as IdCapacite);
 const FORMATS = [...Object.keys(PROFILS_DU_CODE), "podcast", "inconnu"];
 
 describe("C11-C2-a-v20k", () => {
-  it("(a) 4 lignes ajoutées à la suite des 5 existantes (la 5e, motion.titre-etape-montante : HORS PERIMETRE), chantier 11, états exacts", () => {
-    expect(LIGNES_COUVERTURE).toHaveLength(9);
+  it("(a) 5 lignes ajoutées à la suite des 5 existantes, chantier 11, états exacts", () => {
+    expect(LIGNES_COUVERTURE).toHaveLength(10);
     expect(LIGNES_COUVERTURE.slice(5).map((l) => [l.id, l.etat, l.chantier])).toEqual(CINQ.map(([id, , etat]) => [id, etat, "11"]));
   });
   it("(b) chaque id : une fois dans ID (clé camelCase), une fois au catalogue, jamais prod, demande, coulisse ni absent", () => {
@@ -48,12 +49,12 @@ describe("C11-C2-a-v20k", () => {
       }
     }
   });
-  it("(e) les 4 lignes « prevu » ne sont pas contrôlées par la garde de liaison ; « eteint » : le film dépend du cran du dosage (lecture de chaine.ts)", () => {
+  it("(e) les lignes « prevu » ne sont pas contrôlées par la garde de liaison ; « eteint » : le film dépend du cran du dosage (lecture de chaine.ts)", () => {
     const chaine = readFileSync(join(process.cwd(), "src/moteurs/montage-tutoriel-outil/chaine.ts"), "utf8");
     expect(chaine).toContain("dosageMotion?.cran");
     expect(chaine).not.toContain("cadrage.camera-couverture");
   });
-  it("(f) docs/bibliotheque-video.md cite les 4 ids", () => {
+  it("(f) docs/bibliotheque-video.md cite les 5 ids", () => {
     const doc = readFileSync(join(process.cwd(), "docs/bibliotheque-video.md"), "utf8");
     for (const id of IDS) expect(doc, id).toContain(`\`${id}\``);
   });

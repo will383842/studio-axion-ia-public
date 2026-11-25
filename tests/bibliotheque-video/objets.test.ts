@@ -87,6 +87,7 @@ const HORS_OBJET_MASTER = [
   "ecran.carte-video-arrondie|prevu",
   "ecran.grilles-archive|prevu",
   "ecran.ecrans-composes|prevu",
+  "motion.titre-etape-montante|prevu",
   "motion.v4-coulisse.LogoOutil|coulisse",
   "motion.v4-coulisse.Equation|coulisse",
   "motion.v4-coulisse.FriseEtapes|coulisse",

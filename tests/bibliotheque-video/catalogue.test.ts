@@ -107,8 +107,8 @@ describe("catalogue des capacités (C1-U1)", () => {
     );
     expect(LIGNES_COUVERTURE.map((l) => ({ id: l.id, etat: l.etat, chantier: l.chantier }))).toEqual(
       [["texte.marques-au-mot", "eteint"], ["texte.selectif", "eteint"], ["texte.mode-carte", "prevu"], ["texte.effets", "prevu"], ["texte.accents-role", "prevu"],
-        // C11-C2-a-v20k : 4 lignes ajoutées à la suite, rien retiré.
-        ["cadrage.camera-couverture", "eteint"], ["ecran.carte-video-arrondie", "prevu"], ["ecran.grilles-archive", "prevu"], ["ecran.ecrans-composes", "prevu"]]
+        // C11-C2-a-v20k : 5 lignes ajoutées à la suite, rien retiré.
+        ["cadrage.camera-couverture", "eteint"], ["ecran.carte-video-arrondie", "prevu"], ["ecran.grilles-archive", "prevu"], ["ecran.ecrans-composes", "prevu"], ["motion.titre-etape-montante", "prevu"]]
         .map(([id, etat]) => ({ id, etat, chantier: "11" })),
     );
     const index = readFileSync(join(racine, "src/briques/bibliotheque-video/catalogue/index.ts"), "utf8");

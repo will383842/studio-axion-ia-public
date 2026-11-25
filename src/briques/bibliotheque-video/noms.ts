@@ -127,6 +127,7 @@ export const ID = {
   ecranCarteVideoArrondie: "ecran.carte-video-arrondie",
   ecranGrillesArchive: "ecran.grilles-archive",
   ecranEcransComposes: "ecran.ecrans-composes",
+  motionTitreEtapeMontante: "motion.titre-etape-montante",
 } as const satisfies Record<string, IdCapacite>;
 
 /** Préfixe des 13 coulisses v4 : leurs identifiants sont construits par C1-U1, jamais écrits ici. */
