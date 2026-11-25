@@ -87,12 +87,14 @@ describe("(c) porte fermée : consigne sans permis identique à master", () => {
   });
 });
 
-describe("(d) aucun profil ne permet ces objets", () => {
+// MAJ 25/11 (FIX-ROUGES-OBJETS-INSCRITS-v21t, voulue, à relire) : ALLUMER-OBJETS-TABLEAU-v21m (#1603, Williams 20/11) ouvre 11 pièces au tableau animé, dont ces 3 ; jamais posées : objets-allumes-v20g.test.ts (f).
+describe("(d) aucun profil ne permet ces objets, sauf les 3 que le tableau animé ouvre sans jamais les poser", () => {
   it("chaque profil du code : liste des pièces permises vide", () => {
     for (const [nom, profil] of Object.entries(PROFILS_DU_CODE)) {
       const e: EntreeBibliotheque = { version: VERSION_BIBLIOTHEQUE, profil, recents: [], graine: "G", figeeLe: "2026-11-20" };
       const permises = piecesPermisesDesEntrees({ bibliothequeVideo: e });
-      for (const id of IDS) expect(permises, `${nom} / ${id}`).not.toContain(id);
+      const OUVERTS = nom === "tableau-anime" ? ["objet-chrono", "objet-barre-progression", "objet-etape-segments"] : [];
+      expect(IDS.filter((id) => permises.includes(id)), nom).toEqual(OUVERTS);
     }
     expect(ID.objetAppel).toBe("objet.appel");
   });

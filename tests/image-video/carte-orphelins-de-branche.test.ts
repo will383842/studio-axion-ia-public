@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { completerCarte, controlerCarte, reparerOrphelinsDeBranche, type CarteImage } from "@/domaine/image-video/carte";
-import { ErreurDecisionIV, etatInitialIV, validerCarteIV } from "@/moteurs/montage-image-video/fabrication";
+import { etatInitialIV, validerCarteIV } from "@/moteurs/montage-image-video/fabrication";
 import { demandeEssai } from "./doubles-fabrication";
 
 const base: CarteImage = JSON.parse(readFileSync(join(__dirname, "fixtures", "cartes", "C.json"), "utf8"));
@@ -115,16 +115,16 @@ describe("validation de la carte corrigée avec orphelins", () => {
     expect(l.map((x) => `${x.de}>${x.vers}`)).toEqual(["n03>n05", "n04>n06"]);
     expect(controlerCarte(apres.carte!.carte).alertes.filter((a) => a.includes("déduit"))).toHaveLength(2);
   });
-  it("orphelin hors branche : refus, avec la conduite à tenir", async () => {
+  it("orphelin hors branche : relié seul (R5, 52-DECISIONS-WILL.md:62), jamais refusé ; le lien posé vers n09 est exact", async () => {
     const { e } = await arret();
     const carte = embranchement();
     carte.noeuds.push(noeud("n09", "Bloc perdu", 9));
-    try {
-      validerCarteIV(e, { proposition: "prop-1", carte, le: "x" });
-      throw new Error("aurait dû refuser");
-    } catch (err) {
-      expect(err).toBeInstanceOf(ErreurDecisionIV);
-      expect((err as ErreurDecisionIV).phrases.join(" ")).toMatch(/n09 n'est relié à rien.*relancez/i);
-    }
+    // Depuis R5 (#61) : « l'image incohérente ne bloque jamais la vidéo » — la carte est réparée seule, plus de refus.
+    const apres = validerCarteIV(e, { proposition: "prop-1", carte, le: "x" });
+    const versN09 = apres.carte!.carte.liens.filter((x) => x.vers === "n09" || x.de === "n09");
+    expect(versN09.map((x) => `${x.id}:${x.de}>${x.vers}`)).toEqual(["r3-n06-n09:n06>n09"]);
+    // Les deux liens déduits de branche restent signalés, rien n'est inventé en plus.
+    expect(apres.carte!.carte.liens.filter((x) => x.deduit).map((x) => `${x.de}>${x.vers}`)).toEqual(["n03>n05", "n04>n06"]);
+    expect(controlerCarte(apres.carte!.carte).alertes.filter((a) => a.includes("déduit"))).toHaveLength(2);
   });
 });

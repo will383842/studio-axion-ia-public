@@ -116,7 +116,7 @@ describe("S-05-a : par le chemin réel (apercevoirRetouche + lireDemande)", () =
 });
 
 describe("S-05-a : gardes de texte", () => {
-  it("g) seul lecteur-studio.ts (G8-OBS) importe le module ; il ne lit pas la base", () => {
+  it("g) seuls la route (S-05-b) et lecteur-studio.ts (G8-OBS) importent le module ; il ne lit pas la base", () => {
     const racine = new URL("../../src/", import.meta.url).pathname;
     const source = readFileSync(`${racine}services/retouche-chat/lecteur-generateurs.ts`, "utf8");
     expect(source).not.toContain("lireParametre(");
@@ -127,6 +127,7 @@ describe("S-05-a : gardes de texte", () => {
       });
     };
     const fautifs = walk(racine).filter((f) => !f.endsWith("retouche-chat/lecteur-generateurs.ts") && readFileSync(f, "utf8").includes("lecteur-generateurs"));
-    expect(fautifs).toEqual([`${racine}services/retouche-chat/lecteur-studio.ts`]);
+    // S-05-b-v21s (25/11, ÉLARGISSEMENT, seconde lecture du pilote) : + la route du chat (liste exacte, ordre du parcours).
+    expect(fautifs).toEqual([`${racine}app/api/retouche-chat/route.ts`, `${racine}services/retouche-chat/lecteur-studio.ts`]);
   });
 });
