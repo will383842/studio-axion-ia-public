@@ -1,5 +1,6 @@
 import type { Intention } from "../../briques/visuels/trames";
 import type { Id } from "../types";
+import type { OrigineUsine } from "../usine";
 import type { RapportPorte } from "./contrats";
 import type { CarrouselSpecType } from "./types";
 import type { StatutVisuel } from "./statuts";
@@ -57,4 +58,8 @@ export interface Visuel {
   creeLe: string;
   modifieLe: string;
   estDemo?: boolean;
+  /** Carrousel retenu depuis une carte de la semaine de l'usine (plan usine #63) : jamais validé ni programmé par ce chemin. */
+  origineUsine?: OrigineUsine & { prevenueLe?: string };
+  /** Jour visé par la carte retenue (AAAA-MM-JJ). */
+  dateVisee?: string;
 }
