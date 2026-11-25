@@ -5,7 +5,7 @@
  */
 import { spawnSync, execFileSync } from "node:child_process";
 import {
-  chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync,
+  chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -51,7 +51,7 @@ describe("POSTE-2 · texte du script", () => {
     expect(script).toMatch(/^set -euo pipefail$/m);
     expect(script).toMatch(/^umask 077$/m);
     expect(script).toMatch(/^PATH=\/usr\/local\/sbin:/m);
-    expect(script).toMatch(/flock -n 9 \|\| exit 0/);
+    expect(script).toMatch(/if ! flock -n 9; then\n\s+pouls \|\| true\n\s+exit 0\nfi/);
     expect(script).toContain('"$1" = "--une-fois"');
   });
   it("ne lit aucun JSON : ni jq, ni node, ni python, ni parseur", () => {
@@ -60,9 +60,11 @@ describe("POSTE-2 · texte du script", () => {
   it("mv -T pour la prise ET la remise ; copies par cp --no-dereference seulement", () => {
     expect(script).toMatch(/mv -T -- "\$BOITE\/demandes\/\$1" "\$V\/travail-\$1"/);
     expect(script).toMatch(/mv -T -- "\$r" "\$BOITE\/reponses\/\$NOM"/);
+    // le film est DÉPLACÉ dans la réponse (même système de fichiers), jamais recopié une seconde fois
+    expect(script).toMatch(/mv -T -- "\$res\/\$f" "\$r\/\$f"/);
     const cp = script.split("\n").filter((l) => /\bcp\b/.test(l));
-    expect(cp.length).toBeGreaterThan(3);
-    for (const l of cp) expect(l, l).toMatch(/--no-dereference/);
+    expect(cp.length).toBeGreaterThanOrEqual(2);
+    for (const l of cp) expect(l, l).toMatch(/timeout "\$COPIE_S" cp -R --no-dereference/);
     expect(script).not.toMatch(/\b(rsync|tar|unzip)\b|cp -L|cp -a|cp -H/);
   });
   it("chaque `docker compose … run` est précédé du double `docker ps -aq` (nom ET label) dans la même fonction", () => {
@@ -77,14 +79,35 @@ describe("POSTE-2 · texte du script", () => {
     // /sortie neuf : le contrôle précède toute action sur /sortie
     expect(script).toMatch(/sortie_neuve\(\) \{\n\s+poste_libre \|\| arret panne POSTE_OCCUPE\n\s+boucle_neuve/);
   });
-  it("forme `timeout 960 docker wait … || docker kill`, puis docker inspect, logs bornés, rm -f", () => {
-    expect(script).toMatch(/timeout 960 docker wait "\$nom" >\/dev\/null \|\| docker kill "\$nom"/);
+  it("forme `timeout <délai> docker wait … || docker kill` (960 s, 120 s pour verifier), puis docker inspect, logs bornés, rm -f", () => {
+    expect(script).toMatch(/timeout "\$delai" docker wait "\$nom" >\/dev\/null \|\| docker kill "\$nom"/);
+    expect(script).toContain("DELAI_ETAPE_S=960");
+    expect(script).toContain("DELAI_VERIFIER_S=120");
+    expect(script).toMatch(/if \[ "\$1" = verifier \]; then delai=\$DELAI_VERIFIER_S/);
     expect(script).toContain("docker inspect -f '{{.State.ExitCode}}'");
     expect(script).toContain("tail -c 8192");
     expect(script).toMatch(/docker rm -f "\$nom"/);
   });
+  it("docker compose : --env-file du .env réel, -f et --project-directory fixés, COMPOSE_* vidées, --pull never, run -d sous timeout, image vérifiée avant", () => {
+    const l = script.split("\n").filter((x) => /docker compose .* run /.test(x));
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatch(/timeout 120 env -u COMPOSE_FILE -u COMPOSE_PROFILES -u COMPOSE_PROJECT_NAME -u COMPOSE_ENV_FILES /);
+    expect(l[0]).toContain('docker compose --env-file "$ENV_FICHIER" --project-directory "$DEPLOIEMENT" -f "$DEPLOIEMENT/docker-compose.yml" --profile capture run -d --pull never --name');
+    expect(l[0]).not.toMatch(/--build/);
+    expect(script).toContain('readonly ENV_FICHIER="$RACINE/.env"');
+    expect(script).toMatch(/docker image inspect studio-capture:local[^\n]*\|\| arret panne CAPTURE_ECHEC\n\s+poste_libre/);
+    expect(script).toMatch(/docker-compose\.override\.yml .*compose\.yaml/);
+  });
+  it("pouls : fichier temporaire propre au processus, chmod AVANT mv -T ; la boîte doit être un point de montage ; ffprobe lu en octets bornés", () => {
+    expect(script).toMatch(/tmp="\$V\/pouls\.\$\$\.tmp"/);
+    expect(script).toMatch(/chmod 0444 "\$tmp" && mv -T -- "\$tmp" "\$BOITE\/pouls"/);
+    expect(script).not.toMatch(/chmod 0444 "\$BOITE\/pouls"/);
+    expect(script).toMatch(/monte "\$BOITE" \|\| refuser_config/);
+    expect(script).toMatch(/head -c \$\(\(MAX_FFPROBE \+ 1\)\)/);
+    expect(script).not.toMatch(/reprendre \|\| true/);
+  });
   it("aucun --entrypoint, -v, --volume, -e, --env, docker.sock, --privileged, network", () => {
-    for (const motif of [/--entrypoint/, / -v /, /--volume/, /--env\b/, /docker\.sock/, /--privileged/, /network/]) {
+    for (const motif of [/--entrypoint/, / -v /, /--volume/, /--env(?!-file)\b/, /docker\.sock/, /--privileged/, /network/]) {
       expect(script, String(motif)).not.toMatch(motif);
     }
     // ` -e ` : permis pour realpath/ls, jamais sur une ligne docker
@@ -135,14 +158,27 @@ describe("POSTE-2 · compose et unités", () => {
     expect(cap).toMatch(/profiles: \[capture\]/);
     expect(cap).toMatch(/network_mode: none/);
     expect(compose).toContain("Déclenchement automatique : `studio-capture/veilleur.sh`");
+    // la phrase « Déclenchement À LA MAIN seulement, depuis deploiement/ ; … » n'est pas coupée ; la mention suit « Le point d'entrée est lancer.sh. »
+    const l = compose.split("\n");
+    const i = l.findIndex((x) => x.includes("Déclenchement automatique : `studio-capture/veilleur.sh`"));
+    expect(l[i - 1]).toMatch(/Le point d'entrée est lancer\.sh\.$/);
+    expect(l[i - 3]).toMatch(/Déclenchement À LA MAIN seulement,$/);
+    expect(l[i - 2]).toMatch(/^\s+# depuis deploiement\/ ;/);
   });
   it("service systemd oneshot, minuterie 30 s, rien d'activé par défaut", () => {
     expect(service).toMatch(/^Type=oneshot$/m);
-    expect(service).toMatch(/^ExecStart=\/usr\/local\/sbin\/studio-capture-veilleur$/m);
+    expect(service).toMatch(/^ExecStart=\/usr\/local\/sbin\/studio-capture-veilleur --une-fois$/m);
     expect(service).toMatch(/^Environment=VEILLEUR_BOITE=\/opt\/studio-axion-ia\/capture-boite$/m);
     expect(service).toMatch(/^Environment=DEPLOIEMENT=\//m);
     expect(service).not.toMatch(/VEILLEUR_TEST|VEILLEUR_RACINE|VEILLEUR_PATH_TEST/);
-    expect(service).toMatch(/^TimeoutStartSec=3600$/m);
+    // 3 étapes de 960 s + marge, et une seule demande par passage
+    const delai = Number(/^TimeoutStartSec=(\d+)$/m.exec(service)?.[1]);
+    expect(delai).toBeGreaterThanOrEqual(3 * 960 + 300);
+    expect(delai).toBeLessThan(3600);
+    // pas de PrivateTmp/ProtectSystem… (les boucles doivent être visibles de dockerd) : expliqué dans l'unité
+    expect(service.split("\n").filter((x) => !x.startsWith("#")).join("\n")).not.toMatch(/PrivateTmp|ProtectSystem|ProtectHome|PrivateMounts/);
+    expect(service).toMatch(/# VOLONTAIREMENT SANS PrivateTmp, ProtectSystem/);
+    expect(service).toMatch(/VISIBLES de dockerd/);
     expect(service).toMatch(/^Nice=10$/m);
     expect(service).toMatch(/^IOSchedulingClass=idle$/m);
     expect(minuterie).toMatch(/^OnBootSec=2min$/m);
@@ -166,16 +202,19 @@ case "$1" in
     echo "env $mode ENTREE=$STUDIO_CAPTURE_ENTREE SORTIE=$STUDIO_CAPTURE_SORTIE MAQ=\${STUDIO_CAPTURE_MAQUETTE:-}" >> "${faux}/appels"
     touch "${faux}/ctr-$nom"; echo "$mode" > "${faux}/mode-$nom"
     case "$mode" in
-      decompresser) [ -f "${faux}/pas-de-maquette" ] || { mkdir -p "$STUDIO_CAPTURE_SORTIE/maquette/site"; echo "<html>" > "$STUDIO_CAPTURE_SORTIE/maquette/site/index.html"; }
+      decompresser) [ -f "${faux}/lent" ] && sleep 3
+                    [ -f "${faux}/pas-de-maquette" ] || { mkdir -p "$STUDIO_CAPTURE_SORTIE/maquette/site"; echo "<html>" > "$STUDIO_CAPTURE_SORTIE/maquette/site/index.html"; }
                     [ -f "${faux}/lien-dans-sortie" ] && ln -s /etc/passwd "$STUDIO_CAPTURE_SORTIE/maquette/site/lien" ;;
       capturer) mkdir -p "$STUDIO_CAPTURE_SORTIE/film-abc"; echo "MP4" > "$STUDIO_CAPTURE_SORTIE/film-abc/navigation.mp4"; echo "{}" > "$STUDIO_CAPTURE_SORTIE/film-abc/navigation.json" ;;
-      verifier) echo "{}" > "$STUDIO_CAPTURE_SORTIE/ffprobe.json" ;;
+      verifier) if [ -f "${faux}/ffprobe-gros" ]; then head -c 70000 /dev/zero | tr '\\0' 'x' > "$STUDIO_CAPTURE_SORTIE/ffprobe.json"; else echo "{}" > "$STUDIO_CAPTURE_SORTIE/ffprobe.json"; fi
+                  ls "$STUDIO_CAPTURE_ENTREE" > "${faux}/entree-verifier" ;;
     esac
     echo "$nom" ;;
   wait) exit 0 ;;
-  kill) echo "kill $2" >> "${faux}/kills"; exit 0 ;;
+  kill) echo "kill $2" >> "${faux}/kills"; m=$(cat "${faux}/mode-$2" 2>/dev/null); echo 137 > "${faux}/rc-$m"; exit 0 ;;
   inspect) m=$(cat "${faux}/mode-\${@: -1}" 2>/dev/null); if [ -f "${faux}/rc-$m" ]; then cat "${faux}/rc-$m"; else echo 0; fi ;;
-  logs) echo "journal du poste" ;;
+  logs) if [ -f "${faux}/logs" ]; then cat "${faux}/logs"; else echo "journal du poste"; fi ;;
+  image) exit \$([ -f "${faux}/pas-d-image" ] && echo 1 || echo 0) ;;
   rm) rm -f "${faux}/ctr-\${@: -1}"; exit 0 ;;
 esac
 `,
@@ -186,8 +225,22 @@ dir="\${@: -1}"; find "$dir" -mindepth 1 -delete; echo "$dir" >> "${faux}/montes
 `,
   umount: `#!/bin/bash
 echo "umount $*" >> "${faux}/appels"
+if [ -f "${faux}/umount-echoue-maquette" ] && [[ "$1" == */capture-maquettes/* ]]; then exit 1; fi
 find "$1" -mindepth 1 -delete 2>/dev/null
 grep -vx "$1" "${faux}/montes" > "${faux}/montes.n" || true; mv "${faux}/montes.n" "${faux}/montes"
+`,
+  timeout: `#!/bin/bash
+echo "timeout $*" >> "${faux}/delais"
+if [ "$2" = docker ] && [ "$3" = wait ] && [ -f "${faux}/timeout-124" ]; then exit 124; fi
+if [ "$2" = cp ] && [ -f "${faux}/timeout-cp" ]; then exit 124; fi
+exec /usr/bin/timeout "$@"
+`,
+  mv: `#!/bin/bash
+# $1=-T $2=-- $3=source $4=destination
+if [ -f "${faux}/disparait" ] && [[ "$3" == */demandes/* ]]; then rm -rf "$3"; exit 1; fi
+if [ -f "${faux}/mv-reponse-echoue" ] && [[ "$4" == */reponses/* ]]; then exit 1; fi
+echo "mv $*" >> "${faux}/mouvements"
+exec /usr/bin/mv "$@"
 `,
   mountpoint: `#!/bin/bash
 grep -qx "$2" "${faux}/montes" 2>/dev/null
@@ -218,11 +271,16 @@ function banc(): Banc {
   chmodSync(join(boite, ".veilleur"), 0o700);
   writeFileSync(join(deploiement, "docker-compose.yml"), "name: essai\n");
   chmodSync(join(deploiement, "docker-compose.yml"), 0o644);
+  mkdirSync(join(deploiement, "studio-capture"));
+  writeFileSync(join(deploiement, "studio-capture/seccomp.json"), "{}");
+  writeFileSync(join(racine, ".env"), "POSTGRES_PASSWORD=x\n");
+  for (const d of [boite, racine, deploiement, join(racine, "capture-maquettes"), join(racine, "capture-maquettes-img"), join(racine, "capture-veilleur")]) chmodSync(d, 0o755);
+  chmodSync(join(racine, ".env"), 0o600);
   for (const [nom, contenu] of Object.entries(FAUX_OUTILS(faux))) {
     writeFileSync(join(faux, nom), contenu);
     chmodSync(join(faux, nom), 0o755);
   }
-  writeFileSync(join(faux, "montes"), "");
+  writeFileSync(join(faux, "montes"), `${boite}\n`);
   const lancer: Banc["lancer"] = (extra = {}, args = ["--une-fois"]) =>
     spawnSync("bash", [CHEMIN_SCRIPT, ...args], {
       encoding: "utf8",
@@ -247,7 +305,7 @@ afterAll(() => {
 const etat = (b: Banc, nom: string) => readFileSync(join(b.boite, "reponses", nom, "etat.txt"), "utf8");
 const NOM = "film-zip--abcdef123456";
 
-describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker)", () => {
+describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker)", { timeout: 30_000 }, () => {
   it("DEPLOIEMENT absent : code 2", () => {
     const b = banc();
     const r = b.lancer({ DEPLOIEMENT: undefined });
@@ -273,10 +331,53 @@ describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker
     expect(b.lancer().status).toBe(2);
     expect(b.appels()).toEqual([]);
   });
-  it("sans VEILLEUR_TEST=1, les variables d'essai sont REFUSÉES (jamais ignorées)", () => {
-    for (const v of ["VEILLEUR_RACINE", "VEILLEUR_PATH_TEST", "VEILLEUR_VERROU"]) {
+  it("boîte inscriptible par le groupe/les autres, ou propriétaire autre : code 2 (docker jamais appelé)", () => {
+    for (const mode of [0o770, 0o757, 0o777]) {
       const b = banc();
-      const r = b.lancer({ VEILLEUR_TEST: undefined, [v]: v === "VEILLEUR_RACINE" ? b.racine : b.faux });
+      chmodSync(b.boite, mode);
+      const r = b.lancer();
+      expect(r.status, mode.toString(8)).toBe(2);
+      expect(String(r.stderr)).toContain("la boîte ne doit être inscriptible que par root");
+      expect(b.appels()).toEqual([]);
+    }
+    const b = banc();
+    const r = b.lancer({}, ["--une-fois"]);
+    expect(r.status).toBe(0);
+  });
+  it("la boîte doit être un point de montage ; racine et dossiers fixes de root non inscriptibles par d'autres : code 2", () => {
+    let b = banc();
+    writeFileSync(join(b.faux, "montes"), "");
+    let r = b.lancer();
+    expect(r.status).toBe(2);
+    expect(String(r.stderr)).toContain("point de montage");
+    for (const [mode, dossier] of [[0o775, "racine"], [0o777, "capture-maquettes"], [0o770, "capture-maquettes-img"], [0o757, "capture-veilleur"], [0o777, "capture-entree"]] as const) {
+      b = banc();
+      chmodSync(dossier === "racine" ? b.racine : join(b.racine, dossier), mode);
+      r = b.lancer();
+      expect(r.status, `${dossier} ${mode.toString(8)}`).toBe(2);
+      expect(b.appels()).toEqual([]);
+    }
+  });
+  it("DEPLOIEMENT inscriptible, seccomp.json inscriptible, .env absent ou inscriptible, fichier compose en trop : code 2", () => {
+    const cas: Array<[string, (b: Banc) => void]> = [
+      ["deploiement", (b) => chmodSync(b.deploiement, 0o777)],
+      ["seccomp", (b) => chmodSync(join(b.deploiement, "studio-capture/seccomp.json"), 0o666)],
+      [".env absent", (b) => rmSync(join(b.racine, ".env"))],
+      [".env inscriptible", (b) => chmodSync(join(b.racine, ".env"), 0o666)],
+      ["override", (b) => writeFileSync(join(b.deploiement, "docker-compose.override.yml"), "services: {}\n")],
+      ["compose.yaml", (b) => writeFileSync(join(b.deploiement, "compose.yaml"), "services: {}\n")],
+    ];
+    for (const [nom, piege] of cas) {
+      const b = banc();
+      piege(b);
+      expect(b.lancer().status, nom).toBe(2);
+      expect(b.appels(), nom).toEqual([]);
+    }
+  });
+  it("sans VEILLEUR_TEST=1, les variables d'essai sont REFUSÉES (jamais ignorées)", () => {
+    for (const v of ["VEILLEUR_RACINE", "VEILLEUR_PATH_TEST", "VEILLEUR_VERROU", "VEILLEUR_BUDGET"]) {
+      const b = banc();
+      const r = b.lancer({ VEILLEUR_TEST: undefined, [v]: v === "VEILLEUR_RACINE" ? b.racine : v === "VEILLEUR_BUDGET" ? "5" : b.faux });
       expect(r.status, v).toBe(2);
       expect(b.appels()).toEqual([]);
     }
@@ -287,6 +388,17 @@ describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker
     const b = banc();
     expect(b.lancer({ VEILLEUR_RACINE: "/opt/studio-axion-ia" }).status).toBe(2);
     expect(b.lancer({ VEILLEUR_BOITE: "/opt/studio-axion-ia/capture-boite" }).status).toBe(2);
+    // barre finale, //, ./ : comparés après realpath -m, donc refusés pour la bonne raison (message « interdite »)
+    for (const racine of ["/opt/studio-axion-ia/", "//opt/studio-axion-ia", "/opt//studio-axion-ia/"]) {
+      const r = b.lancer({ VEILLEUR_RACINE: racine });
+      expect(r.status, racine).toBe(2);
+      expect(String(r.stderr), racine).toContain("la vraie racine est interdite");
+    }
+    for (const boite of ["/opt/studio-axion-ia/capture-boite/", "//opt/studio-axion-ia/capture-boite", "/opt/studio-axion-ia//capture-boite/"]) {
+      const r = b.lancer({ VEILLEUR_BOITE: boite });
+      expect(r.status, boite).toBe(2);
+      expect(String(r.stderr), boite).toContain("la vraie boîte est interdite");
+    }
     expect(b.lancer({}, ["--autre"]).status).toBe(2);
     expect(b.lancer({}, ["--une-fois", "--x"]).status).toBe(2);
     expect(b.lancer({ VEILLEUR_BOITE: "/tmp/../etc" }).status).toBe(2);
@@ -298,7 +410,7 @@ describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker
   });
 });
 
-describe("POSTE-2 · exécution avec faux docker", () => {
+describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
   it("rien à faire : pouls écrit (0444), aucune action docker autre que `ps`", () => {
     const b = banc();
     const r = b.lancer();
@@ -314,7 +426,7 @@ describe("POSTE-2 · exécution avec faux docker", () => {
     expect(etat(b, NOM)).toBe("ok\nOK\n");
     expect(readdirSync(join(b.boite, "reponses", NOM)).sort()).toEqual(["etat.txt", "ffprobe.json", "navigation.json", "navigation.mp4"]);
     expect(readdirSync(join(b.boite, "demandes"))).toEqual([]);
-    expect(readdirSync(join(b.boite, ".veilleur")).sort()).toEqual(["pouls.tmp"].filter(() => false));
+    expect(readdirSync(join(b.boite, ".veilleur"))).toEqual([]);
     const a = b.appels();
     const modes = a.filter((l) => l.startsWith("env ")).map((l) => l.split(" ")[1]);
     expect(modes).toEqual(["decompresser", "capturer", "verifier"]);
@@ -323,13 +435,13 @@ describe("POSTE-2 · exécution avec faux docker", () => {
       if (/^docker compose /.test(l)) {
         expect(a[i - 2]).toContain("docker ps -aq --filter name=studio-capture");
         expect(a[i - 1]).toContain("docker ps -aq --filter label=com.docker.compose.service=studio-capture");
-        expect(l).toContain("--profile capture run -d --name studio-capture-abcdef123456-");
+        expect(l).toContain("--profile capture run -d --pull never --name studio-capture-abcdef123456-");
       }
     });
     expect(a.find((l) => l.startsWith("env capturer"))).toContain(`MAQ=${b.racine}/capture-maquettes/abcdef123456/maquette`);
     expect(readdirSync(join(b.racine, "capture-maquettes"))).toEqual([]);
     expect(readdirSync(join(b.racine, "capture-maquettes-img"))).toEqual([]);
-    expect(readFileSync(join(b.faux, "montes"), "utf8")).toBe("");
+    expect(readFileSync(join(b.faux, "montes"), "utf8")).toBe(`${b.boite}\n`);
   });
   it("film-description et apercu : refus DEMANDE_INVALIDE, aucun conteneur", () => {
     for (const type of ["film-description", "apercu"]) {
@@ -396,15 +508,15 @@ describe("POSTE-2 · exécution avec faux docker", () => {
     const b = banc();
     mkdirSync(join(b.boite, ".veilleur", `travail-${NOM}`));
     writeFileSync(join(b.faux, "occupe"), "zzz\n");
-    // le faux `ps` répond « occupé » tant que `rm -f` n'a pas vidé le fichier : on le fait vider par le faux rm via ctr
-    writeFileSync(join(b.faux, "docker-rm-vide"), "");
-    const docker = readFileSync(join(b.faux, "docker"), "utf8").replace('rm) rm -f', 'rm) rm -f "${faux_occupe:-/nonexistent}" "' + join(b.faux, "occupe") + '"; rm -f');
+    // le faux `ps` répond « occupé » tant que le faux `rm` n'a pas vidé le fichier « occupe »
+    const docker = readFileSync(join(b.faux, "docker"), "utf8").replace("rm) rm -f", `rm) rm -f "${join(b.faux, "occupe")}"; rm -f`);
     writeFileSync(join(b.faux, "docker"), docker);
     const r = b.lancer();
     expect(r.status, String(r.stderr)).toBe(0);
     expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
     expect(existsSync(join(b.boite, ".veilleur", `travail-${NOM}`))).toBe(false);
     expect(existsSync(join(b.faux, "kills"))).toBe(true);
+    expect(b.appels().some((l) => /^docker compose/.test(l))).toBe(false);
   });
   it("entrée invalide ancienne de demandes/ supprimée, récente conservée ; une réponse déjà présente n'est jamais écrasée", () => {
     const b = banc();
@@ -425,15 +537,187 @@ describe("POSTE-2 · exécution avec faux docker", () => {
     c.lancer();
     expect(readFileSync(join(c.boite, "reponses", NOM, "etat.txt"), "utf8")).toBe("ok\nOK\n");
   });
-  it("deux passages en même temps : le second sort sans rien faire (flock)", () => {
+  it("deux passages en même temps : le second sort sans rien faire (flock), mais rafraîchit le pouls (0444, sans reste)", () => {
     const b = banc();
     const verrou = join(b.dossier, "v.lock");
-    const tenu = spawnSync("bash", ["-c", `exec 9>"${verrou}"; flock -n 9 && VEILLEUR_TEST=1 VEILLEUR_RACINE="${b.racine}" VEILLEUR_PATH_TEST="${b.faux}" VEILLEUR_BOITE="${b.boite}" DEPLOIEMENT="${b.deploiement}" VEILLEUR_VERROU="${verrou}" bash "${CHEMIN_SCRIPT}" --une-fois 9>&-; echo $?`], { encoding: "utf8" });
-    // le sous-processus a son propre descripteur 9 fermé : il prend le verrou normalement (statut 0) ; le test de contention suit
-    expect(tenu.stdout.trim()).toBe("0");
     b.demande(NOM);
-    const r = spawnSync("bash", ["-c", `exec 8>"${verrou}"; flock -n 8; VEILLEUR_TEST=1 VEILLEUR_RACINE="${b.racine}" VEILLEUR_PATH_TEST="${b.faux}" VEILLEUR_BOITE="${b.boite}" DEPLOIEMENT="${b.deploiement}" VEILLEUR_VERROU="${verrou}" bash "${CHEMIN_SCRIPT}" --une-fois; echo $?`], { encoding: "utf8" });
+    const ancien = "2000-01-01T00:00:00Z\n";
+    writeFileSync(join(b.boite, "pouls"), ancien);
+    const r = spawnSync("bash", ["-c", `exec 8>"${verrou}"; flock -n 8; VEILLEUR_TEST=1 VEILLEUR_RACINE="${b.racine}" VEILLEUR_PATH_TEST="${b.faux}" VEILLEUR_BOITE="${b.boite}" DEPLOIEMENT="${b.deploiement}" VEILLEUR_VERROU="${verrou}" bash "${CHEMIN_SCRIPT}" --une-fois 9>&-; echo $?`], { encoding: "utf8" });
     expect(r.stdout.trim()).toBe("0");
     expect(readdirSync(join(b.boite, "demandes"))).toEqual([NOM]);
+    const pouls = readFileSync(join(b.boite, "pouls"), "utf8");
+    expect(pouls).not.toBe(ancien);
+    expect(pouls).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\n$/);
+    expect(statSync(join(b.boite, "pouls")).mode & 0o777).toBe(0o444);
+    expect(readdirSync(join(b.boite, ".veilleur"))).toEqual([]);
+    expect(b.appels()).toEqual([]);
+  });
+  it("pouls : le mode est posé AVANT le mv -T (jamais de fichier root 0600 visible dans la boîte)", () => {
+    const b = banc();
+    // faux mv : relève le mode de la source au moment du renommage
+    writeFileSync(join(b.faux, "mv"), `#!/bin/bash\nif [[ "$4" == */pouls ]]; then stat -c %a "$3" > "${b.faux}/mode-avant-mv"; fi\nexec /usr/bin/mv "$@"\n`);
+    chmodSync(join(b.faux, "mv"), 0o755);
+    expect(b.lancer().status).toBe(0);
+    expect(readFileSync(join(b.faux, "mode-avant-mv"), "utf8").trim()).toBe("444");
+  });
+  it("une seule demande par passage avec --une-fois ; sans argument, la borne de temps (VEILLEUR_BUDGET) empêche d'en prendre une autre", () => {
+    const b = banc();
+    b.demande(NOM);
+    b.demande("film-zip--bbbbbb123456");
+    expect(b.lancer().status).toBe(0); // --une-fois
+    expect(readdirSync(join(b.boite, "reponses"))).toHaveLength(1);
+    expect(readdirSync(join(b.boite, "demandes"))).toHaveLength(1);
+    const c = banc();
+    c.demande(NOM);
+    c.demande("film-zip--bbbbbb123456");
+    writeFileSync(join(c.faux, "lent"), ""); // la 1re étape dure 3 s ; borne à 2 s
+    const r = c.lancer({ VEILLEUR_BUDGET: "2" }, []);
+    expect(r.status, String(r.stderr)).toBe(0);
+    expect(readdirSync(join(c.boite, "reponses"))).toHaveLength(1);
+    expect(readdirSync(join(c.boite, "demandes"))).toHaveLength(1);
+    expect(String(r.stderr)).toContain("borne de temps atteinte");
+    // sans la borne, les deux sont traitées
+    const d = banc();
+    d.demande(NOM);
+    d.demande("film-zip--bbbbbb123456");
+    expect(d.lancer({}, []).status).toBe(0);
+    expect(readdirSync(join(d.boite, "reponses"))).toHaveLength(2);
+  });
+  it("demande retirée par le studio entre le find et le mv : on passe, code 0, aucun travail", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "disparait"), "");
+    const r = b.lancer();
+    expect(r.status, String(r.stderr)).toBe(0);
+    expect(String(r.stderr)).toContain("demande disparue");
+    expect(readdirSync(join(b.boite, "reponses"))).toEqual([]);
+    expect(b.appels().some((l) => /^docker compose/.test(l))).toBe(false);
+  });
+  it("reprise : si la réponse INTERROMPU ne peut pas être posée, le travail n'est PAS effacé (puis réessayé au passage suivant)", () => {
+    const b = banc();
+    mkdirSync(join(b.boite, ".veilleur", `travail-${NOM}`));
+    writeFileSync(join(b.faux, "mv-reponse-echoue"), "");
+    const r = b.lancer();
+    expect(r.status, String(r.stderr)).toBe(0);
+    expect(existsSync(join(b.boite, ".veilleur", `travail-${NOM}`))).toBe(true);
+    expect(readdirSync(join(b.boite, "reponses"))).toEqual([]);
+    expect(String(r.stderr)).toContain("le travail est conservé");
+    rmSync(join(b.faux, "mv-reponse-echoue"));
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+    expect(existsSync(join(b.boite, ".veilleur", `travail-${NOM}`))).toBe(false);
+  });
+  it("délai dépassé côté hôte (faux timeout rendant 124) : docker kill du conteneur, puis panne DUREE_DEPASSEE", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "timeout-124"), "");
+    expect(b.lancer().status).toBe(0);
+    expect(readFileSync(join(b.faux, "kills"), "utf8")).toContain("kill studio-capture-abcdef123456-decompresser");
+    expect(etat(b, NOM)).toBe("panne\nDUREE_DEPASSEE\n");
+    expect(b.appels().some((l) => l === "docker rm -f studio-capture-abcdef123456-decompresser")).toBe(true);
+  });
+  it("délais : 960 s pour les étapes, 120 s pour verifier ; copies sous timeout ; run -d sous timeout 120", () => {
+    const b = banc();
+    b.demande(NOM);
+    expect(b.lancer().status).toBe(0);
+    const d = readFileSync(join(b.faux, "delais"), "utf8").split("\n");
+    const attentes = d.filter((l) => l.startsWith("timeout ") && l.includes(" docker wait "));
+    expect(attentes.map((l) => l.split(" ")[1])).toEqual(["960", "960", "120"]);
+    expect(d.filter((l) => /^timeout 120 env /.test(l))).toHaveLength(3);
+    expect(d.filter((l) => /^timeout 300 cp -R --no-dereference /.test(l)).length).toBeGreaterThanOrEqual(6);
+  });
+  it("copie qui ne finit pas (faux timeout 124 sur cp) : panne INTERROMPU, code 0 de l'unité", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "timeout-cp"), "");
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+    expect(b.appels().some((l) => /^docker compose/.test(l))).toBe(false);
+  });
+  it("FIFO glissée à la place de dossier.zip : copiée comme FIFO (cp -R) puis refusée, sans blocage", () => {
+    const b = banc();
+    const d = b.demande(NOM);
+    rmSync(join(d, "dossier.zip"));
+    // le contrôle de la source refuse déjà un non-fichier ; ici on vérifie que le script rend la main vite
+    execFileSync("mkfifo", [join(d, "dossier.zip")]);
+    const debut = Date.now();
+    expect(b.lancer().status).toBe(0);
+    expect(Date.now() - debut).toBeLessThan(20_000);
+    expect(etat(b, NOM)).toBe("refus\nDEMANDE_INVALIDE\n");
+  });
+  it("compose : --env-file du .env réel, -f et --project-directory, aucune variable COMPOSE_* héritée, --pull never", () => {
+    const b = banc();
+    b.demande(NOM);
+    const r = b.lancer({ COMPOSE_FILE: "/tmp/autre.yml", COMPOSE_PROFILES: "x", COMPOSE_PROJECT_NAME: "y" });
+    expect(r.status, String(r.stderr)).toBe(0);
+    const runs = b.appels().filter((l) => /^docker compose /.test(l));
+    expect(runs).toHaveLength(3);
+    for (const l of runs) {
+      expect(l).toContain(`--env-file ${b.racine}/.env --project-directory ${b.deploiement} -f ${b.deploiement}/docker-compose.yml --profile capture run -d --pull never --name `);
+      expect(l).not.toContain("--build");
+    }
+    // le faux docker consigne l'environnement COMPOSE_* reçu : rien
+    expect(b.appels().filter((l) => l.startsWith("env ") && l.includes("COMPOSE"))).toEqual([]);
+  });
+  it("image absente : jamais de construction, panne CAPTURE_ECHEC, aucun docker compose", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "pas-d-image"), "");
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("panne\nCAPTURE_ECHEC\n");
+    expect(b.appels().some((l) => /^docker compose/.test(l))).toBe(false);
+  });
+  it("verifier : /entree ne contient que navigation.mp4 ; ffprobe.json trop gros refusé (lecture bornée) ; code non nul : jamais cru", () => {
+    let b = banc();
+    b.demande(NOM);
+    expect(b.lancer().status).toBe(0);
+    expect(readFileSync(join(b.faux, "entree-verifier"), "utf8").trim()).toBe("navigation.mp4");
+    b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "ffprobe-gros"), "");
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("refus\nFILM_INVALIDE\n");
+    b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "rc-verifier"), "3"); // ffprobe.json existe, mais le conteneur a échoué
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("refus\nFILM_INVALIDE\n");
+    expect(existsSync(join(b.boite, "reponses", NOM, "ffprobe.json"))).toBe(false);
+  });
+  it("le film est DÉPLACÉ dans la réponse (mv), jamais recopié une seconde fois", () => {
+    const b = banc();
+    b.demande(NOM);
+    expect(b.lancer().status).toBe(0);
+    const mv = readFileSync(join(b.faux, "mouvements"), "utf8");
+    expect(mv).toMatch(/mv -T -- \S+\/resultat-abcdef123456\/navigation\.mp4 \S+\/reponse-film-zip--abcdef123456\/navigation\.mp4/);
+    const d = readFileSync(join(b.faux, "delais"), "utf8");
+    // 3 copies de la demande + maquette + 2 fichiers du résultat + le film pour verifier = 7 ; aucune pour la réponse
+    expect(d.split("\n").filter((l) => /^timeout 300 cp /.test(l))).toHaveLength(7);
+  });
+  it("image .img de maquette effacée seulement si le démontage a réussi", () => {
+    let b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "umount-echoue-maquette"), "");
+    const r = b.lancer();
+    expect(r.status, String(r.stderr)).toBe(0);
+    expect(readdirSync(join(b.racine, "capture-maquettes-img"))).toEqual(["abcdef123456.img"]);
+    expect(String(r.stderr)).toContain("image conservée");
+    b = banc();
+    b.demande(NOM);
+    expect(b.lancer().status).toBe(0);
+    expect(readdirSync(join(b.racine, "capture-maquettes-img"))).toEqual([]);
+  });
+  it("journal du conteneur : fins de ligne et caractères de contrôle neutralisés, aucune fausse ligne « veilleur: » possible", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "logs"), "ligne\nveilleur: demande finie film-zip--fausse0000 ok OK\r\u001b[31mrouge\u0000\n");
+    const r = b.lancer();
+    expect(r.status, String(r.stderr)).toBe(0);
+    const lignes = String(r.stderr).split("\n").filter((l) => l !== "");
+    for (const l of lignes) expect(l, l).toMatch(/^veilleur: /);
+    expect(lignes.filter((l) => l.includes("demande finie film-zip--fausse0000"))).toHaveLength(3);
+    for (const l of lignes.filter((x) => x.includes("fausse0000"))) expect(l).toMatch(/^veilleur: poste\| /);
+    expect(String(r.stderr)).not.toMatch(/[\u0000-\u0009\u000b-\u001f]/);
   });
 });

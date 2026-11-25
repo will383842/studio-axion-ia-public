@@ -12,7 +12,12 @@
 #    vers un dossier root neuf et contrôle LA COPIE ; le studio ne voit jamais `.veilleur/` (root 0700) ;
 #  - `docker ps -aq` VIDE par nom ET par label avant toute action sur /sortie et juste avant chaque `run` ;
 #  - un /sortie NEUF (boucle ext4 3 Gio) à chaque étape ; durée : `timeout 960 docker wait … || docker kill …` ;
-#  - un seul travail à la fois (flock) ; `--une-fois` : au plus une demande (essai, vérification de la mise en ligne).
+#  - un seul travail à la fois (flock) ; la .service lance `--une-fois` : UNE demande par passage (la minuterie relance 30 s après) ;
+#    sans cet argument, une nouvelle demande n'est prise que si la borne de sécurité (BUDGET_S, 300 s écoulées) n'est pas atteinte ;
+#  - le compose est appelé avec --env-file (le .env réel de la production), -f et --project-directory FIXÉS, les variables COMPOSE_*
+#    vidées, jamais de construction d'image ; docker-compose.override.yml / compose.yaml dans DEPLOIEMENT = refus (code 2) ;
+#  - la boîte est un POINT DE MONTAGE, propriété de root, sans écriture pour le groupe ni les autres (root:1001 0750, plan §8) ;
+#    même contrôle sur la racine et les dossiers fixes (sauf /sortie et /entree tant qu'une boucle y est montée, propriété de 1001).
 #
 # TYPES TRAITÉS : `film-zip` de bout en bout (decompresser, capturer, verifier).
 #   `film-description` et `apercu` : le mode `construire` du poste est REPORTÉ à POSTE-1b (ecrire-maquette importe par
@@ -23,19 +28,21 @@
 # VARIABLES (la production n'en lit que trois, posées par la .service) :
 #   VEILLEUR_BOITE   dossier de la boîte (défaut /opt/studio-axion-ia/capture-boite)
 #   DEPLOIEMENT      dossier `deploiement` du dépôt cloné (obligatoire ; le compose y est lu : propriété de root, jamais inscriptible par un autre)
-#   --une-fois       (seul argument admis)
+#   --une-fois       (seul argument admis) : une seule demande par passage (posé par la .service)
 # MODE ESSAI (tests/deploiement/studio-capture-veilleur.test.ts, SANS root ni docker) : réservé à un script lancé DEPUIS le dépôt.
 #   VEILLEUR_TEST=1 (exact) autorise : VEILLEUR_RACINE (autre racine des dossiers capture-*), VEILLEUR_PATH_TEST (dossier de
-#   FAUX docker/mount/umount/mountpoint/mkfs.ext4/fallocate/chown/timeout, placé EN TÊTE du PATH), VEILLEUR_VERROU (autre
-#   fichier de verrou), et l'exécution sans root. Garde-fous : sans VEILLEUR_TEST=1, la présence d'UNE de ces variables fait
+#   FAUX docker/mount/umount/mountpoint/mkfs.ext4/fallocate/chown/timeout/mv, placé EN TÊTE du PATH), VEILLEUR_VERROU (autre
+#   fichier de verrou), VEILLEUR_BUDGET (autre borne de temps, en secondes), et l'exécution sans root. Garde-fous : sans VEILLEUR_TEST=1, la présence d'UNE de ces variables fait
 #   REFUSER le script (code 2, jamais ignorée en silence) ; le script installé (/usr/local/sbin, /usr/sbin, /usr/bin…) refuse
-#   le mode essai ; le mode essai refuse la vraie boîte et la vraie racine /opt/studio-axion-ia. La .service ne pose rien de cela.
+#   le mode essai ; le mode essai refuse la vraie boîte et la vraie racine /opt/studio-axion-ia
+#   (comparées après `realpath -m` : barre finale, //, lien ne contournent rien). La .service ne pose rien de cela.
 set -euo pipefail
 umask 077
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 unset BASH_ENV ENV CDPATH DOCKER_HOST DOCKER_CONTEXT DOCKER_CONFIG COMPOSE_FILE COMPOSE_PROFILES COMPOSE_PROJECT_NAME \
-  COMPOSE_ENV_FILES STUDIO_CAPTURE_ENTREE STUDIO_CAPTURE_SORTIE STUDIO_CAPTURE_MAQUETTE 2>/dev/null || true
+  COMPOSE_ENV_FILES COMPOSE_PATH_SEPARATOR COMPOSE_IGNORE_ORPHANS COMPOSE_REMOVE_ORPHANS COMPOSE_PARALLEL_LIMIT \
+  STUDIO_CAPTURE_ENTREE STUDIO_CAPTURE_SORTIE STUDIO_CAPTURE_MAQUETTE 2>/dev/null || true
 
 readonly RACINE_PROD=/opt/studio-axion-ia
 readonly BOITE_PROD=/opt/studio-axion-ia/capture-boite
@@ -47,6 +54,16 @@ refuser_config() { journal "configuration refusée : $*"; exit 2; }
 # ----------------------------------------------------------------------------------------------------------------------
 # Arguments, mode essai, variables
 # ----------------------------------------------------------------------------------------------------------------------
+chemin_sain() { # absolu, caractères sûrs, aucun « .. »
+  case "$1" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  case "$1" in
+    *[!A-Za-z0-9._/-]* | *..*) return 1 ;;
+  esac
+  return 0
+}
 UNE_FOIS=0
 case "$#" in
   0) ;;
@@ -64,7 +81,7 @@ if [ "${VEILLEUR_TEST:-}" = "1" ]; then
 elif [ -n "${VEILLEUR_TEST:-}" ]; then
   refuser_config "VEILLEUR_TEST ne vaut que « 1 »"
 else
-  for v in VEILLEUR_RACINE VEILLEUR_PATH_TEST VEILLEUR_VERROU; do
+  for v in VEILLEUR_RACINE VEILLEUR_PATH_TEST VEILLEUR_VERROU VEILLEUR_BUDGET; do
     if [ -n "${!v+x}" ]; then refuser_config "$v n'existe qu'en mode essai (VEILLEUR_TEST=1)"; fi
   done
 fi
@@ -72,6 +89,8 @@ fi
 if [ "$ESSAI" = 1 ]; then
   RACINE=${VEILLEUR_RACINE:-}
   [ -n "$RACINE" ] || refuser_config "mode essai : VEILLEUR_RACINE obligatoire"
+  chemin_sain "$RACINE" || refuser_config "chemin invalide : $RACINE"
+  RACINE=$(realpath -m -- "$RACINE")
   [ "$RACINE" != "$RACINE_PROD" ] || refuser_config "mode essai : la vraie racine est interdite"
   if [ -n "${VEILLEUR_PATH_TEST:-}" ]; then PATH="$VEILLEUR_PATH_TEST:$PATH"; export PATH; fi
   VERROU=${VEILLEUR_VERROU:-$RACINE/veilleur.lock}
@@ -84,22 +103,20 @@ else
 fi
 
 BOITE=${VEILLEUR_BOITE:-$BOITE_PROD}
+chemin_sain "$BOITE" || refuser_config "chemin invalide : $BOITE"
+BOITE=$(realpath -m -- "$BOITE")
+BUDGET_S=300
+if [ "$ESSAI" = 1 ] && [ -n "${VEILLEUR_BUDGET:-}" ]; then
+  case "$VEILLEUR_BUDGET" in '' | *[!0-9]*) refuser_config "VEILLEUR_BUDGET : un nombre de secondes" ;; esac
+  BUDGET_S=$VEILLEUR_BUDGET
+fi
 if [ "$ESSAI" = 1 ] && [ "$BOITE" = "$BOITE_PROD" ]; then refuser_config "mode essai : la vraie boîte est interdite"; fi
 DEPLOIEMENT=${DEPLOIEMENT:-}
 [ -n "$DEPLOIEMENT" ] || refuser_config "DEPLOIEMENT obligatoire (dossier deploiement du dépôt)"
 
-chemin_sain() { # absolu, caractères sûrs, aucun « .. »
-  case "$1" in
-    /*) ;;
-    *) return 1 ;;
-  esac
-  case "$1" in
-    *[!A-Za-z0-9._/-]* | *..*) return 1 ;;
-  esac
-  return 0
-}
-for c in "$BOITE" "$DEPLOIEMENT" "$RACINE"; do chemin_sain "$c" || refuser_config "chemin invalide : $c"; done
+for c in "$DEPLOIEMENT" "$RACINE"; do chemin_sain "$c" || refuser_config "chemin invalide : $c"; done
 
+readonly ENV_FICHIER="$RACINE/.env"
 readonly SORTIE="$RACINE/capture-sortie"
 readonly ENTREE="$RACINE/capture-entree"
 readonly MAQUETTES="$RACINE/capture-maquettes"
@@ -110,6 +127,7 @@ readonly IMG_ENTREE="$TRAVAIL_HOTE/entree.img"
 readonly V="$BOITE/.veilleur"
 
 # Bornes (octets), contrat §3
+readonly COPIE_S=300 DELAI_ETAPE_S=960 DELAI_VERIFIER_S=120
 readonly MAX_ZIP=52428800 MAX_JSON=262144 MAX_FILM=524288000 MAX_FFPROBE=65536
 readonly REGEX_NOM='^(film-zip|film-description|apercu)--[a-z0-9-]{8,64}$'
 readonly CODES=" OK DEMANDE_INVALIDE ZIP_REFUSE MAQUETTE_INTROUVABLE CONTROLE_SOURCE TROP_GROS CAPTURE_ECHEC DUREE_DEPASSEE FILM_INVALIDE EMPREINTE INTERROMPU POSTE_OCCUPE "
@@ -120,28 +138,63 @@ readonly CODES=" OK DEMANDE_INVALIDE ZIP_REFUSE MAQUETTE_INTROUVABLE CONTROLE_SO
 reel_dossier() { [ -d "$1" ] && [ ! -L "$1" ]; }
 proprio_mode() { stat -c '%u:%a' -- "$1"; }
 
+monte() { mountpoint -q "$1"; }
+
+# Propriétaire = celui de la mise en ligne (root), AUCUNE écriture pour le groupe ni les autres.
+root_sans_ecriture() { # <chemin> <description>
+  [ "$(stat -c %u -- "$1")" = "$PROPRIO_ATTENDU" ] || refuser_config "$2 doit appartenir à root : $1"
+  [ $((8#$(stat -c %a -- "$1") & 8#022)) -eq 0 ] || refuser_config "$2 ne doit être inscriptible que par root : $1"
+}
+
 controler_config() {
   local d f
   reel_dossier "$BOITE" || refuser_config "boîte absente ou lien : $BOITE"
+  # La boîte est une boucle dédiée (sinon le studio remplirait le disque de l'hôte) ; son dossier : root:1001 0750 (plan §8).
+  monte "$BOITE" || refuser_config "la boîte n'est pas un point de montage (boucle dédiée absente) : $BOITE"
+  root_sans_ecriture "$BOITE" "la boîte"
   [ -f "$BOITE/PRET" ] && [ ! -L "$BOITE/PRET" ] || refuser_config "boîte non prête (PRET absent ou pas un fichier ordinaire)"
   [ "$(proprio_mode "$BOITE/PRET")" = "$PROPRIO_ATTENDU:444" ] || refuser_config "PRET doit être au propriétaire de la mise en ligne, mode 0444"
   reel_dossier "$V" || refuser_config ".veilleur absent ou lien"
   [ "$(proprio_mode "$V")" = "$PROPRIO_ATTENDU:700" ] || refuser_config ".veilleur doit appartenir à root, mode 0700"
   for d in demandes reponses; do reel_dossier "$BOITE/$d" || refuser_config "$d absent ou lien"; done
+  reel_dossier "$RACINE" || refuser_config "racine absente ou lien : $RACINE"
+  root_sans_ecriture "$RACINE" "la racine"
   for d in "$SORTIE" "$ENTREE" "$MAQUETTES" "$MAQUETTES_IMG" "$TRAVAIL_HOTE"; do
     reel_dossier "$d" || refuser_config "dossier fixe absent ou lien : $d (voir plan, section 8, étape 2)"
+    # /sortie et /entree : une boucle montée (reprise après arrêt) appartient à 1001 ; on contrôle alors le dossier une fois démonté.
+    if ! monte "$d"; then root_sans_ecriture "$d" "le dossier fixe"; fi
   done
   reel_dossier "$DEPLOIEMENT" || refuser_config "DEPLOIEMENT n'est pas un dossier"
+  root_sans_ecriture "$DEPLOIEMENT" "DEPLOIEMENT"
   f="$DEPLOIEMENT/docker-compose.yml"
   [ -f "$f" ] && [ ! -L "$f" ] || refuser_config "docker-compose.yml absent ou lien"
-  [ "$(stat -c %u -- "$f")" = "$PROPRIO_ATTENDU" ] || refuser_config "docker-compose.yml doit appartenir à root"
-  [ $((8#$(stat -c %a -- "$f") & 8#022)) -eq 0 ] || refuser_config "docker-compose.yml ne doit être inscriptible que par root"
+  root_sans_ecriture "$f" "docker-compose.yml"
+  # Aucun autre fichier compose que celui qu'on passe avec -f : une fusion silencieuse ajouterait des montages ou des privilèges.
+  for f in docker-compose.override.yml docker-compose.override.yaml docker-compose.yaml compose.yaml compose.yml compose.override.yaml compose.override.yml; do
+    if [ -e "$DEPLOIEMENT/$f" ] || [ -L "$DEPLOIEMENT/$f" ]; then refuser_config "$f présent dans DEPLOIEMENT (fichier compose en trop)"; fi
+  done
+  f="$DEPLOIEMENT/studio-capture/seccomp.json"
+  [ -f "$f" ] && [ ! -L "$f" ] || refuser_config "studio-capture/seccomp.json absent ou lien"
+  root_sans_ecriture "$f" "seccomp.json"
+  # Le .env réel de la production (le compose exige POSTGRES_PASSWORD, SESSION_SECRET… : sans lui, `run` échoue toujours).
+  [ -f "$ENV_FICHIER" ] && [ ! -L "$ENV_FICHIER" ] || refuser_config ".env absent ou lien : $ENV_FICHIER"
+  root_sans_ecriture "$ENV_FICHIER" ".env"
 }
 controler_config
 
-# Verrou : un seul veilleur à la fois (un second passage sort sans rien faire).
+# Pouls (contrat §3 : écrit à CHAQUE passage, plus de 5 min = poste éteint) : fichier temporaire propre au processus,
+# mode posé AVANT `mv -T` (jamais de fichier root 0600 visible, jamais de chmod sur un lien), puis rename atomique.
+pouls() {
+  local tmp="$V/pouls.$$.tmp"
+  date -u +%FT%TZ >"$tmp" && chmod 0444 "$tmp" && mv -T -- "$tmp" "$BOITE/pouls" || { rm -f "$tmp"; return 1; }
+}
+
+# Verrou : un seul veilleur à la fois. Un passage concurrent (travail en cours, jusqu'à ~50 min) rafraîchit quand même le pouls.
 exec 9>"$VERROU"
-flock -n 9 || exit 0
+if ! flock -n 9; then
+  pouls || true
+  exit 0
+fi
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Outils : poste libre, boucles, copies contrôlées
@@ -161,8 +214,6 @@ poste_libre() {
   b=$(docker ps -aq --filter label=com.docker.compose.service=studio-capture) || return 1
   [ -z "$a" ] && [ -z "$b" ]
 }
-
-monte() { mountpoint -q "$1"; }
 
 demonter() { # démonte si monté, puis vérifie
   if monte "$1"; then umount "$1"; fi
@@ -208,21 +259,28 @@ fichier_sain() { # <chemin> <max>
   [ "$t" -le "$2" ]
 }
 
-# Lance UN conteneur du poste (forme unique du compose) et attend au plus 960 s ; le tue sinon. Lit le code de sortie.
-# Résultat dans RC_ETAPE ; le conteneur est supprimé et le poste revérifié libre avant de rendre la main.
+# Lance UN conteneur du poste (forme unique du compose) et attend au plus 960 s (120 s pour `verifier`) ; le tue sinon.
+# Lit le code de sortie. Résultat dans RC_ETAPE ; le conteneur est supprimé et le poste revérifié libre avant de rendre la main.
+# Le compose est TOUJOURS appelé avec --env-file (le .env de la production), -f et --project-directory fixés, les COMPOSE_* vidées ;
+# l'image doit exister déjà (jamais de construction par le veilleur : ni --build, ni image absente).
 RC_ETAPE=""
 lancer_conteneur() { # <nom> <entree> <maquette|""> <mode> [arguments…]
-  local nom=$1 entree=$2 maquette=$3 rc
+  local nom=$1 entree=$2 maquette=$3 rc journal_ctr delai=$DELAI_ETAPE_S
   shift 3
+  if [ "$1" = verifier ]; then delai=$DELAI_VERIFIER_S; fi
+  docker image inspect studio-capture:local >/dev/null 2>&1 || arret panne CAPTURE_ECHEC
   poste_libre || arret panne POSTE_OCCUPE
   (
     cd "$DEPLOIEMENT" || exit 1
     export STUDIO_CAPTURE_ENTREE="$entree" STUDIO_CAPTURE_SORTIE="$SORTIE"
     if [ -n "$maquette" ]; then export STUDIO_CAPTURE_MAQUETTE="$maquette"; fi
-    docker compose --profile capture run -d --name "$nom" studio-capture "$@" >/dev/null && timeout 960 docker wait "$nom" >/dev/null || docker kill "$nom" >/dev/null 2>&1 || true
+    timeout 120 env -u COMPOSE_FILE -u COMPOSE_PROFILES -u COMPOSE_PROJECT_NAME -u COMPOSE_ENV_FILES -u COMPOSE_PATH_SEPARATOR docker compose --env-file "$ENV_FICHIER" --project-directory "$DEPLOIEMENT" -f "$DEPLOIEMENT/docker-compose.yml" --profile capture run -d --pull never --name "$nom" studio-capture "$@" >/dev/null && timeout "$delai" docker wait "$nom" >/dev/null || docker kill "$nom" >/dev/null 2>&1 || true
   ) || true
   rc=$(docker inspect -f '{{.State.ExitCode}}' "$nom" 2>/dev/null) || rc=""
-  docker logs "$nom" 2>&1 | tail -c 8192 | tr -cd '[:print:]\n' >&2 || true
+  # Journal du conteneur : borné, fins de ligne et caractères de contrôle remplacés par des espaces, une seule ligne préfixée
+  # (le conteneur ne peut pas fabriquer de fausses lignes « veilleur: … »).
+  journal_ctr=$(docker logs "$nom" 2>&1 | tail -c 8192 | tr -s '\000-\037\177' ' ') || journal_ctr=""
+  printf 'veilleur: poste| %s\n' "$journal_ctr" >&2
   docker rm -f "$nom" >/dev/null 2>&1 || true
   poste_libre || arret panne POSTE_OCCUPE
   case "$rc" in
@@ -244,6 +302,12 @@ entree_fermer() {
 # ----------------------------------------------------------------------------------------------------------------------
 # Étapes d'un travail film-zip (chacune dans le sous-shell de travail : `arret` en sort)
 # ----------------------------------------------------------------------------------------------------------------------
+# Copie sous `timeout`, sans suivre les liens, récursive (une FIFO est recréée en FIFO, puis refusée par controler_arbre au lieu de
+# bloquer `cp`). L'appelant contrôle LA COPIE.
+copier() { # <source> <destination>
+  timeout "$COPIE_S" cp -R --no-dereference -- "$1" "$2" || arret panne INTERROMPU
+}
+
 copier_demande() { # <dossier de la demande dans .veilleur>
   local t=$1 f liste
   # Aucun nom hors liste fermée (le dossier est à NOUS, root 0700 : le studio ne le voit plus).
@@ -260,7 +324,7 @@ copier_demande() { # <dossier de la demande dans .veilleur>
   fichier_sain "$t/scenario.json" "$MAX_JSON" || arret refus DEMANDE_INVALIDE
   fichier_sain "$t/calage.json" "$MAX_JSON" || arret refus DEMANDE_INVALIDE
   entree_neuve 256M
-  for f in dossier.zip scenario.json calage.json; do cp --no-dereference -- "$t/$f" "$ENTREE/$f"; done
+  for f in dossier.zip scenario.json calage.json; do copier "$t/$f" "$ENTREE/$f"; done
   # On contrôle LA COPIE (la source reste modifiable par un descripteur que le studio aurait gardé ouvert).
   controler_arbre "$ENTREE" refus DEMANDE_INVALIDE
   fichier_sain "$ENTREE/dossier.zip" "$MAX_ZIP" || arret refus DEMANDE_INVALIDE
@@ -309,7 +373,7 @@ copier_maquette() {
   mkfs.ext4 -q -m 0 "$img" </dev/null
   mkdir "$dest"
   mount -o loop,nodev,nosuid,noexec "$img" "$dest"
-  cp -r --no-dereference -- "$racine" "$dest/maquette" || arret refus TROP_GROS
+  timeout "$COPIE_S" cp -R --no-dereference -- "$racine" "$dest/maquette" || arret refus TROP_GROS
   chown -R root:root "$dest/maquette"
   chmod -R a+rX,go-w "$dest/maquette"
   controler_arbre "$dest/maquette" refus CONTROLE_SOURCE
@@ -343,7 +407,7 @@ etape_capturer() {
   fichier_sain "$d/navigation.json" "$MAX_JSON" || arret refus TROP_GROS
   rm -rf --one-file-system -- "$res"
   mkdir "$res"
-  for f in navigation.mp4 navigation.json; do cp --no-dereference -- "$d/$f" "$res/$f"; done
+  for f in navigation.mp4 navigation.json; do copier "$d/$f" "$res/$f"; done
   controler_arbre "$res" refus CONTROLE_SOURCE
   fichier_sain "$res/navigation.mp4" "$MAX_FILM" || arret refus TROP_GROS
   fichier_sain "$res/navigation.json" "$MAX_JSON" || arret refus TROP_GROS
@@ -354,11 +418,13 @@ etape_verifier() {
   local res="$V/resultat-$ID"
   sortie_neuve
   entree_neuve 1G
-  cp --no-dereference -- "$res/navigation.mp4" "$ENTREE/navigation.mp4"
+  # /entree de verifier ne contient QUE la copie navigation.mp4.
+  copier "$res/navigation.mp4" "$ENTREE/navigation.mp4"
   controler_arbre "$ENTREE" refus CONTROLE_SOURCE
   fichier_sain "$ENTREE/navigation.mp4" "$MAX_FILM" || arret refus TROP_GROS
   entree_fermer
   lancer_conteneur "studio-capture-$ID-verifier" "$ENTREE" "" verifier
+  # ffprobe.json n'est cru QUE si le conteneur a fini avec le code 0.
   case "$RC_ETAPE" in
     0) ;;
     124 | 137) arret panne DUREE_DEPASSEE ;;
@@ -366,7 +432,8 @@ etape_verifier() {
   esac
   controler_arbre "$SORTIE" refus CONTROLE_SOURCE
   fichier_sain "$SORTIE/ffprobe.json" "$MAX_FFPROBE" || arret refus FILM_INVALIDE
-  cp --no-dereference -- "$SORTIE/ffprobe.json" "$res/ffprobe.json"
+  # Lecture BORNÉE en octets (un de plus que le maximum : un fichier trop gros ressort trop gros et est refusé).
+  timeout 60 head -c $((MAX_FFPROBE + 1)) -- "$SORTIE/ffprobe.json" >"$res/ffprobe.json" || arret panne INTERROMPU
   fichier_sain "$res/ffprobe.json" "$MAX_FFPROBE" || arret refus FILM_INVALIDE
 }
 
@@ -396,12 +463,18 @@ travailler() {
 # ----------------------------------------------------------------------------------------------------------------------
 # Libère les boucles de travail. /sortie n'est touché QUE si le poste est libre.
 liberer_boucles() {
-  local m
+  local m n
   for m in "$MAQUETTES"/*; do
     [ -e "$m" ] || [ -L "$m" ] || continue
     if [ -d "$m" ] && [ ! -L "$m" ] && demonter "$m"; then rmdir "$m" 2>/dev/null || true; else journal "maquette non libérée : $m"; fi
   done
-  for m in "$MAQUETTES_IMG"/*.img; do [ -f "$m" ] && rm -f "$m"; done
+  # Une image n'est effacée que si sa maquette est démontée (son dossier a disparu) ; sinon on la garde.
+  for m in "$MAQUETTES_IMG"/*.img; do
+    [ -f "$m" ] || continue
+    n=${m##*/}
+    n=${n%.img}
+    if [ -e "$MAQUETTES/$n" ] || [ -L "$MAQUETTES/$n" ]; then journal "image conservée (maquette non libérée) : $n"; else rm -f "$m"; fi
+  done
   if demonter "$ENTREE"; then rm -f "$IMG_ENTREE"; else journal "entrée non démontée"; fi
   if poste_libre; then
     if demonter "$SORTIE"; then rm -f "$IMG_SORTIE"; else journal "sortie non démontée"; fi
@@ -411,26 +484,33 @@ liberer_boucles() {
 }
 
 # Construit .veilleur/reponse-N (état + fichiers du résultat), la donne à l'uid 1001 et la RENOMME dans reponses/.
-poser_reponse() { # <statut> <CODE> <avec fichiers 0|1>
+poser_reponse() { # <statut> <CODE> <avec fichiers 0|1> ; échoue (return 1) sans rien effacer d'autre que sa préparation
   local st=$1 code=$2 avec=$3 r="$V/reponse-$NOM" f res="$V/resultat-$ID"
-  rm -rf --one-file-system -- "$r"
-  mkdir "$r"
-  printf '%s\n%s\n' "$st" "$code" >"$r/etat.txt"
+  # Appelée aussi dans un `if` (set -e inactif) : chaque commande porte son `|| return 1`.
+  rm -rf --one-file-system -- "$r" || return 1
+  mkdir "$r" || return 1
+  printf '%s\n%s\n' "$st" "$code" >"$r/etat.txt" || return 1
   if [ "$avec" = 1 ]; then
     for f in navigation.mp4 navigation.json ffprobe.json; do
-      [ -f "$res/$f" ] && [ ! -L "$res/$f" ] || { rm -rf --one-file-system -- "$r"; mkdir "$r"; printf 'panne\nCAPTURE_ECHEC\n' >"$r/etat.txt"; break; }
-      cp --no-dereference -- "$res/$f" "$r/$f"
+      if ! { [ -f "$res/$f" ] && [ ! -L "$res/$f" ]; }; then
+        rm -rf --one-file-system -- "$r" || return 1
+        mkdir "$r" || return 1
+        printf 'panne\nCAPTURE_ECHEC\n' >"$r/etat.txt" || return 1
+        break
+      fi
+      # DÉPLACÉ (même système de fichiers, .veilleur) : le film n'est pas recopié une seconde fois sur la boîte.
+      mv -T -- "$res/$f" "$r/$f" || return 1
     done
   fi
   # Le studio efface la réponse après lecture : dossier 0700, fichiers 0600, propriété de l'uid 1001 (un dossier 0500 ne se viderait pas).
-  chown -R 1001:1001 "$r"
-  chmod 0700 "$r"
-  find "$r" -type f -exec chmod 0600 {} +
+  chown -R 1001:1001 "$r" || return 1
+  chmod 0700 "$r" || return 1
+  find "$r" -type f -exec chmod 0600 {} + || return 1
   if [ ! -e "$BOITE/reponses/$NOM" ] && [ ! -L "$BOITE/reponses/$NOM" ]; then
-    mv -T -- "$r" "$BOITE/reponses/$NOM"
+    mv -T -- "$r" "$BOITE/reponses/$NOM" || return 1
   else
     journal "réponse $NOM déjà présente : abandon"
-    rm -rf --one-file-system -- "$r"
+    rm -rf --one-file-system -- "$r" || return 1
   fi
 }
 
@@ -469,9 +549,13 @@ traiter_demande() { # <nom valide>
   case "$CODES" in *" $code "*) ;; *) st=panne; code=INTERROMPU ;; esac
   if [ "$st" = ok ] && [ "$code" != OK ]; then st=panne; code=INTERROMPU; fi
   if [ "$st" = ok ]; then avec=1; fi
-  poser_reponse "$st" "$code" "$avec"
-  effacer_travail
-  journal "demande finie : $NOM $st $code"
+  if poser_reponse "$st" "$code" "$avec"; then
+    effacer_travail
+    journal "demande finie : $NOM $st $code"
+  else
+    journal "réponse non posée pour $NOM : le travail reste (la reprise réessaiera)"
+    return 1
+  fi
 }
 
 # Conteneurs de capture restants : tués puis supprimés (reprise seulement). Échoue s'il en reste.
@@ -486,7 +570,7 @@ purger_poste() {
 
 # Reprise : le veilleur a été tué (ou l'hôte redémarré) au milieu d'un travail.
 reprendre() {
-  local p n restes=0
+  local p n restes=0 echec=0
   for p in "$V"/travail-* "$V"/reponse-*; do
     if [ -e "$p" ] || [ -L "$p" ]; then restes=1; fi
   done
@@ -497,20 +581,20 @@ reprendre() {
     [ -e "$p" ] || [ -L "$p" ] || continue
     n=${p##*/travail-}
     if decoder_nom "$n"; then
-      poser_reponse panne INTERROMPU 0
-      effacer_travail
+      # Le travail n'est effacé QUE si la réponse est posée (aucun `|| true` ici : il désactiverait set -e).
+      if poser_reponse panne INTERROMPU 0; then
+        effacer_travail
+      else
+        journal "reprise : réponse non posée pour $n, le travail est conservé"
+        echec=1
+      fi
     else
       rm -rf --one-file-system -- "$p"
     fi
   done
-  rm -rf --one-file-system -- "$V"/reponse-* "$V"/resultat-* "$V"/etat-* "$V"/liste-* "$V"/sous-* "$V"/res-* "$V"/pouls.tmp
+  rm -rf --one-file-system -- "$V"/reponse-* "$V"/resultat-* "$V"/etat-* "$V"/liste-* "$V"/sous-* "$V"/res-* "$V"/pouls.*.tmp
   liberer_boucles
-}
-
-pouls() {
-  date -u +%FT%TZ >"$V/pouls.tmp"
-  mv -T -- "$V/pouls.tmp" "$BOITE/pouls"
-  chmod 0444 "$BOITE/pouls"
+  [ "$echec" = 0 ] || return 1
 }
 
 # La plus ancienne demande, nom valide seulement ; les autres sont ignorées, et supprimées au bout de 10 minutes.
@@ -546,18 +630,28 @@ prendre_demande() { # <nom> : RENOMME (ne suit pas les liens) dans .veilleur, ro
 # ----------------------------------------------------------------------------------------------------------------------
 CHOIX=""
 principal() {
-  local passes=0
-  reprendre || true
-  pouls
+  local passes=0 rc
+  # La reprise tourne dans un sous-shell où set -e est REVENU en vigueur (jamais dans un contexte `||` ou `if`, qui le coupe) :
+  # si la réponse « interrompu » ne peut pas être posée, le travail n'est pas effacé (reprendre le vérifie elle-même).
+  set +e
+  ( set -e; reprendre )
+  rc=$?
+  set -e
+  if [ "$rc" != 0 ]; then journal "reprise non terminée (code $rc) : ce qui reste n'a pas été effacé"; fi
+  pouls || journal "pouls non écrit"
   while [ "$passes" -lt 8 ]; do
     passes=$((passes + 1))
+    # Borne de sécurité : une nouvelle demande n'est prise que si le temps écoulé laisse un travail entier (3 × 960 s) avant
+    # TimeoutStartSec ; la .service lance `--une-fois` (une seule demande par passage), cette borne couvre les lancements à la main.
+    if [ "$SECONDS" -ge "$BUDGET_S" ]; then journal "borne de temps atteinte : la suite au prochain passage"; break; fi
     # Un conteneur de capture vivant (essai manuel, reste) : on ne prend RIEN, on ne touche à rien ; la demande attend.
     if ! poste_libre; then journal "poste occupé : rien n'est pris"; break; fi
     choisir_demande
     [ -n "$CHOIX" ] || break
-    prendre_demande "$CHOIX"
-    traiter_demande "$CHOIX"
-    pouls
+    # Demande retirée par le studio entre le `find` et le `mv -T` : situation normale, on passe (l'unité ne doit pas échouer).
+    if ! prendre_demande "$CHOIX"; then journal "demande disparue : $CHOIX"; continue; fi
+    traiter_demande "$CHOIX" || break
+    pouls || journal "pouls non écrit"
     if [ "$UNE_FOIS" = 1 ]; then break; fi
   done
 }

@@ -8,10 +8,15 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/sbin/studio-capture-veilleur
+# UNE demande par passage (--une-fois) : la minuterie relance 30 s après la fin. Un travail dure au plus 3 étapes de 960 s.
+ExecStart=/usr/local/sbin/studio-capture-veilleur --une-fois
 Environment=VEILLEUR_BOITE=/opt/studio-axion-ia/capture-boite
 # Dossier `deploiement` du clone de mettre-a-jour.sh : À ADAPTER si le clone est ailleurs.
 Environment=DEPLOIEMENT=/opt/studio-axion-ia/source/deploiement
-TimeoutStartSec=3600
+# 3 × 960 s (étapes) + marge (copies, boucles ext4, reprise) = 3300 s.
+TimeoutStartSec=3300
 Nice=10
 IOSchedulingClass=idle
+# VOLONTAIREMENT SANS PrivateTmp, ProtectSystem, ProtectHome, PrivateMounts ni MountFlags : les boucles ext4 que le veilleur monte
+# (capture-sortie, capture-entree, capture-maquettes/<id>, capture-boite) doivent être VISIBLES de dockerd, qui les monte dans les
+# conteneurs ; un espace de montage privé les lui cacherait (conteneur sur un dossier vide).
