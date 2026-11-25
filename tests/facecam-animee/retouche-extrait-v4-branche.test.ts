@@ -24,7 +24,7 @@ const PRISE = "studio/dev/entree/facecam-animee/f-1.mov";
 const RANG = 5; // élément « MosaiqueVideos » de la fiche de répétition, transformé en téléphone pour l'essai
 
 const motsForts = [...new Set(PLAN_VALIDE.groupes.flatMap((g) => g.mots.filter((m) => m.fort).map((m) => m.w.replace(/[.,;:!?…«»"“”()]/g, ""))))];
-const REPONSE = { cartes: [], fenetres: [], calques: [], zooms: [], motions: [], elementsV4: PLAN_VALIDE.elementsV4!.map(({ medias: _m, ...e }) => e), motsForts };
+const REPONSE = { cartes: [], fenetres: [], calques: [], zooms: [], motions: [], elementsV4: PLAN_VALIDE.elementsV4!.map((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k !== "medias"))), motsForts };
 
 const ENTREES_BASE = { facecamAnimee: { priseCle: PRISE, fichierId: "f-1", texteValide: SCRIPT, accordEssaiReel: true } };
 const COMMANDE = { videoId: "v-1", formatId: "facecam-animee", moteurId: ID_MOTEUR_FACECAM_ANIMEE, ratios: ["9:16"], briques: {}, distribution: [], entrees: ENTREES_BASE } as unknown as CommandeFabrication;
@@ -150,8 +150,11 @@ describe("R4-03-c2 · d) allumé : la demande est appliquée au projet gardé, r
     const o = outilsDoubles();
     const p = port();
     const m = creerMoteurMontageFacecamAnimee({ outils: async () => enOutils(o), retoucheGratuite: () => true, retoucheExtraits: () => true, extraitRetouche: p.f, statutFormat: "masque" });
-    const t = await m.retoucher(demande(parent, avecDemande(REMPLACER)));
+    const commande = avecDemande(REMPLACER);
+    const t = await m.retoucher(demande(parent, commande));
     expect(p.appels).toHaveBeenCalledTimes(1);
+    // Contrat du futur port du service : (commande, projet gardé, demande) dans CET ordre.
+    expect(p.appels).toHaveBeenCalledWith(commande, expect.objectContaining({ priseCle: PRISE }), expect.objectContaining({ action: "remplacer", rang: RANG }));
     expect((t.parametres?.facecamAnimeeV4 as { etape: string }).etape).toBe("rendu");
     const fin = await jusquAuBout(m, t);
     expect(fin.travail.statut).toBe("termine");
