@@ -126,6 +126,14 @@ describe("(e) la dépense ne part qu'au clic", () => {
     expect(src).toMatch(/onClick=\{refaireLaVoix\}/);
     expect(src).toMatch(/videoId && aRefaire/);
   });
+  it("(e) « Refaire la voix » est désactivé pendant l'envoi et après un succès : pas de 2e retouche payante au 2e clic", () => {
+    const src = lire("src/components/prononciations/PanneauMotMalDit.tsx");
+    const boutons = src.match(/<Bouton\b[^>]*onClick=\{refaireLaVoix\}[^>]*>/g) ?? [];
+    expect(boutons).toHaveLength(1);
+    expect(boutons[0]).toMatch(/chargement=\{refaisant\}/);
+    expect(boutons[0]).toMatch(/disabled=\{refaite\}/);
+    expect(src).toMatch(/setRefaite\(true\)/);
+  });
   it("(e) aucune écriture de réglage dans les fichiers touchés", () => {
     for (const f of ["src/components/prononciations/PanneauMotMalDit.tsx", "src/components/prononciations/actions-mot-mal-dit.ts", "src/components/videos/fiche/OngletSousTitres.tsx"]) {
       expect(lire(f), f).not.toMatch(/ecrireParametre|parametres\.enregistrer/);
