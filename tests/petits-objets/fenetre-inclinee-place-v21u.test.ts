@@ -129,6 +129,22 @@ describe("FIX-FENETRE-INCLINEE (c) jamais par-dessus un sous-titre", () => {
   });
 });
 
+describe("FIX-FENETRE-INCLINEE (b bis) deux pièces remplaçables : la plus grande d'abord", () => {
+  it("(b bis) deux pièces remplaçables : la plus grande d'abord (même si elle est la seconde de la liste)", () => {
+    const petite: Rectangle = { x: 5, y: 3, largeur: 90, hauteur: 30 };
+    const grande: Rectangle = { x: 5, y: 36, largeur: 90, hauteur: 40 };
+    const sousTitre: Rectangle = { x: 0, y: 78, largeur: 100, hauteur: 22 };
+    const r = placerFenetreInclinee({ parametres: PARAMS, occupees: [petite, grande], sousTitres: [sousTitre], cadre: CADRE });
+    expect(r).not.toBeNull();
+    expect(r!.remplace).toBe(1);
+    const x = Math.max(0, Math.min(r!.boite.x + r!.boite.largeur, grande.x + grande.largeur) - Math.max(r!.boite.x, grande.x));
+    const y = Math.max(0, Math.min(r!.boite.y + r!.boite.hauteur, grande.y + grande.hauteur) - Math.max(r!.boite.y, grande.y));
+    expect(x * y).toBeGreaterThanOrEqual(0.5 * grande.largeur * grande.hauteur);
+    // Même jeu, ordre inverse dans la liste : c'est toujours la grande (index 0 cette fois).
+    expect(placerFenetreInclinee({ parametres: PARAMS, occupees: [grande, petite], sousTitres: [sousTitre], cadre: CADRE })!.remplace).toBe(0);
+  });
+});
+
 describe("FIX-FENETRE-INCLINEE (d) jamais devant le visage", () => {
   it("(d) avec visage : la boîte dessinée ne touche jamais ZONE_VISAGE", () => {
     for (const occ of [[], [ZONES.bas], [ZONES.gauche, ZONES.droite]] as Rectangle[][])
