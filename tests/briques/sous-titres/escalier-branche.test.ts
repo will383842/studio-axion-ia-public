@@ -62,7 +62,7 @@ describe("escalierAuTemps (pure)", () => {
 
 describe.skipIf(!AVEC_RENDU)("CalqueSousTitres et escalier (BR-ESCALIER-a)", () => {
   it("SANS champ : HTML identique au caractère près à celui d'avant le changement (empreinte figée sur master 93c9d422, 17/11/2026, avant le changement)", () => {
-    expect(empreinte(html(base, 2.5))).toBe("132f03c7f29ca2315d2d10773a615fefb62fa87b4fac4bc331887717230c6971");
+    expect(empreinte(html(base, 2.5))).toBe("e6d0957880448dfefc9bae5ae335f3e79e08d8ef5dc80edf97625a093319c6fd" /* CONTOURS-b-v21s : contour V2 seul (-webkit-text-stroke 6→3 px, ombre 8→10,4 px / 0,65→0,55) */);
     expect(html(base, 2.5)).not.toContain("data-ligne-escalier");
   });
   it("AVEC champ et 3 segments : 3 lignes d'escalier", () => {
