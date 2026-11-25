@@ -634,3 +634,19 @@ describe("QUAL-2 — revue opus 2 : troncature sans liste vide, focus orphelin, 
     expect(alerte.texte).toBe("Une alerte part toute seule");
   });
 });
+
+describe("QUAL-2 — repère : l'écran est prolongé jusqu'à 600 ms avant « une minute »", () => {
+  it("script du fondateur : l'écran finit ≥ 600 ms après « Vous », le repère démarre ≤ 600 ms avant « une minute »", () => {
+    const mots = motsDe(FONDATEUR);
+    const { plan } = composer(FONDATEUR, { phraseTitre: TITRE, fin: "rendez-vous" });
+    const ecran = plan.scenes.find((s) => s.genre === "ecran");
+    const repere = plan.scenes.find((s) => s.genre === "repere");
+    if (!ecran || !repere || repere.genre !== "repere") throw new Error("scènes");
+    const iVous = mots.findIndex((m, i) => /^vous$/i.test(m.texte) && /^d[ée]cidez$/i.test(mots[i + 1]?.texte ?? ""));
+    expect(ecran.finMs - mots[iVous].debutMs).toBeGreaterThanOrEqual(600);
+    expect(repere.debutMs).toBe(ecran.finMs);
+    expect(repere.debutMs).toBeGreaterThanOrEqual(repere.apresAMs - 600);
+    expect(repere.debutMs).toBeLessThanOrEqual(repere.apresAMs);
+    expect(repere.apresAMs - repere.debutMs).toBeLessThanOrEqual(600);
+  });
+});
