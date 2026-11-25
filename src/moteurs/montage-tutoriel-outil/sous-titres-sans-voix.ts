@@ -115,14 +115,16 @@ function regrouperParProposition(mots: MotHorodate[]): MotHorodate[][] {
   return cartes;
 }
 
-/**
- * Aucun accent : position « auto » (donc le centre de la bande), pas d'inclinaison, style « base », pas de soulignement ni
- * d'importance. Les mots et leurs horaires sont inchangés ; seul le regroupement en cartes change (par proposition, 4 à 9
- * mots, ≥ 1,5 s à l'écran : la carte se prolonge jusqu'à la suivante au plus, jamais deux cartes à la fois).
- */
 /** Trou maximal comblé entre deux cartes (s). */
 export const TROU_COMBLE_SEC = 0.6;
 
+/**
+ * Aucun accent : position « auto » (donc le centre de la bande), pas d'inclinaison, style « base », pas de soulignement ni
+ * d'importance. Les mots et leurs horaires sont inchangés ; seul le regroupement en cartes change : par proposition, visé 4 à 9
+ * mots et ≥ 1,5 s à l'écran (la carte se prolonge jusqu'à la suivante au plus, jamais deux cartes à la fois ; un trou
+ * < TROU_COMBLE_SEC est comblé). Ce sont des CIBLES, pas des garanties : la carte doit tenir sur une ligne (≥ 53 px), donc
+ * un débit rapide donne des cartes plus courtes que 1,5 s et un mot très long peut faire une carte d'un ou deux mots.
+ */
 export function normaliserSegments(segments: SegmentSousTitres[]): SegmentSousTitres[] {
   const cartes = regrouperParProposition(segments.flatMap((s) => s.mots));
   return cartes.map((mots, k) => {
