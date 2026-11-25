@@ -4,7 +4,7 @@
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import type { FondAxion } from "../../jetons-motion";
 import { type DefinitionObjet, type ProprietesObjet, type TonObjet } from "./contrat";
 import { IMAGES_ENTREE, IMAGES_SORTIE, phaseObjet } from "./progres";
@@ -126,7 +126,7 @@ export function caseSelectionnee(image: number, dureeImages: number, n: number):
 
 function Texte({ x, y, taille, contenu, ton, fond, opacite }: { x: number; y: number; taille: number; contenu: string; ton: TonObjet; fond: FondAxion; opacite: number }): JSX.Element {
   return (
-    <text x={f(x)} y={f(y)} fontSize={Math.round(taille)} fontFamily={FAMILLE_CSS} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill={couleurDuTon(ton, fond)} opacity={opacite}>
+    <text x={f(x)} y={f(y)} fontSize={Math.round(taille)} fontFamily={PILE_CSS} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill={couleurDuTon(ton, fond)} opacity={opacite}>
       {contenu}
     </text>
   );

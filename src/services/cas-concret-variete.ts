@@ -11,6 +11,8 @@ import { ID_MOTEUR_CAS_CONCRET } from "@/moteurs/montage-cas-concret";
 import type { OutilsVariete } from "@/moteurs/montage-cas-concret/outils";
 import { ajouterAHistorique, lireHistorique, lireMise, type EntreeHistorique, type Mise } from "@/moteurs/montage-cas-concret/variete";
 import { depots, ecrireParametre, lireParametre } from "./_commun";
+import { lireVarieteCommune } from "./variete-commune/lire-reglage";
+import { refusCommunCasConcret } from "./variete-commune/refus-commun-cas-concret";
 
 export const CLE_HISTORIQUE_TIRAGES = "casConcret.historiqueTirages";
 
@@ -38,5 +40,5 @@ export async function miseHeriteeDe(videoId: Id): Promise<Mise | null> {
 
 /** Les outils `variete` du moteur, branchés sur le studio. */
 export function outilsVarieteDuStudio(): OutilsVariete {
-  return { lireHistorique: historiqueTirages, ajouter: noterTirage, miseHeritee: miseHeriteeDe };
+  return { lireHistorique: historiqueTirages, ajouter: noterTirage, miseHeritee: miseHeriteeDe, refusCommun: (c) => refusCommunCasConcret({ videoId: c.videoId, reseaux: c.reseaux, lire: lireVarieteCommune, le: new Date().toISOString() }) };
 }

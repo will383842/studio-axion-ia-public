@@ -141,14 +141,13 @@ describe("VL-04 · inscription", () => {
     expect(RENDU_COULEUR["video-longue"]).toEqual({ lut: null, intensite: 70, nature: "dessine" });
   });
 
-  it("« inscrit partout » : avec la fiche simulée au registre, aucun oubli sauf navigation absente (masqué)", async () => {
+  it("« inscrit partout » : le format est inscrit au registre (src/formats/index.ts:26), aucun oubli sauf navigation absente (masqué)", async () => {
     vi.resetModules();
     const reg = await import("@/formats");
     const { formatVideoLongue } = await import("@/formats/video-longue");
     const { moteurExiste: existe, obtenirMoteur: obtenir } = await import("@/moteurs");
     const { RENDU_COULEUR: lut } = await import("@/briques/charte/rendu-couleur");
     const { codeDuFormat } = await import("@/formats/registre-codes");
-    reg.inscrireFormat({ ...formatVideoLongue });
     const f = reg.trouverFormat("video-longue")!;
     expect(codeDuFormat(f.id)).toBe("VL");
     expect(existe(f.moteur)).toBe(true);
