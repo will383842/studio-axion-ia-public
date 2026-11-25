@@ -245,8 +245,13 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
       await commun.ecrireParametre(ls.CLE_REGLAGE_LECTEUR_TABLEAU, v);
       expect(await t.claudeAllume()).toBe(false);
     }
+    // Le tableau n'obéit qu'à SA clé : tableau seul → vrai ; chat face caméra seul → faux.
     await commun.ecrireParametre(ls.CLE_REGLAGE_LECTEUR_TABLEAU, true);
+    expect(await t.claudeAllume()).toBe(true);
+    await commun.ecrireParametre(ls.CLE_REGLAGE_LECTEUR_TABLEAU, false);
     await commun.ecrireParametre(CLE_FA, true);
+    expect(await t.claudeAllume()).toBe(false);
+    await commun.ecrireParametre(ls.CLE_REGLAGE_LECTEUR_TABLEAU, true);
     expect(await t.claudeAllume()).toBe(true);
     const appels = brancherClaude();
     const { construireRequeteRetouche } = await import("@/services/retouche-chat/comprendre");
