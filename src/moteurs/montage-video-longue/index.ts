@@ -2,7 +2,9 @@
  * MOTEUR « VIDÉO LONGUE » (fiche VL-04) — moteur MINCE copié de `src/moteurs/gabarit/`, générateur DÉDIÉ, ÉTEINT (décision du 18/11).
  * Estimation à 0 € ; tant que rien n'est relié (`dependances` rend `null`), la fabrication reste en PAUSE claire : en file,
  * sans échec, sans dépense, jamais une vidéo d'essai. Aucun appel à Claude, aucun fournisseur payant, aucun import de `studio-rendu`.
- * Le script validé est lu tel quel (`entrees.ts`). Plan 16:9 et rendu par chapitre : VL-05. Branchements réels : VL-07.
+ * Le script validé est lu tel quel (`entrees.ts`). Plan 16:9 et rendu par plage : VL-05. Branchements réels : VL-07
+ * (montage réel relié pour le mode SANS voix seulement, derrière le réglage éteint). L'étape « montage » avance PAS À PAS
+ * (FIN-8) : chaque `avancer` soumet une plage ou relit un état, puis revient ; l'étape n'est faite qu'une fois le collage fini.
  */
 import type { CommandeFabrication } from "@/domaine/types";
 import { ZERO } from "@/lib/montants";
@@ -78,5 +80,5 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
 
 export const creerMoteurVideoLongue = (dependances: (commande: CommandeFabrication, travailId?: string) => DependancesVideoLongue | null) => creerMoteurGabarit(definitionVideoLongue(dependances));
 
-/** Moteur inscrit : AUCUNE dépendance reliée (VL-07 les reliera derrière un réglage éteint) = pause sans dépense. */
+/** Moteur inscrit : AUCUNE dépendance reliée tant que le réglage n'est pas vu allumé (VL-07, éteint par défaut) = pause sans dépense. */
 export const moteurMontageVideoLongue = creerMoteurVideoLongue(() => null);
