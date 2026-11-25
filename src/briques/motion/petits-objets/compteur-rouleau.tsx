@@ -6,7 +6,7 @@
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import type { DefinitionObjet } from "./contrat";
 import { ecrireNombreFr } from "./gros-chiffre";
 import { phaseObjet } from "./progres";
@@ -95,7 +95,7 @@ export const OBJET_COMPTEUR_ROULEAU: DefinitionObjet<ParametresRouleau> = {
       const dansNombre = i >= debutNombre && i < finNombre;
       if (!dansNombre || !/\d/.test(c)) {
         colonnes.push(
-          <text key={i} data-role="fixe" x={cx.toFixed(1)} y={base} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur} style={{ fontVariantNumeric: "tabular-nums" }}>
+          <text key={i} data-role="fixe" x={cx.toFixed(1)} y={base} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur} style={{ fontVariantNumeric: "tabular-nums" }}>
             {c}
           </text>,
         );
@@ -109,7 +109,7 @@ export const OBJET_COMPTEUR_ROULEAU: DefinitionObjet<ParametresRouleau> = {
       const roues: JSX.Element[] = [];
       for (let k = 0; k < total + 1; k++) {
         roues.push(
-          <text key={k} data-role="roue" x={0} y={(k * ligne).toFixed(1)} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur} style={{ fontVariantNumeric: "tabular-nums" }}>
+          <text key={k} data-role="roue" x={0} y={(k * ligne).toFixed(1)} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur} style={{ fontVariantNumeric: "tabular-nums" }}>
             {k % 10}
           </text>,
         );
