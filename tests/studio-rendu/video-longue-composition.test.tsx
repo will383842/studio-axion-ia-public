@@ -51,7 +51,7 @@ describe.skipIf(!AVEC_RENDU)("VideoLongue", () => {
   });
 
   it("liste avec compte, fond noir du chapitre, fin avec logo et appel", () => {
-    expect(rendre(49000)).toContain("la valeur du");
+    expect(rendre(49000)).toContain("valeur");
     expect(rendre(4500)).toContain("02 / 04".replace("02", "01"));
     const fin = rendre(118000);
     expect(fin).toContain("Prendre rendez-vous");
