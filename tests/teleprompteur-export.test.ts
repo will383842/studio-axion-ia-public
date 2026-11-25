@@ -96,7 +96,8 @@ describe("teleprompteur · écran du texte à lire et page Lecture", () => {
     expect(vue).toMatch(/scaleX\(-1\)/);
     expect(vue).toContain("Miroir");
     expect(vue).toContain("Vitesse");
-    expect(vue).toMatch(/bg-black/);
-    expect(vue).toMatch(/text-white/);
+    expect(vue).toMatch(/\bbg-fond\b/);
+    expect(vue).toMatch(/\btext-texte\b/);
+    expect(vue).not.toMatch(/\b(bg-black|text-white)\b/);
   });
 });

@@ -29,6 +29,10 @@ export const PHRASE_PHRASE_FERMEE = "L'entrée par une phrase n'est pas ouverte 
 export const PHRASE_PERSONNE_ABSENTE = "Aucune personne n'est disponible pour cette vidéo : ajoutez d'abord votre double dans Personnages, puis recommencez.";
 export const PHRASE_EQUIPE_FERMEE = "L'équipe qui écrit le script n'est pas ouverte pour le moment : collez votre propre script pour lancer la vidéo.";
 export const SCRIPT_COLLE_MAX = 8000;
+/** Mode « Mon script » : le script collé tient lieu de phrase et de dossier ; en dessous, il est refusé. */
+export const SCRIPT_COLLE_MIN = 40;
+export const PHRASE_SCRIPT_REQUIS = `Collez votre script (${SCRIPT_COLLE_MIN} caractères au moins).`;
+export const TITRE_SCRIPT_MAX = 80;
 export const PHRASE_AUCUNE_ENTREE = "Aucune entrée n'est ouverte pour le moment.";
 
 /** Fin de la vidéo (mêmes valeurs que `FinChoisie` du chef de projet, recopiées : ce fichier n'importe pas l'équipe). */
@@ -63,7 +67,7 @@ export async function exigerTutorielAllume(lire?: (id: string, defaut: unknown) 
 }
 
 export interface DemandeDepotTutoriel {
-  mode: "dossier" | "phrase";
+  mode: "dossier" | "phrase" | "script";
   /** Dossier : le fichier déjà envoyé (`typeEntite: "entree"`). */
   fichierId?: string;
   /** Dossier : la case « aucune donnée personnelle n'est visible ». Seul `true` exact compte. */
@@ -78,7 +82,7 @@ export interface DemandeDepotTutoriel {
   ratios?: unknown;
   /** « sans-voix » seulement si exact ; tout le reste = avec voix (le défaut). */
   modeVoix?: unknown;
-  /** Script collé (facultatif) : texte tel quel, il fait foi (`scriptColle: true`). */
+  /** Script collé : texte tel quel, il fait foi (`scriptColle: true`). Facultatif pour un dossier ou une phrase, OBLIGATOIRE pour le mode « script ». */
   script?: unknown;
 }
 
@@ -94,7 +98,7 @@ export interface DependancesDepotTutoriel {
   extraire?: (octets: Uint8Array, options: { attestationImages: boolean }) => Promise<ResultatZip>;
   /** Distribution par défaut (le double de Williams) ; liste vide ou sans personne : le dépôt est refusé. */
   distribution?: (formatId: string) => Promise<Distribution[]>;
-  brouillon?: (e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown> }) => Promise<Pick<Video, "id">>;
+  brouillon?: (e: { titre: string; sujet: string; distribution: Distribution[]; entrees: Record<string, unknown>; script?: string }) => Promise<Pick<Video, "id">>;
   ratios?: (videoId: Id, ratios: Ratio[]) => Promise<void>;
   /** Lancement commun (format sans prix : montant nul). */
   lancer?: (videoId: Id) => Promise<IssueLancement>;
@@ -162,6 +166,16 @@ async function abandonnerParDefaut(videoId: Id): Promise<void> {
   await abandonnerBrouillon(videoId);
 }
 
+/** Titre d'un script collé : sa première ligne non vide, coupée à 80 caractères au plus sur un mot entier (jamais de « … »). */
+export function titreDuScript(script: string): string {
+  const ligne = (script.split(/\r?\n/).find((l) => l.trim()) ?? "").replace(/\s+/g, " ").trim();
+  if (ligne.length <= TITRE_SCRIPT_MAX) return ligne || "Tutoriel d'outil";
+  const coupe = ligne.slice(0, TITRE_SCRIPT_MAX + 1);
+  const espace = coupe.lastIndexOf(" ");
+  const titre = (espace > 0 ? coupe.slice(0, espace) : ligne.slice(0, TITRE_SCRIPT_MAX)).replace(/[\s,;:.\-–]+$/, "");
+  return titre || ligne.slice(0, TITRE_SCRIPT_MAX);
+}
+
 function titreDe(depot: DepotTutoriel, nomFichier?: string): string {
   const brut = depot.mode === "phrase" ? depot.phrase : (nomFichier ?? "").replace(/\.zip$/i, "").replace(/[-_]+/g, " ");
   const propre = brut.replace(/\s+/g, " ").trim();
@@ -184,7 +198,7 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   await exigerSession();
   const sw = await (dep.interrupteurs ?? (() => lireInterrupteursTutoriel()))();
   if (!sw.formulaire) return refus(PHRASE_TUTORIEL_FERME);
-  if (demande?.mode !== "dossier" && demande?.mode !== "phrase") return refus("Choisissez ce que vous donnez : un dossier ou une phrase.");
+  if (demande?.mode !== "dossier" && demande?.mode !== "phrase" && demande?.mode !== "script") return refus("Choisissez ce que vous donnez : votre script, un dossier ou une phrase.");
 
   const fin: FinChoisie | null = demande.fin === undefined || demande.fin === null || demande.fin === "" ? "aucune" : FINS_PROPOSEES.find((f) => f === demande.fin) ?? null;
   if (!fin) return refus("Cette fin n'est pas proposée : choisissez « Aucune » ou « Prendre rendez-vous ».");
@@ -200,12 +214,16 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
     if (texte.length > SCRIPT_COLLE_MAX) return refus(`Votre script dépasse ${SCRIPT_COLLE_MAX} caractères : raccourcissez-le.`);
     if (texte) script = texte;
   }
+  // « Mon script » : le script est l'entrée ; il suffit que le formulaire soit ouvert (ni phrase, ni dossier, ni équipe).
+  if (demande.mode === "script" && (!script || script.length < SCRIPT_COLLE_MIN)) return refus(PHRASE_SCRIPT_REQUIS);
   // Sans script collé, c'est l'équipe qui l'écrit : éteinte, la vidéo resterait en pause pour toujours (TO_SCRIPT_ABSENT).
   if (!script && !(await (dep.equipe ?? equipeParDefaut)())) return refus(PHRASE_EQUIPE_FERMEE);
 
-  let depot: DepotTutoriel;
+  let depot: DepotTutoriel | undefined;
   let nomFichier: string | undefined;
-  if (demande.mode === "dossier") {
+  if (demande.mode === "script") {
+    depot = undefined;
+  } else if (demande.mode === "dossier") {
     if (!sw.dossier) return refus(MESSAGE_ZIP_FERME);
     const fichierId = typeof demande.fichierId === "string" ? demande.fichierId : "";
     if (!fichierId) return refus("Envoyez d'abord votre dossier.");
@@ -246,8 +264,10 @@ export async function deposerTutoriel(demande: DemandeDepotTutoriel, dep: Depend
   if (modeVoix === MODE_SANS_VOIX) distribution = distribution.filter((d) => d?.personnageId).slice(0, 1);
   if (distribution.length === 0 || !distribution[0]?.personnageId) return refus(PHRASE_PERSONNE_ABSENTE);
 
-  const titre = titreDe(depot, nomFichier);
-  const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees: { [ENTREE_TUTORIEL]: { depot, fin, ...(gabarit ? { gabarit } : {}), ...entreeModeVoix(modeVoix), ...(script ? { scriptColle: true } : {}) } }, ...(script ? { script } : {}) });
+  const titre = depot ? titreDe(depot, nomFichier) : titreDuScript(script ?? "");
+  // Mode script : pas de `depot`, une idée (le titre) et `scriptColle: true`, comme l'idée avec script de la réserve.
+  const source = depot ? { depot } : { idee: titre };
+  const video = await (dep.brouillon ?? brouillonParDefaut)({ titre, sujet: titre, distribution, entrees: { [ENTREE_TUTORIEL]: { ...source, fin, ...(gabarit ? { gabarit } : {}), ...entreeModeVoix(modeVoix), ...(script ? { scriptColle: true } : {}) } }, ...(script ? { script } : {}) });
   const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
   try {
     await (dep.ratios ?? ratiosParDefaut)(video.id, ratios);
