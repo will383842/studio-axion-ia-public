@@ -81,17 +81,26 @@ export function famillesDemandees(texte: string): string[] {
 /** Familles enregistrées par un hôte : `new FontFace(` de ses fichiers et des fichiers relatifs qu'ils importent. */
 export function famillesEnregistrees(fichiers: string[]): Set<string> {
   const lus = new Map<string, string>();
-  for (const f of fichiers) {
-    const texte = lire(`${COMPOSITIONS}/${f}`);
-    lus.set(f, texte);
+  const suivre = (f: string, texte: string, nouveaux: string[]): void => {
     for (const m of texte.matchAll(/from\s+"(\.\.?\/[^"]+)"/g)) {
       const base = join(dirname(f), m[1]);
       for (const suffixe of [".tsx", ".ts"]) {
         const chemin = `${COMPOSITIONS}/${base}${suffixe}`;
-        if (existsSync(join(racine, chemin)) && !lus.has(base + suffixe)) lus.set(base + suffixe, lire(chemin));
+        if (existsSync(join(racine, chemin)) && !lus.has(base + suffixe)) {
+          lus.set(base + suffixe, lire(chemin));
+          nouveaux.push(base + suffixe);
+        }
       }
     }
+  };
+  const niveau1: string[] = [];
+  for (const f of fichiers) {
+    const texte = lire(`${COMPOSITIONS}/${f}`);
+    lus.set(f, texte);
+    suivre(f, texte, niveau1);
   }
+  // Un niveau d'imports relatifs de plus (le chargeur commun est délégué par les hôtes).
+  for (const f of niveau1) suivre(f, lus.get(f) ?? "", []);
   const textes = [...lus.values()];
   const noms = new Set<string>();
   for (const t of textes) {
@@ -184,8 +193,13 @@ describe("POLICES-P3-a : la première famille de chaque objet est enregistrée p
 
   it("(f) l'écriture redonne les mêmes fichiers ; un fichier sans écart devient [] sans disparaître", () => {
     const tmp = mkdtempSync(join(tmpdir(), "ecarts-"));
+    // Un fichier sans écart existe déjà (« [] ») : il ne doit pas disparaître à l'écriture.
+    for (const n of readdirSync(DOSSIER)) writeFileSync(join(tmp, n), "[]\n");
     ecrireEcarts(tmp, lireEcarts(DOSSIER));
     expect(readdirSync(tmp).map((n) => readFileSync(join(tmp, n), "utf8"))).toEqual(readdirSync(DOSSIER).map((n) => readFileSync(join(DOSSIER, n), "utf8")));
+    // Borne réelle : un écart Manrope SYNTHÉTIQUE est écrit, puis il disparaît : le fichier redevient « [] » sans disparaître.
+    ecrireEcarts(tmp, [...figes, { hote: "sonde.tsx", objet: "sonde", famille: "Manrope" }]);
+    expect(readFileSync(join(tmp, "manrope.json"), "utf8")).toContain("sonde.tsx");
     ecrireEcarts(tmp, figes.filter((e) => e.famille !== "Manrope"));
     expect(readFileSync(join(tmp, "manrope.json"), "utf8")).toBe("[]\n");
   });
