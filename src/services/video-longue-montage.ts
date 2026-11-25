@@ -307,7 +307,7 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
       return enCours();
     }
     if (e.statut === "echec") throw new ErreurMontageVideoLongue(`Le rendu d'une partie de la vidéo a échoué : ${e.erreur.message}`, [], false);
-    if (maintenant() - courant.enCours.depuisMs > (ports.delaiPlageMs ?? DELAI_MAX_PLAGE_MS)) throw new Error("délai dépassé");
+    if (maintenant() - courant.enCours.depuisMs > (ports.delaiPlageMs ?? DELAI_MAX_PLAGE_MS)) throw new ErreurMontageVideoLongue("Une partie de la vidéo prend trop de temps à se rendre (délai dépassé), vous pouvez réessayer.", [], true);
     // « inconnu » : le conteneur a redémarré. On n'enchaîne pas : la même demande (même identifiant) repart au pas suivant.
     if (e.statut === "inconnu") delete courant.enCours;
     else courant.enCours = { ...courant.enCours, erreurs: 0 };
@@ -344,7 +344,7 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
   const e = lu.etat;
   if (e.statut === "termine") return { fini: { fichierCle: e.sortieCle || sortieCle } };
   if (e.statut === "echec") throw new ErreurMontageVideoLongue(`Le collage de la vidéo a échoué : ${e.erreur.message}`, [], false);
-  if (maintenant() - courant.collage.depuisMs > (ports.delaiCollageMs ?? DELAI_COLLAGE_MS)) throw new Error("délai dépassé");
+  if (maintenant() - courant.collage.depuisMs > (ports.delaiCollageMs ?? DELAI_COLLAGE_MS)) throw new ErreurMontageVideoLongue("L'assemblage final prend trop de temps (délai dépassé), vous pouvez réessayer.", [], true);
   // « inconnu » : le collage repart (même identifiant) au pas suivant, pas dans celui-ci.
   if (e.statut === "inconnu") delete courant.collage;
   else courant.collage = { ...courant.collage, erreurs: 0 };

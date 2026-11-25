@@ -97,6 +97,14 @@ export function estimerMotsSansVoix(entrees: EntreesVideoLongue): { mots: MotHor
   return { mots, dureeSec: Math.round(t * 10) / 10 };
 }
 
+/** Message lisible et caractère réessayable d'une erreur de pas (erreurs du montage ou refus connus ; sinon phrase habituelle). */
+function echecDuPas(err: unknown): { message: string; reessayable: boolean } {
+  const nom = err instanceof Error ? err.name : "";
+  if (err instanceof Error && nom === "ErreurMontageVideoLongue") return { message: err.message, reessayable: (err as Error & { reessayable?: boolean }).reessayable === true };
+  if (err instanceof Error && nom === "ErreurVideoLongue") return { message: err.message, reessayable: false };
+  return { message: "L'assemblage a eu un souci, vous pouvez réessayer.", reessayable: true };
+}
+
 export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAvance<EntreesVideoLongue>, deps: DependancesVideoLongue): Promise<EtatVideoLongue> {
   const etape = premiereEtapePrete(ctx, etat)?.cle;
   if (!etape) return { ...etat, fini: true };
@@ -133,7 +141,15 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
       const suivis = { ...etat.montageSuivi };
       const ratio = ctx.commande.ratios.find((r) => !sorties[r]);
       if (ratio) {
-        const pas = await deps.monterPas(ratio, ctxMontage, suivis[ratio]);
+        let pas: PasMontageVideoLongue;
+        try {
+          pas = await deps.monterPas(ratio, ctxMontage, suivis[ratio]);
+        } catch (err) {
+          // Échec lisible. On garde les plages finies et on retire la demande en cours / le collage (et leur horloge) :
+          // « Réessayer » repart d'un suivi neuf, sans resoumettre une plage finie (même idRendu = ignoré par le serveur).
+          const { message, reessayable } = echecDuPas(err);
+          return { ...etat, sorties, montageSuivi: { ...suivis, [ratio]: { plages: suivis[ratio]?.plages ?? {} } }, echec: { etape, message, reessayable } };
+        }
         if ("enCours" in pas) return { ...etat, sorties, montageSuivi: { ...suivis, [ratio]: pas.enCours.suivi } };
         sorties[ratio] = pas.fini.fichierCle;
         delete suivis[ratio];

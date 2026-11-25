@@ -320,3 +320,35 @@ describe("FIN-8 : chemin sans voix = 0 appel HeyGen / ElevenLabs", () => {
     expect(b.appelsReseau()).toBe(0);
   });
 });
+
+describe("FIN-8 : « Réessayer » après un délai dépassé", () => {
+  it("échec lisible, plages finies gardées, puis relance (echec retiré, tentative 2) jusqu'à « fini », sans plage resoumise", async () => {
+    const b = banc({ lecturesEnCours: 3 });
+    b.ports.delaiPlageMs = 1000;
+    const def = definitionVideoLongue(() => deps);
+    const deps = { voix: { lire: vi.fn() }, monter: vi.fn(), monterPas: (r: never, c: never, s?: SuiviMontageVideoLongue) => pasMontageVideoLongue(commande, "t-pas", c, b.ports, s) };
+    const entrees = lireEntreesVideoLongue(commande);
+    const c = (tentative: number) => ({ commande, entrees, travailId: "t-pas", versionId: "v", tentative, etapes: def.etapesFabrication });
+    let etat: EtatVideoLongue = { faites: ["reception", "voix", "chapitres"], voix: { mots, dureeSec: 260, morceaux: 0 }, chapitres: chapitresWeb as never, remarques: [], sorties: {} };
+    // Un pas soumet la plage, la plage reste « en cours » au-delà du délai.
+    etat = await avancerVideoLongue(etat, c(1) as never, deps as never);
+    b.horloge.ms += 5000;
+    etat = await avancerVideoLongue(etat, c(1) as never, deps as never);
+    expect(etat.echec?.message).toMatch(/délai dépassé/);
+    expect(etat.echec?.reessayable).toBe(true);
+    expect(etat.montageSuivi?.["16:9"]?.enCours).toBeUndefined();
+    expect(etat.montageSuivi?.["16:9"]?.collage).toBeUndefined();
+    // « Réessayer » : seul `echec` est retiré par le gabarit.
+    b.ports.delaiPlageMs = 100_000;
+    etat = { ...etat, echec: undefined };
+    let tours = 0;
+    while (!etat.faites.includes("montage") && !etat.echec && tours++ < 100) etat = await avancerVideoLongue(etat, c(2) as never, deps as never);
+    expect(etat.echec).toBeUndefined();
+    expect(etat.faites).toContain("montage");
+    expect(etat.sorties["16:9"]).toContain("video-longue-t-pas-16x9.mp4");
+    // Chaque plage n'est soumise qu'une fois par identifiant ; la plage du premier essai est resoumise au plus une fois (même idRendu).
+    const ids = b.soumis.map((d) => d.idRendu);
+    expect(ids.length - new Set(ids).size).toBeLessThanOrEqual(1);
+    expect(new Set(ids).size).toBe(PLAGES + 1);
+  });
+});
