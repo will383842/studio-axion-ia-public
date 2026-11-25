@@ -118,6 +118,7 @@ export const DOMAINE: Domaine = {
     // VL-07 : registre de dépense et morceaux déjà lus de la vidéo longue (mémoire par vidéo, pas des interrupteurs).
     "services/video-longue-branchements.ts:cleDepense(videoId)": { exclu: "memoire" },
     "services/video-longue-branchements.ts:cle": { exclu: "memoire" },
+    "services/video-longue-branchements.ts:cleParametrePlages(v)": { exclu: "memoire" }, // UI-4 : plages déjà rendues de la vidéo longue (mémoire par vidéo, pas un interrupteur)
     "services/avocat-branchements.ts:param": { couvre: "avocat.motionCommune" }, // et avocat.monteur (enveloppe allume())
     "services/effet-realiste-ia.ts:PARAM_RESULTATS(d.videoId)": { exclu: "memoire" },
     "services/effet-realiste-ia.ts:PARAM_RESULTATS(videoId)": { exclu: "memoire" },
@@ -132,6 +133,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 19, env: 0 },
+  nombre: { litterales: 8, constantes: 20, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // parExpression 19 → 20 : 19 entrées d'avant + 1 ajoutée (services/video-longue-branchements.ts:cleParametrePlages(v)) = 20
   retirees: [],
 };
