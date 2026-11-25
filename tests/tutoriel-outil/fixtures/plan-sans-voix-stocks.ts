@@ -49,6 +49,7 @@ export const PLAN_SANS_VOIX_STOCKS: PlanComposeSansVoix = {
           ],
         },
         { genre: "alerte", aMs: 30000, texte: "Un article passe sous le seuil", cartePulse: 1, source: { premier: 73, dernier: 78 } },
+        { genre: "focus", aMs: 8700, finMs: 9900, cible: "cartes", source: { premier: 25, dernier: 29 } },
         { genre: "focus", aMs: 15600, finMs: 16800, cible: "cartes", source: { premier: 30, dernier: 44 } },
         { genre: "focus", aMs: 28000, finMs: 29200, cible: "panneau", source: { premier: 66, dernier: 71 } },
       ],
