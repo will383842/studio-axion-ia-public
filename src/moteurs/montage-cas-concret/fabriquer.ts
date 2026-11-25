@@ -1054,7 +1054,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         const exclues = !imposee && o.structureEcartee ? STRUCTURES.filter((s) => structureEffective(cas.offre, s) === o.structureEcartee) : [];
         const heritable = heritee && !exclues.includes(heritee.tirage.structure) ? heritee : null;
         if (!heritable) journal.tirageNeuf = true;
-        tirage = heritable?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(imposee ? { structureImposee: imposee } : {}), ...(exclues.length ? { structuresExclues: exclues } : {}), ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) });
+        const refusCommun = !heritable && variete.refusCommun ? await sansPanne(() => variete.refusCommun!({ videoId: o.videoId, reseaux }), undefined) : undefined;
+        tirage = heritable?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(refusCommun ? { refusCommun } : {}), ...(imposee ? { structureImposee: imposee } : {}), ...(exclues.length ? { structuresExclues: exclues } : {}), ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) });
         // Une structure imposée (script validé, écriture déjà commencée) l'emporte aussi sur celle d'un tirage hérité.
         if (imposee && tirage.structure !== imposee) tirage = { ...tirage, structure: imposee };
       }
@@ -1104,7 +1105,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       const heritee = variete.miseHeritee ? lireMise(await sansPanne(() => variete.miseHeritee!(o.videoId), null)) : null;
       const historique = lireHistorique(await sansPanne(() => variete.lireHistorique(), []));
       if (!journal.tirage && !heritee) journal.tirageNeuf = true;
-      const tirage = tirageDose(journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) }), o.dosage);
+      const refusCommun = !journal.tirage && !heritee && variete.refusCommun ? await sansPanne(() => variete.refusCommun!({ videoId: o.videoId, reseaux }), undefined) : undefined;
+      const tirage = tirageDose(journal.tirage?.tirage ?? heritee?.tirage ?? tirer({ videoId: o.videoId, canaux: reseaux, historique, ...(refusCommun ? { refusCommun } : {}), ...(o.entrees.cameraPlus ? { cameraPlus: o.entrees.cameraPlus } : {}) }), o.dosage);
       // La déclinaison suit les écrans de CETTE fiche (une version peut en avoir d'autres) ; L6 : leur contenu calé.
       gardee = mettre(tirage, aMettre, historique, reseaux);
       // GV-ST-02b : le choix « sans variante » est rangé dans la mise, que les versions suivantes héritent.

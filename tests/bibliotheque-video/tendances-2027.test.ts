@@ -98,7 +98,7 @@ const INSTANTANE_MASTER: string[] = [
   "etalonnage.lut|prevu|E2 (G2-02, G2-03)|",
   // CATALOGUE-C10-C11-v21p
   "texte.marques-au-mot|eteint|11|",
-  "texte.selectif|prevu|11|",
+  "texte.selectif|eteint|11|",
   "texte.mode-carte|prevu|11|",
   "texte.effets|prevu|11|",
   "texte.accents-role|prevu|11|",

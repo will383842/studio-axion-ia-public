@@ -1,4 +1,6 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { FAMILLE_CSS } from "@/briques/charte/axion-2026";
@@ -7,12 +9,13 @@ import { FAMILLE_CSS_AXION } from "@/briques/jetons-motion";
 /**
  * POLICES-P3-a : pour chaque hôte qui dessine les petits objets, la première famille demandée par chaque objet
  * doit être enregistrée (`new FontFace(`) par cet hôte. Lecture de TEXTE seulement (pas de navigateur en CI).
- * Le défaut d'aujourd'hui est figé dans `ecarts-connus.json` : la liste ne peut que rétrécir (cliquet).
+ * Le défaut d'aujourd'hui est figé dans `tests/polices/ecarts/<famille>.json` (un fichier par police) : la liste ne peut que rétrécir (cliquet).
  */
 const racine = process.cwd();
 const OBJETS = "src/briques/motion/petits-objets";
 const COMPOSITIONS = ["studio-rendu", "compositions"].join("/");
-const LISTE = join(racine, "tests/polices/ecarts-connus.json");
+const DOSSIER = join(racine, "tests/polices/ecarts");
+const ORIGINE = join(racine, "tests/polices/ecarts-origine-95aa5af.json");
 const GENERIQUES = new Set(["sans-serif", "serif", "monospace", "cursive", "system-ui"]);
 
 /** Hôtes : fichier principal + fichiers voisins lus avec lui (le tableau dessine ses objets via ObjetsTableau). */
@@ -114,6 +117,19 @@ export function ecartsDe(hotes: Record<string, Set<string>>, objets: Record<stri
 
 const cle = (e: Ecart): string => `${e.hote} | ${e.objet} | ${e.famille}`;
 
+export function cleFichier(famille: string): string {
+  return famille.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+export function lireEcarts(dossier: string): Ecart[] {
+  return readdirSync(dossier).filter((n) => n.endsWith(".json")).sort().flatMap((n) => JSON.parse(readFileSync(join(dossier, n), "utf8")) as Ecart[]);
+}
+
+export function ecrireEcarts(dossier: string, constates: Ecart[]): void {
+  const noms = new Set([...readdirSync(dossier).filter((n) => n.endsWith(".json")), ...constates.map((e) => `${cleFichier(e.famille)}.json`)]);
+  for (const nom of noms) writeFileSync(join(dossier, nom), JSON.stringify(constates.filter((e) => `${cleFichier(e.famille)}.json` === nom), null, 2) + "\n");
+}
+
 function objetsReels(): Record<string, string[]> {
   const sortie: Record<string, string[]> = {};
   for (const f of readdirSync(join(racine, OBJETS)).filter((n) => n.endsWith(".tsx")).sort()) {
@@ -130,9 +146,9 @@ function hotesReels(): Record<string, Set<string>> {
 describe("POLICES-P3-a : la première famille de chaque objet est enregistrée par l'hôte", () => {
   const constates = ecartsDe(hotesReels(), objetsReels());
   if (process.env.ECRIRE_ECARTS_POLICES === "1") {
-    writeFileSync(LISTE, JSON.stringify(constates, null, 2) + "\n");
+    ecrireEcarts(DOSSIER, constates);
   }
-  const figes: Ecart[] = JSON.parse(readFileSync(LISTE, "utf8"));
+  const figes: Ecart[] = lireEcarts(DOSSIER);
 
   it("(a) tout écart constaté est dans la liste figée (aucun écart neuf)", () => {
     const connus = new Set(figes.map(cle));
@@ -149,6 +165,29 @@ describe("POLICES-P3-a : la première famille de chaque objet est enregistrée p
     expect(cles.length).toBe(new Set(cles).size);
     const objets = Object.keys(objetsReels());
     expect(figes.filter((e) => !(e.hote in HOTES) || !objets.includes(e.objet))).toEqual([]);
+  });
+
+  it("(d) un fichier par police : chaque entrée est dans le fichier de sa famille, sans doublon", () => {
+    for (const n of readdirSync(DOSSIER)) expect((JSON.parse(readFileSync(join(DOSSIER, n), "utf8")) as Ecart[]).filter((e) => `${cleFichier(e.famille)}.json` !== n || Object.keys(e).sort().join() !== "famille,hote,objet")).toEqual([]);
+    expect(new Set(figes.map(cle)).size).toBe(figes.length);
+    expect(["Axion Manrope", "JetBrains Mono", "Manrope"].map(cleFichier)).toEqual(["axion-manrope", "jetbrains-mono", "manrope"]);
+  });
+
+  it("(e) aucune entrée perdue au découpage : la liste ne peut que rétrécir", () => {
+    const texte = readFileSync(ORIGINE, "utf8");
+    expect(createHash("sha256").update(texte).digest("hex")).toBe("aa3a6bb3a8562d9f7da0ba17cd808d169b2b3aea2bae7ff6e376c636c114515e");
+    const origine: Ecart[] = JSON.parse(texte);
+    const [anciens, presents, reels] = [origine, figes, constates].map((l) => new Set(l.map(cle)));
+    expect([origine.length, figes.map(cle).filter((c) => !anciens.has(c))]).toEqual([106, []]);
+    expect(origine.map(cle).filter((c) => !presents.has(c) && reels.has(c))).toEqual([]);
+  });
+
+  it("(f) l'écriture redonne les mêmes fichiers ; un fichier sans écart devient [] sans disparaître", () => {
+    const tmp = mkdtempSync(join(tmpdir(), "ecarts-"));
+    ecrireEcarts(tmp, lireEcarts(DOSSIER));
+    expect(readdirSync(tmp).map((n) => readFileSync(join(tmp, n), "utf8"))).toEqual(readdirSync(DOSSIER).map((n) => readFileSync(join(DOSSIER, n), "utf8")));
+    ecrireEcarts(tmp, figes.filter((e) => e.famille !== "Manrope"));
+    expect(readFileSync(join(tmp, "manrope.json"), "utf8")).toBe("[]\n");
   });
 
   it("un objet qui demande une police non chargée par l'hôte est vu (cas factice)", () => {

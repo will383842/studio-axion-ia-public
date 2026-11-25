@@ -11,6 +11,8 @@ import { mockHeaders, mockNavigation, reinitialiserRequete } from "../helpers/ne
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+const lecture = vi.hoisted(() => ({ ouvrir: vi.fn(async () => ({ ok: true, donnees: { etape: "saisie-manuelle", raison: "x" } })), valider: vi.fn(async () => ({ ok: true, donnees: { ok: true } })) }));
+vi.mock("@/app/(studio)/videos/actions-tableau-de-bord", () => ({ ouvrirRelectureTableauAction: lecture.ouvrir, validerRelectureTableauAction: lecture.valider }));
 
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const auth = await import("@/services/auth");
@@ -29,6 +31,8 @@ beforeAll(async () => {
   process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
 });
 beforeEach(async () => {
+  lecture.ouvrir.mockClear();
+  lecture.valider.mockClear();
   reinitialiserDepots();
   reinitialiserRequete();
   await auth.seConnecter(MDP, false);
@@ -45,6 +49,14 @@ describe("action : porte fermée par constante", () => {
     expect(await fermee.tableauDeBordOuvert()).toBe(false);
     const r = await fermee.creerTableauDeBord({ titre: "Mon mois", distribution });
     expect(r).toMatchObject({ ok: false, code: "TDB_FERME" });
+    expect(await videos()).toEqual([]);
+  });
+  it("G4-08-b3-b : fermée, les 2 enveloppes de relecture répondent TDB_FERME sans appeler les actions de G4-08-b2", async () => {
+    const image = { base64: "AAAA", type: "image/png" as const, largeur: 10, hauteur: 10 };
+    expect(await fermee.ouvrirRelectureTableauDeBord("v1", image)).toMatchObject({ ok: false, code: "TDB_FERME" });
+    expect(await fermee.validerRelectureTableauDeBord("v1", {} as never, {})).toMatchObject({ ok: false, code: "TDB_FERME" });
+    expect(lecture.ouvrir).not.toHaveBeenCalled();
+    expect(lecture.valider).not.toHaveBeenCalled();
     expect(await videos()).toEqual([]);
   });
   it("le fichier d'actions n'exporte que des fonctions asynchrones (règle des fichiers « use server ») et ne cite pas montage-donnees", () => {
@@ -69,6 +81,22 @@ describe("action : porte ouverte (copie de la source avec la constante à true, 
     expect(liste[0]).toMatchObject({ formatId: "tableau-de-bord", titre: "Mon mois", distribution, entrees: {} });
     const neuf = (await depots().travaux.lister()) as { cibleId?: string }[];
     expect(neuf.filter((t) => liste.some((v) => (v as { id?: string }).id === t.cibleId))).toEqual([]);
+  });
+});
+
+describe("G4-08-b3-b : enveloppes, porte ouverte (copie à true)", () => {
+  it("chacune appelle l'action de G4-08-b2 UNE fois avec les mêmes arguments", async () => {
+    const source = readFileSync(join(RACINE, FICHIER_ACTIONS), "utf8").replace("const PAGE_TABLEAU_DE_BORD_OUVERTE: boolean = false;", "const PAGE_TABLEAU_DE_BORD_OUVERTE: boolean = true;");
+    writeFileSync(COPIE, source);
+    const ouverte = (await import(/* @vite-ignore */ COPIE)) as typeof fermee;
+    const image = { base64: "AAAA", type: "image/png" as const, largeur: 10, hauteur: 10 };
+    await ouverte.ouvrirRelectureTableauDeBord("v1", image);
+    expect(lecture.ouvrir).toHaveBeenCalledTimes(1);
+    expect(lecture.ouvrir).toHaveBeenCalledWith("v1", image);
+    const brouillon = { id: "b" } as never;
+    await ouverte.validerRelectureTableauDeBord("v1", brouillon, { a: { type: "valide" } });
+    expect(lecture.valider).toHaveBeenCalledTimes(1);
+    expect(lecture.valider).toHaveBeenCalledWith("v1", brouillon, { a: { type: "valide" } });
   });
 });
 
