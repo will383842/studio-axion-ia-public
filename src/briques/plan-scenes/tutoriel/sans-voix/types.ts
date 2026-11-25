@@ -172,7 +172,7 @@ export interface ElementVisible {
    *  et les pictogrammes des cartes-chiffres : « boite » (cube : stock), « seuil » (ligne horizontale et flèche vers le bas : seuil),
    *  « valeur » (pile de pièces, sans « € » ni chiffre).
    *  Pour « horloge » : la petite aiguille (heures) est FIXE à 300° (10 h) ; `progression` (0..1) = angle de la grande aiguille (0 = midi,
-   *  1 = un tour) : elle reste TOUJOURS à ≥ 60° de la petite (les deux partent du centre, jamais en ligne droite) ; icônes statiques : 0,1 (2 h). */
+   *  1 = un tour) : elle reste TOUJOURS à ≥ 60° de la petite (les deux partent du centre, jamais en ligne droite) ; icônes statiques : 0,25 (3 h). */
   icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche" | "boite" | "seuil" | "valeur";
   /** Curseur : point cliquant et anneau de clic (0..1, 0 = pas de clic). */
   pointe?: { x: number; y: number };
