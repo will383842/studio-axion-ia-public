@@ -12,6 +12,7 @@
  *   processus fait passer les rendus en cours en échec (`echouerEnCours`, `surveillerRejets`) au lieu de les laisser
  *   « en cours ». Après un redémarrage, un identifiant inconnu répond « inconnu » (404), jamais un état périmé.
  */
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,6 +36,8 @@ export interface OptionsFiles {
 
 interface Entree {
   demande: DemandeRendu;
+  /** Empreinte de la demande (sans adresses signées) : même identifiant, autre empreinte = conflit. */
+  empreinte: string;
   etat: EtatRendu;
   recuA: number;
   finiA?: number;
@@ -67,11 +70,26 @@ export function delaiRendu(d: DemandeRendu, o: { delaiCourteMs: number; delaiLon
   return Math.min(o.delaiLongueMs, DELAI_SOCLE_LONGUE_MS + Math.ceil(duree) * DELAI_PAR_SECONDE_MS);
 }
 
+/** Longueur gardée d'un message d'échec. */
+const LONGUEUR_MOTIF = 300;
+
+/** Texte court qui garde la FIN (la vraie cause d'un stderr FFmpeg, pas sa bannière). PUR. */
+export function finDuTexte(texte: string, max: number = LONGUEUR_MOTIF): string {
+  return texte.length > max ? `…${texte.slice(-max)}` : texte;
+}
+
+/** Code de la cause réseau d'une erreur (`fetch failed` → `ECONNREFUSED`), sinon null. PUR. */
+function codeCause(e: unknown): string | null {
+  const cause = (e as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof cause?.code === "string" && cause.code ? cause.code : null;
+}
+
 /** Motif lisible d'une erreur quelconque d'un rendu (navigateur fermé, FFmpeg, Remotion…). PUR. */
 export function motifEchec(e: unknown): ErreurRendu["erreur"] {
   if (e instanceof ErreurRendu) return e.erreur;
-  const brut = (e instanceof Error ? e.message : String(e ?? "")).trim();
-  const court = brut.length > 300 ? `${brut.slice(0, 300)}…` : brut;
+  const brut = sansAdresses((e instanceof Error ? e.message : String(e ?? "")).trim());
+  const cause = codeCause(e);
+  const court = finDuTexte(brut) + (cause && !brut.includes(cause) ? ` (${cause})` : "");
   if (/target closed|session closed|browser has disconnected|browser closed|protocol error/i.test(brut)) {
     return { code: "indisponible", reessayable: true, message: `Le navigateur du rendu s'est fermé pendant le dessin (${court}).` };
   }
@@ -80,6 +98,32 @@ export function motifEchec(e: unknown): ErreurRendu["erreur"] {
   }
   if (!court) return { code: "inconnu", reessayable: true, message: "Le rendu a échoué sans message." };
   return { code: "inconnu", reessayable: true, message: court };
+}
+
+/** Écriture JSON stable (clés triées) ; une adresse (http, https) est réduite à son chemin, sans signature. PUR. */
+function jsonStable(v: unknown): string {
+  const norme = (x: unknown): unknown => {
+    if (typeof x === "string" && /^https?:\/\//i.test(x)) {
+      try {
+        const u = new URL(x);
+        return `${u.origin}${u.pathname}`;
+      } catch {
+        return "[adresse]";
+      }
+    }
+    if (Array.isArray(x)) return x.map(norme);
+    if (x && typeof x === "object") return Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, w]) => [k, norme(w)]));
+    return x;
+  };
+  return JSON.stringify(norme(v)) ?? "null";
+}
+
+/**
+ * Empreinte d'une demande : opération, file, paramètres, clé de sortie et NOMS des entrées. Jamais les adresses
+ * signées des entrées ni du dépôt (elles changent à chaque signature). PUR.
+ */
+export function empreinteDemande(d: DemandeRendu): string {
+  return createHash("sha256").update(jsonStable({ operation: d.operation, file: d.file, parametres: d.parametres, sortie: d.sortie?.cle, entrees: Object.keys(d.entrees ?? {}).sort() })).digest("hex");
 }
 
 /** Identifiant sans son suffixe de reprise (`-eN`, `-sN`, `-rN`) : un même montage repris garde le même identifiant de base. PUR. */
@@ -111,12 +155,19 @@ export class FilesRendu {
     };
   }
 
-  /** Reçoit une demande et répond tout de suite. Idempotent sur `idRendu`. */
-  soumettre(demande: DemandeRendu): { idRendu: string; nouveau: boolean } {
+  /**
+   * Reçoit une demande et répond tout de suite. Idempotent sur `idRendu` AVEC la même empreinte ; un autre contenu sous
+   * le même identifiant (rendu non échoué) est un conflit : rien n'est lancé, le serveur répond 409.
+   */
+  soumettre(demande: DemandeRendu): { idRendu: string; nouveau: boolean; conflit?: boolean } {
     this.oublierAnciens();
     const existant = this.rendus.get(demande.idRendu);
-    if (existant && existant.etat.statut !== "echec") return { idRendu: demande.idRendu, nouveau: false };
-    this.rendus.set(demande.idRendu, { demande, etat: { statut: "en_file", rang: 0 }, recuA: this.o.horloge() });
+    const empreinte = empreinteDemande(demande);
+    if (existant && existant.etat.statut !== "echec") {
+      if (existant.empreinte !== empreinte) return { idRendu: demande.idRendu, nouveau: false, conflit: true };
+      return { idRendu: demande.idRendu, nouveau: false };
+    }
+    this.rendus.set(demande.idRendu, { demande, empreinte, etat: { statut: "en_file", rang: 0 }, recuA: this.o.horloge() });
     (demande.file === "courte" ? this.attenteCourte : this.attenteLongue).push(demande.idRendu);
     this.planifier();
     return { idRendu: demande.idRendu, nouveau: true };
@@ -237,7 +288,7 @@ export class FilesRendu {
           if (nombre >= 2) erreur = { code: "indisponible", reessayable: false, message: "Le montage dépasse la durée maximale du serveur de rendu." };
         }
         entree.etat = { statut: "echec", erreur };
-        console.error(`[studio-rendu] échec ${demande.operation} ${demande.idRendu} : ${erreur.code} ${sansAdresses(erreur.message).slice(0, 300)}`);
+        console.error(`[studio-rendu] échec ${demande.operation} ${demande.idRendu} : ${erreur.code} ${finDuTexte(sansAdresses(erreur.message))}`);
       }
     } finally {
       clearTimeout(minuterie);

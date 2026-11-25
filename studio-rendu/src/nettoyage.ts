@@ -6,15 +6,26 @@
  * Seuls les dossiers temporaires du rendu (préfixes ci-dessous, dans le dossier temporaire du système) sont visés :
  * ce conteneur est SANS ÉTAT, aucune donnée n'y vit.
  */
-import { readdir, rm } from "node:fs/promises";
+import { readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-/** `studio-rendu-` : nos dossiers (`files.ts`) ; `remotion-` / `react-motion-` : ceux de Remotion (images, paquets). */
-export const PREFIXES_TEMPORAIRES = ["studio-rendu-", "remotion-", "react-motion-"] as const;
+/**
+ * `studio-rendu-` : nos dossiers (`files.ts`) ; `remotion-` / `react-motion-` : ceux de Remotion (images, paquets) ;
+ * `puppeteer_dev_chrome_profile-` : profils Chrome de Remotion (jusqu'à 15 Go chacun après un arrêt brutal, essai du 25/11).
+ */
+export const PREFIXES_TEMPORAIRES = ["studio-rendu-", "remotion-", "react-motion-", "puppeteer_dev_chrome_profile-"] as const;
 
-/** Efface les dossiers temporaires orphelins. Renvoie les noms effacés. Une erreur n'empêche jamais le démarrage. */
-export async function nettoyerTemporairesOrphelins(dossier: string = tmpdir()): Promise<string[]> {
+/**
+ * Âge minimal (date de modification du dossier) avant effacement : 6 h. Essai du 25/11 : un autre rendu vivant de la
+ * même machine voyait ses dossiers effacés au démarrage de celui-ci. Un montage dure au plus 20 min : 6 h est large.
+ */
+export const AGE_MINIMAL_ORPHELIN_MS = 6 * 3600_000;
+
+/** Efface les dossiers temporaires orphelins (plus vieux que `ageMinimalMs`). Renvoie les noms effacés. Une erreur n'empêche jamais le démarrage. */
+export async function nettoyerTemporairesOrphelins(dossier: string = tmpdir(), options: { ageMinimalMs?: number; maintenant?: () => number } = {}): Promise<string[]> {
+  const age = options.ageMinimalMs ?? AGE_MINIMAL_ORPHELIN_MS;
+  const maintenant = options.maintenant?.() ?? Date.now();
   let entrees: string[];
   try {
     entrees = await readdir(dossier);
@@ -25,10 +36,12 @@ export async function nettoyerTemporairesOrphelins(dossier: string = tmpdir()): 
   for (const nom of entrees) {
     if (!PREFIXES_TEMPORAIRES.some((p) => nom.startsWith(p))) continue;
     try {
+      const { mtimeMs } = await stat(join(dossier, nom));
+      if (maintenant - mtimeMs < age) continue;
       await rm(join(dossier, nom), { recursive: true, force: true });
       effaces.push(nom);
     } catch {
-      // Fichier d'un autre utilisateur, disque en lecture seule : on continue.
+      // Fichier d'un autre utilisateur, disque en lecture seule, dossier disparu entre-temps : on continue.
     }
   }
   return effaces;
