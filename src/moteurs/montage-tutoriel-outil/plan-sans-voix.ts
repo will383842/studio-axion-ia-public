@@ -711,17 +711,18 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   // Début naturel d'une scène = son premier mot. Exception : un repère démarre au plus tôt 600 ms avant son premier instant
   // (« une minute » ou « une heure »), lorsque cet instant est postérieur au début de sa phrase : la scène précédente
   // (l'écran, où se joue l'alerte) est prolongée d'autant. La plage `mots` du repère garde toute sa phrase (côté repère).
-  const debutBrut = (b: Brouillon): number => {
+  const debutBrut = (b: Brouillon, k: number): number => {
     const d = t[b.premierMot].debut;
-    if (b.scene.genre !== "repere") return d;
+    // L'avance avant le repère ne prolonge QUE l'écran qui le précède (jamais un titre ni une carte-phrase).
+    if (b.scene.genre !== "repere" || brouillons[k - 1]?.scene.genre !== "ecran") return d;
     const avant = Math.min(b.scene.barreAMs, b.scene.apresAMs) - AVANCE_REPERE_MS;
     // Jamais moins de 600 ms d'écran après le début de la phrase du repère (« Vous décidez en… »).
     return avant > d ? Math.max(avant, d + AVANCE_REPERE_MS) : d;
   };
   brouillons.forEach((b, k) => {
-    const debut = Math.min(dureeMs, k === 0 ? 0 : Math.max(borne, debutBrut(b)));
+    const debut = Math.min(dureeMs, k === 0 ? 0 : Math.max(borne, debutBrut(b, k)));
     const suivant = brouillons[k + 1];
-    const fin = suivant ? Math.min(dureeMs, Math.max(debut, debutBrut(suivant))) : Math.max(debut, dureeMs);
+    const fin = suivant ? Math.min(dureeMs, Math.max(debut, debutBrut(suivant, k + 1))) : Math.max(debut, dureeMs);
     scenes.push({ ...b.scene, debutMs: debut, finMs: fin } as SceneSansVoix);
     borne = fin;
   });

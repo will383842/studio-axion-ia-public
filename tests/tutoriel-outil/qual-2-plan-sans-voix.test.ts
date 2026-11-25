@@ -695,3 +695,17 @@ describe("QUAL-2 — repère : l'écran est prolongé jusqu'à 600 ms avant « u
     });
   });
 });
+
+describe("avance avant le repère : seulement après un écran", () => {
+  it("un titre qui précède le repère n'est pas prolongé sur la phrase du repère", () => {
+    const texte = "Voici un tableau de bord. Grâce à lui, avec toute votre équipe réunie autour de la table, vous décidez en une minute au lieu d'une heure.";
+    const { plan } = composerPlanSansVoix({ texte, mots: motsDe(texte), format: FORMAT, basPct: 87 });
+    const rep = plan.scenes.find((sc) => sc.genre === "repere");
+    expect(rep).toBeDefined();
+    const k = plan.scenes.indexOf(rep!);
+    expect(k).toBeGreaterThan(0);
+    expect(plan.scenes[k - 1].genre).not.toBe("ecran");
+    // Pas d'avance : le repère commence au premier mot de sa phrase.
+    expect(rep!.debutMs).toBe(motsDe(texte)[rep!.mots.premier].debutMs);
+  });
+});
