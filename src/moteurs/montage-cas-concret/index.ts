@@ -430,7 +430,7 @@ function preparerRetouche(commande: CommandeFabrication, operations: readonly un
   const r = garde.reglages ?? entrees;
   const mot = r.mot ?? cas.mot;
   const motDit = r.motDit ?? cas.motDit;
-  const pr = commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation }));
+  const pr = (Array.isArray(commande.entrees?.prononciationsRetouche) ? (commande.entrees.prononciationsRetouche as { mot?: unknown; prononciation?: unknown }[]).filter((p): p is { mot: string; prononciation: string } => typeof p?.mot === "string" && typeof p?.prononciation === "string") : commande.prononciations).map((p) => ({ mot: p.mot, prononciation: p.prononciation })); // S2-16-b : prononciations à jour de « refaire la voix » (retouche seulement)
   const p = garde.prisesVoix;
   const v = outils?.voix;
   const contexte: ContexteRetoucheCasConcret = {
@@ -611,7 +611,7 @@ function priseReprise(texte: string, p: EtatVoixCasConcret["corps"]["prise"], v:
  */
 function voixDeRetouche(commande: CommandeFabrication, outils: OutilsCasConcret, cas: CasConcret, entrees: EntreesCasConcret, r: RetoucheEnCours): JournalCasConcret["voix"] | null {
   if (!r.prisesAvant || entrees.sansVoix) return null;
-  const pr = commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation }));
+  const pr = (Array.isArray(commande.entrees?.prononciationsRetouche) ? (commande.entrees.prononciationsRetouche as { mot?: unknown; prononciation?: unknown }[]).filter((p): p is { mot: string; prononciation: string } => typeof p?.mot === "string" && typeof p?.prononciation === "string") : commande.prononciations).map((p) => ({ mot: p.mot, prononciation: p.prononciation })); // S2-16-b : prononciations à jour de « refaire la voix » (retouche seulement)
   const lire = (t: string) => (pr.length ? substituerPrononciations(t, pr) : t);
   // Les réseaux tels que la chaîne les lit (`tourDeChaine` pose ceux des entrées dans son contexte).
   const reseaux = [...new Set(entrees.reseaux)];
@@ -723,7 +723,7 @@ async function tourDeChaine(commande: CommandeFabrication, outils: OutilsCasConc
       ...(ecarte ? { structureEcartee: ecarte.structure ?? STRUCTURES[0] } : {}),
       ...(lireAnterieurs ? { lireScriptsAnterieurs: () => lireAnterieurs(cas.id, commande.videoId) } : {}),
       ...(commande.distribution[0]?.personnageId ? { personnageId: commande.distribution[0].personnageId } : {}),
-      prononciations: commande.prononciations.map((p) => ({ mot: p.mot, prononciation: p.prononciation })),
+      prononciations: (retouche && Array.isArray(commande.entrees?.prononciationsRetouche) ? (commande.entrees.prononciationsRetouche as { mot?: unknown; prononciation?: unknown }[]).filter((p): p is { mot: string; prononciation: string } => typeof p?.mot === "string" && typeof p?.prononciation === "string") : commande.prononciations).map((p) => ({ mot: p.mot, prononciation: p.prononciation })), // S2-16-b : retouche seulement
       // GV-ST-02 : le style de sous-titres choisi (ou étoilé) fait loi ; absent : « Charte duo » comme la v4.
       ...(commande.styles.sousTitres ? { styleSousTitres: commande.styles.sousTitres } : {}),
       ...(commande.styles.sousTitres && commande.sousTitres?.base ? { baseSousTitres: commande.sousTitres.base } : {}),
