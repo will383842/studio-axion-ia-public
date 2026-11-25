@@ -6,18 +6,11 @@
  * Imports relatifs seulement (lu par Remotion).
  */
 import type { CSSProperties, ReactNode } from "react";
-import { PALETTE } from "../../../../src/briques/charte/axion-2026";
+import { COULEURS_HEX } from "../../../../src/briques/plan-scenes/tutoriel/sans-voix/grammaire";
 import type { CouleurCharte, ElementVisible, FormatImage, ImageSansVoix } from "../../../../src/briques/plan-scenes/tutoriel/sans-voix/types";
 
-/** Table des couleurs nommées (à remplacer par celle de `grammaire.ts` une fois QUAL-1 fusionné). */
-export const COULEURS_SANS_VOIX: Record<CouleurCharte, string> = {
-  ivoire: PALETTE.ivoire,
-  gris: PALETTE.gris,
-  noir: PALETTE.noir,
-  terracotta: PALETTE.terracotta,
-  blanc: PALETTE.blanc,
-  grisTexte: PALETTE.texteSecondaire,
-};
+/** Table des couleurs nommées de la charte (celle de la grammaire, QUAL-1). */
+export const COULEURS_SANS_VOIX: Record<CouleurCharte, string> = COULEURS_HEX;
 
 const couleur = (nom: CouleurCharte | undefined, repli: CouleurCharte): string => COULEURS_SANS_VOIX[nom ?? repli];
 const OMBRE_DOUCE = "0 10px 28px rgba(20, 20, 19, 0.12)";

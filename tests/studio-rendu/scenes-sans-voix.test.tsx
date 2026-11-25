@@ -23,6 +23,7 @@ vi.mock("../../studio-rendu/node_modules/remotion/dist/esm/index.mjs", async (or
 import { PALETTE } from "@/briques/charte/axion-2026";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import type { ElementVisible, ImageSansVoix, PlanComposeSansVoix } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
+import { PLAN_SANS_VOIX_STOCKS } from "../tutoriel-outil/fixtures/plan-sans-voix-stocks";
 import { HABILLAGE_TUTORIEL, formatDuRatio, planCarteFin } from "@/moteurs/montage-tutoriel-outil/proprietes";
 // @ts-expect-error le react de studio-rendu n'a pas de types ici
 const { createElement } = AVEC_RENDU ? ((await import("../../studio-rendu/node_modules/react/index.js")) as typeof import("react")) : ({} as typeof import("react"));
@@ -111,5 +112,17 @@ describe.skipIf(!AVEC_RENDU)("TutorielOutil et compositionSansVoix (QUAL-3)", ()
     const avec = rendre({ compositionSansVoix: planCompose() });
     expect(avec).not.toBe(sans);
     expect(avec).toContain("background:#FAF9F5");
+  });
+
+  it("plan des stocks à 5 instants : textes de la scène, couleurs de la charte, aucune police sous 32 px, jamais un fond nu", () => {
+    const attendu: [number, string][] = [[1000, "Suivre ses stocks"], [12000, "Tableau de bord"], [20000, "Tableau de bord"], [30000, "Tableau de bord"], [38000, ""]];
+    for (const [ms, texte] of attendu) {
+      etat.image = Math.round((ms * 25) / 1000);
+      const h = rendre({ compositionSansVoix: PLAN_SANS_VOIX_STOCKS });
+      if (texte) expect(h).toContain(texte);
+      for (const c of h.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []) expect(CHARTE.has(c.toLowerCase())).toBe(true);
+      for (const m of h.matchAll(/font-size:([\d.]+)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(32);
+      expect(h).toContain("data-id=");
+    }
   });
 });
