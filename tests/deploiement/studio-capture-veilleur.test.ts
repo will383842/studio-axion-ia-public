@@ -64,7 +64,7 @@ describe("POSTE-2 · texte du script", () => {
     expect(script).toMatch(/mv -T -- "\$res\/\$f" "\$r\/\$f"/);
     const cp = script.split("\n").filter((l) => /\bcp\b/.test(l));
     expect(cp.length).toBeGreaterThanOrEqual(2);
-    for (const l of cp) expect(l, l).toMatch(/timeout "\$COPIE_S" cp -R --no-dereference/);
+    for (const l of cp) expect(l, l).toMatch(/timeout -k 10 "\$COPIE_S" cp -R --no-dereference/);
     expect(script).not.toMatch(/\b(rsync|tar|unzip)\b|cp -L|cp -a|cp -H/);
   });
   it("chaque `docker compose … run` est précédé du double `docker ps -aq` (nom ET label) dans la même fonction", () => {
@@ -80,7 +80,7 @@ describe("POSTE-2 · texte du script", () => {
     expect(script).toMatch(/sortie_neuve\(\) \{\n\s+poste_libre \|\| arret panne POSTE_OCCUPE\n\s+boucle_neuve/);
   });
   it("forme `timeout <délai> docker wait … || docker kill` (960 s, 120 s pour verifier), puis docker inspect, logs bornés, rm -f", () => {
-    expect(script).toMatch(/timeout "\$delai" docker wait "\$nom" >\/dev\/null \|\| docker kill "\$nom"/);
+    expect(script).toMatch(/timeout -k 10 "\$delai" docker wait "\$nom" >\/dev\/null \|\| timeout -k 10 60 docker kill "\$nom"/);
     expect(script).toContain("DELAI_ETAPE_S=960");
     expect(script).toContain("DELAI_VERIFIER_S=120");
     expect(script).toMatch(/if \[ "\$1" = verifier \]; then delai=\$DELAI_VERIFIER_S/);
@@ -91,8 +91,8 @@ describe("POSTE-2 · texte du script", () => {
   it("docker compose : --env-file du .env réel, -f et --project-directory fixés, COMPOSE_* vidées, --pull never, run -d sous timeout, image vérifiée avant", () => {
     const l = script.split("\n").filter((x) => /docker compose .* run /.test(x));
     expect(l).toHaveLength(1);
-    expect(l[0]).toMatch(/timeout 120 env -u COMPOSE_FILE -u COMPOSE_PROFILES -u COMPOSE_PROJECT_NAME -u COMPOSE_ENV_FILES /);
-    expect(l[0]).toContain('docker compose --env-file "$ENV_FICHIER" --project-directory "$DEPLOIEMENT" -f "$DEPLOIEMENT/docker-compose.yml" --profile capture run -d --pull never --name');
+    expect(l[0]).toMatch(/timeout -k 10 120 env -u COMPOSE_FILE -u COMPOSE_PROFILES -u COMPOSE_PROJECT_NAME -u COMPOSE_ENV_FILES /);
+    expect(l[0]).toContain('docker compose -p "$PROJET_COMPOSE" --env-file "$ENV_FICHIER" --project-directory "$DEPLOIEMENT" -f "$DEPLOIEMENT/docker-compose.yml" --profile capture run -d --pull never --name');
     expect(l[0]).not.toMatch(/--build/);
     expect(script).toContain('readonly ENV_FICHIER="$RACINE/.env"');
     expect(script).toMatch(/docker image inspect studio-capture:local[^\n]*\|\| arret panne CAPTURE_ECHEC\n\s+poste_libre/);
@@ -167,9 +167,11 @@ describe("POSTE-2 · compose et unités", () => {
   });
   it("service systemd oneshot, minuterie 30 s, rien d'activé par défaut", () => {
     expect(service).toMatch(/^Type=oneshot$/m);
-    expect(service).toMatch(/^ExecStart=\/usr\/local\/sbin\/studio-capture-veilleur --une-fois$/m);
+    expect(service).toMatch(/^ExecStart=\/opt\/studio-axion-ia\/source\/deploiement\/studio-capture\/veilleur\.sh --une-fois$/m);
     expect(service).toMatch(/^Environment=VEILLEUR_BOITE=\/opt\/studio-axion-ia\/capture-boite$/m);
-    expect(service).toMatch(/^Environment=DEPLOIEMENT=\//m);
+    expect(service).toMatch(/^Environment=DEPLOIEMENT=\/opt\/studio-axion-ia\/source\/deploiement$/m);
+    // lancé DEPUIS le clone : plus aucune copie dans /usr/local/sbin
+    expect(service.split("\n").filter((x) => !x.startsWith("#")).join("\n")).not.toMatch(/sbin/);
     expect(service).not.toMatch(/VEILLEUR_TEST|VEILLEUR_RACINE|VEILLEUR_PATH_TEST/);
     // 3 étapes de 960 s + marge, et une seule demande par passage
     const delai = Number(/^TimeoutStartSec=(\d+)$/m.exec(service)?.[1]);
@@ -200,6 +202,7 @@ case "$1" in
     shift; while [ "$1" != "studio-capture" ]; do [ "$1" = "--name" ] && nom=$2; shift; done; shift
     mode=$1
     echo "env $mode ENTREE=$STUDIO_CAPTURE_ENTREE SORTIE=$STUDIO_CAPTURE_SORTIE MAQ=\${STUDIO_CAPTURE_MAQUETTE:-}" >> "${faux}/appels"
+    echo "$mode $(stat -c %a "$STUDIO_CAPTURE_MAQUETTE") $(ls -A "$STUDIO_CAPTURE_MAQUETTE" | wc -l)" >> "${faux}/maquette-vue"
     touch "${faux}/ctr-$nom"; echo "$mode" > "${faux}/mode-$nom"
     case "$mode" in
       decompresser) [ -f "${faux}/lent" ] && sleep 3
@@ -222,6 +225,7 @@ esac
 `,
   mount: `#!/bin/bash
 echo "mount $*" >> "${faux}/appels"
+m=$(cat "${faux}/mount-echoue" 2>/dev/null); if [ -n "$m" ] && [[ "$*" == *"$m"* ]]; then exit 1; fi
 [ "$1" = "-o" ] && case "$2" in remount*) exit 0 ;; esac
 dir="\${@: -1}"; find "$dir" -mindepth 1 -delete; echo "$dir" >> "${faux}/montes"
 `,
@@ -232,10 +236,13 @@ find "$1" -mindepth 1 -delete 2>/dev/null
 grep -vx "$1" "${faux}/montes" > "${faux}/montes.n" || true; mv "${faux}/montes.n" "${faux}/montes"
 `,
   timeout: `#!/bin/bash
+echo "timeout-brut $*" >> "${faux}/delais-bruts"
+orig=("$@")
+if [ "$1" = -k ]; then shift 2; fi
 echo "timeout $*" >> "${faux}/delais"
 if [ "$2" = docker ] && [ "$3" = wait ] && [ -f "${faux}/timeout-124" ]; then exit 124; fi
 if [ "$2" = cp ] && [ -f "${faux}/timeout-cp" ]; then exit 124; fi
-exec /usr/bin/timeout "$@"
+exec /usr/bin/timeout "\${orig[@]}"
 `,
   mv: `#!/bin/bash
 # $1=-T $2=-- $3=source $4=destination
@@ -247,9 +254,12 @@ exec /usr/bin/mv "$@"
   mountpoint: `#!/bin/bash
 grep -qx "$2" "${faux}/montes" 2>/dev/null
 `,
-  "mkfs.ext4": "#!/bin/bash\nexit 0\n",
+  "mkfs.ext4": `#!/bin/bash\n[ -f "${faux}/mkfs-echoue" ] && exit 1\nexit 0\n`,
   fallocate: `#!/bin/bash\ntouch "\${@: -1}"\n`,
-  chown: "#!/bin/bash\nexit 0\n",
+  chown: `#!/bin/bash
+m=$(cat "${faux}/chown-echoue" 2>/dev/null); if [ -n "$m" ] && [[ "$*" == *"$m"* ]]; then exit 1; fi
+exit 0
+`,
 });
 
 interface Banc {
@@ -272,9 +282,13 @@ function banc(): Banc {
   chmodSync(join(boite, "PRET"), 0o444);
   chmodSync(join(boite, ".veilleur"), 0o700);
   writeFileSync(join(deploiement, "docker-compose.yml"), "name: essai\n");
+  mkdirSync(join(dossier, "outils/maquettes-tableaux-de-bord/charte"), { recursive: true });
   chmodSync(join(deploiement, "docker-compose.yml"), 0o644);
   mkdirSync(join(deploiement, "studio-capture"));
   writeFileSync(join(deploiement, "studio-capture/seccomp.json"), "{}");
+  writeFileSync(join(deploiement, "studio-capture/veilleur.sh"), "#!/bin/bash\n");
+  chmodSync(join(deploiement, "studio-capture/veilleur.sh"), 0o755);
+  for (const d of ["outils", "outils/maquettes-tableaux-de-bord", "outils/maquettes-tableaux-de-bord/charte", "deploiement/studio-capture"]) chmodSync(join(dossier, d), 0o755);
   writeFileSync(join(racine, ".env"), "POSTGRES_PASSWORD=x\n");
   for (const d of [boite, racine, deploiement, join(racine, "capture-maquettes"), join(racine, "capture-maquettes-img"), join(racine, "capture-veilleur")]) chmodSync(d, 0o755);
   chmodSync(join(racine, ".env"), 0o600);
@@ -366,6 +380,17 @@ describe("POSTE-2 · refus de configuration (code 2, avant toute commande docker
       ["seccomp", (b) => chmodSync(join(b.deploiement, "studio-capture/seccomp.json"), 0o666)],
       [".env absent", (b) => rmSync(join(b.racine, ".env"))],
       [".env inscriptible", (b) => chmodSync(join(b.racine, ".env"), 0o666)],
+      ["dossier studio-capture", (b) => chmodSync(join(b.deploiement, "studio-capture"), 0o777)],
+      ["veilleur.sh inscriptible", (b) => chmodSync(join(b.deploiement, "studio-capture/veilleur.sh"), 0o666)],
+      ["veilleur.sh absent", (b) => rmSync(join(b.deploiement, "studio-capture/veilleur.sh"))],
+      ["parent du clone", (b) => chmodSync(b.dossier, 0o777)],
+      ["dossier outils", (b) => chmodSync(join(b.dossier, "outils"), 0o777)],
+      ["dossier maquettes-tableaux-de-bord", (b) => chmodSync(join(b.dossier, "outils/maquettes-tableaux-de-bord"), 0o777)],
+      ["charte montée", (b) => chmodSync(join(b.dossier, "outils/maquettes-tableaux-de-bord/charte"), 0o777)],
+      [".env : STUDIO_CAPTURE_MAQUETTE", (b) => writeFileSync(join(b.racine, ".env"), "POSTGRES_PASSWORD=x\nSTUDIO_CAPTURE_MAQUETTE=/etc\n")],
+      [".env : COMPOSE_PROFILES", (b) => writeFileSync(join(b.racine, ".env"), "COMPOSE_PROFILES=capture\n")],
+      [".env : export COMPOSE_FILE", (b) => writeFileSync(join(b.racine, ".env"), "  export COMPOSE_FILE=/tmp/x.yml\n")],
+      [".env : STUDIO_CAPTURE_SORTIE", (b) => writeFileSync(join(b.racine, ".env"), "STUDIO_CAPTURE_SORTIE=/srv\n")],
       ["override", (b) => writeFileSync(join(b.deploiement, "docker-compose.override.yml"), "services: {}\n")],
       ["compose.yaml", (b) => writeFileSync(join(b.deploiement, "compose.yaml"), "services: {}\n")],
     ];
@@ -616,6 +641,7 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     writeFileSync(join(b.faux, "timeout-124"), "");
     expect(b.lancer().status).toBe(0);
     expect(readFileSync(join(b.faux, "kills"), "utf8")).toContain("kill studio-capture-abcdef123456-decompresser");
+    expect(readFileSync(join(b.faux, "delais"), "utf8")).toContain("timeout 60 docker kill studio-capture-abcdef123456-decompresser");
     expect(etat(b, NOM)).toBe("panne\nDUREE_DEPASSEE\n");
     expect(b.appels().some((l) => l === "docker rm -f studio-capture-abcdef123456-decompresser")).toBe(true);
   });
@@ -627,6 +653,12 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     const attentes = d.filter((l) => l.startsWith("timeout ") && l.includes(" docker wait "));
     expect(attentes.map((l) => l.split(" ")[1])).toEqual(["960", "960", "120"]);
     expect(d.filter((l) => /^timeout 120 env /.test(l))).toHaveLength(3);
+    // `-k 10` partout : chaque appel de timeout (copies, docker, head) le porte
+    const bruts = readFileSync(join(b.faux, "delais-bruts"), "utf8").split("\n").filter((l) => l !== "");
+    expect(bruts.length).toBeGreaterThan(20);
+    for (const l of bruts) expect(l, l).toMatch(/^timeout-brut -k 10 \d+ /);
+    // docker ps/kill/logs/inspect/rm sont bornés aussi
+    for (const sousCommande of ["ps", "logs", "inspect", "image", "rm"]) expect(d.some((l) => l.startsWith(`timeout 60 docker ${sousCommande} `)), sousCommande).toBe(true);
     expect(d.filter((l) => /^timeout 300 cp -R --no-dereference /.test(l)).length).toBeGreaterThanOrEqual(6);
   });
   it("copie qui ne finit pas (faux timeout 124 sur cp) : panne INTERROMPU, code 0 de l'unité", () => {
@@ -656,7 +688,7 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     const runs = b.appels().filter((l) => /^docker compose /.test(l));
     expect(runs).toHaveLength(3);
     for (const l of runs) {
-      expect(l).toContain(`--env-file ${b.racine}/.env --project-directory ${b.deploiement} -f ${b.deploiement}/docker-compose.yml --profile capture run -d --pull never --name `);
+      expect(l).toContain(`-p studio-axion-ia --env-file ${b.racine}/.env --project-directory ${b.deploiement} -f ${b.deploiement}/docker-compose.yml --profile capture run -d --pull never --name `);
       expect(l).not.toContain("--build");
     }
     // le faux docker consigne l'environnement COMPOSE_* reçu : rien
@@ -744,5 +776,188 @@ describe("POSTE-2 · exécution avec faux docker", { timeout: 60_000 }, () => {
     expect(lignes.filter((l) => l.includes("demande finie film-zip--fausse0000"))).toHaveLength(3);
     for (const l of lignes.filter((x) => x.includes("fausse0000"))) expect(l).toMatch(/^veilleur: poste\| /);
     expect(String(r.stderr)).not.toMatch(/[\u0000-\u0009\u000b-\u001f]/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// 2e tour : set -e jamais neutralisé, gardes explicites, projet fixé, valeurs fixes, droits refaits, -k 10
+// ---------------------------------------------------------------------------------------------------------------------
+describe("POSTE-2 · 2e tour : texte", () => {
+  const corps = (nom: string) => {
+    const m = new RegExp(`^${nom}\\(\\) \\{[^\\n]*\\n([\\s\\S]*?)\\n\\}$`, "m").exec(script);
+    return m?.[1] ?? "";
+  };
+  it("traiter_demande et travailler ne sont JAMAIS appelées dans un `||`, `&&`, `if`, `!`, `while` ou `until` (bash y ignore set -e)", () => {
+    const lignes = script.split("\n").filter((l) => !/^\s*(traiter_demande|travailler|reprendre)\(\)/.test(l));
+    for (const nom of ["traiter_demande", "travailler", "reprendre"]) {
+      for (const l of lignes.filter((x) => new RegExp(`\\b${nom}\\b`).test(x))) {
+        expect(l, l).not.toMatch(new RegExp(`(\\|\\||&&|\\bif\\b|\\bwhile\\b|\\buntil\\b|!)[^\\n]*\\b${nom}\\b`));
+        expect(l, l).not.toMatch(new RegExp(`\\b${nom}\\b[^\\n]*(\\|\\||&&)`));
+      }
+    }
+    // la forme exacte : appel seul, puis test de la variable globale
+    expect(script).toMatch(/\n\s+traiter_demande "\$CHOIX"\n\s+\[ "\$ARRET_BOUCLE" = 0 \] \|\| break\n/);
+    expect(script).toMatch(/\n\s+\( travailler \)\n/);
+    // traiter_demande ne rend jamais un code non nul
+    expect(corps("traiter_demande")).not.toMatch(/return [1-9]/);
+    expect(corps("traiter_demande")).toContain("ARRET_BOUCLE=1");
+  });
+  it("chaque fallocate, mkfs.ext4, mount, chown, chmod porte une garde explicite (`|| arret panne INTERROMPU`, ou `|| return 1` dans poser_reponse)", () => {
+    const l = script.split("\n").filter((x) => /^\s*(fallocate|mkfs\.ext4|mount|chown|chmod)\b/.test(x));
+    expect(l.length).toBeGreaterThanOrEqual(12);
+    for (const x of l) expect(x, x).toMatch(/\|\| (arret panne INTERROMPU|return 1)\s*$/);
+    expect(l.filter((x) => /remount/.test(x)).length).toBeGreaterThanOrEqual(2);
+    for (const x of l.filter((y) => /remount/.test(y))) expect(x).toMatch(/\|\| arret panne INTERROMPU$/);
+  });
+  it("tout `timeout` porte -k 10 ; docker ps/kill/logs/inspect/rm/image/wait sont bornés par timeout", () => {
+    for (const x of script.split("\n").filter((y) => /\btimeout\b/.test(y))) {
+      expect(x, x).not.toMatch(/\btimeout (?!-k 10 )[^\s]/);
+    }
+    expect(script).not.toMatch(/(?<!timeout -k 10 (?:60|"\$delai") )\bdocker (?:ps|kill|logs|inspect|rm|image|wait)\b/);
+    expect(script).toMatch(/xargs timeout -k 10 60 docker kill/);
+    expect(script).toMatch(/xargs timeout -k 10 60 docker rm -f/);
+  });
+  it("commentaire de --pull never : seul `docker image inspect` empêche la construction", () => {
+    expect(brut).toMatch(/`--pull never` n'empêche PAS la construction/);
+    expect(brut).toMatch(/`docker image inspect studio-capture:local`/);
+    expect(brut).not.toMatch(/jamais de construction d'image par le veilleur : ni --build/);
+  });
+  it("projet fixé -p studio-axion-ia et --env-file /opt/studio-axion-ia/.env dans CHAQUE appel compose (valeurs de production)", () => {
+    expect(script).toContain("readonly PROJET_COMPOSE=studio-axion-ia");
+    expect(script).toContain("readonly RACINE_PROD=/opt/studio-axion-ia");
+    expect(script).toContain('readonly ENV_FICHIER="$RACINE/.env"');
+    expect(script).toMatch(/^\s+RACINE=\$RACINE_PROD$/m);
+    const appels = script.split("\n").filter((x) => /docker compose /.test(x));
+    expect(appels).toHaveLength(1);
+    for (const x of appels) expect(x).toContain('docker compose -p "$PROJET_COMPOSE" --env-file "$ENV_FICHIER" --project-directory "$DEPLOIEMENT" -f "$DEPLOIEMENT/docker-compose.yml"');
+    // le compose du dépôt porte bien ce nom de projet
+    expect(compose).toMatch(/^name: studio-axion-ia$/m);
+  });
+  it("l'image est `studio-capture:local` : le compose la nomme ainsi et le veilleur attend ce nom exact (nettoyage horaire : images `studio-*` épargnées)", () => {
+    expect(blocService("studio-capture")).toMatch(/^\s+image: studio-capture:local$/m);
+    expect(script).toContain("docker image inspect studio-capture:local");
+    expect(script.match(/studio-capture:local/g)).toHaveLength(1);
+    expect("studio-capture:local".startsWith("studio-")).toBe(true);
+  });
+  it("STUDIO_CAPTURE_ENTREE/SORTIE/MAQUETTE toujours exportées ; maquette vide de root pour decompresser et verifier", () => {
+    expect(script).toContain('export STUDIO_CAPTURE_ENTREE="$entree" STUDIO_CAPTURE_SORTIE="$SORTIE" STUDIO_CAPTURE_MAQUETTE="$maquette"');
+    expect(script).toContain('maquette="$TRAVAIL_HOTE/maquette-vide"');
+    expect(script).toContain('mkdir -m 0555 "$maquette"');
+    expect(script).not.toMatch(/if \[ -n "\$maquette" \]; then export/);
+  });
+  it("mode essai : refusé sous systemd (INVOCATION_ID, JOURNAL_STREAM) et pour un script lancé depuis /opt/studio-axion-ia ; le script de production vient du clone", () => {
+    expect(script).toContain('"$RACINE_PROD"/*)');
+    expect(script).toMatch(/INVOCATION_ID/);
+    expect(script).toMatch(/JOURNAL_STREAM/);
+    expect(script).toContain('[ "$SCRIPT_REEL" != "$(realpath -e -- "$f")" ]');
+  });
+  it("la dispense de contrôle des droits est restreinte à $SORTIE et $ENTREE", () => {
+    expect(script).toMatch(/if \[ "\$d" = "\$SORTIE" \] \|\| \[ "\$d" = "\$ENTREE" \]; then/);
+    expect(script).not.toMatch(/^\s+if ! monte "\$d"; then root_sans_ecriture "\$d" "le dossier fixe"; fi\n\s+done/m);
+  });
+});
+
+describe("POSTE-2 · 2e tour : exécutions", { timeout: 60_000 }, () => {
+  const aucunCompose = (b: Banc) => b.appels().some((l) => /^docker compose/.test(l));
+  it("mkfs.ext4 en échec : panne INTERROMPU, AUCUN docker compose, rien ne reste monté ni dans .veilleur", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "mkfs-echoue"), "");
+    const r = b.lancer();
+    expect(r.status, String(r.stderr)).toBe(0);
+    expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+    expect(aucunCompose(b)).toBe(false);
+    expect(readFileSync(join(b.faux, "montes"), "utf8")).toBe(`${b.boite}\n`);
+    expect(readdirSync(join(b.boite, ".veilleur"))).toEqual([]);
+  });
+  it("mount en échec sur capture-entree, puis capture-sortie : panne INTERROMPU, AUCUN docker compose", () => {
+    for (const cible of ["capture-entree", "capture-sortie"]) {
+      const b = banc();
+      b.demande(NOM);
+      writeFileSync(join(b.faux, "mount-echoue"), cible);
+      const r = b.lancer();
+      expect(r.status, cible + String(r.stderr)).toBe(0);
+      expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+      expect(aucunCompose(b), cible).toBe(false);
+      expect(readFileSync(join(b.faux, "montes"), "utf8"), cible).toBe(`${b.boite}\n`);
+    }
+  });
+  it("remount en lecture seule de l'entrée en échec : panne INTERROMPU, AUCUN docker compose", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "mount-echoue"), "remount,ro");
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+    expect(aucunCompose(b)).toBe(false);
+  });
+  it("chown de l'entrée, puis de /sortie, en échec : panne INTERROMPU, AUCUN docker compose", () => {
+    for (const cible of ["capture-entree", "capture-sortie"]) {
+      const b = banc();
+      b.demande(NOM);
+      writeFileSync(join(b.faux, "chown-echoue"), cible);
+      expect(b.lancer().status, cible).toBe(0);
+      expect(etat(b, NOM), cible).toBe("panne\nINTERROMPU\n");
+      expect(aucunCompose(b), cible).toBe(false);
+    }
+  });
+  it("mount de la maquette en échec : panne INTERROMPU, decompresser a tourné mais capturer JAMAIS", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "mount-echoue"), "capture-maquettes/");
+    expect(b.lancer().status).toBe(0);
+    expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+    expect(b.appels().filter((l) => l.startsWith("env ")).map((l) => l.split(" ")[1])).toEqual(["decompresser"]);
+    expect(readdirSync(join(b.racine, "capture-maquettes"))).toEqual([]);
+  });
+  it("droits refaits après démontage : /sortie montée puis démontée avec un dossier ouvert à tous : panne INTERROMPU, aucun conteneur", () => {
+    const b = banc();
+    b.demande(NOM);
+    writeFileSync(join(b.faux, "montes"), `${b.boite}\n${b.racine}/capture-sortie\n`);
+    chmodSync(join(b.racine, "capture-sortie"), 0o777);
+    const r = b.lancer();
+    expect(r.status, String(r.stderr)).toBe(0); // monté : dispensé du contrôle de départ
+    expect(etat(b, NOM)).toBe("panne\nINTERROMPU\n");
+    expect(aucunCompose(b)).toBe(false);
+    expect(b.appels().some((l) => /^mount -o loop.*capture-sortie$/.test(l))).toBe(false);
+  });
+  it("dispense restreinte : capture-maquettes montée mais ouverte à tous : code 2 ; capture-sortie montée : acceptée", () => {
+    let b = banc();
+    writeFileSync(join(b.faux, "montes"), `${b.boite}\n${b.racine}/capture-maquettes\n`);
+    chmodSync(join(b.racine, "capture-maquettes"), 0o777);
+    expect(b.lancer().status).toBe(2);
+    expect(b.appels()).toEqual([]);
+    b = banc();
+    writeFileSync(join(b.faux, "montes"), `${b.boite}\n${b.racine}/capture-sortie\n`);
+    chmodSync(join(b.racine, "capture-sortie"), 0o777);
+    expect(b.lancer().status).toBe(0);
+  });
+  it("STUDIO_CAPTURE_* fixées pour CHAQUE mode, même si l'environnement du processus en pose d'autres ; maquette vide (0555, 0 entrée) pour decompresser et verifier", () => {
+    const b = banc();
+    b.demande(NOM);
+    const r = b.lancer({ STUDIO_CAPTURE_MAQUETTE: "/etc", STUDIO_CAPTURE_ENTREE: "/etc", STUDIO_CAPTURE_SORTIE: "/etc" });
+    expect(r.status, String(r.stderr)).toBe(0);
+    const env = b.appels().filter((l) => l.startsWith("env "));
+    expect(env).toHaveLength(3);
+    const vide = `${b.racine}/capture-veilleur/maquette-vide`;
+    for (const l of env) {
+      expect(l).toContain(`ENTREE=${b.racine}/capture-entree SORTIE=${b.racine}/capture-sortie MAQ=`);
+      expect(l).not.toContain("/etc");
+    }
+    expect(env[0]).toContain(`MAQ=${vide}`);
+    expect(env[1]).toContain(`MAQ=${b.racine}/capture-maquettes/abcdef123456/maquette`);
+    expect(env[2]).toContain(`MAQ=${vide}`);
+    const vues = readFileSync(join(b.faux, "maquette-vue"), "utf8").split("\n").filter((l) => l !== "");
+    expect(vues[0]).toBe("decompresser 555 0");
+    expect(vues[2]).toBe("verifier 555 0");
+  });
+  it("mode essai refusé sous systemd : INVOCATION_ID ou JOURNAL_STREAM posé : code 2, docker jamais appelé", () => {
+    for (const v of ["INVOCATION_ID", "JOURNAL_STREAM"]) {
+      const b = banc();
+      b.demande(NOM);
+      const r = b.lancer({ [v]: "1" });
+      expect(r.status, v).toBe(2);
+      expect(String(r.stderr)).toContain("lancé par systemd");
+      expect(b.appels()).toEqual([]);
+    }
   });
 });

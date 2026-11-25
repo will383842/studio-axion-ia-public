@@ -1,5 +1,7 @@
 # Veilleur du poste de capture (POSTE-2). NON installé par le code : voir le plan « poste relié », section 8.
-#   sudo install -o root -g root -m 0500 studio-capture/veilleur.sh /usr/local/sbin/studio-capture-veilleur
+# Le service lance le script DEPUIS LE CLONE (jamais de copie dans /usr/local/sbin : `mettre-a-jour-public-v3.sh` recouvre le clone,
+# une copie ne suivrait pas une mise à jour). Le script (propriété de root, sans écriture pour d'autres) et tous ses dossiers parents
+# sont contrôlés par le veilleur lui-même (code 2 sinon).
 #   sudo install -o root -g root -m 0644 studio-capture/studio-capture-veilleur.service studio-capture/studio-capture-veilleur.timer /etc/systemd/system/
 [Unit]
 Description=Veilleur du poste de capture du Studio (boîte aux lettres, un travail à la fois)
@@ -9,9 +11,9 @@ Requires=docker.service
 [Service]
 Type=oneshot
 # UNE demande par passage (--une-fois) : la minuterie relance 30 s après la fin. Un travail dure au plus 3 étapes de 960 s.
-ExecStart=/usr/local/sbin/studio-capture-veilleur --une-fois
+ExecStart=/opt/studio-axion-ia/source/deploiement/studio-capture/veilleur.sh --une-fois
 Environment=VEILLEUR_BOITE=/opt/studio-axion-ia/capture-boite
-# Dossier `deploiement` du clone de mettre-a-jour.sh : À ADAPTER si le clone est ailleurs.
+# Dossier `deploiement` du clone de mettre-a-jour.sh (le script doit être celui de ce dossier : sinon code 2).
 Environment=DEPLOIEMENT=/opt/studio-axion-ia/source/deploiement
 # 3 × 960 s (étapes) + marge (copies, boucles ext4, reprise) = 3300 s.
 TimeoutStartSec=3300
