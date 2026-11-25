@@ -52,7 +52,7 @@ describe("interrupteur GUIDES_FABRIQUE_ECRAN", () => {
     const { d } = deps({ env: {} });
     const lire = vi.fn(d.lireParametre);
     d.lireParametre = lire;
-    for (const r of [await lireGuideDuMot("facture", d), await redigerGuide("facture", d), await validerGuide({ mot: "facture", version: 1, contenu: CONTENU, toutLu: true }, d), await fabriquerPdf({ mot: "facture" }, d), await rattacherGuide({ mot: "facture" }, d)]) {
+    for (const r of [await lireGuideDuMot("facture", d), await redigerGuide("facture", "studio", d), await validerGuide({ mot: "facture", version: 1, contenu: CONTENU, toutLu: true }, d), await fabriquerPdf({ mot: "facture" }, d), await rattacherGuide({ mot: "facture" }, d)]) {
       expect(r).toMatchObject({ ok: false, raison: "ecran_eteint" });
     }
     expect(lire).not.toHaveBeenCalled();
@@ -279,10 +279,10 @@ describe("rattacher au mot", () => {
 describe("rédiger et lire", () => {
   it("rédiger appelle la rédaction G2 une fois ; ses refus deviennent des phrases", async () => {
     const { d } = deps();
-    expect(await redigerGuide("facture", d)).toMatchObject({ ok: true, version: 1 });
+    expect(await redigerGuide("facture", "studio", d)).toMatchObject({ ok: true, version: 1 });
     expect(d.rediger).toHaveBeenCalledTimes(1);
     const refuse = deps({ rediger: vi.fn(async () => ({ ok: false as const, raison: "interrupteur_eteint" as const })) });
-    expect(await redigerGuide("facture", refuse.d)).toMatchObject({ ok: false, raison: "redaction" });
+    expect(await redigerGuide("facture", "studio", refuse.d)).toMatchObject({ ok: false, raison: "redaction" });
   });
   it("lit l'état : dernière version, PDF, rattachement", async () => {
     const { d } = deps({}, { [cleRedaction]: { versions: [versionA("À valider")] } });
