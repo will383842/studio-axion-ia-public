@@ -11,6 +11,7 @@ import React, { useEffect, useState } from "react";
 import { AbsoluteFill, Audio, continueRender, delayRender, Easing, interpolate, OffthreadVideo, Sequence, spring, useCurrentFrame } from "remotion";
 import { GAIN_BRUITAGES, mediaV4 } from "../communs/medias-v4";
 import { placerDansZoneSure } from "../communs/zone-sure-v4";
+import { policeMarquePrete } from "../../../commune/police-marque";
 import type { CSSProperties, ReactNode } from "react";
 
 export const W = 1080;
@@ -36,17 +37,11 @@ export const BAS_M1 = 0.18 * H;
 
 /* ------------------------------------------------------------------ Polices ------------------------------------------------------------------ */
 
-export const MONTSERRAT = "Axion Montserrat Black";
-export const INTER = "Axion Inter Bold";
+export const MONTSERRAT = "Axion Manrope"; // POLICES-P7-f : Manrope, = charte (tests/polices/p7-v4) ; noms d'aides gardés
+export const INTER = "Axion Manrope";
 let chargement: Promise<unknown> | null = null;
 function chargerPolices(): Promise<unknown> {
-  if (!chargement) {
-    const faces = [
-      new FontFace(MONTSERRAT, `url(${mediaV4("polices/Montserrat-Black.ttf")})`, { weight: "900" }),
-      new FontFace(INTER, `url(${mediaV4("polices/Inter-Bold.ttf")})`, { weight: "700" }),
-    ];
-    chargement = Promise.all(faces.map((f) => f.load().then((l) => { document.fonts.add(l); })));
-  }
+  if (!chargement) chargement = policeMarquePrete();
   return chargement;
 }
 /** Retient le rendu tant que les polices ne sont pas chargées. */
@@ -188,7 +183,7 @@ export function Son({ t, fichier, volume = 0.25 }: { t: number; fichier: string;
 
 /* ------------------------------------------------------------------ Matière : Plaque, SurEtiquette, Puce ------------------------------------------------------------------ */
 
-const styleCapitales = (corps: number, interl = 0.01): CSSProperties => ({ fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: `${interl}em`, textTransform: "uppercase", whiteSpace: "nowrap" });
+const styleCapitales = (corps: number, interl = 0.01): CSSProperties => ({ fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 800, fontSize: corps, lineHeight: 1, letterSpacing: `${interl}em`, textTransform: "uppercase", whiteSpace: "nowrap" });
 /** Hauteur extérieure d'une plaque à une ligne (padding 0,16 em × 2 + contour 2 × 5). */
 export const hauteurPlaque = (corps: number, padV = 0.16): number => Math.round(corps * (1 + 2 * padV) + 2 * TRAIT.MOYEN);
 /** Liseré extérieur IVOIRE_CLAIR de 3 px des surfaces ENCRE (lisibles sur fond noir) ; l'ombre dure ENCRE passe derrière. */

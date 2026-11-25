@@ -11,6 +11,7 @@ import { AbsoluteFill, Audio, Easing, interpolate, OffthreadVideo, Sequence, spr
 import { continueRender, delayRender } from "remotion";
 import { GAIN_BRUITAGES, mediaV4, rendu4DeProduction } from "./medias-v4";
 import { bordGaucheSousTitres, largeurMaxSousTitres, ZONE_SURE_916 } from "./zone-sure-v4";
+import { policeMarquePrete } from "../../../commune/police-marque";
 
 /**
  * Police : Montserrat Black (900). INTERPRÉTATION : le standard (§ B.5) demande `@remotion/google-fonts` ; le bac à sable de rendu bloque
@@ -18,7 +19,7 @@ import { bordGaucheSousTitres, largeurMaxSousTitres, ZONE_SURE_916 } from "./zon
  * sont donc livrés dans `polices/` et chargés ici en local (`FontFace` + `delayRender`) : même police, aucun réseau au rendu.
  * L'intégration pourra revenir à `@remotion/google-fonts/Montserrat` sans rien changer d'autre (même nom de famille exporté).
  */
-export const MONTSERRAT = "Montserrat V4";
+export const MONTSERRAT = "Axion Manrope"; // POLICES-P7-f (Manrope partout, Williams 21/11) : nom d'aide gardé ; = FAMILLE_CSS de la charte (tests/polices/p7-v4)
 export const INTER = MONTSERRAT; // le lot 5 n'utilise pas Inter
 let policeChargee: Promise<void> | null = null;
 let echecsPolice = 0;
@@ -29,23 +30,15 @@ let echecsPolice = 0;
  */
 export function chargerPolice() {
   if (policeChargee || typeof document === "undefined") return;
-  const attente = delayRender("Police Montserrat 900 (briques v4)");
-  const fichiers: [string, string][] = [
-    ["polices/Montserrat-900-latin-ext.woff2", "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"],
-    ["polices/Montserrat-900-latin.woff2", "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"],
-  ];
-  policeChargee = Promise.all(
-    fichiers.map(async ([f, plage]) => {
-      const face = new FontFace(MONTSERRAT, `url(${mediaV4(f)})`, { weight: "900", style: "normal", unicodeRange: plage });
-      document.fonts.add(await face.load());
-    }),
-  )
+  const attente = delayRender("Police Manrope (briques v4)");
+  // POLICES-P7-f : le chargeur UNIQUE de la police de marque (fichier dans le paquet de rendu : plus de 404 `/public/polices/…`).
+  policeChargee = policeMarquePrete()
     .then(() => continueRender(attente))
     // Le module est chargé par TOUT le paquet de rendu : une police introuvable (rendu sans `mediasBase`, ex. tableau) ne doit
     // jamais arrêter les autres compositions. La police manque seulement au texte v4 (police de repli).
     .catch((e) => {
       // Alerte seulement pour un rendu v4 de production : les autres rendus (tableau, cas concret…) n'écrivent pas ce texte.
-      if (rendu4DeProduction()) console.warn("Police Montserrat 900 (briques v4) introuvable, police de repli :", e);
+      if (rendu4DeProduction()) console.warn("Police Manrope (briques v4) introuvable :", e);
       // Une seule nouvelle tentative (celle du rendu de production) : jamais un rechargement à chaque image.
       if (echecsPolice++ < 1) policeChargee = null;
       continueRender(attente);
@@ -153,7 +146,7 @@ export const contourTexte = (corps: number, couleur: string = ENCRE, epaisseurEm
 } as React.CSSProperties);
 
 export const styleMontserrat = (corps: number, couleur: string, extra?: React.CSSProperties): React.CSSProperties => ({
-  fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "0.01em", color: couleur,
+  fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1, letterSpacing: "0.01em", color: couleur,
   textTransform: "uppercase", whiteSpace: "nowrap", ...extra,
 });
 

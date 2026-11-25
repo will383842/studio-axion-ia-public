@@ -18,7 +18,7 @@ describe("controlerPieceNeuve", () => {
   it("constantes", () => {
     expect(CONTRASTE_TEXTE_MIN).toBe(4.5);
     expect(POLICE_PIECE_NEUVE).toBe("Manrope");
-    expect(POLICE_V4).toBe("Montserrat");
+    expect(POLICE_V4).toBe("Manrope"); // POLICES-P7-f (25/11, seconde lecture du pilote) : était « Montserrat »
   });
 
   it("noir sur ivoire est conforme", () => {
@@ -44,7 +44,9 @@ describe("controlerPieceNeuve", () => {
     expect(e[0]).toContain("couleur opaque attendue");
   });
 
-  it("test d'égalité v4 : les plaquettes v4 déclarent Montserrat et jamais Manrope", () => {
+  // POLICES-P7-f (25/11, seconde lecture du pilote) : était « déclarent Montserrat et jamais Manrope ». Les noms d'aides
+  // (`styleMontserrat`, `MONTSERRAT`) et les scripts de rendu `.mjs` (0 ligne) gardent le mot : seules les DÉCLARATIONS comptent.
+  it("test d'égalité v4 : les plaquettes v4 déclarent Manrope et jamais Montserrat", () => {
     const racine = fileURLToPath(new URL("../../../studio-rendu/compositions/interface-claire/motion-v4/", import.meta.url));
     const lister = (d: string): string[] =>
       readdirSync(d).flatMap((n) => {
@@ -55,6 +57,10 @@ describe("controlerPieceNeuve", () => {
     expect(fichiers.length).toBeGreaterThan(0);
     const texte = fichiers.map((f) => readFileSync(f, "utf8")).join("\n");
     expect(texte).toContain(POLICE_V4);
-    expect(texte).not.toContain(POLICE_PIECE_NEUVE);
+    const declarations = fichiers
+      .filter((f) => /\.tsx?$/.test(f))
+      .flatMap((f) => (readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").match(/(["'`])(?:(?!\1)[^\n\\]|\\.)*\1/g) ?? []).map((l) => `${f} ${l}`));
+    expect(declarations.filter((l) => /Montserrat/.test(l.split(" ").slice(1).join(" ")))).toEqual([]);
+    expect(POLICE_V4).toBe(POLICE_PIECE_NEUVE);
   });
 });

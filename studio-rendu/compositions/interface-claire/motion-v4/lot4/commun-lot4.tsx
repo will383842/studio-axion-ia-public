@@ -8,10 +8,9 @@ import React from "react";
  */
 import { Audio, Easing, interpolate, OffthreadVideo, Sequence, spring } from "remotion";
 import type { CSSProperties, ReactNode } from "react";
-import { continueRender, delayRender } from "remotion";
+import { chargerPoliceMarque } from "../../../commune/police-marque";
 import { GAIN_BRUITAGES, mediaV4 } from "../communs/medias-v4";
 import { placerDansZoneSure, Y_ST_MAX, Y_ST_MIN } from "../communs/zone-sure-v4";
-import montserratBlack from "./polices/Montserrat-Black.ttf";
 
 export const FPS = 30;
 export const L = 1080;
@@ -27,18 +26,11 @@ const { ENCRE, IVOIRE, BLANC, GRIS } = COULEURS;
 export const ombre = (taille: "S" | "M" | "L", k = 1): string => `${OMBRE[taille][0] * k}px ${OMBRE[taille][1] * k}px 0 0 ${ENCRE}`;
 
 /* ------------------------------------------------------------------ Police ------------------------------------------------------------------ */
-export const MONTSERRAT = "Axion Montserrat Black";
-export const INTER = "Inter, 'Axion Inter Bold', system-ui, sans-serif";
-let chargement: Promise<void> | null = null;
-/** Charge Montserrat Black (SIL OFL 1.1) en local ; le rendu attend la police (jamais une police de secours). */
+export const MONTSERRAT = "Axion Manrope"; // POLICES-P7-f : Manrope, = charte (tests/polices/p7-v4) ; noms d'aides gardés
+export const INTER = "Axion Manrope";
+/** POLICES-P7-f : relais (nom gardé) vers le chargeur UNIQUE de la police de marque ; le rendu attend la police. */
 export function chargerMontserratBlack(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Montserrat Black");
-  const face = new FontFace(MONTSERRAT, `url(${montserratBlack})`, { weight: "900" });
-  chargement = face.load().then((f) => {
-    document.fonts.add(f);
-    continueRender(attente);
-  });
+  chargerPoliceMarque();
 }
 
 /* ------------------------------------------------------------------ Ressorts (§ D.1) ------------------------------------------------------------------ */
@@ -108,7 +100,7 @@ export function Clip({ nom, depuisSec = 0.3, style, gris }: { nom: string; depui
 }
 
 /* ------------------------------------------------------------------ Plaque / Puce (§ B.7) ------------------------------------------------------------------ */
-const styleTexteMontserrat = (corps: number): CSSProperties => ({ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "nowrap" });
+const styleTexteMontserrat = (corps: number): CSSProperties => ({ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "nowrap" });
 
 /** `Plaque` : rayon 10, contour 5, ombre S, padding 0,16 em × 0,30 em. */
 export function Plaque(p: { texte: ReactNode; fond: string; couleur?: string; corps?: number; inclinaison?: number; style?: CSSProperties; sansOmbre?: boolean }) {

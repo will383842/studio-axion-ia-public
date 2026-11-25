@@ -39,13 +39,13 @@ export function PanneauFin({ frame, debut, palette, nom = "Williams", motCle, ic
           <div style={{ display: "flex", alignItems: "center", gap: 26 }}>
             {/* vrai logo de marque (public/demo/marque/logo.png) */}
             <Img src={mediaV4("marque/logo-axion.png")} style={{ width: 150, height: 150, boxSizing: "border-box", borderRadius: RAYON_LOGO, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, boxShadow: `8px 9px 0 0 ${COULEURS.ENCRE}`, transform: "rotate(-4deg)" }} />
-            <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 112, letterSpacing: "0.01em", color: COULEURS.ENCRE, lineHeight: 1, whiteSpace: "nowrap" }}>AXION-IA</div>
+            <div style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 112, letterSpacing: "0.01em", color: COULEURS.ENCRE, lineHeight: 1, whiteSpace: "nowrap" }}>AXION-IA</div>
           </div>
         </Pose>
       ) : null}
       {vu(1) ? (
         <Pose x={W / 2} y={0.41 * H} echelle={pop(1) * tick(k0, 10, 2)}>
-          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 84, color: COULEURS.ENCRE, lineHeight: 1, whiteSpace: "nowrap" }}>{nom}</div>
+          <div style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 84, color: COULEURS.ENCRE, lineHeight: 1, whiteSpace: "nowrap" }}>{nom}</div>
         </Pose>
       ) : null}
       {icones.map((ic, n) => {
@@ -61,7 +61,7 @@ export function PanneauFin({ frame, debut, palette, nom = "Williams", motCle, ic
       })}
       {vu(2 + icones.length) ? (
         <Pose x={W / 2} y={0.71 * H} echelle={pop(2 + icones.length) * tick(k0, 10, 0, 0.06, 15)} rotation={-1.5}>
-          <div style={{ width: 0.8 * W, boxSizing: "border-box", padding: "34px 30px", borderRadius: 10, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, boxShadow: `8px 9px 0 0 ${COULEURS.ENCRE}`, fontFamily: MONTSERRAT, fontWeight: 900, color: COULEURS.BLANC, whiteSpace: "nowrap", letterSpacing: "0.01em", lineHeight: 1.1, textAlign: "center" }}>
+          <div style={{ width: 0.8 * W, boxSizing: "border-box", padding: "34px 30px", borderRadius: 10, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, boxShadow: `8px 9px 0 0 ${COULEURS.ENCRE}`, fontFamily: MONTSERRAT, fontWeight: 800, color: COULEURS.BLANC, whiteSpace: "nowrap", letterSpacing: "0.01em", lineHeight: 1.1, textAlign: "center" }}>
             <div style={{ fontSize: 60 }}>COMMENTEZ</div>
             <div style={{ fontSize: 88 }}>« {motCle} »</div>
           </div>

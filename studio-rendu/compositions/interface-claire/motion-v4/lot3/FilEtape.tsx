@@ -65,7 +65,7 @@ export function FilEtape(props: PropsFilEtape) {
     const nombre = k + 1;
     return (
       <div key={k} style={{ width: 88, height: 88, boxSizing: "border-box", border: `${TRAIT.FIN}px solid ${E}`, borderRadius: RAYON.TUILE, background: fond, display: "flex", alignItems: "center", justifyContent: "center",
-        transform: `scale(${(vis ? (0.3 + 0.7 * p) * claque : 0).toFixed(3)})`, boxShadow: actif && i >= iA ? ombre("S") : "none", fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 44, color: actif && courbe(i, iA, 3) >= 0.5 ? COULEURS.BLANC : E, position: "relative" }}>
+        transform: `scale(${(vis ? (0.3 + 0.7 * p) * claque : 0).toFixed(3)})`, boxShadow: actif && i >= iA ? ombre("S") : "none", fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 44, color: actif && courbe(i, iA, 3) >= 0.5 ? COULEURS.BLANC : E, position: "relative" }}>
         {passe && i >= iC + 2 ? <div style={{ transform: `scale(${(i >= iC + 6 ? 1 + 0.12 * (1 - ressort("CLAQUE", i - (iC + 6))) : 1).toFixed(3)})` }}><Coche taille={52} p={courbe(i, iC + 2, 4)} couleur={COULEURS.BLANC} /></div> : <span style={{ opacity: passe ? 0 : 1 }}>{nombre}</span>}
       </div>
     );
@@ -91,7 +91,7 @@ export function FilEtape(props: PropsFilEtape) {
       {pastille ? (
         <Anim i={i} i0={iP} iSortie={duree - 3} incl={0} x={(W - 520) / 2} y={30} w={520} h={64} z={6} vie={{ debut: iP + 8 }} id="bande-pastille">
           <div style={{ width: 520, height: 64, boxSizing: "border-box", background: E, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PILULE, boxShadow: `0 0 0 3px ${COULEURS.IVOIRE_CLAIR}, ${ombre("S")}`,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 18, color: COULEURS.BLANC, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 36, letterSpacing: "0.02em" }}>
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 18, color: COULEURS.BLANC, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 36, letterSpacing: "0.02em" }}>
             <span>{`ÉTAPE ${etape}/${total}`}</span>
             <span style={{ display: "flex", gap: 10, alignItems: "center", fontFamily: INTER }}>
               {Array.from({ length: total }, (_, k) => {

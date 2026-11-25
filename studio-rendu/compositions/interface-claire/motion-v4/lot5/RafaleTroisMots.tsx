@@ -44,7 +44,7 @@ export function RafaleTroisMots({ frame, debut, palette, mots, ecarts = [12, 25]
       <AbsoluteFill style={{ background: fond }} />
       {idx < 3 ? (
         <Pose x={W / 2 + dx} y={0.45 * H} rotation={idx % 2 === 0 ? -2 : 1.5} echelle={s}>
-          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "-0.01em", color: couleurTexte, whiteSpace: "nowrap", filter: `drop-shadow(11px 12px 0 ${COULEURS.ENCRE})`, ...contourTexte(corps, contour, 0.2) }}>{motCourant}</div>
+          <div style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1, letterSpacing: "-0.01em", color: couleurTexte, whiteSpace: "nowrap", filter: `drop-shadow(11px 12px 0 ${COULEURS.ENCRE})`, ...contourTexte(corps, contour, 0.2) }}>{motCourant}</div>
         </Pose>
       ) : (
         mots.map((m, n) => {

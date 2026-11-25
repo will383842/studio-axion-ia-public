@@ -7,7 +7,7 @@ import { rapportContraste } from "./contraste";
 
 export const CONTRASTE_TEXTE_MIN = 4.5;
 export const POLICE_PIECE_NEUVE = "Manrope";
-export const POLICE_V4 = "Montserrat";
+export const POLICE_V4 = "Manrope"; // POLICES-P7-f (25/11) : la face caméra v4 passe en Manrope (décision P7 de Williams)
 
 const OPAQUE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 

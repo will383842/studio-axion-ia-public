@@ -42,7 +42,7 @@ function Carte({ palette, profil, i, sortie, k, avantApres }: { palette: Palette
     <Anim etat={cote} origine="50% 100%" style={{ position: "absolute", left: W / 2 - 0.28 * W + (k % 2 ? 0.03 : -0.03) * W, top: BAS_M1 - 0.115 * 1920 }}>
       <div style={{ boxSizing: "border-box", width: 0.56 * W, height: 0.115 * 1920, background: COULEURS.IVOIRE_CLAIR, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), display: "flex", alignItems: "center", gap: 20, padding: "0 20px" }}>
         <Anim etat={pastille} style={{ position: "relative", flex: "none" }}>
-          <div style={{ boxSizing: "border-box", width: 136, height: 136, borderRadius: 999, background: fondPastille, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: 68, color: COULEURS.ENCRE }}>
+          <div style={{ boxSizing: "border-box", width: 136, height: 136, borderRadius: 999, background: fondPastille, border: `${TRAIT.MOYEN}px solid ${COULEURS.ENCRE}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 800, fontSize: 68, color: COULEURS.ENCRE }}>
             <Picto nom="personne" taille={72} fond={fondPastille} />
           </div>
           <div style={{ position: "absolute", right: -2, bottom: 2, width: 32, height: 32, boxSizing: "border-box", borderRadius: 999, background: ACCENT_2, border: `${TRAIT.FIN}px solid ${COULEURS.ENCRE}` }} />
@@ -50,7 +50,7 @@ function Carte({ palette, profil, i, sortie, k, avantApres }: { palette: Palette
         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", minWidth: 0 }}>
           {profil.rang ? <div style={{ fontFamily: `${INTER}, sans-serif`, fontWeight: 700, fontSize: 28, color: COULEURS.ENCRE, letterSpacing: "0.03em", whiteSpace: "nowrap" }}>{profil.rang}</div> : null}
           <Anim etat={nom} origine="0% 50%">
-            <div style={{ fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 900, fontSize: 56, lineHeight: 1, color: COULEURS.ENCRE, whiteSpace: "nowrap", textTransform: "uppercase" }}>{profil.nom}</div>
+            <div style={{ fontFamily: `${MONTSERRAT}, sans-serif`, fontWeight: 800, fontSize: 56, lineHeight: 1, color: COULEURS.ENCRE, whiteSpace: "nowrap", textTransform: "uppercase" }}>{profil.nom}</div>
           </Anim>
           <Anim etat={metier} origine="0% 50%">
             <Puce fond={ACCENT_1} corps={40} style={{ padding: "5px 20px" }}>

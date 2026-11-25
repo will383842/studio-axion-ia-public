@@ -69,7 +69,7 @@ export function JaugePourcentage(props: PropsJaugePourcentage) {
         } droite={
           <div style={{ width: 22, height: 22, borderRadius: 11, background: i % 20 < 10 ? E : ACCENT_2, border: `${TRAIT.FIN}px solid ${E}`, boxSizing: "border-box" }} />
         }>
-          <div style={{ position: "absolute", left: 36, top: 14, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 170, lineHeight: 1, color: E, fontVariantNumeric: "tabular-nums", transform: `scale(${(claque * (i >= dernier + 5 ? pulsation(i, { debut: dernier + 5, amp: 0.05 }) : 1)).toFixed(3)})`, transformOrigin: "0% 60%" }}>{pct}<span style={{ fontSize: 100 }}> %</span></div>
+          <div style={{ position: "absolute", left: 36, top: 14, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 170, lineHeight: 1, color: E, fontVariantNumeric: "tabular-nums", transform: `scale(${(claque * (i >= dernier + 5 ? pulsation(i, { debut: dernier + 5, amp: 0.05 }) : 1)).toFixed(3)})`, transformOrigin: "0% 60%" }}>{pct}<span style={{ fontSize: 100 }}> %</span></div>
           {pistes.map((p, n) => (
             <div key={n} style={{ position: "absolute", left: 24, right: 24, top: 205 + n * 78, height: 62 }}>
               <div style={{ position: "absolute", left: 0, top: 0, width: 150, height: 62, boxSizing: "border-box", border: `${TRAIT.FIN}px solid ${E}`, borderRadius: RAYON.CHAMP, background: COULEURS.IVOIRE, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: INTER, fontWeight: 800, fontSize: 26, color: E }}>{p.nom}</div>

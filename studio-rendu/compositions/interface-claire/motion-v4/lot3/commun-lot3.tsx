@@ -17,6 +17,7 @@ export const H = 1920;
 import { COULEURS, accents, TRAIT, OMBRE, RAYON, DESCENTE } from "../communs/briques-v4";
 import type { Palette } from "../communs/briques-v4";
 import { Y_ST_MAX, Y_ST_MIN, ZONE_SURE_916 } from "../communs/zone-sure-v4";
+import { policeMarquePrete } from "../../../commune/police-marque";
 export { COULEURS, accents, TRAIT, OMBRE, RAYON, DESCENTE };
 export type { Palette };
 
@@ -24,15 +25,14 @@ const E = COULEURS.ENCRE;
 export const ombre = (t: "S" | "M" | "L"): string => `${OMBRE[t][0]}px ${OMBRE[t][1]}px 0 0 ${E}`;
 
 /* ------------------------------------------------------------------ Typographie ------------------------------------------------------------------ */
-export const MONTSERRAT = '"Axion Montserrat Black", "Montserrat", "Arial Black", sans-serif';
-export const INTER = '"Inter", "Axion Inter Bold", system-ui, sans-serif';
+export const MONTSERRAT = '"Axion Manrope", "Manrope", sans-serif'; // POLICES-P7-f : Manrope, = charte (tests/polices/p7-v4) ; noms d'aides gardés
+export const INTER = '"Axion Manrope", "Manrope", sans-serif';
 
-/** Charge Montserrat Black (fichier `polices/Montserrat-Black.ttf` du dossier public). Inter vient du système. */
+/** Charge la police de marque (chargeur unique `commune/police-marque.ts`, POLICES-P7-f). */
 export function Polices(): null {
   const [poignee] = useState(() => delayRender("polices v4 lot 3"));
   useEffect(() => {
-    const f = new FontFace("Axion Montserrat Black", `url(${mediaV4("polices/Montserrat-Black.ttf")})`, { weight: "900" });
-    f.load().then((face) => { document.fonts.add(face); continueRender(poignee); }).catch(() => continueRender(poignee));
+    policeMarquePrete().then(() => continueRender(poignee)).catch(() => continueRender(poignee));
   }, [poignee]);
   return null;
 }
@@ -187,7 +187,7 @@ export function Plaque({ fond, texte = fond === COULEURS.ORANGE_MARQUE ? COULEUR
 }) {
   return (
     <div style={{ display: "inline-block", boxSizing: "border-box", background: fond, color: texte, border: `${bord}px solid ${E}`, borderRadius: RAYON.PLAQUE,
-      boxShadow: fond === E ? liserePlaque(ombreT) : ombre(ombreT), padding: `${(0.16 * corps).toFixed(1)}px ${(0.3 * corps).toFixed(1)}px`, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps,
+      boxShadow: fond === E ? liserePlaque(ombreT) : ombre(ombreT), padding: `${(0.16 * corps).toFixed(1)}px ${(0.3 * corps).toFixed(1)}px`, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps,
       lineHeight: 1, letterSpacing: "0.01em", textTransform: "uppercase", whiteSpace: "nowrap", transform: `rotate(${incl}deg)`, ...style }}>
       {children}
     </div>
@@ -204,7 +204,7 @@ export function CoqueCarte({ palette, titre, droite, w, h, entete = 106, childre
       <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", border: `${TRAIT.FORT}px solid ${E}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), background: COULEURS.IVOIRE_CLAIR, overflow: "hidden" }}>
         <div style={{ position: "absolute", left: 0, top: 0, right: 0, height: entete, boxSizing: "border-box", background: ACCENT_1, borderBottom: `${TRAIT.MOYEN}px solid ${E}`,
           display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 30px", zIndex: 3 }}>
-          <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, letterSpacing: "0.04em", color: COULEURS.BLANC, textTransform: "uppercase", whiteSpace: "nowrap" }}>{titre}</div>
+          <div style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, letterSpacing: "0.04em", color: COULEURS.BLANC, textTransform: "uppercase", whiteSpace: "nowrap" }}>{titre}</div>
           {droite}
         </div>
         <div style={{ position: "absolute", left: 0, right: 0, top: entete, bottom: 0 }}>{children}</div>
@@ -356,11 +356,11 @@ export function SousTitresV4({ mots, palette, cles, prise, muets = [] }: { mots:
               <>
                 <div style={{ position: "absolute", inset: 0, boxSizing: "border-box", background: m.chiffre ? ACCENT_2 : ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PLAQUE,
                   boxShadow: ombre("S"), transform: `scaleX(${Math.min(1, etire).toFixed(3)})`, transformOrigin: "0% 50%" }} />
-                <div style={{ position: "relative", padding: `${(0.1 * corps).toFixed(1)}px ${(0.24 * corps).toFixed(1)}px`, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1,
+                <div style={{ position: "relative", padding: `${(0.1 * corps).toFixed(1)}px ${(0.24 * corps).toFixed(1)}px`, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1,
                   letterSpacing: "0.01em", color: m.chiffre ? E : COULEURS.BLANC, whiteSpace: "nowrap", transform: `scale(${(0.6 + 0.4 * texteP).toFixed(3)})`, opacity: visible ? 1 : 0 }}>{m.mot}</div>
               </>
             ) : (
-              <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "0.01em", color: couleurTexte, whiteSpace: "nowrap",
+              <div style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1, letterSpacing: "0.01em", color: couleurTexte, whiteSpace: "nowrap",
                 ...contourTexte(corps), filter: `drop-shadow(4px 5px 0 ${E})` }}>{m.mot}</div>
             )}
           </div>

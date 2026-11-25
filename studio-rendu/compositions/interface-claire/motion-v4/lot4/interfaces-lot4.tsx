@@ -8,7 +8,7 @@ import type { Palette } from "./commun-lot4";
 
 const { ENCRE, IVOIRE_CLAIR, BLANC, GRIS } = COULEURS;
 
-const txt = (corps: number, couleur: string = ENCRE): React.CSSProperties => ({ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "nowrap", color: couleur });
+const txt = (corps: number, couleur: string = ENCRE): React.CSSProperties => ({ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1, textTransform: "uppercase", letterSpacing: "0.01em", whiteSpace: "nowrap", color: couleur });
 
 /** Coche ronde (disque ACCENT, contour encre) qui CLAQUE à l'image `debut`, diamètre `d`. */
 export function Coche({ f, debut, d, fond, style }: { f: number; debut: number; d: number; fond: string; style?: React.CSSProperties }) {

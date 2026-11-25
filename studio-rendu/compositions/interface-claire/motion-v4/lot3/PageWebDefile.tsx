@@ -98,12 +98,12 @@ export function PageWebDefile(props: PropsPageWebDefile) {
           <div style={{ position: "absolute", left: 0, right: 0, top: BARRE, bottom: 0, overflow: "hidden" }}>
             <div style={{ position: "absolute", left: 0, right: 0, top: -s, height: 4600 }}>
               <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: 96, background: COULEURS.BLANC, borderBottom: `${TRAIT.FIN}px solid ${E}`, display: "flex", alignItems: "center", padding: "0 36px", gap: 30, fontFamily: INTER, fontWeight: 700, fontSize: 28, color: E }}>
-                <div style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 36 }}>VOTRE ENTREPRISE</div>
+                <div style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 36 }}>VOTRE ENTREPRISE</div>
                 <div style={{ flex: 1 }} /> <span>Services</span><span>Réalisations</span><span>Contact</span>
               </div>
-              <div style={{ position: "absolute", left: 40, top: 150, width: 560, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 70, lineHeight: 1.02, color: E }}>VOTRE PROJET, CLÉ EN MAIN</div>
+              <div style={{ position: "absolute", left: 40, top: 150, width: 560, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 70, lineHeight: 1.02, color: E }}>VOTRE PROJET, CLÉ EN MAIN</div>
               <div style={{ position: "absolute", left: 40, top: 360, width: 520, fontFamily: INTER, fontWeight: 600, fontSize: 30, color: E }}>Décrivez ici votre activité en une phrase.</div>
-              <div style={{ position: "absolute", left: 40, top: 450, padding: "16px 30px", background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PLAQUE, boxShadow: ombre("S"), fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 30, color: COULEURS.BLANC }}>VOIR NOS SERVICES</div>
+              <div style={{ position: "absolute", left: 40, top: 450, padding: "16px 30px", background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.PLAQUE, boxShadow: ombre("S"), fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 30, color: COULEURS.BLANC }}>VOIR NOS SERVICES</div>
               <div style={{ position: "absolute", right: 36, top: 140, width: 270, height: 340, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.CARTE, boxShadow: ombre("M"), boxSizing: "border-box" }}>
                 <div style={{ position: "absolute", left: 40, top: 60, width: 190, height: 190, borderRadius: "50%", background: COULEURS.BLANC, border: `${TRAIT.MOYEN}px solid ${E}`, boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", left: 80, top: 100, width: 110, height: 110, background: ACCENT_2, border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: 14, boxSizing: "border-box", transform: "rotate(12deg)" }} />
@@ -111,7 +111,7 @@ export function PageWebDefile(props: PropsPageWebDefile) {
               {Array.from({ length: 10 }, (_, k) => bloc(k))}
               {/* bloc d'appel posé à la hauteur d'arrêt : la ligne citée y est intégrée (rien ne « flotte ») */}
               <div style={{ position: "absolute", left: 24, right: 24, top: yCible - 62, height: 206, boxSizing: "border-box", border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.CARTE, background: COULEURS.IVOIRE, boxShadow: ombre("S"), zIndex: 2 }}>
-                <div style={{ position: "absolute", left: 28, top: 14, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 30, color: E }}>VOTRE DEVIS</div>
+                <div style={{ position: "absolute", left: 28, top: 14, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 30, color: E }}>VOTRE DEVIS</div>
               </div>
               <div style={{ position: "absolute", left: 48, right: 48, top: yCible, height: 78, boxSizing: "border-box", border: `${TRAIT.FIN}px solid ${E}`, borderRadius: RAYON.CHAMP, background: surFond ? ACCENT_1 : COULEURS.BLANC,
                 display: "flex", alignItems: "center", paddingLeft: 30, fontFamily: INTER, fontWeight: 800, fontSize: 36, color: surFond ? COULEURS.BLANC : E, zIndex: 3, overflow: "hidden" }}>

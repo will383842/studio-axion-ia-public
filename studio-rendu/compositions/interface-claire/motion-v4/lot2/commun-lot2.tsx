@@ -7,12 +7,10 @@ import React from "react";
  * Convention : tout est piloté par `i` (images à 30 i/s depuis le début de l'élément) ; « i0 » = image où Will dit le mot déclencheur.
  * Tous les px sont à 1080 × 1920 (les extraits se rendent avec `scale: 0.5`).
  */
-import { Audio, continueRender, delayRender, Easing, interpolate, OffthreadVideo, Sequence, spring } from "remotion";
+import { Audio, Easing, interpolate, OffthreadVideo, Sequence, spring } from "remotion";
 import { GAIN_BRUITAGES, mediaV4 } from "../communs/medias-v4";
 import type { CSSProperties, ReactNode } from "react";
-import interBold from "../../../commune/polices/Inter-Bold.ttf";
-import montserratExtraBold from "../../../commune/polices/Montserrat-ExtraBold.ttf";
-import montserratBlack from "./polices/Montserrat-Black.ttf";
+import { chargerPoliceMarque } from "../../../commune/police-marque";
 
 export const FPS = 30;
 export const L = 1080;
@@ -33,24 +31,13 @@ export const ombre = (t: keyof typeof OMBRE): string => `${OMBRE[t][0]}px ${OMBR
 
 /* ------------------------------------------------------------------ Polices (B.5) ------------------------------------------------------------------ */
 
-export const MONTSERRAT = "Axion V4 Montserrat Black";
-export const MONTSERRAT_800 = "Axion V4 Montserrat ExtraBold";
-export const INTER = "Axion V4 Inter";
+export const MONTSERRAT = "Axion Manrope"; // POLICES-P7-f : Manrope, = charte (tests/polices/p7-v4) ; noms d'aides gardés
+export const MONTSERRAT_800 = "Axion Manrope";
+export const INTER = "Axion Manrope";
 
-let chargement: Promise<void> | null = null;
 /** Charge les polices EN LOCAL (aucun réseau) ; le rendu attend leur chargement. À appeler au début de chaque composition. */
 export function chargerPolicesV4(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Polices v4 du lot 2");
-  const faces = [
-    new FontFace(MONTSERRAT, `url(${montserratBlack})`, { weight: "900" }),
-    new FontFace(MONTSERRAT_800, `url(${montserratExtraBold})`, { weight: "800" }),
-    new FontFace(INTER, `url(${interBold})`, { weight: "100 900" }),
-  ];
-  chargement = Promise.all(faces.map((f) => f.load())).then((fs) => {
-    fs.forEach((f) => document.fonts.add(f));
-    continueRender(attente);
-  });
+  chargerPoliceMarque();
 }
 
 /* ------------------------------------------------------------------ Ressorts nommés (D.1) ------------------------------------------------------------------ */
@@ -145,7 +132,7 @@ export const SONS_CLICK = ["click_001", "click_002", "click_003"];
 
 export const styleMontserrat = (corps: number, extra?: CSSProperties): CSSProperties => ({
   fontFamily: `"${MONTSERRAT}", sans-serif`,
-  fontWeight: 900,
+  fontWeight: 800,
   fontSize: corps,
   lineHeight: 1,
   textTransform: "uppercase",

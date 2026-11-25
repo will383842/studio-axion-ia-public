@@ -46,7 +46,7 @@ export function MotDerriere({ frame, debut, palette, mot, lettreCle = 2, duree =
         if (k < 0 || chute >= 1) return null;
         return (
           <div key={n} style={{ position: "absolute", left: x0, top: -corps * 0.5, width: lw, height: corps, transform: `translateY(${(1 - mont) * corps * 0.55 + chute * 0.9 * corps}px) rotate(${chute * (n % 2 ? 9 : -9)}deg) scale(${(0.6 + 0.4 * mont) * pop})`, transformOrigin: "center bottom", opacity: Math.min(1, k / 2), filter: `drop-shadow(11px 12px 0 ${COULEURS.ENCRE})` }}>
-            <span style={{ fontFamily: MONTSERRAT, fontWeight: 900, fontSize: corps, lineHeight: 1, letterSpacing: "-0.01em", color: couleur, whiteSpace: "nowrap", ...contourTexte(corps, COULEURS.ENCRE, 0.1 * 2) }}>{l}</span>
+            <span style={{ fontFamily: MONTSERRAT, fontWeight: 800, fontSize: corps, lineHeight: 1, letterSpacing: "-0.01em", color: couleur, whiteSpace: "nowrap", ...contourTexte(corps, COULEURS.ENCRE, 0.1 * 2) }}>{l}</span>
           </div>
         );
       })}

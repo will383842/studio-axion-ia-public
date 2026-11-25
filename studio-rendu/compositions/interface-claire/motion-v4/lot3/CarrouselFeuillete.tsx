@@ -51,12 +51,12 @@ export function CarrouselFeuillete(props: PropsCarrouselFeuillete) {
   const textes = [E, E, COULEURS.BLANC, E, E, E];
   const page = (k: number) => (
     <div key={k} style={{ position: "absolute", left: 48 + k * (PAGE + GAP) - 0, top: 0, width: PAGE, height: PAGE, boxSizing: "border-box", background: fonds[k % fonds.length], border: `${TRAIT.MOYEN}px solid ${E}`, borderRadius: RAYON.CARTE, overflow: "hidden" }}>
-      <div style={{ position: "absolute", left: 50, top: 30, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 380, lineHeight: 1, color: textes[k % textes.length] }}>{Array.from({ length: (k % 3) + 1 }, (_, m) => <span key={m} style={{ display: "inline-block", width: 90, height: 90, borderRadius: m % 2 ? 20 : 45, background: textes[k % textes.length], marginRight: 26, marginTop: 120 }} />)}</div>
+      <div style={{ position: "absolute", left: 50, top: 30, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 380, lineHeight: 1, color: textes[k % textes.length] }}>{Array.from({ length: (k % 3) + 1 }, (_, m) => <span key={m} style={{ display: "inline-block", width: 90, height: 90, borderRadius: m % 2 ? 20 : 45, background: textes[k % textes.length], marginRight: 26, marginTop: 120 }} />)}</div>
       <div style={{ position: "absolute", left: 50, top: 470, width: 480, height: 34, borderRadius: 8, background: textes[k % textes.length] }} />
       <div style={{ position: "absolute", left: 50, top: 540, width: 640, height: 22, borderRadius: 6, background: textes[k % textes.length], opacity: 1 }} />
       <div style={{ position: "absolute", left: 50, top: 590, width: 560, height: 22, borderRadius: 6, background: textes[k % textes.length] }} />
       <div style={{ position: "absolute", right: 50, top: 60, width: 190, height: 190, borderRadius: k % 2 ? 36 : 95, background: fonds[(k + 2) % fonds.length], border: `${TRAIT.MOYEN}px solid ${E}`, boxSizing: "border-box" }} />
-      <div style={{ position: "absolute", right: 50, bottom: 50, width: 110, height: 110, borderRadius: 55, background: E, display: "flex", alignItems: "center", justifyContent: "center", color: COULEURS.BLANC, fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 60 }}>→</div>
+      <div style={{ position: "absolute", right: 50, bottom: 50, width: 110, height: 110, borderRadius: 55, background: E, display: "flex", alignItems: "center", justifyContent: "center", color: COULEURS.BLANC, fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 60 }}>→</div>
     </div>
   );
   const actif = Math.min(pages - 1, Math.round(n));
@@ -67,7 +67,7 @@ export function CarrouselFeuillete(props: PropsCarrouselFeuillete) {
       <Anim i={i} i0={0} iSortie={iS} sortie="coteG" entree="coteD" incl={2} x={X} y={Y} w={LF} h={HF} z={4} id="fenetre-carrousel">
         <div style={{ position: "relative", width: LF, height: HF, boxSizing: "border-box", border: `${TRAIT.FORT}px solid ${E}`, borderRadius: RAYON.FENETRE, boxShadow: ombre("L"), background: COULEURS.IVOIRE_CLAIR, overflow: "hidden" }}>
           <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: ENTETE, display: "flex", alignItems: "center", gap: 22, padding: "0 34px", boxSizing: "border-box", borderBottom: `${TRAIT.FIN}px solid ${E}`, background: COULEURS.BLANC }}>
-            <div style={{ width: 70, height: 70, borderRadius: 35, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONTSERRAT, fontWeight: 900, fontSize: 30, color: COULEURS.BLANC }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={COULEURS.BLANC} strokeWidth={2.6} strokeLinecap="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c.6-4.2 3.5-6.2 7.5-6.2s6.9 2 7.5 6.2z" /></svg></div>
+            <div style={{ width: 70, height: 70, borderRadius: 35, background: ACCENT_1, border: `${TRAIT.MOYEN}px solid ${E}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: MONTSERRAT, fontWeight: 800, fontSize: 30, color: COULEURS.BLANC }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={COULEURS.BLANC} strokeWidth={2.6} strokeLinecap="round"><circle cx="12" cy="8" r="3.6" /><path d="M4.5 20c.6-4.2 3.5-6.2 7.5-6.2s6.9 2 7.5 6.2z" /></svg></div>
             <div style={{ width: 230, height: 24, borderRadius: 12, background: E }} />
             <div style={{ width: 90, height: 18, borderRadius: 9, background: E, opacity: 0.45 }} />
           </div>
