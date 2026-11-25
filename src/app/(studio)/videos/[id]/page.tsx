@@ -30,6 +30,11 @@ import { aOnglet } from "@/components/videos/fiche/aOnglet";
 import { OngletMiniature } from "@/components/videos/fiche/OngletMiniature";
 import { DemanderModification } from "@/components/videos/fiche/DemanderModification";
 import { OngletRetouches } from "@/components/videos/fiche/OngletRetouches";
+import { ChangerExtraitV4 } from "@/components/formats/facecam-animee/ChangerExtraitV4";
+import { donneesChangerExtraitV4 } from "@/services/changer-extrait-v4-ecran";
+import { actualiserRetoucheExtraitsFA } from "@/services/facecam-animee-retouche";
+import { CLE_RETOUCHE_EXTRAITS_FA } from "@/moteurs/montage-facecam-animee";
+import { changerExtraitV4PourPanneau } from "../actions-changer-extrait-v4";
 import { OngletSousTitres } from "@/components/videos/fiche/OngletSousTitres";
 import { OngletDetails } from "@/components/videos/fiche/OngletDetails";
 import { SujetReplie, sujetDifferent } from "@/components/videos/fiche/SujetReplie";
@@ -162,6 +167,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   const recalquePossible = !!d.versionCourante && typeof moteurDeCommande(d.versionCourante.commande).recalquer === "function";
   // Une correction déjà enregistrée mais pas encore appliquée à la vidéo reste proposée après un rechargement.
   const correctionAAppliquer = recalquePossible && !enFabrication && d.versionCourante ? await correctionEnAttente(d.versionCourante.id) : false;
+  const extraitsV4 = d.versionCourante?.commande?.moteurId === "montage-facecam-animee" ? await donneesChangerExtraitV4(v.id, { actif: async () => (await actualiserRetoucheExtraitsFA(), (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_EXTRAITS_FA] === true) }) : null;
   const coutsFormats = Object.fromEntries(await Promise.all(manquants.map(async (r) => [r, (await estimerReexport(v.id, r)).centimes] as const)));
 
   const donnees: DonneesVideo = {
@@ -225,6 +231,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
                 retouches={d.retouches}
                 plans={d.plans.map((p) => ({ id: p.id, ordre: p.ordre, debutSec: p.debutSec, finSec: p.finSec, texte: p.texte, vignette: p.vignette, verrouille: !!p.illustration?.verrouille }))}
                 />
+                {extraitsV4 ? <ChangerExtraitV4 {...extraitsV4} demander={changerExtraitV4PourPanneau.bind(null, v.id)} /> : null}
                 {d.miniatures.length > 0 && (
                   <section>
                     <EnTeteSection titre="Miniature" />
