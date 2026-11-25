@@ -294,7 +294,7 @@ describe("R1 · normaliserCarteBrute (pur)", () => {
 describe("R1 · reprise après « incomplete »", () => {
   it("efface les lectures gardées et relit vraiment (2 appels réservés de plus)", async () => {
     const carte = carteFixe("B");
-    const vide: LectureImage = { ...lectureDeCarte(carte), titre: "", phraseChoc: "" };
+    const vide: LectureImage = { ...lectureDeCarte(carte), noeuds: [], liens: [] };
     const m = monde();
     let e = await avancerJusquAArretIV(etatInitialIV(demandeEssai(carte, { plafondCentimes: 5000 })), outilsSimules(carte, m, { lectures: { a: vide, b: vide } }));
     expect(e.refus?.code).toBe("IV_IMAGE");
