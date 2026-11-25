@@ -17,7 +17,7 @@ import {
   extraireOctets,
   decompresserZip,
   estDechetSysteme,
-  purgerTemporairesPerimes,
+  nettoyerRestesTemporaires,
   ecrireFichierSur,
   lireArchive,
   lireArchiveSurDisque,
@@ -614,7 +614,7 @@ describe("vrais formats", () => {
 });
 
 describe("temporaires `.decompression-*` périmés (lancement précédent tué)", () => {
-  it("purge : dossiers ordinaires frères supprimés, liens / fichiers / autres noms intouchés, jamais de lien suivi", () => {
+  it("nettoyage : dossiers ordinaires frères supprimés, liens / fichiers / autres noms intouchés, jamais de lien suivi", () => {
     const parent = join(racine, "sortie");
     const cible = join(racine, "cible-du-lien");
     mkdirSync(cible);
@@ -626,26 +626,26 @@ describe("temporaires `.decompression-*` périmés (lancement précédent tué)"
     writeFileSync(join(parent, ".decompression-fichier"), "fichier ordinaire");
     mkdirSync(join(parent, "autre"));
     mkdirSync(join(parent, ".decompressionX"));
-    expect(purgerTemporairesPerimes(parent)).toBe(1);
+    expect(nettoyerRestesTemporaires(parent)).toBe(1);
     expect(readdirSync(parent).sort()).toEqual([".decompression-fichier", ".decompression-lien", ".decompressionX", "autre"]);
     expect(readFileSync(join(cible, "precieux.txt"), "utf8")).toBe("VIVANT");
   });
-  it.skipIf(process.getuid?.() !== 0)("purge : un dossier appartenant à un autre uid n'est pas supprimé", () => {
+  it.skipIf(process.getuid?.() !== 0)("nettoyage : un dossier appartenant à un autre uid n'est pas supprimé", () => {
     const parent = join(racine, "sortie");
     mkdirSync(join(parent, ".decompression-2-b"));
     chownSync(join(parent, ".decompression-2-b"), 12345, 12345);
-    expect(purgerTemporairesPerimes(parent)).toBe(0);
+    expect(nettoyerRestesTemporaires(parent)).toBe(0);
     expect(existsSync(join(parent, ".decompression-2-b"))).toBe(true);
   });
-  it("decompresserZip purge au démarrage et le dit (purges), même si l'archive est ensuite refusée", () => {
+  it("decompresserZip nettoie au démarrage et le dit (restesSupprimes), même si l'archive est ensuite refusée", () => {
     mkdirSync(join(racine, "sortie", ".decompression-9-z"));
     writeFileSync(join(racine, "sortie", ".decompression-9-z", "x.js"), "x");
     expect(() => decompresserZip(zip([{ nom: "../x.txt", donnees: "x" }]), sortie)).toThrow(ErreurZip);
     expect(readdirSync(join(racine, "sortie"))).toEqual([]);
     mkdirSync(join(racine, "sortie", ".decompression-9-y"));
-    expect(decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), sortie).purges).toBe(1);
+    expect(decompresserZip(zip([{ nom: "a.txt", donnees: "x" }]), sortie).restesSupprimes).toBe(1);
   });
-  it("ESSAI RÉEL : lanceur tué (SIGKILL) en cours d'écriture laisse un partiel ; le lancement suivant le purge, sortie correcte", { timeout: 90_000 }, async () => {
+  it("ESSAI RÉEL : lanceur tué (SIGKILL) en cours d'écriture laisse un partiel ; le lancement suivant le nettoie, sortie correcte", { timeout: 90_000 }, async () => {
     const gros = join(racine, "gros.zip");
     // 150 fichiers de 1 Mio (zéros : sous le seuil de ratio), ~150 Mio à écrire.
     writeFileSync(gros, zip(Array.from({ length: 150 }, (_, i) => ({ nom: `f${i}.txt`, donnees: Buffer.alloc(1024 * 1024) }))));

@@ -361,18 +361,18 @@ export interface Resultat {
   /** Noms (dans l'archive) des déchets système ignorés, jamais écrits. */
   ignores: string[];
   /** Nombre de temporaires `.decompression-*` périmés (lancement précédent tué) supprimés au démarrage. */
-  purges: number;
+  restesSupprimes: number;
 }
 
 /**
  * Supprime les `.decompression-*` FRÈRES de la sortie laissés par un lancement précédent tué (SIGTERM du `timeout`, SIGKILL :
- * le code est synchrone, aucun gestionnaire de signal ne pourrait s'exécuter en cours d'écriture, donc on purge au démarrage).
+ * le code est synchrone, aucun gestionnaire de signal ne pourrait s'exécuter en cours d'écriture, donc on nettoie au démarrage).
  * Seulement des vrais dossiers (lstat : jamais un lien, jamais un fichier) appartenant à l'uid courant ; `rmSync` récursif ne suit aucun lien.
  * Au mieux : une erreur sur un reste n'arrête pas le lancement.
  * NE JAMAIS lancer `decompresser` en même temps qu'une capture (ou une autre décompression) sur le même /sortie :
- * la purge supprimerait le temporaire du lancement concurrent, et le temporaire frère n'est protégé que par ce rangement.
+ * le nettoyage supprimerait le temporaire du lancement concurrent, et le temporaire frère n'est protégé que par ce rangement.
  */
-export function purgerTemporairesPerimes(parent: string): number {
+export function nettoyerRestesTemporaires(parent: string): number {
   let n = 0;
   let noms: string[];
   try {
@@ -403,7 +403,7 @@ export function purgerTemporairesPerimes(parent: string): number {
 export function decompresserZip(zip: Buffer, sortie: string, lim: Limites = LIMITES): Resultat {
   const cible = resolve(sortie);
   verifierSortie(cible);
-  const purges = purgerTemporairesPerimes(dirname(cible));
+  const restesSupprimes = nettoyerRestesTemporaires(dirname(cible));
   const entrees = lireArchive(zip, lim);
   const temp = join(dirname(cible), `.decompression-${process.pid}-${Date.now().toString(36)}`);
   mkdirSync(temp, { mode: 0o755 });
@@ -429,7 +429,7 @@ export function decompresserZip(zip: Buffer, sortie: string, lim: Limites = LIMI
       fichiers++;
     }
     renameSync(temp, cible);
-    return { fichiers, octets, ignores, purges };
+    return { fichiers, octets, ignores, restesSupprimes };
   } catch (err) {
     rmSync(temp, { recursive: true, force: true });
     throw err;

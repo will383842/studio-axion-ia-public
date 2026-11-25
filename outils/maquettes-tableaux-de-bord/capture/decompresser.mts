@@ -42,7 +42,7 @@ function principal(): number {
   try {
     const r = decompresserZip(lireArchiveSurDisque(a.zip!), a.sortie!);
     console.log(`Archive décompressée : ${r.fichiers} fichier(s), ${r.octets} octet(s).`);
-    if (r.purges > 0) console.log(`Temporaires périmés supprimés : ${r.purges}.`);
+    if (r.restesSupprimes > 0) console.log(`Temporaires périmés supprimés : ${r.restesSupprimes}.`);
     if (r.ignores.length > 0) console.log(`Fichiers système ignorés (${r.ignores.length}) : ${r.ignores.join(", ")}.`);
     return 0;
   } catch (e) {
