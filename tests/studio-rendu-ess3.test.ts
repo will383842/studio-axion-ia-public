@@ -216,6 +216,46 @@ describe("idempotence sûre", () => {
   });
 });
 
+describe("dossier du rendu après un dépassement de délai", () => {
+  const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const existe = (d: string) => readdir(d).then(() => true, () => false);
+
+  it("l'opération écrit encore après le dépassement : le dossier reste jusqu'à sa fin, puis disparaît", async () => {
+    const dossier = await mkdtemp(join(tmpdir(), "ess3-depasse-"));
+    let finir!: () => void;
+    const f = new FilesRendu({
+      delaiCourteMs: 20,
+      delaiNettoyageApresDepassementMs: 5_000,
+      creerDossier: async () => dossier,
+      operations: { "analyse-media": () => new Promise((ok) => (finir = () => ok({}))) },
+    });
+    f.soumettre(demande("d1"));
+    await f.inactif();
+    expect(f.etat("d1")).toMatchObject({ statut: "echec" });
+    expect(f.resume().courte.enCours).toBe(0);
+    await attendre(30);
+    expect(await existe(dossier)).toBe(true);
+    finir();
+    await attendre(50);
+    expect(await existe(dossier)).toBe(false);
+  });
+
+  it("l'opération ne finit jamais : le dossier est effacé à la borne", async () => {
+    const dossier = await mkdtemp(join(tmpdir(), "ess3-depasse-"));
+    const f = new FilesRendu({
+      delaiCourteMs: 20,
+      delaiNettoyageApresDepassementMs: 60,
+      creerDossier: async () => dossier,
+      operations: { "analyse-media": () => new Promise(() => undefined) },
+    });
+    f.soumettre(demande("d2"));
+    await f.inactif();
+    expect(await existe(dossier)).toBe(true);
+    await attendre(200);
+    expect(await existe(dossier)).toBe(false);
+  });
+});
+
 describe("nettoyage prudent", () => {
   let dossier: string;
   afterEach(async () => {

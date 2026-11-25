@@ -57,13 +57,18 @@ export interface OptionsEnfant {
   /**
    * Délai avant SIGKILL après l'arrêt demandé (défaut 60 s). Après un arrêt, Remotion efface en synchrone le profil
    * Chrome (8,5 s pour 15 Go) : un SIGKILL trop tôt couperait cet effacement et laisserait le profil dans /tmp. Le
-   * serveur n'est plus gelé et la file est déjà libérée (`Promise.race`), attendre ne coûte rien.
+   * serveur n'est plus gelé ; après un dépassement de délai la place dans la file est libérée tout de suite
+   * (`Promise.race` de `files.ts`) alors que l'enfant vit encore jusqu'à 60 s (il se ferme et efface son profil) : un
+   * autre montage peut donc démarrer pendant ce temps, au prix d'un peu de mémoire. Le dossier du rendu, lui, n'est
+   * effacé qu'à la fin de l'enfant (au plus 90 s).
    */
   delaiAbattageMs?: number;
   /**
    * Dossier temporaire de l'enfant (`TMPDIR`). Le profil Chrome (`puppeteer_dev_chrome_profile-*`) et les dossiers de
-   * Remotion y vivent : ils sont effacés avec le dossier du rendu (`files.ts`, sans bloquer le serveur), quelle que
-   * soit la fin de l'enfant (arrêt, SIGKILL, plantage). Le dossier doit exister.
+   * Remotion y vivent : ils sont effacés avec le dossier du rendu (`files.ts`, sans bloquer le serveur) à la fin de
+   * l'enfant (succès, échec, arrêt, plantage). Après un dépassement de délai, `files.ts` attend la fin du travail
+   * (l'enfant fini ou tué par SIGKILL), au plus 90 s, avant d'effacer le dossier : l'enfant ne peut plus y écrire.
+   * Le dossier doit exister.
    */
   dossierTemp?: string;
   /** Module de l'enfant (défaut : `cheminEnfant()`). */

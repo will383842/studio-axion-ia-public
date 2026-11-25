@@ -30,6 +30,8 @@ export interface OptionsFiles {
   /** Durée de conservation des états en mémoire (défaut 24 h). */
   conservationMs?: number;
   horloge?: () => number;
+  /** Après un dépassement de délai : attente maximale de la fin du travail avant d'effacer son dossier (défaut 90 s). */
+  delaiNettoyageApresDepassementMs?: number;
   /** Dossier de travail temporaire (défaut : celui du système). */
   creerDossier?: () => Promise<string>;
 }
@@ -156,6 +158,7 @@ export class FilesRendu {
       delaiLongueMs: options.delaiLongueMs ?? 20 * 60_000,
       conservationMs: options.conservationMs ?? 24 * 3600_000,
       horloge: options.horloge ?? Date.now,
+      delaiNettoyageApresDepassementMs: options.delaiNettoyageApresDepassementMs ?? 90_000,
       creerDossier: options.creerDossier ?? (() => mkdtemp(join(tmpdir(), "studio-rendu-"))),
     };
   }
@@ -265,16 +268,18 @@ export class FilesRendu {
       }, delai);
     });
     let dossier: string | undefined;
+    let travail: Promise<unknown> | undefined;
     try {
       dossier = await this.o.creerDossier();
-      const resultat = await Promise.race([
-        operation(demande, {
+      travail = operation(demande, {
           dossier,
           signal: controleur.signal,
           progression: (pc) => {
             if (entree.etat.statut === "en_cours") entree.etat = { statut: "en_cours", progression: Math.max(0, Math.min(99, Math.round(pc))) };
           },
-        }),
+      });
+      const resultat = await Promise.race([
+        travail as Promise<Awaited<ReturnType<Operation>>>,
         depassement,
       ]);
       // Une opération qui rend la main en réponse à l'arrêt n'a pas abouti : le délai a été dépassé.
@@ -299,7 +304,21 @@ export class FilesRendu {
       clearTimeout(minuterie);
       entree.controleur = undefined;
       entree.finiA ??= this.o.horloge();
-      if (dossier) await rm(dossier, { recursive: true, force: true }).catch(() => undefined);
+      if (dossier && depasse && travail) {
+        // Délai dépassé : l'opération (donc son processus enfant de rendu) peut encore écrire dans ce dossier jusqu'à
+        // son SIGKILL. On ne l'efface qu'à la fin du travail, ou au plus tard après la borne ; la place dans la file
+        // est libérée tout de suite.
+        const aEffacer = dossier;
+        let attente: ReturnType<typeof setTimeout> | undefined;
+        const borne = new Promise<void>((ok) => {
+          attente = setTimeout(ok, this.o.delaiNettoyageApresDepassementMs);
+          attente.unref?.();
+        });
+        void Promise.race([travail.then(() => undefined, () => undefined), borne])
+          .then(() => clearTimeout(attente))
+          .then(() => rm(aEffacer, { recursive: true, force: true }))
+          .catch(() => undefined);
+      } else if (dossier) await rm(dossier, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 
