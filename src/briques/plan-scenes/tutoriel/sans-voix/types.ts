@@ -181,6 +181,10 @@ export interface ElementVisible {
   cibleId?: string;
   /** Élément de contenu « porteur » (carte, panneau) : ses enfants ont `parentId`. Une carte sans enfant visible = vide. */
   parentId?: string;
+  /** QUAL-4 (facultatif) : pièce pleine toile ou forme de repli inventée : seule une vraie sortie de l'image est un défaut (pas la marge de 24 px). */
+  bordTolere?: boolean;
+  /** QUAL-4 (facultatif) : l'élément est COUPÉ par l'image ou par sa boîte (zoom caméra) : défaut « hors cadre ». */
+  coupe?: boolean;
 }
 
 /** Tout ce que le dessin et le contrôle lisent à l'instant `tMs`. */
