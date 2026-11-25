@@ -142,7 +142,7 @@ describe("(d) objets aux mots dits", () => {
   it("gros chiffre (3) et coche, jamais deux objets au même instant", async () => {
     const permis = [...piecesPermisesDesEntrees(entreeBiblio(CAPACITES))];
     expect(permis).toContain("objet-gros-chiffre");
-    const x = await fabriquer({ objetsPermis: permis }, "On gagne 3 heures par semaine. C'est fait.");
+    const x = await fabriquer({ objetsPermis: permis, motCle: false }, "On gagne 3 heures par semaine. C'est fait.");
     const p = pieces(x.props);
     expect(p).toContain("objet-gros-chiffre");
     expect(p).toContain("objet-coche");
