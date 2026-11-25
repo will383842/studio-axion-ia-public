@@ -11,6 +11,8 @@ import { estimerRetoucheCasConcret } from "@/moteurs/montage-cas-concret";
 import type { MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "@/moteurs/types";
 import { banc } from "../cas-concret/moteur/doubles";
 
+vi.setConfig({ testTimeout: 60_000 }); // premier import à froid de fabrication (~6 s) : le délai par défaut (5 s) rougit le 1er cas
+
 vi.mock("next/headers", () => mockHeaders);
 vi.mock("next/navigation", () => mockNavigation);
 
@@ -124,6 +126,20 @@ describe("S2-16-b-v21p : service « refaire la voix »", () => {
       expect(r.phrase).toMatch(/limite prévue pour cette vidéo/);
       expect(r.phrase).not.toMatch(/\d|€|\$/);
     }
+  });
+
+  it("(c) l'estimation porte sur le texte LU (après prononciations) : une prononciation qui allonge le texte fait dépasser 60 c€, la même sans allonger passe", async () => {
+    await preparer({ repete: 55 }); // 2 089 caractères × 0,027 c€ ≈ 56,4 → 57 c€ ≤ 60 : passe (« zèrnio » a la longueur de « Zernio »)
+    expect((await refaire()).ok).toBe(true);
+    expect(lance.appels).toHaveLength(1);
+    lance.appels = [];
+    const le = new Date().toISOString();
+    // La prononciation active s'allonge de 6 caractères par occurrence (55 occurrences) : 2 419 caractères ≈ 65,3 → 66 c€ > 60 : refus.
+    await depots().prononciations.enregistrer({ id: "pr-1", mot: "Zernio", prononciation: "zèr-ni-o-ou-o", source: "manuel", creeLe: le, modifieLe: le } as never);
+    const r = await refaire();
+    expect(r.ok).toBe(false);
+    expect(lance.appels).toHaveLength(0);
+    if (!r.ok) expect(r.phrase).toMatch(/limite prévue pour cette vidéo/);
   });
 
   it("(c) un 2e clic qui ferait dépasser 60 c€ cumulés sur la vidéo est refusé ; le 1er passe", async () => {
