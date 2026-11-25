@@ -60,9 +60,13 @@ export function lireEntreesFacecamAnimee(entrees: Record<string, unknown> | unde
 /** Outils réels de la chaîne v4 pour une commande (null : le studio n'est pas relié). */
 export type FabriqueOutilsFacecamV4 = (commande: CommandeFabrication, travailId: string) => Promise<OutilsChaineV4 | null>;
 
+/** R4-03-c2 : port du service (clip d'un extrait de l'archive, ou `{ refus }`) et dernière valeur connue du réglage `retoucheChat.facecamAnimeeExtraits` (seul `true` exact allume). */
+export type PortExtraitRetoucheFA = (commande: CommandeFabrication, projet: unknown, demande: unknown) => Promise<unknown>;
+export const CLE_RETOUCHE_EXTRAITS_FA = Symbol.for("studio-axion-ia.facecam-animee-retouche-extraits");
+
 /** Branchement des services (la boucle de fond charge `services/facecam-animee.ts`, qui appelle ceci). */
-let servicesBranches: { outils?: FabriqueOutilsFacecamV4 } = {};
-export function brancherServicesFacecamAnimee(s: { outils?: FabriqueOutilsFacecamV4 }): void {
+let servicesBranches: { outils?: FabriqueOutilsFacecamV4; extraitRetouche?: PortExtraitRetoucheFA } = {};
+export function brancherServicesFacecamAnimee(s: { outils?: FabriqueOutilsFacecamV4; extraitRetouche?: PortExtraitRetoucheFA }): void {
   servicesBranches = s;
 }
 
@@ -82,6 +86,8 @@ export interface DependancesMoteurFacecamAnimee {
   statutFormat?: "actif" | "bientot" | "masque";
   /** Relecture Claude des images de contrôle (lot H). Jamais appelée quand le plafond du mois est atteint. */
   relire?: (commande: CommandeFabrication) => Promise<void>;
+  retoucheExtraits?: () => boolean; // R4-03-c2 (tests) : réglage « changer un extrait » ; absent : la dernière valeur connue
+  extraitRetouche?: PortExtraitRetoucheFA; // R4-03-c2 (tests) : port du clip ; absent : celui du service
   /**
    * « Les photos et logos » (passe 3) : remplit les fenêtres du plan en MINI-VIDÉOS vérifiées, par le chemin de
    * production `etapeImagesStudio` (`images/production.ts`, branché sur `adaptateurStudio`). Le format reste fermé
@@ -501,10 +507,15 @@ export function creerMoteurMontageFacecamAnimee(dependances: DependancesMoteurFa
           const t = nouveauTravail(defs, ctx, commande);
           return { ...t, statut: "echec", erreur, etapes: t.etapes.map((x, i) => (i === 0 ? { ...x, statut: "echec" as const, erreur } : x)), parametres: { ...t.parametres, planIds } };
         };
-        if (operations?.length) return echec("RETOUCHE_NON_PRISE_EN_CHARGE", "Les changements de la mise en scène par la conversation viendront plus tard : seule la version gardée peut être refaite.");
-        // Imports dynamiques : `chaine-v4.ts` importe `./index` (cycle sinon), comme dans `lancer`.
         const { lireProjetGardeV4, refusRetoucheGratuiteV4, CODE_RETOUCHE_GRATUITE_IMPOSSIBLE } = await import("./retouche-gratuite");
         const { etatRepriseAuRenduV4 } = await import("./reprise-rendu-v4");
+        const [{ etatRetoucheExtraitV4 }, { lireDemandeExtraitV4, appliquerDemandeExtraitV4 }] = await Promise.all([import("./retouche-extrait-v4-etat"), import("./retouche-extrait-v4")]);
+        const port = dependances.extraitRetouche ?? servicesBranches.extraitRetouche;
+        const r = await etatRetoucheExtraitV4({ entrees: commande.entrees, parentVersionId: parent?.versionId, actif: (dependances.retoucheExtraits ?? (() => (globalThis as Record<symbol, unknown>)[CLE_RETOUCHE_EXTRAITS_FA] === true))() === true && !!port }, { lire: lireDemandeExtraitV4, projet: () => lireProjetGardeV4(parent?.projetMontage), clip: (p, d) => port!(commande, p, d) as never, appliquer: (p, d, c) => appliquerDemandeExtraitV4(p, d, c), reprendre: (p) => etatRepriseAuRenduV4(p, { videoId: commande.videoId, versionId: contexte.versionId, priseCle: p.priseCle, titre: contexte.titre, ...(entrees.texteValide ? { texteValide: entrees.texteValide } : {}) }), refusProjet: () => ({ code: CODE_RETOUCHE_GRATUITE_IMPOSSIBLE, message: refusRetoucheGratuiteV4(parent?.projetMontage)?.message ?? "Les coupes de cette version n'ont pas été retrouvées à l'identique : déposez la prise à nouveau pour une nouvelle mise en scène." }) });
+        if (r && "refus" in r) return echec(r.refus.code, r.refus.message);
+        if (r) return travailV4(etapesV4(commande), ctx, commande, r.etat);
+        if (operations?.length) return echec("RETOUCHE_NON_PRISE_EN_CHARGE", "Les changements de la mise en scène par la conversation viendront plus tard : seule la version gardée peut être refaite.");
+        // Imports dynamiques (remontés plus haut, R4-03-c2) : `chaine-v4.ts` importe `./index` (cycle sinon), comme dans `lancer`.
         const projet = lireProjetGardeV4(parent?.projetMontage);
         const etat = projet && etatRepriseAuRenduV4(projet, { videoId: commande.videoId, versionId: contexte.versionId, priseCle: projet.priseCle, titre: contexte.titre, ...(entrees.texteValide ? { texteValide: entrees.texteValide } : {}) });
         if (!etat) return echec(CODE_RETOUCHE_GRATUITE_IMPOSSIBLE, refusRetoucheGratuiteV4(parent?.projetMontage)?.message ?? "Les coupes de cette version n'ont pas été retrouvées à l'identique : déposez la prise à nouveau pour une nouvelle mise en scène.");
