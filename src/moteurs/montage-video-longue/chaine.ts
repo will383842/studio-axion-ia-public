@@ -101,7 +101,7 @@ export function estimerMotsSansVoix(entrees: EntreesVideoLongue): { mots: MotHor
 function echecDuPas(err: unknown): { message: string; reessayable: boolean } {
   const nom = err instanceof Error ? err.name : "";
   if (err instanceof Error && nom === "ErreurMontageVideoLongue") return { message: err.message, reessayable: (err as Error & { reessayable?: boolean }).reessayable === true };
-  if (err instanceof Error && nom === "ErreurVideoLongue") return { message: err.message, reessayable: false };
+  if (err instanceof Error && nom === "ErreurVideoLongue") return { message: err.message, reessayable: (err as Error & { motif?: string }).motif === "eteint" }; // éteint : on rallume puis « Réessayer » ; durée ou plan : même refus à chaque essai
   return { message: "L'assemblage a eu un souci, vous pouvez réessayer.", reessayable: true };
 }
 
