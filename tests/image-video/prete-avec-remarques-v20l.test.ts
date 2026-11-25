@@ -168,8 +168,8 @@ describe("livraison partielle 4:5 (traitée comme porte.ts)", () => {
   });
 });
 
-describe("sans importeur (éteint)", () => {
-  it("aucun fichier de src/ n'importe remarques-livraison", () => {
+describe("un seul importeur (S-13-f-v21o, seconde lecture du pilote)", () => {
+  it("seul src/moteurs/montage-image-video/fabrication.ts importe remarques-livraison", () => {
     const vus: string[] = [];
     const marche = (d: string) => {
       for (const f of readdirSync(d)) {
@@ -179,6 +179,6 @@ describe("sans importeur (éteint)", () => {
       }
     };
     marche(join(RACINE, "src"));
-    expect(vus).toEqual([]);
+    expect(vus).toEqual([join(RACINE, "src/moteurs/montage-image-video/fabrication.ts")]);
   });
 });

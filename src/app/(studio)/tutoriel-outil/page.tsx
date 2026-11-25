@@ -18,16 +18,25 @@ async function lireDevis(): Promise<boolean> {
   }
 }
 
+/** Équipe ouverte = `equipeTutorielActive()` (lecture seule) ; si la lecture lève, l'équipe compte comme fermée. */
+async function lireEquipeOuverte(): Promise<boolean> {
+  try {
+    return (await (await import("@/services/tutoriel-equipe")).equipeTutorielActive()) === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Écran d'entrée du générateur « Tutoriel d'outil ». Les interrupteurs sont lus côté serveur (seul `true` exact allume) :
  * éteints, c'est la vitrine d'aujourd'hui ; allumés, le vrai formulaire (T-EXT-33).
  */
 export default async function PageTutorielOutil() {
-  const [base, devis] = await Promise.all([lireInterrupteursTutoriel(), lireDevis()]);
+  const [base, devis, equipeOuverte] = await Promise.all([lireInterrupteursTutoriel(), lireDevis(), lireEquipeOuverte()]);
   const interrupteurs = { ...base, devis };
   return (
     <GabaritCreation entete={{ titre: "Tutoriel d'outil", sousTitre: "Un outil montré en plein écran, pas à pas. Pas de visage." }}>
-      <FormulaireTutorielOutil interrupteurs={interrupteurs} deposer={deposerTutorielAction} />
+      <FormulaireTutorielOutil interrupteurs={interrupteurs} deposer={deposerTutorielAction} equipeOuverte={equipeOuverte} />
     </GabaritCreation>
   );
 }

@@ -5,7 +5,7 @@
  * Imports relatifs seulement (dossier lu par le rendu).
  */
 import type { JSX } from "react";
-import { FAMILLE_CSS } from "../../charte/axion-2026";
+import { PILE_CSS } from "../../charte/axion-2026";
 import type { DefinitionObjet } from "./contrat";
 import { phaseObjet } from "./progres";
 import { couleurDuTon } from "./tons";
@@ -30,7 +30,7 @@ const LONGUEUR_UNITE_MAX = 20;
 const LARGEUR_CHIFFRE = 560;
 const TAILLE_CHIFFRE_MAX = 260;
 const TAILLE_UNITE = 44;
-const ESPACE_FINE = " ";
+const ESPACE_MILLIERS = "\u00a0"; // insécable normale (présente dans Manrope), pas U+202F
 
 const decimalesDe = (v: number): number => {
   for (let d = 0; d <= DECIMALES_MAX; d++) if (Math.abs(v * 10 ** d - Math.round(v * 10 ** d)) < 1e-9) return d;
@@ -64,10 +64,10 @@ function valider(p: unknown): ParametresGrosChiffre | null {
   }
 }
 
-/** Écriture française : espace fine insécable pour les milliers, virgule décimale. Pur. */
+/** Écriture française : espace insécable (U+00A0) pour les milliers, virgule décimale. Pur. */
 export function ecrireNombreFr(valeur: number, decimales = Math.max(0, decimalesDe(valeur))): string {
   const [entier = "0", frac] = Math.abs(valeur).toFixed(decimales).split(".");
-  const groupe = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_FINE);
+  const groupe = entier.replace(/\B(?=(\d{3})+(?!\d))/g, ESPACE_MILLIERS);
   return frac ? `${groupe},${frac}` : groupe;
 }
 
@@ -105,11 +105,11 @@ export const OBJET_GROS_CHIFFRE: DefinitionObjet<ParametresGrosChiffre> = {
     return (
       <svg viewBox={`0 0 ${L} ${H}`} width="100%" height="100%" style={{ position: "absolute", inset: 0, overflow: "visible" }}>
         <g opacity={phase.opacite}>
-          <text data-role="chiffre" x={500} y={520} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur}>
+          <text data-role="chiffre" x={500} y={520} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={800} fontSize={taille.toFixed(1)} fill={couleur}>
             {affiche}
           </text>
           {parametres.unite ? (
-            <text data-role="unite" x={500} y={600} textAnchor="middle" fontFamily={FAMILLE_CSS} fontWeight={600} fontSize={TAILLE_UNITE} fill={couleur}>
+            <text data-role="unite" x={500} y={600} textAnchor="middle" fontFamily={PILE_CSS} fontWeight={600} fontSize={TAILLE_UNITE} fill={couleur}>
               {parametres.unite}
             </text>
           ) : null}

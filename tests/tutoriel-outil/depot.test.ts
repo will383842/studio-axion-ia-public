@@ -303,3 +303,28 @@ describe("entrees.ts : lecture tolérante", () => {
     expect(lireEntreesTutoriel({ tutorielOutil: { depot: { mode: "phrase", phrase: "Un tri d'e-mails pour moi" }, gabarit: "G-Decision" } })).toEqual({ depot: { mode: "phrase", phrase: "Un tri d'e-mails pour moi" }, gabarit: "G-Decision" });
   });
 });
+
+describe("FIN-2 · non-régression : les modes phrase et dossier ne changent pas avec « Mon script »", () => {
+  it("phrase et dossier gardent leur `depot`, leur titre et l'absence de `scriptColle` sans script ; aucune clé `idee` ajoutée", async () => {
+    const p = banc();
+    expect(await d.deposerTutoriel(phrase, p.dep)).toEqual({ statut: "lancee", videoId: "v1" });
+    const entreePhrase = p.compte.brouillons[0]!.entrees.tutorielOutil as Record<string, unknown>;
+    expect(entreePhrase.depot).toEqual({ mode: "phrase", phrase: "Un tableau de bord pour un atelier" });
+    expect(p.compte.brouillons[0]!.titre).toBe("Un tableau de bord pour un atelier");
+    expect("scriptColle" in entreePhrase).toBe(false);
+    expect("idee" in entreePhrase).toBe(false);
+
+    const z = banc();
+    expect(await d.deposerTutoriel(dossier, z.dep)).toEqual({ statut: "lancee", videoId: "v1" });
+    const entreeDossier = z.compte.brouillons[0]!.entrees.tutorielOutil as Record<string, unknown>;
+    expect(entreeDossier.depot).toEqual({ mode: "dossier", fichierId: "f-abc", attestationImages: true });
+    expect(z.compte.brouillons[0]!.titre).toBe("Mon dossier ventes");
+    expect("idee" in entreeDossier).toBe(false);
+  });
+  it("phrase et dossier restent refusés quand leur entrée est éteinte, même si le formulaire est ouvert", async () => {
+    const a = banc({ interrupteurs: { formulaire: true, dossier: false, phrase: false } });
+    expect(await d.deposerTutoriel(phrase, a.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_PHRASE_FERMEE });
+    expect((await d.deposerTutoriel(dossier, a.dep)).statut).toBe("refusee");
+    expect(a.compte.brouillons).toEqual([]);
+  });
+});

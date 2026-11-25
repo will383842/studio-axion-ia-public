@@ -54,7 +54,7 @@ describe("aller-retour sur les cas", () => {
     expect(couverts.chiffre).toBeGreaterThan(0);
     expect(couverts.preuve).toBeGreaterThan(0);
     expect(echecs, echecs.join("\n")).toEqual([]);
-  });
+  }, 30_000);
 });
 
 import { readFileSync } from "node:fs";

@@ -28,7 +28,7 @@ const HORS_OBJET_MASTER = [
   "texte.sortie-animee|eteint",
   "texte.escalier|eteint",
   "ecran.clip-v4|prod",
-  "ecran.mosaique-extraits|prevu",
+  "ecran.mosaique-extraits|eteint", // C4-U4.13-b-v20j 20/11 : livré, branché, éteint
   "ecran.telephone-extrait|eteint", // C4-U4.13a 19/11 : livré, éteint
   "calque.texte-derriere-double|absent",
   "calque.texte-derriere-prise|absent",
@@ -64,7 +64,7 @@ const HORS_OBJET_MASTER = [
   "cadrage.zoom-avocat|prod",
   "cadrage.zoom-demo|prod",
   "cadrage.camera-cas-concret|prod",
-  "cadrage.zoom-v4|absent",
+  "cadrage.zoom-v4|eteint", // C8-X01-b-v20j (seconde lecture du pilote)
   "motion.avis-client|prevu",
   // CATALOGUE-C10-C11-v21p
   "accroche.script|prevu",
@@ -78,7 +78,7 @@ const HORS_OBJET_MASTER = [
   "etalonnage.lut|prevu",
   // CATALOGUE-C10-C11-v21p
   "texte.marques-au-mot|eteint",
-  "texte.selectif|prevu",
+  "texte.selectif|eteint",
   "texte.mode-carte|prevu",
   "texte.effets|prevu",
   "texte.accents-role|prevu",

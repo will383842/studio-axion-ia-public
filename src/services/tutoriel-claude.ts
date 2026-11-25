@@ -3,11 +3,11 @@
  * idée, UNIQUEMENT par le chemin gardé de l'argent (`executerRolePourVideo` : plafond propre de la vidéo, limite du mois,
  * pré-vol, réservation, dépense réelle, origine de la commande). Aucun appel direct à Claude ici.
  *
- *  - ÉTEINT PAR DÉFAUT : sans le réglage `tutoriel.claude` à exactement `true`, le raccord garde le comportement d'avant
- *    (Claude « pas encore relié », le plan retombe sur le repli). Le réglage n'est jamais écrit par ce fichier.
+ *  - ALLUMÉ PAR DÉFAUT (décision du 21/11 07:20), dans le plafond de 1 € : seul `tutoriel.claude` à `false` l'éteint (le
+ *    raccord garde alors le comportement d'avant : « pas encore relié », plan de repli). Le réglage n'est jamais écrit ici.
  *  - Claude non choisi pour les textes (fournisseur « texte-reseaux » ≠ Claude) : l'appel est simulé, sans texte ; on lève
  *    alors, le plan de repli sert. Jamais un faux plan venu de la simulation.
- *  - Plafond propre au tutoriel : `tutoriel.plafondClaudeUsd`, sinon le pire cas calculé ici (aucun prix recopié).
+ *  - Plafond propre au tutoriel : `tutoriel.plafondClaudeUsd`, sinon 1,11 $ (`plafond-tutoriel.ts`), ou le pire cas calculé s'il est au-dessous.
  *  - Aucun montant n'est rendu au moteur ni à l'écran (format sans prix).
  */
 import "server-only";
@@ -23,7 +23,8 @@ import { entreeMaquettiste, roleMaquettiste, type ContexteMaquettiste, type Manq
 import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PHRASE_DEPOT_MAX } from "@/moteurs/montage-tutoriel-outil/entrees";
 import type { CommandeFabrication, Id } from "@/domaine/types";
-import type { executerRolePourVideo } from "./depense-claude-video";
+import type { executerRolePourVideo, PlafondPropre } from "./depense-claude-video";
+import { PLAFOND_TUTORIEL_USD } from "./plafond-tutoriel";
 
 export const PARAM_CLAUDE_TUTORIEL = "tutoriel.claude";
 export const PARAM_PLAFOND_TUTORIEL = "tutoriel.plafondClaudeUsd";
@@ -32,9 +33,9 @@ export const ETAPE_PLAN_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} plan de scènes`;
 export const ETAPE_SCRIPT_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} script`;
 /** T-EXT-53b : la lecture d'une demande de retouche. Bâtie sur le préfixe : la dépense compte dans le plafond `tuto` déjà fixé par vidéo (aucun plafond propre). */
 export const ETAPE_LECTURE_RETOUCHE_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} lecture de retouche`;
-/** T-EXT-53b : ÉTEINT par défaut ; exige aussi `tutoriel.claude`. */
+/** T-EXT-53b : ÉTEINT par défaut ; exige aussi `tutoriel.claude` (allumé par défaut). */
 export const PARAM_LECTEUR_CLAUDE_RETOUCHE = "retoucheChat.tutorielLecteurClaude";
-/** T-EXT-27b : le regard de Claude sur les images-clés de la vidéo finie. ÉTEINT par défaut ; il exige aussi `tutoriel.claude`. */
+/** T-EXT-27b : le regard de Claude sur les images-clés de la vidéo finie. ALLUMÉ par défaut, dans le plafond de 1 € (seul `false` l'éteint) ; il exige aussi `tutoriel.claude`. */
 export const PARAM_REGARD_TUTORIEL = "tutoriel.regardeur";
 /** Bâtie sur le préfixe du tutoriel : la dépense compte dans le plafond `tuto`, jamais dans celui des textes de publication. */
 export const ETAPE_REGARD_TUTORIEL = `${PREFIXE_ETAPE_TUTORIEL} Regardeur`;
@@ -49,17 +50,21 @@ const PAS_PLAFOND_USD = 0.05;
 /** Même ratio que `jetonsEstimes` (tarifs) : 1 jeton pour 3 caractères, au pire. */
 const CARACTERES_PAR_JETON = 3;
 
-/** Vrai SEULEMENT si la valeur lue est exactement `true` (absente, `"true"`, `1`… : éteint). */
+/** Allumé par défaut, dans le plafond de 1 € : seul `false` éteint ; lecture en échec : éteint (jamais allumé sur un échec). */
 export async function claudeTutorielActif(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
-  const l = lire ?? (await import("./_commun")).lireParametre;
-  return (await l<unknown>(PARAM_CLAUDE_TUTORIEL, false)) === true;
+  try {
+    const l = lire ?? (await import("./_commun")).lireParametre;
+    return (await l<unknown>(PARAM_CLAUDE_TUTORIEL, true)) !== false;
+  } catch {
+    return false;
+  }
 }
 
-/** Vrai SEULEMENT si `tutoriel.regardeur` ET `tutoriel.claude` valent exactement `true` (absent, `"true"`, `1`, lecture en échec : éteint). */
+/** Allumé par défaut, dans le plafond de 1 € : seul `false` sur `tutoriel.regardeur` ou `tutoriel.claude` éteint ; lecture en échec : éteint. */
 export async function regardTutorielActif(lire?: <T>(id: string, defaut: T) => Promise<T>): Promise<boolean> {
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
-    if ((await l<unknown>(PARAM_REGARD_TUTORIEL, false)) !== true) return false;
+    if ((await l<unknown>(PARAM_REGARD_TUTORIEL, true)) === false) return false;
     return await claudeTutorielActif(l);
   } catch {
     return false;
@@ -71,7 +76,7 @@ export async function lecteurClaudeTutorielActif(lire?: <T>(id: string, defaut: 
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
     if ((await l<unknown>(PARAM_LECTEUR_CLAUDE_RETOUCHE, false)) !== true) return false;
-    return await claudeTutorielActif(l);
+    return (await l<unknown>(PARAM_CLAUDE_TUTORIEL, false)) === true;
   } catch {
     return false;
   }
@@ -175,9 +180,10 @@ export function plafondTutorielPhraseUsd(): number {
   return total;
 }
 
-/** Plafond propre `tuto` d'une vidéo du tutoriel : le même objet pour les textes et pour le regard (même forme que les plafonds du tableau animé, conversion de `cas-concret-branchements.ts`). */
-export function plafondPropreTutoriel(deps: { plafondUsd?: () => number } = {}): Parameters<typeof executerRolePourVideo>[3]["plafondPropre"] {
-  return { id: "tuto", parametre: PARAM_PLAFOND_TUTORIEL, defautUsd: (deps.plafondUsd ?? plafondTutorielParDefautUsd)(), prefixeEtape: PREFIXE_ETAPE_TUTORIEL } as unknown as Parameters<typeof executerRolePourVideo>[3]["plafondPropre"];
+/** Plafond propre `tuto` d'une vidéo du tutoriel : le même objet pour les textes et pour le regard. */
+export function plafondPropreTutoriel(deps: { plafondUsd?: () => number } = {}): PlafondPropre {
+  // Plafond décidé : 1 € (1,11 $) ; le pire cas calculé ne sert plus qu'au-dessous.
+  return { id: "tuto", parametre: PARAM_PLAFOND_TUTORIEL, defautUsd: Math.min(PLAFOND_TUTORIEL_USD, (deps.plafondUsd ?? plafondTutorielParDefautUsd)()), prefixeEtape: PREFIXE_ETAPE_TUTORIEL };
 }
 
 /** Phrases rendues au moteur quand la garde d'argent arrête l'appel : jamais un montant. */

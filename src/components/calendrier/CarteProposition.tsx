@@ -20,10 +20,11 @@ export interface ProprietesCarteProposition {
   /** Le sujet que l'Usine propose (champ `sujet` de la proposition). Absent : la carte n'a pas de bouton « Retenir ce sujet ». Repris de `entree` s'il y est. */
   sujet?: IdeeUsine;
   /** Action serveur (`debut`, `cle` seulement : le serveur retrouve le sujet, le jour et le réseau) ; par défaut l'action du Studio. Fournie par les tests. */
-  retenir?: (debut: string, cle: string) => Promise<Resultat<{ id: string; rappelUsine: boolean }>>;
+  retenir?: (debut: string, cle: string) => Promise<Resultat<{ id: string; rappelUsine: boolean; type?: "video" | "carrousel" }>>;
   className?: string;
 }
 
+export const PHRASE_CARROUSEL_A_RELIRE = "Brouillon de carrousel créé : relisez-le et validez-le avant toute programmation.";
 export const PHRASE_RETENU_SANS_USINE = "Sujet retenu au Studio, mais l'Usine n'a pas pu en être prévenue pour le moment.";
 const retenirParDefaut: NonNullable<ProprietesCarteProposition["retenir"]> = async (debut, cle) => {
   const { retenirSujetSemaineAction } = await import("@/app/(studio)/calendrier/retenir-sujet");
@@ -57,6 +58,7 @@ export function CarteProposition({ entree, pourquoi, ressembleA, debut, sujet: s
   const sujet = sujetDonne ?? (entree as { sujet?: IdeeUsine }).sujet;
   const [etat, setEtat] = useState<"libre" | "en-cours" | "retenu">("libre");
   const [message, setMessage] = useState<string | null>(null);
+  const [retenu, setRetenu] = useState<{ id: string; type: "video" | "carrousel" } | null>(null);
   // Garde synchrone : deux clics rapides arrivent avant que l'état se mette à jour.
   const occupe = useRef(false);
   async function retenirCeSujet() {
@@ -68,7 +70,10 @@ export function CarteProposition({ entree, pourquoi, ressembleA, debut, sujet: s
       const r = await retenir(debut, entree.cle);
       if (r.ok) {
         setEtat("retenu");
-        if (r.donnees.rappelUsine) setMessage(PHRASE_RETENU_SANS_USINE);
+        const carrousel = r.donnees.type === "carrousel";
+        setRetenu({ id: r.donnees.id, type: carrousel ? "carrousel" : "video" });
+        // Un brouillon de carrousel se relit et se valide avant toute programmation ; l'usine non prévenue s'ajoute à la phrase.
+        setMessage([carrousel ? PHRASE_CARROUSEL_A_RELIRE : null, r.donnees.rappelUsine ? PHRASE_RETENU_SANS_USINE : null].filter(Boolean).join(" ") || null);
         return;
       }
       setEtat("libre");
@@ -123,8 +128,8 @@ export function CarteProposition({ entree, pourquoi, ressembleA, debut, sujet: s
         </span>
       )}
       {etat === "retenu" && (
-        <Link href="/ecrire" className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
-          Voir dans « Écrire »
+        <Link href={retenu?.type === "carrousel" ? `/carrousels/${encodeURIComponent(retenu.id)}` : "/ecrire"} className="inline-flex min-h-[44px] items-center text-xs font-bold text-texte underline hover:text-accent">
+          {retenu?.type === "carrousel" ? "Voir le carrousel" : "Voir dans « Écrire »"}
         </Link>
       )}
     </div>
