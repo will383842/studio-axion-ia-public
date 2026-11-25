@@ -4,6 +4,7 @@
  * la personne (double, écran partagé, mise en page facecam) : Q7. Jamais si l'un des deux plans dure moins de 0,6 s.
  */
 import type { PlanScene } from "./scene";
+import { EPS } from "../../lib/tolerance";
 
 export type StyleMontage = "coupe" | "fondu" | "glissement";
 export interface RaccordMontage {
@@ -15,7 +16,6 @@ export interface RaccordMontage {
 /** Durée minimale (s) de chacun des deux plans d'un raccord. */
 export const DUREE_MIN_RACCORD_SEC = 0.6;
 // Tolérance flottante : 0,6 s exactement reste permis.
-const EPS = 1e-9;
 
 const illustrationSansVisage = (p: PlanScene): boolean =>
   p.type === "illustration" && p.ecranPartage === undefined && p.miseEnPage === undefined;

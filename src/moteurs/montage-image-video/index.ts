@@ -17,6 +17,7 @@ import type { TypeImage } from "@/domaine/image-video/carte";
 import { PHRASE_TIKTOK_RETIRE_IV, RESEAUX_IV, type ReseauIV } from "@/domaine/image-video/plafonds";
 import { formatImageVideo, ID_MOTEUR_IMAGE_VIDEO, schemaReglagesImageVideo } from "@/formats/image-video";
 import { DEBIT_MOTS_PAR_SEC } from "@/domaine/image-video/complexite";
+import { PREFIXE_REMARQUE_LIVRAISON } from "@/domaine/livraison-avec-remarques";
 import { CENTIMES_USD_PAR_CARACTERE_HEYGEN } from "@/fournisseurs/heygen/voix";
 import { centimes, TAUX_USD_EUR_PAR_DEFAUT, ZERO } from "@/lib/montants";
 import type { Offre } from "./emprunts";
@@ -355,7 +356,7 @@ export function resultatDe(etat: EtatFabricationIV, maintenant: number): Resulta
   const mentions = etat.controles?.verdict?.mentions ?? [];
   // Les mentions de fin de voix sortent en tête, en « attention » ; les autres restent « info ».
   const finDeVoix = (m: string) => /dernière phrase risque d'être coupée|dernière phrase n'est pas dite jusqu'au bout|Voix gardée malgré une remarque|Fin dite en entier/.test(m);
-  const alertes: AlerteQualite[] = [...mentions.filter(finDeVoix), ...mentions.filter((m) => !finDeVoix(m))].map((message) => ({ code: "defaut-visuel" as const, gravite: finDeVoix(message) ? ("attention" as const) : ("info" as const), message }));
+  const alertes: AlerteQualite[] = [...mentions.filter(finDeVoix), ...mentions.filter((m) => !finDeVoix(m))].map((message) => ({ code: "defaut-visuel" as const, gravite: message.startsWith(PREFIXE_REMARQUE_LIVRAISON) ? ("bloquant" as const) : finDeVoix(message) ? ("attention" as const) : ("info" as const), message }));
   const note = Math.max(60, 90 - 3 * mentions.length);
   // Première livraison : de préférence un fichier 9:16 (Reel, Instagram…) ; LinkedIn seul (4:5) est déclaré en 4:5.
   const livrees = (etat.livraison ?? []).filter((l) => l.fichierCle);

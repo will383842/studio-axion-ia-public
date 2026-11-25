@@ -64,7 +64,7 @@ describe("catalogue des capacités (C1-U1)", () => {
     expect(etatCapacite(ID.texteSortieAnimee)).toBe("eteint");
     expect(ligneCapacite(ID.texteSortieAnimee)?.chantier).toBe("2 (U19)");
     expect(ligneCapacite(ID.texteEscalier)?.chantier).toBe("2 (U20a, U20b)");
-    expect(etatCapacite(ID.cadrageZoomV4)).toBe("absent");
+    expect(etatCapacite(ID.cadrageZoomV4)).toBe("eteint"); // C8-X01-b-v20j (seconde lecture du pilote)
     expect(etatCapacite(ID.cadrageZoomAvocat)).toBe("prod");
     expect(etatCapacite(ID.motionAvisClient)).toBe("prevu");
     expect(etatCapacite(ID.texteLogoOutil)).toBe("prevu");
