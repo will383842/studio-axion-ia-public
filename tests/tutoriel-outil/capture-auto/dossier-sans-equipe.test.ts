@@ -223,6 +223,11 @@ describe("film d'un dossier sans équipe", () => {
       expect((p.plan as { scenes: unknown[] }).scenes).toEqual([]);
       expect(p.navigation).toBeDefined();
       expect(p.navigation).toMatchObject({ maquette: "05-stocks" });
+      // Sous-titres dans la bande du bas, jamais au milieu (48 %) sur la zone visée du film ; la zone visée reste au-dessus de la bande.
+      const pos = (p.sousTitres as { positions: { milieuPct: number; basPct: number } }).positions;
+      expect(pos.milieuPct).toBe(pos.basPct);
+      expect(pos.milieuPct).not.toBe(48);
+      expect(p.navigation!.hautSousTitresPct).toBeLessThan(pos.basPct);
       expect(p.navigation!.hautSousTitresPct).toBeTypeOf("number");
       expect(p.compositionSansVoix).toBeUndefined();
       expect(d.entrees.filmNavigation).toBe(`https://stockage.test/${cleRangee}`);

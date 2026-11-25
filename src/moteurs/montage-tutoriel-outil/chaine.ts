@@ -24,6 +24,7 @@ import type { MotMinute, PlanValide, SceneValide } from "@/briques/plan-scenes/s
 import { validerPlan, type Remarque } from "@/briques/plan-scenes/validateur";
 import { planNiveau1, planNu } from "@/briques/plan-scenes/plan-nu";
 import { baseRetenue, donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
+import { positionsVerticales } from "@/briques/sous-titres/largeur";
 import { avancerVoixMaitre, type EtatVoixMaitre, type OutilsVoixMaitre } from "@/briques/voix-maitre/machine";
 import { exigerVoixMaitre, VOIX_MAITRE_HEYGEN_ID } from "@/briques/voix-maitre/voix-epinglee";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
@@ -786,6 +787,20 @@ function finRetenue(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "ent
   return etat.fin ?? etat.parent?.fin ?? finDuTutoriel(lireEntreesTutoriel(commande.entrees).fin, outils.fin?.actif === true);
 }
 
+/**
+ * Film d'un dossier sans voix : les sous-titres sans position posée sont centrés à 48 % (`positionsDuStyle`), ce qui recouvre la zone visée du film.
+ * Comme un style en position « bas » (même calcul que `positionsDuStyle`), le centre descend dans la bande du bas, celle que `hautSousTitresPct` protège.
+ * Sans `commande`, hors de ce parcours, ou avec une position posée par le style : rien ne change.
+ */
+function sousTitresEnBas(calque: ReturnType<typeof donneesCalque>, ratio: Ratio, etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees"> | undefined, style: ValeurStyleSousTitres | null | undefined): ReturnType<typeof donneesCalque> {
+  if (!commande || !sousTitresDuFilmEnBas(etat, commande, style)) return calque;
+  return { ...calque, positions: positionsVerticales(ratio, [], positionsVerticales(ratio, []).basPct) };
+}
+
+function sousTitresDuFilmEnBas(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees">, style: ValeurStyleSousTitres | null | undefined): boolean {
+  return filmDeDossierSansVoix(etat, commande) && style?.positionPct === undefined && !style?.position;
+}
+
 /** Propriétés de la composition pour un ratio (l'adresse de la voix arrive par l'entrée « audio »). */
 export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTitres: boolean, outils: Pick<OutilsTutoriel, "sousTitres" | "fin">, navigation?: NavigationFilmee, commande?: Pick<CommandeFabrication, "entrees">): Omit<ProprietesTutorielOutil, "audio" | "filmNavigation"> {
   const st = outils.sousTitres;
@@ -793,7 +808,7 @@ export function proprietesTutoriel(etat: EtatTutoriel, ratio: Ratio, avecSousTit
     avecSousTitres && etat.sousTitres?.length
       ? etat.compose?.[ratio]
         ? calqueSansVoix({ segments: etat.sousTitres, ratio, basPct: etat.compose[ratio].basPct, dureeMs: etat.compose[ratio].dureeMs })
-        : donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) })
+        : sousTitresEnBas(donneesCalque({ segments: etat.sousTitres, base: baseRetenue(st?.base, st?.style ?? null), ratio, ...(st?.style ? { style: st.style } : {}) }), ratio, etat, commande, st?.style)
       : undefined;
   const compositionSansVoix = etat.compose?.[ratio];
   const laFin = commande ? finRetenue(etat, commande, outils) : (etat.compose ? FIN_COMPOSEE : (etat.fin ?? etat.parent?.fin ?? finDuTutoriel(undefined, outils.fin?.actif === true)));
@@ -1148,7 +1163,7 @@ function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeF
   // QUAL-5 : en sans voix composé, c'est le plan composé qui est dessiné : il entre dans l'empreinte (sinon une retouche partielle
   // reprendrait l'ancien fichier quand seul le plan composé change). Absent (avec voix) : empreinte d'avant, inchangée.
   const compose = etat.compose?.[ratio];
-  const fin = fnv1a64(jsonCanonique({ fin: laFin.fin ?? null, finMs: laFin.finMs, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null, ...(compose ? { compose } : {}) }));
+  const fin = fnv1a64(jsonCanonique({ fin: laFin.fin ?? null, finMs: laFin.finMs, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null, ...(compose ? { compose } : {}), ...(sousTitresDuFilmEnBas(etat, commande, outils.sousTitres?.style) ? { sousTitresEnBas: true } : {}) }));
   return empreinteFormat(planPourRatio(etat.plan!.plan, ratio), ratio, { voix: etat.audio?.empreinte ?? "", effetsFilm, fin });
 }
 
