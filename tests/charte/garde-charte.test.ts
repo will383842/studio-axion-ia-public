@@ -38,6 +38,10 @@ function fusionner(dossier: string): Record<string, number> {
 export function lireRestantes(dossier: string): Record<string, number> {
   return fusionner(dossier);
 }
+/** Entrées de `base` absentes de `origine` ou au compteur plus haut (liste vide = inclusion, la baisse est permise). */
+export function horsOrigine(base: Record<string, number>, origine: Record<string, number>): string[] {
+  return Object.entries(base).filter(([f, n]) => !(f in origine) || n > origine[f]).map(([f]) => f);
+}
 export function lirePolicesRestantes(dossier: string): Record<string, number> {
   return fusionner(dossier);
 }
@@ -115,7 +119,8 @@ describe("garde charte Axion 2026", () => {
     ecrireRestantes(tmp, origine);
     const noms = readdirSync(DOSSIER).filter((n) => n.endsWith(".json"));
     expect(readdirSync(tmp).sort()).toEqual(noms.sort());
-    for (const nom of noms) expect(readFileSync(join(tmp, nom), "utf8"), nom).toBe(readFileSync(join(DOSSIER, nom), "utf8"));
+    // Inclusion et non égalité : une baisse de cliquet (POLICES-P7-*) est permise ; une entrée de plus ou un compteur plus haut ne l'est jamais.
+    for (const nom of noms) expect(horsOrigine(JSON.parse(readFileSync(join(DOSSIER, nom), "utf8")) as Record<string, number>, origine), nom).toEqual([]);
     const [premier] = Object.keys(origine);
     const moins = Object.fromEntries(Object.entries(origine).filter(([f]) => f !== premier));
     ecrireRestantes(tmp, moins);
@@ -129,6 +134,14 @@ describe("garde charte Axion 2026", () => {
     ecrireRestantes(tmp, sansRacine);
     expect(readFileSync(join(tmp, "racine.json"), "utf8")).toBe("{}\n");
     expect(readdirSync(tmp)).toHaveLength(noms.length);
+  });
+
+  it("(d2) une hausse ou une entrée de plus rougit toujours, une baisse non", () => {
+    const origine = { "a.ts": 3, "b.ts": 2 };
+    expect(horsOrigine({ "a.ts": 3, "b.ts": 2 }, origine)).toEqual([]);
+    expect(horsOrigine({ "a.ts": 1 }, origine)).toEqual([]);
+    expect(horsOrigine({ "a.ts": 4, "b.ts": 2 }, origine)).toEqual(["a.ts"]);
+    expect(horsOrigine({ "a.ts": 3, "c.ts": 1 }, origine)).toEqual(["c.ts"]);
   });
 
   it("(f) une clé en double entre deux fichiers : erreur", () => {
