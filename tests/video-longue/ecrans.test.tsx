@@ -6,13 +6,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { modeleDescription } from "../../src/briques/geo";
 import { AvantDeLancer } from "../../src/components/formats/video-longue/AvantDeLancer";
 import { FormulaireVideoLongue } from "../../src/components/formats/video-longue/FormulaireVideoLongue";
 import { KitGeo } from "../../src/components/formats/video-longue/KitGeo";
 import { chapitresDuScript, chapitresMinutes, decouperEnPhrases, formaterDuree, PlanChapitres, planDepuisValide, remarquesDuPlan } from "../../src/components/formats/video-longue/PlanChapitres";
 import { remarqueChapitre, TexteParChapitre } from "../../src/components/formats/video-longue/TexteParChapitre";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
 
 const noop = () => {};
 const SCRIPT = "# Pourquoi\nPremière phrase. Deuxième phrase.\n# Comment\nTroisième phrase.";
@@ -59,7 +61,7 @@ describe("VL-06 écran 1 : votre sujet", () => {
   it("éteint : bandeau et lien vers les réglages, aucun bouton qui écrive", () => {
     const html = rendre(createElement(FormulaireVideoLongue, { actif: false, depensesCoupees: false }));
     expect(texteVisible(html)).toContain("La vidéo longue est éteinte : rien ne sera écrit ni fabriqué.");
-    expect(html).toContain('href="/reglages"');
+    expect(html).toContain('href="/reglages#video-longue"');
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Proposer les chapitres/);
   });
   it("allumé : pas de bandeau", () => expect(t).not.toContain("est éteinte"));
@@ -126,7 +128,7 @@ describe("VL-06 écran 3 : le texte, chapitre par chapitre", () => {
 describe("VL-06 écran 4 : avant de lancer", () => {
   const t = texteVisible(ecrans().lancer);
   it("carte des crédits sans aucun montant", () => {
-    for (const phrase of ["Cette vidéo utilise vos crédits", "Voix de votre double : environ 6 min 40", "6 chapitres", "Format large", "4 vidéos courtes en plus", "Rien n'est payé avant votre accord. Si le prix du jour change, le Studio s'arrête et vous redemande.", "Je donne mon accord et je lance la vidéo", "Pas maintenant"]) expect(t).toContain(phrase);
+    for (const phrase of ["Cette vidéo utilise vos crédits", "Voix de votre double : environ 6 min 40", "6 chapitres", "Format large", "4 vidéos courtes en plus", "Rien n'est payé avant votre accord. Si le montant du jour change, le Studio s'arrête et vous redemande.", "Je donne mon accord et je lance la vidéo", "Pas maintenant"]) expect(t).toContain(phrase);
   });
   it("case des courts décochée : la ligne disparaît", () => {
     const sans = texteVisible(rendre(createElement(AvantDeLancer, { dureeSec: 400, chapitres: 1, courts: 0, peutLancer: true, onLancer: noop, onRetour: noop })));
@@ -275,5 +277,44 @@ describe("VL-SV : choix « Sans voix » visible, avec voix par défaut", () => {
     expect(t).toContain("aucun coût");
     expect(t).toContain("Aucune voix, aucune musique");
     expect(t).not.toContain("Voix de votre double");
+  });
+});
+
+describe("FIN-7 : gardes et écrans honnêtes", () => {
+  const lancerPossible = (dureeSec: number) => rendre(createElement(AvantDeLancer, { dureeSec, chapitres: 3, courts: 0, peutLancer: true, onLancer: noop, onRetour: noop }));
+  it("au-delà de 20 min : alerte et bouton de lancement désactivé", () => {
+    const html = lancerPossible(1260);
+    expect(texteVisible(html)).toContain("Votre script dépasse 20 minutes de lecture : raccourcissez-le ou coupez-le en deux vidéos.");
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Je donne mon accord et je lance la vidéo/);
+  });
+  it("à 20 min pile ou moins : pas d'alerte, bouton actif", () => {
+    const html = lancerPossible(1200);
+    expect(texteVisible(html)).not.toContain("dépasse 20 minutes");
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Je donne mon accord/);
+  });
+  it("le lien « Ouvrir la vidéo longue » n'apparaît que si l'interrupteur est allumé", async () => {
+    const { InterrupteurVideoLongue } = await import("../../src/components/reglages/InterrupteurVideoLongue");
+    const allume = rendre(createElement(InterrupteurVideoLongue, { actif: true }));
+    const eteint = rendre(createElement(InterrupteurVideoLongue, { actif: false }));
+    expect(texteVisible(allume)).toContain("Ouvrir la vidéo longue");
+    expect(allume).toContain('href="/videos/longue"');
+    expect(texteVisible(eteint)).not.toContain("Ouvrir la vidéo longue");
+    expect(eteint).not.toContain('href="/videos/longue"');
+  }, 60_000);
+  it("la page éteinte renvoie vers l'ancre des réglages", () => {
+    const html = rendre(createElement(FormulaireVideoLongue, { actif: false, depensesCoupees: false }));
+    expect(html).toContain('href="/reglages#video-longue"');
+  });
+  it("plus de bouton « Enregistrer pour plus tard » actif ; les choix non envoyés sont désactivés", () => {
+    const html = ecrans().sujet;
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>(?:(?!<\/button>)[\s\S])*Enregistrer pour plus tard/);
+    expect(html).not.toMatch(/<button(?![^>]*disabled)[^>]*>(?:(?!<\/button>)[\s\S])*Enregistrer pour plus tard/);
+    expect(texteVisible(html)).toContain("Bientôt");
+  });
+  it("l'interrupteur et l'écran 4 ne parlent plus de prix ni de plafond", async () => {
+    const { DETAIL_VIDEO_LONGUE } = await import("../../src/components/reglages/InterrupteurVideoLongue");
+    expect(DETAIL_VIDEO_LONGUE).toContain("dans la limite prévue");
+    expect(DETAIL_VIDEO_LONGUE).not.toMatch(/plafond|prix|gratuit|€/i);
+    expect(texteVisible(ecrans().lancer)).not.toMatch(/\b(prix|plafond|budget|tarif|devis)\b/i);
   });
 });

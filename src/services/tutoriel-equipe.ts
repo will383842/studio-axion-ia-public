@@ -207,11 +207,11 @@ function ranger(cle: string, fichiers: ReadonlyMap<string, Uint8Array>, maintena
 }
 
 async function fichiersParDefaut(fichierId: string, attestationImages: boolean): Promise<ReadonlyMap<string, Uint8Array> | null> {
-  const { fichierEnvoye } = await import("./fichiers");
+  const { fichierDepotSansSession } = await import("./tutoriel-dossier-fond");
   const { fournisseur } = await import("./_commun");
   const { extraireZipSur, entreeZipAllumee } = await import("./zip-tutoriel");
-  // La lecture du fichier (droits, existence) est refaite à chaque appel : seul le téléchargement + l'extraction sont gardés.
-  const fichier = await fichierEnvoye(fichierId, "entree");
+  // Sans session (chaîne en fond) : mêmes contrôles que `fichierEnvoye`. La lecture du fichier (existence, origine, statut) est refaite à chaque appel : seul le téléchargement + l'extraction sont gardés.
+  const fichier = await fichierDepotSansSession(fichierId, "entree");
   const stockage = await fournisseur("stockage");
   const cle = fichier.cleStockage ?? "";
   const cleCache = `${fichierId}\u0000${cle}\u0000${attestationImages ? 1 : 0}`;

@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { definirVideoLongueActiveAction } from "@/app/(studio)/reglages/actions-video-longue";
 import { Interrupteur } from "@/components/ui/Interrupteur";
 import { notifier } from "@/components/ui/Toast";
 
-export const DETAIL_VIDEO_LONGUE = "Éteint : rien n'est écrit ni fabriqué. Allumé : vous pouvez lancer une vidéo longue ; avec voix, chaque vidéo demande votre accord et reste sous le plafond prévu.";
+export const DETAIL_VIDEO_LONGUE = "Éteint : rien n'est écrit ni fabriqué. Allumé : vous pouvez lancer une vidéo longue ; avec voix, chaque vidéo demande votre accord et reste dans la limite prévue. Sans voix, aucune voix payante n'est utilisée.";
 
 export function InterrupteurVideoLongue({ actif }: { actif: boolean }) {
   const router = useRouter();
@@ -35,5 +36,14 @@ export function InterrupteurVideoLongue({ actif }: { actif: boolean }) {
     });
   }
 
-  return <Interrupteur libelle="Vidéo longue" detail={DETAIL_VIDEO_LONGUE} coche={valeur} desactive={enCours} onChange={changer} />;
+  return (
+    <div className="space-y-2">
+      <Interrupteur libelle="Vidéo longue" detail={DETAIL_VIDEO_LONGUE} coche={valeur} desactive={enCours} onChange={changer} />
+      {valeur && (
+        <Link href="/videos/longue" className="inline-flex min-h-11 items-center text-sm font-semibold text-accent underline">
+          Ouvrir la vidéo longue
+        </Link>
+      )}
+    </div>
+  );
 }
