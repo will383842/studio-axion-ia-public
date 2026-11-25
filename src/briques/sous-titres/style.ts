@@ -48,9 +48,9 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
     poids: 800,
     taillePx: 70,
     casse: "normale",
-    // Contour fin (3 px visibles) : la lecture tient sur les illustrations claires (B.5).
-    contourPx: 6,
-    ombre: { flouPx: 8, decalagePx: 3, opacite: 0.65 },
+    // Contour fin V2 (1,5 px visibles), choisi par Williams le 25/11 : la lecture tient sur les illustrations claires (B.5).
+    contourPx: 3,
+    ombre: { flouPx: 10.4, decalagePx: 3, opacite: 0.55 },
     motsMin: 2,
     motsMax: 4,
     dureeMinSec: 0.4,
@@ -87,8 +87,8 @@ export const GABARITS: Record<GabaritSousTitres, DefinitionGabarit> = {
     // × 1,8 (très grand) : ≈ 126 px, comme la maquette (118-140 px).
     taillePx: 70,
     casse: "majuscules",
-    contourPx: 16,
-    ombre: { flouPx: 10, decalagePx: 6, opacite: 0.7 },
+    contourPx: 8,
+    ombre: { flouPx: 13, decalagePx: 6, opacite: 0.6 },
     motsMin: 1,
     motsMax: 2,
     dureeMinSec: 0.4,
