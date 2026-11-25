@@ -76,7 +76,7 @@ export async function lecteurClaudeTutorielActif(lire?: <T>(id: string, defaut: 
   try {
     const l = lire ?? (await import("./_commun")).lireParametre;
     if ((await l<unknown>(PARAM_LECTEUR_CLAUDE_RETOUCHE, false)) !== true) return false;
-    return await claudeTutorielActif(l);
+    return (await l<unknown>(PARAM_CLAUDE_TUTORIEL, false)) === true;
   } catch {
     return false;
   }
