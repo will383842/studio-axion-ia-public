@@ -42,7 +42,10 @@ export interface ScenePortee {
 }
 
 /** Une scène plus longue doit montrer des éléments qui arrivent au fil de la lecture. */
-export const SCENE_LONGUE_MS = 8000;
+export const SCENE_LONGUE_MS = 9000;
+
+/** Une phrase s'affiche ENTIÈRE jusqu'à ce nombre de mots ; au-delà, elle est coupée en deux scènes complètes (jamais « … »). */
+export const MOTS_MAX_AFFICHES = 20;
 
 /* ------------------------------------------------------------------ */
 /* Petits outils de texte                                              */
@@ -54,14 +57,14 @@ const nbMots = (t: string) => mots(t).length;
 export const majuscule = (t: string) => (t ? t[0].toLocaleUpperCase("fr") + t.slice(1) : t);
 const sansFin = (t: string) => t.replace(FIN_PONCT, "").trim();
 
-/** Au plus `n` mots : coupe à la dernière virgule ou « ; » de la première moitié au moins, sinon au mot (« … » ajouté). */
+/** Au plus `n` mots : coupe à la dernière virgule ou « ; » de la seconde moitié au moins, sinon au mot (jamais de « … »). Réservé aux titres. */
 export function abreger(texte: string, n: number): string {
   const t = sansFin(texte);
   const m = mots(t);
   if (m.length <= n) return t;
   const debut = m.slice(0, n);
   for (let i = n - 1; i >= Math.floor(n / 2); i--) if (/[,;:]$/.test(debut[i])) return sansFin(debut.slice(0, i + 1).join(" "));
-  return `${sansFin(debut.join(" "))}…`;
+  return sansFin(debut.join(" "));
 }
 
 /** Positions de début de chaque mot dans `mots.join(" ")`. */
@@ -114,22 +117,38 @@ export function fusionner(a: PhraseLue, b: PhraseLue): PhraseLue {
   return phraseDe([...a.mots, ...b.mots], Math.max(a.finMs, b.finMs));
 }
 
-/** Coupe une phrase en deux à la ponctuation la plus proche du milieu (puis au mot le plus proche). */
-export function indiceCoupe(ms: MotMs[]): number | null {
+const CONJONCTIONS = new Set(["et", "mais", "car", "donc", "puis", "ou", "alors", "sinon", "tandis", "parce", "pendant", "pour", "afin", "sans"]);
+const OUVREURS = new Set(["dès", "quand", "lorsque", "si", "comme", "puisque", "tant", "avant", "après", "pour", "afin", "pendant", "chaque", "à"]);
+const nu = (m: string) => m.toLocaleLowerCase("fr").replace(/[^\p{L}'’-]+/gu, "");
+
+/**
+ * Coupe une phrase en deux à la ponctuation la plus proche du milieu, puis avant la conjonction la plus proche, puis au mot.
+ * `strict` (coupe pour cause de durée) : jamais de coupe au mot, jamais une moitié qui n'a pas de sens seule (proposition
+ * subordonnée en ouverture, moitié de moins de 4 mots) → null si aucune bonne coupe.
+ */
+export function indiceCoupe(ms: MotMs[], strict = false): number | null {
   const n = ms.length;
   if (n < 4) return null;
   const milieu = n / 2;
-  let meilleur = -1;
+  const proche = (cands: number[]) => cands.reduce((m, j) => (m < 0 || Math.abs(j - milieu) < Math.abs(m - milieu) ? j : m), -1);
+  const bon = (j: number) => (strict ? j >= 4 && n - j >= 4 && !OUVREURS.has(nu(ms[0].mot)) : true);
+  const ponct: number[] = [];
+  const conj: number[] = [];
   for (let j = 2; j <= n - 2; j++) {
-    if (!/[,;:]$/.test(ms[j - 1].mot) && ms[j - 1].mot !== ":") continue;
-    if (j < n * 0.25 || j > n * 0.75) continue;
-    if (meilleur < 0 || Math.abs(j - milieu) < Math.abs(meilleur - milieu)) meilleur = j;
+    if (j < n * 0.25 || j > n * 0.75 || !bon(j)) continue;
+    if (/[,;:]$/.test(ms[j - 1].mot) || ms[j - 1].mot === ":") ponct.push(j);
+    else if (CONJONCTIONS.has(nu(ms[j].mot))) conj.push(j);
   }
-  return meilleur >= 0 ? meilleur : Math.round(milieu);
+  let r = proche(ponct);
+  if (r < 0) r = proche(conj);
+  if (r >= 0) return r;
+  if (strict) return null;
+  // Au mot : jamais juste avant un mot de liaison.
+  return Math.round(milieu);
 }
 
-function couperPhrase(p: PhraseLue): [PhraseLue, PhraseLue] | null {
-  const j = indiceCoupe(p.mots);
+function couperPhrase(p: PhraseLue, strict: boolean): [PhraseLue, PhraseLue] | null {
+  const j = indiceCoupe(p.mots, strict);
   if (!j) return null;
   const b = p.mots.slice(j);
   return [phraseDe(p.mots.slice(0, j), b[0].debutMs), phraseDe(b, p.finMs)];
@@ -156,7 +175,7 @@ export function estImperatif(texte: string): boolean {
 
 function etapesDe(run: PhraseLue[], numeroDepart: number): ScenePortee {
   const elements: ElementApparition[] = run.map((p) => {
-    const texte = majuscule(abreger(p.texte, 22));
+    const texte = majuscule(sansFin(p.texte));
     const nb = nombresEcrits(p.texte).find((n) => texte.includes(n.ecrit));
     return { texte, apparitionMs: p.debutMs, accent: nb ? nb.ecrit : null };
   });
@@ -237,7 +256,7 @@ const PLUS_BESOIN = /plus besoin/i;
 const PLUS_JAMAIS = /plus jamais/i;
 
 function coteTexte(t: string): string {
-  return majuscule(abreger(t, 12));
+  return majuscule(sansFin(t));
 }
 
 function avantApresDe(p: PhraseLue, suivante?: PhraseLue): { portee: ScenePortee; consomme: number } | null {
@@ -279,7 +298,7 @@ function chiffreDe(p: PhraseLue): ScenePortee | null {
       debutMs: p.debutMs,
       finMs: p.finMs,
       chiffres: ns.map((n) => ({ valeur: n.valeur, ecrit: n.ecrit, affiche: n.affiche, unite: uniteApres(p.texte, n.fin), apparitionMs: tempsAu(p, n.debut) })),
-      contexte: abreger(p.texte, 12),
+      contexte: sansFin(p.texte),
     },
     sources: [p],
   };
@@ -348,41 +367,43 @@ const REGLES_FORME: [FormeLongue, RegExp][] = [
   ["fleche", /^(?:commander|commande|commandes|envoyer|part|arrive|arrivent|rendez-vous)$/],
 ];
 
-/** Forme de la phrase clé d'après les mots du texte ; jamais deux fois la même de suite. */
-export function formePour(texte: string, precedente: FormeLongue | null): FormeLongue {
-  const ns = mots(texte).map(normaliser);
-  const trouvees = REGLES_FORME.filter(([, re]) => ns.some((n) => re.test(n))).map(([f]) => f);
-  const choix = trouvees.find((f) => f !== precedente);
+const RE_GRAPHIQUE_PRIORITAIRE = /(?:^|[^\p{L}])(?:listes?|tableaux?|tris?|tri[ée]e?s?|historiques?)(?![\p{L}])/iu;
+const RE_ALERTE_ECRITE = /(?:^|[^\p{L}])alertes?(?![\p{L}])/iu;
+
+/**
+ * Forme de la phrase clé d'après les mots du texte, puis du titre du chapitre ; jamais deux fois la même de suite.
+ * « liste, tableau, tri, trié, historique » (→ graphique) passent avant « urgence » (→ alerte) ; dans le chapitre
+ * « La solution… », jamais « alerte » sauf si le mot est écrit dans la phrase.
+ */
+export function formePour(texte: string, precedente: FormeLongue | null, titre = ""): FormeLongue {
+  const formesDe = (t: string) => {
+    const ns = mots(t).map(normaliser);
+    return REGLES_FORME.filter(([, re]) => ns.some((n) => re.test(n))).map(([f]) => f);
+  };
+  const solution = /(?:^|[^\p{L}])solutions?(?![\p{L}])/iu.test(titre);
+  const permise = (f: FormeLongue) => f !== precedente && !(f === "alerte" && solution && !RE_ALERTE_ECRITE.test(texte));
+  let trouvees = formesDe(texte);
+  if (RE_GRAPHIQUE_PRIORITAIRE.test(texte)) trouvees = ["graphique", ...trouvees.filter((f) => f !== "graphique")];
+  const choix = [...trouvees, ...formesDe(titre)].find(permise);
   if (choix) return choix;
   const base = precedente ? FORMES_ORDRE.indexOf(precedente) : -1;
+  for (let k = 1; k <= FORMES_ORDRE.length; k++) {
+    const f = FORMES_ORDRE[(base + k) % FORMES_ORDRE.length];
+    if (permise(f)) return f;
+  }
   return FORMES_ORDRE[(base + 1) % FORMES_ORDRE.length];
 }
 
 function phraseCleDe(p: PhraseLue, ctx: ContexteDeduction, forcer?: string): ScenePortee {
-  const brut = sansFin(p.texte);
-  let kw = forcer ?? motCle(brut, ctx);
-  let phrase = brut;
-  if (nbMots(brut) > 12) {
-    const clauses = brut.split(/(?<=[,;:])\s+/).map(sansFin);
-    const contient = (c: string) => (kw ? c.toLowerCase().includes(kw.toLowerCase()) : false);
-    const clause = clauses.find((c) => contient(c) && nbMots(c) <= 12);
-    if (clause) phrase = clause;
-    else {
-      // Pas de proposition courte : les 12 premiers mots (ou 12 mots autour du mot forcé s'il est plus loin), suivis de « … ».
-      const m = mots(brut);
-      const i = forcer ? m.findIndex((x) => x.toLowerCase().includes(forcer.toLowerCase())) : -1;
-      const d = i >= 12 ? Math.min(i - 6, m.length - 12) : 0;
-      phrase = `${sansFin(m.slice(d, d + 12).join(" "))}…`;
-      if (!forcer) kw = motCle(phrase, ctx);
-    }
-  }
-  phrase = majuscule(phrase);
+  // La phrase s'affiche ENTIÈRE (le découpage en deux scènes des phrases de plus de 20 mots est fait en amont).
+  const phrase = majuscule(sansFin(p.texte));
+  const kw = forcer ?? motCle(phrase, ctx);
   let motClePose: string | null = null;
   if (kw) {
     const idx = phrase.toLowerCase().indexOf(kw.toLowerCase());
     if (idx >= 0) motClePose = phrase.slice(idx, idx + kw.length);
   }
-  const forme = formePour(p.texte, ctx.etat.forme);
+  const forme = formePour(p.texte, ctx.etat.forme, ctx.titre);
   ctx.etat.forme = forme;
   return { scene: { type: "phrase-cle", debutMs: p.debutMs, finMs: p.finMs, phrase, motCle: motClePose, forme }, sources: [p] };
 }
@@ -406,13 +427,11 @@ export function apparitions(s: SceneBrouillon): number[] {
   }
 }
 
-/** Vrai si la scène est courte, ou si ses éléments arrivent au fil de la lecture. */
+/** Vrai si la scène est courte, ou si aucun intervalle sans nouvel élément (début, apparitions, fin) ne dépasse SCENE_LONGUE_MS. */
 export function estEchelonnee(s: SceneBrouillon): boolean {
   if (s.finMs - s.debutMs <= SCENE_LONGUE_MS) return true;
-  const a = apparitions(s);
-  const min = Math.min(...a);
-  const max = Math.max(...a);
-  return max - min >= 1500 && s.finMs - max <= SCENE_LONGUE_MS;
+  const a = [s.debutMs, ...apparitions(s).filter((t) => t >= s.debutMs && t <= s.finMs), s.finMs].sort((x, y) => x - y);
+  return a.every((t, i) => i === 0 || t - a[i - 1] <= SCENE_LONGUE_MS);
 }
 
 /* ------------------------------------------------------------------ */
@@ -435,8 +454,10 @@ function sceneUnePhrase(p: PhraseLue, suivante: PhraseLue | undefined, ctx: Cont
     const forcer = PLUS_BESOIN.exec(p.texte)?.[0] ?? PLUS_JAMAIS.exec(p.texte)?.[0];
     portee = phraseCleDe(p, ctx, forcer);
   }
-  if (consomme === 1 && !estEchelonnee(portee.scene) && profondeur < 2) {
-    const moities = couperPhrase(p);
+  // Une phrase de plus de 20 mots n'est jamais abrégée : deux scènes complètes (coupe à une ponctuation ou une conjonction).
+  const trop = (portee.scene.type === "phrase-cle" || portee.scene.type === "chiffre") && nbMots(p.texte) > MOTS_MAX_AFFICHES;
+  if (consomme === 1 && (trop || !estEchelonnee(portee.scene)) && profondeur < 3) {
+    const moities = couperPhrase(p, !trop);
     if (moities) {
       const a = sceneUnePhrase(moities[0], undefined, ctx, profondeur + 1);
       const b = sceneUnePhrase(moities[1], undefined, ctx, profondeur + 1);
@@ -462,8 +483,12 @@ function briserMonotonie(items: ScenePortee[]): ScenePortee[] {
     res.push(items[i]);
     const bloc = items.slice(i + 1, i + 1 + taille);
     const sources = bloc.map((b) => b.sources[0]);
-    const elements: ElementApparition[] = sources.map((s) => ({ texte: majuscule(abreger(s.texte, 12)), apparitionMs: s.debutMs, accent: nombresEcrits(s.texte)[0]?.ecrit ?? null }));
-    res.push({ scene: { type: "liste", debutMs: sources[0].debutMs, finMs: sources[sources.length - 1].finMs, titre: null, elements, compte: null }, sources });
+    // Chaque élément est la phrase (ou demi-phrase) COMPLÈTE de sa scène, jamais un morceau amputé.
+    const elements: ElementApparition[] = bloc.map((b) => {
+      const texte = b.scene.type === "phrase-cle" ? b.scene.phrase : "";
+      return { texte, apparitionMs: b.scene.debutMs, accent: nombresEcrits(texte)[0]?.ecrit ?? null };
+    });
+    res.push({ scene: { type: "liste", debutMs: bloc[0].scene.debutMs, finMs: bloc[bloc.length - 1].scene.finMs, titre: null, elements, compte: null }, sources });
     i += 1 + taille;
   }
   return res;
@@ -492,6 +517,8 @@ export function deduireScenes(phrases: PhraseLue[], ctx: ContexteDeduction): Sce
     }
     const r = sceneUnePhrase(phrases[i], phrases[i + 1], ctx, 0);
     items.push(...r.portees);
+    // Deux phrases clés ne sont « voisines » que si aucune autre scène ne s'intercale.
+    if (r.portees[r.portees.length - 1].scene.type !== "phrase-cle") ctx.etat.forme = null;
     i += r.consomme;
   }
   return briserMonotonie(items);
