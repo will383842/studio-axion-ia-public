@@ -76,8 +76,9 @@ export const collageChapitres: Operation = async (demande, contexte) => {
     await executer(FFMPEG, argumentsPoseVoix(muette, fichiers[p.voix], final), contexte.signal);
   }
   contexte.progression(90);
+  // Une mesure ne fait jamais échouer une vidéo : taille lue avant le dépôt, ignorée si illisible ou nulle.
+  const taille = await stat(final).then((s) => s.size, () => undefined);
   await deposer(demande.sortie.urlDepot, final, "video/mp4", contexte.signal);
   contexte.progression(100);
-  const taille = (await stat(final)).size;
-  return { mesures: { morceaux: p.morceaux.length, voix: p.voix ? 1 : 0, taille } };
+  return { mesures: { morceaux: p.morceaux.length, voix: p.voix ? 1 : 0, ...(taille && taille > 0 ? { taille } : {}) } };
 };

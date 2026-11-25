@@ -43,7 +43,7 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
       // Aucune mesure de son n'est transportée jusqu'ici : avec voix, le niveau reste « non mesuré » (la cible n'est pas une mesure).
       const son = rapportSon(null, cibleSon(commande), !sansVoix);
       const messageSon = sansVoix ? "Son : vidéo sans voix, aucun niveau mesuré" : son.alerte;
-      const alerteSon: AlerteQualite[] = messageSon ? [{ code: "defaut-visuel", gravite: "info", message: messageSon }] : [];
+      const alerteSon: AlerteQualite[] = messageSon ? [{ code: "niveau-sonore", gravite: "info", message: messageSon }] : [];
       const sorties: SortieProduite[] = commande.ratios
         .filter((r) => etat.sorties[r])
         .map((ratio) => ({
