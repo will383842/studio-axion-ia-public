@@ -11,6 +11,8 @@ import { ZERO } from "@/lib/montants";
 import type { SortieProduite } from "../types";
 import { creerMoteurGabarit, type DefinitionGabarit } from "../gabarit";
 import { lireEntreesVideoLongue, type EntreesVideoLongue } from "./entrees";
+import { cibleSon, rapportSon } from "../montage-tutoriel-outil/finitions";
+import type { AlerteQualite } from "@/domaine/types";
 import { avancerVideoLongue, estimerMotsSansVoix, ETAPES_FABRICATION, ETAPES_RETOUCHE, type DependancesVideoLongue, type EtatVideoLongue, type RepriseVideoLongue } from "./chaine";
 
 export { COMPOSITION_VIDEO_LONGUE } from "./chaine";
@@ -38,6 +40,10 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
     resultat(commande, etat) {
       const duree = etat.voix?.dureeSec ?? 0;
       const sansVoix = lireEntreesVideoLongue(commande).sansVoix;
+      // Aucune mesure de son n'est transportée jusqu'ici : avec voix, le niveau reste « non mesuré » (la cible n'est pas une mesure).
+      const son = rapportSon(null, cibleSon(commande), !sansVoix);
+      const messageSon = sansVoix ? "Son : vidéo sans voix, aucun niveau mesuré" : son.alerte;
+      const alerteSon: AlerteQualite[] = messageSon ? [{ code: "defaut-visuel", gravite: "info", message: messageSon }] : [];
       const sorties: SortieProduite[] = commande.ratios
         .filter((r) => etat.sorties[r])
         .map((ratio) => ({
@@ -46,10 +52,12 @@ export function definitionVideoLongue(dependances: (commande: CommandeFabricatio
           vignetteCle: "",
           resolution: "1920x1080",
           dureeSec: duree,
-          taille: 0,
-          rapportQualite: { note: 80, verifie: { image: true, son: !sansVoix, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: [], niveauSonoreLufs: sansVoix ? -70 : -14 },
+          // Mesure réelle du collage (studio-rendu) quand elle a été renvoyée ; 0 = inconnue, jamais une taille inventée.
+          taille: etat.tailles?.[ratio] ?? 0,
+          // `niveauSonoreLufs` est obligatoire (type du domaine) : -70 sans voix, la cible avec voix ; `son` n'est vrai que si mesuré.
+          rapportQualite: { note: 80, verifie: { image: true, son: son.sonVerifie, sousTitres: sansVoix, mentionIA: false, droits: false }, alertes: alerteSon, niveauSonoreLufs: sansVoix ? -70 : son.niveauSonoreLufs },
         }));
-      const alertes = etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message }));
+      const alertes = [...alerteSon, ...etat.remarques.map((r) => ({ code: "export" as const, gravite: "info" as const, message: r.message }))];
       const reprise: RepriseVideoLongue | undefined = etat.voix && etat.chapitres ? { voix: etat.voix, chapitres: etat.chapitres } : undefined;
       return {
         sorties,

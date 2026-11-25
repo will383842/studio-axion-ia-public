@@ -7,12 +7,12 @@
  * L'opération `assemblage` existante ne convient pas : elle lit la piste son de chaque morceau et réencode la vidéo.
  *
  * Paramètres : `morceaux` : noms d'entrées, dans l'ordre (au moins un) ; `voix` : nom d'entrée facultatif (WAV/MP3…).
- * Entrées : une adresse signée par nom. Mesures : `morceaux`, et `voix` (0 ou 1).
+ * Entrées : une adresse signée par nom. Mesures : `morceaux`, `voix` (0 ou 1) et `taille` (octets du fichier déposé).
  * Déclarée dans `contrat.ts` (union `OperationRendu`, liste `OPERATIONS`) et aiguillée vers cette fonction.
  * Au plus `MAX_MORCEAUX` morceaux par demande (refus net au-delà).
  */
 import { join } from "node:path";
-import { writeFile } from "node:fs/promises";
+import { stat, writeFile } from "node:fs/promises";
 import { ErreurRendu, type Operation } from "../contrat.js";
 import { deposer, executer, FFMPEG, telecharger } from "../outils.js";
 
@@ -78,5 +78,6 @@ export const collageChapitres: Operation = async (demande, contexte) => {
   contexte.progression(90);
   await deposer(demande.sortie.urlDepot, final, "video/mp4", contexte.signal);
   contexte.progression(100);
-  return { mesures: { morceaux: p.morceaux.length, voix: p.voix ? 1 : 0 } };
+  const taille = (await stat(final)).size;
+  return { mesures: { morceaux: p.morceaux.length, voix: p.voix ? 1 : 0, taille } };
 };
