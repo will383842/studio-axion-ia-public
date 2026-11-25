@@ -70,7 +70,7 @@ describe("sans film : identique à l'octet", () => {
       expect(alertes(r).filter((m) => m.startsWith("À vérifier · Navigation : film refusé"))).toHaveLength(1);
     }
     // AUTORISATION PERMANENTE (b) : l'attente exacte passe de `{}` à `{ navigationRefusee: [...] }` (le refus est exposé, plus avalé).
-    expect(lireEntreesTutoriel({ tutorielOutil: { navigationFilmee: "x" } })).toEqual({ navigationRefusee: expect.any(Array) });
+    expect(lireEntreesTutoriel({ tutorielOutil: { navigationFilmee: "x" } })).toEqual({ navigationRefusee: ["La navigation filmée n'est pas un objet."] });
   });
 });
 

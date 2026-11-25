@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { CommandeFabrication, Travail } from "@/domaine/types";
 import { creerMoteurTutorielOutil } from "@/moteurs/montage-tutoriel-outil";
+import { messageFilmRefuse } from "@/moteurs/montage-tutoriel-outil/index";
 import { lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { commandeTutoriel, outilsDoubles, une, type Journal } from "./doubles";
 
@@ -52,7 +53,8 @@ describe("film de navigation refusé : dit, jamais avalé", () => {
     expect(e.navigationFilmee).toBeUndefined();
     expect(e.navigationRefusee).toEqual(["Cible 2 : zone hors de 0 à 100 %."]);
     const beaucoup = lireEntreesTutoriel({ tutorielOutil: { navigationFilmee: film(Array.from({ length: 8 }, (_, i) => ({ etapeId: `e${i}`, zonePct: { x: 90, y: 0, largeur: 50, hauteur: 5 }, instantMs: 1000 * (i + 1), finMs: 1000 * (i + 1) + 500 }))) } });
-    expect(beaucoup.navigationRefusee!.length).toBe(3);
+    // 3 raisons montrées + 1 gardée pour savoir qu'il y en avait d'autres.
+    expect(beaucoup.navigationRefusee!.length).toBe(4);
   });
 
   it("refusé : alerte « attention » lisible, montage sans film inchangé", async () => {
@@ -62,12 +64,29 @@ describe("film de navigation refusé : dit, jamais avalé", () => {
     const a = alertes(r).filter((x) => x.message.includes("film refusé"));
     expect(a).toHaveLength(1);
     expect(a[0].gravite).toBe("attention");
-    expect(a[0].message).toBe("À vérifier · Navigation : film refusé (Cible 2 : zone hors de 0 à 100 %…). La vidéo a été montée sans le film.");
+    expect(a[0].message).toBe("À vérifier · Navigation : film refusé (Cible 2 : zone hors de 0 à 100 %). La vidéo a été montée sans le film. Refaites la capture, puis déposez de nouveau le film.");
     expect(r.resultat.sorties[0].rapportQualite.alertes.some((x) => x.message.includes("film refusé"))).toBe(true);
     // Le montage est celui d'une vidéo sans film, octet pour octet.
     expect(r.compositions.map((d) => d.entrees)).toEqual(sans.compositions.map((d) => d.entrees));
     expect(r.compositions.map((d) => d.parametres)).toEqual(sans.compositions.map((d) => d.parametres));
     expect(alertes(sans).some((x) => x.message.includes("film refusé"))).toBe(false);
+  });
+
+  it("messageFilmRefuse : « … » seulement s'il y a plus de 3 erreurs, aucun code brut", () => {
+    const fin = " La vidéo a été montée sans le film. Refaites la capture, puis déposez de nouveau le film.";
+    expect(messageFilmRefuse(["A."])).toBe(`À vérifier · Navigation : film refusé (A).${fin}`);
+    expect(messageFilmRefuse(["A.", "B.", "C."])).toBe(`À vérifier · Navigation : film refusé (A ; B ; C).${fin}`);
+    expect(messageFilmRefuse(["A.", "B.", "C.", "D."])).toBe(`À vérifier · Navigation : film refusé (A ; B ; C…).${fin}`);
+    const technique = messageFilmRefuse(["Version inconnue (attendu navigation-filmee.v1).", "La navigation filmée n'est pas un objet.", "La clé du film doit finir par .mp4 ou .webm."]);
+    expect(technique).not.toMatch(/navigation-filmee|v1|clé/);
+  });
+
+  it("de bout en bout, plus de 3 erreurs : « … » dans l'alerte", async () => {
+    const cibles = Array.from({ length: 5 }, (_, i) => ({ etapeId: `e${i}`, zonePct: { x: 90, y: 0, largeur: 50, hauteur: 5 }, instantMs: 1000 * (i + 1), finMs: 1000 * (i + 1) + 500 }));
+    const r = await fabriquer(commande({ navigationFilmee: film(cibles) }));
+    const a = alertes(r).filter((x) => x.message.includes("film refusé"));
+    expect(a).toHaveLength(1);
+    expect(a[0].message).toContain("Cible 1 : zone hors de 0 à 100 % ; Cible 2 : zone hors de 0 à 100 % ; Cible 3 : zone hors de 0 à 100 %…)");
   });
 
   it("valable : aucune alerte de refus", async () => {

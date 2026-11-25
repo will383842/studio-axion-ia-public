@@ -25,7 +25,7 @@ import { cibleSon, rapportSon } from "./finitions";
 import { accordValide, etablirDevis, resteDuDevis, texteDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
 import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe/scenariste";
-import { estSansVoix, lireEntreesTutoriel } from "./entrees";
+import { estSansVoix, lireEntreesTutoriel, NAVIGATION_REFUSEE_MAX } from "./entrees";
 import { alertesDeGrille, marqueReussie, type AvecGrille } from "./grille-qualite";
 import { lecturesVoixMax } from "@/briques/voix-maitre/reference";
 import { avancerEtape, ErreurTutoriel, outilsVoixMaitre, etatInitial, ETAPES_TUTORIEL, prochainPasPaye, ratiosTutoriel, type CleEtapeTutoriel, type EtatTutoriel, type OutilsTutoriel, type SortieFormatTutoriel, sortieGardee } from "./chaine";
@@ -174,6 +174,20 @@ function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
   return [...reserves, ...script, ...plan];
 }
 
+/** Erreurs du lecteur du film dites en phrase simple : jamais un code de version ni un nom de champ. */
+const phraseFilm = (erreur: string): string =>
+  erreur.startsWith("Version inconnue") ? "le fichier de navigation n'est pas d'une version connue"
+  : erreur.startsWith("La navigation filmée n'est pas un objet") ? "le fichier de navigation est illisible"
+  : erreur.startsWith("La clé du film") ? "le film doit être un fichier .mp4 ou .webm"
+  : erreur.startsWith("Les plages figées") ? "les arrêts sur image du film sont invalides"
+  : erreur.replace(/\.$/, "");
+
+/** Réserve « film refusé » : au plus NAVIGATION_REFUSEE_MAX raisons, « … » seulement s'il y en avait d'autres. */
+export function messageFilmRefuse(erreurs: readonly string[]): string {
+  const raisons = erreurs.slice(0, NAVIGATION_REFUSEE_MAX).map(phraseFilm).join(" ; ");
+  return `À vérifier · Navigation : film refusé (${raisons}${erreurs.length > NAVIGATION_REFUSEE_MAX ? "…" : ""}). La vidéo a été montée sans le film. Refaites la capture, puis déposez de nouveau le film.`;
+}
+
 function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): ResultatFabrication {
   // T-EXT-27 : la grille chiffrée n'est rangée dans l'état que par le pas « regarder » (27b). Absente : exactement comme avant.
   const grille = (etat as EtatTutoriel & AvecGrille).grille;
@@ -182,7 +196,7 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   if (commande.briques["mention-ia"] === true) alertesCommunes.push({ code: "defaut-visuel", gravite: "info", message: "Mention IA demandée : pas encore posée par le tutoriel" });
   // ESS-6 : un film de navigation refusé n'est plus ignoré en silence ; le montage est resté sans film, on le dit.
   const refusee = lireEntreesTutoriel(commande.entrees).navigationRefusee;
-  if (refusee?.length) alertesCommunes.push({ code: "defaut-visuel", gravite: "attention", message: `À vérifier · Navigation : film refusé (${refusee.map((e) => e.replace(/\.$/, "")).join(" ; ")}…). La vidéo a été montée sans le film.` });
+  if (refusee?.length) alertesCommunes.push({ code: "defaut-visuel", gravite: "attention", message: messageFilmRefuse(refusee) });
   const cible = cibleSon(commande);
   const toutesAlertes: AlerteQualite[] = [...alertesCommunes];
   const reseaux = reseauxDeCommande(commande, [...RESEAUX_CONSEILLES]);
