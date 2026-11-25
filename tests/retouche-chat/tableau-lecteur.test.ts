@@ -162,7 +162,7 @@ describe("S-06-a : le bloc du tableau", () => {
 });
 
 describe("S-06-a : gardes de texte", () => {
-  it("h) aucun fichier de src/** n'importe retouche-chat/tableau ; le module n'importe ni modifications, ni tableau-creation, ni argent", () => {
+  it("h) un seul importeur : modifications.ts (S-06-b) ; le module n'importe ni modifications, ni tableau-creation, ni argent", () => {
     const racine = new URL("../../src/", import.meta.url).pathname;
     const source = readFileSync(`${racine}services/retouche-chat/tableau.ts`, "utf8");
     for (const interdit of ["modifications", "tableau-creation", "depense-claude-video", "generation-claude", "credits", "budget-mensuel", "server-only", "_commun"]) expect(source).not.toContain(interdit);
@@ -176,6 +176,7 @@ describe("S-06-a : gardes de texte", () => {
       return /retouche-chat\/tableau["']/.test(t) || (f.includes("/retouche-chat/") && /from "\.\/tableau"/.test(t));
     };
     const fautifs = walk(racine).filter((f) => !f.endsWith("retouche-chat/tableau.ts") && importe(f));
-    expect(fautifs).toEqual([]);
+    // S-06-b-v21s (25/11, ÉLARGISSEMENT, seconde lecture du pilote) : modifications.ts est le SEUL importeur permis.
+    expect(fautifs).toEqual([`${racine}services/modifications.ts`]);
   });
 });
