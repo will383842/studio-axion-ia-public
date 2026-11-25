@@ -167,7 +167,7 @@ function regardeur(r: VerdictRegard | undefined): Critere[] {
 function composition(r: ResultatControleComposition | null | undefined): Critere {
   const seuil = "aucun texte trop petit, recouvert, vide ou hors du cadre";
   const libelle = "Composition de l'image";
-  if (!r || !Array.isArray(r.defauts)) return critere("composition", libelle, "bloquant", seuil, "non-fait", NON_FAIT);
+  if (!r || !Array.isArray(r.defauts)) return critere("composition", libelle, "a-corriger", seuil, "non-fait", NON_FAIT);
   if (r.defauts.length === 0) return critere("composition", libelle, "bloquant", seuil, "reussi", "aucun défaut");
   const bloquant = r.defauts.some((d) => d.gravite === "bloquant");
   return critere("composition", libelle, bloquant ? "bloquant" : "a-corriger", seuil, "echoue", r.defauts.map((d) => d.message).join(" "));

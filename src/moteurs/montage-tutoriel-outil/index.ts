@@ -180,6 +180,11 @@ function alertesComposition(compo: ResultatControleComposition | undefined): Ale
   return compo.defauts.map((d) => ({ code: "defaut-visuel" as const, gravite: d.gravite === "bloquant" ? ("bloquant" as const) : ("attention" as const), message: `Composition · ${d.message}` }));
 }
 
+/** Avec une grille, le critère « composition » y est déjà (alertes de `alertesDeGrille`) : on n'ajoute les alertes de composition que sans grille, pour ne pas les dire deux fois. */
+export function alertesCompositionSansDoublon(grille: unknown, compo: ResultatControleComposition | undefined): AlerteQualite[] {
+  return grille ? [] : alertesComposition(compo);
+}
+
 /** Réserves (« À vérifier · … ») et remarques du plan, en alertes de la fiche vidéo. */
 export function alertesDe(etat: EtatTutoriel): AlerteQualite[] {
   const reserves = etat.reserves.map((message) => ({ code: "defaut-visuel" as const, gravite: "attention" as const, message }));
@@ -195,7 +200,7 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
   const alertesCommunes = alertesDe(etat);
   // QUAL-4 : lu de façon tolérante (le pas qui le calcule vient d'un autre lot) ; absent = non vérifié.
   const composition = (etat as EtatTutoriel & { composition?: ResultatControleComposition }).composition;
-  const alertesCompo = alertesComposition(composition);
+  const alertesCompo = alertesCompositionSansDoublon(grille, composition);
   const bloquantsCompo = composition?.defauts.filter((d) => d.gravite === "bloquant").length ?? 0;
   const aCorrigerCompo = (composition?.defauts.length ?? 0) - bloquantsCompo + (composition ? 0 : 1);
   if (grille) for (const a of alertesDeGrille(grille)) alertesCommunes.push({ code: "defaut-visuel", gravite: a.bloquant ? "attention" : "info", message: a.message });
