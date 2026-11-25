@@ -1,0 +1,17 @@
+# Veilleur du poste de capture (POSTE-2). NON installé par le code : voir le plan « poste relié », section 8.
+#   sudo install -o root -g root -m 0500 studio-capture/veilleur.sh /usr/local/sbin/studio-capture-veilleur
+#   sudo install -o root -g root -m 0644 studio-capture/studio-capture-veilleur.service studio-capture/studio-capture-veilleur.timer /etc/systemd/system/
+[Unit]
+Description=Veilleur du poste de capture du Studio (boîte aux lettres, un travail à la fois)
+After=docker.service local-fs.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/studio-capture-veilleur
+Environment=VEILLEUR_BOITE=/opt/studio-axion-ia/capture-boite
+# Dossier `deploiement` du clone de mettre-a-jour.sh : À ADAPTER si le clone est ailleurs.
+Environment=DEPLOIEMENT=/opt/studio-axion-ia/source/deploiement
+TimeoutStartSec=3600
+Nice=10
+IOSchedulingClass=idle

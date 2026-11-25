@@ -206,6 +206,12 @@ services:
       # ET le réglage caché `facecam.decorIa.reel` ; l'option reste coupée par défaut. Voir docs/facecam/JOURNAL-E1.md.
       HIGGSFIELD_API_KEY: ${HIGGSFIELD_API_KEY:-}
       HIGGSFIELD_API_URL: ${HIGGSFIELD_API_URL:-}
+    # Boîte aux lettres du poste de capture « relié » (POSTE-2) : UN dossier hôte, borné (boucle ext4 de 2 Gio), qui ne
+    # contient que les demandes du studio et les réponses déjà contrôlées par le veilleur. Ni socket docker, ni réseau neuf,
+    # ni port. Inutilisé tant que `tutoriel.captureAuto` est éteint (le dossier peut être vide : « boîte non prête »).
+    # Variable NON obligatoire, défaut hors dépôt. Procédure : plan « poste relié » du 25/11, section 8.
+    volumes:
+      - ${STUDIO_CAPTURE_BOITE:-/opt/studio-axion-ia/capture-boite}:/var/studio-capture
     networks: [interne, coolify]
     # 3 Go (Will, 17/10) : secours en attendant le correctif de la mémoire native (malloc), cf. docs/memoire-native.
     mem_limit: 3g
@@ -320,6 +326,7 @@ services:
   # Poste de capture figé du tutoriel d'outil (T-EXT-51b/51c) : Chromium + FFmpeg, SANS RÉSEAU. LIVRÉ INACTIF : profil
   # « capture » = NI construit NI démarré par `docker compose up`/`build`, ni par mettre-a-jour.sh (qui ne le nomme pas).
   # Obligatoire avant d'accepter un dossier (.zip) de client (T-EXT-41, T-EXT-29). Déclenchement À LA MAIN seulement,
+  # Déclenchement automatique : `studio-capture/veilleur.sh` (même procédure, mêmes contrôles).
   # depuis deploiement/ ; n'utiliser que ces commandes : JAMAIS `--entrypoint`, `-v`/`--volume`, `-e`/`--env` (ils
   # contournent le `timeout`, les montages fermés et le choix du Chromium). Le point d'entrée est lancer.sh.
   #
