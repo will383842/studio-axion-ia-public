@@ -37,6 +37,8 @@ export interface DependancesFilm {
   /** Lecture des premiers octets du fichier STOCKÉ (injectable en test) ; par défaut, celle du stockage du studio. */
   lireDebut?: (cleStockage: string, octets: number) => Promise<Uint8Array>;
   fichier?: (fichierId: string, videoId: Id) => Promise<Pick<Fichier, "id" | "nom" | "mime" | "taille" | "cleStockage">>;
+  /** Session : chaîne en fond seulement (tutoriel-capture-auto.ts). Absent : la session de l'utilisateur est exigée comme avant. */
+  session?: () => Promise<unknown>;
 }
 
 const refus = (phrase: string): IssueFilm => ({ statut: "refusee", phrase });
@@ -105,7 +107,7 @@ function lireNavigationTexte(brut: unknown): { ok: true; valeur: Record<string, 
 }
 
 export async function deposerFilmNavigation(videoId: Id, demande: DemandeFilm, dep: DependancesFilm = {}): Promise<IssueFilm> {
-  await exigerSession();
+  await (dep.session ?? exigerSession)();
   if (typeof videoId !== "string" || !videoId || !objet(demande)) return refus("Cette vidéo n'existe pas.");
   const d = depots();
   const video = await d.videos.obtenir(videoId);

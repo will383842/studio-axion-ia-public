@@ -29,7 +29,7 @@ import { CENTIMES_USD_PAR_CARACTERE_HEYGEN } from "@/fournisseurs/heygen/voix";
 import { decouperScript, type LectureMorceau, type MorceauVoix } from "@/briques/voix-longue";
 import { lireEntreesVideoLongue } from "@/moteurs/montage-video-longue/entrees";
 import { creerMoteurVideoLongue, moteurMontageVideoLongue, DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
-import type { DependancesVideoLongue } from "@/moteurs/montage-video-longue/chaine";
+import type { DependancesVideoLongue, SuiviMontageVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 
 /** Réglage de dépenses : seul `true` exact allume. */
 export const PARAM_VIDEO_LONGUE_ACTIF = "videoLongue.actif";
@@ -98,6 +98,8 @@ export interface PortsVideoLongue {
   aligner?(texte: string, lecture: LectureMorceau): Promise<MotHorodate[]>;
   /** Montage réel d'un format (jamais appelé si éteint ou sans accord). */
   monter?(ratio: Ratio, ctx: Parameters<DependancesVideoLongue["monter"]>[1]): Promise<{ fichierCle: string }>;
+  /** Montage réel PAS À PAS (une action de rendu par appel, bien moins de 30 s) : c'est celui que la chaîne emploie. */
+  monterPas?(ratio: Ratio, ctx: Parameters<DependancesVideoLongue["monter"]>[1], suivi?: SuiviMontageVideoLongue): ReturnType<NonNullable<DependancesVideoLongue["monterPas"]>>;
 }
 
 export const empreinteMorceau = (videoId: string, texte: string, idVoix = ""): string => `videoLongue.voix.${videoId}.${createHash("sha256").update(`${idVoix}\n${texte}`).digest("hex").slice(0, 24)}`;
@@ -184,6 +186,17 @@ export function creerDependancesVideoLongue(commande: CommandeFabrication, ports
       if (!ports.monter || !(await ports.montagePret())) throw refus("montage-non-relie");
       return ports.monter(ratio, ctx);
     },
+    // Même garde « allumé » et « durée ≤ 1 200 s » à CHAQUE pas ; le port ne rend que ce qui est branché.
+    ...(ports.monterPas
+      ? {
+          async monterPas(ratio: Ratio, ctx: Parameters<DependancesVideoLongue["monter"]>[1], suivi?: SuiviMontageVideoLongue) {
+            await garder();
+            if (ctx.dureeSec > DUREE_MAX_SEC) throw refus("duree-depassee");
+            if (!ports.monterPas || !(await ports.montagePret())) throw refus("montage-non-relie");
+            return ports.monterPas(ratio, ctx, suivi);
+          },
+        }
+      : {}),
   };
 }
 
@@ -229,6 +242,20 @@ async function portsReels(commande: CommandeFabrication, travailId: string): Pro
         lirePlages: async (v) => (await lireParametre<Record<string, { sortieCle: string; empreinte: string }> | null>(cleParametrePlages(v), null)) ?? {},
         ecrirePlages: (v, plages) => ecrireParametre(cleParametrePlages(v), plages),
       });
+    },
+    monterPas: async (_ratio, ctx, suivi) => {
+      const { branchementsReelsSansVoix } = await import("./tableau-outils");
+      const { montage } = await branchementsReelsSansVoix(commande.videoId);
+      const { pasMontageVideoLongue, cleParametrePlages } = await import("./video-longue-montage");
+      const { ecrireParametre } = await import("./_commun");
+      return pasMontageVideoLongue(commande, travailId, ctx, {
+        rendu: montage.rendu(),
+        signer: montage.signer,
+        cle: montage.cle,
+        actif: async () => (await lireParametre<unknown>("videoLongue.actif", false)) === true,
+        lirePlages: async (v) => (await lireParametre<Record<string, { sortieCle: string; empreinte: string }> | null>(cleParametrePlages(v), null)) ?? {},
+        ecrirePlages: (v, plages) => ecrireParametre(cleParametrePlages(v), plages),
+      }, suivi);
     },
     idVoix: async () => (await branchements()).voix.idVoix,
     reserver: async (e) => {
@@ -303,6 +330,7 @@ export function dependancesVideoLongue(commande: CommandeFabrication, travailId 
     lireMorceau: async (t) => (await p()).lireMorceau(t),
     idVoix: async () => (await p()).idVoix?.() ?? "",
     monter: async (r, c) => (await p()).monter!(r, c),
+    monterPas: async (r, c, s) => (await p()).monterPas!(r, c, s),
   };
   return creerDependancesVideoLongue(commande, paresseux);
 }

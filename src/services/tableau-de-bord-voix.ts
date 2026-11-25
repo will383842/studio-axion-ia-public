@@ -4,7 +4,7 @@
  * propre des appels Claude ne compte pas la voix). Types STRUCTURELS recopiés : aucun import.
  */
 
-/** Plafond de voix PROPOSÉ en centimes d'euro par vidéo : proposé, NON accepté. L'allumage attend le prix donné à Williams. */
+/** Plafond de voix en centimes d'euro par vidéo : accepté le 21/11 07:20 (1 € par vidéo au plus). L'allumage reste éteint par défaut. */
 export const PLAFOND_VOIX_TDB_CENTIMES_PROPOSE = 100;
 
 interface MotLu { mot: string; debutSec: number; finSec: number }

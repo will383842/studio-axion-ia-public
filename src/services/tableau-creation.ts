@@ -620,7 +620,7 @@ export interface DependancesCreationTableau {
   sourcesSujets?: SourcesSujets;
 }
 
-/** Réglage du tirage du style du tableau (BR-TABLEAU-STYLE-a) : seul `true` exact l'allume, absent = éteint. */
+/** Réglage du tirage du style du tableau (BR-TABLEAU-STYLE-a) : ALLUMÉ par défaut depuis ALLUMER-INV-GROUPE-v21p ; `false` écrit en base éteint ; lecture en échec = éteint. */
 export const PARAM_STYLE_TIRE_TABLEAU = "tableau.styleTire";
 
 /** L'entrée du découpage d'un brouillon (PUR, exporté pour le test « contrat » générateur → découpage). */
@@ -883,7 +883,7 @@ async function executerDecoupage(videoId: Id, tache: TacheTableau, dependances: 
   const donnees = brouillon.donnees;
   const aujourdhui = tache.aujourdhui ?? aujourdhuiIso();
   const controle = await contexteRegles(aujourdhui);
-  const tirageBase = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, false).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
+  const tirageBase = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, true).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
   const eviter = tirageBase ? await stylesTableauAEviterCommun({ videoId, reseaux: donnees.reseaux, le: maintenant(), lire: lireVarieteCommune }) : undefined; // BR-TABLEAU-STYLE-b2 : varieteCommune éteint → undefined
   const tirage = tirageBase && eviter?.length ? { ...tirageBase, eviter } : tirageBase;
   const entree = entreeDecoupage(donnees, videoId, tache.versionId ?? `b${brouillon.versions.length + 1}`, controle, await preuvesProposees(aujourdhui), tirage);

@@ -16,7 +16,7 @@ const P: ParametresGrosChiffre = { valeur: 49505, prefixe: "+", unite: "minutes"
 const TONS: TonObjet[] = ["neutre", "accent", "valide", "erreur"];
 const FONDS: FondAxion[] = ["ivoire", "noir"];
 const D = 60;
-const FIN = " ";
+const FIN = "\u00a0";
 
 function rendre(image: number, o: { graine?: number; ton?: TonObjet; fond?: FondAxion; p?: ParametresGrosChiffre } = {}) {
   return renderToStaticMarkup(DEF.Rendu({ image, fps: 25, dureeImages: D, fond: o.fond ?? "ivoire", parametres: o.p ?? P, ton: o.ton ?? "neutre", graine: o.graine ?? 7 }));
@@ -73,7 +73,7 @@ describe("C9-13 rendu", () => {
 });
 
 describe("C9-13 propres à la fiche", () => {
-  it("écriture française : espace fine pour les milliers, virgule décimale", () => {
+  it("écriture française : espace insécable pour les milliers, virgule décimale", () => {
     expect(ecrireNombreFr(49505)).toBe(`49${FIN}505`);
     expect(ecrireNombreFr(999)).toBe("999");
     expect(ecrireNombreFr(1000)).toBe(`1${FIN}000`);
