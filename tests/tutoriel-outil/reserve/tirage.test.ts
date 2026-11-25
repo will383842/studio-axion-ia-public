@@ -197,8 +197,11 @@ describe("tirerSuivantReserve", () => {
     const el = (await lireElementReserve("res-premier1"))!;
     const sansEquipe = { ...banc().dep, equipe: undefined };
     magasin.set("tutoriel.equipe", true);
+    magasin.set("tutoriel.claude", false);
     expect(await conditionsTirage(el, ACTIF, sansEquipe)).toMatchObject({ raison: "equipe_eteinte" });
     magasin.set("tutoriel.claude", true);
+    expect(await conditionsTirage(el, ACTIF, sansEquipe)).toBeNull();
+    magasin.delete("tutoriel.claude");
     expect(await conditionsTirage(el, ACTIF, sansEquipe)).toBeNull();
   });
 

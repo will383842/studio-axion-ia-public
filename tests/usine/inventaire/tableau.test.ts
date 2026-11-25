@@ -6,7 +6,7 @@ export const DOMAINE: Domaine = {
   nom: "tableau",
   litterales: {},
   constantes: [
-    { cle: "tableau.styleTire", etat: "eteint", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, false\)\.catch\(\(\) => false\)\) === true/ },
+    { cle: "tableau.styleTire", etat: "allume", appel: "src/services/tableau-creation.ts", motif: /PARAM_STYLE_TIRE_TABLEAU, true\)\.catch\(\(\) => false\)\) === true/ },
     { cle: "tableau.lectureCaptureClaude", etat: "allume", appel: "src/services/lecture-capture-claude.ts", motif: /l<unknown>\(PARAM_LECTURE_CAPTURE_CLAUDE, true\);\s*return v === true \|\| v === undefined \|\| v === null/ },
   ],
   gabarits: [],

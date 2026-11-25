@@ -190,6 +190,9 @@ describe("garde statique : rien n'appelle le code neuf", () => {
       .filter((f) => !f.endsWith("texte-effets/effets.ts"))
       .filter((f) => !f.endsWith("studio-rendu/compositions/commune/texte-effets/TexteEffets.tsx"))
       .filter((f) => /texte-effets\/effets/.test(readFileSync(f, "utf8")));
-    expect(fautes).toEqual([]);
+    // MAJ 25/11 (FIX-ROUGES-ECRAN-EFFETS-v21s, voulue, à relire) : `src/briques/sous-titres/apparition.ts` (C11-T4-a #1256) lit la seule constante `FLOU_MAX_PX` ; il n'appelle aucun effet.
+    expect(fautes).toEqual([join(process.cwd(), "src/briques/sous-titres/apparition.ts")]);
+    const lignes = readFileSync(fautes[0], "utf8").split("\n").filter((l) => /texte-effets\/effets/.test(l));
+    expect(lignes).toEqual(['import { FLOU_MAX_PX } from "../motion/texte-effets/effets";']);
   });
 });

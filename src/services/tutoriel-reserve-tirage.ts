@@ -88,7 +88,7 @@ export interface DependancesTirage {
   equipe?: () => Promise<boolean>;
   /** Taux € pour 1 $ (réglage `taux.usdEur`) ; le plus haut de ce taux et du défaut est retenu (jamais sous-compter). Lecture en échec : défaut. */
   tauxUsdEur?: () => Promise<number>;
-  /** Plafond Claude d'UNE vidéo de ce type, en dollars (réglage `tutoriel.plafondClaudeUsd`, sinon le défaut du mode). */
+  /** Plafond Claude d'UNE vidéo de ce type, en dollars (réglage `tutoriel.plafondClaudeUsd`, sinon 1,11 $ ou le pire cas du mode s'il est au-dessous). */
   plafondVideoUsd?: (e: ElementReserve) => Promise<number>;
   plafondMoisAtteint?: () => Promise<boolean>;
   accordSansClic?: () => Promise<boolean>;
@@ -146,7 +146,8 @@ async function plafondVideoParDefautUsd(e: ElementReserve): Promise<number> {
   const { PARAM_PLAFOND_TUTORIEL, plafondTutorielParDefautUsd, plafondTutorielPhraseUsd } = await import("./tutoriel-claude");
   const regle = await lireParametre<unknown>(PARAM_PLAFOND_TUTORIEL, null);
   if (typeof regle === "number" && Number.isFinite(regle) && regle > 0) return regle;
-  return e.source.type === "idee" ? plafondTutorielPhraseUsd() : plafondTutorielParDefautUsd();
+  const { PLAFOND_TUTORIEL_USD } = await import("./plafond-tutoriel");
+  return Math.min(PLAFOND_TUTORIEL_USD, e.source.type === "idee" ? plafondTutorielPhraseUsd() : plafondTutorielParDefautUsd());
 }
 
 async function plafondMoisParDefaut(): Promise<boolean> {

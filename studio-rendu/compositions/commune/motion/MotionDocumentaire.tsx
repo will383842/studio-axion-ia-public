@@ -112,7 +112,7 @@ function Contenu({ d }: { d: DonneesDocumentaire }) {
           {d.chiffre && (
             <div style={{ marginTop: 20 * u, ...decalage(h.tChiffre) }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 18 * u, flexWrap: "wrap" }}>
-                <span style={{ fontSize: grand, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums", color: COULEURS.creme }}>{texteValeur(v, undefined, d.chiffre.decimales)}</span>
+                <span style={{ fontSize: grand, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums", color: COULEURS.creme }}>{texteValeur(v, undefined, d.chiffre.decimales)}</span>
                 {d.chiffre.unite && <span style={{ fontSize: tTitre * 0.82, fontWeight: 800, color: COULEURS.orangeVif, opacity: progres(t, h.tChiffre + 0.3, 0.3) }}>{d.chiffre.unite}</span>}
               </div>
               <div style={{ marginTop: 14 * u }}>

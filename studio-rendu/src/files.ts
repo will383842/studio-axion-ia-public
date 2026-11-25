@@ -12,6 +12,7 @@
  *   processus fait passer les rendus en cours en échec (`echouerEnCours`, `surveillerRejets`) au lieu de les laisser
  *   « en cours ». Après un redémarrage, un identifiant inconnu répond « inconnu » (404), jamais un état périmé.
  */
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -29,12 +30,16 @@ export interface OptionsFiles {
   /** Durée de conservation des états en mémoire (défaut 24 h). */
   conservationMs?: number;
   horloge?: () => number;
+  /** Après un dépassement de délai : attente maximale de la fin du travail avant d'effacer son dossier (défaut 90 s). */
+  delaiNettoyageApresDepassementMs?: number;
   /** Dossier de travail temporaire (défaut : celui du système). */
   creerDossier?: () => Promise<string>;
 }
 
 interface Entree {
   demande: DemandeRendu;
+  /** Empreinte de la demande (sans adresses signées) : même identifiant, autre empreinte = conflit. */
+  empreinte: string;
   etat: EtatRendu;
   recuA: number;
   finiA?: number;
@@ -67,11 +72,30 @@ export function delaiRendu(d: DemandeRendu, o: { delaiCourteMs: number; delaiLon
   return Math.min(o.delaiLongueMs, DELAI_SOCLE_LONGUE_MS + Math.ceil(duree) * DELAI_PAR_SECONDE_MS);
 }
 
+/** Longueur gardée d'un message d'échec. */
+const LONGUEUR_MOTIF = 300;
+
+/**
+ * Texte court qui garde la FIN (la vraie cause d'un stderr FFmpeg, pas sa bannière). Les lignes de pile d'appels
+ * (`    at …`) sont retirées d'abord : leur fin ne dit rien (essai du 25/11 : « …et:347:12) »). PUR.
+ */
+export function finDuTexte(texte: string, max: number = LONGUEUR_MOTIF): string {
+  const sansPile = texte.split("\n").filter((l) => !/^\s+at /.test(l)).join("\n").trim();
+  return sansPile.length > max ? `…${sansPile.slice(-max)}` : sansPile;
+}
+
+/** Code de la cause réseau d'une erreur (`fetch failed` → `ECONNREFUSED`), sinon null. PUR. */
+function codeCause(e: unknown): string | null {
+  const cause = (e as { cause?: { code?: unknown } } | null)?.cause;
+  return typeof cause?.code === "string" && cause.code ? cause.code : null;
+}
+
 /** Motif lisible d'une erreur quelconque d'un rendu (navigateur fermé, FFmpeg, Remotion…). PUR. */
 export function motifEchec(e: unknown): ErreurRendu["erreur"] {
   if (e instanceof ErreurRendu) return e.erreur;
-  const brut = (e instanceof Error ? e.message : String(e ?? "")).trim();
-  const court = brut.length > 300 ? `${brut.slice(0, 300)}…` : brut;
+  const brut = sansAdresses((e instanceof Error ? e.message : String(e ?? "")).trim());
+  const cause = codeCause(e);
+  const court = finDuTexte(brut) + (cause && !brut.includes(cause) ? ` (${cause})` : "");
   if (/target closed|session closed|browser has disconnected|browser closed|protocol error/i.test(brut)) {
     return { code: "indisponible", reessayable: true, message: `Le navigateur du rendu s'est fermé pendant le dessin (${court}).` };
   }
@@ -80,6 +104,33 @@ export function motifEchec(e: unknown): ErreurRendu["erreur"] {
   }
   if (!court) return { code: "inconnu", reessayable: true, message: "Le rendu a échoué sans message." };
   return { code: "inconnu", reessayable: true, message: court };
+}
+
+/** Écriture JSON stable (clés triées) ; une adresse (http, https) est réduite à son chemin, sans signature. PUR. */
+function jsonStable(v: unknown): string {
+  const norme = (x: unknown): unknown => {
+    if (typeof x === "string" && /^https?:\/\//i.test(x)) {
+      try {
+        const u = new URL(x);
+        return `${u.origin}${u.pathname}`;
+      } catch {
+        return "[adresse]";
+      }
+    }
+    if (Array.isArray(x)) return x.map(norme);
+    if (x && typeof x === "object") return Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, w]) => [k, norme(w)]));
+    return x;
+  };
+  return JSON.stringify(norme(v)) ?? "null";
+}
+
+/**
+ * Empreinte d'une demande : opération, file, paramètres, clé de sortie et entrées (nom ET fichier : origine + chemin,
+ * sans la signature). Jamais l'adresse de dépôt ni les signatures (elles changent à chaque signature) ; un autre
+ * fichier sous le même nom d'entrée (voix brute puis voix mixée) est bien une autre demande. PUR.
+ */
+export function empreinteDemande(d: DemandeRendu): string {
+  return createHash("sha256").update(jsonStable({ operation: d.operation, file: d.file, parametres: d.parametres, sortie: d.sortie?.cle, entrees: d.entrees ?? {} })).digest("hex");
 }
 
 /** Identifiant sans son suffixe de reprise (`-eN`, `-sN`, `-rN`) : un même montage repris garde le même identifiant de base. PUR. */
@@ -107,16 +158,24 @@ export class FilesRendu {
       delaiLongueMs: options.delaiLongueMs ?? 20 * 60_000,
       conservationMs: options.conservationMs ?? 24 * 3600_000,
       horloge: options.horloge ?? Date.now,
+      delaiNettoyageApresDepassementMs: options.delaiNettoyageApresDepassementMs ?? 90_000,
       creerDossier: options.creerDossier ?? (() => mkdtemp(join(tmpdir(), "studio-rendu-"))),
     };
   }
 
-  /** Reçoit une demande et répond tout de suite. Idempotent sur `idRendu`. */
-  soumettre(demande: DemandeRendu): { idRendu: string; nouveau: boolean } {
+  /**
+   * Reçoit une demande et répond tout de suite. Idempotent sur `idRendu` AVEC la même empreinte ; un autre contenu sous
+   * le même identifiant (rendu non échoué) est un conflit : rien n'est lancé, le serveur répond 409.
+   */
+  soumettre(demande: DemandeRendu): { idRendu: string; nouveau: boolean; conflit?: boolean } {
     this.oublierAnciens();
     const existant = this.rendus.get(demande.idRendu);
-    if (existant && existant.etat.statut !== "echec") return { idRendu: demande.idRendu, nouveau: false };
-    this.rendus.set(demande.idRendu, { demande, etat: { statut: "en_file", rang: 0 }, recuA: this.o.horloge() });
+    const empreinte = empreinteDemande(demande);
+    if (existant && existant.etat.statut !== "echec") {
+      if (existant.empreinte !== empreinte) return { idRendu: demande.idRendu, nouveau: false, conflit: true };
+      return { idRendu: demande.idRendu, nouveau: false };
+    }
+    this.rendus.set(demande.idRendu, { demande, empreinte, etat: { statut: "en_file", rang: 0 }, recuA: this.o.horloge() });
     (demande.file === "courte" ? this.attenteCourte : this.attenteLongue).push(demande.idRendu);
     this.planifier();
     return { idRendu: demande.idRendu, nouveau: true };
@@ -209,16 +268,18 @@ export class FilesRendu {
       }, delai);
     });
     let dossier: string | undefined;
+    let travail: Promise<unknown> | undefined;
     try {
       dossier = await this.o.creerDossier();
+      travail = operation(demande, {
+        dossier,
+        signal: controleur.signal,
+        progression: (pc) => {
+          if (entree.etat.statut === "en_cours") entree.etat = { statut: "en_cours", progression: Math.max(0, Math.min(99, Math.round(pc))) };
+        },
+      });
       const resultat = await Promise.race([
-        operation(demande, {
-          dossier,
-          signal: controleur.signal,
-          progression: (pc) => {
-            if (entree.etat.statut === "en_cours") entree.etat = { statut: "en_cours", progression: Math.max(0, Math.min(99, Math.round(pc))) };
-          },
-        }),
+        travail as Promise<Awaited<ReturnType<Operation>>>,
         depassement,
       ]);
       // Une opération qui rend la main en réponse à l'arrêt n'a pas abouti : le délai a été dépassé.
@@ -237,13 +298,27 @@ export class FilesRendu {
           if (nombre >= 2) erreur = { code: "indisponible", reessayable: false, message: "Le montage dépasse la durée maximale du serveur de rendu." };
         }
         entree.etat = { statut: "echec", erreur };
-        console.error(`[studio-rendu] échec ${demande.operation} ${demande.idRendu} : ${erreur.code} ${sansAdresses(erreur.message).slice(0, 300)}`);
+        console.error(`[studio-rendu] échec ${demande.operation} ${demande.idRendu} : ${erreur.code} ${finDuTexte(sansAdresses(erreur.message))}`);
       }
     } finally {
       clearTimeout(minuterie);
       entree.controleur = undefined;
       entree.finiA ??= this.o.horloge();
-      if (dossier) await rm(dossier, { recursive: true, force: true }).catch(() => undefined);
+      if (dossier && depasse && travail) {
+        // Délai dépassé : l'opération (donc son processus enfant de rendu) peut encore écrire dans ce dossier jusqu'à
+        // son SIGKILL. On ne l'efface qu'à la fin du travail, ou au plus tard après la borne ; la place dans la file
+        // est libérée tout de suite.
+        const aEffacer = dossier;
+        let attente: ReturnType<typeof setTimeout> | undefined;
+        const borne = new Promise<void>((ok) => {
+          attente = setTimeout(ok, this.o.delaiNettoyageApresDepassementMs);
+          attente.unref?.();
+        });
+        void Promise.race([travail.then(() => undefined, () => undefined), borne])
+          .then(() => clearTimeout(attente))
+          .then(() => rm(aEffacer, { recursive: true, force: true }))
+          .catch(() => undefined);
+      } else if (dossier) await rm(dossier, { recursive: true, force: true }).catch(() => undefined);
     }
   }
 

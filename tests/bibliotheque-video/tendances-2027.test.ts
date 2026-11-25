@@ -102,6 +102,12 @@ const INSTANTANE_MASTER: string[] = [
   "texte.mode-carte|prevu|11|",
   "texte.effets|prevu|11|",
   "texte.accents-role|prevu|11|",
+  // C11-C2-a-v20k
+  "cadrage.camera-couverture|eteint|11|",
+  "ecran.carte-video-arrondie|prevu|11|",
+  "ecran.grilles-archive|prevu|11|",
+  "ecran.ecrans-composes|prevu|11|",
+  "motion.titre-etape-montante|prevu|11|",
   "motion.v4-coulisse.LogoOutil|coulisse||",
   "motion.v4-coulisse.Equation|coulisse||",
   "motion.v4-coulisse.FriseEtapes|coulisse||",

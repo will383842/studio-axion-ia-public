@@ -50,8 +50,11 @@ describe("structure de l'autonomie de l'Usine", () => {
   });
 
   it("reglerAutonomieUsine n'est importé par aucun fichier de src/app/api/** ni de src/usine/**", () => {
-    const fautifs = [...fichiers("src/app/api"), ...fichiers("src/usine")].filter((f) => /reglerAutonomieUsine|autonomie-usine/.test(sansCommentaires(lire(f))));
+    // Exception : la porte de LECTURE (POST /api/usine/reglages/autonomie) importe lireReglageEnVigueur et usageDuMoisUsine, jamais une écriture.
+    const LECTURE = "src/app/api/usine/reglages/autonomie/route.ts";
+    const fautifs = [...fichiers("src/app/api"), ...fichiers("src/usine")].filter((f) => f !== LECTURE).filter((f) => /reglerAutonomieUsine|autonomie-usine/.test(sansCommentaires(lire(f))));
     expect(fautifs).toEqual([]);
+    expect(sansCommentaires(lire(LECTURE)).match(/import \{([^}]*)\} from "@\/services\/autonomie-usine"/)?.[1].split(",").map((x) => x.trim()).sort()).toEqual(["lireReglageEnVigueur", "usageDuMoisUsine"]);
   });
 
   it("reglerAutonomieUsine appelle exigerSession, avant toute écriture", () => {
@@ -71,7 +74,7 @@ describe("structure de l'autonomie de l'Usine", () => {
     const fonctions = [...t.matchAll(/export (?:async )?function (\w+)[\s\S]*?(?=\nexport |\n(?:async )?function |$)/g)]
       .filter((m) => /ecrireParametre\(/.test(m[0]))
       .map((m) => m[1]);
-    expect(fonctions.sort()).toEqual(["alerterPlafondUsine", "inscrireAccordUsine", "recevoirAutonomieUsine", "reglerAutonomieUsine"].sort());
+    expect(fonctions.sort()).toEqual(["alerterPlafondUsine", "eteindreDepuisStudio", "inscrireAccordUsine", "recevoirAutonomieUsine", "reglerAutonomieUsine"].sort());
   });
 
   it("`usine.autonomie.porte` n'est écrite que dans recevoirAutonomieUsine, qui n'a pas de session et n'écrit pas l'ancienne clé", () => {
@@ -80,7 +83,15 @@ describe("structure de l'autonomie de l'Usine", () => {
     expect(debut).toBeGreaterThan(-1);
     const fin = t.indexOf("export async function reglerAutonomieUsine", debut);
     const corps = t.slice(debut, fin);
-    const hors = t.slice(0, debut) + t.slice(fin);
+    // eteindreDepuisStudio (bouton d'urgence, session, éteint seulement) est le seul autre écrivain de la clé de la porte.
+    const dEteindre = t.indexOf("export async function eteindreDepuisStudio");
+    const fEteindre = t.indexOf("\nexport ", dEteindre + 10);
+    expect(dEteindre).toBeGreaterThan(-1);
+    const eteindre = t.slice(dEteindre, fEteindre);
+    expect(eteindre).toMatch(/exigerSession\(\)/);
+    expect(eteindre).toMatch(/ecrireParametre\(CLE_PORTE, valeur\)/);
+    expect(eteindre).not.toMatch(/ecrireParametre\(CLE_REGLAGE|actif\s*:\s*true/);
+    const hors = t.slice(0, debut) + t.slice(fin, dEteindre) + t.slice(fEteindre);
     expect(corps).toMatch(/ecrireParametre\(CLE_PORTE,/);
     expect(corps).not.toMatch(/ecrireParametre\(CLE_REGLAGE/);
     expect(corps).not.toMatch(/exigerSession/);

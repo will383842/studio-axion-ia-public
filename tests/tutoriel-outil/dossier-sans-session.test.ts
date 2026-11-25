@@ -192,7 +192,7 @@ describe("garde d'import : réservé à la chaîne en fond", () => {
   const importeurs = tous.filter(({ src }) => /tutoriel-dossier-fond/.test(src)).map(({ f }) => f);
 
   it("seul src/services/tutoriel-equipe.ts l'importe (le module lui-même mis à part)", () => {
-    expect(importeurs.filter((f) => f !== "src/services/tutoriel-dossier-fond.ts")).toEqual(["src/services/tutoriel-equipe.ts"]);
+    expect(importeurs.filter((f) => f !== "src/services/tutoriel-dossier-fond.ts")).toEqual(["src/services/tutoriel-capture-auto.ts", "src/services/tutoriel-equipe.ts"]); // capture-auto : chaîne en fond seulement, POSTE-4
   });
 
   it("aucun fichier sous src/app ni src/components ne le cite", () => {
