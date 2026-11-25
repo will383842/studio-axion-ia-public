@@ -74,3 +74,46 @@ export function zoomMotDansCadre(scenes: ScenesZoomMot, t: number, cadre: { larg
   const max = echelleMotDansCadre(cadre.largeurMot, cadre.largeurCadre, cadre.marge);
   return { ...etat, echelleMot: Math.min(etat.echelleMot, max) };
 }
+
+/** FIX-ZOOM-MOT-v21u : durée du zoom en trois temps (sortie de la scène, mot seul, entrée de la suivante), tirée de `DUREES`. */
+export const DUREE_ZOOM_MOT_SANS_RECOUVREMENT_S = 2 * DUREES.entreeLongue;
+/** Opacité (5 %) en dessous de laquelle un élément est tenu pour invisible. */
+export const SEUIL_RECOUVREMENT = 0.05;
+/** Instant (part de la durée) où tombe la coupe entre les deux scènes : le mot y est SEUL, à pleine opacité. */
+export const INSTANT_COUPE = 0.5;
+
+/** Sortie de la scène d'en dessous : [0 ; 0,22]. */
+const FIN_SORTIE = 0.22;
+/** Le mot monte de 0 à 1 sur [0,22 ; 0,30], reste plein jusqu'à 0,70, redescend sur [0,70 ; 0,78]. */
+const FIN_MONTEE_MOT = 0.3;
+const DEBUT_DESCENTE_MOT = 0.7;
+/** La scène suivante n'arrive qu'après la disparition du mot. */
+const DEBUT_ENTREE = 0.78;
+
+export interface EtatZoomMotSansRecouvrement extends EtatZoomMot {
+  /** Opacité de la scène qui sort : 1 → 0 avant que le mot n'apparaisse. */
+  opaciteSceneAvant: number;
+}
+
+/**
+ * Zoom sur un mot SANS recouvrement : (1) la scène d'en dessous s'efface, (2) le mot seul grossit (toujours ENTIER dans le cadre),
+ * puis s'efface, (3) la scène suivante s'ouvre. Jamais deux de ces éléments visibles (> 5 %) en même temps. `null` si visage.
+ * `zoomMot` et `zoomMotDansCadre` restent inchangés.
+ */
+export function zoomMotSansRecouvrement(scenes: ScenesZoomMot, t: number, cadre: { largeurMot: number; largeurCadre: number; marge: number }): EtatZoomMotSansRecouvrement | null {
+  if (scenes.visageAvant || scenes.visageApres) return null;
+  const x = borne(t);
+  const arrondi = (n: number) => Math.round(n * 1e4) / 1e4;
+  const max = echelleMotDansCadre(cadre.largeurMot, cadre.largeurCadre, cadre.marge);
+  const pScene = progres(x, DEBUT_ENTREE, 1 - DEBUT_ENTREE);
+  const pMot = progres(x, FIN_SORTIE, DEBUT_DESCENTE_MOT - FIN_SORTIE);
+  const montee = progres(x, FIN_SORTIE, FIN_MONTEE_MOT - FIN_SORTIE);
+  const descente = 1 - progres(x, DEBUT_DESCENTE_MOT, DEBUT_ENTREE - DEBUT_DESCENTE_MOT);
+  return {
+    echelleMot: x <= 0 ? 1 : Math.floor((1 + (max - 1) * pMot) * 1e4) / 1e4,
+    opaciteMot: x >= 1 ? 0 : arrondi(Math.min(montee, descente)),
+    ouverture: x >= 1 ? 1 : arrondi(pScene),
+    echelleScene: x >= 1 ? 1 : arrondi(ECHELLE_SCENE_DEPART + (1 - ECHELLE_SCENE_DEPART) * pScene),
+    opaciteSceneAvant: x <= 0 ? 1 : arrondi(1 - progres(x, 0, FIN_SORTIE)),
+  };
+}
