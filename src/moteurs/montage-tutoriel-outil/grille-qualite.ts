@@ -3,6 +3,7 @@
 // Elle juge, elle ne corrige rien. Un contrôle « non fait » (mesure absente, regardeur éteint) compte comme « à corriger » et est nommé :
 // jamais comme réussi. Les seuils viennent des briques communes (importées) ; la durée vient de `DUREE_CIBLE_SEC` (seule source).
 import type { ResultatControle, RapportControleImage } from "@/briques/controle-image";
+import type { ResultatControleComposition } from "@/briques/plan-scenes/tutoriel/sans-voix/types";
 import { SEUILS_CONTROLE_IMAGE, nombre } from "@/briques/controle-image/seuils";
 import type { DefautVu, VerdictRegard } from "@/briques/regardeur";
 import { DUREE_CIBLE_SEC } from "./equipe/chef-de-projet";
@@ -49,6 +50,12 @@ export interface EntreeGrille {
   imageFixeMaxSec?: number | null;
   /** Niveau sonore mesuré (T-EXT-31). Absent : la grille reprend le contrôle « volume » du contrôle de l'image. */
   niveauSonoreLufs?: number | null;
+  /**
+   * QUAL-4 : contrôle objectif de la composition (`controlerComposition`). `undefined` : critère non ajouté (grilles
+   * d'avant, note inchangée) ; `null` : contrôle PAS FAIT = « non fait » (jamais réussi) ; un résultat : réussi / échoué
+   * (un défaut bloquant rend le critère bloquant).
+   */
+  composition?: ResultatControleComposition | null;
 }
 
 /** Ce que le moteur range dans l'état une fois le pas « regarder » branché (27b). */
@@ -157,6 +164,15 @@ function regardeur(r: VerdictRegard | undefined): Critere[] {
   ];
 }
 
+function composition(r: ResultatControleComposition | null): Critere {
+  const seuil = "aucun texte trop petit, recouvert, vide ou hors du cadre";
+  const libelle = "Composition de l'image";
+  if (!r || !Array.isArray(r.defauts)) return critere("composition", libelle, "bloquant", seuil, "non-fait", NON_FAIT);
+  if (r.defauts.length === 0) return critere("composition", libelle, "bloquant", seuil, "reussi", "aucun défaut");
+  const bloquant = r.defauts.some((d) => d.gravite === "bloquant");
+  return critere("composition", libelle, bloquant ? "bloquant" : "a-corriger", seuil, "echoue", r.defauts.map((d) => d.message).join(" "));
+}
+
 /** Gravité qui compte vraiment : un « non fait » est « à corriger » au moins, jamais un succès. */
 function graviteEffective(c: Critere): GraviteCritere | null {
   if (c.etat === "reussi") return null;
@@ -179,6 +195,7 @@ export function noterTutoriel(e: EntreeGrille): GrilleTutoriel {
     marque(e.controleur),
     depuisControleur(e.controleur, "TUT-REGISTRE", "Textes visibles validés", "aucun texte absent du registre", "bloquant"),
     ...regardeur(e.regardeur),
+    ...(e.composition === undefined ? [] : [composition(e.composition)]),
     depuisControleur(e.controleur, "TUT-MOMENTS", "Moments « ça change tout »", "trois au plus", "a-corriger"),
   ];
   let bloquants = 0;
