@@ -233,12 +233,18 @@ describe("A1 · de l'idée à la version validée (Claude doublé)", () => {
     }
   });
 
-  it("rien ne part sans accord : « Valider les N » est le geste de Will ; « Fabriquer » au-delà du seuil exige le prix confirmé", async () => {
-    const r = await ecrire(["tiktok"]);
+  it("décision du 08/11 (Studio) : une version non validée part avec une remarque au journal ; « Fabriquer » au-delà du seuil part sans prix confirmé (« accepté sans confirmation ») ; l'Usine exige la confirmation", async () => {
+    const r = await ecrire(["tiktok", "instagram"]);
     const vs = await depots().variantes.lister((v) => v.scriptMaitreId === r.scriptMaitreId && !v.archiveLe);
     expect(vs.every((v) => v.etat !== "validee")).toBe(true);
-    // Fabriquer une version non validée : refusé.
-    await expect(bg.fabriquerVariante(vs[0].id, { operationId: "op-a1-0", lancer: true })).rejects.toThrow(/Validez/);
+    expect(vs).toHaveLength(2);
+    const messages = async () => (await depots().evenements.lister()).map((e) => e.message);
+    // Fabriquer une version non validée : la fabrication part, une remarque va au journal (docs/blocages-inventaire.md:41).
+    const videosAvant0 = (await depots().videos.lister()).length;
+    const f0 = await bg.fabriquerVariante(vs[0].id, { operationId: "op-a1-0", lancer: true });
+    expect(f0).toMatchObject({ videoId: expect.any(String), travailId: expect.any(String) });
+    expect((await depots().videos.lister()).length).toBe(videosAvant0 + 1);
+    expect((await messages()).filter((m) => m === "Remarque : cette version n'est pas validée ; la fabrication continue.")).toHaveLength(1);
     const m = (await depots().scriptsMaitres.obtenir(r.scriptMaitreId))!;
     if (m.exception?.source === "proposition-machine" && !m.exception.valideeParWill) {
       await expect(bg.validerVariantes(vs.map((v) => v.id))).rejects.toThrow(/limite/);
@@ -246,31 +252,42 @@ describe("A1 · de l'idée à la version validée (Claude doublé)", () => {
     }
     const ids = (await depots().variantes.lister((v) => v.scriptMaitreId === r.scriptMaitreId && !v.archiveLe)).map((v) => v.id);
     expect(await bg.validerVariantes(ids)).toBeGreaterThan(0);
-    const v = (await depots().variantes.lister((x) => x.scriptMaitreId === r.scriptMaitreId && !x.archiveLe && x.etat === "validee"))[0];
+    const v = (await depots().variantes.lister((x) => x.scriptMaitreId === r.scriptMaitreId && !x.archiveLe && x.etat === "validee" && !x.videoId))[0];
     await ecrireParametre("budget.seuilConfirmation", centimes(1));
     const videosAvant = (await depots().videos.lister()).length;
-    await expect(bg.fabriquerVariante(v.id, { operationId: "op-a1-1", lancer: true })).rejects.toThrow();
+    // L'Usine reste bloquante (src/services/mode-budget.ts:37-39) : sans prix confirmé, rien n'est créé.
+    const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
+    const { moisParis } = await import("@/services/couts");
+    await reglerBudgetUsine({ budget_mensuel_cents: 5_000, mois: moisParis() });
+    await expect(bg.fabriquerVariante(v.id, { operationId: "op-a1-u", lancer: true, origine: "usine" })).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE" });
     expect((await depots().videos.lister()).length).toBe(videosAvant);
-  });
+    const f1 = await bg.fabriquerVariante(v.id, { operationId: "op-a1-1", lancer: true });
+    expect(f1).toMatchObject({ videoId: expect.any(String), travailId: expect.any(String) });
+    expect(f1.videoId).not.toBe(f0.videoId);
+    expect((await depots().videos.lister()).length).toBe(videosAvant + 1);
+    expect((await messages()).filter((m) => /^Prix .+ accepté sans confirmation$/.test(String(m)))).toHaveLength(2);
+  }, 30_000);
 
-  it("reprise après un arrêt : les étapes terminées ne sont pas repayées et le total reste sous le plafond du sujet", async () => {
+  it("limite Claude du mois atteinte au milieu (repère, 08/11) : l'écriture va au bout, alerte au journal ; rien n'est repayé ensuite et le total reste sous le plafond du sujet", async () => {
     await banc();
     const r = await bg.lancerGeneration({ idee: SUJET.idee, reseaux: SUJET.reseaux, formatId: "avocat", pilier: SUJET.pilier.id, mode: "avatar" });
     if (!r.ok) throw new Error("refusé");
-    // La limite Claude du mois est atteinte au milieu : l'écriture attend (rien ne part).
+    // La limite Claude du mois est atteinte au milieu : c'est un repère (src/services/generation-claude.ts:662), l'écriture va au bout.
     await ecrireParametre("claude.plafondMensuelUsd", 0.2);
     await bg.tourBoucleGeneration();
     const g1 = (await depots().generations.obtenir(r.generationId))!;
-    expect(g1.statut).toBe("en-attente-credit");
+    expect(g1.statut).toBe("terminee");
+    expect((await depots().evenements.lister()).map((e) => e.message)).toContain("Budget indicatif dépassé (Claude du mois) : Rien n'est arrêté : l'écriture continue (repère du mois). Seul un crédit Claude épuisé la met en attente.");
     const payeAvant = gc.depenseGenerationUsd(g1);
     const appelsAvant = { ...claude.appels };
     await ecrireParametre("claude.plafondMensuelUsd", 100);
-    await gc.reprendreGenerationsEnAttenteCredit({ gesteDeWill: true });
+    expect(await gc.reprendreGenerationsEnAttenteCredit({ gesteDeWill: true })).toEqual([]);
     await bg.tourBoucleGeneration();
     const g2 = (await depots().generations.obtenir(r.generationId))!;
+    expect(claude.appels).toEqual(appelsAvant);
     expect(g2.statut).toBe("terminee");
     const total = gc.depenseGenerationUsd(g2);
-    expect(total).toBeGreaterThanOrEqual(payeAvant);
+    expect(total).toBe(payeAvant);
     expect(total).toBeLessThanOrEqual(g2.plafondUsd);
     expect(g2.plafondUsd).toBe(PLAFOND_SUJET_USD);
     // Les rôles déjà payés avant l'arrêt ne repartent pas une seconde fois.

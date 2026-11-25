@@ -2,7 +2,7 @@
  * Police de l'encadré de titre et des incrustations (Inter Bold, SIL OFL 1.1), chargée EN LOCAL dans Remotion :
  * aucune dépendance réseau au rendu. Le rendu attend son chargement (jamais une image avec une police de secours).
  */
-import { continueRender, delayRender } from "remotion";
+import { cancelRender, continueRender, delayRender } from "remotion";
 import anton from "./polices/Anton-Regular.ttf";
 import interBold from "./polices/Inter-Bold.ttf";
 import interMedium from "./polices/Inter-Medium.ttf";
@@ -20,6 +20,10 @@ export function chargerPoliceTitre(): void {
   chargement = face.load().then((f) => {
     document.fonts.add(f);
     continueRender(attente);
+  }, (e: unknown) => {
+    const err = new Error(`Police illisible (${face.family}) : ${e instanceof Error ? e.message : String(e)}`);
+    cancelRender(err);
+    throw err;
   });
 }
 
@@ -35,6 +39,10 @@ export function chargerPoliceMontserrat(): void {
   chargementMontserrat = face.load().then((f) => {
     document.fonts.add(f);
     continueRender(attente);
+  }, (e: unknown) => {
+    const err = new Error(`Police illisible (${face.family}) : ${e instanceof Error ? e.message : String(e)}`);
+    cancelRender(err);
+    throw err;
   });
 }
 
@@ -50,6 +58,10 @@ export function chargerPoliceAnton(): void {
   chargementAnton = face.load().then((f) => {
     document.fonts.add(f);
     continueRender(attente);
+  }, (e: unknown) => {
+    const err = new Error(`Police illisible (${face.family}) : ${e instanceof Error ? e.message : String(e)}`);
+    cancelRender(err);
+    throw err;
   });
 }
 
@@ -65,6 +77,10 @@ export function chargerPoliceInterMedium(): void {
   chargementInterMedium = face.load().then((f) => {
     document.fonts.add(f);
     continueRender(attente);
+  }, (e: unknown) => {
+    const err = new Error(`Police illisible (${face.family}) : ${e instanceof Error ? e.message : String(e)}`);
+    cancelRender(err);
+    throw err;
   });
 }
 
@@ -80,5 +96,9 @@ export function chargerPoliceInterSemiBold(): void {
   chargementInterSemiBold = face.load().then((f) => {
     document.fonts.add(f);
     continueRender(attente);
+  }, (e: unknown) => {
+    const err = new Error(`Police illisible (${face.family}) : ${e instanceof Error ? e.message : String(e)}`);
+    cancelRender(err);
+    throw err;
   });
 }
