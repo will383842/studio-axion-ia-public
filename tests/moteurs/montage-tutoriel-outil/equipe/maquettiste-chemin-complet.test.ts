@@ -381,6 +381,24 @@ describe("PHRASE-1 · la consigne dit vrai : chaque conseil est prouvé contre l
     expect(refus(bon)).toBe("");
   });
 
+  it("« neuf » (même au sens de nouveau), « demi » et « mille » (même composé) : refusés par le code ET nommés par la consigne ; « neufs » passe", () => {
+    const cas: [string, (c: ReturnType<typeof exemple>) => void][] = [
+      ["Logement neuf", (c) => void (c.ecrans[0]!.zones[0]!.libelle = "Logement neuf")],
+      ["Quoi de neuf", (c) => void (c.ecrans[0]!.titre = "Quoi de neuf")],
+      ["Avant : une demi-journée de saisie", (c) => void (c.etats.avant = "Avant : une demi-journée de saisie")],
+      ["Mille-feuilles du jour", (c) => void (c.ecrans[0]!.titre = "Mille-feuilles du jour")],
+    ];
+    for (const [texte, change] of cas) {
+      const c = exemple();
+      change(c);
+      expect(refus(c), texte).toContain("ne vient d'aucune donnée exemple");
+    }
+    for (const mot of ["« neuf »", "nouveau", "« demi »", "une partie de la journée", "« mille »", "mot composé", "« neufs »"]) expect(CONSIGNE_MAQUETTISTE, mot).toContain(mot);
+    const bon = exemple();
+    bon.ecrans[0]!.zones[0]!.libelle = "Véhicules neufs";
+    expect(refus(bon)).toBe("");
+  });
+
   it("la consigne ne conseille plus « numéro 4 » et dit qu'AUCUN nombre n'est permis dans ces textes", () => {
     expect(CONSIGNE_MAQUETTISTE).not.toMatch(/Écris « numéro 4 »|jamais « n°4 »/);
     expect(CONSIGNE_MAQUETTISTE).toMatch(/AUCUN nombre dans un titre d'écran, un libellé de zone ni un état/);
