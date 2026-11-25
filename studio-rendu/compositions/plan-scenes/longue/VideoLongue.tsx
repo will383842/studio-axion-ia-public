@@ -13,14 +13,20 @@ const fondDe = (s: SceneLongue) => (s.fond === "noir" ? COULEURS_LONGUE.noir : C
 
 function Couche({ scene, t, style }: { scene: SceneLongue; t: number; style?: React.CSSProperties }) {
   const bande = sceneAvecBande(scene.type);
-  const lg = scene.type === "fin" ? logoFin(scene) : { y: 0, hauteur: 0 };
-  const logoL = lg.hauteur * (2048 / 1423);
+  const lg = scene.type === "fin" ? logoFin(scene) : { x: 0, y: 0, hauteur: 0, largeur: 0 };
+  // Zoom lent du groupe de scène (1 → 1,04 sur la durée de la scène) : jamais deux images identiques.
+  const avance = Math.min(1, Math.max(0, (t - scene.debutMs) / Math.max(1, scene.finMs - scene.debutMs)));
+  const zoom = 1 + 0.04 * avance;
+  const centreY = bande ? ZONES_LONGUE.scene.y + ZONES_LONGUE.scene.hauteur / 2 : 540;
+  const entreeLogo = Math.min(1, Math.max(0, (t - scene.debutMs - 100) / 500));
   return (
     <AbsoluteFill style={{ background: fondDe(scene), overflow: "hidden", ...style }}>
-      {poserScene(scene, t).map((el) => (
-        <DessinElement key={el.id} el={el} tMs={t} />
-      ))}
-      {scene.type === "fin" && <Img src={logo} style={{ position: "absolute", left: (1920 - logoL) / 2, top: lg.y, height: lg.hauteur, width: logoL, opacity: Math.min(1, Math.max(0, (t - scene.debutMs - 100) / 500)) }} />}
+      <AbsoluteFill style={{ transform: `scale(${zoom})`, transformOrigin: `960px ${centreY}px` }}>
+        {poserScene(scene, t).map((el) => (
+          <DessinElement key={el.id} el={el} tMs={t} />
+        ))}
+        {scene.type === "fin" && <Img src={logo} style={{ position: "absolute", left: lg.x, top: lg.y, height: lg.hauteur, width: lg.largeur, opacity: entreeLogo, transform: `translateY(${20 * (1 - entreeLogo)}px) scale(${1 + 0.02 * Math.sin(t / 700)})` }} />}
+      </AbsoluteFill>
       {bande && (
         <div style={{ position: "absolute", left: 0, top: ZONES_LONGUE.bandeSousTitres.y, width: 1920, height: ZONES_LONGUE.bandeSousTitres.hauteur, background: COULEURS_LONGUE.gris }}>
           <div style={{ height: 4, background: COULEURS_LONGUE.terracotta }} />
