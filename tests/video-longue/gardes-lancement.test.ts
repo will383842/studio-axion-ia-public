@@ -34,6 +34,12 @@ vi.mock("@/fournisseurs/heygen/rendus", (o) => pieges.moduleEspion("heygen/rendu
 vi.mock("@/fournisseurs/credits/heygen", (o) => pieges.moduleEspion("credits/heygen")(o as never));
 vi.mock("@/fournisseurs/credits/elevenlabs", (o) => pieges.moduleEspion("credits/elevenlabs")(o as never));
 
+// Le service de stockage « r2 » est inscrit (comme avec ses identifiants), sans aucun appel réseau.
+vi.mock("@/fournisseurs/r2/stockage", async () => {
+  const { stockageSimulation } = await import("@/fournisseurs/simulation/autres");
+  return { stockageR2DepuisEnv: () => ({ ...stockageSimulation, id: "r2", mode: "reel" }) };
+});
+
 const { reinitialiserDepots } = await import("@/donnees/memoire");
 const { depots, ecrireParametre } = await import("@/services/_commun");
 const auth = await import("@/services/auth");
@@ -119,6 +125,34 @@ describe("B9 : rendu non relié en production", () => {
       const r = await lancerVideoLongue({ question: "Q", chapitres: petit, sansVoix: true }, { montageRelie: true, lancer });
       expect(r).toEqual({ statut: "refusee", phrase: PHRASE_RENDU_NON_RELIE });
       expect(await nombreVideos()).toBe(avant);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("en production, sans injection : stockage choisi en base (sans variable d'environnement), rendu relié : accepté", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("STUDIO_RENDU_URL", "https://rendu.exemple.test");
+    vi.stubEnv("FOURNISSEUR_STOCKAGE", "");
+    try {
+      await ecrireParametre("fournisseur.stockage", "r2");
+      const r = await lancerVideoLongue({ question: "Q", chapitres: petit, sansVoix: true }, { montageRelie: true, lancer });
+      expect(r.statut).toBe("lancee");
+      expect(lancements).toBe(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  }, 60_000);
+  it("en production, sans injection : stockage en simulation en base, rendu relié : refus, rien n'est créé", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("STUDIO_RENDU_URL", "https://rendu.exemple.test");
+    vi.stubEnv("FOURNISSEUR_STOCKAGE", "");
+    try {
+      await ecrireParametre("fournisseur.stockage", "simulation");
+      const avant = await nombreVideos();
+      const r = await lancerVideoLongue({ question: "Q", chapitres: petit, sansVoix: true }, { montageRelie: true, lancer });
+      expect(r).toEqual({ statut: "refusee", phrase: PHRASE_RENDU_NON_RELIE });
+      expect(await nombreVideos()).toBe(avant);
+      expect(lancements).toBe(0);
     } finally {
       vi.unstubAllEnvs();
     }

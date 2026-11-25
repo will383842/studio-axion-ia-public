@@ -10,10 +10,9 @@
 import "server-only";
 import { decouperScript } from "@/briques/voix-longue";
 import type { Distribution, Id, Ratio, Video } from "@/domaine/types";
-import { depots, ErreurStudio, lireParametre } from "./_commun";
+import { depots, ErreurStudio, fournisseurSimule, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import { MONTAGE_VIDEO_LONGUE_RELIE } from "@/services/video-longue-branchements";
-import { resoudreFournisseur } from "@/fournisseurs";
 import { renduSimule } from "@/fournisseurs/rendu/client";
 import { DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
 import { MOTS_PAR_SECONDE_LECTURE } from "@/moteurs/montage-video-longue/chaine";
@@ -65,7 +64,7 @@ export interface DependancesVideoLongueCreation {
    * Rendu et stockage reliés ? (défaut : en production, faux si le rendu est simulé ou le stockage en simulation ; hors
    * production, vrai : les simulations restent possibles). Faux : refus avant toute création, en mode sans voix.
    */
-  renduRelie?: () => boolean;
+  renduRelie?: () => boolean | Promise<boolean>;
   /** Voix reliée ? (défaut : VOIX_VIDEO_LONGUE_RELIEE). */
   voixReliee?: boolean;
   /** Lecture d'un réglage (défaut : la base). Une lecture qui lève éteint. */
@@ -82,10 +81,11 @@ export interface DependancesVideoLongueCreation {
 export const dureeLectureSec = (chapitres: ChapitreDemande[]): number =>
   chapitres.reduce((s, c) => s + c.texte.split(/\s+/).filter(Boolean).length, 0) / MOTS_PAR_SECONDE_LECTURE;
 
-function renduRelieParDefaut(): boolean {
+/** Même test de stockage que le lancement commun : le réglage en base d'abord, puis l'environnement (`fournisseurSimule`). */
+async function renduRelieParDefaut(): Promise<boolean> {
   if (process.env.NODE_ENV !== "production") return true;
   try {
-    return !renduSimule() && resoudreFournisseur("stockage").mode !== "simulation";
+    return !renduSimule() && !(await fournisseurSimule("stockage"));
   } catch {
     return false;
   }
@@ -185,7 +185,7 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
   // Avant toute création : tant que la voix n'est pas reliée, le mode avec voix est refusé proprement.
   if (!sansVoix && !(dep.voixReliee ?? VOIX_VIDEO_LONGUE_RELIEE)) return refus(PHRASE_VOIX_NON_RELIEE);
   // Sans voix, en production : un rendu simulé ou un stockage non relié échouerait au montage ; refus avant toute création.
-  if (sansVoix && !(dep.renduRelie ?? renduRelieParDefaut)()) return refus(PHRASE_RENDU_NON_RELIE);
+  if (sansVoix && !(await (dep.renduRelie ?? renduRelieParDefaut)())) return refus(PHRASE_RENDU_NON_RELIE);
   let distribution: Distribution[] = [];
   if (!sansVoix) {
     try {
