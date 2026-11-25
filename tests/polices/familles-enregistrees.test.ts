@@ -197,6 +197,9 @@ describe("POLICES-P3-a : la première famille de chaque objet est enregistrée p
     for (const n of readdirSync(DOSSIER)) writeFileSync(join(tmp, n), "[]\n");
     ecrireEcarts(tmp, lireEcarts(DOSSIER));
     expect(readdirSync(tmp).map((n) => readFileSync(join(tmp, n), "utf8"))).toEqual(readdirSync(DOSSIER).map((n) => readFileSync(join(DOSSIER, n), "utf8")));
+    // Borne réelle : un écart Manrope SYNTHÉTIQUE est écrit, puis il disparaît : le fichier redevient « [] » sans disparaître.
+    ecrireEcarts(tmp, [...figes, { hote: "sonde.tsx", objet: "sonde", famille: "Manrope" }]);
+    expect(readFileSync(join(tmp, "manrope.json"), "utf8")).toContain("sonde.tsx");
     ecrireEcarts(tmp, figes.filter((e) => e.famille !== "Manrope"));
     expect(readFileSync(join(tmp, "manrope.json"), "utf8")).toBe("[]\n");
   });
