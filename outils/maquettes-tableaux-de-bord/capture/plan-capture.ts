@@ -234,6 +234,29 @@ export function zoneDansImage(r: RectPx, largeur: number, hauteur: number): Rect
   return { x: bx.d / 100, y: by.d / 100, largeur: lx / 100, hauteur: ly / 100 };
 }
 
+/**
+ * POSTE-7 : une remarque en français par cible dont la zone est omise (entièrement hors de l'image, ou sans surface visible)
+ * ou rognée (débord de plus d'un demi-pixel). Les étapes sans rectangle ne donnent rien. Pure, ne lève jamais.
+ */
+export function remarquesZones(mesures: MesureEtape[], largeur: number, hauteur: number): string[] {
+  const out: string[] = [];
+  for (const m of mesures) {
+    const r = m.rectPx;
+    if (!r) continue;
+    if (!zoneDansImage(r, largeur, hauteur)) {
+      out.push(`Étape ${m.etapeId} : la cible est entièrement hors de l'image filmée ; ni caméra, ni curseur, ni projecteur pour cette étape.`);
+      continue;
+    }
+    const deborde = r.x < -0.5 || r.y < -0.5 || r.x + r.largeur > largeur + 0.5 || r.y + r.hauteur > hauteur + 0.5;
+    if (!deborde) continue;
+    const vx = Math.max(0, Math.min(r.x + r.largeur, largeur) - Math.max(r.x, 0));
+    const vy = Math.max(0, Math.min(r.y + r.hauteur, hauteur) - Math.max(r.y, 0));
+    const part = Math.round(((vx * vy) / (r.largeur * r.hauteur)) * 100);
+    out.push(`Étape ${m.etapeId} : zone coupée par le bord de l'image, ${part} % visible.`);
+  }
+  return out;
+}
+
 /** Construit `navigation.json` : millisecondes entières, zones à 0,01 % ramenées dans l'image (POSTE-7) ; `figees` absent quand non mesuré. */
 export function navigationJson(p: {
   maquette: string;
