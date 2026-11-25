@@ -22,6 +22,7 @@ import { resumeVisuelDepuisFiche } from "@/briques/variete/resume";
 import type { FicheScenes } from "@/briques/fiche-scenes";
 import { depots, lireParametre } from "./_commun";
 import { dejaVuUsine } from "./tableau-deja-vu-usine";
+import { preteAvecRemarquesActive } from "./tableau-remarques";
 import { lireEntreesTableau as lireEntreesSansVoix } from "@/moteurs/montage-tableau/etapes";
 import { MOTEUR_SANS_VOIX_PRET, RAISON_SANS_VOIX_MOTEUR_ABSENT } from "@/moteurs/montage-tableau/sans-voix";
 
@@ -104,6 +105,8 @@ brancherServicesTableau({
     const [preuves, matieres] = await Promise.all([d.preuves.lister(), d.matieres.lister()]);
     return {
       ...(raccords ? { raccords: true as const } : {}),
+      // S-13 : décisions n° 8 et 9, éteint par défaut (seul `true` exact allume).
+      ...((await preteAvecRemarquesActive()) ? { preteAvecRemarques: true as const } : {}),
       env: b.env,
       voix: b.voix,
       scenes: b.scenes,

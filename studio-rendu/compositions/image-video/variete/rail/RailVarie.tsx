@@ -1,9 +1,9 @@
+import React from "react";
 /**
  * Lot 3 · RAIL D'ÉTAPES : mêmes entrées que `RailSuite`. RAI-A (référence, et tout rendu sans variété) l'appelle sans le
  * modifier ; RAI-B (fil de progression), RAI-C (icônes seules) et RAI-D (segments façon stories) dessinent le rail
  * autrement, sans aucun texte. Garde les attributs `data-rail` et `data-carte-rail`.
  */
-import React from "react";
 import type { SchemaEntree } from "../../../../../src/briques/schema-motion";
 import { codeDe } from "../../../../../src/briques/schema-motion/variete";
 import { COULEURS_DUO } from "../../../../../src/briques/habillage/charte-duo";
