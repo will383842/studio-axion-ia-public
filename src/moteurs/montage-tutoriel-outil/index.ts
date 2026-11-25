@@ -104,7 +104,8 @@ function lignesEstimees(commande: CommandeFabrication): LigneCout[] {
   const l: LigneCout[] = [];
   // T-EXT-SV : mode sans voix = aucune ligne « voix », donc rien à bloquer côté crédits.
   if (commande.distribution.length && !estSansVoix(commande.entrees)) l.push(ligne("Voix", "heygen", "caractere", (commande.script.texteComplet ?? "").length, "estime"));
-  l.push(ligne("Plan de scènes", "claude", "appel", 1, "estime"));
+  // QUAL-5 : sans voix et sans film de navigation, le plan est composé du script (0 appel Claude).
+  if (!(estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee)) l.push(ligne("Plan de scènes", "claude", "appel", 1, "estime"));
   l.push(ligne("Montage tutoriel d'outil", "studio", "forfait", 1, "estime"));
   return l;
 }
