@@ -11,6 +11,9 @@ describe("échec d'une plage", () => {
     expect(e.message).toContain("rien n'est payé");
     expect(e.message).not.toMatch(/could not find/i);
   });
+  it("« introuvable » sans rapport avec la composition : définitif", () => {
+    expect(erreurEchecPlage("Médias v4 introuvables").reessayable).toBe(false);
+  });
   it("autre échec : définitif, message d'origine gardé", () => {
     const e = erreurEchecPlage("ffmpeg a planté");
     expect(e.reessayable).toBe(false);

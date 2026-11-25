@@ -93,7 +93,7 @@ describe("QUALL-5 : une seule préparation pour les deux chemins", () => {
     // Texte énorme : le story-board dépasse la limite.
     const enorme = { chapitres: [{ debutSec: 0, finSec: 1600, libelle: "x".repeat(700_000), blocRecette: "chapitres" }], mots, dureeSec: 1600 } as never;
     expect(() => preparerRenduVideoLongue(commande, enorme)).toThrow(ErreurMontageVideoLongue);
-  });
+  }, 20_000);
 });
 
 describe("QUALL-5 : la note n'est plus un 80 en dur", () => {

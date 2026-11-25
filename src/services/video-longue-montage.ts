@@ -72,7 +72,7 @@ export class ErreurMontageVideoLongue extends Error {
  * Échec d'une plage : si le service de rendu ne connaît pas encore la composition (Studio déployé avant studio-rendu),
  * phrase claire et RÉESSAYABLE (rien n'est payé ; la même demande repartira une fois le service à jour). Sinon : définitif.
  */
-export const COMPOSITION_ABSENTE = /introuvable|could not find composition/i;
+export const COMPOSITION_ABSENTE = /composition\b.*\b(introuvable|inconnue)|could not find composition/i;
 export function erreurEchecPlage(message: string): ErreurMontageVideoLongue {
   if (COMPOSITION_ABSENTE.test(message)) return new ErreurMontageVideoLongue("Le service de rendu n'est pas encore à jour pour ce nouveau montage : rien n'est payé, réessayez un peu plus tard.", [], true);
   return new ErreurMontageVideoLongue(`Le rendu d'une partie de la vidéo a échoué : ${message}`, [], false);

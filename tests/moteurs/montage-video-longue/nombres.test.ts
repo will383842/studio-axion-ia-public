@@ -180,3 +180,19 @@ describe("QUALL-9 : chiffres faux exclus", () => {
     expect(vals("Il y a 12 mois")).toEqual([12]);
   });
 });
+
+describe("QUALL-9 : 2e passe", () => {
+  const vals = (t: string) => nombresEcrits(t).map((n) => n.valeur);
+  it("signe moins : exclu", () => {
+    expect(vals("Il a reculé de -5 %")).toEqual([]);
+    expect(vals("Il fait −12 degrés")).toEqual([]);
+  });
+  it("dix-huit cents : un seul nombre, 1 800", () => {
+    const n = nombresEcrits("dix-huit cents exemplaires");
+    expect(n.map((x) => x.valeur)).toEqual([1800]);
+    expect(n[0].affiche).toBe("1 800");
+  });
+  it("téléphone d'un bloc exclu", () => {
+    expect(vals("Appelez le 0612345678")).toEqual([]);
+  });
+});

@@ -196,7 +196,7 @@ const AVANT_NEUF_OK = new Set(["les", "ces", "ses", "nos", "vos", "leurs", "mes"
 
 const RE_REFERENCE = /(?:(?<![\p{L}\d])(?:version|numéro|numero|page|article|v)|(?<![\p{L}])n\s?°)\s*$/iu;
 /** Téléphone : au moins 3 groupes de 2 chiffres séparés par des espaces ou des points. */
-const RE_TELEPHONE = /(?<![\d,.])\d{2}(?:[ .]\d{2}){2,}(?![\d])/g;
+const RE_TELEPHONE = /(?<![\d,.])(?:\d{2}(?:[ .]\d{2}){2,}|0\d{9})(?![\d])/g;
 
 /** Contextes où le nombre n'est pas une quantité (« tous les deux », « neuf » = nouveau). */
 function exclu(texte: string, debut: number, fin: number, valeur: number): boolean {
@@ -237,6 +237,8 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
   for (let m = RE_CHIFFRES.exec(texte); m; m = RE_CHIFFRES.exec(texte)) {
     const fin0 = m.index + m[0].length;
     if (dejaPris(m.index, fin0)) continue;
+    // Signe moins perdu (« -5 % », « −12 degrés ») : on n'affiche jamais la valeur sans son signe.
+    if (/[-\u2212\u2013]$/.test(texte.slice(0, m.index))) continue;
     // Fractions et dates (« 1/3 », « 12/05/2026 ») : jamais deux chiffres.
     if (/^\/\d/.test(texte.slice(fin0)) || /\d\/$/.test(texte.slice(0, m.index))) continue;
     // « 1.200 » (trois décimales après un point) : séparateur de milliers ambigu, on ne devine pas.
@@ -259,11 +261,13 @@ export function nombresEcrits(texte: string): NombreEcrit[] {
   for (const seg of segments(texte)) {
     let i = 0;
     while (i < seg.length) {
-      const r = nombre(seg, i);
+      let r = nombre(seg, i);
       if (!r) {
         i++;
         continue;
       }
+      // « dix-huit cents » : le cent(s) qui suit un nombre de 10 à 99 le multiplie (1 800), jamais deux chiffres.
+      if (r.v >= 10 && r.v <= 99 && seg[i + r.n]?.t === "cent" && seg[i + r.n + 1]?.t !== "pour") r = { v: r.v * 100, n: r.n + 1 };
       const debut = seg[i].debut;
       let fin = seg[i + r.n - 1].fin;
       let n = r.n;
