@@ -352,12 +352,13 @@ describe("C · « Écrire ces N idées » → N scripts (Claude, chemin payant r
   });
 
   // INTÉGRATION FINALE : l'ancien constat (« … mais avec l'épisode 2 ») décrivait le défaut corrigé ci-dessus.
-  it("constat : l'idée hors domaine est « partie » (« À compléter » au suivi), sans numéro de sujet ni épisode", async () => {
+  it("constat : l'idée hors domaine n'est pas « partie » : « a-completer » (« À compléter » au suivi), sans numéro de sujet ni épisode", async () => {
     const s = await series.creerSerie("Les tableurs");
     const idees = [IDEES[0], "Comment contester un PV de stationnement", IDEES[1]];
     const plan = await serie.planSerie(3);
     const { serie: lancee } = await serie.lancerSerie(idees.map((texte) => ({ texte })), { ...REGLAGES, serieId: s.id }, "serie-bc-episodes", plan.totalPartant.centimes, plan.partiront);
-    expect(lancee.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    expect(lancee.elements.map((e) => e.sort)).toEqual(["parti", "a-completer", "parti"]);
+    expect(lancee.elements[1]).toMatchObject({ manque: "HORS_DOMAINE", scriptMaitreId: expect.any(String) });
     for (let i = 0; i < 3; i++) await bg.tourBoucleGeneration();
     const sujets = await Promise.all(lancee.elements.map((e) => depots().scriptsMaitres.obtenir(e.scriptMaitreId!)));
     expect(sujets.map((m) => [m!.numero === undefined, m!.episodeSerie, m!.manque?.type])).toEqual([

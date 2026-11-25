@@ -105,7 +105,8 @@ describe("Jonction 1 · garde argent (B6) × écriture en série : le total vu s
     await brancherClaude();
     await ecrireParametre("budget.seuilConfirmation", { centimes: 1_000_000, devise: "EUR" });
     const b = await serie.lancerSerie(IDEES.slice(2, 4).map((texte) => ({ texte })), REGLAGES, "serie-p4-sous-seuil");
-    expect(b.serie.elements.every((e) => e.sort === "parti")).toBe(true);
+    expect(b.serie.elements.map((e) => e.sort)).toEqual(["parti", "a-completer"]);
+    expect(b.serie.elements[1].manque).toBe("HORS_DOMAINE");
   });
 
   it("l'écran envoie le total affiché sur la feuille (aucune confirmation écrite en dur)", async () => {

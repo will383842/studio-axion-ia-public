@@ -149,14 +149,15 @@ describe("generation-claude : écriture d'un sujet", () => {
 });
 
 describe("serie-ecriture : plusieurs idées d'un geste", () => {
-  it("fondateur : seuil, budget et limite Claude au plus bas, sans confirmation → toutes les idées partent, aucun refus, aucun montant écrit", async () => {
+  it("fondateur : seuil, budget et limite Claude au plus bas, sans confirmation → le plan les fait toutes partir (aucune limite ne retient), aucun refus, aucun montant écrit", async () => {
     await toutDepasser();
     await brancherClaude();
     const avant = await textesEcrits();
     const plan = await serie.planSerie(IDEES.length);
     expect(plan.partiront).toBe(IDEES.length);
     const { serie: s } = await serie.lancerSerie(IDEES.map((texte) => ({ texte })), REGLAGES, "serie-l213c-fondateur");
-    expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    expect(s.elements.map((e) => e.sort)).toEqual(["a-completer", "a-completer", "a-completer"]);
+    expect(s.elements.filter((e) => e.sort === "refuse" || e.sort === "reste")).toHaveLength(0);
     // Une alerte est permise (journal ou cloche), jamais un montant.
     for (const t of await textesEcrits(avant)) expect(t).not.toMatch(MONTANT);
   });

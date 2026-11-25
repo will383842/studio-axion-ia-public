@@ -20,7 +20,7 @@ import type { Adresse, Id, ModeDiction, Montant, ObjectifSujet, ReseauDeclinaiso
 import { centimes } from "@/lib/montants";
 import { nouvelId } from "@/lib/ids";
 import { exigerSession } from "./auth";
-import { chaineDeLEcriture, lancerGeneration, prixLancement } from "./boucle-generation";
+import { chaineDeLEcriture, lancerGeneration, prixLancement, type ResultatLancement } from "./boucle-generation";
 import { resumeBudget } from "./couts";
 import { claudeBranche, depenseGenerationUsd, ecritureEnEssai, engageClaudeDuMoisCentimes, plafondChaineUsd, plafondMensuelClaudeUsd, taux } from "./generation-claude";
 import { signalerDepassementIndicatif, type OrigineLancement } from "./budget-mensuel";
@@ -117,8 +117,10 @@ export interface ElementSerie {
   texte: string;
   ideeId?: Id;
   scriptMaitreId?: Id;
-  /** « parti » : écriture lancée (ou arrêtée gratuitement sur un manque) ; « reste » : gardé en idée ; « refuse » : erreur. */
-  sort: "parti" | "reste" | "refuse";
+  /** « parti » : écriture lancée ; « a-completer » : arrêtée à 0 € sur un manque (le sujet existe) ; « reste » : gardé en idée ; « refuse » : erreur. */
+  sort: "parti" | "a-completer" | "reste" | "refuse";
+  /** Type du manque quand l'idée s'est arrêtée à 0 €. */
+  manque?: Extract<ResultatLancement, { ok: false }>["manque"];
   message?: string;
 }
 
@@ -188,7 +190,11 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
       try {
         const lance = await lancerGeneration({ idee: x.texte, reseaux: r.reseaux, formatId: r.formatId, adresse: r.adresse, mode: r.mode, objectif: r.objectif, ideeId: x.ideeId, sujetSensible: detecterSujetSensible(x.texte), serieId: r.serieId, ciblage: r.ciblage, typeAutomatisation: r.typeAutomatisation, ...(origine ? { origine } : {}) });
         if (x.ideeId) await d.idees.modifier(x.ideeId, { scriptMaitreId: lance.scriptMaitreId });
-        elements.push({ texte: x.texte, ideeId: x.ideeId, scriptMaitreId: lance.scriptMaitreId, sort: "parti" });
+        elements.push(
+          lance.ok
+            ? { texte: x.texte, ideeId: x.ideeId, scriptMaitreId: lance.scriptMaitreId, sort: "parti" }
+            : { texte: x.texte, ideeId: x.ideeId, scriptMaitreId: lance.scriptMaitreId, sort: "a-completer", manque: lance.manque, message: lance.ceQuIlFaudrait },
+        );
       } catch (e) {
         const ideeId = x.ideeId ?? (await ajouterIdee(x.texte)).id;
         elements.push({ texte: x.texte, ideeId, sort: "refuse", message: e instanceof ErreurStudio ? e.message : "Cette idée n'a pas pu partir." });
@@ -198,7 +204,9 @@ export async function lancerSerie(entrees: { texte: string; ideeId?: Id }[], reg
     await ecrireParametre(cleSerie(cle), serie);
     await ecrireParametre(CLE_DERNIERE, cle);
     const partis = elements.filter((e) => e.sort === "parti").length;
-    await journaliser("generateur", `Série : ${partis} idée(s) sur ${elements.length} en écriture${plan.essai ? " (essai)" : ""}`);
+    const horsDomaine = elements.filter((e) => e.sort === "a-completer" && e.manque === "HORS_DOMAINE").length;
+    const aCompleter = elements.filter((e) => e.sort === "a-completer").length - horsDomaine;
+    await journaliser("generateur", `Série : ${partis} idée(s) sur ${elements.length} en écriture${horsDomaine ? ` · ${horsDomaine} hors du domaine d'Axion-IA, non lancée(s)` : ""}${aCompleter ? ` · ${aCompleter} à compléter, non lancée(s)` : ""}${plan.essai ? " (essai)" : ""}`);
     return { serie, plan };
   });
 }
@@ -259,7 +267,7 @@ export async function suiviSerie(id?: Id | null): Promise<SuiviSerie | null> {
   const d = depots();
   const elements: SuiviSerie["elements"] = [];
   for (const e of serie.elements) {
-    if (e.sort !== "parti" || !e.scriptMaitreId) {
+    if ((e.sort !== "parti" && e.sort !== "a-completer") || !e.scriptMaitreId) {
       elements.push({ texte: e.texte, etat: e.sort === "refuse" ? "refuse" : "reste" });
       continue;
     }

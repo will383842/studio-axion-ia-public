@@ -93,8 +93,8 @@ export function FeuilleSerie({
         }
         return;
       }
-      const { partis, restes, essai } = r.donnees;
-      const phrase = `${pluriel(partis, "idée")} en écriture${restes ? ` · ${restes} gardée${restes > 1 ? "s" : ""} en idée` : ""}`;
+      const { partis, restes, horsDomaine, aCompleter, essai } = r.donnees;
+      const phrase = `${pluriel(partis, "idée")} en écriture${horsDomaine ? ` · ${horsDomaine} hors du domaine d'Axion-IA` : ""}${aCompleter ? ` · ${aCompleter} à compléter` : ""}${restes ? ` · ${restes} gardée${restes > 1 ? "s" : ""} en idée` : ""}`;
       if (essai) notifier.essai(`${phrase}, rien n'est payé`);
       else notifier.succes(phrase);
       changerOuverture(false);
