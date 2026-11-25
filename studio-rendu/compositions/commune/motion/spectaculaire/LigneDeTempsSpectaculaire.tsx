@@ -50,7 +50,7 @@ function Contenu({ d }: { d: DonneesLigneDeTemps }) {
     <>
       {d.titre && (
         <div style={{ position: "absolute", left: zone.x, width: zone.largeur, top: zone.y }}>
-          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tailleTitre} graisse={900} largeurMax={zone.largeur} effet="ecrase" />
+          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tailleTitre} graisse={800} largeurMax={zone.largeur} effet="ecrase" />
         </div>
       )}
       <div style={{ position: "absolute", left: 0, top: 0, width: largeur, height: bas + 200 * u, perspective: `${(1500 * u).toFixed(0)}px`, perspectiveOrigin: `30% ${((haut + bas) / 2).toFixed(0)}px` }}>
@@ -92,7 +92,7 @@ function Contenu({ d }: { d: DonneesLigneDeTemps }) {
                   }}
                 >
                   {!dite && <span style={{ fontSize: noeud * 0.42, fontWeight: 800, color: COULEURS.cremeAttenuee }}>{i + 1}</span>}
-                  {dite && (passe ? <IconeSpec nom="coche" taille={noeud * 0.52} debut={heures[i + 1]} epaisseur={3} /> : e.icone ? <IconeSpec nom={e.icone} taille={noeud * 0.52} debut={h + 0.1} epaisseur={2.4} /> : <span style={{ fontSize: noeud * 0.42, fontWeight: 900 }}>{i + 1}</span>)}
+                  {dite && (passe ? <IconeSpec nom="coche" taille={noeud * 0.52} debut={heures[i + 1]} epaisseur={3} /> : e.icone ? <IconeSpec nom={e.icone} taille={noeud * 0.52} debut={h + 0.1} epaisseur={2.4} /> : <span style={{ fontSize: noeud * 0.42, fontWeight: 800 }}>{i + 1}</span>)}
                   <Eclats x={noeud / 2} y={noeud / 2} debut={h} rayon={noeud * 1.1} nombre={12} graine={20 + i} flash={false} />
                 </div>
                 {dite && (

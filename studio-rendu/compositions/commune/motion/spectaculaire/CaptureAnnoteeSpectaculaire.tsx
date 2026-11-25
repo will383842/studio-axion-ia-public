@@ -102,7 +102,7 @@ function Contenu({ d }: { d: DonneesCaptureAnnotee }) {
     <>
       {d.titre && (
         <div style={{ position: "absolute", left: zc.x, width: zc.largeur, top: zc.y, display: "flex", justifyContent: "center" }}>
-          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tTitre} graisse={900} largeurMax={zc.largeur} effet="ecrase" alignement="center" />
+          <MotsGeants texte={d.titre} debut={entree - 0.1} taille={tTitre} graisse={800} largeurMax={zc.largeur} effet="ecrase" alignement="center" />
         </div>
       )}
       <div style={{ position: "absolute", left: cadre.x, top: cadre.y, width: W, height: H, perspective: `${(1600 * u).toFixed(0)}px`, opacity: borne((t - tA) / 0.12) }}>

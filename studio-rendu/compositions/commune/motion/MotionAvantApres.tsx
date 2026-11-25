@@ -12,7 +12,7 @@ export function ecartAvantApres(avant: number, apres: number): string {
   if (avant === 0) return "";
   if (apres > avant && apres / avant >= 2) return `×${formaterNombre(apres / avant, apres / avant >= 10 ? 0 : 1).replace(/,0$/, "")}`;
   const p = Math.round(((apres - avant) / avant) * 100);
-  return `${p < 0 ? "−" : "+"}${Math.abs(p)} %`;
+  return `${p < 0 ? "−" : "+"}${Math.abs(p)} %`;
 }
 
 function Contenu({ d }: { d: DonneesAvantApres }) {
@@ -56,7 +56,7 @@ function Contenu({ d }: { d: DonneesAvantApres }) {
     return (
       <div key={cote} style={{ position: "absolute", left: x, width: lb, top: 0, height: base, opacity: visible }}>
         {/* Valeur au-dessus de la barre. */}
-        <div style={{ position: "absolute", left: -lb * 0.25, width: lb * 1.5, top: base - h - hValeur, textAlign: "center", fontWeight: 900, fontSize: taille("titre") * 1.32, letterSpacing: "-0.03em", lineHeight: 1, color: orange ? COULEURS.orangeVif : COULEURS.creme, fontVariantNumeric: "tabular-nums" }}>
+        <div style={{ position: "absolute", left: -lb * 0.25, width: lb * 1.5, top: base - h - hValeur, textAlign: "center", fontWeight: 800, fontSize: taille("titre") * 1.32, letterSpacing: "-0.03em", lineHeight: 1, color: orange ? COULEURS.orangeVif : COULEURS.creme, fontVariantNumeric: "tabular-nums" }}>
           {formaterNombre(valeur, Number.isInteger(val.valeur) ? 0 : 1)}
           <span style={{ fontSize: "0.55em", fontWeight: 800, marginLeft: "0.12em", color: orange ? COULEURS.orangeVif : COULEURS.cremeAttenuee }}>{val.unite}</span>
         </div>
