@@ -52,7 +52,15 @@ export type EvenementEcran =
   /** Panneau latéral (« Historique ») qui glisse dans la fenêtre ; rubriques apparaissant chacune sur son mot. */
   | { genre: "panneau"; aMs: number; titre: string; rubriques: { libelle: string; aMs: number; source: PlageMots }[]; source: PlageMots }
   /** Notification qui tombe en haut de la fenêtre ; `cartePulse` = index de la carte-chiffre qui pulse (ou absent). */
-  | { genre: "alerte"; aMs: number; texte: string; cartePulse?: number; source: PlageMots }
+  | {
+      genre: "alerte";
+      aMs: number;
+      texte: string;
+      /** Instant (ms) du mot déclencheur : la notification apparaît là ; avant, depuis `aMs`, l'écran montre la condition. */
+      declencheurAMs?: number;
+      cartePulse?: number;
+      source: PlageMots;
+    }
   /** Caméra douce vers une partie de l'écran (zoom ≤ 1,25) ; jamais d'élément hors cadre après zoom. */
   | { genre: "focus"; aMs: number; finMs: number; cible: "cartes" | "liste" | "panneau" | "alerte" | "ensemble"; source: PlageMots };
 
