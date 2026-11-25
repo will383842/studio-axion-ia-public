@@ -53,6 +53,7 @@ import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { decisionBoucleCasConcret, sansFinPropre } from "./boucle-effet";
 import { cleTranche, planScenesCasConcret, type GroupePourPlan, type MemoPlanScenes } from "./plan-scenes";
 import { centreSousTitresPleineImagePct, proprietesPleineImage, zonePleineImage } from "./zone-objets";
+import { reserverZoneObjets } from "./reserve-objets";
 import { controlerProprietes, zonesEcran, type CaptureEcran, type EcranCale, type ProprietesEcran } from "@/briques/ecrans-motion";
 import { COULEURS_DUO, VERSION_CHARTE_DUO } from "@/briques/habillage/charte-duo";
 import type { BruitagePlace } from "@/briques/intensite/types";
@@ -1166,7 +1167,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     await ecrire();
     tranchesPlan = r.tranches;
   }
-  const avecPlan = (groupe: string, ps: ProprietesEcran[]): ProprietesEcran[] => ps.map((p) => (tranchesPlan[cleTranche(groupe, p.id)] ? { ...p, planScenes: tranchesPlan[cleTranche(groupe, p.id)] } : p));
+  const avecPlan = (groupe: string, ps: ProprietesEcran[]): ProprietesEcran[] => ps.map((p) => (tranchesPlan[cleTranche(groupe, p.id)] ? reserverZoneObjets({ ...p, planScenes: tranchesPlan[cleTranche(groupe, p.id)] }) : p));
   // 18/11 (Williams, FIX-CC-FIN-NON-CHOISIE) : plan mixte (fin au mot sur un réseau, fin vide sur les autres) : le fichier de la fin vide dure
   // jusqu'à la fin de sa voix + la tenue ; le dernier écran du corps est rendu jusque-là (les fins à écrans le coupent à l'instant commun).
   const commun = calage.fiche.ecrans[calage.fiche.ecrans.length - 1].finMs!;

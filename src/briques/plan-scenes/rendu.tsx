@@ -14,6 +14,9 @@ import type { Calque, PlanValide, SceneValide } from "./schema";
 import { TOILES } from "./toiles";
 import { SOUS_ZONES, ZONES, type Rectangle, type Transition } from "./zones";
 
+/** FIX-OBJETS-CC-PLACE-v21u : champ posé seulement par `reserverZoneObjets` (cas concret) : la boîte, en px de l'image, où se posent les pièces `objet-*` (sous les textes). Absent : rendu inchangé. */
+export type PlanZoneObjets = PlanValide & { zoneObjets?: Rectangle };
+
 export function dureeImagesPlan(plan: Pick<PlanValide, "dureeMs" | "format">): number {
   return Math.max(1, Math.ceil((plan.dureeMs * plan.format.fps) / 1000));
 }
@@ -93,7 +96,8 @@ function Scene({ scene, plan, image }: { scene: SceneValide; plan: PlanValide; i
     return def.style(t, sens, boiteTransition);
   };
   const style = tEntree < 1 ? (commune("entree", tEntree) ?? effet(scene.transition.entree, tEntree)) : tSortie < 1 ? (commune("sortie", tSortie) ?? effet(scene.transition.sortie, tSortie)) : {};
-  const boite = enPx(ZONES[scene.position], largeur, hauteur);
+  const zoneObjets = (plan as PlanZoneObjets).zoneObjets;
+  const boite = zoneObjets && scene.niveau === 1 && scene.piece.startsWith("objet-") ? zoneObjets : enPx(ZONES[scene.position], largeur, hauteur);
   const etiquette = scene.texte && scene.piece !== "legende" && scene.position !== "haut" && scene.position !== "plein";
   // BR-RACCORD-FORME-a : forme pleine tracée SOUS le contenu pendant 14 images, effacée sur les 4 dernières ; jamais avec visage.
   const paire = habillageCommun?.raccords?.[scene.id];
