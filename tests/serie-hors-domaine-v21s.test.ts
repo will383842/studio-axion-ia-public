@@ -34,16 +34,17 @@ const HORS = ["Les réunions qui auraient pu être un e-mail", "Le devis refait 
 const IDEES = [...SUJETS_BANC.map((s) => s.idee), ...HORS];
 
 beforeAll(async () => preparerMotDePasse(MDP));
-async function preparer() {
+async function preparer(avecMatieres = true) {
   reinitialiserDepots();
   reinitialiserRequete();
   bg.suspendreBoucleGeneration(true);
   appelsClaude.length = 0;
   await auth.seConnecter(MDP, false);
+  if (!avecMatieres) return;
   for (const m of SUJETS_BANC.flatMap((s) => s.matieres)) await depots().matieres.enregistrer(m);
   for (const p of SUJETS_BANC.flatMap((s) => s.preuves)) await depots().preuves.enregistrer(p);
 }
-beforeEach(preparer);
+beforeEach(() => preparer());
 afterEach(() => {
   gc.injecterClaudePourEssai(null);
   bg.arreterBoucleGeneration();
@@ -79,12 +80,20 @@ describe("FIX-SERIE-PARTI-v21s", () => {
     expect(essai).toEqual(["Série : 3 idée(s) sur 5 en écriture · 2 hors du domaine d'Axion-IA, non lancée(s) (essai)"]);
   });
 
-  it("(c) un autre manque est « à compléter » (calcul de l'action)", async () => {
-    // Aucun cas reproductible sans toucher src/generateur/** : le calcul aCompleter est vérifié dans l'action (source).
-    const src = lire("src/app/(studio)/ecrire/serie/actions.ts");
-    expect(src).toMatch(/aCompleter/);
-    expect(src).toMatch(/manque !== "HORS_DOMAINE"/);
-    expect(lire("src/services/serie-ecriture.ts")).toContain("à compléter, non lancée(s)");
+  it("(c) un autre manque est « à compléter » : exécuté, sans les matières enregistrées de l'idée du domaine", async () => {
+    await preparer(false); // aucune matière ni preuve : l'idée du domaine manque d'ancrage, l'autre est hors domaine
+    await brancherClaude();
+    const deux = [{ texte: IDEES[0] }, { texte: HORS[0] }];
+    const { serie: s } = await serie.lancerSerie(deux, REGLAGES, "serie-shd-c");
+    expect(s.elements.map((e) => e.sort)).toEqual(["a-completer", "a-completer"]);
+    expect(s.elements.map((e) => e.manque)).toEqual(["ANCRAGE_MANQUANT", "HORS_DOMAINE"]);
+    expect(await lignesSerie()).toEqual(["Série : 0 idée(s) sur 2 en écriture · 1 hors du domaine d'Axion-IA, non lancée(s) · 1 à compléter, non lancée(s)"]);
+    expect(appelsClaude).toHaveLength(0);
+    // L'action sépare les deux compteurs (horsDomaine = HORS_DOMAINE seulement, aCompleter = les autres « à compléter »).
+    await preparer(false);
+    await brancherClaude();
+    const r = await actions.lancerSerieAction(deux, REGLAGES, "serie-shd-c2");
+    expect(r).toEqual({ ok: true, donnees: { partis: 0, restes: 0, horsDomaine: 1, aCompleter: 1, essai: false } });
   });
 
   it("(d) toutes du domaine : rien ne change", async () => {
