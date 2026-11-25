@@ -106,7 +106,7 @@ describe("catalogue des capacités (C1-U1)", () => {
       ["accroche.script", "rythme.mesure", "etalonnage.noir-blanc", "texte.lueur", "texte.fond-clair"].map((id) => ({ id, etat: "prevu", chantier: "10" })),
     );
     expect(LIGNES_COUVERTURE.map((l) => ({ id: l.id, etat: l.etat, chantier: l.chantier }))).toEqual(
-      [["texte.marques-au-mot", "eteint"], ["texte.selectif", "prevu"], ["texte.mode-carte", "prevu"], ["texte.effets", "prevu"], ["texte.accents-role", "prevu"]]
+      [["texte.marques-au-mot", "eteint"], ["texte.selectif", "eteint"], ["texte.mode-carte", "prevu"], ["texte.effets", "prevu"], ["texte.accents-role", "prevu"]]
         .map(([id, etat]) => ({ id, etat, chantier: "11" })),
     );
     const index = readFileSync(join(racine, "src/briques/bibliotheque-video/catalogue/index.ts"), "utf8");
