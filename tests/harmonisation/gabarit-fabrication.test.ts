@@ -68,6 +68,8 @@ export const SUIVI_DU_FORMAT: Record<string, string[]> = {
   "tableau-anime": ["src/components/formats/tableau-anime/EtapesTableau.tsx"],
   "cas-concret": ["src/components/formats/cas-concret/fiche-video/SuiviCasConcret.tsx"],
   "image-video": ["src/components/formats/image-video/Fabrication.tsx", "src/components/formats/image-video/SuiviLot.tsx"],
+  "tutoriel-outil": ["src/components/videos/SuiviTravail.tsx"],
+  "video-longue": ["src/components/videos/SuiviTravail.tsx"],
 };
 
 const ecarts = (aFaire: string[], depart: string[]) => [...aFaire.filter((x) => !depart.includes(x)), ...aFaire.filter((x, i) => aFaire.indexOf(x) !== i)];

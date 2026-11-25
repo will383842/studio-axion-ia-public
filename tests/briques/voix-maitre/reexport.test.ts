@@ -7,6 +7,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import * as ancien from "@/moteurs/montage-avocat/nettoyage";
 import * as brique from "@/briques/voix-maitre";
 import * as briqueNettoyage from "@/briques/voix-maitre/nettoyage";
+import * as voixEpinglee from "@/briques/voix-maitre/voix-epinglee";
 import type { AudioMaitre as AudioMaitreAvocat } from "@/moteurs/montage-avocat";
 import type { AudioBrut, AudioMaitre } from "@/briques/voix-maitre";
 import type { PlanProduit } from "@/moteurs/types";
@@ -27,7 +28,7 @@ describe("brique voix-maitre : ré-export de l'ancien chemin", () => {
   it("l'ancien chemin et la brique exportent les mêmes noms", () => {
     expect(Object.keys(ancien).sort()).toEqual(NOMS_ATTENDUS);
     expect(Object.keys(briqueNettoyage).sort()).toEqual(NOMS_ATTENDUS);
-    expect(Object.keys(brique).sort()).toEqual(NOMS_ATTENDUS);
+    expect(Object.keys(brique).sort()).toEqual([...NOMS_ATTENDUS, ...Object.keys(voixEpinglee)].sort());
   });
 
   it("chaque export est le MÊME objet (déplacé, pas recopié)", () => {

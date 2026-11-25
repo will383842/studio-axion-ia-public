@@ -338,7 +338,7 @@ export default async function PageReglages() {
             </CartePliante>
           </Apparition>
           <Apparition index={2}>
-            <CartePliante id="usine-automatique" icone="jauge" titre="L'Usine en automatique" resume="Un plafond du mois, réglé par vous ; éteinte par défaut">
+            <CartePliante id="usine-automatique" icone="jauge" titre="L'Usine en automatique" resume={autonomieUsine.pilote === "usine" ? "Se règle dans l'Usine" : "Un plafond du mois, réglé par vous ; éteinte par défaut"}>
               <AutonomieUsine vue={autonomieUsine} />
             </CartePliante>
           </Apparition>

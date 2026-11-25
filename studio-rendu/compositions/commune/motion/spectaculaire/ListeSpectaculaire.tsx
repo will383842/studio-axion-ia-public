@@ -23,7 +23,7 @@ function Contenu({ d }: { d: DonneesListe }) {
     <div style={{ position: "absolute", left: zone.x, top: zone.y, width: zone.largeur, height: zone.hauteur, display: "flex", flexDirection: "column", justifyContent: "center", gap: ecart }}>
       {d.titre && (
         <div style={{ marginBottom: ecart * 0.8 }}>
-          <MotsGeants texte={d.titre} debut={tTitre} taille={Math.round(taille("titre") * 1.18)} graisse={900} largeurMax={zone.largeur} effet="ecrase" />
+          <MotsGeants texte={d.titre} debut={tTitre} taille={Math.round(taille("titre") * 1.18)} graisse={800} largeurMax={zone.largeur} effet="ecrase" />
         </div>
       )}
       {d.elements.map((e, i) => {
@@ -57,7 +57,7 @@ function Contenu({ d }: { d: DonneesListe }) {
                     boxShadow: `0 0 0 ${2 * u}px ${avecOpacite(COULEURS.orangeVif, 0.6)}, 0 0 ${60 * u * kActif}px ${avecOpacite(COULEURS.orangeVif, 0.7 * kActif)}`,
                   }}
                 >
-                  {numerotee || !e.icone ? <span style={{ fontSize: pastille * 0.5, fontWeight: 900, lineHeight: 1 }}>{i + 1}</span> : <IconeSpec nom={e.icone} taille={pastille * 0.54} debut={h + 0.25} epaisseur={2.4} />}
+                  {numerotee || !e.icone ? <span style={{ fontSize: pastille * 0.5, fontWeight: 800, lineHeight: 1 }}>{i + 1}</span> : <IconeSpec nom={e.icone} taille={pastille * 0.54} debut={h + 0.25} epaisseur={2.4} />}
                   <Eclats x={pastille / 2} y={pastille / 2} debut={h + 0.32} rayon={95 * u} nombre={10} graine={i + 5} flash={false} />
                 </div>
                 <div style={{ flex: "1 1 auto", minWidth: 0, fontSize: tailleTexte, fontWeight: 700, lineHeight: 1.16, letterSpacing: "-0.01em" }}>

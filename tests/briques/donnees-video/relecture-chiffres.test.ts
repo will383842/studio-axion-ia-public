@@ -157,6 +157,7 @@ describe("garde statique", () => {
     };
     parcourir(SRC);
     // G4-08-b1-v20j : + le service de relecture du tableau de bord, liste blanche +1 exacte (triée).
-    expect(trouves.sort()).toEqual(["components/formats/tableau-de-bord/RelectureChiffres.tsx", "services/tableau-de-bord-relecture.ts"]);
+    // ÉLARGISSEMENT DU PILOTE n° 2 (25/11) : + 3 citeurs apparus sur master, liste toujours exacte (tout autre citeur rougit).
+    expect(trouves.sort()).toEqual(["app/(studio)/tutoriel-outil/maquette/actions.ts", "components/formats/tableau-de-bord/RelectureChiffres.tsx", "components/tutoriel-outil/PieceCreee.tsx", "services/tableau-de-bord-relecture.ts", "services/tutoriel-piece-creee.ts"]);
   });
 });

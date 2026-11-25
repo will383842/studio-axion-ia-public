@@ -64,7 +64,7 @@ describe("catalogue des capacités (C1-U1)", () => {
     expect(etatCapacite(ID.texteSortieAnimee)).toBe("eteint");
     expect(ligneCapacite(ID.texteSortieAnimee)?.chantier).toBe("2 (U19)");
     expect(ligneCapacite(ID.texteEscalier)?.chantier).toBe("2 (U20a, U20b)");
-    expect(etatCapacite(ID.cadrageZoomV4)).toBe("absent");
+    expect(etatCapacite(ID.cadrageZoomV4)).toBe("eteint"); // C8-X01-b-v20j (seconde lecture du pilote)
     expect(etatCapacite(ID.cadrageZoomAvocat)).toBe("prod");
     expect(etatCapacite(ID.motionAvisClient)).toBe("prevu");
     expect(etatCapacite(ID.texteLogoOutil)).toBe("prevu");
@@ -106,7 +106,9 @@ describe("catalogue des capacités (C1-U1)", () => {
       ["accroche.script", "rythme.mesure", "etalonnage.noir-blanc", "texte.lueur", "texte.fond-clair"].map((id) => ({ id, etat: "prevu", chantier: "10" })),
     );
     expect(LIGNES_COUVERTURE.map((l) => ({ id: l.id, etat: l.etat, chantier: l.chantier }))).toEqual(
-      [["texte.marques-au-mot", "eteint"], ["texte.selectif", "prevu"], ["texte.mode-carte", "prevu"], ["texte.effets", "prevu"], ["texte.accents-role", "prevu"]]
+      [["texte.marques-au-mot", "eteint"], ["texte.selectif", "eteint"], ["texte.mode-carte", "prevu"], ["texte.effets", "prevu"], ["texte.accents-role", "prevu"],
+        // C11-C2-a-v20k : 5 lignes ajoutées à la suite, rien retiré.
+        ["cadrage.camera-couverture", "eteint"], ["ecran.carte-video-arrondie", "prevu"], ["ecran.grilles-archive", "prevu"], ["ecran.ecrans-composes", "prevu"], ["motion.titre-etape-montante", "prevu"]]
         .map(([id, etat]) => ({ id, etat, chantier: "11" })),
     );
     const index = readFileSync(join(racine, "src/briques/bibliotheque-video/catalogue/index.ts"), "utf8");

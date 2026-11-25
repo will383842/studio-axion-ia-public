@@ -23,7 +23,7 @@ describe("C4-U4.13a · téléphone qui joue un extrait : livré, éteint", () =>
 
   it("(a) le téléphone est « eteint », la mosaïque reste « prevu », le clip v4 reste « prod »", () => {
     expect(etatCapacite(ID.ecranTelephoneExtrait)).toBe("eteint");
-    expect(etatCapacite(ID.ecranMosaiqueExtraits)).toBe("prevu");
+    expect(etatCapacite(ID.ecranMosaiqueExtraits)).toBe("eteint"); // C4-U4.13-b-v20j : livrée, éteinte (la mosaïque a suivi)
     expect(etatCapacite(ID.ecranClipV4)).toBe("prod");
   });
 

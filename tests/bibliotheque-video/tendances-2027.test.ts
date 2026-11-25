@@ -36,7 +36,7 @@ const INSTANTANE_MASTER: string[] = [
   "texte.sortie-animee|eteint|2 (U19)|",
   "texte.escalier|eteint|2 (U20a, U20b)|",
   "ecran.clip-v4|prod||",
-  "ecran.mosaique-extraits|prevu|4 (U4.1 à U4.6)|",
+  "ecran.mosaique-extraits|eteint|4 (U4.1 à U4.6)|", // C4-U4.13-b-v20j
   "ecran.telephone-extrait|eteint|4 (U4.7 à U4.9c)|", // C4-U4.13a 19/11 : livré, éteint
   "calque.texte-derriere-double|absent||",
   "calque.texte-derriere-prise|absent||",
@@ -72,7 +72,7 @@ const INSTANTANE_MASTER: string[] = [
   "cadrage.zoom-avocat|prod|8|",
   "cadrage.zoom-demo|prod|8|",
   "cadrage.camera-cas-concret|prod|8|",
-  "cadrage.zoom-v4|absent|8|",
+  "cadrage.zoom-v4|eteint|8|", // C8-X01-b-v20j (seconde lecture du pilote)
   "motion.avis-client|prevu|8|",
   "objet.trait|prevu|9|",
   "objet.marque|prevu|9|",
@@ -98,10 +98,16 @@ const INSTANTANE_MASTER: string[] = [
   "etalonnage.lut|prevu|E2 (G2-02, G2-03)|",
   // CATALOGUE-C10-C11-v21p
   "texte.marques-au-mot|eteint|11|",
-  "texte.selectif|prevu|11|",
+  "texte.selectif|eteint|11|",
   "texte.mode-carte|prevu|11|",
   "texte.effets|prevu|11|",
   "texte.accents-role|prevu|11|",
+  // C11-C2-a-v20k
+  "cadrage.camera-couverture|eteint|11|",
+  "ecran.carte-video-arrondie|prevu|11|",
+  "ecran.grilles-archive|prevu|11|",
+  "ecran.ecrans-composes|prevu|11|",
+  "motion.titre-etape-montante|prevu|11|",
   "motion.v4-coulisse.LogoOutil|coulisse||",
   "motion.v4-coulisse.Equation|coulisse||",
   "motion.v4-coulisse.FriseEtapes|coulisse||",
