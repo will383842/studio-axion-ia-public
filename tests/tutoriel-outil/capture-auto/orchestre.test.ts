@@ -663,7 +663,7 @@ describe("chaque panne est journalisée ; la cloche seule est dédoublonnée", (
     await tour();
     expect(cloches).toHaveLength(2);
     expect((await journal()).filter((m) => m === PHRASES_CODE.ZIP_REFUSE)).toHaveLength(2);
-    const liens = (await depots().notifications.lister((n) => n.lien.startsWith(lienCapture("v-to")))).map((n) => n.lien);
+    const liens = (await depots().notifications.lister((n) => n.lien?.startsWith(lienCapture("v-to")) ?? false)).map((n) => n.lien);
     expect(new Set(liens).size).toBe(2); // un épisode = une cloche
   });
 
@@ -775,7 +775,13 @@ describe("nettoyage de la boîte (sans suivre un seul lien)", () => {
     expect(tentativesNotees()).toEqual([]);
     expect((await journal()).filter((m) => /demande envoyée/.test(m))).toEqual([]);
     expect((await depots().evenements.lister((e) => e.entiteId === "v-autre")).map((e) => e.message)).not.toContain("Capture automatique : demande terminée (orphelin-0123456789ab).");
-    avancer(DELAI_REPONSE_MS); // 60 + 1 + 70 = 131 min depuis l'envoi
+    // à +100 min : toujours en vol (borne 60 + 70 = 130, pas 70) : aucune demande, aucun essai, trace non close
+    avancer(39 * 60_000);
+    await tour();
+    expect(demandes()).toEqual([]);
+    expect(tentativesNotees()).toEqual([]);
+    expect((await journal()).filter((m) => /demande envoyée/.test(m))).toEqual([]);
+    avancer(31 * 60_000); // 61 + 39 + 31 = 131 min depuis l'envoi
     await tour();
     expect(demandes()).toHaveLength(1);
     expect(demandes()[0]).toMatch(/^film-zip--v-to-/);
