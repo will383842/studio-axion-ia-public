@@ -74,6 +74,9 @@ COPY --chown=rendu:rendu src/app/polices/manrope-latin.woff2 /app/src/app/police
 COPY --chown=rendu:rendu src/domaine/facecam-animee/plan.ts /app/src/domaine/facecam-animee/plan.ts
 COPY --chown=rendu:rendu src/moteurs/montage-tutoriel-outil/proprietes.ts /app/src/moteurs/montage-tutoriel-outil/proprietes.ts
 COPY --chown=rendu:rendu src/moteurs/montage-demo-facecam/proprietes.ts src/moteurs/montage-demo-facecam/pistes.ts src/moteurs/montage-demo-facecam/mise-en-page.ts /app/src/moteurs/montage-demo-facecam/
+# Vidéo longue sans voix (lot F, composition `VideoLongue`) : contrat du story-board, mise en page PURE et arrondi des plages,
+# lus par `compositions/plan-scenes/longue/*` en imports RELATIFS (mise-en-page.ts lit aussi src/briques/motion, déjà copié).
+COPY --chown=rendu:rendu src/moteurs/montage-video-longue/storyboard-types.ts src/moteurs/montage-video-longue/mise-en-page.ts src/moteurs/montage-video-longue/rendu-chapitres.ts /app/src/moteurs/montage-video-longue/
 # Carrousels V2-A (opération `visuel-page`) : la porte d'entrée de la page (schéma Zod strict) et ce qu'elle charge, par
 # imports RELATIFS (l'image n'a pas d'alias `@/`) — brique des visuels avec ses règles JSON, charte lue par les compositions.
 COPY --chown=rendu:rendu src/visuels/proprietes-page.ts /app/src/visuels/proprietes-page.ts
