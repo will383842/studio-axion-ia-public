@@ -91,9 +91,11 @@ describe("gardes d'import", () => {
       .filter((e) => e.isFile() && /\.(ts|tsx)$/.test(e.name))
       .map((e) => join(e.parentPath, e.name));
 
-  it("seuls boucle.ts (import dynamique) et les tests importent tutoriel-capture-auto ; ni src/app ni src/components", () => {
+  it("seuls boucle.ts et tutoriel-branchements.ts (imports dynamiques) et les tests importent tutoriel-capture-auto ; ni src/app ni src/components", () => {
     const importeurs = fichiers("src").filter((f) => /(from|import\()\s*"[^"]*tutoriel-capture-auto"/.test(readFileSync(f, "utf8")) && !f.endsWith("tutoriel-capture-auto.ts"));
-    expect(importeurs.map((f) => f.slice(racine.length + 1))).toEqual(["src/services/boucle.ts"]);
+    expect(importeurs.map((f) => f.slice(racine.length + 1))).toEqual(["src/services/boucle.ts", "src/services/tutoriel-branchements.ts"]);
+    // Le branchement du film d'un dossier ne lit que l'interrupteur, et seulement par import dynamique.
+    expect(readFileSync(join(racine, "src/services/tutoriel-branchements.ts"), "utf8")).toContain('const { captureAutoAllumee } = await import("./tutoriel-capture-auto");');
     expect(readFileSync(join(racine, "src/services/boucle.ts"), "utf8")).toContain('(await import("./tutoriel-capture-auto")).avancerCapturesTutoriel()');
   });
 

@@ -74,7 +74,7 @@ const VALIDITE_DEPOT_SEC = 600;
 export const DELAI_LECTURE_ZIP_MS = 120_000;
 export const DELAI_DEPOT_FILM_MS = 600_000;
 
-const PHRASE_SANS_VOIX = "La capture automatique est impossible sans voix mesurée : déposez le film à la main.";
+const PHRASE_SANS_SCENARIO = "La capture automatique n'a pas de scénario de maquette pour cette vidéo : déposez le film à la main.";
 const PHRASE_DOSSIER_ILLISIBLE = "Le dossier de la vidéo n'a pas pu être relu pour la capture automatique : déposez le film à la main.";
 const PHRASE_STOCKAGE_LENT = "Le stockage n'a pas répondu à temps : déposez le film à la main.";
 const PHRASE_RANGEMENT = "Le film capturé n'a pas pu être rangé : déposez le film à la main.";
@@ -225,7 +225,7 @@ interface Identite {
  * `null` : pas de voix mesurée, ou calage en échec.
  */
 async function identiteDe(c: Candidat): Promise<Identite | null> {
-  const scenarioBrut = c.etat.equipe?.parcours?.scenario;
+  const scenarioBrut = c.etat.equipe?.parcours?.scenario ?? c.etat.scenarioDossier;
   const audio = c.etat.audio;
   if (!scenarioBrut || !audio || !Array.isArray(audio.mots) || !(audio.dureeSec > 0)) return null;
   try {
@@ -569,7 +569,7 @@ export async function avancerCapturesTutoriel(dep: DependancesCaptureAuto = {}):
   for (const c of liste) {
     const ident = identites.get(c);
     if (!ident) {
-      await signalerUneFois(c.video, "echec", `Capture automatique impossible · ${c.video.titre}`, PHRASE_SANS_VOIX, dep);
+      await signalerUneFois(c.video, "echec", `Capture automatique impossible · ${c.video.titre}`, PHRASE_SANS_SCENARIO, dep);
       continue;
     }
     const nom = nomDossier("film-zip", ident.id);

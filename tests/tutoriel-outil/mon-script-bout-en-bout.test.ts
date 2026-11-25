@@ -140,6 +140,22 @@ describe("« Mon script » sans voix : dépôt → lancement → rendu simulé, 
     expect(sansVoixReel.journal.rendus.some((r) => r.operation === "composition")).toBe(true);
   });
 
+  it("plan composé multi-format (4:5, 9:16, 1:1) : 0 appel Claude, une composition sans voix par format, contrôle ok en 4:5, fin dans le plan", async () => {
+    const commande = await deposer("sans-voix");
+    const { t } = await aller(commande, "t-ms-multi");
+    expect(t.statut).toBe("termine");
+    expect(sansVoixReel.journal.claude).toEqual([]);
+    expect(pieges.appels.filter((a) => /depense|claude/.test(a))).toEqual([]);
+    const props = sansVoixReel.journal.rendus.filter((r) => r.operation === "composition").map((r) => r.parametres.proprietes as unknown as { compositionSansVoix?: { format: { largeur: number; hauteur: number }; dureeMs: number }; plan: { dureeMs: number }; finMs: number });
+    expect(props).toHaveLength(3);
+    expect(props.every((p) => p.compositionSansVoix !== undefined)).toBe(true);
+    expect(props.map((p) => `${p.compositionSansVoix!.format.largeur}x${p.compositionSansVoix!.format.hauteur}`).sort()).toEqual(["1080x1080", "1080x1350", "1080x1920"]);
+    expect(props.every((p) => p.finMs === 0 && p.plan.dureeMs === p.compositionSansVoix!.dureeMs)).toBe(true);
+    const etat = t.parametres?.tutoriel as { composition?: { ok: boolean }; compose?: Record<string, unknown> };
+    expect(Object.keys(etat.compose ?? {}).sort()).toEqual(["1:1", "4:5", "9:16"]);
+    expect(etat.composition?.ok).toBe(true);
+  });
+
   it("0 appel HeyGen, 0 appel ElevenLabs : aucune voix, aucun module de voix ni de crédit touché, le chemin avec voix n'est pas pris", async () => {
     const commande = await deposer("sans-voix");
     await aller(commande, "t-ms-voix");
@@ -158,14 +174,35 @@ describe("« Mon script » sans voix : dépôt → lancement → rendu simulé, 
     expect(sansVoixReel.journal.claude).toEqual([]);
   });
 
-  it("contrôle positif : avec `tutoriel.claude` allumé, le même piège note l'appel (il détecte donc bien un appel Claude)", async () => {
+  // QUAL-5 (décision du chef) : le mode sans voix compose le plan SANS Claude (plan composé par le code). Ce test, écrit par FIN-2,
+  // attendait donc à tort un appel Claude pour le PLAN ; le seul appel Claude légitime restant en sans voix est le REGARD sur les
+  // images-clés (`tutoriel.regardeur` + `tutoriel.claude`). Le contrôle positif allume donc les deux ; l'assertion « 0 Claude éteint » est inchangée.
+  it("sans voix + `tutoriel.claude` allumé (sans regardeur) : toujours 0 appel Claude, le plan est composé par le code", async () => {
     await ecrireParametre("tutoriel.claude", true);
     try {
       const commande = await deposer("sans-voix");
+      const { t } = await aller(commande, "t-ms-claude-allume-sans-regard");
+      expect(t.statut).toBe("termine");
+      expect(pieges.appels.filter((a) => /depense|claude/.test(a))).toEqual([]);
+      expect(sansVoixReel.journal.claude).toEqual([]);
+    } finally {
+      await ecrireParametre("tutoriel.claude", false);
+    }
+  });
+
+  it("contrôle positif : avec `tutoriel.claude` ET `tutoriel.regardeur` allumés, le même piège note l'appel du regard (il détecte donc bien un appel Claude)", async () => {
+    await ecrireParametre("tutoriel.claude", true);
+    await ecrireParametre("tutoriel.regardeur", true);
+    // Aucun réseau : le téléchargement de l'image-clé (adresse de stockage factice) est remplacé par quelques octets.
+    vi.stubGlobal("fetch", async () => new Response(new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4])));
+    try {
+      const commande = await deposer("sans-voix");
       await aller(commande, "t-ms-claude-allume");
-      expect(pieges.appels.filter((a) => /depense|claude/.test(a))).toContain("depense.executerRolePourVideo");
+      expect(pieges.appels).toContain("depense.executerRolePourVideo");
     } finally {
       await ecrireParametre("tutoriel.claude", false); // remis éteint (la mémoire est aussi remise à zéro par `reinitialiserDepots`)
+      await ecrireParametre("tutoriel.regardeur", false);
+      vi.unstubAllGlobals();
     }
   });
 

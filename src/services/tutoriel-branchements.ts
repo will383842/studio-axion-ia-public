@@ -14,12 +14,13 @@
 import { cleDepenseUsine } from "./cle-depense-usine";
 import { appelClaudeTutoriel, claudeTutorielActif, regardTutorielActif } from "./tutoriel-claude";
 import { creerRegardTutoriel } from "./tutoriel-regard";
-import { equipeTutorielActive, portsEquipeAvecPhrase } from "./tutoriel-equipe";
+import { equipeTutorielActive, portsEquipe, portsEquipeAvecPhrase } from "./tutoriel-equipe";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
 import { estSansVoix, lireEntreesTutoriel } from "@/moteurs/montage-tutoriel-outil/entrees";
 import { ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
+import { scenarioDuDossier } from "@/moteurs/montage-tutoriel-outil/film-dossier";
 import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
 import type { PortEquipe } from "@/moteurs/montage-tutoriel-outil/chaine";
 import { avecReleve } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
@@ -77,6 +78,20 @@ export function equipeAvecReleve(port: PortEquipe, deps: { active?: () => Promis
   };
 }
 
+/** Port du film d'un dossier : l'interrupteur de la capture automatique, et la lecture (contrôlée, mise en cache) du `scenario.json` du zip. */
+async function filmDuDossier(c: Parameters<typeof portsEquipe>[0] & { videoId: string }): Promise<NonNullable<OutilsTutoriel["filmDossier"]>> {
+  const { captureAutoAllumee } = await import("./tutoriel-capture-auto");
+  return {
+    captureAuto: await captureAutoAllumee(),
+    lireScenario: async () => {
+      const d = await portsEquipe(c, c.videoId).lireDossier();
+      // `null` = dossier PAS lu (stockage en erreur, pas d'adresse, extraction refusée) : on lève, la chaîne attend (TO_DOSSIER_INCOMPLET) au lieu de figer « pas de scénario ».
+      if (!d) throw new Error("dossier illisible pour l'instant");
+      return scenarioDuDossier(d.fichiers);
+    },
+  };
+}
+
 brancherServicesTutoriel({
   outils: async (c, travailId): Promise<OutilsTutoriel | null> => {
     // T-EXT-SV : mode sans voix = ni personnage ni voix ; seuls le rendu et le stockage sont reliés (0 appel HeyGen, 0 €).
@@ -117,7 +132,10 @@ brancherServicesTutoriel({
     const voixReelle = sansVoix ? undefined : b.voix;
     // T-EXT-55 : l'équipe de rôles (T-EXT-48b : l'appel du stratège reçoit le relevé si `tutoriel.performance` vaut `true`). Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
     const equipe = (await equipeTutorielActive()) ? equipeAvecReleve(await portsEquipeAvecPhrase(c, c.videoId)) : undefined;
+    // Film d'un dossier .zip SANS équipe (la chaîne ignore ce port si l'équipe a travaillé) : le scénario du dossier tient lieu de parcours. Le zip n'est lu que si la capture automatique est allumée.
+    const filmDossier = sansVoix && lireEntreesTutoriel(c.entrees).depot?.mode === "dossier" ? await filmDuDossier(c) : undefined;
     return {
+      ...(filmDossier ? { filmDossier } : {}),
       ...(devis
         ? {
             devis: {

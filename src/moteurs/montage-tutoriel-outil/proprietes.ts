@@ -6,6 +6,7 @@
  */
 import type { DonneesCalque } from "../../briques/sous-titres/scene";
 import type { NavigationFilmee } from "../../briques/plan-scenes/tutoriel/navigation-filmee";
+import type { PlanComposeSansVoix } from "../../briques/plan-scenes/tutoriel/sans-voix/types";
 import type { FormatPlan, HabillagePlan, PlanValide } from "../../briques/plan-scenes/schema";
 import type { DispositionToile, TrajectoireCamera } from "../../briques/schema-motion/types";
 
@@ -63,6 +64,8 @@ export type ProprietesTutorielOutil = {
   schemaFlux?: { debutImage: number; dureeImages: number; plan: PlanSchemaFlux };
   /** T-EXT-53c : réglages du film (crans par étape) choisis par le chat de retouche ; transmis tels quels au film. Absent : rendu d'aujourd'hui. // en attendant T-EXT-53a (type `ReglagesFilm`) */
   reglagesFilm?: unknown;
+  /** Tutoriel sans voix composé (QUAL-3) : dessiné à la place du plan nu ; absent : rendu d'aujourd'hui. */
+  compositionSansVoix?: PlanComposeSansVoix;
 };
 
 /** La carte de fin, dessinée par la pièce « légende » (style titre) du catalogue, au format et à l'habillage du plan. */
