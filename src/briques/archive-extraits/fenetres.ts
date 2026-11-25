@@ -5,6 +5,7 @@
  */
 import type { PlanFacecamAnimee } from "../../domaine/facecam-animee/plan";
 import type { Plan } from "../../domaine/types";
+import { EPS } from "../../lib/tolerance";
 
 export type Intervalle = { debutSec: number; finSec: number; raison: string };
 export type Fenetres = { interdits: Intervalle[]; avecVisage: Intervalle[]; inconnues: boolean };
@@ -12,7 +13,6 @@ export type PlanFenetre = Pick<Plan, "debutSec" | "finSec" | "sourceImage" | "il
 
 export const MARGE_FENETRE_SEC = 0.3;
 const ACCROCHE_FIN_SEC = 5;
-const EPS = 1e-9;
 const arrondi = (n: number) => Math.round(n * 1000) / 1000;
 
 export function fenetresInconnues(): Fenetres {
