@@ -123,6 +123,6 @@ describe("module pur, sans importeur", () => {
       }
     };
     marche(join(RACINE, "src"));
-    expect(vus).toEqual([]);
+    expect(vus.map((p) => p.slice(RACINE.length + 1))).toEqual(["src/services/refaire-voix.ts"]);
   });
 });

@@ -140,7 +140,7 @@ export function PlanChapitres({
                 style={{ flexGrow: Math.max(dureeSecDuTexte(c.texte), 1) }}
                 className="flex min-w-0 basis-0 flex-col justify-end border-r border-trait p-2 text-xs text-texte last:border-r-0"
               >
-                <span className="font-semibold text-orange-vif">{i + 1}</span>
+                <span className="font-semibold text-accent">{i + 1}</span>
                 <span className="truncate">{c.titre.trim() || `Chapitre ${i + 1}`}</span>
                 <span className="text-texte-doux">{formaterDuree(dureeSecDuTexte(c.texte))}</span>
               </li>

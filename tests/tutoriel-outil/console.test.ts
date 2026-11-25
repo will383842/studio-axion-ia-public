@@ -123,7 +123,7 @@ describe("interrupteurs", () => {
     expect(lire("src/formats/tutoriel-outil/index.ts")).toContain(`ID_FORMAT_TUTORIEL_OUTIL = "${c.FORMAT_TUTORIEL}"`);
     expect(c.CLE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.actif");
     expect(c.CLE_TEXTE_MENTION_TUTORIEL).toBe("mentionIA.tutoriel-outil.texte");
-    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "mentionIA.tutoriel-outil.actif"]);
+    expect(c.REGLAGES_TUTORIEL.map((r) => r.cle)).toEqual(["tutoriel.formulaire", "tutoriel.entreeZip", "tutoriel.entreePhrase", "tutoriel.claude", "tutoriel.devisAvantDepense", "tutoriel.finitions", "tutoriel.finCommune", "tutoriel.scenesGardees", "tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude", "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil", "mentionIA.tutoriel-outil.actif"]);
   });
 });
 
@@ -319,16 +319,57 @@ describe("clé de la fin commune (26a)", () => {
   });
 });
 
+describe("clés ajoutées par AUD-3", () => {
+  const payants = ["tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude"];
+  const nouvelles = [...payants, "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil"];
+  it("les sept clés sont dans la console, éteintes par défaut", async () => {
+    const m = memoire();
+    const lignes = await c.lireReglagesTutoriel(m.ports);
+    for (const k of nouvelles) expect(lignes.find((l) => l.cle === k)?.allume).toBe(false);
+    expect(lignes.some((l) => l.allume)).toBe(false);
+  });
+  it("les réglages payants annoncent la dépense, pas les autres", () => {
+    for (const r of c.REGLAGES_TUTORIEL.filter((x) => nouvelles.includes(x.cle))) {
+      expect(/appels Claude payants, sous le plafond par vidéo/.test(r.phraseEteint)).toBe(payants.includes(r.cle));
+    }
+    // La retouche par le chat n'appelle pas Claude par elle-même mais relance un rendu payant : elle doit l'annoncer.
+    const chat = c.REGLAGES_TUTORIEL.find((x) => x.cle === "retoucheChat.tutorielOutil");
+    expect(chat?.phraseEteint).toMatch(/chaque retouche relance un rendu payant/);
+    expect(chat?.phraseEteint).toMatch(/sous le plafond par vidéo/);
+    const perf = c.REGLAGES_TUTORIEL.find((x) => x.cle === "tutoriel.performance");
+    expect(perf?.phraseEteint).toMatch(/léger surcoût de l'appel du stratège, sous le plafond par vidéo/);
+  });
+  it("le libellé périmé « (plus tard) » a disparu", () => {
+    for (const r of c.REGLAGES_TUTORIEL) expect(r.libelle).not.toMatch(/plus tard/i);
+  });
+  it("chaque clé de la console est lue quelque part dans src/ (hors console)", () => {
+    const sources = fichiers(join(process.cwd(), "src")).filter((f) => !f.endsWith("tutoriel-console.ts")).map((f) => readFileSync(f, "utf8"));
+    const sansLecteur = c.REGLAGES_TUTORIEL.map((r) => r.cle).filter((k) => !sources.some((s) => citeCle(s, k)));
+    // Les clés de mention IA sont construites par cleInterrupteurMentionIA (pas écrites en clair) : lues par mentionIAAAfficher.
+    expect(sansLecteur.filter((k) => !k.startsWith("mentionIA."))).toEqual([]);
+  });
+  it("les clés de la console ont exactement l'orthographe du code qui les lit", () => {
+    expect(lire("src/services/tutoriel-equipe.ts")).toContain(`PARAM_EQUIPE_TUTORIEL = "${c.CLE_EQUIPE}"`);
+    expect(lire("src/services/tutoriel-claude.ts")).toContain(`PARAM_REGARD_TUTORIEL = "${c.CLE_REGARDEUR}"`);
+    expect(lire("src/moteurs/montage-tutoriel-outil/maquette-creee.ts")).toContain(`PARAM_PIECE_CLAUDE = "${c.CLE_PIECE_CREEE_CLAUDE}"`);
+    const br = lire("src/services/tutoriel-branchements.ts");
+    expect(br).toContain(`PARAM_RETOUCHE_PARTIELLE_TUTORIEL = "${c.CLE_RETOUCHE_PARTIELLE}"`);
+    expect(br).toContain(`PARAM_PERFORMANCE_TUTORIEL = "${c.CLE_PERFORMANCE}"`);
+    expect(lire("src/services/tutoriel-suivi.ts")).toContain(`REGLAGE_SUIVI_CLOCHE = "${c.CLE_SUIVI_CLOCHE}"`);
+    expect(lire("src/services/retouche-chat/generateurs.ts")).toContain(`"tutoriel-outil": "${c.CLE_RETOUCHE_CHAT_TUTORIEL}"`);
+  });
+});
+
 describe("aucun allumage par le code", () => {
   const cles = c.REGLAGES_TUTORIEL.map((r) => r.cle);
   // Noms des constantes qui portent ces clés (CLE_*, PARAM_*), détectés dans les exports du service et de tutoriel-claude.
   const constantes = Object.entries(c).filter(([, v]) => typeof v === "string" && cles.includes(v)).map(([n]) => n);
-  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA", "CLE_FIN_COMMUNE", "REGLAGES_TUTORIEL"])];
+  const noms = [...new Set([...constantes, "PARAM_CLAUDE_TUTORIEL", "PARAM_FORMULAIRE", "PARAM_ENTREE_ZIP", "PARAM_ENTREE_PHRASE", "PARAM_SCENES_TUTORIEL", "cleInterrupteurMentionIA", "cleTexteMentionIA", "CLE_FIN_COMMUNE", "REGLAGES_TUTORIEL", "PARAM_EQUIPE_TUTORIEL", "PARAM_REGARD_TUTORIEL", "PARAM_PIECE_CLAUDE", "REGLAGE_SUIVI_CLOCHE", "PARAM_RETOUCHE_PARTIELLE_TUTORIEL", "PARAM_PERFORMANCE_TUTORIEL", "CLES_REGLAGE_RETOUCHE"])];
   // Un nom compte seulement s'il vient d'ailleurs : une constante locale homonyme (ex. un `CLE_FORMULAIRE` d'une autre action) n'est pas la clé.
   const nomsConstantes = {
     test: (src: string) => noms.some((n) => new RegExp(`\\b${n}\\b`).test(src) && !new RegExp(`\\b(?:const|let|var|function)\\s+${n}\\b`).test(src)),
   };
-  const PREFIXE_CONSTRUIT = /["'`](?:tutoriel|mentionIA)\.(?:["'`]\s*\+|\$\{)|["'`]tutoriel\.?["'`]\s*\+/;
+  const PREFIXE_CONSTRUIT = /["'`](?:tutoriel|mentionIA|retoucheChat)\.(?:["'`]\s*\+|\$\{)|["'`](?:tutoriel|mentionIA|retoucheChat)\.?["'`]\s*\+/;
   const ECRITURE = /\becrireParametre\b|parametres\s*\.\s*enregistrer\s*\(|\benregistrerParametre\s*\(/;
   it("la détection voit les constantes CLE_* / PARAM_* et parametres.enregistrer", () => {
     expect(constantes).toEqual(expect.arrayContaining(["CLE_FORMULAIRE", "CLE_FINITIONS", "CLE_MENTION_TUTORIEL"]));
@@ -345,6 +386,8 @@ describe("aucun allumage par le code", () => {
     expect(nomsConstantes.test(`ecrireParametre(r.cle, true); REGLAGES_TUTORIEL.map((r) => ecrireParametre(r.cle, true))`)).toBe(true);
     expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("tutoriel." + "claude", true)`)).toBe(true);
     expect(PREFIXE_CONSTRUIT.test("const n = 1; ecrireParametre(`tutoriel.${n}`, true)")).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("retoucheChat." + "tutorielOutil", true)`)).toBe(true);
+    expect(PREFIXE_CONSTRUIT.test("ecrireParametre(`retoucheChat.${g}`, true)")).toBe(true);
     expect(PREFIXE_CONSTRUIT.test(`ecrireParametre("tutoriel.claude", true)`)).toBe(false);
     // Homonyme local (autre sens) : pas une écriture de la clé du tutoriel.
     expect(nomsConstantes.test(`const CLE_FORMULAIRE = /^[a-z]+$/; ecrireParametre(x, true)`)).toBe(false);

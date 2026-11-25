@@ -25,6 +25,7 @@ export const retoucheChatActifServeur = (g: IdGenerateurRetouche) => retoucheCha
 async function planDeDepart(g: IdGenerateurRetouche, videoId: string, versionId: string): Promise<PlanValide | null> {
   const d = depots();
   if (g === "tutoriel-outil") return null; // le plan vient de `planDuProjet`, jamais d'un plan de repli
+  if (g === "demo-facecam") return null; // le plan vient de `reprise.plan` (planDuProjet), jamais d'un plan de repli
   if (g === "facecam-animee") {
     const travaux = (await d.travaux.lister((t) => t.cibleId === videoId)) as { creeLe: string; parametres?: Record<string, unknown> }[];
     const dernier = travaux.sort((a, b) => b.creeLe.localeCompare(a.creeLe)).find((t) => lireEtatV4(t.parametres?.facecamAnimeeV4)?.planScenes?.plan);
