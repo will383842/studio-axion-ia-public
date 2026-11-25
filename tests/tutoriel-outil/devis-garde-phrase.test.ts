@@ -141,6 +141,18 @@ describe("PHRASE-4 : garde du devis, vidéo partie d'une phrase", () => {
       expect(eq.appels).toHaveLength(0);
     }
   });
+  it("phrase ouverte, maquettiste 3 : chef et analyste écartés, 3 + 3 + 2 = 8, la vidéo continue", async () => {
+    const j = journalVide();
+    const eq = portPhrase();
+    const c = avecAccord(commandePhrase(), devisDe(commandePhrase()).empreinte);
+    const moteur = creerMoteurTutorielOutil({ outils: avecDevis(j, () => c, eq.port) });
+    const t0 = await moteur.lancer(c, { travailId: "t", versionId: "v", titre: "T", maintenant: T0 });
+    const equipe = await equipePieceGardee();
+    // Si le chef OU l'analyste était encore réservé : 3 + 4 + 2 = 9 > 8, arrêt à tort.
+    const t = await mener(moteur, () => c, avecEtat(t0, equipe, { maquettiste: 3 }));
+    expect(pause(t)).not.toBe("TO_DEVIS_ATTEINT");
+    expect(eq.appels[0]).toBe("stratege");
+  });
 });
 
 describe("PHRASE-4 : le dossier (.zip) ne change pas", () => {
