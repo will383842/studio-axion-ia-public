@@ -1,4 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { defauts, fichiers, relatif } from "./garde-charte";
@@ -9,11 +11,44 @@ const STRICTES = ["src/moteurs", "src/briques/charte", "src/briques/motion", "sr
  * Polices qui restent (cliquet) parce que les mises en page sont MESURÉES sur leurs fichiers : les passer à Manrope
  * demande de régénérer les tables de chasse (écrans du cas concret, tableau, encadré). Les couleurs, elles, sont strictes.
  */
-const POLICES_RESTANTES: Record<string, number> = { "src/briques/habillage/charte-duo.ts": 4, "src/briques/habillage/charte-video.ts": 4 };
+const POLICES_RESTANTES: Record<string, number> = lirePolicesRestantes(join(process.cwd(), "tests/charte/polices-restantes"));
 
 /** Compositions de la vidéo (hors carrousels `visuels/`, autre chaîne) : cliquet, la liste ne peut que rétrécir. */
 const COMPOSITIONS = "studio-rendu/compositions";
-const BASE = join(process.cwd(), "tests/charte/compositions-restantes.json");
+const DOSSIER = join(process.cwd(), "tests/charte/compositions-restantes");
+const ORIGINE = join(process.cwd(), "tests/charte/compositions-restantes-origine-6d1ce305.json");
+
+/** Dossier de compositions d'un fichier : les deux premiers dossiers sous `studio-rendu/compositions/` joints par `--` ; à la racine : `racine`. */
+export function cleDossier(chemin: string): string {
+  const dossiers = chemin.slice(`${COMPOSITIONS}/`.length).split("/").slice(0, -1);
+  return dossiers.slice(0, 2).join("--") || "racine";
+}
+
+/** Fichiers `*.json` d'un dossier, fusionnés (clé en double entre deux fichiers : erreur). */
+function fusionner(dossier: string): Record<string, number> {
+  const tout: Record<string, number> = {};
+  for (const nom of readdirSync(dossier).filter((n) => n.endsWith(".json")).sort()) {
+    for (const [f, n] of Object.entries(JSON.parse(readFileSync(join(dossier, nom), "utf8")) as Record<string, number>)) {
+      if (f in tout) throw new Error(`${f} est dans deux fichiers de ${dossier}`);
+      tout[f] = n;
+    }
+  }
+  return tout;
+}
+export function lireRestantes(dossier: string): Record<string, number> {
+  return fusionner(dossier);
+}
+export function lirePolicesRestantes(dossier: string): Record<string, number> {
+  return fusionner(dossier);
+}
+/** Un fichier par clé constatée ; un fichier existant devenu vide reçoit `{}` ; jamais de suppression. */
+export function ecrireRestantes(dossier: string, actuel: Record<string, number>): void {
+  mkdirSync(dossier, { recursive: true });
+  const parCle: Record<string, Record<string, number>> = {};
+  for (const nom of readdirSync(dossier).filter((n) => n.endsWith(".json"))) parCle[nom.slice(0, -5)] = {};
+  for (const [f, n] of Object.entries(actuel).sort()) (parCle[cleDossier(f)] ??= {})[f] = n;
+  for (const [cle, e] of Object.entries(parCle)) writeFileSync(join(dossier, `${cle}.json`), JSON.stringify(e, null, 2) + "\n");
+}
 
 describe("garde charte Axion 2026", () => {
   for (const zone of STRICTES) {
@@ -39,11 +74,62 @@ describe("garde charte Axion 2026", () => {
       if (n > 0) actuel[r] = n;
     }
     if (process.env.GARDE_CHARTE_ECRIRE === "1") {
-      writeFileSync(BASE, JSON.stringify(Object.fromEntries(Object.entries(actuel).sort()), null, 2) + "\n");
+      ecrireRestantes(DOSSIER, actuel);
     }
-    const base: Record<string, number> = existsSync(BASE) ? JSON.parse(readFileSync(BASE, "utf8")) : {};
+    const base = lireRestantes(DOSSIER);
     const plus = Object.entries(actuel).filter(([f, n]) => n > (base[f] ?? 0)).map(([f, n]) => `${f} : ${n} (liste : ${base[f] ?? 0})`);
     const moins = Object.entries(base).filter(([f, n]) => (actuel[f] ?? 0) < n).map(([f, n]) => `${f} : ${actuel[f] ?? 0} (liste : ${n}) → mettre à jour la liste`);
     expect({ plus, moins }).toEqual({ plus: [], moins: [] });
+  });
+
+  it("(b) un fichier par dossier", () => {
+    const vus = new Set<string>();
+    for (const nom of readdirSync(DOSSIER).filter((n) => n.endsWith(".json"))) {
+      const e = JSON.parse(readFileSync(join(DOSSIER, nom), "utf8")) as Record<string, number>;
+      for (const [f, n] of Object.entries(e)) {
+        expect(cleDossier(f) + ".json", f).toBe(nom);
+        expect(vus.has(f), `${f} en double`).toBe(false);
+        vus.add(f);
+        expect(Number.isInteger(n) && n > 0, f).toBe(true);
+      }
+    }
+    expect(cleDossier("studio-rendu/compositions/Essai.tsx")).toBe("racine");
+    expect(cleDossier("studio-rendu/compositions/commune/Miniature.tsx")).toBe("commune");
+    expect(cleDossier("studio-rendu/compositions/commune/motion/spectaculaire/noyau.tsx")).toBe("commune--motion");
+    expect(cleDossier("studio-rendu/compositions/interface-claire/motion-v4/lot1/commun-lot1.tsx")).toBe("interface-claire--motion-v4");
+  });
+
+  it("(c) aucune entrée perdue au découpage", () => {
+    const texte = readFileSync(ORIGINE, "utf8");
+    expect(createHash("sha256").update(texte).digest("hex")).toBe("40c6c4f88dc566f0d2b451fe2b53ea1f3d25491367e12b7e1fc9f1628a7e65cb");
+    const origine = JSON.parse(texte) as Record<string, number>;
+    expect(Object.keys(origine)).toHaveLength(140);
+    for (const [f, n] of Object.entries(lireRestantes(DOSSIER))) expect(origine[f] !== undefined && n <= origine[f], f).toBe(true);
+    const polices: Record<string, number> = { "src/briques/habillage/charte-duo.ts": 4, "src/briques/habillage/charte-video.ts": 4 };
+    for (const [f, n] of Object.entries(lirePolicesRestantes(join(process.cwd(), "tests/charte/polices-restantes")))) expect(polices[f] !== undefined && n <= polices[f], f).toBe(true);
+  });
+
+  it("(d) l'écriture redonne les mêmes fichiers", () => {
+    const origine = JSON.parse(readFileSync(ORIGINE, "utf8")) as Record<string, number>;
+    const tmp = mkdtempSync(join(tmpdir(), "restantes-"));
+    ecrireRestantes(tmp, origine);
+    const noms = readdirSync(DOSSIER).filter((n) => n.endsWith(".json"));
+    expect(readdirSync(tmp).sort()).toEqual(noms.sort());
+    for (const nom of noms) expect(readFileSync(join(tmp, nom), "utf8"), nom).toBe(readFileSync(join(DOSSIER, nom), "utf8"));
+    const [premier] = Object.keys(origine);
+    const moins = Object.fromEntries(Object.entries(origine).filter(([f]) => f !== premier));
+    ecrireRestantes(tmp, moins);
+    expect(readFileSync(join(tmp, `${cleDossier(premier)}.json`), "utf8")).toMatch(/^(\{\}\n|\{\n)/);
+    expect(readdirSync(tmp)).toHaveLength(noms.length);
+    expect(lireRestantes(tmp)).toEqual(lireRestantes(tmp));
+    expect(premier in lireRestantes(tmp)).toBe(false);
+  });
+
+  it("(e) polices restantes : un fichier par source", () => {
+    const dossier = join(process.cwd(), "tests/charte/polices-restantes");
+    for (const nom of readdirSync(dossier).filter((n) => n.endsWith(".json"))) {
+      const e = JSON.parse(readFileSync(join(dossier, nom), "utf8")) as Record<string, number>;
+      for (const f of Object.keys(e)) expect(f.split("/").pop()!.replace(/\.ts$/, "") + ".json", f).toBe(nom);
+    }
   });
 });
