@@ -1,0 +1,1610 @@
+[
+ {
+  "plan": {
+   "version": "plan-scenes-1",
+   "format": {
+    "largeur": 1080,
+    "hauteur": 1350,
+    "fps": 25
+   },
+   "facecam": false,
+   "dureeMs": 41425,
+   "habillage": {
+    "fond": "ivoire",
+    "accent": "terracotta"
+   },
+   "mots": [
+    {
+     "texte": "Vous",
+     "debutMs": 0,
+     "finMs": 338
+    },
+    {
+     "texte": "perdez",
+     "debutMs": 385,
+     "finMs": 723
+    },
+    {
+     "texte": "du",
+     "debutMs": 769,
+     "finMs": 1108
+    },
+    {
+     "texte": "temps",
+     "debutMs": 1154,
+     "finMs": 1492
+    },
+    {
+     "texte": "à",
+     "debutMs": 1538,
+     "finMs": 1877
+    },
+    {
+     "texte": "compter",
+     "debutMs": 1923,
+     "finMs": 2262
+    },
+    {
+     "texte": "vos",
+     "debutMs": 2308,
+     "finMs": 2646
+    },
+    {
+     "texte": "stocks",
+     "debutMs": 2692,
+     "finMs": 3031
+    },
+    {
+     "texte": "à",
+     "debutMs": 3077,
+     "finMs": 3415
+    },
+    {
+     "texte": "la",
+     "debutMs": 3462,
+     "finMs": 3800
+    },
+    {
+     "texte": "main ?",
+     "debutMs": 3846,
+     "finMs": 4569
+    },
+    {
+     "texte": "Voici",
+     "debutMs": 4795,
+     "finMs": 5134
+    },
+    {
+     "texte": "un",
+     "debutMs": 5180,
+     "finMs": 5518
+    },
+    {
+     "texte": "tableau",
+     "debutMs": 5565,
+     "finMs": 5903
+    },
+    {
+     "texte": "de",
+     "debutMs": 5949,
+     "finMs": 6288
+    },
+    {
+     "texte": "bord",
+     "debutMs": 6334,
+     "finMs": 6672
+    },
+    {
+     "texte": "qui",
+     "debutMs": 6718,
+     "finMs": 7057
+    },
+    {
+     "texte": "le",
+     "debutMs": 7103,
+     "finMs": 7442
+    },
+    {
+     "texte": "fait",
+     "debutMs": 7488,
+     "finMs": 7826
+    },
+    {
+     "texte": "pour",
+     "debutMs": 7872,
+     "finMs": 8211
+    },
+    {
+     "texte": "vous.",
+     "debutMs": 8257,
+     "finMs": 8595
+    },
+    {
+     "texte": "En",
+     "debutMs": 8822,
+     "finMs": 9160
+    },
+    {
+     "texte": "haut,",
+     "debutMs": 9206,
+     "finMs": 9545
+    },
+    {
+     "texte": "trois",
+     "debutMs": 9671,
+     "finMs": 10009
+    },
+    {
+     "texte": "chiffres :",
+     "debutMs": 10055,
+     "finMs": 10778
+    },
+    {
+     "texte": "les",
+     "debutMs": 10905,
+     "finMs": 11243
+    },
+    {
+     "texte": "articles",
+     "debutMs": 11289,
+     "finMs": 11628
+    },
+    {
+     "texte": "en",
+     "debutMs": 11674,
+     "finMs": 12012
+    },
+    {
+     "texte": "stock,",
+     "debutMs": 12058,
+     "finMs": 12397
+    },
+    {
+     "texte": "ceux",
+     "debutMs": 12523,
+     "finMs": 12862
+    },
+    {
+     "texte": "qui",
+     "debutMs": 12908,
+     "finMs": 13246
+    },
+    {
+     "texte": "passent",
+     "debutMs": 13292,
+     "finMs": 13631
+    },
+    {
+     "texte": "sous",
+     "debutMs": 13677,
+     "finMs": 14015
+    },
+    {
+     "texte": "le",
+     "debutMs": 14062,
+     "finMs": 14400
+    },
+    {
+     "texte": "seuil,",
+     "debutMs": 14446,
+     "finMs": 14785
+    },
+    {
+     "texte": "et",
+     "debutMs": 14911,
+     "finMs": 15249
+    },
+    {
+     "texte": "la",
+     "debutMs": 15295,
+     "finMs": 15634
+    },
+    {
+     "texte": "valeur",
+     "debutMs": 15680,
+     "finMs": 16018
+    },
+    {
+     "texte": "totale.",
+     "debutMs": 16065,
+     "finMs": 16403
+    },
+    {
+     "texte": "Juste",
+     "debutMs": 16629,
+     "finMs": 16968
+    },
+    {
+     "texte": "en",
+     "debutMs": 17014,
+     "finMs": 17352
+    },
+    {
+     "texte": "dessous,",
+     "debutMs": 17398,
+     "finMs": 17737
+    },
+    {
+     "texte": "la",
+     "debutMs": 17863,
+     "finMs": 18202
+    },
+    {
+     "texte": "liste",
+     "debutMs": 18248,
+     "finMs": 18586
+    },
+    {
+     "texte": "des",
+     "debutMs": 18632,
+     "finMs": 18971
+    },
+    {
+     "texte": "articles",
+     "debutMs": 19017,
+     "finMs": 19355
+    },
+    {
+     "texte": "à",
+     "debutMs": 19402,
+     "finMs": 19740
+    },
+    {
+     "texte": "commander,",
+     "debutMs": 19786,
+     "finMs": 20125
+    },
+    {
+     "texte": "triée",
+     "debutMs": 20251,
+     "finMs": 20589
+    },
+    {
+     "texte": "par",
+     "debutMs": 20635,
+     "finMs": 20974
+    },
+    {
+     "texte": "urgence.",
+     "debutMs": 21020,
+     "finMs": 21358
+    },
+    {
+     "texte": "Un",
+     "debutMs": 21585,
+     "finMs": 21923
+    },
+    {
+     "texte": "clic",
+     "debutMs": 21969,
+     "finMs": 22308
+    },
+    {
+     "texte": "sur",
+     "debutMs": 22354,
+     "finMs": 22692
+    },
+    {
+     "texte": "un",
+     "debutMs": 22738,
+     "finMs": 23077
+    },
+    {
+     "texte": "article",
+     "debutMs": 23123,
+     "finMs": 23462
+    },
+    {
+     "texte": "ouvre",
+     "debutMs": 23508,
+     "finMs": 23846
+    },
+    {
+     "texte": "son",
+     "debutMs": 23892,
+     "finMs": 24231
+    },
+    {
+     "texte": "historique :",
+     "debutMs": 24277,
+     "finMs": 25000
+    },
+    {
+     "texte": "entrées,",
+     "debutMs": 25126,
+     "finMs": 25465
+    },
+    {
+     "texte": "sorties,",
+     "debutMs": 25591,
+     "finMs": 25929
+    },
+    {
+     "texte": "et",
+     "debutMs": 26055,
+     "finMs": 26394
+    },
+    {
+     "texte": "date",
+     "debutMs": 26440,
+     "finMs": 26778
+    },
+    {
+     "texte": "de",
+     "debutMs": 26825,
+     "finMs": 27163
+    },
+    {
+     "texte": "la",
+     "debutMs": 27209,
+     "finMs": 27548
+    },
+    {
+     "texte": "prochaine",
+     "debutMs": 27594,
+     "finMs": 27932
+    },
+    {
+     "texte": "rupture",
+     "debutMs": 27978,
+     "finMs": 28317
+    },
+    {
+     "texte": "prévue.",
+     "debutMs": 28363,
+     "finMs": 28702
+    },
+    {
+     "texte": "Quand",
+     "debutMs": 28928,
+     "finMs": 29266
+    },
+    {
+     "texte": "un",
+     "debutMs": 29312,
+     "finMs": 29651
+    },
+    {
+     "texte": "article",
+     "debutMs": 29697,
+     "finMs": 30035
+    },
+    {
+     "texte": "passe",
+     "debutMs": 30082,
+     "finMs": 30420
+    },
+    {
+     "texte": "sous",
+     "debutMs": 30466,
+     "finMs": 30805
+    },
+    {
+     "texte": "le",
+     "debutMs": 30851,
+     "finMs": 31189
+    },
+    {
+     "texte": "seuil,",
+     "debutMs": 31235,
+     "finMs": 31574
+    },
+    {
+     "texte": "une",
+     "debutMs": 31700,
+     "finMs": 32038
+    },
+    {
+     "texte": "alerte",
+     "debutMs": 32085,
+     "finMs": 32423
+    },
+    {
+     "texte": "part",
+     "debutMs": 32469,
+     "finMs": 32808
+    },
+    {
+     "texte": "toute",
+     "debutMs": 32854,
+     "finMs": 33192
+    },
+    {
+     "texte": "seule.",
+     "debutMs": 33238,
+     "finMs": 33577
+    },
+    {
+     "texte": "Vous",
+     "debutMs": 33803,
+     "finMs": 34142
+    },
+    {
+     "texte": "décidez",
+     "debutMs": 34188,
+     "finMs": 34526
+    },
+    {
+     "texte": "en",
+     "debutMs": 34572,
+     "finMs": 34911
+    },
+    {
+     "texte": "une",
+     "debutMs": 34957,
+     "finMs": 35295
+    },
+    {
+     "texte": "minute",
+     "debutMs": 35342,
+     "finMs": 35680
+    },
+    {
+     "texte": "au",
+     "debutMs": 35726,
+     "finMs": 36065
+    },
+    {
+     "texte": "lieu",
+     "debutMs": 36111,
+     "finMs": 36449
+    },
+    {
+     "texte": "d'une",
+     "debutMs": 36495,
+     "finMs": 36834
+    },
+    {
+     "texte": "heure.",
+     "debutMs": 36880,
+     "finMs": 37218
+    },
+    {
+     "texte": "Vous",
+     "debutMs": 37445,
+     "finMs": 37783
+    },
+    {
+     "texte": "voulez",
+     "debutMs": 37829,
+     "finMs": 38168
+    },
+    {
+     "texte": "le",
+     "debutMs": 38214,
+     "finMs": 38552
+    },
+    {
+     "texte": "même",
+     "debutMs": 38598,
+     "finMs": 38937
+    },
+    {
+     "texte": "pour",
+     "debutMs": 38983,
+     "finMs": 39322
+    },
+    {
+     "texte": "votre",
+     "debutMs": 39368,
+     "finMs": 39706
+    },
+    {
+     "texte": "entreprise ?",
+     "debutMs": 39752,
+     "finMs": 40475
+    },
+    {
+     "texte": "Prenez",
+     "debutMs": 40702,
+     "finMs": 41040
+    },
+    {
+     "texte": "rendez-vous.",
+     "debutMs": 41086,
+     "finMs": 41425
+    }
+   ],
+   "scenes": [
+    {
+     "id": "s1",
+     "version": 1,
+     "mots": {
+      "premier": 21,
+      "dernier": 38
+     },
+     "debutMs": 8822,
+     "finMs": 17603,
+     "niveau": 1,
+     "position": "centre",
+     "transition": {
+      "entree": "fondu",
+      "sortie": "fondu",
+      "dureeMs": 400
+     },
+     "piece": "liste-au-mot",
+     "parametres": {
+      "elements": [
+       {
+        "texte": "les articles en stock",
+        "surMot": 25,
+        "aMs": 2083
+       },
+       {
+        "texte": "ceux qui passent sous le seuil",
+        "surMot": 29,
+        "aMs": 3701
+       },
+       {
+        "texte": "la valeur totale",
+        "surMot": 36,
+        "aMs": 6473
+       }
+      ]
+     },
+     "empreinte": "8f6557012c5c7e7a"
+    },
+    {
+     "id": "s2",
+     "version": 1,
+     "mots": {
+      "premier": 83,
+      "dernier": 84
+     },
+     "debutMs": 34957,
+     "finMs": 36880,
+     "niveau": 1,
+     "position": "centre",
+     "transition": {
+      "entree": "glisse-haut",
+      "sortie": "fondu",
+      "dureeMs": 400
+     },
+     "piece": "repere",
+     "parametres": {
+      "genre": "duree",
+      "texte": "une minute",
+      "surMot": 83,
+      "aMs": 0
+     },
+     "empreinte": "676757d2e0faa6eb"
+    }
+   ]
+  },
+  "sousTitres": {
+   "largeur": 1080,
+   "hauteur": 1350,
+   "segments": [
+    {
+     "id": "st-0",
+     "debutSec": 0,
+     "finSec": 0.769,
+     "mots": [
+      {
+       "mot": "Vous",
+       "debutSec": 0,
+       "finSec": 0.338
+      },
+      {
+       "mot": "perdez",
+       "debutSec": 0.385,
+       "finSec": 0.723
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-2",
+     "debutSec": 0.769,
+     "finSec": 1.538,
+     "mots": [
+      {
+       "mot": "du",
+       "debutSec": 0.769,
+       "finSec": 1.108
+      },
+      {
+       "mot": "temps",
+       "debutSec": 1.154,
+       "finSec": 1.492
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-4",
+     "debutSec": 1.538,
+     "finSec": 2.308,
+     "mots": [
+      {
+       "mot": "à",
+       "debutSec": 1.538,
+       "finSec": 1.877
+      },
+      {
+       "mot": "compter",
+       "debutSec": 1.923,
+       "finSec": 2.262
+      }
+     ],
+     "style": "impact",
+     "importance": 3,
+     "souligne": null,
+     "position": "milieu",
+     "inclinaison": 4,
+     "verrouille": false
+    },
+    {
+     "id": "st-6",
+     "debutSec": 2.308,
+     "finSec": 3.077,
+     "mots": [
+      {
+       "mot": "vos",
+       "debutSec": 2.308,
+       "finSec": 2.646
+      },
+      {
+       "mot": "stocks",
+       "debutSec": 2.692,
+       "finSec": 3.031
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-8",
+     "debutSec": 3.077,
+     "finSec": 4.795,
+     "mots": [
+      {
+       "mot": "à",
+       "debutSec": 3.077,
+       "finSec": 3.415
+      },
+      {
+       "mot": "la",
+       "debutSec": 3.462,
+       "finSec": 3.8
+      },
+      {
+       "mot": "main ?",
+       "debutSec": 3.846,
+       "finSec": 4.569
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-11",
+     "debutSec": 4.795,
+     "finSec": 5.949,
+     "mots": [
+      {
+       "mot": "Voici",
+       "debutSec": 4.795,
+       "finSec": 5.134
+      },
+      {
+       "mot": "un",
+       "debutSec": 5.18,
+       "finSec": 5.518
+      },
+      {
+       "mot": "tableau",
+       "debutSec": 5.565,
+       "finSec": 5.903
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": 2,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-14",
+     "debutSec": 5.949,
+     "finSec": 6.718,
+     "mots": [
+      {
+       "mot": "de",
+       "debutSec": 5.949,
+       "finSec": 6.288
+      },
+      {
+       "mot": "bord",
+       "debutSec": 6.334,
+       "finSec": 6.672
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-16",
+     "debutSec": 6.718,
+     "finSec": 7.872,
+     "mots": [
+      {
+       "mot": "qui",
+       "debutSec": 6.718,
+       "finSec": 7.057
+      },
+      {
+       "mot": "le",
+       "debutSec": 7.103,
+       "finSec": 7.442
+      },
+      {
+       "mot": "fait",
+       "debutSec": 7.488,
+       "finSec": 7.826
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-19",
+     "debutSec": 7.872,
+     "finSec": 8.822,
+     "mots": [
+      {
+       "mot": "pour",
+       "debutSec": 7.872,
+       "finSec": 8.211
+      },
+      {
+       "mot": "vous.",
+       "debutSec": 8.257,
+       "finSec": 8.595
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-21",
+     "debutSec": 8.822,
+     "finSec": 9.671,
+     "mots": [
+      {
+       "mot": "En",
+       "debutSec": 8.822,
+       "finSec": 9.16
+      },
+      {
+       "mot": "haut,",
+       "debutSec": 9.206,
+       "finSec": 9.545
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-23",
+     "debutSec": 9.671,
+     "finSec": 10.905,
+     "mots": [
+      {
+       "mot": "trois",
+       "debutSec": 9.671,
+       "finSec": 10.009
+      },
+      {
+       "mot": "chiffres :",
+       "debutSec": 10.055,
+       "finSec": 10.778
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-25",
+     "debutSec": 10.905,
+     "finSec": 11.674,
+     "mots": [
+      {
+       "mot": "les",
+       "debutSec": 10.905,
+       "finSec": 11.243
+      },
+      {
+       "mot": "articles",
+       "debutSec": 11.289,
+       "finSec": 11.628
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": 1,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-27",
+     "debutSec": 11.674,
+     "finSec": 12.523,
+     "mots": [
+      {
+       "mot": "en",
+       "debutSec": 11.674,
+       "finSec": 12.012
+      },
+      {
+       "mot": "stock,",
+       "debutSec": 12.058,
+       "finSec": 12.397
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-29",
+     "debutSec": 12.523,
+     "finSec": 13.677,
+     "mots": [
+      {
+       "mot": "ceux",
+       "debutSec": 12.523,
+       "finSec": 12.862
+      },
+      {
+       "mot": "qui",
+       "debutSec": 12.908,
+       "finSec": 13.246
+      },
+      {
+       "mot": "passent",
+       "debutSec": 13.292,
+       "finSec": 13.631
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-32",
+     "debutSec": 13.677,
+     "finSec": 14.911,
+     "mots": [
+      {
+       "mot": "sous",
+       "debutSec": 13.677,
+       "finSec": 14.015
+      },
+      {
+       "mot": "le",
+       "debutSec": 14.062,
+       "finSec": 14.4
+      },
+      {
+       "mot": "seuil,",
+       "debutSec": 14.446,
+       "finSec": 14.785
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-35",
+     "debutSec": 14.911,
+     "finSec": 16.629,
+     "mots": [
+      {
+       "mot": "et",
+       "debutSec": 14.911,
+       "finSec": 15.249
+      },
+      {
+       "mot": "la",
+       "debutSec": 15.295,
+       "finSec": 15.634
+      },
+      {
+       "mot": "valeur",
+       "debutSec": 15.68,
+       "finSec": 16.018
+      },
+      {
+       "mot": "totale.",
+       "debutSec": 16.065,
+       "finSec": 16.403
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-39",
+     "debutSec": 16.629,
+     "finSec": 17.863,
+     "mots": [
+      {
+       "mot": "Juste",
+       "debutSec": 16.629,
+       "finSec": 16.968
+      },
+      {
+       "mot": "en",
+       "debutSec": 17.014,
+       "finSec": 17.352
+      },
+      {
+       "mot": "dessous,",
+       "debutSec": 17.398,
+       "finSec": 17.737
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-42",
+     "debutSec": 17.863,
+     "finSec": 18.632,
+     "mots": [
+      {
+       "mot": "la",
+       "debutSec": 17.863,
+       "finSec": 18.202
+      },
+      {
+       "mot": "liste",
+       "debutSec": 18.248,
+       "finSec": 18.586
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-44",
+     "debutSec": 18.632,
+     "finSec": 19.402,
+     "mots": [
+      {
+       "mot": "des",
+       "debutSec": 18.632,
+       "finSec": 18.971
+      },
+      {
+       "mot": "articles",
+       "debutSec": 19.017,
+       "finSec": 19.355
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": 1,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-46",
+     "debutSec": 19.402,
+     "finSec": 20.251,
+     "mots": [
+      {
+       "mot": "à",
+       "debutSec": 19.402,
+       "finSec": 19.74
+      },
+      {
+       "mot": "commander,",
+       "debutSec": 19.786,
+       "finSec": 20.125
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-48",
+     "debutSec": 20.251,
+     "finSec": 21.585,
+     "mots": [
+      {
+       "mot": "triée",
+       "debutSec": 20.251,
+       "finSec": 20.589
+      },
+      {
+       "mot": "par",
+       "debutSec": 20.635,
+       "finSec": 20.974
+      },
+      {
+       "mot": "urgence.",
+       "debutSec": 21.02,
+       "finSec": 21.358
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-51",
+     "debutSec": 21.585,
+     "finSec": 22.354,
+     "mots": [
+      {
+       "mot": "Un",
+       "debutSec": 21.585,
+       "finSec": 21.923
+      },
+      {
+       "mot": "clic",
+       "debutSec": 21.969,
+       "finSec": 22.308
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-53",
+     "debutSec": 22.354,
+     "finSec": 23.508,
+     "mots": [
+      {
+       "mot": "sur",
+       "debutSec": 22.354,
+       "finSec": 22.692
+      },
+      {
+       "mot": "un",
+       "debutSec": 22.738,
+       "finSec": 23.077
+      },
+      {
+       "mot": "article",
+       "debutSec": 23.123,
+       "finSec": 23.462
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-56",
+     "debutSec": 23.508,
+     "finSec": 25.126,
+     "mots": [
+      {
+       "mot": "ouvre",
+       "debutSec": 23.508,
+       "finSec": 23.846
+      },
+      {
+       "mot": "son",
+       "debutSec": 23.892,
+       "finSec": 24.231
+      },
+      {
+       "mot": "historique :",
+       "debutSec": 24.277,
+       "finSec": 25
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-59",
+     "debutSec": 25.126,
+     "finSec": 26.055,
+     "mots": [
+      {
+       "mot": "entrées,",
+       "debutSec": 25.126,
+       "finSec": 25.465
+      },
+      {
+       "mot": "sorties,",
+       "debutSec": 25.591,
+       "finSec": 25.929
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": 0,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-61",
+     "debutSec": 26.055,
+     "finSec": 26.825,
+     "mots": [
+      {
+       "mot": "et",
+       "debutSec": 26.055,
+       "finSec": 26.394
+      },
+      {
+       "mot": "date",
+       "debutSec": 26.44,
+       "finSec": 26.778
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-63",
+     "debutSec": 26.825,
+     "finSec": 27.978,
+     "mots": [
+      {
+       "mot": "de",
+       "debutSec": 26.825,
+       "finSec": 27.163
+      },
+      {
+       "mot": "la",
+       "debutSec": 27.209,
+       "finSec": 27.548
+      },
+      {
+       "mot": "prochaine",
+       "debutSec": 27.594,
+       "finSec": 27.932
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-66",
+     "debutSec": 27.978,
+     "finSec": 28.928,
+     "mots": [
+      {
+       "mot": "rupture",
+       "debutSec": 27.978,
+       "finSec": 28.317
+      },
+      {
+       "mot": "prévue.",
+       "debutSec": 28.363,
+       "finSec": 28.702
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-68",
+     "debutSec": 28.928,
+     "finSec": 30.082,
+     "mots": [
+      {
+       "mot": "Quand",
+       "debutSec": 28.928,
+       "finSec": 29.266
+      },
+      {
+       "mot": "un",
+       "debutSec": 29.312,
+       "finSec": 29.651
+      },
+      {
+       "mot": "article",
+       "debutSec": 29.697,
+       "finSec": 30.035
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-71",
+     "debutSec": 30.082,
+     "finSec": 31.7,
+     "mots": [
+      {
+       "mot": "passe",
+       "debutSec": 30.082,
+       "finSec": 30.42
+      },
+      {
+       "mot": "sous",
+       "debutSec": 30.466,
+       "finSec": 30.805
+      },
+      {
+       "mot": "le",
+       "debutSec": 30.851,
+       "finSec": 31.189
+      },
+      {
+       "mot": "seuil,",
+       "debutSec": 31.235,
+       "finSec": 31.574
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-75",
+     "debutSec": 31.7,
+     "finSec": 32.469,
+     "mots": [
+      {
+       "mot": "une",
+       "debutSec": 31.7,
+       "finSec": 32.038
+      },
+      {
+       "mot": "alerte",
+       "debutSec": 32.085,
+       "finSec": 32.423
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-77",
+     "debutSec": 32.469,
+     "finSec": 33.803,
+     "mots": [
+      {
+       "mot": "part",
+       "debutSec": 32.469,
+       "finSec": 32.808
+      },
+      {
+       "mot": "toute",
+       "debutSec": 32.854,
+       "finSec": 33.192
+      },
+      {
+       "mot": "seule.",
+       "debutSec": 33.238,
+       "finSec": 33.577
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-80",
+     "debutSec": 33.803,
+     "finSec": 34.572,
+     "mots": [
+      {
+       "mot": "Vous",
+       "debutSec": 33.803,
+       "finSec": 34.142
+      },
+      {
+       "mot": "décidez",
+       "debutSec": 34.188,
+       "finSec": 34.526
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": 1,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-82",
+     "debutSec": 34.572,
+     "finSec": 35.726,
+     "mots": [
+      {
+       "mot": "en",
+       "debutSec": 34.572,
+       "finSec": 34.911
+      },
+      {
+       "mot": "une",
+       "debutSec": 34.957,
+       "finSec": 35.295
+      },
+      {
+       "mot": "minute",
+       "debutSec": 35.342,
+       "finSec": 35.68
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-85",
+     "debutSec": 35.726,
+     "finSec": 36.495,
+     "mots": [
+      {
+       "mot": "au",
+       "debutSec": 35.726,
+       "finSec": 36.065
+      },
+      {
+       "mot": "lieu",
+       "debutSec": 36.111,
+       "finSec": 36.449
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-87",
+     "debutSec": 36.495,
+     "finSec": 37.445,
+     "mots": [
+      {
+       "mot": "d'une",
+       "debutSec": 36.495,
+       "finSec": 36.834
+      },
+      {
+       "mot": "heure.",
+       "debutSec": 36.88,
+       "finSec": 37.218
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-89",
+     "debutSec": 37.445,
+     "finSec": 38.214,
+     "mots": [
+      {
+       "mot": "Vous",
+       "debutSec": 37.445,
+       "finSec": 37.783
+      },
+      {
+       "mot": "voulez",
+       "debutSec": 37.829,
+       "finSec": 38.168
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-91",
+     "debutSec": 38.214,
+     "finSec": 38.983,
+     "mots": [
+      {
+       "mot": "le",
+       "debutSec": 38.214,
+       "finSec": 38.552
+      },
+      {
+       "mot": "même",
+       "debutSec": 38.598,
+       "finSec": 38.937
+      }
+     ],
+     "style": "base",
+     "importance": 0,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-93",
+     "debutSec": 38.983,
+     "finSec": 40.702,
+     "mots": [
+      {
+       "mot": "pour",
+       "debutSec": 38.983,
+       "finSec": 39.322
+      },
+      {
+       "mot": "votre",
+       "debutSec": 39.368,
+       "finSec": 39.706
+      },
+      {
+       "mot": "entreprise ?",
+       "debutSec": 39.752,
+       "finSec": 40.475
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": 2,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    },
+    {
+     "id": "st-96",
+     "debutSec": 40.702,
+     "finSec": 41.425,
+     "mots": [
+      {
+       "mot": "Prenez",
+       "debutSec": 40.702,
+       "finSec": 41.04
+      },
+      {
+       "mot": "rendez-vous.",
+       "debutSec": 41.086,
+       "finSec": 41.425
+      }
+     ],
+     "style": "base",
+     "importance": 1,
+     "souligne": null,
+     "position": "auto",
+     "inclinaison": 0,
+     "verrouille": false
+    }
+   ],
+   "base": "karaoke",
+   "couleurs": {
+    "texte": "#FAF9F5",
+    "accent": "#D97757",
+    "contour": "#141413"
+   },
+   "largeurMaxPx": 993,
+   "positions": {
+    "milieuPct": 48,
+    "hautPct": 9,
+    "basPct": 87,
+    "poitrinePct": 51
+   },
+   "tailleRelative": 1
+  },
+  "fin": {
+   "titre": "Prendre rendez-vous",
+   "sousTitre": "axion-ia.com"
+  },
+  "finMs": 2500
+ }
+]
