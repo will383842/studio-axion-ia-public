@@ -117,6 +117,20 @@ describe("FIX-OBJETS-CC-PLACE-v21u · les objets ne recouvrent jamais un texte",
     expect(renderToStaticMarkup(ImagePlan({ plan: { ...sansChamp, facecam: true, zoneObjets: undefined } as PlanValide, image }) as never)).toBe(sans);
   });
 
+  it("(e bis) seules les pièces objet-* vont dans zoneObjets : le compteur du texte 1 (non-objet) garde la boîte de sa position", async () => {
+    const r = reserverZoneObjets(titre(0, await plan(TEXTES[0], OBJETS)));
+    const zone = zoneObjetsDe(r);
+    const tranche = r.planScenes as PlanZoneObjets;
+    const compteur = tranche.scenes.find((s) => s.niveau === 1 && !s.piece.startsWith("objet-"));
+    expect(compteur?.piece).toBe("compteur");
+    const style = `left:${zone.x}px;top:${zone.y}px;width:${zone.largeur}px;height:${zone.hauteur}px`;
+    const image = Math.round((((compteur!.debutMs + compteur!.finMs) / 2) * tranche.format.fps) / 1000);
+    expect(renderToStaticMarkup(ImagePlan({ plan: { ...tranche, facecam: true } as PlanValide, image }) as never)).not.toContain(style);
+    const objet = scenesObjets(r)[0];
+    const imageObjet = Math.round((((objet.debutMs + objet.finMs) / 2) * tranche.format.fps) / 1000);
+    expect(renderToStaticMarkup(ImagePlan({ plan: { ...tranche, facecam: true } as PlanValide, image: imageObjet }) as never)).toContain(style);
+  });
+
   it("(f) sans objet, rien ne change : même référence pour un écran sans tranche et pour une tranche sans scène objet-*", async () => {
     const sansTranche = ecran({ type: "titre", lignes: LIGNES[0] });
     expect(reserverZoneObjets(sansTranche)).toBe(sansTranche);
