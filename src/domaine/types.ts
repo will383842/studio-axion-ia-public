@@ -2636,6 +2636,8 @@ export interface GenerationScript extends EntiteBase {
     estimationPireCasUsd: number;
     jetons?: { entree: number; cacheLu: number; cacheEcrit: number; cacheEcrit1h?: number; sortie: number };
     resultat?: "ok" | "rejete" | "reecrit" | "preuve-manquante" | "ancrage-manquant" | "refus" | "coupe";
+    /** FIX-RETOUCHE-COUPEE : `fetch` rejeté avant toute réponse HTTP (place d'une retouche rendue ; le pire cas reste compté, sans `termineLe`). */
+    sansReponseHttp?: true;
     sortieId?: Id;
     violations?: Violation[];
   }[];

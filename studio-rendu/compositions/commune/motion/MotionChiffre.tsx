@@ -63,7 +63,7 @@ function Contenu({ d }: { d: DonneesChiffre }) {
       <div style={{ position: "absolute", left: cx - R, width: R * 2, top: cy - grand * 0.56, display: "flex", justifyContent: "center", alignItems: "baseline", opacity: (1 - s) * progres(t, debut - 0.05, 0.25), transform: `scale(${(respire * (0.9 + 0.1 * echelleRessort(t, debut - 0.05, chute + 9))).toFixed(4)}) translateY(${(-s * 60 * u).toFixed(2)}px)` }}>
         {d.prefixe && <span style={{ fontSize: grand * 0.55, fontWeight: 800, color: COULEURS.orangeVif, marginRight: 8 * u }}>{d.prefixe}</span>}
         <FlouMouvement dy={flouChiffres * 2} style={{ display: "inline-block" }}>
-          <span style={{ fontSize: grand, fontWeight: 900, letterSpacing: "-0.045em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: COULEURS.creme, textShadow: `0 ${6 * u}px ${30 * u}px ${avecOpacite(COULEURS.fondProfond, 0.7)}` }}>{texte}</span>
+          <span style={{ fontSize: grand, fontWeight: 800, letterSpacing: "-0.045em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: COULEURS.creme, textShadow: `0 ${6 * u}px ${30 * u}px ${avecOpacite(COULEURS.fondProfond, 0.7)}` }}>{texte}</span>
         </FlouMouvement>
         {d.unite && (
           <span style={{ fontSize: taille("titre") * 0.95, fontWeight: 800, color: COULEURS.orangeVif, marginLeft: 12 * u, opacity: progres(t, debut + 0.35, 0.3), transform: `translateX(${((1 - progres(t, debut + 0.35, DUREES.entree)) * 30 * u).toFixed(2)}px)`, display: "inline-block" }}>{d.unite}</span>

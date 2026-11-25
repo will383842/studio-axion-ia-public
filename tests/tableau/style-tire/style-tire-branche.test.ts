@@ -1,6 +1,6 @@
 /**
  * BR-TABLEAU-STYLE-a (18/11) : le tirage du style du tableau est BRANCHÉ au découpage réel, derrière `tableau.styleTire`
- * (éteint par défaut, seul `true` exact allume). PAR LE CHEMIN RÉEL : `decouperScriptTableau` puis la boucle de fond
+ * (ALLUMÉ par défaut depuis ALLUMER-INV-GROUPE-v21p ; `false` écrit en base éteint, lecture en échec = éteint). PAR LE CHEMIN RÉEL : `decouperScriptTableau` puis la boucle de fond
  * `travaillerTachesTableau` (donc `executerDecoupage` : lecture du réglage, historique, note du style), dépôts en mémoire,
  * double de Claude, aucun appel payant. Puis la fiche enregistrée suit la chaîne de fabrication (pages, mise en page,
  * propriétés de `TableauScene`, sous-titres) et le calque texte est rendu « par instants » (`instantsTexte` : une image par
@@ -102,7 +102,8 @@ describe("(a) éteint = identique", () => {
     expect(coutDecoupageCentimes(0.92)).toBeGreaterThan(0);
   });
 
-  it("chemin réel, réglage absent : la fiche n'a pas de style tiré et l'historique reste vide", async () => {
+  it("chemin réel, réglage `false` écrit : la fiche n'a pas de style tiré et l'historique reste vide", async () => {
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, false);
     const a = await decouper();
     const b = await decouper({ ...donnees, texte: `${donnees.texte} ` });
     expect(a.fiche.styleTableau).toBeUndefined();
@@ -110,7 +111,18 @@ describe("(a) éteint = identique", () => {
     expect(await historiqueStylesTableau()).toEqual([]);
   });
 
-  it.each([["false", false], ["'true'", "true"], ["1", 1], ["null", null]])("réglage %s : éteint (seul `true` exact allume)", async (_n, valeur) => {
+  it("chemin réel, réglage absent (ALLUMER-INV-GROUPE-v21p, défaut allumé) : un style est tiré et noté dans l'historique", async () => {
+    const a = await decouper();
+    expect(STYLES_TABLEAU).toContain(a.fiche.styleTableau as StyleTableau);
+    expect((await historiqueStylesTableau()).at(-1)).toEqual({ videoId: a.videoId, style: a.fiche.styleTableau });
+  });
+
+  it("réglage `null` écrit : vaut absent (`?? défaut`), donc allumé ; seul `false` écrit éteint", async () => {
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, null);
+    expect((await decouper()).fiche.styleTableau).toBeDefined();
+  });
+
+  it.each([["false", false], ["'true'", "true"], ["1", 1]])("réglage %s : éteint (seul `true` exact allume ; `false` écrit éteint)", async (_n, valeur) => {
     await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, valeur);
     const a = await decouper();
     expect(a.fiche.styleTableau).toBeUndefined();
@@ -253,7 +265,8 @@ describe("(d bis) par la vraie fabrication : fabriquerTableau soumet au rendu de
     expect(a.fiche.styleTableau).not.toBe(b.fiche.styleTableau);
   });
 
-  it("(ii) éteint (absent), deux vidéos de suite : un seul et même style, celui de la série", async () => {
+  it("(ii) éteint (`false` écrit), deux vidéos de suite : un seul et même style, celui de la série", async () => {
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, false);
     const a = await decouper();
     const b = await decouper({ ...donnees, texte: `${donnees.texte} ` });
     const fa = await stylesFabriques(a.fiche);
@@ -262,14 +275,15 @@ describe("(d bis) par la vraie fabrication : fabriquerTableau soumet au rendu de
     expect(new Set([...fa.styles, ...fb.styles]).size).toBe(1);
   });
 
-  it("(iii) éteint : réglage absent et réglage `false` donnent des paramètres de scènes identiques (videoId mis à part)", async () => {
+  it("(iii) éteint : réglage `false` et réglage `'true'` donnent des paramètres de scènes identiques (videoId mis à part)", async () => {
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, false);
     const absent = await stylesFabriques((await decouper()).fiche);
     reinitialiserDepots();
     const { texteScript: _s, ...regles } = contexteExemple(fiche);
     void _s;
     for (const p of regles.preuves) await depots().preuves.enregistrer(p as never);
     for (const m of regles.matieres) await depots().matieres.enregistrer(m as never);
-    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, false);
+    await ecrireParametre(PARAM_STYLE_TIRE_TABLEAU, "true");
     const faux = await stylesFabriques((await decouper()).fiche);
     expect(faux.parametres).toBe(absent.parametres);
     expect(faux.styles).toEqual(absent.styles);

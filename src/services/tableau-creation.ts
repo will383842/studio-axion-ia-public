@@ -69,6 +69,7 @@ import { titreAffiche } from "@/domaine/titres";
 import { CARACTERES_DITS_MAX_TABLEAU, DUREE_MAX_TABLEAU_SEC, caracteresDits, dureeDiteSec } from "@/domaine/duree-tableau";
 import { DOULEUR_MAX_TABLEAU, MOT_DOULEUR_LONGUEUR_MAX, MOTS_DOULEUR_MAX, couperAuMot, douleurDepuisScript, motDouleurDit, nettoyerMotsDouleur, raccourcirDouleur } from "@/domaine/douleur-tableau";
 import { METHODE_PAR_DEFAUT, PARAM_METHODE_TABLEAU, methodeLue, type MethodeTableau } from "./tableau-scripts/consignes";
+import { preteAvecRemarquesActive } from "./tableau-remarques";
 import { depots, ErreurStudio, fournisseur, horodatage, journaliser, lireParametre, maintenant, sousVerrou } from "./_commun";
 import { appelerRejoue, clientRejoue, lireTache, modifierTache, nouvelleTache, NOM_ANNEXE_TABLEAU, phraseErreur, tacheActive, travaillerTaches, vueTache, type TacheTableau, type VueTacheTableau } from "./tableau-taches";
 import { MARGE_CREDITS } from "./credits";
@@ -497,7 +498,7 @@ function coutVoixDe(fiche: FicheTableau, lecturesVoixMax: number): number {
 /**
  * LA relecture d'avant la fabrication, pour un brouillon : `relireFicheTableau` avec EXACTEMENT les entrées que la
  * fabrication lancée depuis ce brouillon recevra (fiche, contexte des règles, sorties des réseaux cochés, fin de chaque
- * sortie avec le mot saisi, case « déjà vu », aucun historique ni preuve injectés : la chaîne n'en reçoit pas non plus).
+ * sortie avec le mot saisi, case « déjà vu » ; l'historique n'est PAS injecté ici alors que la fabrication reçoit l'historique réel : écart assumé, S-13-d).
  */
 export async function relireBrouillonTableau(b: Pick<BrouillonTableau, "donnees" | "dejaVu">, fiche: FicheTableau, contexte: Omit<ContexteTableau, "texteScript">) {
   const sorties = sortiesDesReseaux(b.donnees.reseaux);
@@ -505,6 +506,7 @@ export async function relireBrouillonTableau(b: Pick<BrouillonTableau, "donnees"
     fiche,
     contexte: { ...avecMotsDouleur(contexte, b.donnees), texteScript: texteDitDe(fiche) },
     historique: [],
+    ...((await preteAvecRemarquesActive()) ? { preteAvecRemarques: true as const } : {}), // S-13-d : la console dit la variété comme la fabrication
     sorties,
     choisirFin: choisirFinTableau({}, { sorties, ...(b.donnees.mot ? { mot: b.donnees.mot } : {}) }),
     ...(b.dejaVu ? { dejaVu: b.dejaVu } : {}),
@@ -620,7 +622,7 @@ export interface DependancesCreationTableau {
   sourcesSujets?: SourcesSujets;
 }
 
-/** Réglage du tirage du style du tableau (BR-TABLEAU-STYLE-a) : seul `true` exact l'allume, absent = éteint. */
+/** Réglage du tirage du style du tableau (BR-TABLEAU-STYLE-a) : ALLUMÉ par défaut depuis ALLUMER-INV-GROUPE-v21p ; `false` écrit en base éteint ; lecture en échec = éteint. */
 export const PARAM_STYLE_TIRE_TABLEAU = "tableau.styleTire";
 
 /** L'entrée du découpage d'un brouillon (PUR, exporté pour le test « contrat » générateur → découpage). */
@@ -883,7 +885,7 @@ async function executerDecoupage(videoId: Id, tache: TacheTableau, dependances: 
   const donnees = brouillon.donnees;
   const aujourdhui = tache.aujourdhui ?? aujourdhuiIso();
   const controle = await contexteRegles(aujourdhui);
-  const tirageBase = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, false).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
+  const tirageBase = (await lireParametre<unknown>(PARAM_STYLE_TIRE_TABLEAU, true).catch(() => false)) === true ? { historique: await historiqueStylesTableau().catch(() => []) } : undefined;
   const eviter = tirageBase ? await stylesTableauAEviterCommun({ videoId, reseaux: donnees.reseaux, le: maintenant(), lire: lireVarieteCommune }) : undefined; // BR-TABLEAU-STYLE-b2 : varieteCommune éteint → undefined
   const tirage = tirageBase && eviter?.length ? { ...tirageBase, eviter } : tirageBase;
   const entree = entreeDecoupage(donnees, videoId, tache.versionId ?? `b${brouillon.versions.length + 1}`, controle, await preuvesProposees(aujourdhui), tirage);

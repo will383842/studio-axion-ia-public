@@ -63,16 +63,22 @@ describe("sans voix : rangé par entreeModeVoix", () => {
       expect("modeVoix" in entreeDe(brouillons[0]!)).toBe(false);
     }
   });
-  it("sans voix, personne de disponible : refus lisible, aucun brouillon, rien n'est lancé (comme avec voix)", async () => {
-    for (const distribution of [[], [{}]]) {
+  it("sans voix, personne de disponible : accepté sans aucun double (distribution vide, la distribution par défaut n'est même pas appelée) ; avec voix : refus lisible, aucun brouillon", async () => {
+    for (const distribution of [[], [{}], PERSONNE]) {
       const a = banc({ distribution });
-      expect(await d.deposerTutoriel({ ...phrase, modeVoix: "sans-voix" }, a.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_PERSONNE_ABSENTE });
-      expect(a.brouillons).toHaveLength(0);
-      expect(a.compte.lancements).toBe(0);
+      const appel = vi.fn(a.dep.distribution!);
+      expect(await d.deposerTutoriel({ ...phrase, modeVoix: "sans-voix" }, { ...a.dep, distribution: appel })).toEqual({ statut: "lancee", videoId: "v1" });
+      expect(appel).not.toHaveBeenCalled();
+      expect(a.brouillons).toHaveLength(1);
+      expect(a.brouillons[0]!.distribution).toEqual([]);
+      expect(a.compte.lancements).toBe(1);
     }
-    const b = banc({ distribution: [] });
-    expect(await d.deposerTutoriel(phrase, b.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_PERSONNE_ABSENTE });
-    expect(b.brouillons).toHaveLength(0);
+    for (const distribution of [[], [{}]]) {
+      const c = banc({ distribution });
+      expect(await d.deposerTutoriel(phrase, c.dep)).toEqual({ statut: "refusee", phrase: d.PHRASE_PERSONNE_ABSENTE });
+      expect(c.brouillons).toHaveLength(0);
+      expect(c.compte.lancements).toBe(0);
+    }
   });
 });
 
@@ -113,10 +119,14 @@ describe("équipe éteinte : refus lisible, rien n'est créé", () => {
     expect((await d.deposerTutoriel({ ...phrase, script: "Mon script." }, dep)).statut).toBe("lancee");
     expect(brouillons).toHaveLength(1);
   });
-  it("lecture par défaut : tutoriel.equipe vrai mais tutoriel.claude faux (ou lecture en échec) : refusé", async () => {
+  it("lecture par défaut : tutoriel.equipe vrai mais tutoriel.claude à `false` : refusé ; Claude absent ou \"true\" : lancée (allumé par défaut, décision 21/11 07:20)", async () => {
     const sansEquipe = { ...banc().dep, equipe: undefined };
     try {
-      for (const table of [{ "tutoriel.equipe": true, "tutoriel.claude": false }, { "tutoriel.equipe": true }, { "tutoriel.equipe": true, "tutoriel.claude": "true" }]) {
+      for (const table of [{ "tutoriel.equipe": true }, { "tutoriel.equipe": true, "tutoriel.claude": "true" }]) {
+        reglages.table = table;
+        expect((await d.deposerTutoriel(phrase, { ...sansEquipe, brouillon: async () => ({ id: "v1" }) })).statut).toBe("lancee");
+      }
+      for (const table of [{ "tutoriel.equipe": true, "tutoriel.claude": false }]) {
         reglages.table = table;
         const brouillon = vi.fn(async () => ({ id: "v1" }));
         expect(await d.deposerTutoriel(phrase, { ...sansEquipe, brouillon })).toEqual({ statut: "refusee", phrase: d.PHRASE_EQUIPE_FERMEE });

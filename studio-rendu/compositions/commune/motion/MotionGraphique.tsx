@@ -297,7 +297,7 @@ function Anneau({ d, z, heures, fort }: { d: DonneesGraphique; z: Zone; heures: 
         const v = valeurCompteur(t, heures[i], 0, serie.valeur, 0.6);
         return (
           <div key={i} style={{ position: "absolute", left: cx - rs, width: rs * 2, top: cy - grand * (g.cote ? 0.5 : 0.72), display: "flex", flexDirection: "column", alignItems: "center", opacity: visible, transform: `scale(${(0.92 + 0.08 * progres(t, heures[i], 0.4)).toFixed(4)})` }}>
-            <div style={{ fontSize: grand, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums", color: i === fort ? COULEURS.orangeVif : COULEURS.creme, whiteSpace: "nowrap" }}>{texteValeur(v, unite, d.decimales)}</div>
+            <div style={{ fontSize: grand, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums", color: i === fort ? COULEURS.orangeVif : COULEURS.creme, whiteSpace: "nowrap" }}>{texteValeur(v, unite, d.decimales)}</div>
             {!g.cote && <div style={{ fontSize: tLib, fontWeight: 600, color: COULEURS.cremeAttenuee, marginTop: 10 * u, whiteSpace: "nowrap" }}>{serie.libelle}</div>}
           </div>
         );

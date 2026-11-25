@@ -12,7 +12,7 @@ vi.mock("./_commun", () => ({
 vi.mock("./cas-concret-traites", () => ({ estCasTraite: etat.traite, PHRASE_CAS_TRAITE: "Ce cas est déjà traité : il n'est plus disponible." }));
 vi.mock("./cas-concret-retires", () => ({ lireCasRetires: async () => etat.retires }));
 vi.mock("./auth", () => ({ exigerSession: vi.fn(async () => undefined) }));
-vi.mock("./travaux", () => ({ reessayerTravail: etat.reessayer }));
+vi.mock("./travaux", () => ({ reessayerTravail: etat.reessayer, libererSiAttenteRefusee: vi.fn(async () => undefined) }));
 vi.mock("./cas-concret-reglages", () => ({ REGLAGES_CAS_CONCRET: { stockMetiers: "casConcret.stockMetiers" }, reglageAllume: vi.fn(async () => false) }));
 vi.mock("@/moteurs/montage-cas-concret", () => ({
   ID_MOTEUR_CAS_CONCRET: "cas-concret",

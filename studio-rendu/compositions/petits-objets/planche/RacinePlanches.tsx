@@ -1,6 +1,7 @@
 /** Racine des planches de petits objets (C9-39, C9-40a) : 2 formats × 2 fonds par famille. Entrée à part, jamais `compositions/Racine.tsx`. */
 import { Composition } from "remotion";
 import type { FondAxion } from "../../../../src/briques/jetons-motion";
+import { chargerPoliceMarque } from "../../commune/police-marque";
 import { PlancheTraits, DIMENSIONS_PLANCHE, FPS_PLANCHE, type FormatPlanche } from "./PlancheTraits";
 import { PlancheEtiquettes } from "./PlancheEtiquettes";
 import { PlancheEcrans } from "./PlancheEcrans";
@@ -22,6 +23,7 @@ export const IDS_PLANCHES_FAMILLES = FAMILLES.flatMap(({ nom, Planche }) =>
 );
 
 export function RacinePlanches() {
+  chargerPoliceMarque();
   return (
     <>
       {IDS_PLANCHES_TRAITS.map(({ id, format, fond }) => (

@@ -3,21 +3,15 @@
  * (la pièce n'y dessine rien). Vidéo toujours MUETTE. Sans `src` : carte vide, sans erreur. Rien sur le visage : aucune personne dessinée.
  */
 import React from "react";
-import { AbsoluteFill, continueRender, delayRender, OffthreadVideo, useCurrentFrame, useVideoConfig } from "remotion";
-import { CHARTE_AXION, FAMILLE_CSS_AXION, POLICE_AXION, couleursSur, type FondAxion } from "../../../../src/briques/jetons-motion";
+import { AbsoluteFill, OffthreadVideo, useCurrentFrame, useVideoConfig } from "remotion";
+import { CHARTE_AXION, FAMILLE_CSS_AXION, couleursSur, type FondAxion } from "../../../../src/briques/jetons-motion";
 import { entreeCarte, geometrieCarteVideo, type RatioVideoCarte } from "../../../../src/briques/motion/ecrans-couverture/carte-video";
-import manrope from "../polices/Manrope-Variable.ttf";
+import { chargerPoliceMarque } from "../police-marque";
 
 /** Éteint : aucun branchement. */
 export const CARTE_VIDEO_ACTIVE = false;
 
-let chargement: Promise<void> | null = null;
-function chargerManropeCarte(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope (carte vidéo)");
-  const face = new FontFace(POLICE_AXION, `url(${manrope})`, { weight: "200 800" });
-  chargement = face.load().then(() => { document.fonts.add(face); }).catch(() => undefined).finally(() => continueRender(attente));
-}
+const chargerManropeCarte = chargerPoliceMarque;
 
 export type ProprietesCarteVideoArrondie = {
   src?: string;

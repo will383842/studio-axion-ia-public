@@ -87,7 +87,7 @@ describe("plafond des lectures du chat (C7-17)", () => {
     }
   });
 
-  it("f) gardes de texte : aucun import d'argent ni _commun, aucun importeur", () => {
+  it("f) gardes de texte : aucun import d'argent ni _commun, un seul importeur (lecteur-studio.ts, G8-OBS)", () => {
     const src = readFileSync("src/services/retouche-chat/plafond-lectures.ts", "utf8");
     for (const m of src.matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
       expect(m[1]).not.toMatch(/_commun|credits|depense-claude-video|budget-mensuel|server-only/);
@@ -98,9 +98,6 @@ describe("plafond des lectures du chat (C7-17)", () => {
         const p = join(d, n);
         return statSync(p).isDirectory() ? fichiers(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
       });
-    for (const f of fichiers("src")) {
-      if (f.endsWith("plafond-lectures.ts")) continue;
-      expect(readFileSync(f, "utf8"), f).not.toMatch(/plafond-lectures/);
-    }
+    expect(fichiers("src").filter((f) => !f.endsWith("plafond-lectures.ts") && /plafond-lectures/.test(readFileSync(f, "utf8")))).toEqual([join("src", "services", "retouche-chat", "lecteur-studio.ts")]);
   });
 });

@@ -63,17 +63,17 @@ describe("opérations sur les plaquettes (S-15-OPERATIONS-v19c)", () => {
     expect(liste).toEqual(copie);
   });
 
-  it("f) éteint = identique : aucun fichier de src n'importe operations-plaquettes", () => {
+  it("f) seule la pièce S-15-b1 importe operations-plaquettes (liste fermée)", () => {
     const trouves: string[] = [];
     const marche = (d: string) => {
       for (const f of readdirSync(d)) {
         const p = join(d, f);
         if (statSync(p).isDirectory()) marche(p);
-        else if (/\.(ts|tsx)$/.test(f) && f !== "operations-plaquettes.ts" && /operations-plaquettes/.test(readFileSync(p, "utf8"))) trouves.push(p);
+        else if (/\.(ts|tsx)$/.test(f) && f !== "operations-plaquettes.ts" && /operations-plaquettes/.test(readFileSync(p, "utf8"))) trouves.push(p.split("\\").join("/").slice(process.cwd().split("\\").join("/").length + 1));
       }
     };
     marche(join(process.cwd(), "src"));
-    expect(trouves).toEqual([]);
+    expect(trouves).toEqual(["src/domaine/facecam-animee/appliquer-plaquettes.ts"]);
   });
 });
 

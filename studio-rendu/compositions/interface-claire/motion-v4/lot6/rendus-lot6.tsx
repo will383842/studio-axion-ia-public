@@ -17,8 +17,10 @@ export const FPS_LOT6 = 30;
 export const ID_TELEPHONE_VIDEO = "telephone-video";
 /** Geste de vie du téléphone : celui des fenêtres (12 px, 1,2°, 3 %, centre 50 % 50 %). */
 export const SLOT_TELEPHONE_VIDEO = "fenetre";
-/** Largeur du téléphone (px, image 1080 × 1920) : réglée sur planche avant tout allumage. */
-export const LARGEUR_TELEPHONE_VIDEO = 560;
+/** Largeur du téléphone (px, image 1080 × 1920) : réglée sur planche le 21/11 (choix B) : bas 1151 px avec l'ombre, au-dessus des sous-titres. */
+export const LARGEUR_TELEPHONE_VIDEO = 420;
+/** Haut du téléphone (px depuis le haut de l'image) : choix B, il finit au-dessus de la zone des sous-titres. */
+export const HAUT_TELEPHONE_VIDEO = 300;
 
 type Geste = React.ComponentType<{ slot: string; duree: number; children: React.ReactNode }>;
 type RenduLot6 = (e: ElementV4Plan, duree: number) => React.ReactNode;
@@ -31,7 +33,7 @@ export function srcTelephone(e: ElementV4Plan): string | undefined {
 
 export const RENDUS_LOT6: Readonly<Record<string, RenduLot6>> = Object.freeze({
   [ID_TELEPHONE_VIDEO]: (e: ElementV4Plan) => (
-    <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
+    <AbsoluteFill style={{ alignItems: "center", justifyContent: "flex-start", paddingTop: HAUT_TELEPHONE_VIDEO }}>
       <TelephoneVideo src={srcTelephone(e)} debutImage={Math.round((e.depuisSec ?? 0) * FPS_LOT6)} largeur={LARGEUR_TELEPHONE_VIDEO} son={false} />
     </AbsoluteFill>
   ),

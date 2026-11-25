@@ -247,17 +247,18 @@ describe("transcription en panne (fabrication complète)", () => {
     expect(e.controles?.verdict?.mentions.join(" ")).toMatch(/Q08.*Q05.*Q08bis.*script/);
   });
 
-  it("carte AVEC chiffre à dire : les chiffres dits ne sont pas confirmés, refusée", async () => {
+  it("carte AVEC chiffre à dire : les chiffres dits ne sont pas confirmés : panne réessayable (GV-EC-05)", async () => {
     const m = monde();
     const o = outilsSimules(carteA, m);
     panneTranscription(o, m);
     const e = await jusquAuBout(etatInitialIV(demande(carteA)), o);
     expect(e.etape).toBe("refusee");
-    expect(e.refus?.code).toBe("IV_CONTROLES");
+    expect(e.refus?.code).toBe("IV_PANNE");
+    expect(e.refus?.reessayable).toBe(true);
     expect(e.refus?.phrases?.join(" ")).toMatch(/chiffres/i);
   });
 
-  it("carte avec un chiffre à dire jamais affiché + panne de transcription : refusée en IV_CONTROLES (ligne CHIFFRES bloquante, motif en tête)", async () => {
+  it("carte avec un chiffre à dire jamais affiché + panne de transcription : panne réessayable IV_PANNE, GV-EC-05 (ligne CHIFFRES non faite, motif en tête)", async () => {
     const m = monde();
     // Un second chiffre à dire, sur aucun écran : il n'apparaît dans aucun événement visible de la ligne.
     const carte = { ...carteA, chiffres: [...carteA.chiffres, { ...carteA.chiffres[0], id: "c99", brut: "777 jours", valeur: 777 }] };
@@ -265,7 +266,7 @@ describe("transcription en panne (fabrication complète)", () => {
     panneTranscription(o, m);
     const e = await jusquAuBout(etatInitialIV(demande(carte)), o);
     expect(e.etape).toBe("refusee");
-    expect(e.refus).toMatchObject({ etape: "controles", code: "IV_CONTROLES" });
+    expect(e.refus).toMatchObject({ etape: "controles", code: "IV_PANNE", reessayable: true });
     expect(e.refus?.phrases?.[0]).toContain("chiffres dits ne sont pas confirmés");
   });
 

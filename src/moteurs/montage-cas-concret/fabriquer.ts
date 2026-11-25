@@ -50,6 +50,7 @@ import { GEOMETRIE_INCRUSTATIONS_PAR_DEFAUT, type RecetteComposition } from "@/b
 import { REDUCTION_LARGE_PAR_DEFAUT } from "@/briques/composition/scene";
 import type { AppelClaude } from "@/briques/plan-scenes/generateur";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
+import { decisionBoucleCasConcret, sansFinPropre } from "./boucle-effet";
 import { cleTranche, planScenesCasConcret, type GroupePourPlan, type MemoPlanScenes } from "./plan-scenes";
 import { centreSousTitresPleineImagePct, proprietesPleineImage, zonePleineImage } from "./zone-objets";
 import { controlerProprietes, zonesEcran, type CaptureEcran, type EcranCale, type ProprietesEcran } from "@/briques/ecrans-motion";
@@ -218,6 +219,8 @@ export interface OptionsFabricationCasConcret {
   styleVarie?: boolean;
   /** BR-CC-BRANCHER · pièces d'objets permises par l'entrée bibliothèque (lues par index.ts) ; absent ou vide : aucun objet. */
   objetsPermis?: readonly string[];
+  /** BR-MOT-CLE-c-v21s · mot-clé de recherche (X1-13) en bandeau dans les 3 premières secondes : ALLUMÉ dès que le plan de scènes tourne (décision de Williams du 25/11) ; seul `false` l'éteint. */
+  motCle?: false;
   /** X3-07 : cran du dosage figé dans la commande (X3-03) ; absent : tirage inchangé. */
   dosage?: DosageMotion;
   /**
@@ -381,6 +384,7 @@ export const RECETTE_COMPOSITION_CAS_CONCRET: RecetteComposition = {
   // 14/10 : fin propre commune (image finale tenue puis fondu image + son) — le fond de la dernière carte, mesuré.
   finPropre: FIN_PROPRE_COMMUNE,
 };
+const RECETTE_SANS_FIN_PROPRE: RecetteComposition = sansFinPropre(RECETTE_COMPOSITION_CAS_CONCRET);
 
 /** Centre de la bande des sous-titres du format (8 %, au bas de la zone de texte, sous la zone utile), en % de la hauteur. */
 export function centreBandePct(zoneProtegee: Parameters<typeof zonesEcran>[0], hauteur = 1920): number {
@@ -1156,6 +1160,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
       memo: journal.planScenes,
       ...(entrees.habillageTransitions === true ? { habillage: { actif: true, graine: o.videoId } } : {}),
       ...(o.objetsPermis?.length ? { objetsPermis: o.objetsPermis } : {}),
+      ...(o.motCle !== false ? { motCle: { actif: true, sujet: cas.titre || cas.theme || cas.promesse, motsInterdits: [mot] } } : {}),
     });
     journal.planScenes = r.memo;
     await ecrire();
@@ -1265,6 +1270,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const props = [...brouillon.corps.map((p, i) => ({ p, e: empreintesCorps[i] })), ...brouillon.fins[f.id].map((p, i) => ({ p, e: empreintesFins[f.id][i] }))];
     const scenes: ScenePosee[] = props.map(({ p, e }, i) => ({ id: i < brouillon.corps.length ? p.id : `${f.id}-${p.id}`, debutSec: p.debutMs / 1000, finSec: (i === brouillon.corps.length - 1 && f.ecrans.length ? commun : p.finMs) / 1000, cle: ecrans.cles[e] }));
     const dureeSec = +(cf.dureeMs / 1000).toFixed(3);
+    // BOUCLE-EFFET-b : porte `entrees.boucleEffet === true` + décision pure « boucle » : export sans fin propre.
+    const boucle = entrees.boucleEffet === true && decisionBoucleCasConcret([...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales]).boucle;
     const bruitages = o.sansVoix ? [] : poserBruitages({ ecrans: [...calage.fiche.ecrans, ...f.ecrans], cales: [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales], mots: son.mots, dureeSec, valides: ctx.bruitagesValides, ...(mise && mise.tirage.bruitages.depart ? { graine: mise.tirage.bruitages.depart } : {}) });
     bruitagesDe.set(f.id, bruitages);
     const texteScript = `${texteDuCorps(calage.fiche)} ${f.ecrans.map((e) => e.texteDit.trim()).join(" ")}`;
@@ -1275,8 +1282,8 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
     const texteSousTitres = textesEcrans.map((t, i) => (i + 1 < textesEcrans.length && /^\p{Ll}/u.test(textesEcrans[i + 1]) ? t : ponctuerPhrase(t))).join(" ");
     // Essai réel du 14/10 : sous-titres clairs illisibles sur l'ivoire ; la v4 les écrit en #15100c sur l'ivoire.
     const clairs = [...corpsCales, ...finsCales.find((x) => x.id === f.id)!.cales].filter((e) => e.fond === "ivoire").map((e) => ({ debutSec: e.debutMs / 1000, finSec: e.finMs / 1000, texte: ENCRE_SOUS_TITRES_IVOIRE }));
-    const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage, "sous-titres-gv2-30", "sous-titres-un-style-17-11", baseSousTitres, texteSousTitres);
-    return { f, son, scenes, dureeSec, bruitages, texteScript, texteSousTitres, cle, clairs };
+    const cle = empreinte("montage", scenes, son.cle, son.mots, dureeSec, centre, texteScript, bruitages, f.id, clairs, "haut-occupe", ...variationDuMontage, "sous-titres-gv2-30", "sous-titres-un-style-17-11", baseSousTitres, texteSousTitres, ...(boucle ? ["boucle-effet"] : []));
+    return { f, son, scenes, dureeSec, bruitages, texteScript, texteSousTitres, cle, clairs, boucle };
   });
   const sousTitresDe = (x: (typeof preparees)[number]) => fabriquerSousTitres({ intensite: "sobre", texte: x.texteSousTitres, dureeSec: x.son.dureeSec, mots: x.son.mots, prononciations: [...prononciations], emphase, style: style.valeur, base: baseSousTitres, occupe: zonesOccupeesSousTitres(x.son.dureeSec), ratio: RATIO, reseaux: x.f.reseaux, ...variationSansBandeau });
   const montage = await etape("montage", empreinte("montage", preparees.map((x) => x.cle)), async () => {
@@ -1311,7 +1318,7 @@ export async function fabriquerCasConcret(o: OptionsFabricationCasConcret): Prom
         supplements: { positionSousTitresPct: centre, ...(x.clairs.length ? { passagesClairs: x.clairs } : {}) },
         ...(x.bruitages.length ? { bruitages: x.bruitages } : {}),
       };
-      const outilsMontage: OutilsMontage = { ...outils.montage, recette: RECETTE_COMPOSITION_CAS_CONCRET };
+      const outilsMontage: OutilsMontage = { ...outils.montage, recette: x.boucle ? RECETTE_SANS_FIN_PROPRE : RECETTE_COMPOSITION_CAS_CONCRET };
       const idBase = `cc-${x.f.id}-${x.cle.slice(0, 10)}`;
       const enCours = journal.montage?.[x.f.id];
       const depart: EtatMontage = enCours?.empreinte === x.cle ? { [RATIO]: enCours.etat } : {};
