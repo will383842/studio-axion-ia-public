@@ -10,7 +10,7 @@ vi.mock("server-only", () => ({}));
 const relecteurTableau = vi.hoisted(() => vi.fn());
 vi.mock("../../../src/services/regardeur-tableau", () => ({ relecteurTableau }));
 
-import { PARAM_REGARD_TABLEAU, regardTableauRegle } from "../../../src/services/regard-tableau-reglage";
+import { PARAM_REGARD_TABLEAU, PIRE_CAS_REGARD_CENTIMES, regardPermis, regardTableauRegle, type EngagementRegard } from "../../../src/services/regard-tableau-reglage";
 import { fabriquerTableau } from "../../../src/moteurs/montage-tableau/fabriquer";
 import { RAISON_NON_RELUE } from "../../../src/moteurs/montage-tableau/garde-regard";
 import type { FicheTableau } from "../../../src/moteurs/montage-tableau/fiche";
@@ -104,5 +104,69 @@ describe("S-10-BRANCHER · fabrication : la sortie principale seulement", () => 
     expect(reglage).toContain('await import("./regardeur-tableau")');
     expect(reglage.match(/garderRegard\(/g)).toHaveLength(1);
     expect(reglage).not.toMatch(/verifierEtReserver|executerRolePourVideo|\d+(,\d+)? ?(€|\$)/);
+  });
+});
+
+/** Dépôt durable simulé : chaque regard RÉEL (appel du relecteur) y inscrit une dépense, même si la réponse est illisible ou le mémo en panne. */
+function depotDurable(coutCentimes: number, plafondCentimes = 72) {
+  const etat = { appels: 0, engage: 0 };
+  const engagement = async (): Promise<EngagementRegard> => ({ engageCentimes: etat.engage, regardsPayes: etat.appels, plafondCentimes });
+  const relecteur = vi.fn(async () => {
+    etat.appels += 1;
+    etat.engage += coutCentimes;
+    return { imagesLues: 0, remarques: [{ image: 1, raison: "Images de la vidéo non relues : réponse illisible." }] }; // ni mémo, ni verdict lisible
+  });
+  return { etat, engagement, relecteur };
+}
+
+describe("S-10-BRANCHER · arrêt DURABLE avant chaque regard (AUDIT ARGENT 25/11)", () => {
+  it("(h) 6 passages, outils REFAITS à chaque passage, mémo en panne / réponse illisible : jamais plus de 2 appels payants", async () => {
+    const d = depotDurable(8);
+    for (let passage = 1; passage <= 6; passage++) {
+      const r = await regardTableauRegle({ ...BASE, lire: lireAvec(true), relecteur: d.relecteur, engagement: d.engagement });
+      const rendu = await r.relireImagesCles!(F, M, video("p.mp4"));
+      if (passage > 2) expect(rendu.remarques[0].raison, `passage ${passage}`).toBe(RAISON_NON_RELUE);
+    }
+    expect(d.relecteur).toHaveBeenCalledTimes(2);
+    expect(d.etat.appels).toBe(2);
+  });
+
+  it("(i) plafond : engagé + pire cas > plafond ⇒ aucun appel (un seul regard déjà payé, mais très cher)", async () => {
+    const d = depotDurable(0);
+    d.etat.engage = 72 - PIRE_CAS_REGARD_CENTIMES + 1;
+    d.etat.appels = 1;
+    const r = await regardTableauRegle({ ...BASE, lire: lireAvec(true), relecteur: d.relecteur, engagement: d.engagement });
+    expect((await r.relireImagesCles!(F, M, video("p.mp4"))).remarques[0].raison).toBe(RAISON_NON_RELUE);
+    expect(d.relecteur).not.toHaveBeenCalled();
+  });
+
+  it("(j) bornes exactes de regardPermis : 0 et 1 regard payé passent, 2 refusent ; engagé + pire cas = plafond passe, +1 refuse", () => {
+    const e = (engageCentimes: number, regardsPayes: number): EngagementRegard => ({ engageCentimes, regardsPayes, plafondCentimes: 72 });
+    expect(regardPermis(e(0, 0))).toBe(true);
+    expect(regardPermis(e(8, 1))).toBe(true);
+    expect(regardPermis(e(8, 2))).toBe(false);
+    expect(regardPermis(e(72 - PIRE_CAS_REGARD_CENTIMES, 1))).toBe(true);
+    expect(regardPermis(e(72 - PIRE_CAS_REGARD_CENTIMES + 1, 1))).toBe(false);
+  });
+
+  it("(k) doute ⇒ pas d'appel : lecture de l'engagement qui lève, valeurs NaN, négatives ou absentes", async () => {
+    for (const engagement of [
+      async () => { throw new Error("base en panne"); },
+      async () => ({ engageCentimes: Number.NaN, regardsPayes: 0, plafondCentimes: 72 }),
+      async () => ({ engageCentimes: 0, regardsPayes: -1, plafondCentimes: 72 }),
+      async () => ({ engageCentimes: 0, regardsPayes: 0 }) as unknown as EngagementRegard,
+    ]) {
+      const relecteur = vi.fn(async () => LU);
+      const r = await regardTableauRegle({ ...BASE, lire: lireAvec(true), relecteur, engagement });
+      expect((await r.relireImagesCles!(F, M, video("p.mp4"))).remarques[0].raison).toBe(RAISON_NON_RELUE);
+      expect(relecteur).not.toHaveBeenCalled();
+    }
+  });
+
+  it("(l) sans relecteur injecté, le réglage lit le Studio (dépenses + réservations) : l'arrêt durable est branché en production", () => {
+    const reglage = readFileSync("src/services/regard-tableau-reglage.ts", "utf8");
+    expect(reglage).toMatch(/r\.engagement \?\? \(r\.relecteur \? undefined : engagementDuStudio\)/);
+    expect(reglage).toContain("engagePlafondPropreCentimes(videoId, PLAFOND_REGARD_TABLEAU)");
+    expect(reglage).toContain("PREFIXE_ETAPE_REGARD_TABLEAU");
   });
 });

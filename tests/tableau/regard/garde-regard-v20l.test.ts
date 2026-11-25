@@ -88,12 +88,12 @@ describe("garderRegard (S-10-GARDE-A-v20l) : au plus 2 regards, sortie principal
     }
   });
 
-  it("g) éteint : aucun fichier de src n'importe garde-regard ; le module ne cite pas les textes interdits", () => {
+  it("g) un seul importeur : le réglage (S-10-BRANCHER) ; le module ne cite pas les textes interdits", () => {
     const racine = new URL("../../../src", import.meta.url).pathname;
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
     parcourir(racine);
-    expect(fichiers.filter((f) => !f.endsWith("garde-regard.ts") && readFileSync(f, "utf8").includes("garde-regard"))).toEqual([]);
+    expect(fichiers.filter((f) => !f.endsWith("garde-regard.ts") && readFileSync(f, "utf8").includes("garde-regard"))).toEqual([join(racine, "services/regard-tableau-reglage.ts")]);
     const source = readFileSync(join(racine, "moteurs/montage-tableau/garde-regard.ts"), "utf8");
     expect(source).not.toContain("reprise-du-regard");
     expect(source).not.toContain('services/regardeur-tableau"');
