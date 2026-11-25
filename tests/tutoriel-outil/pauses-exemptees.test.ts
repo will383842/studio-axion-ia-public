@@ -1,6 +1,10 @@
 /**
- * P7 (25/11) : TO_PIECE_A_CONSTRUIRE, TO_PIECE_A_REVOIR et TO_DOSSIER_INCOMPLET sont des pauses légitimes du tutoriel :
- * elles ne finissent plus en PANNE_SANS_NOUVELLE. Les cinq pauses déjà exemptées le restent ; un code inconnu tombe toujours.
+ * P7 (25/11) : TO_PIECE_A_CONSTRUIRE et TO_PIECE_A_REVOIR sont des pauses légitimes du tutoriel : elles ne finissent plus
+ * en PANNE_SANS_NOUVELLE. TO_DOSSIER_INCOMPLET reste NON exemptée (audit sécurité + décision du chef : aucune issue, place
+ * de fabrication gardée, zip retéléchargé à chaque tour) et tombe toujours en panne réessayable. Les cinq pauses déjà
+ * exemptées le restent ; un code inconnu tombe toujours.
+ * Jeu de données : aucune vidéo de format tutoriel-outil dans la démo (src/donnees/memoire/demo.ts) ; on garde v-04 (avocat),
+ * la garde ne regardant pas le format.
  * Aucun appel payant : moteur de simulation immobile, dépôts en mémoire, horloge simulée.
  */
 import { readFileSync } from "node:fs";
@@ -23,7 +27,7 @@ const { moteurSimulation } = await import("@/moteurs/simulation");
 const MDP = "p7-pauses-exemptees";
 const MIN = 60_000;
 const ANCIENNES = ["TO_DEVIS_A_ACCEPTER", "TO_SCRIPT_A_VALIDER", "TO_FILM_A_CAPTURER", "TO_PIECE_A_VALIDER", "TO_CAS_V2"];
-const NOUVELLES = ["TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_REVOIR", "TO_DOSSIER_INCOMPLET"];
+const NOUVELLES = ["TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_REVOIR"];
 
 beforeAll(async () => {
   process.env.SESSION_SECRET = "s".repeat(48);
@@ -85,12 +89,19 @@ describe("P7 · pauses exemptées de la panne sans nouvelle", () => {
     expect(t.erreur).toMatchObject({ code: "PANNE_SANS_NOUVELLE", reessayable: true });
   });
 
+  it("TO_DOSSIER_INCOMPLET (non exemptée) tombe toujours en PANNE_SANS_NOUVELLE, réessayable", async () => {
+    const t = await observerDeuxHeures("TO_DOSSIER_INCOMPLET");
+    expect(t.statut).toBe("echec");
+    expect(t.erreur).toMatchObject({ code: "PANNE_SANS_NOUVELLE", reessayable: true });
+  });
+
   it("sans pause, la garde tombe toujours (non-régression)", async () => {
     const t = await observerDeuxHeures(null);
+    expect(t.statut).toBe("echec");
     expect(t.erreur?.code).toBe("PANNE_SANS_NOUVELLE");
   });
 
-  it("lecture du texte : la liste contient exactement les 8 codes attendus", () => {
+  it("lecture du texte : la liste contient exactement les 7 codes attendus", () => {
     const src = readFileSync(join(process.cwd(), "src/services/travaux.ts"), "utf8");
     const m = /const PAUSES_ATTENTE_WILLIAMS_TUTORIEL: readonly string\[\] = \[([^\]]*)\]/.exec(src);
     expect(m).not.toBeNull();
