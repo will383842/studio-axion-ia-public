@@ -10,6 +10,7 @@ vi.mock("server-only", () => ({}));
 const relecteurTableau = vi.hoisted(() => vi.fn());
 vi.mock("../../../src/services/regardeur-tableau", () => ({ relecteurTableau }));
 
+import { IMAGES_REGARD_MAX, coutPireRegardUsd } from "../../../src/briques/regardeur";
 import { PARAM_REGARD_TABLEAU, PIRE_CAS_REGARD_CENTIMES, regardPermis, regardTableauRegle, type EngagementRegard } from "../../../src/services/regard-tableau-reglage";
 import { fabriquerTableau } from "../../../src/moteurs/montage-tableau/fabriquer";
 import { RAISON_NON_RELUE } from "../../../src/moteurs/montage-tableau/garde-regard";
@@ -168,5 +169,76 @@ describe("S-10-BRANCHER · arrêt DURABLE avant chaque regard (AUDIT ARGENT 25/1
     expect(reglage).toMatch(/r\.engagement \?\? \(r\.relecteur \? undefined : engagementDuStudio\)/);
     expect(reglage).toContain("engagePlafondPropreCentimes(videoId, PLAFOND_REGARD_TABLEAU)");
     expect(reglage).toContain("PREFIXE_ETAPE_REGARD_TABLEAU");
+  });
+});
+
+// ── Arrêt durable lu dans les dépôts du Studio (mémoire), SANS relecteur ni engagement injectés : le chemin de production ──
+const { reinitialiserDepots, depots } = await import("../../../src/donnees/memoire");
+const { nouvelId } = await import("../../../src/lib/ids");
+const ETAPE_REGARD = "Tableau · regard de la vidéo finie";
+const PLAFOND_CENTIMES = 72;
+
+async function depense(videoId: string, etape: string, centimesEur: number) {
+  const date = new Date().toISOString();
+  const ligne = { etape, fournisseur: "anthropic", unite: "appel", quantite: 1, prixUnitaire: { centimes: centimesEur, devise: "EUR" as const }, total: { centimes: centimesEur, devise: "EUR" as const }, nature: "reel" as const };
+  await depots().depenses.enregistrer({ id: nouvelId("dep"), videoId, lignes: [ligne], total: ligne.total, date, creeLe: date, modifieLe: date } as never);
+}
+async function reservation(videoId: string, travailId: string, statut: "active" | "liberee", centimes = 5) {
+  const date = new Date().toISOString();
+  await depots().reservations.enregistrer({ id: nouvelId("res"), fournisseur: "anthropic", videoId, travailId, centimes, devise: "USD", statut, creeLe: date, modifieLe: date } as never);
+}
+/** Un regard en production (relecteur du studio MOCKÉ, rien d'injecté) : 1 si l'appel est parti, 0 s'il est refusé avant l'appel. */
+async function regardsPartis(videoId = "v-dur"): Promise<number> {
+  const regard = vi.fn(async () => LU);
+  relecteurTableau.mockReset().mockReturnValue(regard);
+  const r = await regardTableauRegle({ videoId, env: "dev", lire: lireAvec(true) });
+  await r.relireImagesCles!(F, M, video("p.mp4"));
+  return regard.mock.calls.length;
+}
+
+describe("S-10-BRANCHER · arrêt durable : lecture réelle des dépenses et réservations de la vidéo (dépôts mémoire)", () => {
+  it("(m1) deux dépenses de l'étape « Tableau · regard » pour CETTE vidéo ⇒ 0 appel ; une seule ⇒ l'appel part", async () => {
+    reinitialiserDepots();
+    expect(await regardsPartis()).toBe(1);
+    await depense("v-dur", ETAPE_REGARD, 8);
+    expect(await regardsPartis()).toBe(1);
+    await depense("v-dur", ETAPE_REGARD, 8);
+    expect(await regardsPartis()).toBe(0);
+  });
+
+  it("(m2) une dépense + une réservation ACTIVE `txtpub-tbreg-…` de cette vidéo ⇒ 0 appel", async () => {
+    reinitialiserDepots();
+    await depense("v-dur", ETAPE_REGARD, 8);
+    await reservation("v-dur", "txtpub-tbreg-abc", "active");
+    expect(await regardsPartis()).toBe(0);
+  });
+
+  it("(m3) ne comptent PAS : réservation libérée, d'une autre vidéo, d'un autre préfixe ; dépense d'une autre vidéo ou d'une autre étape ⇒ l'appel part", async () => {
+    reinitialiserDepots();
+    await reservation("v-dur", "txtpub-tbreg-lib", "liberee");
+    await reservation("v-dur", "txtpub-tbreg-lib2", "liberee");
+    await reservation("v-autre", "txtpub-tbreg-autre", "active");
+    await reservation("v-dur", "txtpub-tbdec-x", "active", 1);
+    await depense("v-autre", ETAPE_REGARD, 8);
+    await depense("v-dur", "Tableau · découpage", 1);
+    expect(await regardsPartis()).toBe(1);
+  });
+
+  it("(m4) engagé chez Claude : 36 centimes de $ (+ pire cas 36 = plafond 72) ⇒ l'appel part ; 37 ⇒ 0 appel (lignes en centimes d'euro, convertis au taux du Studio)", async () => {
+    const { engagePlafondPropreCentimes } = await import("../../../src/services/depense-claude-video");
+    const { PLAFOND_REGARD_TABLEAU } = await import("../../../src/services/plafond-regard-tableau");
+    reinitialiserDepots();
+    await depense("v-dur", ETAPE_REGARD, 32);
+    expect(await engagePlafondPropreCentimes("v-dur", PLAFOND_REGARD_TABLEAU)).toBe(PLAFOND_CENTIMES - PIRE_CAS_REGARD_CENTIMES); // 32 c€ → 36 c$ (taux 0,90)
+    expect(await regardsPartis()).toBe(1);
+    reinitialiserDepots();
+    await depense("v-dur", ETAPE_REGARD, 33);
+    expect(await engagePlafondPropreCentimes("v-dur", PLAFOND_REGARD_TABLEAU)).toBe(PLAFOND_CENTIMES - PIRE_CAS_REGARD_CENTIMES + 1); // 33 c€ → 37 c$
+    expect(await regardsPartis()).toBe(0);
+  });
+
+  it("(n) le pire cas par regard couvre le vrai pire cas (24 images) et deux regards tiennent dans le plafond tbreg", () => {
+    expect(PIRE_CAS_REGARD_CENTIMES).toBeGreaterThanOrEqual(Math.ceil(coutPireRegardUsd(IMAGES_REGARD_MAX) * 100));
+    expect(2 * PIRE_CAS_REGARD_CENTIMES).toBeLessThanOrEqual(PLAFOND_CENTIMES);
   });
 });

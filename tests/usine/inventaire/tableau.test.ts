@@ -21,8 +21,9 @@ export const DOMAINE: Domaine = {
   },
   parExpression: {
     "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
+    "services/regard-tableau-reglage.ts:id": { couvre: "regardeur.tableau" }, // passe-plat (id, defaut) => lireParametre(id, defaut) ; la clé regardeur.tableau est déjà en table (S-10-BRANCHER-v20l)
   },
   env: [],
-  nombre: { litterales: 0, constantes: 5, gabarits: 0, planScenes: 0, retouche: 0, exclusCles: 2, parExpression: 1, env: 0 },
+  nombre: { litterales: 0, constantes: 5, gabarits: 0, planScenes: 0, retouche: 0, exclusCles: 2, parExpression: 2, env: 0 },
   retirees: [],
 };
