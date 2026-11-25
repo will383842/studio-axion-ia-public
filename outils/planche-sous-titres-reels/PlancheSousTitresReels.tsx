@@ -67,7 +67,7 @@ export function PlancheSousTitresReels({ phrase, gabarits, facteurOmbre, format,
   return h(
     "div",
     { style: { position: "relative", width: dim.largeur, height: dim.hauteur, overflow: "hidden", background: PALETTE.ivoire } },
-    h("div", { style: { position: "absolute", inset: 0, display: "grid", gridTemplateColumns: format === "9x16" ? "1fr" : "1fr 1fr 1fr", gridTemplateRows: format === "9x16" ? "1fr 1fr 1fr" : "1fr" } }, cases),
+    h("div", { style: { position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr", gridTemplateRows: "1fr 1fr 1fr" } }, cases),
     legende,
   );
 }

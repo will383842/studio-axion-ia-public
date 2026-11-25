@@ -31,6 +31,14 @@ describe("planche sous-titres réels", () => {
     expect(Object.keys(FONDS_REELS)).toHaveLength(3);
   });
 
+  it("(g2) 16:9 : les 3 fonds en 3 RANGÉES pleine largeur (chaque phrase tient dans sa case), comme en 9:16", () => {
+    for (const f of ["9x16", "16x9"] as const) {
+      const h = html(2, f);
+      expect(h, f).toContain("grid-template-columns:1fr;");
+      expect(h, f).toContain("grid-template-rows:1fr 1fr 1fr");
+      expect(h, f).not.toContain("grid-template-columns:1fr 1fr 1fr");
+    }
+  });
   it("(h) gardes de l'outil : pas de réglage, env, réseau, mention IA ; finally + rmSync ; sortie captures/sous-titres-reels ; Manrope chargée ; aucun hexadécimal ; rien de studio-rendu importé", () => {
     for (const f of ["outils/planche-sous-titres-reels/PlancheSousTitresReels.tsx", "outils/planche-sous-titres-reels/planche.mts"]) {
       expect(lire(f), f).not.toMatch(/reglages|depots|process\.env|fetch\(|mention-ia|MentionIA/i);
