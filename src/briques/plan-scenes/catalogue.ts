@@ -11,6 +11,7 @@ import { z } from "zod";
 import { TOILES } from "./toiles";
 import { BRIQUES_OBJETS } from "./briques/objets-inscrits";
 import { estGardee } from "./pieces-gardees";
+import { DEFINITION_COURBE_SERIES } from "../plan-scenes-donnees/definition-courbe-series";
 import { EXEMPLES_LONGUES, NOMS_LONGUES, TOILES_LONGUES, schemaCadreCapture, schemaFluxRamifie, schemaIntercalaireChapitre } from "./pieces-longues";
 
 const texteCourt = (max: number) => z.string().trim().min(1).max(max);
@@ -411,6 +412,8 @@ export const CATALOGUE_BRIQUES = {
   "intercalaire-chapitre": brique({ id: "intercalaire-chapitre", ...NOMS_LONGUES["intercalaire-chapitre"], famille: "texte", alias: ["chapitre", "intercalaire"], toile: TOILES_LONGUES["intercalaire-chapitre"], schema: schemaIntercalaireChapitre, exemple: EXEMPLES_LONGUES["intercalaire-chapitre"] }),
   "flux-ramifie": brique({ id: "flux-ramifie", ...NOMS_LONGUES["flux-ramifie"], famille: "donnee", alias: ["ramification", "branches"], toile: TOILES_LONGUES["flux-ramifie"], schema: schemaFluxRamifie, exemple: EXEMPLES_LONGUES["flux-ramifie"] }),
   "cadre-capture": brique({ id: "cadre-capture", ...NOMS_LONGUES["cadre-capture"], famille: "interface", alias: ["capture", "cadre de capture"], toile: TOILES_LONGUES["cadre-capture"], schema: schemaCadreCapture, exemple: EXEMPLES_LONGUES["cadre-capture"] }),
+  // G4-11b-2 : courbe à plusieurs séries, gardée par `PIECES_GARDEES` donc porte fermée (`objetsPermis`)
+  "courbe-series": brique(DEFINITION_COURBE_SERIES),
 } as const;
 
 export type IdPiece = keyof typeof CATALOGUE_BRIQUES;

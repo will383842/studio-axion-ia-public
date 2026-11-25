@@ -52,7 +52,8 @@ export type CodeRemarque =
   | "REPETITION"
   | "LLM_ILLISIBLE"
   | "LLM_INDISPONIBLE"
-  | "RYTHME";
+  | "RYTHME"
+  | "FLASH";
 
 export interface Remarque {
   code: CodeRemarque;

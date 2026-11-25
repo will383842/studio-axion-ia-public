@@ -7,6 +7,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { adoucir, couleursSur, entre, FAMILLE_CSS_AXION, msEnImages, progression } from "../jetons-motion";
 import type { PlanHabille } from "../motion/habillage-commun/types";
 import { IDS_TRANSITIONS_COMMUNES, TRANSITIONS_COMMUNES, type IdTransitionCommune } from "../motion/habillage-commun/transitions";
+import { cheminAuTemps, choisirRaccordForme, DUREE_RACCORD_IMAGES } from "../motion/habillage-commun/raccord-forme";
 import { RENDUS_BRIQUES, transformZoom } from "./briques";
 import type { IdPiece } from "./catalogue";
 import type { Calque, PlanValide, SceneValide } from "./schema";
@@ -94,8 +95,17 @@ function Scene({ scene, plan, image }: { scene: SceneValide; plan: PlanValide; i
   const style = tEntree < 1 ? (commune("entree", tEntree) ?? effet(scene.transition.entree, tEntree)) : tSortie < 1 ? (commune("sortie", tSortie) ?? effet(scene.transition.sortie, tSortie)) : {};
   const boite = enPx(ZONES[scene.position], largeur, hauteur);
   const etiquette = scene.texte && scene.piece !== "legende" && scene.position !== "haut" && scene.position !== "plein";
+  // BR-RACCORD-FORME-a : forme pleine tracée SOUS le contenu pendant 14 images, effacée sur les 4 dernières ; jamais avec visage.
+  const paire = habillageCommun?.raccords?.[scene.id];
+  const raccord = paire && local >= 0 && local < DUREE_RACCORD_IMAGES ? choisirRaccordForme({ de: paire.de, vers: paire.vers, avecVisage: plan.facecam === true, boite: { largeur: boite.largeur, hauteur: boite.hauteur } }) : null;
+  const opaciteRaccord = Math.round(Math.min(1, Math.max(0, (DUREE_RACCORD_IMAGES - 1 - local) / 4)) * 100) / 100;
   return (
     <div style={{ position: "absolute", inset: 0, ...style }}>
+      {raccord && (
+        <svg data-raccord-forme="1" style={{ position: "absolute", left: boite.x, top: boite.y, width: boite.largeur, height: boite.hauteur }} viewBox={`0 0 ${boite.largeur} ${boite.hauteur}`}>
+          <path d={cheminAuTemps(raccord, local / (DUREE_RACCORD_IMAGES - 1))} fill={raccord.couleur} opacity={opaciteRaccord} />
+        </svg>
+      )}
       {scene.niveau === 2 && scene.calques?.length ? (
         <Calques calques={scene.calques} boite={boite} image={local} dureeImages={duree} plan={plan} />
       ) : (

@@ -3,16 +3,23 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { depots, reinitialiserDepots } from "@/donnees/memoire";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
+import { MESSAGE_PIECE_A_REVOIR } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { empreinteFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
+import { type FluxAutomatisation } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { empreinteDescription, tableauDepuisDescription, textesDeLaMaquette, VERSION_APERCU } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { fluxTri } from "./phrase/phrases";
 import { PieceCreee, type GestesPiece } from "@/components/tutoriel-outil/PieceCreee";
 import {
   arreter,
   autreProposition,
   corrigerTexte,
   enregistrerApercu,
+  etatEcranDepuisPiece,
   garderPiece,
+  pieceDepuisEtatEcran,
   MESSAGE_FERME,
   NOMS_ECRANS_OUTILS,
   NOMS_NEUTRES,
@@ -21,7 +28,7 @@ import {
   type DepotPiece,
   type EtatPieceCreee,
 } from "@/services/tutoriel-piece-creee";
-import type { Fichier } from "@/domaine/types";
+import type { Fichier, Travail } from "@/domaine/types";
 
 const VIDEO = "v-1";
 
@@ -384,5 +391,293 @@ describe("corrections du verdict Opus", () => {
       expect(m.compteurs.ecritures).toBe(0);
       expect(m.etat().statut).toBe("a-valider");
     });
+  });
+});
+
+describe("dépôt par défaut : la pièce vit dans parametres.tutoriel.equipe.pieceCreee", () => {
+  const REGLAGES = { "tutoriel.entreePhrase": true, "tutoriel.pieceCreeeClaude": true };
+  const sansDepot = (plus: Partial<DependancesPiece> = {}): DependancesPiece => ({
+    reglage: async <T,>(id: string, defaut: T) => (id in REGLAGES ? ((REGLAGES as Record<string, unknown>)[id] as T) : defaut),
+    session: async () => ({}),
+    relancer: async () => undefined,
+    maintenant: () => "2026-11-20T10:00:00.000Z",
+    urls: async (ids) => Object.fromEntries(ids.map((i) => [i, `https://exemple.invalid/${i}.png`])),
+    ...plus,
+  });
+
+  const pieceDe = (plus: Record<string, unknown> = {}) => {
+    const e = etatInitial();
+    return { genre: "maquette", proposition: 1, contenu: e.description, empreinte: e.empreinte, statut: "a-valider", ...plus };
+  };
+  const apercuDe = () => avecApercu(etatInitial()).apercu;
+
+  const reste = (equipe: Record<string, unknown>): Record<string, unknown> => ({
+    demande: { phrase: "un tableau de bord pour un atelier" },
+    appels: { maquettiste: 1 },
+    payes: { maquettiste: { "cle-1": { ok: true } } },
+    cahier: { version: "cahier-tutoriel.v1" },
+    ...equipe,
+  });
+
+  async function poser(parametres: Record<string, unknown>) {
+    reinitialiserDepots();
+    await depots().travaux.enregistrer({
+      id: "t-1",
+      type: "fabrication",
+      cibleId: VIDEO,
+      titre: "Fabrication",
+      etapes: [],
+      statut: "en-cours",
+      progression: 0,
+      tentatives: 0,
+      cleIdempotence: "cle",
+      fournisseurUtilise: "aucun",
+      creeLe: "2026-11-20T09:00:00.000Z",
+      modifieLe: "2026-11-20T09:00:00.000Z",
+      parametres,
+    } as unknown as Travail);
+  }
+  const parametresDuTravail = async () => (await depots().travaux.obtenir("t-1"))!.parametres as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  beforeEach(() => reinitialiserDepots());
+
+  it("vuePieceCreee sans depot voit la pièce de l'équipe (empreinte, textes, phrase de la demande)", async () => {
+    const piece = pieceDe({ statut: "a-construire" });
+    await poser({ tutoriel: { equipe: reste({ pieceCreee: piece }) } });
+    const v = await vuePieceCreee(VIDEO, sansDepot());
+    expect(v).not.toBeNull();
+    expect(v!.empreinte).toBe(piece.empreinte);
+    expect(v!.phrase).toBe("un tableau de bord pour un atelier");
+    expect(v!.cas).toBe("tableau-de-bord");
+    expect(v!.textes.length).toBeGreaterThan(0);
+    expect(v!.statut).toBe("a-construire");
+  });
+
+  it("travail sans équipe, sans pièce, genre inconnu : rien à voir, rien n'est écrit", async () => {
+    const cas: Record<string, unknown>[] = [
+      { tutoriel: {} },
+      { tutoriel: { equipe: reste({}) } },
+      { tutoriel: { equipe: reste({ pieceCreee: pieceDe({ genre: "inconnu" }) }) } },
+      {},
+    ];
+    for (const parametres of cas) {
+      await poser(parametres);
+      const avant = JSON.stringify(await parametresDuTravail());
+      expect(await vuePieceCreee(VIDEO, sansDepot())).toBeNull();
+      for (const r of [await arreter(VIDEO, sansDepot()), await garderPiece(VIDEO, { empreinte: "x" }, sansDepot()), await autreProposition(VIDEO, sansDepot())]) expect(r.ok).toBe(false);
+      expect(JSON.stringify(await parametresDuTravail())).toBe(avant);
+    }
+  });
+
+  it("pièce « à revoir » (maquette) : l'écran montre le message et les raisons ; garder et corriger refusent, une autre proposition et arrêter restent", async () => {
+    await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceDe({ statut: "a-revoir", erreurs: ["Un nom réel est présent."] }) }) } });
+    const v = await vuePieceCreee(VIDEO, sansDepot());
+    expect(v).not.toBeNull();
+    expect(v!.statut).toBe("a-revoir");
+    expect(v!.message).toBe(MESSAGE_PIECE_A_REVOIR);
+    expect(v!.defauts).toContain("Un nom réel est présent.");
+    expect(v!.propositionsRestantes).toBe(1);
+    expect((await garderPiece(VIDEO, { empreinte: v!.empreinte }, sansDepot())).ok).toBe(false);
+    expect((await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Vue du jour", apres: "Autre" }, sansDepot())).ok).toBe(false);
+    expect(await autreProposition(VIDEO, sansDepot())).toMatchObject({ ok: true, statut: "a-construire" });
+    const apres = (await parametresDuTravail()).tutoriel.equipe.pieceCreee;
+    expect(apres).toMatchObject({ genre: "maquette", proposition: 2, statut: "a-construire" });
+    expect(apres.erreurs).toBeUndefined();
+  });
+
+  it("pièce « à revoir » dont le contenu est illisible : l'écran la montre quand même, avec ses raisons", async () => {
+    await poser({ tutoriel: { equipe: reste({ pieceCreee: { genre: "flux", proposition: 2, contenu: { n: "importe quoi" }, empreinte: "x", statut: "a-revoir", erreurs: ["Flux illisible."] } }) } });
+    const v = await vuePieceCreee(VIDEO, sansDepot());
+    expect(v).toMatchObject({ genre: "flux", statut: "a-revoir", textes: [], etapes: [], propositionsRestantes: 0 });
+    expect(v!.defauts).toContain("Flux illisible.");
+    expect((await autreProposition(VIDEO, sansDepot())).ok).toBe(false);
+    expect((await arreter(VIDEO, sansDepot())).ok).toBe(true);
+  });
+
+  describe("un flux (cas 3, G-Flux)", () => {
+    const flux = (): FluxAutomatisation => fluxTri() as unknown as FluxAutomatisation;
+    const pieceFlux = (plus: Record<string, unknown> = {}) => ({ genre: "flux", proposition: 1, contenu: flux(), empreinte: empreinteFlux(flux()), statut: "a-construire", ...plus });
+    const apercuFlux = (cle = "f-img1") => ({ version: VERSION_APERCU, empreinteDescription: empreinteFlux(flux()), images: [{ ecranId: "lecture", etat: "maintenant", cle }], controle: { ok: true, defauts: [] } });
+
+    it("l'écran lit le flux : déclencheur, chaque action (qui agit, où), résultat, et chaque texte", async () => {
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ apercu: apercuFlux() }) }) } });
+      const v = await vuePieceCreee(VIDEO, sansDepot());
+      expect(v).not.toBeNull();
+      expect(v).toMatchObject({ genre: "flux", cas: "automatisation", statut: "a-construire", chiffres: [], message: null });
+      expect(v!.etapes.map((e) => [e.nature, e.id])).toEqual([["declencheur", "declencheur"], ["etape", "lecture"], ["etape", "classement"], ["etape", "brouillon"], ["etape", "relecture"], ["etape", "prevenu"], ["resultat", "resultat"]]);
+      expect(v!.etapes.filter((e) => e.nature === "etape").map((e) => [e.libelle, e.acteur, e.ecran])).toEqual([
+        ["Lecture du message", "L'IA", "Boîte de réception"],
+        ["Classement", "L'automatisation", "Boîte de réception"],
+        ["Brouillon de réponse", "L'IA", "Boîte de réception"],
+        ["Votre relecture", "Vous", "Boîte de réception"],
+        ["Message à l'équipe", "L'automatisation", "Messages"],
+      ]);
+      expect(v!.textes.map((t) => t.ecranId)).toEqual(expect.arrayContaining(["lecture"]));
+      expect(v!.apercu).toEqual([{ url: "https://exemple.invalid/f-img1.png", ecranId: "lecture", titre: "Lecture du message", etat: "maintenant" }]);
+    });
+
+    it("le composant montre le déroulé dans l'ordre, sans correction de texte, et « à revoir » ne laisse que « autre » et « arrêter »", async () => {
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ statut: "a-valider", apercu: apercuFlux() }) }) } });
+      const vue = (await vuePieceCreee(VIDEO, sansDepot()))!;
+      const html = decode(renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue, gestes: {} as GestesPiece })));
+      expect(html.indexOf("Le déroulé")).toBeGreaterThan(-1);
+      const rang = ["Lecture du message", "Classement", "Brouillon de réponse", "Votre relecture", "Message à l'équipe"].map((t) => html.indexOf(t));
+      expect(rang.every((r, i) => r > -1 && (i === 0 || r > rang[i - 1]!))).toBe(true);
+      expect(vue.defauts).toEqual([]);
+      expect(html).toContain("Garder cette automatisation");
+      expect(html).not.toContain("Corriger un texte");
+      expect(/<button[^>]*\sdisabled=""[^>]*>\s*Garder/.test(html)).toBe(false);
+
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ statut: "a-revoir", erreurs: ["Un nombre n'est pas permis."] }) }) } });
+      const revoir = (await vuePieceCreee(VIDEO, sansDepot()))!;
+      const h2 = decode(renderToStaticMarkup(createElement(PieceCreee, { videoId: VIDEO, vue: revoir, gestes: {} as GestesPiece })));
+      expect(h2).toContain("L'automatisation proposée ne respecte pas les règles");
+      expect(h2).not.toContain(MESSAGE_PIECE_A_REVOIR);
+      expect(h2).toContain("Un nombre n'est pas permis.");
+      expect(/<button[^>]*\sdisabled=""[^>]*>\s*Garder/.test(h2)).toBe(true);
+      expect(/<button[^>]*\sdisabled=""[^>]*>\s*En proposer/.test(h2)).toBe(false);
+      expect(/<button[^>]*\sdisabled=""[^>]*>\s*Arrêter/.test(h2)).toBe(false);
+    });
+
+    it("garder : fige l'empreinte vue et relance le travail, sans rien payer ; l'aller-retour de la pièce garde le genre", async () => {
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ statut: "a-valider", apercu: apercuFlux() }) }) } });
+      let relances = 0;
+      const v = (await vuePieceCreee(VIDEO, sansDepot()))!;
+      const r = await garderPiece(VIDEO, { empreinte: v.empreinte }, sansDepot({ relancer: async () => void relances++ }));
+      expect(r).toMatchObject({ ok: true, statut: "gardee" });
+      expect(relances).toBe(1);
+      const piece = (await parametresDuTravail()).tutoriel.equipe.pieceCreee;
+      expect(piece).toMatchObject({ genre: "flux", statut: "gardee", gardee: { empreinte: v.empreinte } });
+      expect(piece.contenu).toEqual(flux());
+    });
+
+    it("garder refuse : empreinte changée, aperçu absent ; corriger refuse ; une autre proposition et arrêter marchent", async () => {
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ statut: "a-valider", apercu: apercuFlux() }) }) } });
+      expect((await garderPiece(VIDEO, { empreinte: "autre" }, sansDepot())).ok).toBe(false);
+      expect((await corrigerTexte(VIDEO, { ecranId: "lecture", avant: "Lecture du message", apres: "Lire" }, sansDepot())).ok).toBe(false);
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux() }) } });
+      expect((await garderPiece(VIDEO, { empreinte: empreinteFlux(flux()) }, sansDepot())).ok).toBe(false);
+      expect(await autreProposition(VIDEO, sansDepot())).toMatchObject({ ok: true, statut: "a-construire" });
+      expect((await parametresDuTravail()).tutoriel.equipe.pieceCreee).toMatchObject({ genre: "flux", proposition: 2, statut: "a-construire" });
+      expect((await arreter(VIDEO, sansDepot())).ok).toBe(true);
+      expect((await parametresDuTravail()).tutoriel.equipe.pieceCreee).toMatchObject({ genre: "flux", statut: "refusee" });
+    });
+
+    it("réglages éteints : chaque geste refuse pour un flux aussi, sans rien écrire", async () => {
+      await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceFlux({ statut: "a-valider", apercu: apercuFlux() }) }) } });
+      const avant = JSON.stringify(await parametresDuTravail());
+      const ferme = sansDepot({ reglage: async <T,>(_id: string, defaut: T) => defaut });
+      for (const r of [await garderPiece(VIDEO, { empreinte: empreinteFlux(flux()) }, ferme), await autreProposition(VIDEO, ferme), await arreter(VIDEO, ferme)]) expect(r).toEqual({ ok: false, message: MESSAGE_FERME });
+      expect(JSON.stringify(await parametresDuTravail())).toBe(avant);
+    });
+  });
+
+  it("aucun travail pour la vidéo : rien à voir, aucun geste n'écrit", async () => {
+    reinitialiserDepots();
+    expect(await vuePieceCreee(VIDEO, sansDepot())).toBeNull();
+    expect((await arreter(VIDEO, sansDepot())).ok).toBe(false);
+  });
+
+  it("les gestes écrivent dans equipe.pieceCreee ; le reste de parametres et de equipe est inchangé ; l'ancienne forme n'est jamais écrite", async () => {
+    const equipe = reste({ pieceCreee: pieceDe({ apercu: apercuDe() }) });
+    const autresParametres = { cahierRacine: { a: 1 }, plafond: 5 };
+    const autreTutoriel = { entree: "A" };
+    const tout = () => ({ ...autresParametres, tutoriel: { ...autreTutoriel, equipe } });
+
+    // arrêter
+    await poser(tout());
+    expect((await arreter(VIDEO, sansDepot())).ok).toBe(true);
+    let p = await parametresDuTravail();
+    expect(p.tutoriel.equipe.pieceCreee.statut).toBe("refusee");
+    const memes = (apres: Record<string, any>) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      const { pieceCreee: _a, ...equipeApres } = apres.tutoriel.equipe;
+      const { pieceCreee: _b, ...equipeAvant } = equipe;
+      void _a; void _b;
+      expect(equipeApres).toEqual(equipeAvant);
+      expect(apres.tutoriel.entree).toBe("A");
+      expect(apres.cahierRacine).toEqual({ a: 1 });
+      expect(apres.plafond).toBe(5);
+      expect("pieceCreee" in apres).toBe(false);
+    };
+    memes(p);
+
+    // garder
+    await poser(tout());
+    const empreinte = (equipe.pieceCreee as { empreinte: string }).empreinte;
+    expect((await garderPiece(VIDEO, { empreinte }, sansDepot())).ok).toBe(true);
+    p = await parametresDuTravail();
+    expect(p.tutoriel.equipe.pieceCreee.statut).toBe("gardee");
+    expect(p.tutoriel.equipe.pieceCreee.gardee).toEqual({ empreinte, le: "2026-11-20T10:00:00.000Z" });
+    expect("aRelancer" in p.tutoriel.equipe.pieceCreee).toBe(false);
+    memes(p);
+
+    // corriger un texte
+    await poser(tout());
+    const r = await corrigerTexte(VIDEO, { ecranId: "accueil", avant: "Commandes du jour", apres: "Travaux du jour" }, sansDepot());
+    expect(r.ok).toBe(true);
+    p = await parametresDuTravail();
+    expect(p.tutoriel.equipe.pieceCreee.statut).toBe("a-construire");
+    expect(p.tutoriel.equipe.pieceCreee.empreinte).not.toBe(empreinte);
+    expect(p.tutoriel.equipe.pieceCreee.apercu).toBeUndefined();
+    memes(p);
+
+    // autre proposition
+    await poser(tout());
+    expect((await autreProposition(VIDEO, sansDepot())).ok).toBe(true);
+    p = await parametresDuTravail();
+    expect(p.tutoriel.equipe.pieceCreee.proposition).toBe(2);
+    expect(p.tutoriel.equipe.pieceCreee.statut).toBe("a-construire");
+    memes(p);
+  });
+
+  it("enregistrerApercu sans depot écrit l'aperçu dans equipe.pieceCreee", async () => {
+    const piece = pieceDe({ statut: "a-construire" });
+    await poser({ tutoriel: { equipe: reste({ pieceCreee: piece }) } });
+    const json = { version: VERSION_APERCU, empreinteDescription: piece.empreinte, images: [{ ecranId: "accueil", etat: "avant", cle: "a/avant.png" }, { ecranId: "accueil", etat: "maintenant", cle: "a/apres.png" }], controle: { ok: true, defauts: [] } };
+    const r = await enregistrerApercu(VIDEO, ["f-j", "f-a", "f-b"], sansDepot({ fichiers: async () => [fichier("f-j", "apercu-piece.json"), fichier("f-a", "avant.png"), fichier("f-b", "apres.png")], lireJson: async () => json }));
+    expect(r.ok).toBe(true);
+    const p = await parametresDuTravail();
+    expect(p.tutoriel.equipe.pieceCreee.statut).toBe("a-valider");
+    expect(p.tutoriel.equipe.pieceCreee.apercu.images.map((i: { cle: string }) => i.cle)).toEqual(["f-a", "f-b"]);
+    expect(p.tutoriel.equipe.payes).toEqual({ maquettiste: { "cle-1": { ok: true } } });
+    expect("pieceCreee" in p).toBe(false);
+  });
+
+  it("l'ancienne forme parametres.pieceCreee n'est pas lue", async () => {
+    await poser({ pieceCreee: etatInitial() });
+    expect(await vuePieceCreee(VIDEO, sansDepot())).toBeNull();
+  });
+
+  it("autreProposition puis vue : autreEnAttente vaut true tant que appels.maquettiste < 2, false ensuite", async () => {
+    await poser({ tutoriel: { equipe: reste({ pieceCreee: pieceDe({ apercu: apercuDe() }) }) } });
+    expect((await autreProposition(VIDEO, sansDepot())).ok).toBe(true);
+    expect((await vuePieceCreee(VIDEO, sansDepot()))?.autreEnAttente).toBe(true);
+    const p = await parametresDuTravail();
+    await depots().travaux.modifier("t-1", { parametres: { ...p, tutoriel: { equipe: { ...p.tutoriel.equipe, appels: { maquettiste: 2 } } } } });
+    expect((await vuePieceCreee(VIDEO, sansDepot()))?.autreEnAttente).toBe(false);
+  });
+
+  it("aller-retour : pieceDepuisEtatEcran(etatEcranDepuisPiece(e)) rend la même pièce (sans erreurs)", () => {
+    const piece = pieceDe({ apercu: apercuDe(), gardee: { empreinte: "e", le: "2026-11-20T10:00:00.000Z" }, statut: "gardee", proposition: 2 });
+    const equipe = { pieceCreee: { ...piece, erreurs: ["x"] }, demande: { phrase: "p" }, appels: { maquettiste: 2 } };
+    const { erreurs: _e, ...sansErreurs } = equipe.pieceCreee;
+    void _e;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const x = etatEcranDepuisPiece(equipe as any)!;
+    expect(x.aRelancer).toBeUndefined();
+    expect(pieceDepuisEtatEcran(x)).toEqual(sansErreurs);
+  });
+
+  it("etatEcranDepuisPiece : null sans équipe ; aRelancer seulement pour la proposition 2 à construire avec appels.maquettiste < 2", () => {
+    expect(etatEcranDepuisPiece(undefined)).toBeNull();
+    expect(etatEcranDepuisPiece(null)).toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const de = (piece: Record<string, unknown>, appels?: number) => etatEcranDepuisPiece({ pieceCreee: pieceDe(piece), appels: appels === undefined ? undefined : { maquettiste: appels } } as any);
+    expect(de({ proposition: 2, statut: "a-construire" }, 1)?.aRelancer).toBe(true);
+    expect(de({ proposition: 2, statut: "a-construire" })?.aRelancer).toBe(true);
+    expect(de({ proposition: 2, statut: "a-construire" }, 2)?.aRelancer).toBeUndefined();
+    expect(de({ proposition: 1, statut: "a-construire" }, 1)?.aRelancer).toBeUndefined();
+    expect(de({ proposition: 2, statut: "a-valider" }, 1)?.aRelancer).toBeUndefined();
+    expect(de({ statut: "a-valider" })?.phrase).toBe("");
   });
 });

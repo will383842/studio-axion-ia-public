@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { garderChiffres } from "@/briques/donnees-video/garde-chiffres";
 import { lireTableauDeBord } from "@/briques/donnees-video/types";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
-import { schemaCarteZones } from "@/moteurs/montage-tutoriel-outil/equipe/analyste";
+import { schemaCarteZones, type CarteZones } from "@/moteurs/montage-tutoriel-outil/equipe/analyste";
+import type { CahierVideo } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
+import { DUREE_CIBLE_SEC } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de-projet";
+import { lirePropositionScripts, type EntreeScenariste, type PhraseScript } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
+import type { FicheValeur } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
+import { MOTS_PAR_SECONDE } from "@/moteurs/montage-tutoriel-outil/script";
 import {
   carteDepuisDescription,
   controlerTextesCrees,
@@ -120,7 +125,8 @@ describe("carteDepuisDescription", () => {
     expect(graphique!.gestes).toEqual(["apparition", "zoom"]);
     expect(fiche!.gestes).toEqual(["clic"]);
     expect(kpi!.prouve).toBe("Montre : Commandes prêtes");
-    expect(kpi!.chiffres).toEqual(["Prêtes"]);
+    /* Les valeurs « exemple » montrées (ordre de la zone), pas le libellé « Prêtes » : l'ancienne attente décrivait le défaut, pas une règle. */
+    expect(kpi!.chiffres).toEqual(["4", "12"]);
     expect(liste!.chiffres).toEqual([]);
     expect(kpi!.etat).toBe("les-deux");
   });
@@ -144,6 +150,103 @@ describe("carteDepuisDescription", () => {
     grande.ecrans[1]!.zones = Array.from({ length: 5 }, (_, i) => ({ ...modele, id: `y-${i}` })) as never;
     const r13 = carteDepuisDescription(decrire(grande));
     expect(r13.ok).toBe(false);
+  });
+});
+
+describe("carteDepuisDescription : chiffres = valeurs montrées (CORR-V2-10-6)", () => {
+  const chiffresDe = (donnees: unknown[]): string[] => {
+    const o = brute();
+    o.ecrans[0]!.zones[0]!.donnees = donnees as never;
+    const r = carteDepuisDescription(decrire(o));
+    if (!r.ok) throw new Error(r.erreurs.join(" | "));
+    return r.carte.zones[0]!.chiffres;
+  };
+
+  it("décimal écrit à la française ; texte avec nombre gardé tel quel", () => {
+    expect(chiffresDe([{ id: "a", libelle: "Moyenne", valeur: 4.5, exemple: true }])).toEqual(["4,5"]);
+    expect(chiffresDe([{ id: "a", libelle: "Retards", valeur: "3 en retard", exemple: true }])).toEqual(["3 en retard"]);
+  });
+
+  it("donnée sans exemple: true ou texte sans nombre : absente (le lecteur refuse déjà un nombre sans exemple)", () => {
+    expect(chiffresDe([{ id: "a", libelle: "Prêtes", valeur: 7, exemple: true }, { id: "b", libelle: "Statut", valeur: "En attente" }])).toEqual(["7"]);
+    expect(chiffresDe([{ id: "a", libelle: "Statut", valeur: "À relancer", exemple: true }])).toEqual([]);
+  });
+
+  it("deux données de même valeur : une seule fois", () => {
+    expect(
+      chiffresDe([
+        { id: "a", libelle: "Avant", valeur: 4, exemple: true },
+        { id: "b", libelle: "Après", valeur: 4, exemple: true },
+      ]),
+    ).toEqual(["4"]);
+  });
+
+  it("aucun chiffre de la carte ne contient €, $ ni « euros »", () => {
+    const r = carteDepuisDescription(decrire());
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const z of r.carte.zones) for (const c of z.chiffres) expect(c).not.toMatch(/€|\$|euros?/i);
+  });
+
+  describe("avec la garde du scénariste (inchangée)", () => {
+    const cahier: CahierVideo = {
+      version: "cahier-tutoriel.v1",
+      entree: "A",
+      cas: 1,
+      gabarits: ["G-Decision"],
+      roles: ["analyste", "stratege", "scenariste", "realisateur", "controleur"],
+      manques: [],
+      scriptsFournis: [],
+      fin: "aucune",
+      ratios: ["4:5"],
+      dureeCibleSec: [40, 55],
+      raisons: [],
+    };
+    const fiche: FicheValeur = {
+      version: "fiche-valeur.v1",
+      persona: { metier: "responsable d'atelier", journee: "Entre deux commandes, il cherche ce qui manque.", perte: "Du temps et du calme." },
+      avant: ["Des tableurs dispersés."],
+      moments: [
+        { id: "m1", zoneId: "commandes", geste: "zoom", evite: "Vous ne cherchez plus ce qui manque." },
+        { id: "m2", zoneId: "retards", geste: "defilement", permet: "Vous voyez tout de suite les commandes en retard." },
+      ],
+      gainEntreprise: { devient: "plus-sereine", pourquoi: "L'entreprise garde une vue claire de son activité." },
+      emotion: "soulagement",
+    };
+    const entree = (carte: CarteZones): EntreeScenariste => ({ cahier, carte, fiche, dureeFinSec: 0 });
+    const script = (dit: string): unknown => {
+      const base: PhraseScript[] = [
+        { texte: "Chaque jour, vous perdez du temps à chercher.", temps: "situation", apport: "Le spectateur se reconnaît." },
+        { texte: dit, temps: "changement", apport: "Il voit ce qui change.", zoneId: "commandes", momentId: "m1" },
+        { texte: "Vous voyez tout de suite les commandes en retard.", temps: "changement", apport: "Il voit ce qui change.", zoneId: "retards", momentId: "m2" },
+        { texte: "Votre atelier tourne, sans courir après l'information.", temps: "gain", apport: "Il voit ce que l'entreprise devient." },
+      ];
+      const cible = (DUREE_CIBLE_SEC[0] + DUREE_CIBLE_SEC[1]) / 2;
+      const long = [...base];
+      const mots = (): number => long.map((p) => p.texte).join(" ").split(/\s+/).length;
+      while (mots() / MOTS_PAR_SECONDE < cible) long.splice(1, 0, { texte: "Vous gardez la vue sur ce qui compte vraiment pour votre journée.", temps: "situation", apport: "Prolonge la situation." });
+      const plus = [...long];
+      while (plus.map((p) => p.texte).join(" ").split(/\s+/).length / MOTS_PAR_SECONDE < cible + 4) plus.splice(1, 0, { texte: "Vous gardez la vue sur ce qui compte vraiment pour votre journée.", temps: "situation", apport: "Prolonge la situation." });
+      return { version: "scripts-tutoriel.v1", versions: [{ id: "A", source: "ecrit", phrases: long }, { id: "B", source: "ecrit", phrases: plus }] };
+    };
+    const carteDeduite = (): CarteZones => {
+      const r = carteDepuisDescription(decrire());
+      if (!r.ok) throw new Error(r.erreurs.join(" | "));
+      return r.carte;
+    };
+
+    it("un script qui dit un chiffre de la maquette est accepté", () => {
+      const c = carteDeduite();
+      const r = lirePropositionScripts(script("Vos commandes prêtes passent de 4 à 12, sans rien recompter."), entree(c));
+      expect(r.ok, r.ok ? "" : r.erreurs.join(" | ")).toBe(true);
+    });
+
+    it("un script qui dit 99 (absent) est refusé : la garde mord toujours", () => {
+      const c = carteDeduite();
+      const r = lirePropositionScripts(script("Vos commandes prêtes passent de 4 à 99, sans rien recompter."), entree(c));
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.erreurs.join(" | ")).toContain("le nombre « 99 » n'est dans aucun chiffre de la carte");
+    });
   });
 });
 

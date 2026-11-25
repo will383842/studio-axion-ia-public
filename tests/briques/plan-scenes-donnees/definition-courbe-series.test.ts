@@ -1,9 +1,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { CATALOGUE_BRIQUES, type DefinitionBrique } from "../../../src/briques/plan-scenes/catalogue";
 import { consignePlan } from "../../../src/briques/plan-scenes/generateur";
+import { estGardee } from "../../../src/briques/plan-scenes/pieces-gardees";
 import { TOILES } from "../../../src/briques/plan-scenes/toiles";
 import { valider, type ParametresCourbeSeries } from "../../../src/briques/plan-scenes-donnees/courbe-series";
 import {
@@ -61,7 +62,8 @@ describe("définition de la courbe à plusieurs séries (G4-11b-PREP-v19c)", () 
 
   it("d) ni l'id ni un alias ne reprend l'id ou un alias d'une pièce du catalogue", () => {
     const pris = new Set<string>();
-    for (const def of Object.values(CATALOGUE_BRIQUES) as DefinitionBrique[]) {
+    // G4-11b-2 : la courbe est désormais DANS le catalogue ; on exclut sa propre définition, pas celle des autres pièces.
+    for (const def of (Object.values(CATALOGUE_BRIQUES) as DefinitionBrique[]).filter((d) => d.id !== DEFINITION_COURBE_SERIES.id)) {
       pris.add(normaliser(def.id));
       for (const a of def.alias) pris.add(normaliser(a));
     }
@@ -81,8 +83,9 @@ describe("définition de la courbe à plusieurs séries (G4-11b-PREP-v19c)", () 
     expect(textesCourbeSeries(undefined)).toEqual([]);
   });
 
-  it("f) éteint = identique : non inscrite, consigne inchangée, aucun import", () => {
-    expect(Object.keys(CATALOGUE_BRIQUES)).not.toContain("courbe-series");
+  it("f) éteint = identique : inscrite mais gardée, consigne inchangée, importeurs en liste fermée", () => {
+    expect(Object.keys(CATALOGUE_BRIQUES)).toContain("courbe-series");
+    expect(estGardee(DEFINITION_COURBE_SERIES)).toBe(true);
     const avant = readFileSync(new URL("../plan-scenes/__fixtures__/consigne-avant-porte.txt", import.meta.url), "utf8");
     expect(consignePlan()).toBe(avant);
     const fichiers: string[] = [];
@@ -96,6 +99,6 @@ describe("définition de la courbe à plusieurs séries (G4-11b-PREP-v19c)", () 
     };
     parcourir(join(process.cwd(), "src"));
     parcourir(join(process.cwd(), "studio-rendu"));
-    expect(fichiers.filter((f) => readFileSync(f, "utf8").includes("definition-courbe-series"))).toEqual([]);
+    expect(fichiers.filter((f) => readFileSync(f, "utf8").includes("definition-courbe-series")).map((f) => relative(process.cwd(), f).split(sep).join("/")).sort()).toEqual(["src/briques/plan-scenes/catalogue.ts"]);
   });
 });

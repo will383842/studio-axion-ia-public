@@ -113,6 +113,8 @@ export interface EntreeRealisateur {
   telephoneVideo?: boolean;
   /** BR-EXTRAITS-MAISON-a : réglage `facecamAnimee.extraitsMaison` allumé : le MESSAGE ajoute le bloc `axion:`. Absent : message inchangé. */
   extraitsMaison?: boolean;
+  /** X2-14b-b : ouvertures des voisines du réseau (variété commune). Absent ou vide : message inchangé. */
+  voisinesCommunes?: readonly string[];
 }
 
 export interface RequeteRealisateur {
@@ -272,7 +274,7 @@ export async function realiser(entree: EntreeRealisateur, dependances: Dependanc
   const repli = entree.repli;
   // La consigne système ne change pas d'un appel à l'autre : l'interdiction des plaquettes à vidéo passe dans le MESSAGE.
   // L'historique des plaquettes v4 passe aussi dans le MESSAGE (seul `message` arrive à Claude en production : la consigne du rôle est fixe et mise en cache).
-  const histoV4 = blocHistoriqueV4(entree.historique ?? [], repli?.interdites);
+  const histoV4 = blocHistoriqueV4(entree.historique ?? [], repli?.interdites, entree.voisinesCommunes);
   // BR-TELEPHONE-a : bloc du téléphone ajouté au MESSAGE seulement si allumé ; éteint, `corps` est identique au caractère près.
   const corps = [messageRealisateur(entree), histoV4, blocTelephoneVideo(entree.telephoneVideo === true), blocExtraitsMaison(entree.extraitsMaison === true)].filter(Boolean).join("\n\n");
   const base = repli

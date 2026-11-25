@@ -14,7 +14,7 @@
 import { cleDepenseUsine } from "./cle-depense-usine";
 import { appelClaudeTutoriel, claudeTutorielActif, regardTutorielActif } from "./tutoriel-claude";
 import { creerRegardTutoriel } from "./tutoriel-regard";
-import { equipeTutorielActive, portsEquipe } from "./tutoriel-equipe";
+import { equipeTutorielActive, portsEquipeAvecPhrase } from "./tutoriel-equipe";
 import "server-only";
 import { brancherServicesTutoriel, type OutilsTutoriel } from "@/moteurs/montage-tutoriel-outil";
 import { lireAccordDevis } from "@/moteurs/montage-tutoriel-outil/devis-tutoriel";
@@ -116,7 +116,7 @@ brancherServicesTutoriel({
     const regarder = (await regardTutorielActif()) ? creerRegardTutoriel({ videoId: c.videoId, origine: c.origine, rendu }) : undefined;
     const voixReelle = sansVoix ? undefined : b.voix;
     // T-EXT-55 : l'équipe de rôles (T-EXT-48b : l'appel du stratège reçoit le relevé si `tutoriel.performance` vaut `true`). Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
-    const equipe = (await equipeTutorielActive()) ? equipeAvecReleve(portsEquipe(c, c.videoId)) : undefined;
+    const equipe = (await equipeTutorielActive()) ? equipeAvecReleve(await portsEquipeAvecPhrase(c, c.videoId)) : undefined;
     return {
       ...(devis
         ? {

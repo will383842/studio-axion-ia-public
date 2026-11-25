@@ -8,6 +8,8 @@ export const PIECES_GARDEES: readonly string[] = [
   "intercalaire-chapitre",
   "flux-ramifie",
   "cadre-capture",
+  // G4-11b-2 : courbe à plusieurs séries (2 à 4 courbes sur le même axe), fermée tant que `objetsPermis` ne la cite pas.
+  "courbe-series",
 ];
 
 export function estGardee(d: { id: string; famille: string }): boolean {

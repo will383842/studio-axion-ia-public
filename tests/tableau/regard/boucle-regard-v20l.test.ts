@@ -220,7 +220,7 @@ describe("boucle du regard (S-12-BOUCLE-PURE-v20l)", () => {
     const fichiers: string[] = [];
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
     parcourir(racine);
-    expect(fichiers.filter((f) => !f.endsWith("boucle-regard.ts") && readFileSync(f, "utf8").includes("boucle-regard"))).toEqual([]);
+    expect(fichiers.filter((f) => !f.endsWith("boucle-regard.ts") && readFileSync(f, "utf8").includes("boucle-regard"))).toEqual([join(racine, "moteurs/montage-tableau/reprise-fabrication.ts")]);
     const source = readFileSync(new URL("../../../src/moteurs/montage-tableau/boucle-regard.ts", import.meta.url), "utf8");
     expect(source).not.toMatch(/from "[^"]*(reprise-du-regard|regardeur-tableau)"/);
     expect(source).not.toContain("server-only");

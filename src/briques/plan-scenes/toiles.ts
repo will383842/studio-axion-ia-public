@@ -86,4 +86,6 @@ export const TOILES = {
   "objet-onde-motif": { largeur: 1000, hauteur: 300 },
   // N-05-VOLET-d-v20j : recopiée de L_VOLET × H_VOLET
   "objet-volet-avant-apres": { largeur: 1000, hauteur: 625 },
+  // G4-11b-2 : même toile que `TOILES.graphique` (et que `DEFINITION_COURBE_SERIES.toile`)
+  "courbe-series": { largeur: 1000, hauteur: 640 },
 } as const;

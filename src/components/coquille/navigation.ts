@@ -13,7 +13,7 @@ export interface EntreeNavigation {
 }
 
 /** Pages qui allument « Vidéos » : la fiche des formats et l'écran de création de chacun (couverture testée contre le registre). */
-export const ACTIF_SUR_VIDEOS: string[] = ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee", "/demo-facecam", "/tutoriel-outil"];
+export const ACTIF_SUR_VIDEOS: string[] = ["/videos", "/formats", "/cas-concret", "/image-video", "/tableau/nouvelle", "/face-camera-animee", "/demo-facecam", "/tutoriel-outil", "/tableau-de-bord"];
 
 /** Une section de la feuille « Plus » (mobile) : un titre (absent pour la tête) et ses entrées. */
 export interface SectionNavigation {

@@ -588,6 +588,7 @@ export type OperationRendu =
   | "visuel-page" // file courte (carrousels V2-A, M2-01) : une page VisuelPage rendue en JPEG (×1 ou ×2), mesures de débordement
   | "assemblage-pdf" // file courte (carrousels V2-A, M2-02) : les JPEG des pages assemblés en un PDF (810 × 1012,5 pt)
   | "recollage-plages" // file longue : tronçons du fichier d'avant recollés sans réencoder + morceaux muets neufs, voix posée (52c)
+  | "collage-chapitres" // file longue (vidéo longue) : morceaux muets rendus par chapitre collés sans réencoder, voix entière posée (VL-05)
   | "toile-continue"; // file courte : toile large rendue puis découpée
 
 export interface DemandeRendu {
