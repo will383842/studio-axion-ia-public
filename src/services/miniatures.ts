@@ -176,6 +176,15 @@ async function vignetteReelle(video: Video): Promise<Id | null> {
   return null;
 }
 
+/** Vidéo d'essai : elle a des sorties et TOUTES sont des clés de démonstration (rien de réel à montrer, aucune demande au serveur de rendu). */
+async function fabricationDEssai(video: Video): Promise<boolean> {
+  const d = depots();
+  const sorties = await d.sorties.lister((s) => s.versionId === video.versionChoisieId);
+  if (!sorties.length) return false;
+  const fichiers = await Promise.all(sorties.map((s) => d.fichiers.obtenir(s.fichierId)));
+  return fichiers.every((f) => !!f && estCleDemo(f.cleStockage));
+}
+
 /** Crée les miniatures d'une vidéo terminée si elle n'en a aucune. Hors verrou. */
 export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, ratio: Ratio): Promise<void> {
   const d = depots();
@@ -195,7 +204,7 @@ export async function creerMiniaturesSiAbsentes(videoId: Id, titre: string, rati
     // Vidéo de démonstration : images de démonstration (comportement d'avant le lot R4).
     propositions = await fournisseurMiniatureSimulation.proposer({ videoId, titre, nombre: 3 });
     origine = "demo";
-  } else if (outil.mode === "reel") {
+  } else if (outil.mode === "reel" && !(await fabricationDEssai(video))) {
     const source = await preparerSource(video, 3);
     if (source) {
       ratioImage = source.ratio;

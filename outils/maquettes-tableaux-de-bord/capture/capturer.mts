@@ -48,6 +48,7 @@ import {
   nomDossierSortie,
   planCaptures,
   planFilm,
+  remarquesZones,
   zonePctDepuisRect,
   type ActionCapture,
   type ActionFilm,
@@ -412,6 +413,7 @@ async function principal(): Promise<void> {
       ...(figees ? { figees } : {}),
     });
     writeFileSync(join(sortie, "navigation.json"), JSON.stringify(nav, null, 2));
+    rapport.remarques.push(...remarquesZones(film.mesures, scenario.largeur, scenario.hauteur));
     rapport.debutFilmMs = Math.round(film.debutFilmMs);
     rapport.film = "navigation.mp4";
     rapport.methode = "images";

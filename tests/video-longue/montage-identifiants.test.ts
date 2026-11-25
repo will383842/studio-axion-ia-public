@@ -147,7 +147,7 @@ describe("UI-4 : robustesse de la lecture d'état du rendu", () => {
   it("une erreur non réessayable échoue tout de suite", async () => {
     const a = ports();
     (a.ports as unknown as { rendu: { etat: () => Promise<never> } }).rendu.etat = async () => {
-      throw new ErreurRendu({ code: "invalide", reessayable: false, message: "non" });
+      throw new ErreurRendu({ code: "refuse", reessayable: false, message: "non" });
     };
     await expect(monterVideoLongue(commande, "t1", ctx(), a.ports)).rejects.toThrow(/Plage/);
   });

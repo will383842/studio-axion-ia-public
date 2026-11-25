@@ -49,8 +49,8 @@ beforeEach(() => {
   dernierDouble.fn = null;
 });
 
-describe("T-EXT-30 : éteint par défaut", () => {
-  it.each([undefined, false, "true", 1])("réglage %s : Claude reste « pas encore relié », rien n'est appelé", async (v) => {
+describe("T-EXT-30 : Claude du tutoriel (ALLUMÉ par défaut, décision 21/11 07:20 ; seul `false` éteint)", () => {
+  it.each([false])("réglage %s : Claude reste « pas encore relié », rien n'est appelé", async (v) => {
     reglage.valeur = v;
     expect(await claudeTutorielActif()).toBe(false);
     const { servicesTutoriel } = await import("@/moteurs/montage-tutoriel-outil");
@@ -60,8 +60,8 @@ describe("T-EXT-30 : éteint par défaut", () => {
     expect(appelsReels).toHaveLength(0);
   });
 
-  it("réglage exactement true : le raccord rend l'appel gardé (le double d'argent seul est joignable)", async () => {
-    reglage.valeur = true;
+  it.each([true, undefined, "true", 1])("réglage %s : ALLUMÉ par défaut (décision 21/11 07:20), le raccord rend l'appel gardé (le double d'argent seul est joignable)", async (v) => {
+    reglage.valeur = v;
     expect(await claudeTutorielActif()).toBe(true);
     const { servicesTutoriel } = await import("@/moteurs/montage-tutoriel-outil");
     const o = (await servicesTutoriel().outils!(commandeTutoriel(), "t1")) as OutilsTutoriel;
@@ -233,17 +233,19 @@ describe("T-EXT-30 : garde de texte du service", () => {
 describe("T-EXT-27b : réglage du regard, plafond propre et plafond par défaut", () => {
   const lecteur = (valeurs: Record<string, unknown>) => (async (id: string, defaut: unknown) => (id in valeurs ? valeurs[id] : defaut)) as <T>(id: string, defaut: T) => Promise<T>;
 
-  it("clé absente, \"true\", 1, lecture en échec : éteint", async () => {
-    expect(await regardTutorielActif(lecteur({ "tutoriel.claude": true }))).toBe(false);
-    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: "true", "tutoriel.claude": true }))).toBe(false);
-    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: 1, "tutoriel.claude": true }))).toBe(false);
+  it("clé absente, \"true\", 1 : ALLUMÉ par défaut (décision 21/11 07:20) ; lecture en échec : éteint", async () => {
+    expect(await regardTutorielActif(lecteur({ "tutoriel.claude": true }))).toBe(true);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: "true", "tutoriel.claude": true }))).toBe(true);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: 1, "tutoriel.claude": true }))).toBe(true);
     expect(await regardTutorielActif((async () => { throw new Error("lecture en échec"); }) as never)).toBe(false);
   });
 
-  it("le regard seul ne suffit pas : `tutoriel.claude` doit aussi être exactement `true`", async () => {
+  it("le regard exige aussi `tutoriel.claude` (allumé par défaut) : `false` sur l'une des deux clés éteint", async () => {
     expect(PARAM_REGARD_TUTORIEL).toBe("tutoriel.regardeur");
-    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true }))).toBe(false);
-    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true, "tutoriel.claude": "true" }))).toBe(false);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true }))).toBe(true);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true, "tutoriel.claude": "true" }))).toBe(true);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: false }))).toBe(false);
+    expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true, "tutoriel.claude": false }))).toBe(false);
     expect(await regardTutorielActif(lecteur({ [PARAM_REGARD_TUTORIEL]: true, "tutoriel.claude": true }))).toBe(true);
   });
 
@@ -260,7 +262,8 @@ describe("T-EXT-27b : réglage du regard, plafond propre et plafond par défaut"
     await appelClaudeTutoriel("v", "usine", { executer })(REQ_PLAN);
     const options = recu[0][3] as { plafondPropre: unknown };
     expect(options.plafondPropre).toEqual(plafondPropreTutoriel());
-    expect(plafondPropreTutoriel({ plafondUsd: () => 2 })).toEqual({ id: "tuto", parametre: "tutoriel.plafondClaudeUsd", defautUsd: 2, prefixeEtape: "Tutoriel ·" });
+    expect(plafondPropreTutoriel({ plafondUsd: () => 2 })).toEqual({ id: "tuto", parametre: "tutoriel.plafondClaudeUsd", defautUsd: 1.11, prefixeEtape: "Tutoriel ·" });
+    expect(plafondPropreTutoriel({ plafondUsd: () => 0.5 })).toEqual({ id: "tuto", parametre: "tutoriel.plafondClaudeUsd", defautUsd: 0.5, prefixeEtape: "Tutoriel ·" });
   });
 
   it("plafond par défaut = plan + chaque rôle de l'équipe × ses essais + regard (mêmes fonctions, jamais en dur), arrondi au 0,05 $ supérieur, plus grand que l'ancien", () => {

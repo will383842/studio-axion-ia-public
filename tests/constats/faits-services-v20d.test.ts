@@ -80,10 +80,10 @@ describe("C7-16 fait sur master", () => {
 describe("G4-10 fait sur master", () => {
   const f = ["studio-rendu", "compositions", "donnees", "TableauDeBordVideo.tsx"];
   it("la composition existe", () => expect(existsSync(chemin(...f))).toBe(true));
-  it("elle porte G4-10a et n'est pas inscrite dans Racine.tsx", () => {
+  it("elle porte G4-10a et est inscrite UNE fois dans Racine.tsx (MontageDonnees, G4-09b-v20h)", () => {
     expect(lire(...f)).toContain("G4-10a");
     const racine = chemin("studio-rendu", "compositions", "Racine.tsx");
-    if (existsSync(racine)) expect(readFileSync(racine, "utf8")).not.toContain("TableauDeBordVideo");
+    if (existsSync(racine)) expect(readFileSync(racine, "utf8").match(/<Composition id="MontageDonnees" component=\{TableauDeBordVideo\}/g)).toHaveLength(1);
   });
 });
 
