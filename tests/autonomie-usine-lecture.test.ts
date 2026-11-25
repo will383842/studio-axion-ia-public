@@ -75,7 +75,7 @@ describe("1 · la porte de lecture", () => {
     expect(await r.text()).not.toContain("plafond_automatique_cents");
   });
 
-  it("avec jeton : les 5 champs ; aucun paramètre écrit, aucune cloche, aucune ligne de journal du budget", async () => {
+  it("avec jeton : les 5 champs ; aucun paramètre réglé, aucune cloche, aucune ligne « budget » ; seule la ligne « porte » de la garde est écrite", async () => {
     await ecrireParametre(CLE_PORTE, { actif: true, plafondCents: 2000, le: "2026-11-01T00:00:00.000Z", version: 1 });
     const avant = await brut(CLE_PORTE);
     const ecritures = vi.spyOn(depots().parametres, "enregistrer");
@@ -87,6 +87,33 @@ describe("1 · la porte de lecture", () => {
     expect(await brut(CLE_PORTE)).toBe(avant);
     expect(await cloches()).toBe(cloches0);
     expect(await budget()).toEqual([]);
+    // Vérité sur le journal : la garde de la porte écrit UNE ligne « porte » (route, issue, durée) à chaque appel, lecture comprise.
+    const lignes = (await depots().evenements.lister()).filter((e) => e.type === "porte");
+    expect(lignes).toHaveLength(1);
+    expect(lignes[0].message).toMatch(/POST \/api\/usine\/reglages\/autonomie acceptée/);
+  });
+
+  it("lecture de la clé porte en échec : 500, jamais « éteint, 0 »", async () => {
+    await ecrireParametre(CLE_PORTE, { actif: true, plafondCents: 2000, le: "2026-11-01T00:00:00.000Z", version: 1 });
+    const obtenir = depots().parametres.obtenir.bind(depots().parametres);
+    vi.spyOn(depots().parametres, "obtenir").mockImplementation(async (id: string) => {
+      if (id === CLE_PORTE) throw new Error("base indisponible");
+      return obtenir(id);
+    });
+    const r = await POST(appel({ contrat: 2 }));
+    expect(r.status).toBe(500);
+    const t = await r.text();
+    expect(t).toContain("erreur_interne");
+    expect(t).not.toContain("plafond_automatique_cents");
+  });
+
+  it("lecture de l'ancienne clé en échec (pas de clé porte) : 500 aussi", async () => {
+    const obtenir = depots().parametres.obtenir.bind(depots().parametres);
+    vi.spyOn(depots().parametres, "obtenir").mockImplementation(async (id: string) => {
+      if (id === CLE_ANCIENNE) throw new Error("base indisponible");
+      return obtenir(id);
+    });
+    expect((await POST(appel({ contrat: 2 }))).status).toBe(500);
   });
 
   it("rend le plafond même éteinte ; l'ancienne clé seule : pilote studio ; aucune clé : pilote aucun", async () => {
@@ -125,6 +152,18 @@ describe("2 · eteindreDepuisStudio", () => {
     expect(await brut(CLE_ANCIENNE)).toBe(ancienne);
     expect(await cloches()).toBe(cloches0 + 1);
     expect((await budget()).map((e) => e.message).join(" ")).toMatch(/éteinte depuis le Studio/);
+  });
+
+  it("écriture en échec : erreur, et aucune cloche ni ligne « budget » n'annonce une extinction qui n'a pas eu lieu", async () => {
+    await ecrireParametre(CLE_PORTE, { actif: true, plafondCents: 2000, le: "2026-11-01T00:00:00.000Z", version: 1 });
+    const avant = await brut(CLE_PORTE);
+    const cloches0 = await cloches();
+    vi.spyOn(depots().parametres, "enregistrer").mockRejectedValue(new Error("écriture refusée"));
+    await expect(A.eteindreDepuisStudio()).rejects.toThrow();
+    vi.restoreAllMocks();
+    expect(await brut(CLE_PORTE)).toBe(avant);
+    expect(await cloches()).toBe(cloches0);
+    expect(await budget()).toEqual([]);
   });
 
   it("déjà éteinte : rien n'est écrit, ni cloche ni journal", async () => {

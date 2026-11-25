@@ -20,6 +20,7 @@ export async function POST(requete: NextRequest) {
   try {
     const mois = moisParis(maintenant());
     const reglage = await lireReglageEnVigueur();
+    if (!reglage.lu) throw new Error("lecture du réglage impossible"); // jamais « éteint, 0 » à la place d'un état inconnu : l'Usine affiche « inconnu »
     const utilise = await usageDuMoisUsine(mois);
     return reponseJson(200, {
       automatique: reglage.actif,

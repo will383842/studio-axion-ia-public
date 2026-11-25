@@ -83,6 +83,8 @@ export interface ReglageEnVigueur {
   pilote: "usine" | "studio" | "aucun";
   actif: boolean;
   plafondCents: number;
+  /** `false` si une lecture de clé a levé : la valeur rendue (éteint, 0) est alors un échec fermé, pas un état connu. */
+  lu: boolean;
 }
 
 /** Valeur lisible d'une clé : `actif` comme `interpreter` (allumé SEULEMENT si plafond > 0), plafond rendu aussi quand c'est éteint. */
@@ -93,24 +95,25 @@ function valeurLisible(brut: unknown): { actif: boolean; plafondCents: number } 
 
 /**
  * LECTURE SEULE (porte de lecture et écran). Même source que `lireAutonomieUsine` : la clé porte, si elle existe, est seule lue ;
- * sinon l'ancienne clé ; sinon `aucun`. Une lecture qui lève : éteint, plafond 0 (échec fermé).
+ * sinon l'ancienne clé ; sinon `aucun`. Une lecture qui lève : éteint, plafond 0 (échec fermé pour l'argent) ET `lu: false`,
+ * pour que la porte de lecture réponde 500 au lieu d'affirmer « éteint ».
  */
 export async function lireReglageEnVigueur(): Promise<ReglageEnVigueur> {
   let recu: unknown;
   try {
     recu = await lireParametre<unknown>(CLE_PORTE, null);
   } catch {
-    return { pilote: "usine", actif: false, plafondCents: 0 };
+    return { pilote: "usine", actif: false, plafondCents: 0, lu: false };
   }
-  if (recu !== null && recu !== undefined) return { pilote: "usine", ...valeurLisible(recu) };
+  if (recu !== null && recu !== undefined) return { pilote: "usine", ...valeurLisible(recu), lu: true };
   let brut: unknown;
   try {
     brut = await lireParametre<unknown>(CLE_REGLAGE, null);
   } catch {
-    return { pilote: "aucun", actif: false, plafondCents: 0 };
+    return { pilote: "aucun", actif: false, plafondCents: 0, lu: false };
   }
-  if (brut === null || brut === undefined) return { pilote: "aucun", actif: false, plafondCents: 0 };
-  return { pilote: "studio", ...valeurLisible(brut) };
+  if (brut === null || brut === undefined) return { pilote: "aucun", actif: false, plafondCents: 0, lu: true };
+  return { pilote: "studio", ...valeurLisible(brut), lu: true };
 }
 
 /**
@@ -178,8 +181,9 @@ export async function reglerAutonomieUsine(demande: { actif: boolean; plafondCen
 /**
  * Bouton d'urgence « Éteindre » du Studio : le fondateur connecté éteint l'autonomie quand c'est l'Usine qui la règle (clé porte).
  * ÉTEINDRE SEULEMENT : cette fonction n'écrit jamais l'état allumé. Sans clé porte, rien n'est écrit (`eteinte: false`). Déjà éteinte :
- * rien n'est écrit, ni journalisé, ni sonné. Le plafond est gardé. Cloche sans montant, puis ligne de journal, puis écriture
- * (la trace précède l'écriture). Ne touche jamais à `usine.autonomie`, au registre ni aux dépenses.
+ * rien n'est écrit, ni journalisé, ni sonné. Le plafond est gardé. ÉCRITURE D'ABORD, puis cloche sans montant, puis ligne de
+ * journal : la cloche ne part qu'après l'écriture réussie (jamais d'extinction annoncée sans effet). Si l'écriture a réussi mais que la
+ * cloche ou le journal échoue, l'extinction reste faite et la fonction répond quand même `eteinte: true`. Ne touche jamais à `usine.autonomie`, au registre ni aux dépenses.
  */
 export async function eteindreDepuisStudio(): Promise<{ eteinte: boolean; deja: boolean }> {
   await exigerSession();
@@ -188,10 +192,14 @@ export async function eteindreDepuisStudio(): Promise<{ eteinte: boolean; deja: 
   const { plafondCents } = valeurLisible(actuel);
   const a = actuel as Partial<ReglageAutonomie> | null;
   if (a && typeof a === "object" && a.actif === false && a.plafondCents === plafondCents) return { eteinte: true, deja: true };
-  await creerNotification({ type: "budget", titre: "L'Usine ne dépense plus seule", message: "Vous avez éteint l'autonomie de l'Usine depuis le Studio. La confirmation reste demandée.", lien: "/" });
-  await journaliser("budget", "Usine en automatique : éteinte depuis le Studio (bouton Éteindre), retour au mode confirmation");
   const valeur: ReglageAutonomie = { actif: false, plafondCents, le: maintenant(), version: 1 };
   await ecrireParametre(CLE_PORTE, valeur);
+  try {
+    await creerNotification({ type: "budget", titre: "L'Usine ne dépense plus seule", message: "Vous avez éteint l'autonomie de l'Usine depuis le Studio. La confirmation reste demandée.", lien: "/" });
+    await journaliser("budget", "Usine en automatique : éteinte depuis le Studio (bouton Éteindre), retour au mode confirmation");
+  } catch {
+    /* l'extinction est faite ; une cloche ou un journal qui échoue ne la défait pas et ne la présente pas comme un échec */
+  }
   return { eteinte: true, deja: false };
 }
 
