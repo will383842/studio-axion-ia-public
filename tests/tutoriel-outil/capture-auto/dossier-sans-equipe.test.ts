@@ -227,6 +227,8 @@ describe("film d'un dossier sans équipe", () => {
     }
     expect(m.etat().compose).toBeUndefined();
     expect(m.etat().plan?.source).not.toBe("compose");
+    expect(m.j.claude).toEqual([]); // le double Claude des outils n'est pas vu par le piège : on le vérifie ici (0 appel payant)
+    expect(m.etat().reserves.filter((r) => /Composition|plan simple/i.test(r))).toEqual([]);
     expect(pieges.appels).toEqual([]);
   });
 
@@ -235,6 +237,7 @@ describe("film d'un dossier sans équipe", () => {
     expect(m.etat().scenarioDossier?.etapes.every((e) => "surMot" in e.ancre)).toBe(true);
     expect(t.statut).toBe("termine");
     for (const d of rendusComposition(m.j)) expect(proprietes(d).navigation).toBeDefined();
+    expect(m.j.claude).toEqual([]);
     expect(pieges.appels).toEqual([]);
   });
 
@@ -254,14 +257,31 @@ describe("film d'un dossier sans équipe", () => {
     }
   });
 
-  it("capture allumée mais scénario introuvable ou en erreur : chemin d'avant avec la réserve « pas de scenario.json lisible »", async () => {
-    for (const lireScenario of [async () => null, async () => { throw new Error("zip illisible"); }, async () => ({ version: "autre" })]) {
+  it("capture allumée mais scénario introuvable ou refusé par le schéma : chemin d'avant avec la réserve « ne contient pas de parcours de démonstration lisible »", async () => {
+    for (const lireScenario of [async () => null, async () => ({ version: "autre" })]) {
       reinitialiserDepots();
       const m = await lancer(SCRIPT_STOCKS, { captureAuto: true, lireScenario });
       expect(m.t().parametres?.pause).toBeUndefined();
       expect(m.t().statut).toBe("termine");
-      expect(m.etat().reserves.filter((r) => r.includes("pas de scenario.json lisible"))).toHaveLength(1);
+      expect(m.etat().reserves.filter((r) => r.includes("ne contient pas de parcours de démonstration lisible"))).toHaveLength(1);
     }
+  });
+
+  it("lireScenario LÈVE (panne passagère) : pause TO_DOSSIER_INCOMPLET sans figer la décision ; au tour suivant la vidéo passe en pause film", async () => {
+    let panne = true;
+    const lireScenario = vi.fn(async () => {
+      if (panne) throw new Error("stockage indisponible");
+      return SCENARIO as unknown;
+    });
+    const m = await lancer(SCRIPT_STOCKS, { captureAuto: true, lireScenario });
+    expect(m.t().parametres?.pause).toMatchObject({ code: "TO_DOSSIER_INCOMPLET", message: "Votre dossier n'a pas pu être lu pour l'instant : la vidéo reprend dès qu'il est lisible. Rien n'a échoué." });
+    expect(m.etat().filmDossierLu).toBeUndefined();
+    expect(m.etat().reserves.filter((r) => /Film de l'outil/.test(r))).toEqual([]);
+    panne = false;
+    const t = await m.suite();
+    expect(t.parametres?.pause).toMatchObject({ code: "TO_FILM_A_CAPTURER" });
+    expect((t.parametres?.tutoriel as EtatTutoriel).scenarioDossier?.maquette).toBe("05-stocks");
+    expect(lireScenario).toHaveBeenCalledTimes(2);
   });
 
   it("sans le port filmDossier : comportement d'avant, aucune réserve neuve", async () => {

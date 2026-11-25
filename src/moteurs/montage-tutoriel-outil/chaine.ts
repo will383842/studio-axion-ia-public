@@ -532,13 +532,13 @@ async function pasEquipe(etat: EtatTutoriel, commande: CommandeFabrication, port
 
 const MESSAGE_FILM_A_CAPTURER = "Le film de navigation se fabrique sur le poste de capture : déposez-le, la vidéo reprend. Rien n'a échoué.";
 const RESERVE_FILM_CAPTURE_ETEINTE = "À vérifier · Film de l'outil : la capture automatique est éteinte, la vidéo montre des scènes dessinées, pas votre tableau de bord.";
-const RESERVE_FILM_SANS_SCENARIO = "À vérifier · Film de l'outil : le dossier n'a pas de scenario.json lisible, la vidéo montre des scènes dessinées, pas votre tableau de bord.";
+const RESERVE_FILM_SANS_SCENARIO = "À vérifier · Film de l'outil : le dossier ne contient pas de parcours de démonstration lisible, la vidéo montre des scènes dessinées, pas votre tableau de bord.";
 
 /**
  * Film d'un dossier sans équipe : APRÈS la voix, lit (une seule fois) le scénario du dossier et le retient s'il se cale sur la voix.
  * Capture éteinte ou scénario introuvable / incalable : chemin d'avant, avec une réserve. Capture éteinte : le zip n'est pas lu.
  */
-async function lireFilmDossier(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<EtatTutoriel> {
+async function lireFilmDossier(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<EtatTutoriel | PasTutoriel> {
   const port = outils.filmDossier;
   if (!port || etat.equipe || etat.filmDossierLu || !etat.audio || lireEntreesTutoriel(commande.entrees).navigationFilmee) return etat;
   const avec = (reserve: string): EtatTutoriel => ({ ...etat, filmDossierLu: true, reserves: etat.reserves.includes(reserve) ? etat.reserves : [...etat.reserves, reserve] });
@@ -547,7 +547,8 @@ async function lireFilmDossier(etat: EtatTutoriel, commande: CommandeFabrication
   try {
     brut = await port.lireScenario();
   } catch {
-    brut = null;
+    // Panne passagère (stockage, réseau) : pause reprenable, la décision n'est pas figée.
+    return { statut: "pause", etat, code: "TO_DOSSIER_INCOMPLET", message: "Votre dossier n'a pas pu être lu pour l'instant : la vidéo reprend dès qu'il est lisible. Rien n'a échoué." };
   }
   const lu = brut ? lireScenarioMaquette(brut) : null;
   const scenario = lu?.ok ? scenarioCalable(lu.scenario, etat.audio.mots, Math.round(etat.audio.dureeSec * 1000)) : null;
@@ -712,7 +713,8 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
   }
   // X3-06 : cran du dosage figé dans la commande. Absent (dosage éteint) = chemin d'avant, inchangé.
   const cran = commande.dosageMotion?.cran;
-  if (cran === "aucun") {
+  // Film d'un dossier sans voix : le film occupe toute la durée, plan nu (0 appel Claude, aucune réserve « plan simple »).
+  if (cran === "aucun" || (estSansVoix(commande.entrees) && etat.scenarioDossier)) {
     // Plan nu : l'écran seul, aucune pièce, aucun calque ; `genererPlan` n'est pas appelé (0 appel Claude).
     const nu = planNu({ mots, format, facecam: false, dureeMs: mots.at(-1)?.finMs ?? 0 });
     return { statut: "faite", etat: { ...etat, plan: { plan: nu, remarques: [], source: "repli", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };
@@ -1279,9 +1281,13 @@ export async function avancerEtape(cle: CleEtapeTutoriel, etat: EtatTutoriel, co
       return pasScript(etat, commande, outils);
     case "voix":
       return pasVoix(etat, commande, outils);
-    case "calage":
+    case "calage": {
       // Sans étape « voix » (aucune distribution), le calage part de l'estimation du texte.
-      return pasApresCalage(pasCalage(await lireFilmDossier(etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat, commande, outils), commande, outils), commande, outils);
+      const base = etat.audio ? etat : (await pasVoix(etat, commande, outils)).etat;
+      const film = await lireFilmDossier(base, commande, outils);
+      if ("statut" in film) return film;
+      return pasApresCalage(pasCalage(film, commande, outils), commande, outils);
+    }
     case "plan":
       return pasPlan(etat, commande, outils);
     case "montage":
