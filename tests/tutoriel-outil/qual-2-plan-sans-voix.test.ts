@@ -136,7 +136,7 @@ describe("QUAL-2 — script du fondateur", () => {
     const rep = plan.scenes[2];
     if (rep.genre !== "repere") throw new Error("repere");
     const iAu = mots.findIndex((m) => m.texte === "lieu");
-    expect(rep.apresAMs).toBe(mots[iAu - 2].debutMs);
+    expect(rep.apresAMs).toBe(mots[iAu - 3].debutMs);
     expect(rep.barreAMs).toBe(mots.find((m, k) => k > iAu && m.texte === "une")!.debutMs);
   });
 
