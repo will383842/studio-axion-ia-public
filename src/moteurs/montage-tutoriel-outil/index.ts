@@ -409,7 +409,20 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
     // Le plan de scènes, pas encore fait, reste RÉSERVÉ dans le devis : le total du devis le compte, donc un rôle ne peut pas
     // prendre ses appels (un essai de plus que ceux que le devis lui donne). Rôles + plan : « consommé + restants + plan » ≤ total.
     if (cle === "script") {
-      const restants = port.roles.filter((r) => r.id !== "plan").reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0);
+      // PHRASE-4 : un rôle qui ne peut plus être appelé ne réserve rien (la garde est exacte, le devis et son total ne changent pas).
+      // Vérifié dans equipe/orchestre.ts (pas(), appel(), appliquerSortie) :
+      //  - chef de projet : seul `if (!e.cahier)` (l. 245) mène à `appel(e, "chef-de-projet", …)` (l. 259), et `appliquerSortie` ne lit
+      //    sa sortie qu'après un tel appel. Dès que le cahier existe, plus aucun pas ne l'appelle, quel que soit le chemin (dossier ou phrase).
+      //  - analyste : le seul `appel(e, "analyste", …)` (l. 313) est dans « 3. Analyste », qui exige `!e.carte` (l. 307). Sur le chemin « pièce
+      //    créée » (phraseOuverte, aucun dossier lu, `manquePiece(cahier)` : l. 269), la carte vient de `appliquerPieceGardee` (l. 287-291) sans
+      //    Claude, avec `carteEmpreinte` ; `dossierDePiece` (l. 292) a `fichiers: []`. Une pièce non gardée s'arrête avant, par une pause (l. 285),
+      //    et si la déduction échoue la pièce repasse « à revoir » (pause au pas suivant) : l'analyste n'est jamais appelé tant que `pieceCreee` existe.
+      //    Le dossier (.zip) n'a jamais de pièce créée : il garde ses essais d'analyste. Dans le doute (cahier sans entrée « C », port sans
+      //    phrase ouverte, dépôt « dossier »), l'analyste reste réservé : le sens prudent.
+      const sansChef = !!etat.equipe?.cahier;
+      const sansAnalyste = !!etat.equipe?.pieceCreee && etat.equipe.cahier?.entree === "C" && outils.equipe?.phraseOuverte === true && entrees.depot?.mode !== "dossier";
+      const ferme = (id: string) => (id === "chef-de-projet" && sansChef) || (id === "analyste" && sansAnalyste);
+      const restants = port.roles.filter((r) => r.id !== "plan" && !ferme(r.id)).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax) - (etat.appelsClaude?.roles?.[r.id] ?? 0)), 0);
       const paie = await prochainPasPaye(etat, commande, outils);
       aVenir.appelsClaude = (paie ? Math.max(1, restants) : restants) + (etat.plan ? 0 : essais("plan"));
     }
