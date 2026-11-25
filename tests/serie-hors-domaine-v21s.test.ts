@@ -126,6 +126,18 @@ describe("FIX-SERIE-PARTI-v21s", () => {
     expect((await depots().idees.obtenir(idee.id))!.scriptMaitreId).toBe(s.elements[0].scriptMaitreId);
   });
 
+  it("(j) une idée REFUSÉE compte dans « restes » (gardée en idée), à côté d'une idée hors domaine", async () => {
+    await brancherClaude();
+    const idee = await depots().idees.enregistrer({ id: "idee-shd-j", texte: IDEES[0], etat: "nouvelle", creeLe: "2026-10-03T08:00:00.000Z", modifieLe: "2026-10-03T08:00:00.000Z" });
+    await serie.lancerSerie([{ texte: IDEES[0], ideeId: idee.id }], REGLAGES, "serie-shd-j1");
+    const n = (await depots().scriptsMaitres.lister()).length;
+    // Écran périmé : la même idée, déjà écrite, est renvoyée avec une idée hors domaine → refusée, jamais relancée.
+    const r = await actions.lancerSerieAction([{ texte: IDEES[0], ideeId: idee.id }, { texte: HORS[0] }], REGLAGES, "serie-shd-j2");
+    expect(r).toEqual({ ok: true, donnees: { partis: 0, restes: 1, horsDomaine: 1, essai: false } });
+    expect((await serie.suiviSerie("serie-shd-j2"))!.elements.map((e) => e.etat)).toEqual(["refuse", "a-completer"]);
+    expect((await depots().scriptsMaitres.lister()).length).toBe(n + 1);
+  });
+
   it("(h) même geste renvoyé : même série, aucun sujet de plus", async () => {
     await brancherClaude();
     const a = await serie.lancerSerie(IDEES.map((texte) => ({ texte })), REGLAGES, "serie-shd-h");
