@@ -21,7 +21,7 @@ export function nu(s: string): string {
 
 /** Retire l'élision initiale (« l'article » → « article »). */
 export function sansElision(nuMot: string): string {
-  return nuMot.replace(/^(l|d|qu|j|n|s|m|t|c)'/, "");
+  return nuMot.replace(/^(l|d|qu|j|n|s|m|t|c|lorsqu|jusqu|puisqu|quoiqu)'/, "");
 }
 
 /* ------------------------------------------------------------------ */
@@ -65,6 +65,12 @@ export const CONJONCTIONS_CONDITION = [["quand"], ["lorsque"], ["lorsqu'"], ["si
 export const MOTS_APPEL = new Set([
   "rendez-vous", "rendez", "rdv", "contactez", "contactez-nous", "contact", "contacter", "appelez", "appelez-nous", "ecrivez", "ecrivez-nous", "reservez",
   "reserver", "demandez", "essayez", "decouvrez", "echangeons", "parlons", "discutons", "devis", "prenez", "lancez-vous", "telephonez", "joignez",
+]);
+
+/** Mots d'appel qui sont des VERBES (le bouton préfère « Contactez-nous » à « Devis »). */
+export const VERBES_APPEL = new Set([
+  "contactez", "contactez-nous", "contacter", "appelez", "appelez-nous", "ecrivez", "ecrivez-nous", "reservez", "reserver", "demandez", "essayez", "decouvrez",
+  "echangeons", "parlons", "discutons", "prenez", "lancez-vous", "telephonez", "joignez",
 ]);
 
 export const DETERMINANTS = new Set(["le", "la", "les", "l'", "des", "du", "un", "une", "ces", "cet", "cette", "ses", "son", "sa", "vos", "votre", "leurs", "leur"]);

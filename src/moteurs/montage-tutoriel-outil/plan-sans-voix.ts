@@ -38,6 +38,7 @@ import {
   nettoyerLibelle,
   nu,
   sansElision,
+  VERBES_APPEL,
 } from "./plan-sans-voix-regles";
 
 const QUEUE_MS = 500;
@@ -93,6 +94,18 @@ function decouperPhrases(t: Tok[]): Phrase[] {
       phrases.push({ premier: debut, dernier: i, texte, question: /\?["»”)]*$/.test(t[i].texte) });
       debut = i + 1;
     }
+  }
+  // Une « phrase » faite de ponctuation seule (« … ») n'est jamais une scène : fondue dans la suivante (ou la précédente).
+  for (let k = 0; k < phrases.length && phrases.length > 1; k++) {
+    if (/[\p{L}\p{N}]/u.test(phrases[k].texte)) continue;
+    if (k === 0) {
+      const s = phrases[1];
+      phrases.splice(0, 2, { premier: 0, dernier: s.dernier, texte: `${phrases[0].texte} ${s.texte}`, question: s.question });
+    } else {
+      const a = phrases[k - 1];
+      phrases.splice(k - 1, 2, { premier: a.premier, dernier: phrases[k].dernier, texte: `${a.texte} ${phrases[k].texte}`, question: a.question || phrases[k].question });
+    }
+    k = -1;
   }
   return phrases;
 }
@@ -261,7 +274,7 @@ function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { g
       if (partages > meilleur) { meilleur = partages; cartePulse = idx; }
     });
   }
-  const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs: t[k].debut, texte: choisi.texte, source: plageDe(Math.min(base + choisi.premier, k), Math.max(base + choisi.dernier, k)) };
+  const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs: t[p.premier].debut, texte: choisi.texte, source: plageDe(Math.min(base + choisi.premier, k), Math.max(base + choisi.dernier, k)) };
   if (cartePulse !== undefined) ev.cartePulse = cartePulse;
   return ev;
 }
@@ -394,6 +407,8 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   }
   const phrases = decouperPhrases(t);
   const dureeMs = dureeImposee(e) ?? Math.round(Math.max(...t.map((m) => m.fin)) + QUEUE_MS);
+  const finMots = Math.max(...t.map((m) => m.fin));
+  if (dureeImposee(e) !== null && dureeMs < finMots) remarques.push(`dureeMs (${dureeMs} ms) plus courte que la fin des mots (${finMots} ms) : les derniers mots sont coupés.`);
   const nMots = Array.isArray(e.mots) ? e.mots.length : 0;
   if (nMots === 0) remarques.push("Aucun mot horodaté : instants estimés, plages de mots vides.");
   const nP = phrases.length;
@@ -405,9 +420,12 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
     if (r) reperes.set(i, r);
   }
   let appel: { premier: number; appel: number; question: number | null } | null = null;
-  if (nP >= 2 && estAppel(t, phrases[nP - 1])) {
-    const q = nP - 2 >= 1 && phrases[nP - 2].question ? nP - 2 : null;
-    appel = { premier: q ?? nP - 1, appel: nP - 1, question: q };
+  // Les phrases finales sans sens (« Merci. ») ne comptent pas : l'appel est la dernière phrase significative.
+  let nA = nP - 1;
+  while (nA > 1 && videDeSens(phrases[nA].texte)) nA--;
+  if (nA >= 1 && estAppel(t, phrases[nA])) {
+    const q = nA - 1 >= 1 && phrases[nA - 1].question ? nA - 1 : null;
+    appel = { premier: q ?? nA, appel: nA, question: q };
   }
   const terminal = (i: number): boolean => reperes.has(i) || (appel !== null && i >= appel.premier);
 
@@ -510,7 +528,12 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
       const pa = phrases[appel.appel];
       const rdvIdx = t.findIndex((m, k) => k >= pa.premier && k <= pa.dernier && m.n.startsWith("rendez"));
       let motAppel = pa.premier;
-      for (let k = pa.premier; k <= pa.dernier; k++) if (MOTS_APPEL.has(t[k].m) || MOTS_APPEL.has(t[k].n) || MOTS_APPEL.has(nu(t[k].texte.split("-")[0]))) { motAppel = k; break; }
+      const estMotAppel = (k: number): boolean => MOTS_APPEL.has(t[k].m) || MOTS_APPEL.has(t[k].n) || MOTS_APPEL.has(nu(t[k].texte.split("-")[0]));
+      const estVerbe = (k: number): boolean => VERBES_APPEL.has(t[k].m) || VERBES_APPEL.has(t[k].n) || VERBES_APPEL.has(nu(t[k].texte.split("-")[0]));
+      // Un verbe d'appel (« Contactez-nous ») l'emporte sur un nom (« Devis »).
+      const kVerbe = t.findIndex((_, k) => k >= pa.premier && k <= pa.dernier && estVerbe(k));
+      if (kVerbe >= 0) motAppel = kVerbe;
+      else for (let k = pa.premier; k <= pa.dernier; k++) if (estMotAppel(k)) { motAppel = k; break; }
       let bouton: string;
       if (e.fin === "rendez-vous") bouton = "Prendre rendez-vous";
       else {
