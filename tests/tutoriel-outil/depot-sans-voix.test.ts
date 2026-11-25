@@ -113,10 +113,14 @@ describe("équipe éteinte : refus lisible, rien n'est créé", () => {
     expect((await d.deposerTutoriel({ ...phrase, script: "Mon script." }, dep)).statut).toBe("lancee");
     expect(brouillons).toHaveLength(1);
   });
-  it("lecture par défaut : tutoriel.equipe vrai mais tutoriel.claude faux (ou lecture en échec) : refusé", async () => {
+  it("lecture par défaut : tutoriel.equipe vrai mais tutoriel.claude à `false` : refusé ; Claude absent ou \"true\" : lancée (allumé par défaut, décision 21/11 07:20)", async () => {
     const sansEquipe = { ...banc().dep, equipe: undefined };
     try {
-      for (const table of [{ "tutoriel.equipe": true, "tutoriel.claude": false }, { "tutoriel.equipe": true }, { "tutoriel.equipe": true, "tutoriel.claude": "true" }]) {
+      for (const table of [{ "tutoriel.equipe": true }, { "tutoriel.equipe": true, "tutoriel.claude": "true" }]) {
+        reglages.table = table;
+        expect((await d.deposerTutoriel(phrase, { ...sansEquipe, brouillon: async () => ({ id: "v1" }) })).statut).toBe("lancee");
+      }
+      for (const table of [{ "tutoriel.equipe": true, "tutoriel.claude": false }]) {
         reglages.table = table;
         const brouillon = vi.fn(async () => ({ id: "v1" }));
         expect(await d.deposerTutoriel(phrase, { ...sansEquipe, brouillon })).toEqual({ statut: "refusee", phrase: d.PHRASE_EQUIPE_FERMEE });
