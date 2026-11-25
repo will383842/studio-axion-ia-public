@@ -218,7 +218,7 @@ export function PieceCreee({ videoId, vue, gestes = GESTES_SERVEUR }: { videoId:
         </Bouton>
       </div>
       {vue.autreEnAttente && <p className="text-sm text-texte-doux">Une autre proposition se prépare : attendez-la.</p>}
-      <p className="text-sm text-texte-doux">{vue.propositionsRestantes === 1 ? "Il vous reste 1 autre proposition." : "Vous avez déjà demandé une autre proposition."}</p>
+      <p className="text-sm text-texte-doux">{vue.propositionsRestantes === 1 ? "Il vous reste 1 autre proposition." : vue.essaisEpuises ? "Les deux essais de création sont faits : il n'y a pas d'autre proposition possible." : "Vous avez déjà demandé une autre proposition."}</p>
     </div>
   );
 }

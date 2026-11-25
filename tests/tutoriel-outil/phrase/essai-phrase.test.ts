@@ -41,7 +41,7 @@ import { DUREE_CIBLE_SEC } from "@/moteurs/montage-tutoriel-outil/equipe/chef-de
 import { controlerMarque, etiquettesInterdites, montantsArgent, nomsNonNeutres, tutoiement } from "@/moteurs/montage-tutoriel-outil/equipe/controle-marque";
 import { roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { ROLES_APPELES, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
-import { CODE_PIECE_A_CONSTRUIRE, CODE_PIECE_A_REVOIR, CODE_PIECE_A_VALIDER } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { CODE_PIECE_A_CONSTRUIRE, CODE_PIECE_A_REVOIR, CODE_PIECE_A_VALIDER, MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { verifierRendu } from "@/moteurs/montage-tutoriel-outil/equipe/registre-textes";
 import { lirePropositionScripts } from "@/moteurs/montage-tutoriel-outil/equipe/scenariste";
 import { controlerFluxCree, DOMAINE_COURRIEL_EXEMPLE, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
@@ -610,10 +610,20 @@ describe("V2-10 · refus attendus (un cas chacun), toujours à 0 €", () => {
     const e = await m.equipe();
     expect(e.pieceCreee).toMatchObject({ statut: "a-revoir" });
     expect(e.pieceCreee!.erreurs!.join(" ")).toContain(NOM_REEL.split(" ")[1]);
-    // Aucune reprise automatique : rejouer la pause ne rappelle personne ; rien n'entre au registre, rien n'est dit.
+    // PHRASE-1 : la proposition n° 1 refusée a droit à UNE reprise (avec les remarques) : 2 appels, puis plus rien.
+    // La reprise rend le même nom réel : elle reste « à revoir ». Rejouer la pause ne fait AUCUN 3e appel ; rien n'entre au registre, rien n'est dit.
+    expect(roles(m)).toEqual(["maquettiste", "maquettiste"]);
     await m.mener();
     expect(await m.pause()).toBe(CODE_PIECE_A_REVOIR);
-    expect(roles(m)).toEqual(["maquettiste"]);
+    expect(roles(m)).toEqual(["maquettiste", "maquettiste"]);
+    const fin = await m.equipe();
+    expect(fin.pieceCreee).toMatchObject({ statut: "a-revoir", proposition: 1 });
+    expect(fin.appels?.maquettiste).toBe(2);
+    // Plus aucun appel possible : l'écran et la pause ne disent plus « vous pouvez en demander une autre ».
+    const vue = await vuePieceCreee(VIDEO, m.ecran);
+    expect(vue).toMatchObject({ propositionsRestantes: 0, statut: "a-revoir", message: MESSAGE_PLUS_DE_PROPOSITION });
+    expect(vue!.message).not.toMatch(/en demander une autre/);
+    expect(((await m.travail()).parametres?.pause as { message?: string } | undefined)?.message).toBe(MESSAGE_PLUS_DE_PROPOSITION);
     expect([e.registre, e.carte, e.textesMaquette]).toEqual([undefined, undefined, undefined]);
     expect([m.journal.voix.length, m.journal.rendus.length]).toEqual([0, 0]);
     // Et la garde ne passe pas : le texte fautif ne peut pas être « gardé » par l'écran.

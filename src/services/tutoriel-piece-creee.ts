@@ -24,7 +24,7 @@ import { appliquerRelecture, chiffresARelire, type ChiffreARelire, type Decision
 import type { TableauDeBord } from "@/briques/donnees-video/types";
 import { nombresAffirmes } from "@/domaine/nombres-fr";
 import type { Fichier } from "@/domaine/types";
-import { MESSAGE_PIECE_A_REVOIR, type PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
+import { MESSAGE_PIECE_A_REVOIR, MESSAGE_PLUS_DE_PROPOSITION, MESSAGE_PLUS_DE_PROPOSITION_FLUX, type PieceCreee } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { controlerFluxCree, empreinteFlux, textesDuFlux } from "@/moteurs/montage-tutoriel-outil/flux-cree";
 import { lireFluxAutomatisation, type ActeurFlux, type FluxAutomatisation, type VueEcran } from "@/moteurs/montage-tutoriel-outil/gabarit-flux";
 import { lireDescriptionMaquette, type DescriptionMaquette, type DonneeExemple } from "@/moteurs/montage-tutoriel-outil/description-maquette";
@@ -68,6 +68,8 @@ export interface EtatPieceCreee {
   gardee?: { empreinte: string; le: string };
   /** Le travail doit repartir (rien de payant n'est lancé par ce service). */
   aRelancer?: boolean;
+  /** PHRASE-1 : les appels permis au maquettiste sont tous faits (relu de l'équipe, jamais rangé) : plus d'autre proposition. */
+  appelsEpuises?: true;
 }
 
 export interface DepotPiece {
@@ -132,6 +134,8 @@ export interface VuePieceCreee {
   chiffres: ChiffreARelire[];
   defauts: string[];
   propositionsRestantes: 0 | 1;
+  /** PHRASE-1 : les deux essais de création sont faits alors que la proposition n° 1 est affichée (l'écran le dit, sans parler d'une « autre proposition » déjà demandée). */
+  essaisEpuises?: true;
   statut: StatutPiece;
   /** Une autre proposition est demandée et pas encore arrivée : corriger et déposer sont fermés. */
   autreEnAttente: boolean;
@@ -325,7 +329,8 @@ export function etatEcranDepuisPiece(equipe: EquipeRangee | null | undefined): E
   if (p.apercu) etat.apercu = p.apercu;
   if (p.gardee) etat.gardee = p.gardee;
   if (p.statut === "a-revoir" && Array.isArray(p.erreurs)) etat.erreurs = p.erreurs.filter((x): x is string => typeof x === "string");
-  if (proposition === 2 && p.statut === "a-construire" && (equipe.appels?.maquettiste ?? 0) < 2) etat.aRelancer = true;
+  if (proposition === 2 && p.statut === "a-construire" && (equipe.appels?.maquettiste ?? 0) < PROPOSITIONS_PIECE_MAX) etat.aRelancer = true;
+  if ((equipe.appels?.maquettiste ?? 0) >= PROPOSITIONS_PIECE_MAX) etat.appelsEpuises = true;
   return etat;
 }
 
@@ -450,6 +455,8 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     titres.set("resultat", "Résultat");
     for (const e of fluxLu.etapes) titres.set(e.id, e.libelleSchema);
   }
+  // Plus aucune proposition possible (reprise ou proposition n° 2 épuisée) : la vue ne dit plus « vous pouvez en demander une autre ».
+  const plusDAutre = etat.proposition >= PROPOSITIONS_PIECE_MAX || etat.appelsEpuises === true;
   const ids = (etat.apercu?.images ?? []).map((i) => i.cle);
   const urls = ids.length ? await (d.urls ?? (await import("./fichiers")).urlsFichiers)(ids) : {};
   const tableau = description ? tableauDepuisDescription(description, maintenant(d).slice(0, 10)) : null;
@@ -461,13 +468,14 @@ export async function vuePieceCreee(videoId: string, d: DependancesPiece = {}): 
     cas: etat.cas,
     genre: flux ? "flux" : "maquette",
     etapes: fluxLu ? etapesDuFlux(fluxLu) : [],
-    message: etat.statut === "a-revoir" ? (flux ? MESSAGE_FLUX_A_REVOIR : MESSAGE_PIECE_A_REVOIR) : null,
+    message: etat.statut === "a-revoir" ? (plusDAutre ? (flux ? MESSAGE_PLUS_DE_PROPOSITION_FLUX : MESSAGE_PLUS_DE_PROPOSITION) : flux ? MESSAGE_FLUX_A_REVOIR : MESSAGE_PIECE_A_REVOIR) : null,
     empreinte: etat.empreinte,
     apercu: (etat.apercu?.images ?? []).flatMap((i) => (urls[i.cle] ? [{ url: urls[i.cle]!, ecranId: i.ecranId, titre: titres.get(i.ecranId) ?? i.ecranId, etat: i.etat }] : [])),
     textes: textes.map((t) => ({ ...t, titre: titres.get(t.ecranId) ?? t.ecranId })),
     chiffres: tableau?.ok ? chiffresARelire(tableau.donnee).filter((c) => c.cle.startsWith("indicateur:")) : [],
     defauts: [...new Set(defauts)],
-    propositionsRestantes: etat.proposition >= PROPOSITIONS_PIECE_MAX ? 0 : 1,
+    propositionsRestantes: plusDAutre ? 0 : 1,
+    ...(etat.proposition < PROPOSITIONS_PIECE_MAX && etat.appelsEpuises === true ? { essaisEpuises: true as const } : {}),
     statut: etat.statut,
     autreEnAttente: autreEnAttente(etat),
     nomsIllisibles,
@@ -607,7 +615,7 @@ async function garderPieceSeul(videoId: string, demande: DemandeGarder, d: Depen
   if (unSeulBlocDeTexte(demande?.empreinte) !== etat.empreinte || etat.apercu.empreinteDescription !== etat.empreinte) {
     return refus("Cette maquette a changé depuis que vous l'avez ouverte. Rechargez la page pour la revoir.");
   }
-  if (!etat.apercu.controle.ok) return refus("L'aperçu a des défauts : corrigez les textes concernés ou demandez une autre proposition.");
+  if (!etat.apercu.controle.ok) return refus(etat.proposition >= PROPOSITIONS_PIECE_MAX || etat.appelsEpuises === true ? "L'aperçu a des défauts : corrigez les textes concernés ou arrêtez cette demande." : "L'aperçu a des défauts : corrigez les textes concernés ou demandez une autre proposition.");
   if (estFlux(etat)) {
     // Un flux ne montre aucun chiffre : seul l'aperçu et le contrôle des textes comptent. Les décisions de chiffres sont ignorées.
     const flux = fluxDe(etat);
@@ -720,6 +728,10 @@ async function autrePropositionSeul(videoId: string, d: DependancesPiece): Promi
   if (!etat) return refus("Il n'y a pas de maquette pour cette vidéo.");
   if (etat.proposition >= PROPOSITIONS_PIECE_MAX) return refus("Vous avez déjà demandé une autre proposition");
   if (etat.statut === "gardee" || etat.statut === "refusee") return refus("Cette maquette n'est plus modifiable.");
+  if (etat.appelsEpuises === true) {
+    // Une maquette « à revoir » ne se garde ni ne se corrige : il ne reste qu'à arrêter.
+    return refus(etat.statut === "a-revoir" ? "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Il ne reste qu'à arrêter, puis reformuler votre phrase." : "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Gardez-la, corrigez un texte ou arrêtez.");
+  }
   await depot.ecrire(videoId, { ...sansAperceu(etat), proposition: 2, statut: "a-construire", aRelancer: true });
   await d.relancer?.(videoId);
   return { ok: true, message: "Une autre proposition se prépare. Vous la verrez ici, mot pour mot, avant toute fabrication.", statut: "a-construire" };

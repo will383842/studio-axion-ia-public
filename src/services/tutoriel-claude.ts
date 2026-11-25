@@ -18,7 +18,7 @@ import { ErreurClaude, type RequeteClaude, type ReponseClaude } from "@/fourniss
 import { IMAGES_REGARD_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/regardeur";
 import { formatDuRatio } from "@/moteurs/montage-tutoriel-outil/proprietes";
 import { pireCasRequete, type DefinitionRole, type EntreeRole } from "@/generateur/roles/types";
-import { entreesPireCasEquipe, ROLES_APPELES, ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
+import { entreesPireCasEquipe, REMARQUE_CARACTERES_MAX, REMARQUES_MAX, ROLES_APPELES, ROLES_TUTORIEL } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
 import { entreeMaquettiste, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PHRASE_DEPOT_MAX } from "@/moteurs/montage-tutoriel-outil/entrees";
@@ -147,16 +147,23 @@ export function plafondTutorielParDefautUsd(): number {
 
 /**
  * V2-07 : pire cas, en dollars, de la création d'une maquette ou d'un flux depuis une phrase : au plus `PROPOSITIONS_PIECE_MAX`
- * propositions (la première, puis une seule « autre proposition » demandée ; aucune reprise automatique), chacune au pire des
- * deux genres, pour la demande la plus longue du formulaire. Aucun prix recopié : tout vient de `pireCasRequete`.
+ * appels (une proposition, puis soit la reprise de la proposition n° 1 refusée, soit l'« autre proposition » demandée par
+ * Williams : jamais plus de deux appels), chacun au pire des deux genres, pour la demande la plus longue du formulaire.
+ * PHRASE-1 : la reprise peut ajouter le bloc de remarques borné (`REMARQUES_MAX` remarques de `REMARQUE_CARACTERES_MAX` caractères,
+ * environ 0,0021 $ de plus, absorbé par le plafond effectif de 1,11 $) : un seul appel au plus le porte, il est compté ici.
+ * Aucun prix recopié : tout vient de `pireCasRequete`.
  */
 export function coutPirePieceCreeeUsd(): number {
   const contexte: ContexteMaquettiste = { metier: "x".repeat(40), carteZones: [], interdits: [], demande: "x".repeat(PHRASE_DEPOT_MAX), proposition: 2 };
   const role = roleMaquettiste as unknown as DefinitionRole;
-  const maquette = pireCasRequete(role, entreeMaquettiste("maquette", contexte));
+  const entree = entreeMaquettiste("maquette", contexte);
+  const remarques = Array.from({ length: REMARQUES_MAX }, () => "x".repeat(REMARQUE_CARACTERES_MAX)).join(" | ");
+  const entreeReprise = { ...entree, variable: `${entree.variable}\n<remarques_precedentes>${remarques}</remarques_precedentes>` };
+  const maquette = pireCasRequete(role, entree);
+  const maquetteReprise = pireCasRequete(role, entreeReprise);
   // en attendant T-EXT-25b : le manque « flux-automatisation » n'existe pas encore dans `MANQUES_MAQUETTISTE` ; même entrée, même plafond de réponse.
   const flux = pireCasRequete(role, entreeMaquettiste("flux-automatisation" as ManqueMaquettiste, contexte));
-  return PROPOSITIONS_PIECE_MAX * Math.max(maquette, flux);
+  return (PROPOSITIONS_PIECE_MAX - 1) * Math.max(maquette, flux) + Math.max(maquetteReprise, flux);
 }
 
 let plafondPhraseJournalise = false;
@@ -175,7 +182,7 @@ export function plafondTutorielPhraseUsd(): number {
   const total = Math.round(pas * 5) / 100;
   if (!plafondPhraseJournalise) {
     plafondPhraseJournalise = true;
-    console.info(`Plafond tutoriel depuis une phrase : défaut ${defaut} $, création ${creation.toFixed(4)} $ (${PROPOSITIONS_PIECE_MAX} propositions au pire), total ${total} $`);
+    console.info(`Plafond tutoriel depuis une phrase : défaut ${defaut} $, création ${creation.toFixed(4)} $ (1 proposition et 1 reprise au pire), total ${total} $`);
   }
   return total;
 }
