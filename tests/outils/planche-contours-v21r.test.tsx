@@ -14,12 +14,12 @@ const lire = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
 const html = (variante: "V0" | "V1" | "V2", format: "9x16" | "16x9" = "9x16") => renderToStaticMarkup(createElement(PlancheContours, { variante, format }));
 
 describe("planche contours", () => {
-  it("(a) V0 = valeurs du code : Karaoké 6, Impact 16, ombres égales à GABARITS (rien de recopié)", () => {
+  it("(a) V0 = valeurs du code : Karaoké 3, Impact 8, ombres égales à GABARITS (rien de recopié)", () => {
     const v0 = VARIANTES_CONTOUR.V0;
     expect(v0.karaoke.contourPx).toBe(GABARITS.karaoke.contourPx);
-    expect(v0.karaoke.contourPx).toBe(6);
+    expect(v0.karaoke.contourPx).toBe(3);
     expect(v0.impact.contourPx).toBe(GABARITS.impact.contourPx);
-    expect(v0.impact.contourPx).toBe(16);
+    expect(v0.impact.contourPx).toBe(8);
     for (const g of GABARITS_PLANCHE) expect(v0[g].ombre).toEqual(GABARITS[g].ombre);
   });
 
@@ -36,17 +36,17 @@ describe("planche contours", () => {
     for (const v of ["V0", "V1", "V2"] as const) for (const g of ["minimal", "bandeau"] as const) expect(VARIANTES_CONTOUR[v][g].contourPx).toBe(0);
   });
 
-  it("(c) 36 cases sans doublon ; V2 Karaoké dessine 3px et V0 Impact 16px par cssElement ; rendu déterministe", () => {
+  it("(c) 36 cases sans doublon ; V2 Karaoké dessine 3px et V0 Impact 8px par cssElement ; rendu déterministe", () => {
     const cases = casesContours();
     expect(cases).toHaveLength(36);
     expect(new Set(cases.map((c) => `${c.variante}|${c.gabarit}|${c.fond}`)).size).toBe(36);
     expect(FONDS_PLANCHE).toHaveLength(3);
     expect(html("V2")).toContain("-webkit-text-stroke:3px");
-    expect(html("V0")).toContain("-webkit-text-stroke:16px");
-    expect(html("V0")).toContain("-webkit-text-stroke:6px");
+    expect(html("V0")).toContain("-webkit-text-stroke:8px");
+    expect(html("V0")).toContain("-webkit-text-stroke:3px");
     expect(html("V1")).toContain("-webkit-text-stroke:10px");
     for (const mot of ["Ton", "droit", "reste", "gratuit"]) expect(html("V0")).toContain(`>${mot}<`);
-    expect(html("V0")).toContain("V0 · contour 6 px / 16 px");
+    expect(html("V0")).toContain("V0 · contour 3 px / 8 px");
     expect(html("V2")).toContain("V2 · contour 3 px / 8 px");
     expect(html("V0")).toContain("background:#FAF9F5;padding:");
     expect(html("V0")).toContain("color:#141413;opacity:1;position:relative"); // Bandeau : texte noir sur crème, lisible // le Bandeau garde son rectangle crème (lu dans PALETTE)

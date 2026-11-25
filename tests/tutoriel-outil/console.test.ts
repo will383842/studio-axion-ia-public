@@ -1,5 +1,5 @@
 /**
- * T-EXT-36 · Panneau du tutoriel dans la console. Dépôt mémoire, aucun appel réel, 0 €. Éteint par défaut sauf Claude et son regard (décision 21/11 07:20).
+ * T-EXT-36 · Panneau du tutoriel dans la console. Dépôt mémoire, aucun appel réel, 0 €. Éteint par défaut sauf Claude, son regard et la cloche du suivi (décision 21/11 07:20).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -61,15 +61,15 @@ describe("clés partagées avec les modules créateurs", () => {
 });
 
 describe("interrupteurs", () => {
-  it("clés absentes : éteint sauf Claude et son regard (allumés par défaut, décision 21/11 07:20) ; la chaîne \"true\" : éteint pour les autres", async () => {
-    const parDefaut = ["tutoriel.claude", "tutoriel.regardeur"];
+  it("clés absentes : éteint sauf Claude, son regard et la cloche du suivi (allumés par défaut, décision 21/11 07:20) ; la chaîne \"true\" : éteint pour les autres", async () => {
+    const parDefaut = ["tutoriel.claude", "tutoriel.regardeur", "tutoriel.suiviCloche"];
     const m = memoire();
     expect((await c.lireReglagesTutoriel(m.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual(parDefaut);
     const faux = memoire(Object.fromEntries(c.REGLAGES_TUTORIEL.map((r) => [r.cle, "true"])));
     expect((await c.lireReglagesTutoriel(faux.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual(parDefaut);
     const vrai = memoire({ [c.CLE_FORMULAIRE]: true });
     expect((await c.lireReglagesTutoriel(vrai.ports)).filter((r) => r.allume).map((r) => r.cle)).toEqual([c.CLE_FORMULAIRE, ...parDefaut]);
-    const coupes = memoire({ "tutoriel.claude": false, "tutoriel.regardeur": false });
+    const coupes = memoire({ "tutoriel.claude": false, "tutoriel.regardeur": false, "tutoriel.suiviCloche": false });
     expect((await c.lireReglagesTutoriel(coupes.ports)).every((r) => !r.allume)).toBe(true);
   });
 
@@ -291,7 +291,7 @@ describe("page Réglages", () => {
   it("contient exactement un lien vers /reglages/tutoriel-outil, dans une carte « tutoriel-outil »", () => {
     const page = lire("src/app/(studio)/reglages/page.tsx");
     expect(page.match(/href="\/reglages\/tutoriel-outil"/g)).toHaveLength(1);
-    expect(page).toContain(`<CartePliante id="tutoriel-outil" icone="baguette" titre="Tutoriel d'outil" resume="Un interrupteur par réglage, tous éteints par défaut.">`);
+    expect(page).toContain(`<CartePliante id="tutoriel-outil" icone="baguette" titre="Tutoriel d'outil" resume="Un interrupteur par réglage ; Claude, son regard et la cloche allumés par défaut.">`);
     expect(page.indexOf(`id="carrousels"`)).toBeLessThan(page.indexOf(`id="tutoriel-outil"`));
   });
 });
@@ -325,12 +325,13 @@ describe("clé de la fin commune (26a)", () => {
 describe("clés ajoutées par AUD-3", () => {
   const payants = ["tutoriel.equipe", "tutoriel.regardeur", "tutoriel.pieceCreeeClaude"];
   const nouvelles = [...payants, "tutoriel.retouchePartielle", "tutoriel.performance", "tutoriel.suiviCloche", "retoucheChat.tutorielOutil"];
-  it("les sept clés sont dans la console, éteintes par défaut sauf `tutoriel.regardeur` (allumée par défaut, décision 21/11 07:20)", async () => {
+  it("les sept clés sont dans la console, éteintes par défaut sauf `tutoriel.regardeur` et `tutoriel.suiviCloche` (allumées par défaut, décision 21/11 07:20)", async () => {
     const m = memoire();
     const lignes = await c.lireReglagesTutoriel(m.ports);
-    for (const k of nouvelles.filter((x) => x !== "tutoriel.regardeur")) expect(lignes.find((l) => l.cle === k)?.allume).toBe(false);
+    for (const k of nouvelles.filter((x) => x !== "tutoriel.regardeur" && x !== "tutoriel.suiviCloche")) expect(lignes.find((l) => l.cle === k)?.allume).toBe(false);
     expect(lignes.find((l) => l.cle === "tutoriel.regardeur")?.allume).toBe(true);
-    expect(lignes.filter((l) => l.allume).map((l) => l.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur"]);
+    expect(lignes.find((l) => l.cle === "tutoriel.suiviCloche")?.allume).toBe(true);
+    expect(lignes.filter((l) => l.allume).map((l) => l.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur", "tutoriel.suiviCloche"]);
   });
   it("les réglages payants annoncent la dépense, pas les autres", () => {
     for (const r of c.REGLAGES_TUTORIEL.filter((x) => nouvelles.includes(x.cle))) {

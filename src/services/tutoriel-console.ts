@@ -84,7 +84,7 @@ export const REGLAGES_TUTORIEL: readonly ReglageTutoriel[] = [
   { cle: CLE_PIECE_CREEE_CLAUDE, libelle: "Pièce créée par Claude", phraseEteint: `Éteint : Claude ne crée aucune pièce (nécessite aussi « Entrée par une phrase » et « Équipe de rôles ») ; ${ANNONCE_PAYANT}` },
   { cle: CLE_RETOUCHE_PARTIELLE, libelle: "Retouche partielle", phraseEteint: "Éteint : une retouche refait toute la vidéo." },
   { cle: CLE_PERFORMANCE, libelle: "Relevé de performance", phraseEteint: "Éteint : aucun relevé de performance n'est transmis (n'agit que si l'équipe tourne ; léger surcoût de l'appel du stratège, sous le plafond par vidéo)." },
-  { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend." },
+  { cle: CLE_SUIVI_CLOCHE, libelle: "Cloche du suivi", phraseEteint: "Éteint : la cloche ne prévient pas qu'un choix attend.", allumeParDefaut: true },
   { cle: CLE_CAPTURE_AUTO, libelle: "Capture automatique du film", phraseEteint: "Éteint : le film d'une vidéo partie d'un dossier .zip se dépose à la main. Allumé, le poste de capture fait ce film tout seul, sans aucun appel payant ; il doit d'abord être installé sur le serveur. Rien ne change pour les vidéos parties d'une phrase." },
   { cle: CLE_RETOUCHE_CHAT_TUTORIEL, libelle: "Retouche par le chat", phraseEteint: "Éteint : le chat ne retouche pas le tutoriel ; allumer = chaque retouche relance un rendu payant (la voix et le script sont repris ; si le regard de Claude est allumé, un appel Claude de plus, sous le plafond par vidéo)." },
   { cle: CLE_MENTION_TUTORIEL, libelle: "Mention IA du tutoriel", phraseEteint: "Éteint : aucune mention n'est affichée." },
