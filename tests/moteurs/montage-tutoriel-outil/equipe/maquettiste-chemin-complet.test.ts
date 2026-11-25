@@ -95,10 +95,10 @@ describe("PHRASE-1 · une sortie conforme au maximum de la consigne traverse tou
     expect(carteDepuisDescription(d).ok).toBe(true);
     const t = tableauDepuisDescription(d, DATE);
     expect(t.ok).toBe(false);
-    if (!t.ok) expect(t.erreurs.join(" ")).toContain("12 indicateurs au plus");
+    if (!t.ok) expect(t.erreurs.join(" ")).toContain("14 données chiffrées : 12 au plus dans toute la maquette");
     // la constante de la consigne dit la même chose que le schéma : 12 passent, 13 non.
     expect(tableauDepuisDescription(lire(maquetteMax(12)), DATE).ok).toBe(true);
-    expect(controlerMaquetteGardable(d, []).join(" ")).toContain("12 indicateurs au plus");
+    expect(controlerMaquetteGardable(d, []).join(" ")).toContain("14 données chiffrées : 12 au plus dans toute la maquette");
   });
 
   it("la consigne donne le plafond de données chiffrées et le dit « dans toute la maquette »", () => {
@@ -161,7 +161,7 @@ describe("PHRASE-1 · chaque règle ajoutée à la consigne est vraie contre le 
     for (const c of ["—", "…", "°", '"', "#", "*", "=", "@", "<", ">", "{", "}", "_", "|", "~", "^", "\\", "→", "←", "😀"]) {
       expect(controlerTexteVisible(`a${c}b`, []), `refusé : ${c}`).not.toBeNull();
     }
-    for (const mot of ["tiret long", "points de suspension", "n°4", "guillemets droits", "flèches"]) expect(CONSIGNE_MAQUETTISTE).toContain(mot);
+    for (const mot of ["tiret long", "points de suspension", "guillemets droits", "flèches"]) expect(CONSIGNE_MAQUETTISTE).toContain(mot);
   });
 
   it("id des données uniques dans une zone : deux « traites » donnent « en double »", () => {
@@ -190,10 +190,10 @@ describe("PHRASE-1 · les contrôles de la réception valent un refus du lecteur
     if (un.ok) return;
     expect(un.bloquee).toBe(false);
     expect(un.etat.pieceCreee).toBeUndefined();
-    expect(un.etat.remarques?.maquettiste?.join(" ")).toContain("12 indicateurs au plus");
+    expect(un.etat.remarques?.maquettiste?.join(" ")).toContain("14 données chiffrées : 12 au plus dans toute la maquette");
     const reprise = payant(un.etat);
     expect(reprise.entree.variable).toContain("<remarques_precedentes>");
-    expect(reprise.entree.variable).toContain("12 indicateurs au plus");
+    expect(reprise.entree.variable).toContain("14 données chiffrées : 12 au plus dans toute la maquette");
     const deux = await appliquerSortie(un.etat, "maquettiste", maquetteMax(12), ouvert);
     if (!deux.ok) throw new Error(`sortie corrigée refusée : ${JSON.stringify(deux.etat.remarques)}`);
     expect(deux.etat.appels?.maquettiste).toBe(2);
@@ -220,7 +220,7 @@ describe("PHRASE-1 · les contrôles de la réception valent un refus du lecteur
     if (!deux.ok) return;
     expect(deux.etat.appels?.maquettiste).toBe(PROPOSITIONS_PIECE_MAX);
     expect(deux.etat.pieceCreee).toMatchObject({ proposition: 1, statut: "a-revoir" });
-    expect(deux.etat.pieceCreee?.erreurs?.join(" ")).toContain("12 indicateurs au plus");
+    expect(deux.etat.pieceCreee?.erreurs?.join(" ")).toContain("14 données chiffrées : 12 au plus dans toute la maquette");
     expect(prochainPas(deux.etat, ouvert)).toMatchObject({ pause: { code: "TO_PIECE_A_REVOIR" } });
   });
 
@@ -240,7 +240,7 @@ describe("PHRASE-1 · les contrôles de la réception valent un refus du lecteur
     const d = lire(maquetteMax(14));
     const r = recevoirProposition({}, { genre: "maquette", proposition: 1, contenu: d });
     expect(r.pieceCreee?.statut).toBe("a-revoir");
-    expect(r.pieceCreee?.erreurs?.join(" ")).toContain("12 indicateurs au plus");
+    expect(r.pieceCreee?.erreurs?.join(" ")).toContain("14 données chiffrées : 12 au plus dans toute la maquette");
   });
 });
 
@@ -342,5 +342,146 @@ describe("PHRASE-1 · les remarques renvoyées au maquettiste sont échappées e
     const cAvec = pireCasRequete(role, avec);
     console.info(`PIRE CAS reprise : sans remarques ${cSans.toFixed(6)} $, avec 6 remarques de 200 caractères ${cAvec.toFixed(6)} $, écart ${(cAvec - cSans).toFixed(6)} $`);
     expect(cAvec).toBeGreaterThanOrEqual(cSans);
+  });
+});
+
+describe("PHRASE-1 · la consigne dit vrai : chaque conseil est prouvé contre le vrai chemin (lecteur, garde des nombres, textes créés)", () => {
+  const exemple = () => structuredClone(exempleSortieMaquette().contenu);
+  /** Toutes les erreurs de la réception : lecteur d'abord, puis les contrôles de la pièce gardable. */
+  const refus = (c: ReturnType<typeof exemple>): string => {
+    const r = lireDescriptionMaquette(c, { interdits: INTERDITS });
+    return r.ok ? controlerMaquetteGardable(r.description, []).join(" | ") : r.erreurs.join(" | ");
+  };
+
+  it("l'exemple de la consigne passe tout le chemin (lecteur, textes, tableau, pièce gardée)", () => {
+    expect(refus(exemple())).toBe("");
+    const d = lire(exempleSortieMaquette());
+    expect(appliquerPieceGardee({ pieceCreee: { genre: "maquette", proposition: 1, contenu: d, empreinte: empreinteDescription(d), statut: "a-construire" } } as unknown as EtatEquipe).carteEmpreinte).toBeDefined();
+  });
+
+  it("aucun nombre dans un titre, un libellé de zone ou un état : « Dossier numéro 4 », « deux clics suffisent », « Bilan 2026 », « la moitié » sont refusés", () => {
+    const cas: [string, (c: ReturnType<typeof exemple>) => void, string][] = [
+      ["Dossier numéro 4", (c) => void (c.ecrans[0]!.titre = "Dossier numéro 4"), "« 4 »"],
+      ["Maintenant : deux clics suffisent", (c) => void (c.etats.maintenant = "Maintenant : deux clics suffisent"), "« deux »"],
+      ["Avant : la moitié du temps perdue", (c) => void (c.etats.avant = "Avant : la moitié du temps perdue"), "la moitié"],
+      ["Bilan 2026", (c) => void (c.ecrans[0]!.titre = "Bilan 2026"), "« 2026 »"],
+      ["Top 5 des clients", (c) => void (c.ecrans[0]!.zones[0]!.libelle = "Top 5 des clients"), "« 5 »"],
+    ];
+    for (const [texte, change, attendu] of cas) {
+      const c = exemple();
+      change(c);
+      const r = refus(c);
+      expect(r, texte).toContain(attendu);
+      expect(r, texte).toContain("ne vient d'aucune donnée exemple");
+    }
+    // Ce que la consigne conseille à la place : le nombre vit dans « valeur », le texte n'en porte aucun.
+    const bon = exemple();
+    bon.ecrans[0]!.titre = "Votre journée";
+    bon.etats.maintenant = "Maintenant : tout est prêt";
+    expect(refus(bon)).toBe("");
+  });
+
+  it("la consigne ne conseille plus « numéro 4 » et dit qu'AUCUN nombre n'est permis dans ces textes", () => {
+    expect(CONSIGNE_MAQUETTISTE).not.toMatch(/Écris « numéro 4 »|jamais « n°4 »/);
+    expect(CONSIGNE_MAQUETTISTE).toMatch(/AUCUN nombre dans un titre d'écran, un libellé de zone ni un état/);
+    for (const mot of ["deux", "la moitié", "année", "valeur"]) expect(CONSIGNE_MAQUETTISTE).toContain(mot);
+  });
+
+  it("la garde des nombres parle dès le 1er refus, même s'il y a une autre faute ; elle se tait si une donnée n'a pas pu être lue", () => {
+    const c = exemple();
+    c.ecrans[0]!.titre = "Dossier numéro 4";
+    c.ecrans[0]!.zones[0]!.libelle = "Suivi des RDV"; // une autre faute : le lecteur n'en voit pas, le contrôle des textes si
+    const r = lireDescriptionMaquette(c, { interdits: INTERDITS });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.erreurs.join(" | ")).toContain("« 4 »");
+    // Une faute du lecteur (id d'écran illisible) + un nombre : la garde parle aussi, puisque toutes les données sont lues.
+    const d = exemple();
+    (d.ecrans[0] as { modele: string }).modele = "Pas un identifiant";
+    d.ecrans[0]!.titre = "Bilan 2026";
+    const r2 = lireDescriptionMaquette(d, { interdits: INTERDITS });
+    expect(r2.ok).toBe(false);
+    if (!r2.ok) expect(r2.erreurs.join(" | ")).toContain("« 2026 »");
+    // Une donnée illisible : son nombre n'est pas signalé à tort.
+    const e = exemple();
+    e.ecrans[0]!.titre = "Les 24 dossiers";
+    (e.ecrans[0]!.zones[0]!.donnees[0] as { libelle: unknown }).libelle = 12;
+    const r3 = lireDescriptionMaquette(e, { interdits: INTERDITS });
+    expect(r3.ok).toBe(false);
+    if (!r3.ok) expect(r3.erreurs.join(" | ")).not.toContain("ne vient d'aucune donnée exemple");
+  });
+
+  it("un signe seul entre deux espaces compte pour un mot : « Taux de réponse : sous une heure » est refusé, la consigne le dit et ne le conseille pas", () => {
+    const c = exemple();
+    c.ecrans[0]!.zones[0]!.libelle = "Taux de réponse : sous une heure";
+    expect(refus(c)).toContain("6 mots au plus");
+    c.ecrans[0]!.zones[0]!.libelle = "Taux de réponse sous une heure"; // 6 mots : permis
+    expect(refus(c)).toBe("");
+    expect(CONSIGNE_MAQUETTISTE).toMatch(/un signe seul entre deux espaces \(« : », « – », « \/ », « & »\) compte pour un mot/);
+    expect(CONSIGNE_MAQUETTISTE).toContain("« Taux de réponse : sous une heure » (7 mots) est refusé");
+    // Les états n'ont pas de limite de mots : l'exemple de la consigne (« Avant : tout à la main ») passe.
+    expect(CONSIGNE_MAQUETTISTE).toContain("Avant : tout à la main");
+  });
+
+  it("espace insécable refusée (caractère non autorisé) ; la consigne demande l'espace simple", () => {
+    for (const nbsp of ["\u00a0", "\u202f"]) {
+      const c = exemple();
+      c.etats.avant = `Avant${nbsp}: tout à la main`;
+      expect(refus(c)).toContain("caractère non autorisé");
+    }
+    expect(CONSIGNE_MAQUETTISTE).toMatch(/jamais d'espace insécable/);
+  });
+
+  it("« script », « bleu(e) », « jaune » sont refusés comme mots, et la consigne les nomme", () => {
+    for (const [texte, mot] of [["Script d'appel du jour", "script"], ["Carte bleue", "bleue"], ["Carte jaune", "jaune"]] as const) {
+      const c = exemple();
+      c.ecrans[0]!.zones[1]!.donnees[0]!.valeur = texte;
+      expect(refus(c), texte).not.toBe("");
+      expect(CONSIGNE_MAQUETTISTE).toContain(`« ${mot} »`);
+    }
+  });
+
+  it("« Exemple » : refusé seul ou suivi de « : », « Devis exemple » passe ; la consigne dit exactement cela (plus de « aucun mot Exemple »)", () => {
+    const c = exemple();
+    c.ecrans[0]!.zones[1]!.donnees[0]!.valeur = "Exemple : devis";
+    expect(refus(c)).toContain("étiquette interdite");
+    c.ecrans[0]!.zones[1]!.donnees[0]!.valeur = "Devis exemple";
+    expect(refus(c)).toBe("");
+    expect(CONSIGNE_MAQUETTISTE).not.toMatch(/aucun mot « Douleur », « Solution », « Exemple »/);
+    expect(CONSIGNE_MAQUETTISTE).toContain("« Exemple » est refusé seul ou suivi de « : »");
+  });
+
+  it("une seule borne d'écrans dans la consigne : celle du lecteur (6), plus de « 1 à 4 écrans »", () => {
+    expect(CONSIGNE_MAQUETTISTE).not.toContain("1 à 4 écrans");
+    const bornes = [...CONSIGNE_MAQUETTISTE.matchAll(/[eé]crans ?(?:de |\()?1 à (\d+)/g)].map((m) => m[1]);
+    expect(new Set(bornes)).toEqual(new Set(["6"]));
+    const c = exemple();
+    c.ecrans = Array.from({ length: 6 }, (_, i) => ({ ...structuredClone(c.ecrans[0]!), id: `ecran-${i}`, zones: [{ ...structuredClone(c.ecrans[0]!.zones[1]!), id: `zone-${i}` }] }));
+    expect(lireDescriptionMaquette(c, { interdits: INTERDITS }).ok).toBe(true);
+  });
+});
+
+describe("PHRASE-1 · remarques lisibles : les erreurs du tableau parlent de « données chiffrées »", () => {
+  it("14 données : « La maquette montre 14 données chiffrées : 12 au plus dans toute la maquette. », sans « indicateurs »", async () => {
+    const d = lire(maquetteMax(14));
+    const t = tableauDepuisDescription(d, DATE);
+    expect(t.ok).toBe(false);
+    if (t.ok) return;
+    expect(t.erreurs).toEqual(["La maquette montre 14 données chiffrées : 12 au plus dans toute la maquette."]);
+    const un = await appliquerSortie(premierAppel(), "maquettiste", maquetteMax(14), ouvert);
+    if (un.ok) throw new Error("refus attendu");
+    expect(un.etat.remarques?.maquettiste?.join(" ")).not.toMatch(/indicateur/i);
+    expect(payant(un.etat).entree.variable).toContain("données chiffrées");
+  });
+
+  it("un libellé de donnée avec un numéro de téléphone : « Donnée chiffrée « … » : … », sans chemin technique", () => {
+    const d = lire(exempleSortieMaquette());
+    d.ecrans[0]!.zones[0]!.donnees[0]!.libelle = "Appelez 0612345678";
+    const t = tableauDepuisDescription(d, DATE);
+    expect(t.ok).toBe(false);
+    if (t.ok) return;
+    const texte = t.erreurs.join(" | ");
+    expect(texte).toContain("Donnée chiffrée « Appelez 0612345678 » :");
+    expect(texte).not.toMatch(/indicateurs\.\d|indicateurs :/);
   });
 });

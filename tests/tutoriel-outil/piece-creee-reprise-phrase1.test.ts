@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { PieceCreee } from "@/components/tutoriel-outil/PieceCreee";
 import { lireDescriptionMaquette, type DescriptionMaquette } from "@/moteurs/montage-tutoriel-outil/description-maquette";
+import { MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { exempleSortieMaquette } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { empreinteDescription, PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { autreProposition, etatEcranDepuisPiece, NOMS_ECRANS_OUTILS, NOMS_NEUTRES, vuePieceCreee, type DependancesPiece, type DepotPiece } from "@/services/tutoriel-piece-creee";
@@ -19,7 +20,7 @@ const description = (): DescriptionMaquette => {
 };
 
 /** L'équipe rangée dans le travail : la pièce et le nombre d'appels faits au maquettiste. */
-function monde(appels: number, proposition: 1 | 2 = 1, statut: "a-construire" | "a-revoir" = "a-construire") {
+function monde(appels: number, proposition: 1 | 2 = 1, statut: "a-construire" | "a-revoir" | "gardee" | "refusee" = "a-construire") {
   const d = description();
   const equipe = { demande: { phrase: "un tableau de bord pour un atelier" }, appels: { maquettiste: appels }, pieceCreee: { genre: "maquette" as const, proposition, contenu: d, empreinte: empreinteDescription(d), statut, ...(statut === "a-revoir" ? { erreurs: ["« x » : un libellé court, pas une phrase (6 mots au plus, sans point final)."] } : {}) } };
   const compteurs = { ecritures: 0, relances: 0 };
@@ -94,5 +95,33 @@ describe("PHRASE-1 · l'écran quand les 2 essais sont faits", () => {
     expect(r.message).toMatch(/arrêter/);
     expect(r.message).not.toMatch(/Gardez|corrigez/);
     expect(m.compteurs).toEqual({ ecritures: 0, relances: 0 });
+  });
+});
+
+describe("PHRASE-1 · l'écran d'une pièce « à revoir » ne propose plus d'en demander une autre quand il n'y a plus d'appel", () => {
+  it("reprise épuisée (2 appels, proposition n° 1) : le message est celui de « plus d'autre proposition »", async () => {
+    const vue = await vuePieceCreee(VIDEO, monde(PROPOSITIONS_PIECE_MAX, 1, "a-revoir").dep);
+    expect(vue).toMatchObject({ statut: "a-revoir", propositionsRestantes: 0, message: MESSAGE_PLUS_DE_PROPOSITION });
+    expect(vue!.message).not.toMatch(/en demander une autre/);
+  });
+
+  it("proposition n° 2 « à revoir » : même message", async () => {
+    const vue = await vuePieceCreee(VIDEO, monde(2, 2, "a-revoir").dep);
+    expect(vue).toMatchObject({ statut: "a-revoir", propositionsRestantes: 0, message: MESSAGE_PLUS_DE_PROPOSITION });
+  });
+
+  it("un seul appel fait et pièce « à revoir » : « vous pouvez en demander une autre » reste vrai et reste dit", async () => {
+    const vue = await vuePieceCreee(VIDEO, monde(1, 1, "a-revoir").dep);
+    expect(vue).toMatchObject({ propositionsRestantes: 1 });
+    expect(vue!.message).toMatch(/en demander une autre/);
+  });
+
+  it("une pièce gardée ou arrêtée dont les appels sont épuisés : « n'est plus modifiable » (pas « gardez-la, corrigez… »)", async () => {
+    for (const statut of ["gardee", "refusee"] as const) {
+      const m = monde(PROPOSITIONS_PIECE_MAX, 1, statut);
+      const r = await autreProposition(VIDEO, m.dep);
+      expect(r).toEqual({ ok: false, message: "Cette maquette n'est plus modifiable." });
+      expect(m.compteurs).toEqual({ ecritures: 0, relances: 0 });
+    }
   });
 });

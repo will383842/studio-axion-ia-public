@@ -23,7 +23,7 @@ import { classerParRegles, etablirCahier, lireDecisionChef, roleChefDeProjet, ty
 import { controlerAvantValidation, resumePourWilliams, type VerdictControleur } from "./controleur";
 import { PHRASE_FIN_RENDEZ_VOUS } from "./dossier-validation";
 import { PROPOSITIONS_PIECE_MAX } from "../maquette-creee";
-import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
+import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, MESSAGE_PLUS_DE_PROPOSITION, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
 import { lireFluxAutomatisation } from "../gabarit-flux";
 import { completerManque, entreeMaquettiste, MANQUES_MAQUETTISTE, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste, type PropositionMaquettiste } from "./maquettiste";
 import { realiser, type ParcoursTutoriel } from "./realisateur";
@@ -156,7 +156,7 @@ export type PasEquipe =
   | { pause: PauseEquipe; etat?: EtatEquipe }
   | { fini: true };
 
-export const MESSAGE_PLUS_DE_PROPOSITION = "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Arrêtez cette demande et reformulez votre phrase. Rien n'a échoué.";
+export { MESSAGE_PLUS_DE_PROPOSITION };
 const MESSAGE_BLOQUEE = "Une étape de préparation n'a pas abouti : réessayez ou collez votre script.";
 const MESSAGE_A_VALIDER = "Relisez les deux scripts, choisissez l'un ou corrigez-le, puis validez : la vidéo se fabrique ensuite.";
 const MESSAGE_CONTROLE_BLOQUANT = "Le contrôle a relevé des points à revoir avant de valider (ils sont montrés sur l'écran) : choisissez, corrigez ou demandez une réécriture.";
@@ -340,6 +340,8 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): Pas
       return { faire: "maquettiste", payant: true, entree: avecRemarques(e, "maquettiste", entree), empreinteEntree: empreinteDe("maquettiste", avecRemarques(e, "maquettiste", entree)) };
     }
     const r = pasPieceCreee(p);
+    // Plus aucun appel possible (reprise ou proposition n° 2 épuisées) : une pièce « à revoir » ne dit plus « demandez-en une autre ».
+    if ("pause" in r && r.pause.code === CODE_PIECE_A_REVOIR && faits >= PROPOSITIONS_PIECE_MAX) return { pause: { code: CODE_PIECE_A_REVOIR, message: MESSAGE_PLUS_DE_PROPOSITION } };
     // La pièce quitte « gardée » : tout ce qui vient de l'ancienne pièce est effacé (rien n'est repris d'un texte que Williams ne voit plus).
     if ("pause" in r) return { pause: r.pause, ...(r.etat ? { etat: { ...sansDeductionDePiece(e), pieceCreee: r.etat } } : {}) };
     if (e.carteEmpreinte !== p.gardee?.empreinte) {

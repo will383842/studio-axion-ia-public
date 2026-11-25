@@ -224,8 +224,34 @@ function nombreDe(x: DonneeExemple): { valeur: number; precision: number } | nul
   return premier ? { valeur: premier.valeur, precision: decimales(premier.brut) } : null;
 }
 
+/**
+ * Les erreurs du tableau (« indicateurs : 12 indicateurs au plus. », « indicateurs.2.libelle : … ») sont écrites pour la machine :
+ * elles vont à Claude ET à l'écran de Williams, donc elles sont dites en phrases simples sur les « données chiffrées » de la maquette.
+ */
+function erreursTableauLisibles(d: DescriptionMaquette, erreurs: string[]): string[] {
+  const chiffrees = toutesZones(d).flatMap((z) => z.donnees.filter(estChiffree));
+  const dites = erreurs.map((e) => {
+    const m = /^([\w-]+)((?:\.[\w-]+)*) : ([\s\S]*)$/.exec(e);
+    if (!m) return e;
+    const [, tete, chemin, msg] = m as unknown as [string, string, string, string];
+    if (tete === "indicateurs" && chemin === "" && /au plus/.test(msg)) return `La maquette montre ${compterDonneesChiffrees(d)} données chiffrées : ${DONNEES_CHIFFREES_MAX} au plus dans toute la maquette.`;
+    const rang = /^\.(\d+)\./.exec(chemin);
+    if (tete === "indicateurs" && rang) {
+      const x = chiffrees[Number(rang[1])];
+      return x ? `Donnée chiffrée « ${x.libelle} » : ${msg}` : `Une donnée chiffrée : ${msg}`;
+    }
+    return `Les données chiffrées de la maquette : ${msg}`;
+  });
+  return [...new Set(dites)];
+}
+
 /** `tableau-de-bord.v1` : `garderChiffres` (G4-03) refuse alors tout nombre dit qui n'est pas à l'écran. Données « exemple », jamais un montant. */
 export function tableauDepuisDescription(d: DescriptionMaquette, aujourdHui: string): LectureTableauDeBord {
+  const r = tableauDepuisDescriptionBrut(d, aujourdHui);
+  return r.ok ? r : { ok: false, erreurs: erreursTableauLisibles(d, r.erreurs) };
+}
+
+function tableauDepuisDescriptionBrut(d: DescriptionMaquette, aujourdHui: string): LectureTableauDeBord {
   try {
     const ids = new Set<string>();
     const indicateurs: Record<string, unknown>[] = [];

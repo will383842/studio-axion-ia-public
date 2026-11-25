@@ -44,6 +44,8 @@ export const CODE_PIECE_A_VALIDER = "TO_PIECE_A_VALIDER";
 export const CODE_DEMANDE_ARRETEE = "TO_DEMANDE_ARRETEE";
 
 export const MESSAGE_PIECE_A_REVOIR = "La maquette proposée ne respecte pas les règles (détail sur l'écran) : vous pouvez en demander une autre. Rien n'a échoué.";
+/** Pièce « à revoir » alors que plus aucun essai n'existe : on ne propose plus d'en demander une autre. */
+export const MESSAGE_PLUS_DE_PROPOSITION = "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Arrêtez cette demande et reformulez votre phrase. Rien n'a échoué.";
 export const MESSAGE_PIECE_A_CONSTRUIRE = "La maquette se prépare sur le poste de capture : son aperçu arrive, rien n'est dépensé.";
 export const MESSAGE_PIECE_A_VALIDER = "Votre maquette attend votre choix : gardez-la, corrigez un texte ou demandez-en une autre.";
 export const MESSAGE_DEMANDE_ARRETEE = "Vous avez arrêté cette demande : rien ne sera fabriqué.";

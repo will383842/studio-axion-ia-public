@@ -4,8 +4,9 @@
  */
 import { describe, expect, it } from "vitest";
 import type { DefinitionRole } from "@/generateur/roles/types";
-import { roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
+import { exempleSortieMaquette, roleMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { appliquerSortie, prochainPas, ROLES_TUTORIEL, type EntreesEquipe, type EtatEquipe } from "@/moteurs/montage-tutoriel-outil/equipe/orchestre";
+import { MESSAGE_PLUS_DE_PROPOSITION } from "@/moteurs/montage-tutoriel-outil/equipe/pas-piece-creee";
 import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
 import { PHRASE_STOCKS, SORTIE_REELLE_SERVEUR } from "./sortie-reelle-phrase1";
 
@@ -142,5 +143,49 @@ describe("PHRASE-1 · reprise du maquettiste (proposition n° 1 refusée à la l
     if (a.ok) return;
     expect(a.bloquee).toBe(true);
     expect(prochainPas(a.etat, ouvert)).toMatchObject({ pause: { code: "TO_EQUIPE_BLOQUEE" } });
+  });
+});
+
+describe("PHRASE-1 · la pause d'une pièce « à revoir » sans appel restant ne dit plus « demandez-en une autre »", () => {
+  const sortieHorsRegle = () => {
+    // Une maquette lisible mais refusée aux contrôles de la réception (nom propre) : la pièce devient « à revoir » sans être bloquée.
+    const c = structuredClone(exempleSortieMaquette().contenu);
+    c.ecrans[0]!.titre = "Suivi des RDV";
+    return { manque: "maquette", contenu: c };
+  };
+
+  it("reprise elle-même « à revoir » (2 appels) : la pause porte MESSAGE_PLUS_DE_PROPOSITION", async () => {
+    const { e } = premierAppel();
+    const un = await appliquerSortie(e, "maquettiste", sortieHorsRegle(), ouvert);
+    if (un.ok) throw new Error("refus attendu");
+    expect(un.etat.pieceCreee).toBeUndefined();
+    // Le 1er refus laisse la reprise : la pause d'avant n'existe pas encore, un appel payant est proposé.
+    payant(prochainPas(un.etat, ouvert));
+    const deux = await appliquerSortie(un.etat, "maquettiste", sortieHorsRegle(), ouvert);
+    if (!deux.ok) throw new Error("la reprise est reçue, la pièce est « à revoir »");
+    expect(deux.etat.pieceCreee).toMatchObject({ statut: "a-revoir", proposition: 1 });
+    const p = prochainPas(deux.etat, ouvert);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_REVOIR", message: MESSAGE_PLUS_DE_PROPOSITION } });
+    expect(JSON.stringify(p)).not.toMatch(/en demander une autre/);
+  });
+
+  it("proposition n° 2 « à revoir » : même pause", async () => {
+    const { e, p } = premierAppel();
+    const ok = await appliquerSortie(e, "maquettiste", simuler(p.entree), ouvert);
+    if (!ok.ok) throw new Error("sortie correcte refusée");
+    const n2: EtatEquipe = { ...ok.etat, pieceCreee: { ...ok.etat.pieceCreee!, proposition: 2, statut: "a-construire" } };
+    const a = await appliquerSortie(n2, "maquettiste", sortieHorsRegle(), ouvert);
+    if (!a.ok) throw new Error("reçue, « à revoir »");
+    expect(a.etat.pieceCreee).toMatchObject({ statut: "a-revoir", proposition: 2 });
+    expect(prochainPas(a.etat, ouvert)).toMatchObject({ pause: { code: "TO_PIECE_A_REVOIR", message: MESSAGE_PLUS_DE_PROPOSITION } });
+  });
+
+  it("proposition n° 1 « à revoir » avec UN seul appel (flux accepté mais à revoir ne se rejoue pas ici) : le message d'avant reste quand un appel reste", () => {
+    const { e } = premierAppel();
+    const d = structuredClone(exempleSortieMaquette().contenu);
+    const piece = { genre: "maquette" as const, proposition: 1 as const, contenu: d, empreinte: "x", statut: "a-revoir" as const, erreurs: ["x"] };
+    const p = prochainPas({ ...e, appels: { maquettiste: 1 }, pieceCreee: piece }, ouvert);
+    expect(p).toMatchObject({ pause: { code: "TO_PIECE_A_REVOIR" } });
+    expect((p as { pause: { message: string } }).pause.message).toMatch(/en demander une autre/);
   });
 });

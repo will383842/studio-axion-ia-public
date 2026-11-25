@@ -192,6 +192,17 @@ function lireDonnees(v: unknown, lieu: string, interdits: readonly string[], err
   return erreurs.length > avant ? undefined : sortie;
 }
 
+/** Nombre de données écrites dans les écrans bruts, lues ou non (0 si la forme est illisible). */
+function compterDonneesBrutes(ecrans: unknown): number {
+  if (!Array.isArray(ecrans)) return 0;
+  let n = 0;
+  for (const e of ecrans) {
+    if (!estObjet(e) || !Array.isArray(e.zones)) continue;
+    for (const z of e.zones) if (estObjet(z) && Array.isArray(z.donnees)) n += z.donnees.length;
+  }
+  return n;
+}
+
 /** Garde G4-03 : tout nombre écrit dans un texte doit venir d'une donnée « exemple » de la description. */
 export function garderNombresDesTextes(textes: string[], donnees: DonneeExemple[], erreurs: string[]): void {
   const indicateurs = donnees
@@ -311,7 +322,9 @@ export function lireDescriptionMaquette(brut: unknown, options: OptionsLecture):
         textes.push(avant, maintenant);
       }
     }
-    if (erreurs.length === 0) garderNombresDesTextes(textes, donnees, erreurs);
+    // La garde des nombres tourne aussi quand une autre faute existe (ses remarques arrivent dès le 1er refus), mais seulement si TOUTES
+    // les données ont été lues : sinon un nombre venu d'une donnée illisible serait signalé à tort. Ce qui est accepté ne change pas.
+    if (erreurs.length === 0 || donnees.length === compterDonneesBrutes(brut.ecrans)) garderNombresDesTextes(textes, donnees, erreurs);
     if (erreurs.length > 0 || !nom || !metier || !etats) return { ok: false, erreurs };
     return { ok: true, description: { version: VERSION_DESCRIPTION_MAQUETTE, nom, entreprise: ENTREPRISE_EXEMPLE, metier, ecrans, etats } };
   } catch {
