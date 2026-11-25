@@ -21,7 +21,7 @@ function phraseQuantites(q: QuantitesConso): string {
   return q.essai ? `${base} · essai` : base;
 }
 
-/** Panneau du tutoriel d'outil : réglages (tous éteints par défaut), vidéos en cours, consommation en quantités. Aucun montant. */
+/** Panneau du tutoriel d'outil : réglages (éteints par défaut, sauf ceux marqués allumés par défaut), vidéos en cours, consommation en quantités. Aucun montant. */
 export function PanneauConsole({ vue, basculer, enregistrerTexte }: Props) {
   return (
     <div className="flex flex-col gap-8">

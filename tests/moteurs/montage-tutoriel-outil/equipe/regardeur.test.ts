@@ -5,7 +5,7 @@ import type { ImageLue, LectureRegard } from "../../../../src/briques/regardeur"
 import type { PlanValide } from "../../../../src/briques/plan-scenes/schema";
 import { IMAGES_REGARD_TUTORIEL, instantsTutoriel, textesPermisDuRegistre, verdictRegardTutoriel } from "../../../../src/moteurs/montage-tutoriel-outil/equipe/regardeur";
 import type { Travail } from "../../../../src/domaine/types";
-import { creerMoteurTutorielOutil } from "../../../../src/moteurs/montage-tutoriel-outil";
+import { creerMoteurTutorielOutil, noteSansGrille } from "../../../../src/moteurs/montage-tutoriel-outil";
 import type { GrilleTutoriel } from "../../../../src/moteurs/montage-tutoriel-outil/grille-qualite";
 import { commandeTutoriel, outilsDoubles, une } from "../../../tutoriel-outil/doubles";
 import type { RegistreTextes } from "../../../../src/moteurs/montage-tutoriel-outil/equipe/registre-textes";
@@ -120,8 +120,10 @@ describe("résultat du moteur : avec ou sans grille (doubles, 0 €)", () => {
     const r2 = await fabriquer();
     // déterministe : deux fabrications avec les mêmes doubles donnent exactement le même résultat
     expect(r2).toEqual(r);
-    // logique de master (avant T-EXT-27), recalculée à partir des alertes de chaque sortie
-    const notes = (alertes: { gravite: string }[]) => Math.max(50, 100 - 10 * alertes.filter((a) => a.gravite === "attention").length);
+    // Changement VOULU (QUAL-4) : sans grille, la note passe par `noteSansGrille` (−10 par « attention », comme master) ET
+    // la composition non vérifiée (ici : le pas qui la calcule n'a pas tourné) compte « à corriger » (−8) : jamais 100
+    // sans contrôle passé. Le plancher de 50 de master n'existe plus (plancher 0).
+    const notes = (alertes: { gravite: string }[]) => noteSansGrille({ bloquants: 0, aCorriger: 1, attention: alertes.filter((a) => a.gravite === "attention").length });
     for (const s of r.sorties) {
       expect(s.rapportQualite.note).toBe(notes(s.rapportQualite.alertes));
       expect(s.rapportQualite.verifie).toEqual({ image: true, son: s.rapportQualite.verifie.son, sousTitres: true, mentionIA: false, droits: false });

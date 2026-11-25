@@ -1,8 +1,8 @@
+import React from "react";
 /**
  * Variété « Image → vidéo » · axe fond (FON-A..FON-E) : position de la lueur du fond. FON-A = rendu d'aujourd'hui
  * (lueur 0) ; sans variété, le fond reste celui de référence. Jamais le fond « fort ».
  */
-import React from "react";
 import type { Fond as NomFond } from "../../../../../src/briques/ecrans-motion";
 import { codeDe } from "../../../../../src/briques/schema-motion/variete";
 import { Fond } from "../../../cas-concret/socle/Fond";

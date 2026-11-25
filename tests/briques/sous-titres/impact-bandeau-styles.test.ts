@@ -18,17 +18,17 @@ const fabriquer = (base: GabaritSousTitres | undefined, intensite: IntensiteSous
   fabriquerSousTitres({ texte: TEXTE, dureeSec: 40, intensite, emphase: ["jamais", "Excel"], coupesSec: [5, 12.5, 20], ...(base ? { base } : {}) });
 const empreinte = (x: unknown) => createHash("sha256").update(JSON.stringify(x)).digest("hex").slice(0, 16);
 
-/** Empreintes relevées AVANT le changement (branche de départ). */
+/** Empreintes relevées AVANT le changement (branche de départ). CONTOURS-b-v21s (contour V2, Williams 25/11) : seules les 6 empreintes Karaoké (et « undefined » = Karaoké) sont recalculées ; Minimal intact. */
 const AVANT: Record<string, string> = {
-  "karaoke|sobre": "3af49b14f1ee1f6b",
-  "karaoke|equilibre": "4482557a33cc0a8d",
-  "karaoke|tres-dynamique": "1bd2994c664c40f2",
+  "karaoke|sobre": "3cda59768e4824e0",
+  "karaoke|equilibre": "10f946760876499b",
+  "karaoke|tres-dynamique": "4c523f0fbe18ade1",
   "minimal|sobre": "2efe9cfe8cc73485",
   "minimal|equilibre": "2c6b4e2b258a3b29",
   "minimal|tres-dynamique": "93a46ab735de6a8a",
-  "undefined|sobre": "3af49b14f1ee1f6b",
-  "undefined|equilibre": "4482557a33cc0a8d",
-  "undefined|tres-dynamique": "1bd2994c664c40f2",
+  "undefined|sobre": "3cda59768e4824e0",
+  "undefined|equilibre": "10f946760876499b",
+  "undefined|tres-dynamique": "4c523f0fbe18ade1",
 };
 
 describe("Karaoké et Minimal : segments inchangés", () => {

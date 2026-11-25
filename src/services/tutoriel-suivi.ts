@@ -1,8 +1,8 @@
 /**
  * T-EXT-34 · SUIVI DE FABRICATION du tutoriel d'outil : lecture du travail et de la vidéo (session exigée) et pose des
  * notifications de la CLOCHE, une seule fois par événement. Aucun envoi sur téléphone ni e-mail (cloche seulement), aucun
- * type de notification neuf, aucun appel payant. ÉTEINT par défaut : la cloche ne reçoit rien tant que le réglage
- * « tutoriel.suiviCloche » n'est pas exactement `true` (clé absente = comportement d'aujourd'hui).
+ * type de notification neuf, aucun appel payant. ALLUMÉ par défaut (décision 21/11 07:20, gratuit) : seul `false` écrit
+ * au réglage « tutoriel.suiviCloche » l'éteint ; une lecture en panne ne l'allume jamais.
  * Une notification ne cite jamais le texte du script (les paroles de Williams) : seulement le titre de la vidéo et le rôle.
  * Dédoublonnage SANS champ neuf : la clé « tutoriel:<videoId>:<rôle>:<état> » est portée par `lien` + `titre`.
  */
@@ -75,12 +75,21 @@ function evenements(travail: Travail, titreVideo: string): Evenement[] {
   return sortie;
 }
 
+/** Cloche allumée par défaut : seul `false` l'éteint ; lecture en panne = éteint. */
+async function lireCloche(): Promise<boolean> {
+  try {
+    return (await lireParametre<boolean>("tutoriel.suiviCloche", true)) !== false;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Pose au plus UNE notification de la cloche par (vidéo, rôle, état). Rend les titres posés cette fois-ci.
- * Éteint (réglage absent ou différent de `true`) : ne pose rien.
+ * Éteint (réglage `false`, ou lecture en panne) : ne pose rien ; réglage absent : allumé.
  */
 export async function signalerSuivi(travail: Travail, dependances: DependancesSuivi = {}): Promise<string[]> {
-  const actif = dependances.actif ?? (await lireParametre<boolean>("tutoriel.suiviCloche", false)) === true;
+  const actif = dependances.actif ?? (await lireCloche());
   if (!actif) return [];
   const video = await depots().videos.obtenir(travail.cibleId);
   if (!video) return [];
