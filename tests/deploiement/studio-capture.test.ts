@@ -357,7 +357,7 @@ describe("T-EXT-51c · réserve 5 : /dev/shm déclaré, borné, sans exec", () =
   });
 });
 
-describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", () => {
+describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer, decompresser et verifier", () => {
   const brut = lire("deploiement/studio-capture/lancer.sh");
   it("set -eu, shebang sh, pas d'eval, exec, arguments en \"$@\"", () => {
     expect(brut.split("\n")[0]).toBe("#!/bin/sh");
@@ -365,10 +365,13 @@ describe("T-EXT-51c · réserve 6 : lancer.sh, modes capturer et decompresser", 
     expect(lancer).not.toMatch(/\beval\b|`|\$\(\s*\$|bash -c|sh -c/);
     const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
     expect(execs).toHaveLength(3);
-    for (const l of execs.filter((x) => !/ffprobe/.test(x))) expect(l).toMatch(/"\$@"\s*$/);
+    // seule exemption de "$@" : la ligne exacte du mode verifier (aucun argument de l'appelant ne va à ffprobe)
+    const LIGNE_VERIFIER = "exec timeout --kill-after=30 60 ffprobe -v error -f mov -show_entries format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate -of json /entree/navigation.mp4 > /sortie/ffprobe.json";
+    expect(execs.filter((x) => x.trim() === LIGNE_VERIFIER)).toHaveLength(1);
+    for (const l of execs.filter((x) => x.trim() !== LIGNE_VERIFIER)) expect(l).toMatch(/"\$@"\s*$/);
     expect(lancer).not.toMatch(/\$\*|\$@[^"]|[^"]\$@/);
   });
-  it("liste fermée de modes : capturer (défaut, 900 s) et decompresser (300 s) ; mode inconnu refusé", () => {
+  it("liste fermée de modes : capturer (défaut, 900 s), decompresser (300 s) et verifier (60 s) ; mode inconnu refusé", () => {
     expect(lancer).toMatch(/exec timeout --kill-after=30 900 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/capturer\.mts "\$@"/);
     expect(lancer).toMatch(/exec timeout --kill-after=30 300 \S*tsx outils\/maquettes-tableaux-de-bord\/capture\/decompresser\.mts "\$@"/);
     expect(lancer).toMatch(/capturer \| decompresser \| verifier\)/);
@@ -397,12 +400,12 @@ describe("T-EXT-51c · corrections de l'audit de #1611", () => {
     expect(Number(/max-file: "(\d+)"/.exec(service)![1])).toBeLessThanOrEqual(5);
     expect(service).not.toMatch(/logging:\s*\*/);
   });
-  it("réserve 2 : `init: false` EN CLAIR (timeout doit être PID 1, insensible à SIGSTOP ; ni init: true ni clé absente) ; lancer.sh fait `exec timeout` dans les deux modes", () => {
+  it("réserve 2 : `init: false` EN CLAIR (timeout doit être PID 1, insensible à SIGSTOP ; ni init: true ni clé absente) ; lancer.sh fait `exec timeout` dans les trois modes", () => {
     expect(service.split("\n").filter((l) => /^\s+init:/.test(l))).toEqual(["    init: false"]);
     const execs = lancer.split("\n").filter((l) => /^\s*exec\s/.test(l));
     expect(execs).toHaveLength(3);
     for (const l of execs) expect(l).toMatch(/^\s*exec timeout /);
-    expect(lancer.match(/\bexec\b/g)).toHaveLength(3); // aucun autre exec (ex. `exec "$@"`) ailleurs que sur ces deux lignes
+    expect(lancer.match(/\bexec\b/g)).toHaveLength(3); // aucun autre exec (ex. `exec "$@"`) ailleurs que sur ces trois lignes
     expect(compose).toMatch(/PAS d'`init: true`/);
     expect(compose).toMatch(/`init: false` ÉCRIT EN CLAIR/);
   });
@@ -647,6 +650,16 @@ describe("T-EXT-51c · lancer.sh EXÉCUTÉ (faux grep, df, timeout dans un PATH 
       expect(r.appele, m).toBe(false);
     }
   });
+  it("verifier avec un argument : code 66, timeout jamais appelé", () => {
+    const r = lancerEn({ FAUX_DF: "3094126592" }, "verifier", "x");
+    expect(r.code).toBe(66);
+    expect(r.appele).toBe(false);
+  });
+  it("construire (hors de ce lot) : code 66, timeout jamais appelé", () => {
+    const r = lancerEn({ FAUX_DF: "3094126592" }, "construire");
+    expect(r.code).toBe(66);
+    expect(r.appele).toBe(false);
+  });
   it("sans argument : mode capturer par défaut", () => {
     const r = lancerEn({ FAUX_DF: "3094126592" });
     expect(r.args).toEqual(["--kill-after=30", "900", TSX, CAP]);
@@ -663,8 +676,12 @@ describe("POSTE-1 · mode verifier (ffprobe sur la copie, dans un conteneur jeta
     expect(durees).toEqual(["900", "300", "60"]);
   });
   it("verifier : ffprobe sur /entree/navigation.mp4 seul, sortie vers /sortie/ffprobe.json, aucun \"$@\"", () => {
-    expect(ligneVerifier).toMatch(/exec timeout --kill-after=30 60 ffprobe -v error -show_entries format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate -of json \/entree\/navigation\.mp4 > \/sortie\/ffprobe\.json\s*$/);
+    expect(ligneVerifier).toMatch(/exec timeout --kill-after=30 60 ffprobe -v error -f mov -show_entries format=duration,size:stream=codec_type,codec_name,width,height,avg_frame_rate -of json \/entree\/navigation\.mp4 > \/sortie\/ffprobe\.json\s*$/);
     expect(ligneVerifier).not.toMatch(/\$@|\$\*/);
+    // noclobber posé avant l'exec dans la branche verifier
+    const bloc = /^ {2}verifier\)\n([\s\S]*?)^ {4};;/m.exec(lancer)?.[1] ?? "";
+    expect(bloc).toMatch(/^\s*set -C\s*$/m);
+    expect(bloc.indexOf("set -C")).toBeLessThan(bloc.indexOf("exec timeout"));
   });
   it("verifier refuse tout argument (code 66) avant l'exec", () => {
     const bloc = /^ {2}verifier\)\n([\s\S]*?)^ {4};;/m.exec(lancer)?.[1] ?? "";
