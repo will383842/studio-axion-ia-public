@@ -17,7 +17,7 @@ import { commandeTutoriel, outilsDoubles, une, type Journal } from "./doubles";
 
 const SCRIPT = "Vous perdez du temps à compter vos stocks à la main ? Voici un tableau de bord qui le fait pour vous. En haut, trois chiffres : les articles en stock, ceux qui passent sous le seuil, et la valeur totale. Juste en dessous, la liste des articles à commander, triée par urgence. Un clic sur un article ouvre son historique : entrées, sorties, et date de la prochaine rupture prévue. Quand un article passe sous le seuil, une alerte part toute seule. Vous décidez en une minute au lieu d'une heure. Vous voulez le même pour votre entreprise ? Prenez rendez-vous.";
 
-async function fabriquer(modeVoix?: "sans-voix", sup?: { avantMontage?: (e: EtatTutoriel) => EtatTutoriel; regarder?: boolean; ratios?: ("4:5" | "9:16")[]; navigation?: boolean; idee?: string }) {
+async function fabriquer(modeVoix?: "sans-voix", sup?: { avantMontage?: (e: EtatTutoriel) => EtatTutoriel; regarder?: boolean; ratios?: ("4:5" | "9:16")[]; navigation?: boolean; idee?: string; retouchePartielle?: boolean }) {
   const c = commandeTutoriel({
     ratios: sup?.ratios ?? ["4:5"], dureeCibleSec: 45, ...(modeVoix ? { distribution: [] } : {}),
     script: { blocs: [], texteComplet: SCRIPT } as never,
@@ -27,6 +27,7 @@ async function fabriquer(modeVoix?: "sans-voix", sup?: { avantMontage?: (e: Etat
   const o = outilsDoubles(journal);
   if (sup?.regarder) o.regarder = async (x) => ({ images: x.instants.map((i) => ({ nom: i.nom, textes: [], sousTitre: null, pageVide: false, noire: false, illisible: false })) }) as LectureRegard;
   (o as unknown as Record<string, unknown>).fin = { actif: true };
+  if (sup?.retouchePartielle) (o as unknown as Record<string, unknown>).retouchePartielle = true;
   let etat: EtatTutoriel = etatInitial(c);
   for (const cle of ETAPES_TUTORIEL) {
     if (cle === "montage" && sup?.avantMontage) etat = sup.avantMontage(etat);
@@ -66,7 +67,7 @@ describe("tutoriel sans voix composé", () => {
     expect(st.segments.every((s) => s.position === "auto" && s.style === "base" && !s.inclinaison)).toBe(true);
   });
 
-  it("tour 8 : cartes par proposition (≥ 1,5 s), toutes les phrases sous-titrées (accroche et question), aucun trou > 0,6 s", async () => {
+  it("tour 8 : cartes par proposition (≥ 1,5 s), toutes les phrases sous-titrées (accroche et question), trous courts (< 0,6 s) comblés", async () => {
     const { props, etat } = await fabriquer("sans-voix", { idee: "Vous perdez du temps à compter vos stocks à la main ?" });
     const segs = props[0].sousTitres!.segments;
     expect(segs.every((g) => g.mots.length > 0)).toBe(true);
@@ -204,4 +205,19 @@ describe("sans voix AVEC film de navigation : comportement de master (pas de pla
     }
   });
 
+});
+
+describe("empreinte du format en sans voix composé", () => {
+  it("le plan composé entre dans l'empreinte : une autre phrase titre change l'empreinte du format (pas de reprise de l'ancien fichier)", async () => {
+    const a = await fabriquer("sans-voix", { retouchePartielle: true });
+    const b = await fabriquer("sans-voix", { idee: "Un autre titre pour le même tableau", retouchePartielle: true });
+    const ea = (a.etat as { empreintesFormats?: Record<string, string> }).empreintesFormats?.["4:5"];
+    const eb = (b.etat as { empreintesFormats?: Record<string, string> }).empreintesFormats?.["4:5"];
+    expect(ea).toBeTruthy();
+    expect(eb).toBeTruthy();
+    expect(ea).not.toBe(eb);
+    // même entrée : même empreinte (déterminisme)
+    const a2 = await fabriquer("sans-voix", { retouchePartielle: true });
+    expect((a2.etat as { empreintesFormats?: Record<string, string> }).empreintesFormats?.["4:5"]).toBe(ea);
+  });
 });

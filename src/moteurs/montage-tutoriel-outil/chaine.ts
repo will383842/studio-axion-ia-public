@@ -604,6 +604,7 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
   const format = formatDuRatio(etat.ratios[0] as "4:5");
   const empreinteEntree = fnv1a64(jsonCanonique({ texte, mots, format }));
   // QUAL-5 : sans voix et sans film de navigation, le plan est COMPOSÉ du script (0 appel Claude, aucune réserve « plan simple »).
+  // Il est recomposé à chaque version (déterministe) : une retouche « plan de scènes » du chat n'a pas d'effet visible dans ce mode.
   if (estSansVoix(commande.entrees) && !lireEntreesTutoriel(commande.entrees).navigationFilmee) {
     const entrees = lireEntreesTutoriel(commande.entrees);
     const phraseTitre = entrees.depot?.mode === "phrase" ? entrees.depot.phrase : entrees.idee;
@@ -1004,7 +1005,10 @@ function empreinteDuFormat(etat: EtatTutoriel, ratio: Ratio, commande: CommandeF
   // T-EXT-53c : les réglages du chat n'entrent PAS dans l'empreinte du format tant que le rendu les ignore (en attendant T-EXT-53a) : sinon une version réglée ferait refaire tous les formats pour un film identique.
   const effetsFilm = empreinteEffetsFilm({ ...(nav ? { reglagesFilm: { cran: nav.cran, basculeMs: nav.basculeMs }, film: filmDeNavigation(nav) } : {}), ...(commande.dosageMotion?.cran ? { cran: commande.dosageMotion.cran } : {}) });
   const laFin = finRetenue(etat, commande, outils);
-  const fin = fnv1a64(jsonCanonique({ fin: laFin.fin ?? null, finMs: laFin.finMs, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null }));
+  // QUAL-5 : en sans voix composé, c'est le plan composé qui est dessiné : il entre dans l'empreinte (sinon une retouche partielle
+  // reprendrait l'ancien fichier quand seul le plan composé change). Absent (avec voix) : empreinte d'avant, inchangée.
+  const compose = etat.compose?.[ratio];
+  const fin = fnv1a64(jsonCanonique({ fin: laFin.fin ?? null, finMs: laFin.finMs, sousTitres: commande.briques["sous-titres"] !== false ? (etat.sousTitres ?? null) : null, style: outils.sousTitres ?? null, ...(compose ? { compose } : {}) }));
   return empreinteFormat(planPourRatio(etat.plan!.plan, ratio), ratio, { voix: etat.audio?.empreinte ?? "", effetsFilm, fin });
 }
 
