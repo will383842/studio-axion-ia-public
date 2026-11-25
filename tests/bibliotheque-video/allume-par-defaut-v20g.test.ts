@@ -42,7 +42,11 @@ describe("(a) base vide : valeur par défaut du code", () => {
   it("tableau-anime : les 3 objets", async () => {
     expect(await lireReglageBibliotheque("tableau-anime", vide)).toEqual({ actif: true, capacites: TABLEAU });
   });
-  it.each(["cas-concret", "facecam", "facecam-animee", "inconnu"])("%s : éteint", async (f) => {
+  // FOND-FLOU-C10-04-b-v20l : facecam sort de la liste des éteints (carton magazine allumé, Williams 21/11 00:25).
+  it("facecam : plan de scènes (dessin inchangé) + étiquette (carton magazine seul)", async () => {
+    expect(await lireReglageBibliotheque("facecam", vide)).toEqual({ actif: true, capacites: [ID.planScenesFacecam, ID.objetEtiquette] });
+  });
+  it.each(["cas-concret", "facecam-animee", "inconnu"])("%s : éteint", async (f) => {
     expect(await lireReglageBibliotheque(f, vide)).toEqual({ actif: false });
   });
 });

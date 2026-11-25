@@ -39,6 +39,8 @@ export function interpreterReglageBibliotheque(valeur: unknown): ReglageBiblioth
 const PAR_DEFAUT: Readonly<Record<string, unknown>> = Object.freeze({
   avocat: { capacites: ["texte.nom-outil-autonome", "texte.sortie-animee", "texte.style-varie"] },
   "tableau-anime": { capacites: ["objet.chiffre", "objet.etape", "objet.marque"] },
+  // FOND-FLOU-C10-04-b-v20l : carton magazine ; « plan-scenes.facecam » garde le dessin du plan de scènes tel qu'aujourd'hui (dessin-facecam-porte.ts:29).
+  facecam: { capacites: ["plan-scenes.facecam", "objet.etiquette"] },
 });
 
 export async function lireReglageBibliotheque(

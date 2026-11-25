@@ -6,6 +6,7 @@
 import { definitionsPermises, objetsPermisDesEntrees } from "../plan-scenes-generateurs/objets-permis";
 import type { IdPetitObjet } from "../motion/petits-objets/contrat";
 import { OBJETS_INSCRITS } from "./registre";
+import { restreindreAuxPiecesValidees } from "./pieces-validees";
 
 const AUCUNE: readonly IdPetitObjet[] = Object.freeze([]);
 
@@ -14,7 +15,8 @@ export function piecesPermisesDesEntrees(entrees: unknown): readonly IdPetitObje
   try {
     const permis = objetsPermisDesEntrees(entrees);
     if (permis.length === 0) return AUCUNE;
-    const ids = definitionsPermises(OBJETS_INSCRITS, permis).map((d) => d.id as IdPetitObjet);
+    const facecam = (entrees as { bibliothequeVideo?: { profil?: { formatId?: unknown } } }).bibliothequeVideo?.profil?.formatId === "facecam"; // FOND-FLOU-C10-04-b-v20l
+    const ids = definitionsPermises(OBJETS_INSCRITS, permis).filter((d) => !facecam || restreindreAuxPiecesValidees([d.id], d.capacite).length > 0).map((d) => d.id as IdPetitObjet);
     return Object.freeze([...new Set(ids)]);
   } catch {
     return AUCUNE;

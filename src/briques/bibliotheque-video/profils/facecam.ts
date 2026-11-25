@@ -24,7 +24,8 @@ export const PROFIL_FACECAM: ProfilVideo = figerProfil({
     // objet (C9-03) : prévu, jamais permis
     [ID.objetTrait]: { permis: false, decision: "D3 § C, à valider sur planche" },
     [ID.objetMarque]: { permis: false, decision: "D3 § C, à valider sur planche" },
-    [ID.objetEtiquette]: { permis: false, decision: "D3 § C, à valider sur planche" },
+    // FOND-FLOU-C10-04-b-v20l : famille étiquette permise, réduite au SEUL carton magazine par pieces-permises.ts (pieces-validees.ts)
+    [ID.objetEtiquette]: { permis: true, decision: "FOND-FLOU-C10-04-b-v20l · Williams 21/11 00:25 (carton magazine seul)" },
     [ID.objetAppel]: { permis: false, decision: "D3 § C, à valider sur planche" },
     [ID.objetChiffre]: { permis: false, decision: "D3 § C, à valider sur planche" },
     [ID.objetEtape]: { permis: false, decision: "D3 § C, à valider sur planche" },

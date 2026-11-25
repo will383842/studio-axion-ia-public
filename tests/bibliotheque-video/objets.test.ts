@@ -130,10 +130,10 @@ describe("famille objet (C9-03)", () => {
     expect(CATALOGUE_CAPACITES.filter((l) => l.id.startsWith("objet.")).map((l) => l.id).sort()).toEqual([...CAPACITES_OBJET].sort());
   });
 
-  it("aucun profil ne permet une capacité objet, sauf les 3 du tableau animé (ALLUMER-OBJETS-TABLEAU-v20g)", () => {
+  it("aucun profil ne permet une capacité objet, sauf les 3 du tableau animé (ALLUMER-OBJETS-TABLEAU-v20g) et l'étiquette de la face caméra (FOND-FLOU-C10-04-b-v20l)", () => {
     const TABLEAU = ["objet.chiffre", "objet.etape", "objet.marque"];
     for (const p of [...Object.values(PROFILS_DU_CODE), profilNeutre("podcast")]) {
-      for (const id of IDS_OBJET) expect(p.capacites[id]?.permis === true, `${p.id} ${id}`).toBe(p.id === "tableau-anime/1" && TABLEAU.includes(id));
+      for (const id of IDS_OBJET) expect(p.capacites[id]?.permis === true, `${p.id} ${id}`).toBe((p.id === "tableau-anime/1" && TABLEAU.includes(id)) || (p.id === "facecam/1" && id === "objet.etiquette"));
     }
   });
 

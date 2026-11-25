@@ -150,8 +150,8 @@ Chaque format a un profil : ce qu'il a le droit d'utiliser. « Permis » = autor
 ### `facecam`
 
 - Profil : `facecam/1`, version 1.
-- Permis : `cadrage.zoom-classique`, `transition.coupe`.
-- Refusé : `etalonnage.lut-nouvelle` (au plus 1 par vidéo), `fond.lumiere` (au plus 1 par vidéo), `fond.vivant` (au plus 1 par vidéo), `objet.appel`, `objet.cartes`, `objet.chiffre`, `objet.ecran`, `objet.emoji`, `objet.etape`, `objet.etiquette`, `objet.manuscrit`, `objet.marque`, `objet.reseau-schema`, `objet.schema`, `objet.trait`, `plan-scenes.facecam` (au plus 1 par vidéo), `texte.escalier`, `texte.pave` (au plus 6 par vidéo), `texte.repere-epaule` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
+- Permis : `cadrage.zoom-classique`, `objet.etiquette`, `transition.coupe`.
+- Refusé : `etalonnage.lut-nouvelle` (au plus 1 par vidéo), `fond.lumiere` (au plus 1 par vidéo), `fond.vivant` (au plus 1 par vidéo), `objet.appel`, `objet.cartes`, `objet.chiffre`, `objet.ecran`, `objet.emoji`, `objet.etape`, `objet.manuscrit`, `objet.marque`, `objet.reseau-schema`, `objet.schema`, `objet.trait`, `plan-scenes.facecam` (au plus 1 par vidéo), `texte.escalier`, `texte.pave` (au plus 6 par vidéo), `texte.repere-epaule` (au plus 1 par vidéo), `texte.style-varie` (au plus 1 par vidéo), `texte.surlignage-marqueur` (au plus 1 par vidéo).
 - Verrous : `calque.texte-derriere-double`.
 - Mémoire : les 10 dernières vidéos, portée « format ».
 

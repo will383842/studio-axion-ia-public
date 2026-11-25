@@ -25,7 +25,9 @@ describe("profils par format (C1-U3)", () => {
       const etat = etatCapacite(id);
       // ALLUMER-OBJETS-TABLEAU-v20g : seules les 3 capacités objet du tableau animé sont permises à l'état « prevu » (décision Williams 20/11).
       const objetTableau = p.id === "tableau-anime/1" && ["objet.chiffre", "objet.etape", "objet.marque"].includes(id);
-      if (r.permis) expect(etat, `${p.id} ${id}`).toBe(objetTableau ? "prevu" : "prod");
+      // FOND-FLOU-C10-04-b-v20l : exception NOMMÉE, objet.etiquette de la face caméra (carton magazine seul, Williams 21/11 00:25).
+      const cartonFacecam = p.id === "facecam/1" && id === "objet.etiquette";
+      if (r.permis) expect(etat, `${p.id} ${id}`).toBe(objetTableau || cartonFacecam ? "prevu" : "prod");
       expect(["coulisse", "absent"], `${p.id} ${id}`).not.toContain(etat);
     }
   });
