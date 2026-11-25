@@ -160,6 +160,7 @@ const SITES: Site[] = [
   { fichier: "src/fournisseurs/claude/appel-redaction.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "rédaction des guides par Claude, origine transmise par `guides-redaction.ts` depuis l'action Studio, plafond du mois vérifié avant sous verrou" },
   { fichier: "src/services/cas-concret-branchements.ts", appel: "verifierBudgetEtCredits", n: 1, nature: "pré-vol", pourquoi: "écriture Claude du cas concret : réservée par `executerRolePourVideo` avec la même origine" },
   { fichier: "src/services/tableau-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du tableau animé, origine de la commande" },
+  { fichier: "src/services/tableau-de-bord-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du tableau de bord, origine de la commande" },
   // Ajouts FIN-4 (argent) : sites déjà présents dans le code, origine = `c.origine` / `commande.origine` (jamais un littéral).
   { fichier: "src/services/tutoriel-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix du tutoriel d'outil (HeyGen), origine de la commande ; jamais atteinte en sans voix" },
   { fichier: "src/services/video-longue-branchements.ts", appel: "verifierEtReserverSelonOrigine", n: 1, nature: "garde", pourquoi: "voix de la vidéo longue (HeyGen, mode avec voix non relié), origine de la commande ; jamais atteinte en sans voix" },
