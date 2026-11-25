@@ -139,3 +139,58 @@ describe("mots simples", () => {
     }
   });
 });
+
+describe("AUD-5 : toutes les pauses du tutoriel se lisent", () => {
+  const CODES = ["TO_SCRIPT_A_VALIDER", "TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEVIS_A_ACCEPTER", "TO_DEVIS_ATTEINT", "TO_OUTILS_NON_RELIES", "TO_FILM_A_CAPTURER", "TO_DOSSIER_INCOMPLET", "TO_DEMANDE_VIDE", "TO_DEMANDE_ARRETEE", "TO_EQUIPE_BLOQUEE", "TO_PIECE_A_CONSTRUIRE", "TO_PIECE_A_VALIDER", "TO_PIECE_A_REVOIR", "TO_CAS_V2"];
+  const base = vueRoles(travail({ script: "en_attente" }));
+
+  it.each(CODES)("%s change au moins une ligne", (code) => {
+    const v = vueRoles(travail({ script: "en_attente" }, { pause: { code, message: "m" } }, "en_file"));
+    expect(v.some((l, i) => l.phrase !== base[i].phrase || l.etat !== base[i].etat)).toBe(true);
+  });
+
+  it("un code inconnu affiche le message de la pause", () => {
+    const v = vueRoles(travail({ script: "en_attente" }, { pause: { code: "TO_NOUVEAU", message: "Rien n'a échoué, patientez." } }, "en_file"));
+    expect(etatDe(v, "chef-de-projet").phrase).toBe("Rien n'a échoué, patientez.");
+  });
+
+  it("TO_CAS_V2 reprend le message du moteur sur la ligne du chef de projet", () => {
+    const v = vueRoles(travail({ script: "en_attente" }, { pause: { code: "TO_CAS_V2", message: "Votre phrase est trop longue." } }, "en_file"));
+    expect(etatDe(v, "chef-de-projet").phrase).toBe("Votre phrase est trop longue.");
+    expect(etatDe(v, "chef-de-projet").etat).toBe("attend-williams");
+  });
+
+  it("pauseALienValidation : seulement les pauses que l'écran de validation sert", async () => {
+    const { pauseALienValidation } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+    const lien = (code: string) => pauseALienValidation(travail({}, { pause: { code } }));
+    for (const c of ["TO_SCRIPT_A_VALIDER", "TO_DEVIS_A_ACCEPTER", "TO_DEVIS_ATTEINT", "TO_FILM_A_CAPTURER"]) expect(lien(c)).toBe(true);
+    for (const c of ["TO_SCRIPT_ABSENT", "TO_SCRIPT_NON_ECRIT", "TO_DEMANDE_VIDE", "TO_CAS_V2", "TO_INCONNU"]) expect(lien(c)).toBe(false);
+    expect(pauseALienValidation(travail({}))).toBe(false);
+  });
+
+  it("messageDePause", async () => {
+    const { messageDePause } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+    expect(messageDePause(travail({}, { pause: { code: "TO_X", message: " Bonjour " } }))).toBe("Bonjour");
+    expect(messageDePause(travail({}))).toBeNull();
+  });
+
+  it("une pause qui attend Williams met la ligne en « attend-williams » ; TO_FILM_A_CAPTURER non, mais il garde son lien", () => {
+    expect(etatDe(vueRoles(travail({}, { pause: { code: "TO_SCRIPT_A_VALIDER" } })), "scenariste").attendWilliams).toBe(true);
+    expect(vueRoles(travail({}, { pause: { code: "TO_FILM_A_CAPTURER" } })).some((l) => l.attendWilliams)).toBe(false);
+  });
+
+  it("lienDeSuivi : calculé sur le travail courant, il change avec la pause", async () => {
+    const { lienDeSuivi } = await import("@/moteurs/montage-tutoriel-outil/vue-roles");
+    const avec = (code: string) => lienDeSuivi(travail({}, { pause: { code } }), "v1");
+    expect(avec("TO_SCRIPT_A_VALIDER")).toBe("/tutoriel-outil/v1");
+    expect(avec("TO_FILM_A_CAPTURER")).toBe("/tutoriel-outil/v1");
+    // La pause change : le lien change (maquette), puis disparaît.
+    expect(avec("TO_PIECE_A_VALIDER")).toBe("/tutoriel-outil/maquette/v1");
+    expect(avec("TO_PIECE_A_REVOIR")).toBe("/tutoriel-outil/maquette/v1");
+    expect(avec("TO_PIECE_A_CONSTRUIRE")).toBeUndefined();
+    // TO_DEMANDE_VIDE après TO_SCRIPT_A_VALIDER : plus de lien.
+    expect(avec("TO_SCRIPT_A_VALIDER")).toBeDefined();
+    expect(avec("TO_DEMANDE_VIDE")).toBeUndefined();
+    expect(lienDeSuivi(travail({}), "v1")).toBeUndefined();
+  });
+});
