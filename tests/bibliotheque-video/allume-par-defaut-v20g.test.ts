@@ -56,8 +56,8 @@ describe("(b) une valeur en base l'emporte", () => {
   });
 });
 
-describe("(c) tableau inerte : le profil fermé garde les objets non permis", () => {
-  it("les 3 capacités du défaut ne permettent aucune pièce", () => {
+describe("(c) tableau : le profil permet exactement les 3 objets de ALLUMER-OBJETS-TABLEAU-v20g, rien d'autre", () => {
+  it("les 3 capacités du défaut sont permises ; seules les pièces de ces capacités sont ouvertes", () => {
     const entree: EntreeBibliotheque = {
       version: VERSION_BIBLIOTHEQUE,
       profil: { ...PROFIL_TABLEAU_ANIME, capacites: { ...PROFIL_TABLEAU_ANIME.capacites } },
@@ -65,8 +65,9 @@ describe("(c) tableau inerte : le profil fermé garde les objets non permis", ()
       graine: "G",
       figeeLe: "2026-11-20",
     };
-    for (const id of TABLEAU) expect(entree.profil.capacites[id]?.permis).toBe(false);
-    expect(piecesPermisesDesEntrees({ bibliothequeVideo: entree })).toEqual([]);
+    for (const id of TABLEAU) expect(entree.profil.capacites[id]?.permis).toBe(true);
+    expect(Object.entries(entree.profil.capacites).filter(([, r]) => r?.permis === true).map(([id]) => id).sort()).toEqual([...TABLEAU].sort());
+    expect([...piecesPermisesDesEntrees({ bibliothequeVideo: entree })].sort()).toEqual(["objet-anneau-donnees", "objet-barre-progression", "objet-chrono", "objet-coche", "objet-compteur-rouleau", "objet-croix", "objet-etape", "objet-etape-segments", "objet-gros-chiffre", "objet-mot-barre", "objet-particules"]);
   });
 });
 

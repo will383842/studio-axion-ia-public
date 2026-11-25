@@ -99,6 +99,15 @@ function extraire(octets: Uint8Array, e: EntreeZip, debutRepertoire: number, inf
   return { ok: true, donnees };
 }
 
+/** L'interrupteur `tutoriel.entreeZip` : éteint par défaut, et toute erreur de lecture vaut « éteint ». */
+export async function entreeZipAllumee(ports: Pick<PortsZip, "lireParametre"> = PORTS_REELS): Promise<boolean> {
+  try {
+    return (await ports.lireParametre(PARAM_ENTREE_ZIP, false)) === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function extraireZipSur(
   octets: Uint8Array,
   options: { attestationImages: boolean; nomsNeutres?: ReadonlySet<string> },
@@ -117,12 +126,7 @@ export async function extraireZipSur(
     }
   };
   try {
-    let allume = false;
-    try {
-      allume = (await ports.lireParametre(PARAM_ENTREE_ZIP, false)) === true;
-    } catch {
-      allume = false;
-    }
+    const allume = await entreeZipAllumee(ports);
     if (!allume) return fermer(MESSAGE_ZIP_FERME);
 
     const lecture = lireRepertoireZip(octets);

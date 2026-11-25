@@ -22,8 +22,8 @@ import {
 import { ciblesDuFormat } from "@/services/retouche-chat/rendu-generateurs";
 import type { PortsRetoucheChat } from "@/services/retouche-chat/service";
 
-/** Exception datée : la démo facecam est citée par les règles mais pas encore inscrite au registre. */
-const EN_ATTENTE = [{ id: "demo-facecam", raison: "N-26 / G14-09 : inscription au registre", constateLe: "19/11/2026" }];
+/** Exceptions datées : un générateur cité par les règles mais pas encore inscrit au registre (vide depuis N-26-a : la démo est inscrite). */
+const EN_ATTENTE: { id: string; raison: string; constateLe: string }[] = [];
 
 describe("conformité des générateurs du chat de retouche", () => {
   it("le registre n'est pas vide", () => {

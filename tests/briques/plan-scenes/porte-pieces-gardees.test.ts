@@ -38,8 +38,8 @@ const VOLET_N05 = ["objet-volet-avant-apres"];
 const idsObjets = () => Object.values(CATALOGUE_BRIQUES).filter((d) => (d as any).famille === "objet" && !TRAITS_C9_34.includes(d.id) && !CADRES_C9_34.includes(d.id) && !ETIQUETTES_C9_34.includes(d.id) && !SCHEMAS_C9_34.includes(d.id) && !FIN_C9_34.includes(d.id) && !VOLET_N05.includes(d.id)).map((d) => d.id);
 
 describe("G4-11-PORTE-a : éteint = identique à master", () => {
-  it("la liste ne contient que les 3 pièces 16:9 de VL-10 et estGardee ≡ famille objet ou liste", () => {
-    expect(PIECES_GARDEES).toEqual(["intercalaire-chapitre", "flux-ramifie", "cadre-capture"]);
+  it("la liste ne contient que les 3 pièces 16:9 de VL-10 et la courbe à plusieurs séries, et estGardee ≡ famille objet ou liste", () => {
+    expect(PIECES_GARDEES).toEqual(["intercalaire-chapitre", "flux-ramifie", "cadre-capture", "courbe-series"]);
     for (const d of Object.values(CATALOGUE_BRIQUES) as any[]) expect(estGardee(d)).toBe(d.famille === "objet" || GARDEES_DE_ORIGINE.includes(d.id));
   });
   it("test 1 : consignePlan identique (sans argument, liste vide, tous les objets)", () => {

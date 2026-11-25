@@ -27,6 +27,10 @@ import { centimes } from "@/lib/montants";
 import { creerVerrou, depots, ErreurStudio, fournisseur, journaliser, lireParametre, ecrireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { estimerRetoucheVideo, lancerRetouche } from "./fabrication";
+// Effet de bord voulu : sous `next start`, les actions serveur de retouche / autre format (videos/actions.ts → ici → fabrication)
+// ne passent jamais par la boucle de fond. Sans ce raccord, une vidéo longue retouchée après un redémarrage tournerait sur le
+// moteur non relié (travail en pause éternelle). Le raccord seul ne dépense rien : les gardes d'argent restent dans le module.
+import "./video-longue-branchements";
 import { accordPropre, type AccordPrix } from "@/domaine/accord";
 import { ficheTableauDeLaVideo, prixRefaireTableau, retoucherTableau } from "./tableau-vue";
 import { preparerReglagesMoteur } from "./cas-concret-reglages";

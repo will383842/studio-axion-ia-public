@@ -98,3 +98,33 @@ export function planRecollage(e: {
   if (curseur <= dernier) segments.push({ source: "avant", debut: curseur, fin: dernier });
   return { segments, voix };
 }
+
+/** Noms d'entrées de l'opération `recollage-plages` : le fichier d'avant, la voix d'avant, un morceau muet par plage. */
+export const ENTREE_AVANT = "avant";
+export const ENTREE_VOIX = "voix";
+export const entreePlage = (index: number): string => `plage-${index}`;
+
+export type SegmentParametres = { source: "avant"; debutSec: number; finSec: number } | { source: "plage"; entree: string; dureeSec: number };
+
+/** Paramètres de l'opération `recollage-plages` (forme de `studio-rendu/src/operations/recollage-plages.ts`, recopiée : aucun import). */
+export interface ParametresRecollage {
+  segments: SegmentParametres[];
+  avant: string;
+  voix?: string;
+  dureeSec: number;
+}
+
+/**
+ * Traduit le plan de recollage (images, bornes comprises) vers les paramètres de l'opération `recollage-plages` (secondes, fin
+ * exclue : image `fin` comprise = `(fin + 1) / fps`). `avant` et `voix` sont des NOMS d'entrées ; l'appelant les relie aux adresses.
+ * La voix n'est nommée que si le plan la pose (`"avant"`). Aucune demande de rendu ici : l'appelant bâtit la demande.
+ */
+export function demandesRecollage(plan: PlanRecollage, e: { fps: 25; dureeTotaleImages: number }): ParametresRecollage {
+  const sec = (images: number) => images / e.fps;
+  const segments: SegmentParametres[] = plan.segments.map((s) =>
+    s.source === "avant"
+      ? { source: "avant", debutSec: sec(s.debut), finSec: sec(s.fin + 1) }
+      : { source: "plage", entree: entreePlage(s.index), dureeSec: sec(s.fin - s.debut + 1) },
+  );
+  return { segments, avant: ENTREE_AVANT, ...(plan.voix === "avant" ? { voix: ENTREE_VOIX } : {}), dureeSec: sec(e.dureeTotaleImages) };
+}

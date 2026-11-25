@@ -20,6 +20,8 @@ import { depots, lireParametre } from "./_commun";
 import { analyseurAnglesStudio } from "./analyseur-angles";
 import { ENTREE_BANDEAU_NOM, entreeBandeauDuLancement } from "./bandeau-nom";
 import { lireReglageMulticameraAvocat, passeMulticameraAvocat } from "./multicamera-avocat";
+import { lireVarieteCommune } from "./variete-commune/lire-reglage";
+import { memoireCartesCommune } from "./variete-commune/memoire-cartes-commune";
 
 brancherServicesAvocat({
   multicamera: async (d) => {
@@ -106,11 +108,11 @@ export async function memoireCartesAvocat(videoIdEnCours?: string): Promise<{ de
  * l'a voulu, `false` la coupe) ; monteur et multicaméra coupés par défaut : rien n'est ajouté à la commande. Les consignes du monteur viennent de la vidéo (`entrees.avocatConsignes` : fil, consignes
  * dites relevées dans une transcription libre).
  */
-export async function entreesAvocatDuLancement(video: Pick<Video, "entrees"> & Partial<Pick<Video, "id">>): Promise<Record<string, unknown>> {
+export async function entreesAvocatDuLancement(video: Pick<Video, "entrees"> & Partial<Pick<Video, "id" | "reseau">>): Promise<Record<string, unknown>> {
   const sortie: Record<string, unknown> = {};
   const motion = await motionAllumeeParDefaut(PARAM_MOTION_AVOCAT);
   if (motion) {
-    const memoire = await memoireCartesAvocat(video.id);
+    const memoire = await memoireCartesCommune({ memoire: await memoireCartesAvocat(video.id), reseaux: video.reseau ? [video.reseau] : [], videoIdEnCours: video.id, lire: lireVarieteCommune });
     sortie[ENTREE_MOTION_AVOCAT] = {
       actif: true,
       ...(Array.isArray(motion.habitude) ? { habitude: motion.habitude } : {}),

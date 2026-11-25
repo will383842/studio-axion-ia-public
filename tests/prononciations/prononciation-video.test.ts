@@ -2,7 +2,7 @@
  * PRONONCIATION-a : « ce mot est mal dit dans CETTE vidéo » (module pur, sans importeur, éteint, 0 €).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Prononciation } from "../../src/domaine/types";
 import { preparerMotMalDit } from "../../src/domaine/prononciation-video";
@@ -100,8 +100,8 @@ describe("texte seul (sans plans)", () => {
   });
 });
 
-describe("sans importeur (éteint)", () => {
-  it("aucun fichier de src/ n'importe prononciation-video", () => {
+describe("un seul importeur (PRONONCIATION-b-v21m : l'action serveur du panneau, monté nulle part)", () => {
+  it("seul l'action serveur de « Ce mot est mal dit » importe prononciation-video", () => {
     const vus: string[] = [];
     const marche = (d: string) => {
       for (const f of readdirSync(d)) {
@@ -111,6 +111,6 @@ describe("sans importeur (éteint)", () => {
       }
     };
     marche(join(RACINE, "src"));
-    expect(vus).toEqual([]);
+    expect(vus.map((v) => relative(RACINE, v).split("\\").join("/")).sort()).toEqual(["src/components/prononciations/actions-mot-mal-dit.ts"]);
   });
 });

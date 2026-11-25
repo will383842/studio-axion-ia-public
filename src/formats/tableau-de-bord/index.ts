@@ -6,7 +6,7 @@ import { briquesAuChoix, CRITERES_STANDARD, migrationIdentite, REGLES_COMMUNES }
  * FORMAT « TABLEAU DE BORD » (tableau-de-bord, code TDB) — fiche G4-09b, générateur DÉDIÉ, VITRINE, MASQUÉ.
  *
  * Une courte vidéo faite UNIQUEMENT à partir des chiffres fournis (schéma `tableau-de-bord.v1`) : aucun chiffre ne vient d'ailleurs.
- * Statut `masque`, sans `ouvertDansLaNavigation`, sans `adresseCreation` : aucune page de saisie, aucun bouton visible.
+ * Statut `masque`, sans `ouvertDansLaNavigation` : jamais dans la navigation. Une page de saisie existe (`/tableau-de-bord`, G4-08-b3-a), FERMÉE par constante.
  * Le moteur `montage-donnees` est en pause sans dépense tant que rien n'est relié ; voix et rendu réels = G4-09c.
  */
 export const ID_FORMAT_TABLEAU_DE_BORD = "tableau-de-bord";
@@ -20,6 +20,7 @@ export const formatTableauDeBord: DefinitionFormat = {
   accroche: "Vos chiffres du mois, en vidéo",
   description: "Vos chiffres deviennent une courte vidéo : aucun nombre n'est ajouté, tout vient de votre tableau.",
   icone: "resultats",
+  adresseCreation: "/tableau-de-bord",
   statut: "masque",
   famille: "motion",
   codeClassement: CODE_FORMAT_TABLEAU_DE_BORD,

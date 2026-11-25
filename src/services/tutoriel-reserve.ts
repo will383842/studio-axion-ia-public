@@ -1,0 +1,312 @@
+/**
+ * RÉSERVE DE TUTORIELS · stockage (plan PLAN-RESERVE-TUTORIELS-21-11, § 3.3 et § 4.2). Aucune migration : tout vit dans
+ * `parametres`, sous le préfixe `tutoriel.reserve.`. SANS session : les gardes de session sont dans les actions.
+ * Aucun appel payant, aucun fournisseur. La prise est atomique (verrou du processus + bail entre machines).
+ */
+import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
+import { prendreBail, rendreBail, sousVerrouCreditsPartage } from "@/donnees/memoire";
+import {
+  CLE_BAIL_TIRAGE,
+  CLE_TIRAGE_VALIDE,
+  HISTORIQUE_MAX,
+  ID_ELEMENT_VALIDE,
+  MAX_EN_COURS,
+  PARAM_RESERVE_HISTORIQUE,
+  PARAM_RESERVE_INDEX,
+  PARAM_RESERVE_REGLAGES,
+  REGLAGES_RESERVE_DEFAUT,
+  cleElementReserve,
+  cleTirageReserve,
+  controlerReglagesReserve,
+  lireReglagesReserveBrut,
+  suivantFifo,
+  transition,
+  type DeclencheurTirage,
+  type ElementReserve,
+  type EtatElementReserve,
+  type LigneHistorique,
+  type ReglagesReserve,
+  type TirageReserve,
+} from "@/domaine/tutoriel-reserve";
+import { ecrireParametre, ErreurStudio, lireParametre, maintenant, sousVerrou } from "./_commun";
+
+const DUREE_BAIL_MS = 60_000;
+const TITRE_MAX = 80;
+const SCRIPT_MAX = 8000;
+
+// ─── Verrou de la réserve ────────────────────────────────────────────────────────────────────────────────────────────
+
+const cleFileReserve = Symbol.for("studio-axion-ia.file-reserve");
+type AvecFileReserve = typeof globalThis & { [cleFileReserve]?: Promise<unknown> };
+const dansReserve = new AsyncLocalStorage<true>();
+
+/**
+ * Exécute `f` seul : (1) file de promesses propre à ce module (un seul appel du processus à la fois : sans elle, chaque appel
+ * simultané garderait une connexion du pool, max 5, en attendant le verrou consultatif → épuisement) ; (2) `sousVerrouCreditsPartage`
+ * (verrou consultatif entre machines + relecture de `parametres` dans la base, avant toute lecture d'élément) ; (3) `sousVerrou`.
+ * Même ordre que `credits.ts` : crédits PUIS boucle.
+ *
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage. Un appel réentrant
+ * depuis ce helper lui-même est détecté et lève `RESERVE_REENTRANT` au lieu de bloquer.
+ */
+async function sousVerrouReserve<T>(f: () => Promise<T>): Promise<T> {
+  if (dansReserve.getStore()) throw new ErreurStudio("RESERVE_REENTRANT", "Appel réentrant de la réserve : interblocage évité (ne pas appeler la réserve depuis l'intérieur de ses verrous).");
+  const g = globalThis as AvecFileReserve;
+  const avant = g[cleFileReserve] ?? Promise.resolve();
+  const suite = avant.catch(() => undefined).then(() => dansReserve.run(true, () => sousVerrouCreditsPartage(() => sousVerrou(f))));
+  g[cleFileReserve] = suite.catch(() => undefined);
+  return suite;
+}
+
+// ─── Réglages ────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Lecture en échec fermé : une lecture qui lève ou une forme imprévue donne le défaut éteint. */
+export async function lireReglagesReserve(): Promise<ReglagesReserve> {
+  try {
+    return lireReglagesReserveBrut(await lireParametre<unknown>(PARAM_RESERVE_REGLAGES, null));
+  } catch {
+    return { ...REGLAGES_RESERVE_DEFAUT };
+  }
+}
+
+export async function ecrireReglagesReserve(r: ReglagesReserve): Promise<void> {
+  const refus = controlerReglagesReserve(r);
+  if (refus) throw new ErreurStudio("RESERVE_REGLAGE", refus.message);
+  await ecrireParametre(PARAM_RESERVE_REGLAGES, lireReglagesReserveBrut(r));
+}
+
+// ─── Lecture ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+async function lireIndex(): Promise<string[]> {
+  const v = await lireParametre<unknown>(PARAM_RESERVE_INDEX, []);
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+}
+
+export async function lireElementReserve(id: string): Promise<ElementReserve | null> {
+  if (!ID_ELEMENT_VALIDE.test(id)) return null;
+  const v = await lireParametre<ElementReserve | null>(cleElementReserve(id), null);
+  return v && typeof v === "object" && v.id === id ? v : null;
+}
+
+export async function listerReserve(): Promise<ElementReserve[]> {
+  const elements = await Promise.all((await lireIndex()).map((id) => lireElementReserve(id)));
+  return elements.filter((e): e is ElementReserve => e !== null);
+}
+
+export async function lireTirageReserve(cle: string): Promise<TirageReserve | null> {
+  if (!CLE_TIRAGE_VALIDE.test(cle)) return null;
+  return lireParametre<TirageReserve | null>(cleTirageReserve(cle), null);
+}
+
+export async function historiqueTiragesReserve(): Promise<LigneHistorique[]> {
+  const v = await lireParametre<unknown>(PARAM_RESERVE_HISTORIQUE, []);
+  if (!Array.isArray(v)) return [];
+  // Lignes corrompues écartées : `le` lisible par Date.parse, `declencheur` connu (sinon tirageDu/cleTirageRythme lèvent).
+  return v.filter(
+    (l): l is LigneHistorique =>
+      !!l && typeof l === "object" && typeof l.le === "string" && !Number.isNaN(Date.parse(l.le)) && (l.declencheur === "rythme" || l.declencheur === "usine" || l.declencheur === "essai"),
+  );
+}
+
+// ─── Écriture ────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Idempotent par `id` : déjà présent → rend l'existant, n'écrit rien. Ajoute l'id en FIN d'index. Sous `sousVerrouReserve` (base relue).
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ */
+export async function ajouterElementReserve(e: Omit<ElementReserve, "etat" | "tentatives" | "passages" | "version">): Promise<ElementReserve> {
+  if (!ID_ELEMENT_VALIDE.test(e.id)) throw new ErreurStudio("RESERVE_ELEMENT", "Cet identifiant de la réserve n'est pas valide.");
+  if (e.script !== undefined && e.script.length > SCRIPT_MAX) throw new ErreurStudio("RESERVE_ELEMENT", "Le script est trop long pour la réserve.");
+  return sousVerrouReserve(async () => {
+    const existant = await lireElementReserve(e.id);
+    if (existant) return existant;
+    const element: ElementReserve = {
+      ...e,
+      titre: e.titre.slice(0, TITRE_MAX),
+      etat: "en_reserve",
+      tentatives: 0,
+      passages: [{ le: e.ajouteLe, de: null, vers: "en_reserve" }],
+      version: 1,
+    };
+    await ecrireParametre(cleElementReserve(e.id), element);
+    const index = await lireIndex();
+    if (!index.includes(e.id)) await ecrireParametre(PARAM_RESERVE_INDEX, [...index, e.id]);
+    return element;
+  });
+}
+
+/**
+ * Sous `sousVerrouReserve` (base relue avant la lecture de l'élément). NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ * Transition interdite → ErreurStudio("RESERVE_TRANSITION"). `patch` ne touche que prise/tentatives/source/motif.
+ */
+export async function changerEtatReserve(
+  id: string,
+  vers: EtatElementReserve,
+  o?: { motif?: string; patch?: Partial<Pick<ElementReserve, "prise" | "tentatives" | "source" | "motif">> },
+): Promise<ElementReserve> {
+  return sousVerrouReserve(async () => {
+    const e = await lireElementReserve(id);
+    if (!e) throw new ErreurStudio("RESERVE_INTROUVABLE", "Cet élément n'est plus dans la réserve.");
+    const t = transition(e, vers, maintenant(), o?.motif);
+    if (!t) throw new ErreurStudio("RESERVE_TRANSITION", "Ce changement d'état n'est pas permis pour cet élément.");
+    const p = o?.patch ?? {};
+    const suivant: ElementReserve = { ...t };
+    if ("prise" in p) {
+      if (p.prise === undefined) delete suivant.prise;
+      else suivant.prise = p.prise;
+    }
+    if (p.tentatives !== undefined) suivant.tentatives = p.tentatives;
+    if (p.source !== undefined) suivant.source = p.source;
+    if (p.motif !== undefined) suivant.motif = p.motif;
+    await ecrireParametre(cleElementReserve(id), suivant);
+    return suivant;
+  });
+}
+
+/**
+ * Remise conditionnelle (suivi, ARGENT) : sous `sousVerrouReserve` (base relue), n'écrit QUE si l'élément est toujours `pris` avec la même
+ * `prise.cle` ET le même `prise.videoId` (absent compris) que ceux que l'appelant a lus. Sinon (vidéo notée entre-temps, élément repris
+ * ou déjà rendu, disparu) : rien n'est écrit, rend `false`. Rend `true` si l'écriture a eu lieu. Transition interdite → RESERVE_TRANSITION.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (erreur RESERVE_REENTRANT).
+ */
+export async function rendrePriseSiInchangee(
+  id: string,
+  attendu: { cle: string; videoId?: string },
+  vers: EtatElementReserve,
+  o?: { motif?: string; patch?: Partial<Pick<ElementReserve, "prise" | "tentatives" | "source" | "motif">> },
+): Promise<boolean> {
+  return sousVerrouReserve(async () => {
+    const e = await lireElementReserve(id);
+    if (!e || e.etat !== "pris" || !e.prise) return false;
+    if (e.prise.cle !== attendu.cle || e.prise.videoId !== attendu.videoId) return false;
+    const t = transition(e, vers, maintenant(), o?.motif);
+    if (!t) throw new ErreurStudio("RESERVE_TRANSITION", "Ce changement d'état n'est pas permis pour cet élément.");
+    const p = o?.patch ?? {};
+    const suivant: ElementReserve = { ...t };
+    if ("prise" in p) {
+      if (p.prise === undefined) delete suivant.prise;
+      else suivant.prise = p.prise;
+    }
+    if (p.tentatives !== undefined) suivant.tentatives = p.tentatives;
+    if (p.source !== undefined) suivant.source = p.source;
+    if (p.motif !== undefined) suivant.motif = p.motif;
+    await ecrireParametre(cleElementReserve(id), suivant);
+    return true;
+  });
+}
+
+/**
+ * PRISE ATOMIQUE. Ordre des verrous (le même que `credits.ts` : crédits PUIS boucle, jamais l'inverse, sinon interblocage) :
+ * 1. `sousVerrouCreditsPartage` : avec Postgres, verrou consultatif partagé entre machines ET relecture de `parametres` dans
+ *    la base (la copie mémoire chargée au démarrage peut être périmée) ; sans base, simple appel (un seul processus) ;
+ * 2. `sousVerrou` : file d'attente du processus (c'est elle qui garantit l'exclusion sans base) ;
+ * 3. bail CLE_BAIL_TIRAGE (60 s), rendu dans un `finally`.
+ * Sous ces trois verrous : rejeu de `cle` → { element, deja: true } si l'élément porte encore cette clé (sinon "deja_en_cours" s'il y a un élément pris, null sinon) ; sinon, si l'index compte déjà MAX_EN_COURS éléments à
+ * l'état `pris` → "deja_en_cours" (rien n'est écrit) ; sinon choix FIFO (ou `elementId`) et écritures (élément, tirage,
+ * historique). NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT). Bail occupé → "bail_occupe". Réserve vide, ou élément demandé indisponible → null.
+ */
+export async function prendreSuivantReserve(
+  o: { cle: string; declencheur: DeclencheurTirage; elementId?: string; maintenant?: string },
+  dep?: { prendreBail?: typeof prendreBail; rendreBail?: typeof rendreBail },
+): Promise<{ element: ElementReserve; deja: boolean } | null | "bail_occupe" | "deja_en_cours"> {
+  if (!CLE_TIRAGE_VALIDE.test(o.cle)) throw new ErreurStudio("RESERVE_CLE", "La clé de ce tirage n'est pas valide.");
+  const prendre = dep?.prendreBail ?? prendreBail;
+  const rendre = dep?.rendreBail ?? rendreBail;
+  return sousVerrouReserve(() =>
+    (async () => {
+      const titulaire = `reserve-${randomUUID()}`;
+      if (!(await prendre(CLE_BAIL_TIRAGE, titulaire, DUREE_BAIL_MS))) return "bail_occupe";
+      try {
+        // Relecture SOUS verrou : rejeu d'abord, puis plafond d'éléments en cours, puis choix de l'élément.
+        const index = await lireIndex();
+        const elements = new Map<string, ElementReserve>();
+        for (const id of index) {
+          const e = await lireElementReserve(id);
+          if (e) elements.set(id, e);
+        }
+        let enCours = 0;
+        for (const e of elements.values()) if (e.etat === "pris") enCours += 1;
+        const deja = await lireTirageReserve(o.cle);
+        if (deja) {
+          // Rejeu : même prise seulement si l'élément porte encore cette clé ; sinon il a été repris ou rendu depuis.
+          const element = await lireElementReserve(deja.elementId);
+          if (element?.prise?.cle === o.cle) return { element, deja: true };
+          return enCours >= MAX_EN_COURS ? "deja_en_cours" : null;
+        }
+        if (enCours >= MAX_EN_COURS) return "deja_en_cours";
+        let candidat: ElementReserve | null;
+        if (o.elementId !== undefined) {
+          const demande = elements.get(o.elementId) ?? (await lireElementReserve(o.elementId));
+          candidat = demande && demande.etat === "en_reserve" ? demande : null;
+        } else {
+          candidat = suivantFifo(index, elements);
+        }
+        if (!candidat) return null;
+        const le = o.maintenant ?? maintenant();
+        const pris = transition(candidat, "pris", le);
+        if (!pris) return null;
+        const element: ElementReserve = { ...pris, prise: { cle: o.cle, declencheur: o.declencheur, le } };
+        // Ordre : élément pris, fiche de tirage, historique.
+        await ecrireParametre(cleElementReserve(element.id), element);
+        const tirage: TirageReserve = { cle: o.cle, declencheur: o.declencheur, le, elementId: element.id };
+        await ecrireParametre(cleTirageReserve(o.cle), tirage);
+        const historique = await historiqueTiragesReserve();
+        await ecrireParametre(PARAM_RESERVE_HISTORIQUE, [...historique, { le, declencheur: o.declencheur, elementId: element.id }].slice(-HISTORIQUE_MAX));
+        return { element, deja: false };
+      } finally {
+        // Un échec du rendu du bail (après des écritures réussies) ne doit pas masquer le résultat : le bail expire seul au bout de 60 s.
+        try {
+          await rendre(CLE_BAIL_TIRAGE, titulaire);
+        } catch {
+          /* bail expiré tout seul */
+        }
+      }
+    })(),
+  );
+}
+
+/**
+ * Écrit le `videoId` sur la fiche de tirage ET sur `element.prise` (seulement si cette prise est bien celle de `cle`). Sous `sousVerrouReserve`.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ */
+export async function noterVideoDuTirage(cle: string, elementId: string, videoId: string): Promise<void> {
+  await sousVerrouReserve(async () => {
+    const tirage = await lireTirageReserve(cle);
+    if (tirage) await ecrireParametre(cleTirageReserve(cle), { ...tirage, videoId });
+    const e = await lireElementReserve(elementId);
+    if (e?.prise?.cle === cle) await ecrireParametre(cleElementReserve(elementId), { ...e, prise: { ...e.prise, videoId } });
+  });
+}
+
+/**
+ * Marque la fiche de tirage `cle` comme échouée (lancement refusé après la note de la vidéo) : le rejeu de cette clé rend alors
+ * « échec » et jamais « pris ». Sous `sousVerrouReserve`. Fiche absente : rien. N'écrit rien d'autre.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ */
+export async function noterEchecDuTirage(cle: string): Promise<void> {
+  await sousVerrouReserve(async () => {
+    const tirage = await lireTirageReserve(cle);
+    if (tirage && !tirage.echec) await ecrireParametre(cleTirageReserve(cle), { ...tirage, echec: true });
+  });
+}
+
+/**
+ * Note `source.fichierId` (fichier de la maquette démo déposée) sur un élément `maquette-demo` à l'état `pris`. Sous `sousVerrouReserve`
+ * (base relue avant la lecture de l'élément). Absent → RESERVE_INTROUVABLE ; autre type de source ou état ≠ `pris` → RESERVE_ELEMENT.
+ * Déjà égal → rend l'élément tel quel, sans écrire. Sinon n'écrit que `source.fichierId`.
+ * NE JAMAIS appeler depuis l'intérieur de `sousVerrou` ni de `sousVerrouCredits(Partage)` : interblocage (réentrance depuis la réserve : erreur RESERVE_REENTRANT).
+ */
+export async function noterFichierDemoReserve(id: string, fichierId: string): Promise<ElementReserve> {
+  return sousVerrouReserve(async () => {
+    const e = await lireElementReserve(id);
+    if (!e) throw new ErreurStudio("RESERVE_INTROUVABLE", "Cet élément n'est plus dans la réserve.");
+    if (e.source.type !== "maquette-demo") throw new ErreurStudio("RESERVE_ELEMENT", "Cet élément n'est pas une maquette démo.");
+    if (e.etat !== "pris") throw new ErreurStudio("RESERVE_ELEMENT", "Cet élément n'est pas pris : le fichier démo ne peut pas être noté.");
+    if (e.source.fichierId === fichierId) return e;
+    const suivant: ElementReserve = { ...e, source: { ...e.source, fichierId } };
+    await ecrireParametre(cleElementReserve(id), suivant);
+    return suivant;
+  });
+}

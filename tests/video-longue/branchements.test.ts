@@ -300,12 +300,22 @@ describe("VL-07 — niveau réel : réglage, pause, aucun appel", () => {
       expect(r.ecrireParametre).not.toHaveBeenCalled();
     });
   }
-  it("réglage true exact, avec accord : PAUSE (montage non relié), jamais un échec ni un appel", async () => {
+  it("réglage true exact, avec accord, AVEC voix : PAUSE (voix au collage non reliée), jamais un échec ni un appel", async () => {
     const r = await chargerReel(true);
     expect(r.lireParametre).toHaveBeenCalledWith("videoLongue.actif", false);
     expect(r.m.reglageVuAllume()).toBe(true); // le null ne vient donc pas de « réglage non vu » : c'est la garde du montage
-    expect(r.m.MONTAGE_VIDEO_LONGUE_RELIE).toBe(false);
+    expect(r.m.MONTAGE_VIDEO_LONGUE_RELIE).toBe(true);
+    expect(r.m.MONTAGE_AVEC_VOIX_RELIE).toBe(false);
     expect(r.m.dependancesVideoLongue(commande())).toBeNull();
+    expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
+    expect(r.branchementsReels).not.toHaveBeenCalled();
+    expect(r.ecrireParametre).not.toHaveBeenCalled();
+  });
+  it("réglage true exact, SANS voix : relié (non nul), mais rien n'est appelé à la construction", async () => {
+    const r = await chargerReel(true);
+    const c = commande({ accord: null });
+    (c.entrees as { videoLongue: Record<string, unknown> }).videoLongue.sansVoix = true;
+    expect(r.m.dependancesVideoLongue(c)).not.toBeNull();
     expect(r.verifierEtReserverSelonOrigine).not.toHaveBeenCalled();
     expect(r.branchementsReels).not.toHaveBeenCalled();
     expect(r.ecrireParametre).not.toHaveBeenCalled();

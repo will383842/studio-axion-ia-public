@@ -20,9 +20,9 @@ import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
-import { relancerRendusTombes } from "./reprise";
+import { bilanReprise, relancerRendusTombes } from "./reprise";
 import { cibleSon, rapportSon } from "./finitions";
-import { accordValide, etablirDevis, resteDuDevis, type Consommation } from "./devis-tutoriel";
+import { accordValide, etablirDevis, resteDuDevis, texteDevis, type Consommation } from "./devis-tutoriel";
 import { scriptRetenu } from "./script";
 import { figerScriptChoisi, type ChoixScript, type ScriptChoisi } from "./equipe/scenariste";
 import { estSansVoix, lireEntreesTutoriel } from "./entrees";
@@ -36,7 +36,7 @@ export type { EtatTutoriel, OutilsTutoriel, OutilsVoixTutoriel } from "./chaine"
 
 export const ID_MOTEUR_TUTORIEL_OUTIL = "montage-tutoriel-outil";
 export const CODE_OUTILS_NON_RELIES = "TO_OUTILS_NON_RELIES";
-export const PHRASE_OUTILS_NON_RELIES = "Le tutoriel d'outil attend ses outils de fabrication (voix, rendu) : votre demande est gardée, rien n'a échoué.";
+export const PHRASE_OUTILS_NON_RELIES = "Le tutoriel d'outil attend ses outils de fabrication : votre demande est gardée, rien n'a échoué.";
 export const CODE_DEVIS_A_ACCEPTER = "TO_DEVIS_A_ACCEPTER";
 export const PHRASE_DEVIS_A_ACCEPTER = "Le devis de cette vidéo attend votre accord : ouvrez l'écran de validation.";
 export const CODE_DEVIS_ATTEINT = "TO_DEVIS_ATTEINT";
@@ -309,13 +309,16 @@ export interface DependancesMoteurTutoriel {
 
 const RATIOS_TUTORIEL: Ratio[] = ["4:5", "9:16", "1:1", "16:9"];
 
+/** Pause du devis ; `devis` (AUD-7) n'est posé que pour TO_DEVIS_A_ACCEPTER. */
+type PauseDevis = { code: string; message: string; devis?: { phrases: string[]; empreinte: string } };
+
 /**
  * T-EXT-42 : garde du devis. `null` : pas de devis (éteint) ou étape sans dépense. Sinon une promesse de la pause à poser
  * (`null` = accord valide et plafond respecté, l'étape peut avancer). Jamais un échec, jamais un appel.
  * `accordExige` du moteur reste `false` et le format reste `sansPrix` : l'accord du tutoriel passe par SON devis en
  * quantités (écran de validation, T-EXT-24), pas par l'écran de prix, qui n'existe plus.
  */
-function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<{ code: string; message: string } | null> | null {
+function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PauseDevis | null> | null {
   const port = outils.devis;
   if (!port) return null;
   const entrees = lireEntreesTutoriel(commande.entrees);
@@ -343,7 +346,8 @@ function garderDevis(cle: CleEtapeTutoriel, etat: EtatTutoriel, commande: Comman
       ratios: etat.ratios,
       essai: false,
     });
-    if (!accordValide(devis, port.accord)) return { code: CODE_DEVIS_A_ACCEPTER, message: PHRASE_DEVIS_A_ACCEPTER };
+    // AUD-7 : le devis montré part avec la pause (phrases + empreinte) : le geste « accepter le devis » ne vaut que pour CETTE empreinte.
+    if (!accordValide(devis, port.accord)) return { code: CODE_DEVIS_A_ACCEPTER, message: PHRASE_DEVIS_A_ACCEPTER, devis: { phrases: texteDevis(devis), empreinte: devis.empreinte } };
     // Avant chaque dépense : le déjà consommé PLUS ce que cette étape peut encore dépenser doit tenir dans le devis.
     const essais = (id: string) => port.roles.filter((r) => r.id === id).reduce((s, r) => s + Math.max(0, Math.floor(r.essaisMax)), 0);
     const aVenir: Partial<Consommation> = {};
@@ -401,7 +405,14 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     const arret = garderDevis(cle, etat, commande, outils);
     if (arret) {
       const pause = await arret;
-      if (pause) return { travail: { ...base, statut: "en_file", modifieLe: iso, parametres: { ...base.parametres, pause } } };
+      if (pause) {
+        const attente: Travail = { ...base, statut: "en_file", modifieLe: iso, parametres: { ...base.parametres, pause } };
+        // AUD-7 : le devis est rangé dans l'état de l'équipe quand elle existe (lu par l'écran de validation) ; sinon la pause seule le porte
+        // (jamais d'équipe partielle : la chaîne en fabrique une complète quand elle n'en trouve pas).
+        // Le cast : `devis` n'est pas dans EtatEquipe (equipe/orchestre.ts, interdit d'écriture) ; il n'est lu que par tutoriel-validation-ecran.ts.
+        const avecDevis = pause.devis && etat.equipe ? avecEtat(attente, { ...etat, equipe: { ...etat.equipe, devis: pause.devis } as NonNullable<EtatTutoriel["equipe"]> }) : attente;
+        return { travail: avecDevis };
+      }
     }
 
     let pas;
@@ -490,7 +501,10 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
       void _e;
       // T-EXT-45b : un rendu tombé repart en série neuve (« Réessayer » le redemande vraiment) ; un rendu fini n'est jamais touché.
       const repris = enEchec.has("montage") || enEchec.has("exports") ? avecEtat(reste as Travail, relancerRendusTombes(lireEtat(travail))) : reste;
-      return { ...repris, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
+      // Fiche 45 point 5 : la phrase « ce qui est refait, ce qui est gardé » est rangée dans les paramètres du travail, où le suivi la lit.
+      const bilan = bilanReprise(lireEtat(travail), [...enEchec]);
+      const avecBilan = { ...repris, parametres: { ...repris.parametres, bilanReprise: { phrase: bilan.phrase, refait: bilan.refait, garde: bilan.garde } } };
+      return { ...avecBilan, statut: "en_cours", tentatives: travail.tentatives + 1, modifieLe: iso, etapes: travail.etapes.map((e) => (enEchec.has(e.cle) ? { ...e, statut: "en_attente" as const, progression: 0, erreur: undefined } : e)) };
     },
     retoucher: async ({ commande, contexte, parent, operations }) => {
       const ctx = { ...contexte, type: "retouche" as const };

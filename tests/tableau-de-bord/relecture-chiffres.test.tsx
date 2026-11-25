@@ -50,6 +50,6 @@ describe("RelectureChiffres", () => {
     };
     parcourir(join(SRC, "app"));
     parcourir(join(SRC, "components"));
-    expect(trouves).toEqual([]);
+    expect(trouves).toEqual([join(SRC, "components", "formats", "tableau-de-bord", "EcranRelectureTableau.tsx")]);
   });
 });

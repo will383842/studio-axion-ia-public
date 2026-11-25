@@ -66,10 +66,22 @@ const HORS_OBJET_MASTER = [
   "cadrage.camera-cas-concret|prod",
   "cadrage.zoom-v4|absent",
   "motion.avis-client|prevu",
+  // CATALOGUE-C10-C11-v21p
+  "accroche.script|prevu",
+  "rythme.mesure|prevu",
+  "etalonnage.noir-blanc|prevu",
+  "texte.lueur|prevu",
+  "texte.fond-clair|prevu",
   "texte.sous-titres|prevu",
   "plan-scenes.generique|prevu",
   "son.pose|prevu",
   "etalonnage.lut|prevu",
+  // CATALOGUE-C10-C11-v21p
+  "texte.marques-au-mot|eteint",
+  "texte.selectif|prevu",
+  "texte.mode-carte|prevu",
+  "texte.effets|prevu",
+  "texte.accents-role|prevu",
   "motion.v4-coulisse.LogoOutil|coulisse",
   "motion.v4-coulisse.Equation|coulisse",
   "motion.v4-coulisse.FriseEtapes|coulisse",
@@ -112,9 +124,10 @@ describe("famille objet (C9-03)", () => {
     expect(CATALOGUE_CAPACITES.filter((l) => l.id.startsWith("objet.")).map((l) => l.id).sort()).toEqual([...CAPACITES_OBJET].sort());
   });
 
-  it("aucun profil ne permet une capacité objet", () => {
+  it("aucun profil ne permet une capacité objet, sauf les 3 du tableau animé (ALLUMER-OBJETS-TABLEAU-v20g)", () => {
+    const TABLEAU = ["objet.chiffre", "objet.etape", "objet.marque"];
     for (const p of [...Object.values(PROFILS_DU_CODE), profilNeutre("podcast")]) {
-      for (const id of IDS_OBJET) expect(p.capacites[id]?.permis === true, `${p.id} ${id}`).toBe(false);
+      for (const id of IDS_OBJET) expect(p.capacites[id]?.permis === true, `${p.id} ${id}`).toBe(p.id === "tableau-anime/1" && TABLEAU.includes(id));
     }
   });
 

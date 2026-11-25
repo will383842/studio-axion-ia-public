@@ -43,8 +43,30 @@ describe("parametresComposition : fondFlouCartes", () => {
     expect("fondFlouCartes" in sans.image).toBe(false);
     expect(JSON.parse(JSON.stringify(avec.image))).toEqual({ ...JSON.parse(JSON.stringify(sans.image)), planScenes: expect.anything() });
   });
-  it("avec un carton : la fenêtre est posée", () => {
+  // FOND-FLOU-C10-04-c (décision du 21/11 07:20) : pas de flou quand la piste du double couvre le décor (vraie prise filmée).
+  it("vraie prise filmée (rush + pistes du look) avec un carton : aucune fenêtre de flou", () => {
     const p = parametresComposition(c, { ...base, planScenes: plan(scene("b", 3000, 6000, CARTON)) }, RECETTE_COMPOSITION_FACECAM);
+    expect("fondFlouCartes" in p.image).toBe(false);
+  });
+  it("avatar rendu sur fond uni, avec un carton : aucune fenêtre de flou", () => {
+    const double = { ...c, distribution: [{ role: "Face caméra", source: "double" }] } as unknown as CommandeFabrication;
+    const p = parametresComposition(double, { ...base, doubleFondUni: true, planScenes: plan(scene("b", 3000, 6000, CARTON)) }, RECETTE_COMPOSITION_FACECAM);
+    expect("fondFlouCartes" in p.image).toBe(false);
+  });
+  it("avatar sur décor visible (piste non opaque), avec un carton : la fenêtre est posée comme avant", () => {
+    const double = { ...c, distribution: [{ role: "Face caméra", source: "double" }] } as unknown as CommandeFabrication;
+    const p = parametresComposition(double, { ...base, planScenes: plan(scene("b", 3000, 6000, CARTON)) }, RECETTE_COMPOSITION_FACECAM);
     expect(p.image.fondFlouCartes).toEqual([{ debutSec: 3, finSec: 6, ...FLOU }]);
+  });
+  it("avatar sur décor visible, sans carton : aucune clé ajoutée", () => {
+    const double = { ...c, distribution: [{ role: "Face caméra", source: "double" }] } as unknown as CommandeFabrication;
+    const p = parametresComposition(double, { ...base, planScenes: plan(scene("a", 0, 3000, "compteur")) }, RECETTE_COMPOSITION_FACECAM);
+    expect("fondFlouCartes" in p.image).toBe(false);
+  });
+  it("look réel (le décor est dans la vidéo du double), avec un carton : aucune fenêtre de flou", () => {
+    const decor = { id: "decor-test", nom: "Décor test", valeur: { methode: "look-heygen", lookIdParAngle: { face: "l1", "trois-quarts": "l1", profil: "l1" }, profondeurFlou: 24, directionLumiere: "gauche", teinte: "#222222", clair: false, statut: "pret" } };
+    const double = { ...c, distribution: [{ role: "Face caméra", source: "double" }], styles: { lut: null, decor } } as unknown as CommandeFabrication;
+    const p = parametresComposition(double, { ...base, pistesDouble: { face: "m.mov", "trois-quarts": "m.mov", profil: "m.mov" }, planScenes: plan(scene("b", 3000, 6000, CARTON)) }, RECETTE_COMPOSITION_FACECAM);
+    expect("fondFlouCartes" in p.image).toBe(false);
   });
 });

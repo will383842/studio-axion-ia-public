@@ -121,7 +121,7 @@ describe("CAL-18 · plafond d'appels par jour, compté côté serveur", () => {
 describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
   const sortie = { ok: true as const, donnees: { appelsRestants: 4, propositions: [{ cle: "u1|linkedin", jour: "2026-12-15", reseau: "linkedin" as const, type: "video" as const, etat: "propose" as const, heure: "09:00", titre: "Idée", pourquoi: "Jour sans publication", ressembleA: "Publication du 4 décembre" }] } };
   const monterBouton = (proposer = vi.fn(async () => sortie)) => {
-    const m = monter(BoutonProposerSemaine, { debutSemaine: LUNDI, proposer, lienAValider: "/usine/a-valider" });
+    const m = monter(BoutonProposerSemaine, { debutSemaine: LUNDI, proposer });
     return { m, proposer };
   };
   const bouton = (arbre: ReturnType<ReturnType<typeof monter>["rendre"]>) => trouver(arbre, (e) => e.type === "button")[0];
@@ -135,7 +135,7 @@ describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
     expect(cls).toContain("min-h-[44px]");
   });
 
-  it("un clic appelle l'action UNE fois avec le lundi, puis affiche les cartes « Proposée » et le lien vers « À valider »", async () => {
+  it("un clic appelle l'action UNE fois avec le lundi, puis affiche les cartes « Proposée » et aucun lien avant la retenue", async () => {
     const { m, proposer } = monterBouton();
     (bouton(m.rendre()).props.onClick as () => void)();
     await attendre();
@@ -146,7 +146,8 @@ describe("CAL-18 · le bouton et l'affichage de la semaine", () => {
     expect(html).toContain("border-dashed");
     expect(html).toContain("Pourquoi ici");
     expect(html).toContain("Ressemble à");
-    expect(html).toContain('href="/usine/a-valider"');
+    // Pas de lien avant la retenue : « Voir dans « Écrire » » ne vient qu'après « Retenir ce sujet ».
+    expect(html).not.toContain("href=");
     expect(html).not.toMatch(/Programmé/);
     expect(html).toMatch(/Rien n(&#x27;|')est programmé/);
   });

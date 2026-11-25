@@ -1,6 +1,6 @@
 /**
- * N-04f : le profil « tableau animé » déclare trois petits objets possibles (gros chiffre, étape, coche), tous FERMÉS.
- * Éteint = identique : aucune pièce d'objet n'est permise. Modèle de l'entrée figée : `liaison-plan-scenes.test.tsx` (`entrees`).
+ * N-04f puis ALLUMER-OBJETS-TABLEAU-v20g : le profil « tableau animé » permet trois petits objets (gros chiffre, étape, coche).
+ * Décision « ALLUMER-OBJETS-TABLEAU-v20g · Williams 20/11 (fini + gratuit) ». Modèle de l'entrée figée : `liaison-plan-scenes.test.tsx` (`entrees`).
  */
 import { describe, expect, it } from "vitest";
 import { ID } from "@/briques/bibliotheque-video/noms";
@@ -10,22 +10,24 @@ import { VERSION_BIBLIOTHEQUE } from "@/briques/bibliotheque-video/version";
 import { piecesPermisesDesEntrees } from "@/briques/plan-scenes-objets/pieces-permises";
 
 const capacites = PROFIL_TABLEAU_ANIME.capacites as Record<string, { permis: boolean; maxParVideo?: number; decision?: string } | undefined>;
+const TROIS = [ID.objetChiffre, ID.objetEtape, ID.objetMarque];
 
-describe("profil tableau-anime : objets déclarés fermés", () => {
-  it("objet.chiffre, objet.etape, objet.marque : déclarées, permis false, maxParVideo 1", () => {
-    for (const id of [ID.objetChiffre, ID.objetEtape, ID.objetMarque]) {
-      expect(capacites[id], id).toEqual({ permis: false, maxParVideo: 1, decision: "N-04 (allumage = Williams)" });
+describe("profil tableau-anime : objets permis", () => {
+  it("objet.chiffre, objet.etape, objet.marque : déclarées, permis true, maxParVideo 1", () => {
+    for (const id of TROIS) {
+      expect(capacites[id], id).toEqual({ permis: true, maxParVideo: 1, decision: "ALLUMER-OBJETS-TABLEAU-v20g · Williams 20/11 (fini + gratuit)" });
     }
   });
 
-  it("objet.cartes absente ; aucune capacité du profil n'est permise", () => {
+  it("objet.cartes absente ; seules les 3 capacités objet sont permises", () => {
     expect(capacites[ID.objetCartes]).toBeUndefined();
-    expect(Object.values(capacites).filter((c) => c?.permis === true)).toEqual([]);
+    expect(Object.entries(capacites).filter(([, c]) => c?.permis === true).map(([id]) => id).sort()).toEqual([...TROIS].sort());
   });
 
-  it("éteint = identique : aucune pièce d'objet permise par l'entrée figée du profil", () => {
+  it("entrée du profil → EXACTEMENT les 11 pièces ouvertes par les 3 capacités (liste figée ; le moteur n'en pose que 3)", () => {
     const e: EntreeBibliotheque = { version: VERSION_BIBLIOTHEQUE, profil: PROFIL_TABLEAU_ANIME, recents: [], graine: "G", figeeLe: "2026-11-19" };
-    expect(piecesPermisesDesEntrees({ bibliothequeVideo: e })).toEqual([]);
+    const pieces = piecesPermisesDesEntrees({ bibliothequeVideo: e });
+    expect([...pieces].sort()).toEqual(["objet-anneau-donnees", "objet-barre-progression", "objet-chrono", "objet-coche", "objet-compteur-rouleau", "objet-croix", "objet-etape", "objet-etape-segments", "objet-gros-chiffre", "objet-mot-barre", "objet-particules"]);
   });
 
   it("les deux capacités d'avant sont inchangées", () => {
