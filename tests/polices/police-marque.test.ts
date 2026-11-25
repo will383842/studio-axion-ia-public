@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { FAMILLE_CSS, POLICE } from "@/briques/charte/axion-2026";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -80,5 +81,33 @@ describe("police de marque : un chargeur, deux noms, jamais muet", () => {
     seul.chargerPoliceMarque();
     await seul.policeMarquePrete();
     expect(remotion.delayRender).not.toHaveBeenCalled();
+  });
+});
+
+describe("(e) l'APPEL au chargeur unique, pas seulement l'import : chaque hôte de la fiche", () => {
+  const lire = (rel: string): string => readFileSync(new URL(`../../studio-rendu/compositions/${rel}`, import.meta.url), "utf8");
+  const sansCommentaires = (t: string): string => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  it("PlanDeScenes : chargerManrope() n'est plus qu'un appel à chargerPoliceMarque()", () => {
+    expect(sansCommentaires(lire("plan-scenes/PlanDeScenes.tsx"))).toMatch(/export function chargerManrope\(\): void \{\s*chargerPoliceMarque\(\);\s*\}/);
+  });
+
+  it.each(["tableau/ObjetsTableau.tsx", "commune/fin/CarteFinAxion.tsx", "petits-objets/planche/RacinePlanches.tsx", "demo-facecam/DemoFacecam.tsx"])(
+    "%s appelle chargerPoliceMarque() dans le corps du composant (pas seulement l'import)",
+    (rel) => {
+      const code = sansCommentaires(lire(rel));
+      const sansImport = code.replace(/^import .*$/gm, "");
+      expect(sansImport).toMatch(/(^|[^\w.])chargerPoliceMarque\(\);/m);
+    },
+  );
+
+  it.each([
+    ["commune/ecrans-couverture/CarteVideoArrondie.tsx", "chargerManropeCarte"],
+    ["commune/ecrans-couverture/Duel.tsx", "chargerManropeDuel"],
+    ["commune/ecrans-couverture/FilSocialGenerique.tsx", "chargerManropeFil"],
+  ])("%s : le chargeur local %s EST chargerPoliceMarque et il est appelé", (rel, nom) => {
+    const code = sansCommentaires(lire(rel));
+    expect(code).toMatch(new RegExp(`const ${nom} = chargerPoliceMarque;`));
+    expect(code.replace(/^const .*$/gm, "")).toMatch(new RegExp(`${nom}\\(\\);`));
   });
 });
