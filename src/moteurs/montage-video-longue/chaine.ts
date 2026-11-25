@@ -95,7 +95,7 @@ export function estimerMotsSansVoix(entrees: EntreesVideoLongue): { mots: MotHor
 function echecDuPas(err: unknown): { message: string; reessayable: boolean } {
   const nom = err instanceof Error ? err.name : "";
   if (err instanceof Error && nom === "ErreurMontageVideoLongue") return { message: err.message, reessayable: (err as Error & { reessayable?: boolean }).reessayable === true };
-  if (err instanceof Error && nom === "ErreurVideoLongue") return { message: err.message, reessayable: false };
+  if (err instanceof Error && nom === "ErreurVideoLongue") return { message: err.message, reessayable: (err as Error & { motif?: string }).motif === "eteint" }; // éteint : on rallume puis « Réessayer » ; durée ou plan : même refus à chaque essai
   return { message: "L'assemblage a eu un souci, vous pouvez réessayer.", reessayable: true };
 }
 
@@ -125,7 +125,10 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
     }
     case "montage": {
       if (ctx.commande.simulerEchecEtape === "montage" && ctx.tentative === 1) return { ...etat, echec: { etape, message: "L'assemblage a eu un souci, vous pouvez réessayer.", reessayable: true } };
-      const ctxMontage = { chapitres: etat.chapitres ?? [], mots: etat.voix?.mots ?? [], dureeSec: etat.voix?.dureeSec ?? 0 };
+      // Sans voix : mots et chapitres sont recalculés par le minutage (un ancien état aux mots collés sans trous n'aurait pas de cartons).
+      const ctxMontage = ctx.entrees.sansVoix
+        ? minuterSansVoix(ctx.entrees)
+        : { chapitres: etat.chapitres ?? [], mots: etat.voix?.mots ?? [], dureeSec: etat.voix?.dureeSec ?? 0 };
       const sorties: EtatVideoLongue["sorties"] = { ...etat.sorties };
       // Sans montage pas à pas : tout d'un coup (comme avant).
       if (!deps.monterPas) {

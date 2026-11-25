@@ -273,6 +273,16 @@ async function relireUneFois(idRendu: string, ports: PortsMontageVideoLongue, er
   }
 }
 
+/** Soumet une demande de rendu. Une erreur du service garde le caractère (définitif ou passager) donné par le serveur. */
+async function soumettreUneFois(demande: DemandeRendu, ports: PortsMontageVideoLongue): Promise<void> {
+  try {
+    await ports.rendu.soumettre(demande);
+  } catch (err) {
+    if (!(err instanceof ErreurRendu)) throw err;
+    throw new ErreurMontageVideoLongue(`Le service de rendu a refusé la demande, le montage s'arrête : ${err.message}`, [], err.reessayable);
+  }
+}
+
 /**
  * UN PAS du montage (16:9), à rappeler jusqu'à `fini`. Mêmes propriétés, plages, empreintes et identifiants que `monterVideoLongue`.
  * Un pas ne fait QU'UNE action de rendu : soumettre une plage, ou relire l'état de la demande en cours (jamais d'attente en boucle).
@@ -280,7 +290,7 @@ async function relireUneFois(idRendu: string, ports: PortsMontageVideoLongue, er
  * Le réglage `videoLongue.actif` est relu à chaque pas : éteint, le pas s'arrête net et rien de plus n'est soumis.
  */
 export async function pasMontageVideoLongue(commande: CommandeFabrication, travailId: string, ctx: Contexte, ports: PortsMontageVideoLongue, suivi?: SuiviMontageVideoLongue): Promise<PasMontageVideoLongue> {
-  if (ports.actif && (await ports.actif()) !== true) throw new Error("La vidéo longue a été éteinte : le montage s'arrête, rien de plus n'est lancé.");
+  if (ports.actif && (await ports.actif()) !== true) throw new ErreurMontageVideoLongue("La vidéo longue a été éteinte : le montage s'arrête, rien de plus n'est lancé. Rallumez-la puis réessayez.", [], true);
   const maintenant = ports.maintenant ?? Date.now;
   const videoId = commande.videoId;
   const prepare = preparerRenduVideoLongue(commande, ctx);
@@ -340,7 +350,7 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
   // 2. Prochaine plage non rendue : la soumettre.
   const prochaine = plages.find((p) => !courant.plages[p.id]);
   if (prochaine) {
-    await ports.rendu.soumettre(await demandePlage(prochaine));
+    await soumettreUneFois(await demandePlage(prochaine), ports);
     courant.enCours = { idRendu: prochaine.id, depuisMs: maintenant(), erreurs: 0 };
     return enCours();
   }
@@ -355,7 +365,7 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
     return { idRendu: idCollage, operation: "collage-chapitres", file: "longue", entrees: Object.fromEntries(noms.map((n) => [n, signe.lectures[n]])), sortie: { urlDepot: signe.depots[sortieCle], cle: sortieCle }, parametres };
   };
   if (!courant.collage || courant.collage.idRendu !== idCollage) {
-    await ports.rendu.soumettre(await demandeCollage());
+    await soumettreUneFois(await demandeCollage(), ports);
     courant.collage = { idRendu: idCollage, depuisMs: maintenant(), erreurs: 0 };
     return { enCours: { suivi: courant, fait: plages.length, total } };
   }

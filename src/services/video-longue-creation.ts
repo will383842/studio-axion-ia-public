@@ -10,9 +10,13 @@
 import "server-only";
 import { decouperScript } from "@/briques/voix-longue";
 import type { Distribution, Id, Ratio, Video } from "@/domaine/types";
-import { depots, ErreurStudio, lireParametre } from "./_commun";
+import { depots, ErreurStudio, fournisseurSimule, lireParametre } from "./_commun";
 import { exigerSession } from "./auth";
 import { MONTAGE_VIDEO_LONGUE_RELIE } from "@/services/video-longue-branchements";
+import { renduSimule } from "@/fournisseurs/rendu/client";
+import { DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
+import { MOTS_PAR_SECONDE_LECTURE } from "@/moteurs/montage-video-longue/chaine";
+import { minuterSansVoix } from "@/moteurs/montage-video-longue/minutage";
 import type { IssueLancement } from "./creation-format";
 import { PARAM_OPTIONS_COUPEES } from "./options-payantes";
 
@@ -20,8 +24,8 @@ export const ID_FORMAT_VIDEO_LONGUE = "video-longue";
 const PARAM_ACTIF = "videoLongue.actif";
 export const TOTAL_CARACTERES_MAX = 60_000;
 /**
- * Le montage AVEC voix n'est pas encore relié (UI-4 : MONTAGE_AVEC_VOIX_RELIE=false) : une vidéo créée avec voix resterait
- * en pause puis échouerait. À passer à true quand UI-4 reliera la voix.
+ * La voix de la vidéo longue n'est pas encore reliée (MONTAGE_AVEC_VOIX_RELIE=false) : une vidéo créée avec voix resterait
+ * en pause puis échouerait. À passer à true seulement quand la voix sera reliée.
  */
 export const VOIX_VIDEO_LONGUE_RELIEE = false;
 
@@ -30,6 +34,8 @@ export const PHRASE_DEPENSES_COUPEES = "Les options payantes sont coupées dans 
 export const PHRASE_CHAPITRES_VIDES = "Ajoutez au moins un chapitre avec du texte : rien n'est parti.";
 export const PHRASE_CHAPITRES_INVALIDES = "Les chapitres ne sont pas valides (numéros en double) : rien n'est parti.";
 export const PHRASE_TROP_LONG = "Le texte est trop long pour une vidéo longue (60 000 caractères au plus) : rien n'est parti.";
+export const PHRASE_TROP_LONGUE_LECTURE = "Votre script dépasse 20 minutes de lecture : raccourcissez-le ou coupez-le en deux vidéos.";
+export const PHRASE_RENDU_NON_RELIE = "Le rendu des vidéos n'est pas encore relié sur ce Studio : rien n'a été créé.";
 export const PHRASE_QUI_PARLE = "Choisissez qui parle : ajoutez d'abord votre double dans Personnages, ou choisissez « Sans voix ».";
 export const PHRASE_MONTAGE_NON_RELIE = "La fabrication de la vidéo longue n'est pas encore reliée : rien n'est parti.";
 export const PHRASE_VOIX_NON_RELIEE = "La vidéo longue avec voix n'est pas encore reliée : choisissez « Sans voix » pour la fabriquer dès maintenant.";
@@ -55,6 +61,11 @@ export type IssueVideoLongue = { statut: "lancee"; videoId: Id } | { statut: "re
 export interface DependancesVideoLongueCreation {
   /** Montage réel relié ? (défaut : MONTAGE_VIDEO_LONGUE_RELIE). Faux : refus avant toute création. */
   montageRelie?: boolean;
+  /**
+   * Rendu et stockage reliés ? (défaut : en production, faux si le rendu est simulé ou le stockage en simulation ; hors
+   * production, vrai : les simulations restent possibles). Faux : refus avant toute création, en mode sans voix.
+   */
+  renduRelie?: () => boolean | Promise<boolean>;
   /** Voix reliée ? (défaut : VOIX_VIDEO_LONGUE_RELIEE). */
   voixReliee?: boolean;
   /** Lecture d'un réglage (défaut : la base). Une lecture qui lève éteint. */
@@ -65,6 +76,22 @@ export interface DependancesVideoLongueCreation {
   preparer?: (videoId: Id, chapitres: ChapitreDemande[], accord: Record<string, unknown> | null) => Promise<void>;
   lancer?: (videoId: Id) => Promise<IssueLancement>;
   abandonner?: (videoId: Id) => Promise<void>;
+}
+
+/** Durée de lecture estimée du script (mots / débit de lecture du montage), en secondes. */
+export const dureeLectureSec = (chapitres: ChapitreDemande[], sansVoix = false, question?: string): number =>
+  sansVoix
+    ? minuterSansVoix({ chapitres, question }).dureeSec
+    : chapitres.reduce((s, c) => s + c.texte.split(/\s+/).filter(Boolean).length, 0) / MOTS_PAR_SECONDE_LECTURE;
+
+/** Même test de stockage que le lancement commun : le réglage en base d'abord, puis l'environnement (`fournisseurSimule`). */
+async function renduRelieParDefaut(): Promise<boolean> {
+  if (process.env.NODE_ENV !== "production") return true;
+  try {
+    return !renduSimule() && !(await fournisseurSimule("stockage"));
+  } catch {
+    return false;
+  }
 }
 
 const refus = (phrase: string): IssueVideoLongue => ({ statut: "refusee", phrase });
@@ -100,8 +127,7 @@ async function preparerParDefaut(videoId: Id, chapitres: ChapitreDemande[], acco
 
 async function lancerParDefaut(videoId: Id): Promise<IssueLancement> {
   const { lancerAvecAccord } = await import("./creation-format");
-  // Le réglage est rafraîchi côté moteur avant le lancement. `rafraichirVideoLongueActif` arrive avec le lot UI-4 : import
-  // tolérant, sans effet tant que l'export n'existe pas.
+  // Le réglage est rafraîchi côté moteur avant le lancement, si `rafraichirVideoLongueActif` existe (import tolérant).
   const m: object = await import("./video-longue-branchements");
   const rafraichir = (m as { rafraichirVideoLongueActif?: unknown }).rafraichirVideoLongueActif;
   if (typeof rafraichir === "function") await (rafraichir as () => Promise<unknown>)();
@@ -153,11 +179,18 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
   if (chapitres === "invalides") return refus(PHRASE_CHAPITRES_INVALIDES);
   if (chapitres === "trop-long") return refus(PHRASE_TROP_LONG);
 
+  // Avant toute création : la borne du montage (20 min) est refusée ici, pas après coup.
+  // Sans voix : même horloge que le montage (cartons, respirations) ; avec voix : débit de lecture.
+  const questionGarde = (typeof demande.question === "string" ? demande.question : "").replace(/\s+/g, " ").trim();
+  if (dureeLectureSec(chapitres, demande.sansVoix === true, questionGarde) > DUREE_MAX_SEC) return refus(PHRASE_TROP_LONGUE_LECTURE);
+
   // Avant toute création : tant que le montage n'est pas relié, le travail resterait en pause puis échouerait (sans voix comme avec voix).
   if ((dep.montageRelie ?? MONTAGE_VIDEO_LONGUE_RELIE) !== true) return refus(PHRASE_MONTAGE_NON_RELIE);
   const sansVoix = demande.sansVoix === true;
   // Avant toute création : tant que la voix n'est pas reliée, le mode avec voix est refusé proprement.
   if (!sansVoix && !(dep.voixReliee ?? VOIX_VIDEO_LONGUE_RELIEE)) return refus(PHRASE_VOIX_NON_RELIEE);
+  // Sans voix, en production : un rendu simulé ou un stockage non relié échouerait au montage ; refus avant toute création.
+  if (sansVoix && !(await (dep.renduRelie ?? renduRelieParDefaut)())) return refus(PHRASE_RENDU_NON_RELIE);
   let distribution: Distribution[] = [];
   if (!sansVoix) {
     try {

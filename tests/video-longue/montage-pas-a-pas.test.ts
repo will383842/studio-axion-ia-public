@@ -23,21 +23,27 @@ vi.mock("@/fournisseurs/credits/elevenlabs", async (orig) => ({ ...(await orig<o
 const { pasMontageVideoLongue, ErreurMontageVideoLongue } = await import("@/services/video-longue-montage");
 const { avancerVideoLongue, ETAPES_FABRICATION } = await import("@/moteurs/montage-video-longue/chaine");
 const { definitionVideoLongue } = await import("@/moteurs/montage-video-longue");
+const { minuterSansVoix } = await import("@/moteurs/montage-video-longue/minutage");
 const { lireEntreesVideoLongue } = await import("@/moteurs/montage-video-longue/entrees");
 const { creerDependancesVideoLongue } = await import("@/services/video-longue-branchements");
 import type { PortsMontageVideoLongue } from "@/services/video-longue-montage";
 import type { SuiviMontageVideoLongue, EtatVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 
-// 3 chapitres (100 s, 50 s, 110 s) : plages de 60 s au plus = 2 + 1 + 2 = 5 plages, puis 1 collage.
-const BORNES = [
-  { debutSec: 0, finSec: 100 },
-  { debutSec: 100, finSec: 150 },
-  { debutSec: 150, finSec: 260 },
+// 3 chapitres sans voix, minutés par le minutage (phrases de 26 mots = 10 s + 0,3 s) : plages de 60 s au plus = 2 + 1 + 2 = 5 plages, puis 1 collage.
+// (En sans voix, l'étape montage recalcule mots et chapitres depuis le script : le contexte du test vient donc du même minutage.)
+const phrases = (n: number, tag: string): string => Array.from({ length: n }, (_, i) => `${Array.from({ length: 25 }, (_, k) => `${tag}${i}x${k}`).join(" ")} fin${i}.`).join(" ");
+const CHAPITRES_SCRIPT = [
+  { id: "c1", titre: "Chapitre 1", texte: phrases(8, "a") },
+  { id: "c2", titre: "Chapitre 2", texte: phrases(3, "b") },
+  { id: "c3", titre: "Chapitre 3", texte: phrases(9, "c") },
 ];
-const chapitresWeb = BORNES.map((b, i) => ({ ...b, libelle: `Chapitre ${i + 1}`, blocRecette: "chapitres" }));
-const mots: MotHorodate[] = Array.from({ length: 260 }, (_, i) => ({ mot: i % 10 === 9 ? `mot${i}.` : `mot${i}`, debutSec: i, finSec: i + 1 }));
-const ctx = { chapitres: chapitresWeb as never, mots, dureeSec: 260 };
-const commande = { videoId: "v-pas", ratios: ["16:9"], distribution: [], entrees: { videoLongue: { chapitres: BORNES.map((_, i) => ({ id: `c${i + 1}`, titre: `Chapitre ${i + 1}`, texte: `texte ${i + 1}` })), sansVoix: true } } } as unknown as CommandeFabrication;
+const minutage = minuterSansVoix({ chapitres: CHAPITRES_SCRIPT });
+const chapitresWeb = minutage.chapitres;
+const mots: MotHorodate[] = minutage.mots;
+const ctx = { chapitres: chapitresWeb as never, mots, dureeSec: minutage.dureeSec };
+const commande = { videoId: "v-pas", ratios: ["16:9"], distribution: [], entrees: { videoLongue: { chapitres: CHAPITRES_SCRIPT, sansVoix: true } } } as unknown as CommandeFabrication;
+/** Script de plus de 20 minutes (refus définitif de durée). */
+const commandeTropLongue = { ...commande, entrees: { videoLongue: { chapitres: [{ id: "c1", titre: "Long", texte: phrases(130, "z") }], sansVoix: true } } } as unknown as CommandeFabrication;
 const PLAGES = 5;
 
 interface Banc {
@@ -321,34 +327,161 @@ describe("FIN-8 : chemin sans voix = 0 appel HeyGen / ElevenLabs", () => {
   });
 });
 
+/** Banc de la chaîne : l'état du gabarit, des dépendances GARDÉES (réglage, durée) et l'horloge simulée qui avance à chaque tour. */
+function chaine(b: Banc, avance = 300, cmd: CommandeFabrication = commande) {
+  const deps = creerDependancesVideoLongue(cmd, {
+    actif: async () => b.etat.actif,
+    registre: {} as never,
+    montagePret: async () => true,
+    reserver: async () => undefined,
+    lireMorceau: async () => ({ dureeSec: 0, mots: [] }),
+    monterPas: (_r, c, s) => pasMontageVideoLongue(cmd, "t-pas", c, b.ports, s),
+  });
+  const def = definitionVideoLongue(() => deps);
+  const entrees = lireEntreesVideoLongue(cmd);
+  const c = (tentative: number) => ({ commande: cmd, entrees, travailId: "t-pas", versionId: "v", tentative, etapes: def.etapesFabrication });
+  let etat: EtatVideoLongue = { faites: ["reception", "voix", "chapitres"], voix: { mots, dureeSec: 260, morceaux: 0 }, chapitres: chapitresWeb as never, remarques: [], sorties: {} };
+  const tour = async (tentative: number) => {
+    etat = await avancerVideoLongue(etat, c(tentative) as never, deps as never);
+    b.horloge.ms += avance;
+    return etat;
+  };
+  /** Tourne jusqu'à « montage » fait, un échec, ou `jusqua` vrai. */
+  const jusqua = async (tentative: number, stop: (e: EtatVideoLongue) => boolean = () => false) => {
+    for (let i = 0; i < 150 && !etat.faites.includes("montage") && !etat.echec && !stop(etat); i++) await tour(tentative);
+    return etat;
+  };
+  return { tour, jusqua, lire: () => etat, poser: (e: EtatVideoLongue) => void (etat = e) };
+}
+const sansDoublon = (b: Banc) => {
+  const ids = b.soumis.map((d) => d.idRendu);
+  expect(ids.length - new Set(ids).size).toBeLessThanOrEqual(1); // au plus la demande interrompue, même idRendu
+  expect(new Set(ids).size).toBe(PLAGES + 1);
+};
+
 describe("FIN-8 : « Réessayer » après un délai dépassé", () => {
-  it("échec lisible, plages finies gardées, puis relance (echec retiré, tentative 2) jusqu'à « fini », sans plage resoumise", async () => {
+  it("échec lisible, plages finies gardées, puis relance (echec retiré, tentative 2) jusqu'à « fini », horloge qui avance, délai gardé", async () => {
     const b = banc({ lecturesEnCours: 3 });
     b.ports.delaiPlageMs = 1000;
-    const def = definitionVideoLongue(() => deps);
-    const deps = { voix: { lire: vi.fn() }, monter: vi.fn(), monterPas: (r: never, c: never, s?: SuiviMontageVideoLongue) => pasMontageVideoLongue(commande, "t-pas", c, b.ports, s) };
-    const entrees = lireEntreesVideoLongue(commande);
-    const c = (tentative: number) => ({ commande, entrees, travailId: "t-pas", versionId: "v", tentative, etapes: def.etapesFabrication });
-    let etat: EtatVideoLongue = { faites: ["reception", "voix", "chapitres"], voix: { mots, dureeSec: 260, morceaux: 0 }, chapitres: chapitresWeb as never, remarques: [], sorties: {} };
+    const k = chaine(b);
     // Un pas soumet la plage, la plage reste « en cours » au-delà du délai.
-    etat = await avancerVideoLongue(etat, c(1) as never, deps as never);
+    await k.tour(1);
     b.horloge.ms += 5000;
-    etat = await avancerVideoLongue(etat, c(1) as never, deps as never);
+    const etat = await k.tour(1);
     expect(etat.echec?.message).toMatch(/délai dépassé/);
     expect(etat.echec?.reessayable).toBe(true);
     expect(etat.montageSuivi?.["16:9"]?.enCours).toBeUndefined();
     expect(etat.montageSuivi?.["16:9"]?.collage).toBeUndefined();
-    // « Réessayer » : seul `echec` est retiré par le gabarit.
-    b.ports.delaiPlageMs = 100_000;
-    etat = { ...etat, echec: undefined };
-    let tours = 0;
-    while (!etat.faites.includes("montage") && !etat.echec && tours++ < 100) etat = await avancerVideoLongue(etat, c(2) as never, deps as never);
-    expect(etat.echec).toBeUndefined();
-    expect(etat.faites).toContain("montage");
-    expect(etat.sorties["16:9"]).toContain("video-longue-t-pas-16x9.mp4");
-    // Chaque plage n'est soumise qu'une fois par identifiant ; la plage du premier essai est resoumise au plus une fois (même idRendu).
-    const ids = b.soumis.map((d) => d.idRendu);
-    expect(ids.length - new Set(ids).size).toBeLessThanOrEqual(1);
-    expect(new Set(ids).size).toBe(PLAGES + 1);
+    // « Réessayer » : seul `echec` est retiré par le gabarit. Le délai reste à 1 000 ms et l'horloge avance de 300 ms par pas :
+    // sans le correctif (ancienne horloge gardée), le premier pas relirait une demande déjà « trop vieille » et échouerait.
+    k.poser({ ...etat, echec: undefined });
+    const fin = await k.jusqua(2);
+    expect(fin.echec).toBeUndefined();
+    expect(fin.faites).toContain("montage");
+    expect(fin.sorties["16:9"]).toContain("video-longue-t-pas-16x9.mp4");
+    sansDoublon(b);
+  });
+
+  it("délai du collage dépassé : plages gardées, collage retiré, relance jusqu'à « fini » avec le même idCollage", async () => {
+    const b = banc();
+    b.ports.delaiCollageMs = 1000;
+    let collageBloque = true;
+    b.etat.reponse = (id) => (collageBloque && b.soumis.find((d) => d.idRendu === id)?.operation === "collage-chapitres" ? { statut: "en_cours" as const, progression: 10 } : undefined) as never;
+    const k = chaine(b);
+    await k.jusqua(1, () => b.soumis.some((d) => d.operation === "collage-chapitres"));
+    b.horloge.ms += 5000;
+    const etat = await k.tour(1);
+    expect(etat.echec?.message).toMatch(/délai dépassé/);
+    expect(etat.echec?.reessayable).toBe(true);
+    expect(etat.montageSuivi?.["16:9"]?.collage).toBeUndefined();
+    expect(Object.keys(etat.montageSuivi?.["16:9"]?.plages ?? {})).toHaveLength(PLAGES);
+    collageBloque = false;
+    k.poser({ ...etat, echec: undefined });
+    const fin = await k.jusqua(2);
+    expect(fin.echec).toBeUndefined();
+    expect(fin.faites).toContain("montage");
+    const collages = b.soumis.filter((d) => d.operation === "collage-chapitres").map((d) => d.idRendu);
+    expect(collages).toHaveLength(2);
+    expect(new Set(collages).size).toBe(1);
+    sansDoublon(b);
+  });
+});
+
+describe("FIN-8 : classement « réessayable » d'un échec de pas", () => {
+  it("réglage éteint en cours de route : échec réessayable, plages gardées ; rallumé puis relance jusqu'à « fini »", async () => {
+    const b = banc();
+    const k = chaine(b);
+    await k.jusqua(1, () => Object.keys(b.notees).length >= 2);
+    expect(Object.keys(b.notees)).toHaveLength(2);
+    b.etat.actif = false;
+    const soumisAvant = b.soumis.length;
+    const etat = await k.tour(1);
+    expect(etat.echec?.reessayable).toBe(true);
+    expect(etat.echec?.message).toMatch(/éteinte|éteint/);
+    expect(b.soumis).toHaveLength(soumisAvant);
+    expect(Object.keys(b.notees)).toHaveLength(2);
+    b.etat.actif = true;
+    k.poser({ ...etat, echec: undefined });
+    const fin = await k.jusqua(2);
+    expect(fin.echec).toBeUndefined();
+    expect(fin.faites).toContain("montage");
+    sansDoublon(b);
+  });
+
+  it("éteint entre la garde des dépendances et le pas (course) : même classement, message lisible", async () => {
+    const b = banc();
+    b.ports.actif = async () => false; // la garde des dépendances est passée (ou absente) : seul le pas voit « éteint »
+    const deps = { voix: { lire: vi.fn() }, monter: vi.fn(), monterPas: (r: never, c: never, s?: SuiviMontageVideoLongue) => pasMontageVideoLongue(commande, "t-pas", c, b.ports, s) };
+    const def = definitionVideoLongue(() => deps as never);
+    const c = { commande, entrees: lireEntreesVideoLongue(commande), travailId: "t-pas", versionId: "v", tentative: 1, etapes: def.etapesFabrication };
+    const etat = await avancerVideoLongue({ faites: ["reception", "voix", "chapitres"], voix: { mots, dureeSec: 260, morceaux: 0 }, chapitres: chapitresWeb as never, remarques: [], sorties: {} }, c as never, deps as never);
+    expect(etat.echec?.reessayable).toBe(true);
+    expect(etat.echec?.message).toMatch(/éteinte.*Rallumez/);
+    expect(b.appelsReseau()).toBe(0);
+  });
+
+  it("durée trop longue : échec NON réessayable (même refus à chaque essai)", async () => {
+    const b = banc();
+    const k = chaine(b, 300, commandeTropLongue);
+    // Sans voix, la durée vient du minutage du script (plus de 20 minutes de lecture).
+    const refus = await k.tour(1);
+    expect(refus.echec?.reessayable).toBe(false);
+    expect(b.appelsReseau()).toBe(0);
+  });
+
+  it("soumission refusée définitivement par le serveur : non réessayable, message lisible", async () => {
+    const b = banc();
+    b.ports.rendu.soumettre = async () => {
+      throw new ErreurRendu({ code: "RENDU", message: "demande invalide", reessayable: false } as never);
+    };
+    const k = chaine(b);
+    const etat = await k.tour(1);
+    expect(etat.echec?.reessayable).toBe(false);
+    expect(etat.echec?.message).toMatch(/demande invalide/);
+    expect(etat.echec?.message).not.toMatch(/vous pouvez réessayer/);
+  });
+
+  it("soumission en erreur passagère (503) : réessayable", async () => {
+    const b = banc();
+    b.ports.rendu.soumettre = async () => {
+      throw new ErreurRendu({ code: "RENDU", message: "service indisponible", reessayable: true } as never);
+    };
+    const k = chaine(b);
+    const etat = await k.tour(1);
+    expect(etat.echec?.reessayable).toBe(true);
+    expect(etat.echec?.message).toMatch(/service indisponible/);
+  });
+
+  it("collage refusé définitivement à la soumission : non réessayable", async () => {
+    const b = banc();
+    const vraie = b.ports.rendu.soumettre;
+    b.ports.rendu.soumettre = async (d) => {
+      if (d.operation === "collage-chapitres") throw new ErreurRendu({ code: "RENDU", message: "accès refusé", reessayable: false } as never);
+      return vraie(d);
+    };
+    const k = chaine(b);
+    const etat = await k.jusqua(1);
+    expect(etat.echec?.reessayable).toBe(false);
+    expect(etat.echec?.message).toMatch(/accès refusé/);
   });
 });

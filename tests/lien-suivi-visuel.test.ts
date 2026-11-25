@@ -82,9 +82,9 @@ describe("critère 3 · la casse de utm_campaign est conservée", () => {
 });
 
 describe("code de format « VS » (ajout seul, en fin de registre)", () => {
-  it("VS est bien formé, unique, réservé au visuel et placé en dernier", () => {
+  it("VS est bien formé, unique, réservé au visuel, placé juste après DF ; la suite du registre est exactement DF, VS, VL, TDB", () => {
     const liste = listerCodes();
-    expect(liste[liste.length - 1].code).toBe("VS");
+    expect(liste.slice(liste.findIndex((e) => e.code === "DF")).map((e) => e.code)).toEqual(["DF", "VS", "VL", "TDB"]);
     expect("VS").toMatch(MOTIF_CODE_FORMAT);
     expect(liste.filter((e) => e.code === "VS")).toHaveLength(1);
     expect(entreeDuCode("VS")?.formatId).toBe("visuel");

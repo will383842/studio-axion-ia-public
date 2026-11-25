@@ -23,7 +23,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `texte.sortie-animee` | eteint | 2 (U19) | AM-08 |  |
 | `texte.escalier` | eteint | 2 (U20a, U20b) | AM-09 | permis: false |
 | `ecran.clip-v4` | prod | — |  | v4 seule |
-| `ecran.mosaique-extraits` | prevu | 4 (U4.1 à U4.6) | Q4, Q5 |  |
+| `ecran.mosaique-extraits` | eteint | 4 (U4.1 à U4.6) | Q4, Q5 |  |
 | `ecran.telephone-extrait` | eteint | 4 (U4.7 à U4.9c) | Q1, P-6 |  |
 | `calque.texte-derriere-double` | absent | — | V4 plus tard, P7 | PAYANT, 2e rendu HeyGen par vidéo, 5.10 à 5.17 suspendues |
 | `calque.texte-derriere-prise` | absent | — | Q6 | étude 5.20, 5.21 |
@@ -59,7 +59,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `cadrage.zoom-avocat` | prod | 8 | AM-16 |  |
 | `cadrage.zoom-demo` | prod | 8 | AM-16 |  |
 | `cadrage.camera-cas-concret` | prod | 8 | AM-16 |  |
-| `cadrage.zoom-v4` | absent | 8 | AM-16 | attend W-6 |
+| `cadrage.zoom-v4` | eteint | 8 | AM-16 | branché, éteint : facecamAnimee.zoomGratuit ; allumage après la planche C8-Z10 |
 | `motion.avis-client` | prevu | 8 | AM-16 |  |
 | `objet.trait` | prevu | 9 | D3 § C |  |
 | `objet.marque` | prevu | 9 | D3 § C |  |

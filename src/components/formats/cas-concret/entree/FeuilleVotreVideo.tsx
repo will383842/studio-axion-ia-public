@@ -490,7 +490,7 @@ export function ContenuVotreVideo({
       </section>
       {onSansVoix && (
         <section aria-label="Sans voix" className="space-y-2">
-          <Interrupteur libelle="Sans voix (sous-titres et texte à l'écran)" detail="Même vidéo, mêmes images et mêmes animations, mais en silence : le texte se lit à l'écran et dans les sous-titres. Aucune voix, aucune musique, aucun coût de voix. Décoché : la vidéo est lue par votre voix." coche={sansVoix} onChange={onSansVoix} />
+          <Interrupteur libelle="Sans voix (sous-titres et texte à l'écran)" detail="Même vidéo, mêmes images et mêmes animations, mais en silence : le texte se lit à l'écran et dans les sous-titres. Aucune voix, aucune musique, aucune voix à payer. Décoché : la vidéo est lue par votre voix." coche={sansVoix} onChange={onSansVoix} />
         </section>
       )}
       {onFinRdv && (
