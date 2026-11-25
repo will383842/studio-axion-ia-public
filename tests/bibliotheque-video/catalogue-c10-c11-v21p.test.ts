@@ -18,7 +18,7 @@ const C10 = [
 ] as const;
 const C11 = [
   ["texte.marques-au-mot", "texteMarquesAuMot", "eteint"],
-  ["texte.selectif", "texteSelectif", "prevu"],
+  ["texte.selectif", "texteSelectif", "eteint"],
   ["texte.mode-carte", "texteModeCarte", "prevu"],
   ["texte.effets", "texteEffets", "prevu"],
   ["texte.accents-role", "texteAccentsRole", "prevu"],
