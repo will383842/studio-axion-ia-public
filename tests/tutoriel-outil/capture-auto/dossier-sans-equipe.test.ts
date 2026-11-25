@@ -96,9 +96,9 @@ const stockage = {
 type Port = NonNullable<OutilsTutoriel["filmDossier"]>;
 
 /** Mène le moteur (SANS équipe, SANS voix) jusqu'à la pause du film (ou jusqu'au bout), puis installe vidéo, version et travail dans les dépôts. */
-async function lancer(script: string, filmDossier?: Port, options: { ratios?: ("4:5" | "9:16" | "16:9")[]; commande?: CommandeFabrication } = {}) {
+async function lancer(script: string, filmDossier?: Port, options: { style?: Record<string, unknown>; ratios?: ("4:5" | "9:16" | "16:9")[]; commande?: CommandeFabrication } = {}) {
   const j: Journal = { voix: [], claude: [], rendus: [] };
-  const o = { ...outilsDoubles(j), ...(filmDossier ? { filmDossier } : {}) } as OutilsTutoriel;
+  const o = { ...outilsDoubles(j), ...(filmDossier ? { filmDossier } : {}), ...(options.style ? { sousTitres: { style: options.style } } : {}) } as OutilsTutoriel;
   expect(o.equipe).toBeUndefined();
   const moteur = creerMoteurTutorielOutil({ outils: une(o) });
   const c = options.commande ?? commande(script, options.ratios);
@@ -184,9 +184,9 @@ function repondre(): { maquette: string; largeur: number; hauteur: number } {
 const rendusComposition = (j: Journal) => j.rendus.filter((d) => d.operation === "composition");
 const proprietes = (d: { parametres: Record<string, unknown> }) => d.parametres.proprietes as Record<string, unknown> & { navigation?: Record<string, unknown> };
 
-async function deDossierAuBout(script: string, ratios?: ("4:5" | "9:16" | "16:9")[]) {
+async function deDossierAuBout(script: string, ratios?: ("4:5" | "9:16" | "16:9")[], style?: Record<string, unknown>) {
   const lireScenario = vi.fn(async () => SCENARIO as unknown);
-  const m = await lancer(script, { captureAuto: true, lireScenario }, { ratios });
+  const m = await lancer(script, { captureAuto: true, lireScenario }, { ratios, ...(style ? { style } : {}) });
   expect(m.t().parametres?.pause).toMatchObject({ code: "TO_FILM_A_CAPTURER" });
   expect(m.etat().scenarioDossier?.maquette).toBe("05-stocks");
   expect(m.etat().audio?.fournisseur).toBe("aucune");
@@ -237,6 +237,22 @@ describe("film d'un dossier sans équipe", () => {
     expect(m.j.claude).toEqual([]); // le double Claude des outils n'est pas vu par le piège : on le vérifie ici (0 appel payant)
     expect(m.etat().reserves.filter((r) => /Composition|plan simple/i.test(r))).toEqual([]);
     expect(pieges.appels).toEqual([]);
+  });
+
+  it("style de la Bibliothèque en position « centre » (Axion pop) : les sous-titres descendent aussi dans la bande du bas ; « haut » reste un choix explicite", async () => {
+    const base = { type: "style-sous-titres", police: "Archivo Black", tailleRelative: 1, motsParLigne: 3, casse: "majuscules", animation: "pop", couleurAccent: "orange" };
+    const centre = await deDossierAuBout(SCRIPT_STOCKS, ["4:5"], { ...base, position: "centre" });
+    for (const d of rendusComposition(centre.m.j)) {
+      const pos = (proprietes(d).sousTitres as { positions: { milieuPct: number; basPct: number } }).positions;
+      expect(pos.milieuPct).toBe(pos.basPct);
+    }
+    reinitialiserDepots();
+    puts.clear();
+    const haut = await deDossierAuBout(SCRIPT_STOCKS, ["4:5"], { ...base, position: "haut" });
+    for (const d of rendusComposition(haut.m.j)) {
+      const pos = (proprietes(d).sousTitres as { positions: { milieuPct: number; hautPct: number } }).positions;
+      expect(pos.milieuPct).toBe(pos.hautPct);
+    }
   });
 
   it("mots d'ancrage absents du script collé : ancres réparties, la pause film arrive quand même et la chaîne va au bout", async () => {

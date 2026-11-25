@@ -790,7 +790,7 @@ function finRetenue(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "ent
 /**
  * Film d'un dossier sans voix : les sous-titres sans position posée sont centrés à 48 % (`positionsDuStyle`), ce qui recouvre la zone visée du film.
  * Comme un style en position « bas » (même calcul que `positionsDuStyle`), le centre descend dans la bande du bas, celle que `hautSousTitresPct` protège.
- * Sans `commande`, hors de ce parcours, ou avec une position posée par le style : rien ne change.
+ * Sans `commande`, hors de ce parcours, ou avec une position posée par le style (haut, bas ou positionPct) : rien ne change. Le centre est descendu en bas.
  */
 function sousTitresEnBas(calque: ReturnType<typeof donneesCalque>, ratio: Ratio, etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees"> | undefined, style: ValeurStyleSousTitres | null | undefined): ReturnType<typeof donneesCalque> {
   if (!commande || !sousTitresDuFilmEnBas(etat, commande, style)) return calque;
@@ -798,7 +798,7 @@ function sousTitresEnBas(calque: ReturnType<typeof donneesCalque>, ratio: Ratio,
 }
 
 function sousTitresDuFilmEnBas(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees">, style: ValeurStyleSousTitres | null | undefined): boolean {
-  return filmDeDossierSansVoix(etat, commande) && style?.positionPct === undefined && !style?.position;
+  return filmDeDossierSansVoix(etat, commande) && style?.positionPct === undefined && style?.position !== "haut" && style?.position !== "bas";
 }
 
 /** Propriétés de la composition pour un ratio (l'adresse de la voix arrive par l'entrée « audio »). */
