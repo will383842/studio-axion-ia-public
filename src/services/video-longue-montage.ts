@@ -1,8 +1,9 @@
 /**
  * MONTAGE RÉEL DE LA « VIDÉO LONGUE » côté Studio (lot UI-4) : le port `monter` du moteur `montage-video-longue`.
  *
- *  1. plan 16:9 par chapitre, SANS IA (`planVideoLongue`, niveau 1) : aucun appel Claude, 0 € ;
- *  2. sous-titres (`fabriquerSousTitres`) sur les mêmes mots, passés en `proprietes.sousTitres` ;
+ *  1. story-board de la vidéo (`storyboardVideoLongue`, PUR, SANS IA : aucun appel Claude, 0 €), passé en `proprietes.storyboard`
+ *     à la composition « VideoLongue » (scènes, cartons, sous-titres : tout est dans le story-board) ; `preparerRenduVideoLongue`
+ *     est la SEULE fonction qui le prépare, pour le montage d'un coup ET pas à pas ;
  *  3. un morceau muet par plage d'images (`rendreChapitres`, une plage à la fois sur le service de rendu) ; chaque morceau
  *     terminé est NOTÉ (paramètre `videoLongue.plages.<videoId>`) : un redémarrage ne refait pas une plage rendue ;
  *  4. collage des morceaux (`collage-chapitres`) : SANS voix en mode sans voix (aucune piste son).
@@ -15,10 +16,11 @@ import type { CommandeFabrication, MotHorodate } from "@/domaine/types";
 import type { DemandeRendu, ServiceRendu } from "@/fournisseurs/types";
 import { ErreurRendu } from "@/fournisseurs/rendu/client";
 import type { SegmentCale } from "@/briques/plan-scenes-generateurs/adaptateur";
-import { donneesCalque, fabriquerSousTitres } from "@/briques/sous-titres";
-import { COMPOSITION_VIDEO_LONGUE, type DependancesVideoLongue, type PasMontageVideoLongue, type SuiviMontageVideoLongue } from "@/moteurs/montage-video-longue/chaine";
-import type { PlanValide } from "@/briques/plan-scenes/schema";
-import { planVideoLongue, type ChapitrePourPlan, type FormatVideoLongue } from "@/moteurs/montage-video-longue/plan";
+import { type DependancesVideoLongue, type PasMontageVideoLongue, type SuiviMontageVideoLongue } from "@/moteurs/montage-video-longue/chaine";
+import type { ChapitrePourPlan } from "@/moteurs/montage-video-longue/plan";
+import { lireEntreesVideoLongue } from "@/moteurs/montage-video-longue/entrees";
+import { storyboardVideoLongue } from "@/moteurs/montage-video-longue/storyboard";
+import { ID_COMPOSITION_VIDEO_LONGUE, TEMPS_LONGUE, VERSION_DESSIN_LONGUE, VERSION_STORYBOARD, type StoryboardVideoLongue } from "@/moteurs/montage-video-longue/storyboard-types";
 import { DELAI_MAX_PLAGE_MS, idRenduPlage, parametresPlage, plagesDesChapitres, rendreChapitres, type DemandePlage, type MorceauRendu, type PlageARendre, type PortRenduPlage } from "@/moteurs/montage-video-longue/rendu-chapitres";
 
 /** Nom du fichier final, PROPRE À CHAQUE TRAVAIL : une retouche n'écrase jamais la version précédente. */
@@ -64,6 +66,16 @@ export class ErreurMontageVideoLongue extends Error {
     super(message);
     this.name = "ErreurMontageVideoLongue";
   }
+}
+
+/**
+ * Échec d'une plage : si le service de rendu ne connaît pas encore la composition (Studio déployé avant studio-rendu),
+ * phrase claire et RÉESSAYABLE (rien n'est payé ; la même demande repartira une fois le service à jour). Sinon : définitif.
+ */
+export const COMPOSITION_ABSENTE = /composition\b.*\b(introuvable|inconnue)|could not find composition/i;
+export function erreurEchecPlage(message: string): ErreurMontageVideoLongue {
+  if (COMPOSITION_ABSENTE.test(message)) return new ErreurMontageVideoLongue("Le service de rendu n'est pas encore à jour pour ce nouveau montage : rien n'est payé, réessayez un peu plus tard.", [], true);
+  return new ErreurMontageVideoLongue(`Le rendu d'une partie de la vidéo a échoué : ${message}`, [], false);
 }
 
 const empreinte = (v: unknown): string => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 24);
@@ -126,7 +138,7 @@ async function soumettreEtAttendre(demande: DemandeRendu, ports: PortsMontageVid
       continue;
     }
     if (e.statut === "termine") return { sortieCle: e.sortieCle || demande.sortie.cle };
-    if (e.statut === "echec") throw new Error(`Le rendu a échoué : ${e.erreur.message}`);
+    if (e.statut === "echec") throw COMPOSITION_ABSENTE.test(e.erreur.message) ? erreurEchecPlage(e.erreur.message) : new Error(`Le rendu a échoué : ${e.erreur.message}`);
     if (e.statut === "inconnu") await ports.rendu.soumettre(demande);
     await attendre(intervalle); // y compris après un renvoi : pas de boucle serrée sur un service qui répond « inconnu »
   }
@@ -146,9 +158,41 @@ function portRenduPlage(commande: CommandeFabrication, ports: PortsMontageVideoL
   };
 }
 
-/** Plan sans scène (PUR) : mêmes habillage et durée que les autres chapitres, rien à dessiner de plus. */
-function planVide(format: FormatVideoLongue, dureeMs: number): PlanValide {
-  return { version: "plan-scenes-1", format, facecam: false, dureeMs, habillage: { fond: "ivoire", accent: "terracotta" }, mots: [], scenes: [] } as unknown as PlanValide;
+/** Taille maximale du JSON des propriétés d'un rendu (le serveur de rendu refuse un corps de plus de 1 Mo : marge gardée). */
+export const TAILLE_MAX_PROPRIETES_OCTETS = 600 * 1024;
+
+export interface ChapitrePrepare {
+  id: string;
+  debutMs: number;
+  finMs: number;
+  /** Hash de ce qui dessine ce chapitre : versions, bornes, scènes qui le touchent (transition comprise), sous-titres de la tranche. */
+  empreinte: string;
+}
+
+export interface RenduPrepare {
+  composition: typeof ID_COMPOSITION_VIDEO_LONGUE;
+  proprietes: { storyboard: StoryboardVideoLongue };
+  chapitres: ChapitrePrepare[];
+}
+
+/**
+ * Prépare le rendu (PUR) : story-board, propriétés de la composition et plages (id, bornes, empreinte) de chaque chapitre.
+ * Appelée par `monterVideoLongue` ET `pasMontageVideoLongue` : mêmes propriétés, mêmes plages, mêmes identifiants.
+ */
+export function preparerRenduVideoLongue(commande: CommandeFabrication, ctx: Contexte): RenduPrepare {
+  const question = lireEntreesVideoLongue(commande).question;
+  const storyboard = storyboardVideoLongue({ question: question ?? null }, { mots: ctx.mots, chapitres: ctx.chapitres, dureeSec: ctx.dureeSec });
+  const proprietes = { storyboard };
+  const octets = Buffer.byteLength(JSON.stringify(proprietes), "utf8");
+  if (octets > TAILLE_MAX_PROPRIETES_OCTETS) {
+    throw new ErreurMontageVideoLongue(`Le script est trop long pour être monté d'un seul bloc (${Math.round(octets / 1024)} Ko de plan, 600 Ko au plus) : raccourcissez-le ou coupez-le en deux vidéos.`, [], false);
+  }
+  const chapitres = storyboard.chapitres.map((c): ChapitrePrepare => {
+    const scenes = storyboard.scenes.filter((s) => s.finMs > c.debutMs - TEMPS_LONGUE.transitionMs && s.debutMs < c.finMs);
+    const sousTitres = storyboard.sousTitres.filter((l) => l.finMs > c.debutMs && l.debutMs < c.finMs);
+    return { id: c.id, debutMs: c.debutMs, finMs: c.finMs, empreinte: empreinte({ VERSION_STORYBOARD, VERSION_DESSIN_LONGUE, debutMs: c.debutMs, finMs: c.finMs, scenes, sousTitres }) };
+  });
+  return { composition: ID_COMPOSITION_VIDEO_LONGUE, proprietes, chapitres };
 }
 
 /** Paramètres du collage : `m0..mN` dans l'ordre ; `voix` seulement si une voix est donnée (jamais en sans-voix). PUR. */
@@ -163,22 +207,15 @@ export function parametresCollage(nbMorceaux: number, avecVoix: boolean): { noms
  */
 export async function monterVideoLongue(commande: CommandeFabrication, travailId: string, ctx: Contexte, ports: PortsMontageVideoLongue): Promise<{ fichierCle: string }> {
   const videoId = commande.videoId;
-  const plan = await planVideoLongue(chapitresPourPlan(ctx));
-  if (!plan.valide) throw new ErreurMontageVideoLongue(`Le plan de la vidéo n'a pas pu être préparé : ${plan.problemes.join(" ")}`, plan.problemes);
+  const prepare = preparerRenduVideoLongue(commande, ctx);
 
-  // Données du calque que la composition dessine (`proprietes.sousTitres`, UI-5) ; 16:9, style par défaut.
-  const segmentsSousTitres = fabriquerSousTitres({ texte: ctx.mots.map((m) => m.mot).join(" "), dureeSec: ctx.dureeSec, mots: ctx.mots, ratio: "16:9" });
-  const sousTitres = donneesCalque({ segments: segmentsSousTitres, base: "karaoke", ratio: "16:9" });
-
-  // Reprise : seules les plages notées avec la MÊME empreinte (même plan, mêmes bornes, mêmes sous-titres) sont gardées.
+  // Reprise : seules les plages notées avec la MÊME empreinte (mêmes scènes, mêmes bornes, mêmes sous-titres, même dessin) sont gardées.
   const notees = await ports.lirePlages(videoId);
   const toutes: Record<string, PlageNotee> = { ...notees };
   const morceaux: MorceauRendu[] = [];
   const rendu = portRenduPlage(commande, ports);
-  for (const c of plan.chapitres) {
-    // Aucune scène à poser sur ce chapitre : plan vide de la bonne durée (le fond et les sous-titres restent dessinés).
-    const planChapitre = c.plan ?? planVide(plan.format, c.finMs);
-    const empreinteChapitre = empreinte({ plan: planChapitre, debutMs: c.debutMs, finMs: c.finMs, sousTitres });
+  for (const c of prepare.chapitres) {
+    const empreinteChapitre = c.empreinte;
     const dejaRendus: Record<string, string> = {};
     // L'empreinte du contenu entre dans l'identifiant : un contenu modifié a d'autres identifiants (le serveur de rendu ignore
     // un idRendu déjà connu et garde son résultat 24 h) ; le MÊME contenu garde les mêmes (relance parallèle sans doublon).
@@ -188,8 +225,8 @@ export async function monterVideoLongue(commande: CommandeFabrication, travailId
       ...(await rendreChapitres(
         {
           idVideo,
-          composition: COMPOSITION_VIDEO_LONGUE,
-          proprietes: { plan: planChapitre, sousTitres },
+          composition: prepare.composition,
+          proprietes: prepare.proprietes,
           chapitres: [{ id: c.id, debutMs: c.debutMs, finMs: c.finMs }],
           dejaRendus,
           apresPlage: async (m) => {
@@ -257,7 +294,7 @@ async function soumettreUneFois(demande: DemandeRendu, ports: PortsMontageVideoL
 }
 
 /**
- * UN PAS du montage (16:9), à rappeler jusqu'à `fini`. Mêmes plan, sous-titres, empreintes et identifiants que `monterVideoLongue`.
+ * UN PAS du montage (16:9), à rappeler jusqu'à `fini`. Mêmes propriétés, plages, empreintes et identifiants que `monterVideoLongue`.
  * Un pas ne fait QU'UNE action de rendu : soumettre une plage, ou relire l'état de la demande en cours (jamais d'attente en boucle).
  * Ordre : plage en cours -> relire ; sinon prochaine plage non rendue -> soumettre ; sinon collage -> soumettre ou relire.
  * Le réglage `videoLongue.actif` est relu à chaque pas : éteint, le pas s'arrête net et rien de plus n'est soumis.
@@ -266,19 +303,15 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
   if (ports.actif && (await ports.actif()) !== true) throw new ErreurMontageVideoLongue("La vidéo longue a été éteinte : le montage s'arrête, rien de plus n'est lancé. Rallumez-la puis réessayez.", [], true);
   const maintenant = ports.maintenant ?? Date.now;
   const videoId = commande.videoId;
-  const plan = await planVideoLongue(chapitresPourPlan(ctx));
-  if (!plan.valide) throw new ErreurMontageVideoLongue(`Le plan de la vidéo n'a pas pu être préparé : ${plan.problemes.join(" ")}`, plan.problemes);
-  const segmentsSousTitres = fabriquerSousTitres({ texte: ctx.mots.map((m) => m.mot).join(" "), dureeSec: ctx.dureeSec, mots: ctx.mots, ratio: "16:9" });
-  const sousTitres = donneesCalque({ segments: segmentsSousTitres, base: "karaoke", ratio: "16:9" });
+  const prepare = preparerRenduVideoLongue(commande, ctx);
 
   // Toutes les plages, dans l'ordre (mêmes identifiants et empreintes que le montage « tout d'un coup »).
   const plages: PlageDuPas[] = [];
-  for (const c of plan.chapitres) {
-    const planChapitre = c.plan ?? planVide(plan.format, c.finMs);
-    const empreinteChapitre = empreinte({ plan: planChapitre, debutMs: c.debutMs, finMs: c.finMs, sousTitres });
+  for (const c of prepare.chapitres) {
+    const empreinteChapitre = c.empreinte;
     const idVideo = idBorne(`${idSur(videoId)}-${empreinteChapitre.slice(0, 10)}`);
     for (const plage of plagesDesChapitres([{ id: c.id, debutMs: c.debutMs, finMs: c.finMs }])) {
-      plages.push({ id: idRenduPlage(idVideo, plage), plage, empreinte: empreinteChapitre, parametres: parametresPlage(plage, { composition: COMPOSITION_VIDEO_LONGUE, proprietes: { plan: planChapitre, sousTitres } }) });
+      plages.push({ id: idRenduPlage(idVideo, plage), plage, empreinte: empreinteChapitre, parametres: parametresPlage(plage, { composition: prepare.composition, proprietes: prepare.proprietes }) });
     }
   }
 
@@ -316,7 +349,7 @@ export async function pasMontageVideoLongue(commande: CommandeFabrication, trava
       await ports.ecrirePlages(videoId, { ...notees, ...Object.fromEntries(plages.filter((p) => courant.plages[p.id]).map((p) => [p.id, { sortieCle: courant.plages[p.id], empreinte: p.empreinte }])) });
       return enCours();
     }
-    if (e.statut === "echec") throw new ErreurMontageVideoLongue(`Le rendu d'une partie de la vidéo a échoué : ${e.erreur.message}`, [], false);
+    if (e.statut === "echec") throw erreurEchecPlage(e.erreur.message);
     if (maintenant() - courant.enCours.depuisMs > (ports.delaiPlageMs ?? DELAI_MAX_PLAGE_MS)) throw new ErreurMontageVideoLongue("Une partie de la vidéo prend trop de temps à se rendre (délai dépassé), vous pouvez réessayer.", [], true);
     // « inconnu » : le conteneur a redémarré. On n'enchaîne pas : la même demande (même identifiant) repart au pas suivant.
     if (e.statut === "inconnu") delete courant.enCours;

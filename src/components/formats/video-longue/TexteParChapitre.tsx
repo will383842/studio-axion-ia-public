@@ -6,6 +6,7 @@ import { Carte } from "@/components/ui/Carte";
 import { Icone } from "@/components/ui/Icone";
 import { ZoneTexte } from "@/components/ui/ZoneTexte";
 import { RemarquesFiche } from "@/components/formats/vitrines/RemarquesFiche";
+import { titreDeduit, titreManquant } from "@/moteurs/montage-video-longue/decoupage";
 import { dureeSecDuTexte, formaterDuree } from "./PlanChapitres";
 
 /** Une version d'un chapitre : A ou B (écrites pour l'utilisateur), ou « colle » (son propre texte, seule version). */
@@ -39,6 +40,9 @@ interface EtatChapitre {
   modifie: number | null;
   valide: boolean;
 }
+
+/** Titre montré : celui de l'utilisateur, sinon déduit du texte (jamais « Chapitre N »). */
+const titreAffiche = (c: ChapitreAvecVersions): string => (titreManquant(c.titre) ? titreDeduit((c.versions[0]?.phrases ?? []).join(" ")) || c.titre.trim() : c.titre.trim());
 
 export function remarqueChapitre(phrases: readonly (string | null)[]): string[] {
   const texte = phrases.filter((p): p is string => p !== null).join(" ");
@@ -80,7 +84,7 @@ export function TexteParChapitre({
                 <span className="sr-only">Validé : </span>
               </>
             )}
-            {i + 1}. {c.titre.trim() || `Chapitre ${i + 1}`}
+            {i + 1}. {titreAffiche(c)}
           </li>
         ))}
       </ol>
@@ -93,7 +97,7 @@ export function TexteParChapitre({
             <li key={c.id}>
               <Carte className="space-y-3">
                 <h3 className="text-base font-semibold text-texte">
-                  {i + 1}. {c.titre.trim() || `Chapitre ${i + 1}`}
+                  {i + 1}. {titreAffiche(c)}
                 </h3>
                 {c.versions.length > 1 && (
                   <div className="flex flex-wrap gap-2" role="group" aria-label="Choisir la version">

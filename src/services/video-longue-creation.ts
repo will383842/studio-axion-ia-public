@@ -16,6 +16,7 @@ import { MONTAGE_VIDEO_LONGUE_RELIE } from "@/services/video-longue-branchements
 import { renduSimule } from "@/fournisseurs/rendu/client";
 import { DUREE_MAX_SEC } from "@/moteurs/montage-video-longue";
 import { MOTS_PAR_SECONDE_LECTURE } from "@/moteurs/montage-video-longue/chaine";
+import { minuterSansVoix } from "@/moteurs/montage-video-longue/minutage";
 import type { IssueLancement } from "./creation-format";
 import { PARAM_OPTIONS_COUPEES } from "./options-payantes";
 
@@ -78,8 +79,10 @@ export interface DependancesVideoLongueCreation {
 }
 
 /** Durée de lecture estimée du script (mots / débit de lecture du montage), en secondes. */
-export const dureeLectureSec = (chapitres: ChapitreDemande[]): number =>
-  chapitres.reduce((s, c) => s + c.texte.split(/\s+/).filter(Boolean).length, 0) / MOTS_PAR_SECONDE_LECTURE;
+export const dureeLectureSec = (chapitres: ChapitreDemande[], sansVoix = false, question?: string): number =>
+  sansVoix
+    ? minuterSansVoix({ chapitres, question }).dureeSec
+    : chapitres.reduce((s, c) => s + c.texte.split(/\s+/).filter(Boolean).length, 0) / MOTS_PAR_SECONDE_LECTURE;
 
 /** Même test de stockage que le lancement commun : le réglage en base d'abord, puis l'environnement (`fournisseurSimule`). */
 async function renduRelieParDefaut(): Promise<boolean> {
@@ -177,7 +180,9 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
   if (chapitres === "trop-long") return refus(PHRASE_TROP_LONG);
 
   // Avant toute création : la borne du montage (20 min) est refusée ici, pas après coup.
-  if (dureeLectureSec(chapitres) > DUREE_MAX_SEC) return refus(PHRASE_TROP_LONGUE_LECTURE);
+  // Sans voix : même horloge que le montage (cartons, respirations) ; avec voix : débit de lecture.
+  const questionGarde = (typeof demande.question === "string" ? demande.question : "").replace(/\s+/g, " ").trim();
+  if (dureeLectureSec(chapitres, demande.sansVoix === true, questionGarde) > DUREE_MAX_SEC) return refus(PHRASE_TROP_LONGUE_LECTURE);
 
   // Avant toute création : tant que le montage n'est pas relié, le travail resterait en pause puis échouerait (sans voix comme avec voix).
   if ((dep.montageRelie ?? MONTAGE_VIDEO_LONGUE_RELIE) !== true) return refus(PHRASE_MONTAGE_NON_RELIE);
@@ -209,7 +214,7 @@ export async function lancerVideoLongue(demande: DemandeVideoLongue, dep: Depend
     titre,
     sujet: titre,
     distribution,
-    entrees: { videoLongue: { chapitres: chapitres.map((c) => ({ id: c.id, titre: c.titre, texte: c.texte })), ...(sansVoix ? { sansVoix: true } : {}) } },
+    entrees: { videoLongue: { chapitres: chapitres.map((c) => ({ id: c.id, titre: c.titre, texte: c.texte })), ...(question ? { question: question.slice(0, 200) } : {}), ...(sansVoix ? { sansVoix: true } : {}) } },
   });
   const abandonner = () => (dep.abandonner ?? abandonnerParDefaut)(video.id).catch(() => undefined);
   try {

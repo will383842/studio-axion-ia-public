@@ -133,7 +133,7 @@ describe("VL-04 · inscription", () => {
     expect(moteurExiste("montage-video-longue")).toBe(true);
     expect(obtenirMoteur("montage-video-longue")).toBe(moteurMontageVideoLongue);
     expect(moteurMontageVideoLongue.capacites.ratios).toEqual(["16:9"]);
-    expect(COMPOSITION_VIDEO_LONGUE).toBe("PlanDeScenes");
+    expect(COMPOSITION_VIDEO_LONGUE).toBe("VideoLongue");
     expect(listerMoteurs()).toContain(moteurMontageVideoLongue);
   });
 

@@ -23,21 +23,27 @@ vi.mock("@/fournisseurs/credits/elevenlabs", async (orig) => ({ ...(await orig<o
 const { pasMontageVideoLongue, ErreurMontageVideoLongue } = await import("@/services/video-longue-montage");
 const { avancerVideoLongue, ETAPES_FABRICATION } = await import("@/moteurs/montage-video-longue/chaine");
 const { definitionVideoLongue } = await import("@/moteurs/montage-video-longue");
+const { minuterSansVoix } = await import("@/moteurs/montage-video-longue/minutage");
 const { lireEntreesVideoLongue } = await import("@/moteurs/montage-video-longue/entrees");
 const { creerDependancesVideoLongue } = await import("@/services/video-longue-branchements");
 import type { PortsMontageVideoLongue } from "@/services/video-longue-montage";
 import type { SuiviMontageVideoLongue, EtatVideoLongue } from "@/moteurs/montage-video-longue/chaine";
 
-// 3 chapitres (100 s, 50 s, 110 s) : plages de 60 s au plus = 2 + 1 + 2 = 5 plages, puis 1 collage.
-const BORNES = [
-  { debutSec: 0, finSec: 100 },
-  { debutSec: 100, finSec: 150 },
-  { debutSec: 150, finSec: 260 },
+// 3 chapitres sans voix, minutés par le minutage (phrases de 26 mots = 10 s + 0,3 s) : plages de 60 s au plus = 2 + 1 + 2 = 5 plages, puis 1 collage.
+// (En sans voix, l'étape montage recalcule mots et chapitres depuis le script : le contexte du test vient donc du même minutage.)
+const phrases = (n: number, tag: string): string => Array.from({ length: n }, (_, i) => `${Array.from({ length: 25 }, (_, k) => `${tag}${i}x${k}`).join(" ")} fin${i}.`).join(" ");
+const CHAPITRES_SCRIPT = [
+  { id: "c1", titre: "Chapitre 1", texte: phrases(8, "a") },
+  { id: "c2", titre: "Chapitre 2", texte: phrases(3, "b") },
+  { id: "c3", titre: "Chapitre 3", texte: phrases(9, "c") },
 ];
-const chapitresWeb = BORNES.map((b, i) => ({ ...b, libelle: `Chapitre ${i + 1}`, blocRecette: "chapitres" }));
-const mots: MotHorodate[] = Array.from({ length: 260 }, (_, i) => ({ mot: i % 10 === 9 ? `mot${i}.` : `mot${i}`, debutSec: i, finSec: i + 1 }));
-const ctx = { chapitres: chapitresWeb as never, mots, dureeSec: 260 };
-const commande = { videoId: "v-pas", ratios: ["16:9"], distribution: [], entrees: { videoLongue: { chapitres: BORNES.map((_, i) => ({ id: `c${i + 1}`, titre: `Chapitre ${i + 1}`, texte: `texte ${i + 1}` })), sansVoix: true } } } as unknown as CommandeFabrication;
+const minutage = minuterSansVoix({ chapitres: CHAPITRES_SCRIPT });
+const chapitresWeb = minutage.chapitres;
+const mots: MotHorodate[] = minutage.mots;
+const ctx = { chapitres: chapitresWeb as never, mots, dureeSec: minutage.dureeSec };
+const commande = { videoId: "v-pas", ratios: ["16:9"], distribution: [], entrees: { videoLongue: { chapitres: CHAPITRES_SCRIPT, sansVoix: true } } } as unknown as CommandeFabrication;
+/** Script de plus de 20 minutes (refus définitif de durée). */
+const commandeTropLongue = { ...commande, entrees: { videoLongue: { chapitres: [{ id: "c1", titre: "Long", texte: phrases(130, "z") }], sansVoix: true } } } as unknown as CommandeFabrication;
 const PLAGES = 5;
 
 interface Banc {
@@ -322,18 +328,18 @@ describe("FIN-8 : chemin sans voix = 0 appel HeyGen / ElevenLabs", () => {
 });
 
 /** Banc de la chaîne : l'état du gabarit, des dépendances GARDÉES (réglage, durée) et l'horloge simulée qui avance à chaque tour. */
-function chaine(b: Banc, avance = 300) {
-  const deps = creerDependancesVideoLongue(commande, {
+function chaine(b: Banc, avance = 300, cmd: CommandeFabrication = commande) {
+  const deps = creerDependancesVideoLongue(cmd, {
     actif: async () => b.etat.actif,
     registre: {} as never,
     montagePret: async () => true,
     reserver: async () => undefined,
     lireMorceau: async () => ({ dureeSec: 0, mots: [] }),
-    monterPas: (_r, c, s) => pasMontageVideoLongue(commande, "t-pas", c, b.ports, s),
+    monterPas: (_r, c, s) => pasMontageVideoLongue(cmd, "t-pas", c, b.ports, s),
   });
   const def = definitionVideoLongue(() => deps);
-  const entrees = lireEntreesVideoLongue(commande);
-  const c = (tentative: number) => ({ commande, entrees, travailId: "t-pas", versionId: "v", tentative, etapes: def.etapesFabrication });
+  const entrees = lireEntreesVideoLongue(cmd);
+  const c = (tentative: number) => ({ commande: cmd, entrees, travailId: "t-pas", versionId: "v", tentative, etapes: def.etapesFabrication });
   let etat: EtatVideoLongue = { faites: ["reception", "voix", "chapitres"], voix: { mots, dureeSec: 260, morceaux: 0 }, chapitres: chapitresWeb as never, remarques: [], sorties: {} };
   const tour = async (tentative: number) => {
     etat = await avancerVideoLongue(etat, c(tentative) as never, deps as never);
@@ -436,9 +442,8 @@ describe("FIN-8 : classement « réessayable » d'un échec de pas", () => {
 
   it("durée trop longue : échec NON réessayable (même refus à chaque essai)", async () => {
     const b = banc();
-    const k = chaine(b);
-    // La durée vient du contexte du montage (voix.dureeSec).
-    k.poser({ faites: ["reception", "voix", "chapitres"], voix: { mots, dureeSec: 1201, morceaux: 0 }, chapitres: chapitresWeb as never, remarques: [], sorties: {} });
+    const k = chaine(b, 300, commandeTropLongue);
+    // Sans voix, la durée vient du minutage du script (plus de 20 minutes de lecture).
     const refus = await k.tour(1);
     expect(refus.echec?.reessayable).toBe(false);
     expect(b.appelsReseau()).toBe(0);

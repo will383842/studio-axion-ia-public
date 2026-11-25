@@ -11,8 +11,10 @@ import { lireVoixLongue, type FournisseurVoixLongue } from "@/briques/voix-longu
 import type { DefinitionEtapeMoteur } from "../types";
 import { premiereEtapePrete, type ContexteAvance, type EtatGabarit } from "../gabarit";
 import type { EntreesVideoLongue } from "./entrees";
+import { minuterSansVoix } from "./minutage";
+import { ID_COMPOSITION_VIDEO_LONGUE } from "./storyboard-types";
 
-export const COMPOSITION_VIDEO_LONGUE = "PlanDeScenes";
+export const COMPOSITION_VIDEO_LONGUE = ID_COMPOSITION_VIDEO_LONGUE;
 
 export const ETAPES_FABRICATION: DefinitionEtapeMoteur[] = [
   { cle: "reception", nom: "Votre script reçu", icone: "camera", dependDe: [], dureeEstimeeSec: 1 },
@@ -85,18 +87,10 @@ export function chapitresDepuisVoix(entrees: EntreesVideoLongue, mots: MotHoroda
 /** Mots par seconde de lecture (même estimation que l'écran : `MOTS_PAR_SECONDE` de `PlanChapitres`, et la recette du format). */
 export const MOTS_PAR_SECONDE_LECTURE = 2.6;
 
-/** Mode sans voix (PUR) : chaque mot reste à l'écran le temps de le lire, chapitre après chapitre ; aucune voix, aucun coût. */
+/** Mode sans voix (PUR) : cartons, puis chaque phrase le temps de la lire, chapitre après chapitre (voir `minutage.ts`) ; aucune voix, aucun coût. */
 export function estimerMotsSansVoix(entrees: EntreesVideoLongue): { mots: MotHorodate[]; dureeSec: number } {
-  const mots: MotHorodate[] = [];
-  let t = 0;
-  const pas = 1 / MOTS_PAR_SECONDE_LECTURE;
-  for (const c of entrees.chapitres) {
-    for (const mot of c.texte.split(/\s+/).filter(Boolean)) {
-      mots.push({ mot, debutSec: Math.round(t * 1000) / 1000, finSec: Math.round((t + pas) * 1000) / 1000 });
-      t += pas;
-    }
-  }
-  return { mots, dureeSec: Math.round(t * 10) / 10 };
+  const { mots, dureeSec } = minuterSansVoix(entrees);
+  return { mots, dureeSec };
 }
 
 /** Message lisible et caractère réessayable d'une erreur de pas (erreurs du montage ou refus connus ; sinon phrase habituelle). */
@@ -126,13 +120,17 @@ export async function avancerVideoLongue(etat: EtatVideoLongue, ctx: ContexteAva
     }
     case "chapitres": {
       const voix = etat.voix ?? { mots: [], dureeSec: 0, morceaux: 0 };
-      const chapitres = etat.chapitres ?? chapitresDepuisVoix(ctx.entrees, voix.mots, voix.dureeSec);
+      // Sans voix : les chapitres tombent sur leur carton (minutage), pas au prorata des mots.
+      const chapitres = etat.chapitres ?? (ctx.entrees.sansVoix ? minuterSansVoix(ctx.entrees).chapitres : chapitresDepuisVoix(ctx.entrees, voix.mots, voix.dureeSec));
       // Remarques seulement (jamais un refus).
       return faite({ ...etat, chapitres, remarques: verifierChapitres(chapitres) });
     }
     case "montage": {
       if (ctx.commande.simulerEchecEtape === "montage" && ctx.tentative === 1) return { ...etat, echec: { etape, message: "L'assemblage a eu un souci, vous pouvez réessayer.", reessayable: true } };
-      const ctxMontage = { chapitres: etat.chapitres ?? [], mots: etat.voix?.mots ?? [], dureeSec: etat.voix?.dureeSec ?? 0 };
+      // Sans voix : mots et chapitres sont recalculés par le minutage (un ancien état aux mots collés sans trous n'aurait pas de cartons).
+      const ctxMontage = ctx.entrees.sansVoix
+        ? minuterSansVoix(ctx.entrees)
+        : { chapitres: etat.chapitres ?? [], mots: etat.voix?.mots ?? [], dureeSec: etat.voix?.dureeSec ?? 0 };
       const sorties: EtatVideoLongue["sorties"] = { ...etat.sorties };
       // Sans montage pas à pas : tout d'un coup (comme avant).
       if (!deps.monterPas) {

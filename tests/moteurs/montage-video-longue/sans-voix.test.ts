@@ -29,7 +29,8 @@ describe("VL-SV durée de lecture", () => {
   it("chaque mot reste le temps de le lire, chapitres bout à bout", () => {
     const { mots, dureeSec } = estimerMotsSansVoix(lireEntreesVideoLongue(cmd(true)));
     expect(mots).toHaveLength(8);
-    expect(dureeSec).toBeCloseTo(8 / MOTS_PAR_SECONDE_LECTURE, 1);
+    // Deux chapitres de moins de 10 s sont fusionnés (QUALL-1) : un carton de 2,5 s, une phrase de 8 mots, sa respiration, la fin de 5 s.
+    expect(dureeSec).toBeCloseTo(2.5 + Math.max(2, 8 / MOTS_PAR_SECONDE_LECTURE) + 0.3 + 5, 1);
     for (let i = 1; i < mots.length; i++) expect(mots[i].debutSec).toBeGreaterThanOrEqual(mots[i - 1].finSec - 0.002);
   });
 });
@@ -58,5 +59,22 @@ describe("VL-SV chaîne", () => {
 describe("VL-SV cadence de lecture", () => {
   it("le moteur et l'écran comptent le même nombre de mots par seconde", () => {
     expect(MOTS_PAR_SECONDE_LECTURE).toBe(MOTS_PAR_SECONDE);
+  });
+});
+
+describe("QUALL-8 : étape montage sans voix sur un ancien état", () => {
+  it("les mots (collés, sans trous) et chapitres de l'ancien état sont recalculés par le minutage : les cartons existent", async () => {
+    const entrees = lireEntreesVideoLongue(cmd(true));
+    const attendu = estimerMotsSansVoix(entrees);
+    const monter = vi.fn(async () => ({ fichierCle: "k.mp4" }));
+    const def = definitionVideoLongue(() => null);
+    const ctx = { commande: cmd(true), entrees, travailId: "t", versionId: "v", tentative: 1, etapes: def.etapesFabrication };
+    // Ancien état : mots bout à bout sans carton ni respiration, un seul chapitre « au prorata ».
+    const vieux = Array.from({ length: 8 }, (_, i) => ({ mot: `m${i}`, debutSec: i * 0.4, finSec: (i + 1) * 0.4 }));
+    const etat = { faites: ["reception", "voix", "chapitres"], voix: { mots: vieux, dureeSec: 3.2, morceaux: 0 }, chapitres: [{ debutSec: 0, finSec: 3.2, libelle: "x", blocRecette: "chapitres" }], remarques: [], sorties: {} };
+    await avancerVideoLongue(etat as never, ctx as never, { voix: { lire: vi.fn() }, monter } as never);
+    const recu = (monter.mock.calls[0] as unknown as [string, { mots: { debutSec: number }[]; dureeSec: number }])[1];
+    expect(recu.dureeSec).toBe(attendu.dureeSec);
+    expect(recu.mots[0].debutSec).toBeGreaterThanOrEqual(2.5);
   });
 });
