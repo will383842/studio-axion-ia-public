@@ -184,6 +184,10 @@ describe("FIX-RETOUCHE-COUPEE-v21s · coupée avant toute réponse : la place es
     expect(bg.retoucheSansRienRecu([recue, coupee])).toBe(false);
     expect(bg.retoucheSansRienRecu([base])).toBe(false);
     expect(bg.retoucheSansRienRecu([{ ...coupee, jetons: recue.jetons }])).toBe(false);
+    // Réponse reçue et facturée en entrée, 0 jeton de sortie : compte toujours comme reçue.
+    const recueSansSortie: Etape = { ...base, termineLe: lance, jetons: { entree: 10, cacheLu: 0, cacheEcrit: 0, sortie: 0 } };
+    expect(bg.retoucheSansRienRecu([recueSansSortie])).toBe(false);
+    expect(bg.retoucheSansRienRecu([{ ...recueSansSortie, sansReponseHttp: true }])).toBe(false);
   });
 
   it("(h) client : seule la coupure avant réponse est marquée", async () => {
