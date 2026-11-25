@@ -120,7 +120,7 @@ export async function refaireVoixMotMalDitAction(demande: DemandeRefaireVoixMotM
       String(demande.videoId ?? ""),
       visees.map((p) => p.id),
       `Prononciation : « ${n.mot} » se dit « ${n.prononciation} »`,
-      { confirme: true, phrasesVisees: visees.map((p) => p.texte) },
+      { phrasesVisees: visees.map((p) => p.texte) },
     );
     revalidatePath(`/videos/${String(demande.videoId ?? "")}`);
     return r.ok ? { ok: true as const } : { ok: false as const, phrase: r.phrase };

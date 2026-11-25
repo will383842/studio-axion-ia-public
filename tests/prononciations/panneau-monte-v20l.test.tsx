@@ -84,6 +84,7 @@ describe("(c) « Refaire la voix » passe par S2-16-b, une seule fois", () => {
     expect(planIds).toEqual(["p1"]);
     expect(consigne).toContain("Zernio");
     expect(options.phrasesVisees).toEqual([plans[0].texte]);
+    expect(options).not.toHaveProperty("confirme");
   });
   it("(c) un plan inconnu ou une liste vide : aucun appel", async () => {
     const r = await refaireVoixMotMalDitAction({ ...demande, planIds: ["inconnu"] });
