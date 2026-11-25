@@ -22,7 +22,8 @@ import { carteParRegles, entreeAnalyste, GESTES_ZONE, lireCarteZones, roleAnalys
 import { classerParRegles, etablirCahier, lireDecisionChef, roleChefDeProjet, type CahierVideo, type DecisionChef, type DemandeTutoriel, type InventaireDossier } from "./chef-de-projet";
 import { controlerAvantValidation, resumePourWilliams, type VerdictControleur } from "./controleur";
 import { PHRASE_FIN_RENDEZ_VOUS } from "./dossier-validation";
-import { appliquerPieceGardee, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
+import { PROPOSITIONS_PIECE_MAX } from "../maquette-creee";
+import { appliquerPieceGardee, CODE_PIECE_A_REVOIR, pasPieceCreee, recevoirProposition, type EtatPiece } from "./pas-piece-creee";
 import { lireFluxAutomatisation } from "../gabarit-flux";
 import { completerManque, entreeMaquettiste, MANQUES_MAQUETTISTE, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste, type PropositionMaquettiste } from "./maquettiste";
 import { realiser, type ParcoursTutoriel } from "./realisateur";
@@ -125,6 +126,8 @@ export interface EtatEquipe extends EtatPiece {
   remarques?: Partial<Record<IdRole, string[]>>;
   /** Appels payants faits par rôle (refusés compris). */
   appels?: Partial<Record<IdRole, number>>;
+  /** PHRASE-1 : la proposition n° 1 a pris ses 2 appels (un refus, puis la reprise avec les remarques) : plus d'autre proposition possible. */
+  repriseMaquettiste?: true;
   /** Contrôle après le calage de la voix (durées réelles) : rangé par la chaîne, jamais bloquant. */
   verdictCalage?: VerdictControleur;
   /** Remarques du tronc commun des scripts (chantier SC) sur les versions : elles commentent, ne réécrivent jamais. */
@@ -153,6 +156,7 @@ export type PasEquipe =
   | { pause: PauseEquipe; etat?: EtatEquipe }
   | { fini: true };
 
+export const MESSAGE_PLUS_DE_PROPOSITION = "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Arrêtez cette demande et reformulez votre phrase. Rien n'a échoué.";
 const MESSAGE_BLOQUEE = "Une étape de préparation n'a pas abouti : réessayez ou collez votre script.";
 const MESSAGE_A_VALIDER = "Relisez les deux scripts, choisissez l'un ou corrigez-le, puis validez : la vidéo se fabrique ensuite.";
 const MESSAGE_CONTROLE_BLOQUANT = "Le contrôle a relevé des points à revoir avant de valider (ils sont montrés sur l'écran) : choisissez, corrigez ou demandez une réécriture.";
@@ -174,7 +178,7 @@ function avecRemarques(e: EtatEquipe, role: IdRole, entree: EntreeRole): EntreeR
 }
 
 /** Le rôle ne peut plus être rejoué : il a épuisé ses essais sans sortie valable. */
-const epuise = (e: EtatEquipe, role: IdRole): boolean => appelsFaits(e, role) >= essaisMaxDe(role) && (e.remarques?.[role]?.length ?? 0) > 0;
+const epuise = (e: EtatEquipe, role: IdRole, limite = essaisMaxDe(role)): boolean => appelsFaits(e, role) >= limite && (e.remarques?.[role]?.length ?? 0) > 0;
 
 function appel(e: EtatEquipe, role: IdRole, entreeBrute: EntreeRole): PasEquipe {
   if (appelsFaits(e, role) >= Math.max(1, essaisMaxDe(role)) && (e.remarques?.[role]?.length ?? 0) > 0) return bloquee();
@@ -272,10 +276,17 @@ function pas(e: EtatEquipe, entrees: EntreesEquipe, phraseOuverte: boolean): Pas
     // Proposition demandée : 1 au départ ; 2 quand l'écran a noté « En proposer une autre » (pièce n° 2 « à construire »).
     const numero: 1 | 2 = p?.proposition === 2 ? 2 : 1;
     const refusNote = (e.remarques?.maquettiste?.length ?? 0) > 0;
-    // Un refus déjà noté pour cette proposition ne se rejoue pas tout seul (aucune reprise automatique).
-    if (p && numero === 2 && refusNote && appelsFaits(e, "maquettiste") >= 2) return bloquee();
-    if (!p || (numero === 2 && p.statut === "a-construire" && appelsFaits(e, "maquettiste") < 2)) {
-      if (appelsFaits(e, "maquettiste") >= numero && refusNote) return bloquee();
+    const faits = appelsFaits(e, "maquettiste");
+    // Un refus déjà noté pour la proposition 2 ne se rejoue pas tout seul.
+    if (p && numero === 2 && refusNote && faits >= PROPOSITIONS_PIECE_MAX) return bloquee();
+    // Les deux appels sont faits pour la proposition 1 (refus, puis reprise) : une proposition 2 « à construire » n'a aucun appel pour se faire.
+    if (p && numero === 2 && p.statut === "a-construire" && e.repriseMaquettiste === true) return { pause: { code: CODE_PIECE_A_REVOIR, message: MESSAGE_PLUS_DE_PROPOSITION } };
+    if (!p || (numero === 2 && p.statut === "a-construire" && faits < PROPOSITIONS_PIECE_MAX)) {
+      // Jamais plus de PROPOSITIONS_PIECE_MAX appels au maquettiste pour une phrase (le plafond n'en compte pas plus).
+      if (faits >= PROPOSITIONS_PIECE_MAX) return bloquee();
+      // PHRASE-1 : proposition 1 refusée à la lecture (maquette) : UNE reprise, avec les remarques ; un flux refusé ne se rejoue pas tout seul.
+      if (numero === 1 && faits >= 1 && refusNote && piece !== "maquette") return bloquee();
+      if (numero === 2 && faits >= numero && refusNote) return bloquee();
       // en attendant T-EXT-25b : le manque « flux-automatisation » n'existe pas encore dans MANQUES_MAQUETTISTE.
       const entree = entreeMaquettiste(piece as ManqueMaquettiste, contextePiece(e, numero));
       return { faire: "maquettiste", payant: true, entree: avecRemarques(e, "maquettiste", entree), empreinteEntree: empreinteDe("maquettiste", avecRemarques(e, "maquettiste", entree)) };
@@ -412,11 +423,17 @@ export type Appliquee = { ok: true; etat: EtatEquipe; resume: string } | { ok: f
  */
 export async function appliquerSortie(e: EtatEquipe, role: IdRole, sortie: unknown, entrees: EntreesEquipe): Promise<Appliquee> {
   const faits: EtatEquipe = { ...e, appels: { ...e.appels, [role]: appelsFaits(e, role) + 1 } };
+  // PHRASE-1 : la proposition n° 1 d'une maquette partie d'une phrase a droit à une reprise : elle n'est bloquée qu'aux PROPOSITIONS_PIECE_MAX appels.
+  const repriseMaquette = role === "maquettiste" && !entrees.dossier && !!e.cahier && manquePiece(e.cahier) === "maquette" && (e.pieceCreee?.proposition ?? 1) === 1;
   const refus = (erreurs: string[]): Appliquee => {
     const etat: EtatEquipe = { ...faits, remarques: { ...faits.remarques, [role]: erreurs.length ? erreurs.slice(0, 6) : ["réponse illisible"] } };
-    return { ok: false, etat, bloquee: epuise(etat, role) };
+    return { ok: false, etat, bloquee: epuise(etat, role, repriseMaquette ? Math.max(essaisMaxDe(role), PROPOSITIONS_PIECE_MAX) : undefined) };
   };
-  const accepte = (etat: EtatEquipe, resume: string): Appliquee => ({ ok: true, etat: { ...etat, remarques: sans(etat.remarques, role) }, resume });
+  const accepte = (etat: EtatEquipe, resume: string): Appliquee => ({
+    ok: true,
+    etat: { ...etat, remarques: sans(etat.remarques, role), ...(repriseMaquette && appelsFaits(etat, role) >= PROPOSITIONS_PIECE_MAX ? { repriseMaquettiste: true as const } : {}) },
+    resume,
+  });
   try {
     const dossier = entrees.dossier;
     const demande: DemandeTutoriel = dossier ? { ...e.demande, dossier: dossier.inventaire } : e.demande;
