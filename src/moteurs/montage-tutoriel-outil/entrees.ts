@@ -14,6 +14,9 @@ export const ENTREE_TUTORIEL = "tutorielOutil";
 /** Ce que Williams a donné (T-EXT-33) : un dossier déjà envoyé (référence du fichier et attestation), ou une phrase. */
 export type DepotTutoriel = { mode: "dossier"; fichierId: string; attestationImages: boolean } | { mode: "phrase"; phrase: string };
 
+/** Nombre d'erreurs du lecteur montrées dans le message ; on en garde une de plus pour savoir s'il y en avait d'autres (« … »). */
+export const NAVIGATION_REFUSEE_MAX = 3;
+
 /** Limites de la phrase (celles du formulaire) ; recopiées de `chef-de-projet.ts` par un test d'égalité. */
 export const PHRASE_DEPOT_MIN = 10;
 export const PHRASE_DEPOT_MAX = 300;
@@ -29,6 +32,11 @@ export interface EntreesTutoriel {
   scriptValide?: string;
   /** Film de la navigation dans la maquette (T-EXT-38) : absent ou illisible = pas de film, rien ne change. */
   navigationFilmee?: NavigationFilmee;
+  /**
+   * Film présent mais REFUSÉ par la lecture stricte (ESS-6) : les premières erreurs du lecteur (au plus NAVIGATION_REFUSEE_MAX + 1 : la dernière sert seulement à savoir qu'il y en avait d'autres).
+   * Le montage reste sans film (la lecture n'est ni affaiblie ni rognée) ; le résultat le signale par une réserve.
+   */
+  navigationRefusee?: string[];
   /** T-EXT-SV : `true` = mode « sans voix » choisi par l'utilisateur (silence total, 0 appel HeyGen, 0 €). Absent = avec voix (défaut). */
   sansVoix?: true;
   /** T-EXT-33 : dossier ou phrase déposé. Absent ou mal formé : ignoré. */
@@ -69,5 +77,5 @@ export function lireEntreesTutoriel(entrees: Record<string, unknown> | undefined
   const film = o.navigationFilmee === undefined ? null : lireNavigationFilmee(o.navigationFilmee);
   const depot = lireDepot(o.depot);
   const gabarit = gabaritConnu(o.gabarit);
-  return { ...(depot ? { depot } : {}), ...(gabarit ? { gabarit } : {}), ...(idee ? { idee } : {}), ...(lireModeVoix(o) === MODE_SANS_VOIX ? { sansVoix: true as const } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}), ...(o.fin === "aucune" ? { fin: "aucune" as const } : o.fin === "rendez-vous" || o.fin === "prendre-rendez-vous" ? { fin: "rendez-vous" as const } : {}) };
+  return { ...(depot ? { depot } : {}), ...(gabarit ? { gabarit } : {}), ...(idee ? { idee } : {}), ...(lireModeVoix(o) === MODE_SANS_VOIX ? { sansVoix: true as const } : {}), ...(o.scriptColle === true ? { scriptColle: true } : {}), ...(scriptValide ? { scriptValide } : {}), ...(film?.ok ? { navigationFilmee: film.navigation } : {}), ...(film && !film.ok ? { navigationRefusee: film.erreurs.slice(0, NAVIGATION_REFUSEE_MAX + 1) } : {}), ...(o.fin === "aucune" ? { fin: "aucune" as const } : o.fin === "rendez-vous" || o.fin === "prendre-rendez-vous" ? { fin: "rendez-vous" as const } : {}) };
 }

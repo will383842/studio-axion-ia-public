@@ -52,7 +52,7 @@ function Contenu({ d }: { d: DonneesTitrePleinEcran }) {
         const debut = tTitre + i * 0.2;
         const cote = i % 2 === 0 ? 1 : -1;
         return (
-          <div key={i} style={{ position: "absolute", left: zone.x, top: haut + hSur + i * hLigne, height: hLigne, display: "flex", whiteSpace: "nowrap", fontSize: tg, fontWeight: 900, lineHeight: 0.96, letterSpacing: "-0.04em" }}>
+          <div key={i} style={{ position: "absolute", left: zone.x, top: haut + hSur + i * hLigne, height: hLigne, display: "flex", whiteSpace: "nowrap", fontSize: tg, fontWeight: 800, lineHeight: 0.96, letterSpacing: "-0.04em" }}>
             {ligne.map((m, j) => {
               const dm = debut + j * 0.05;
               if (m.cle) {

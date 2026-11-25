@@ -27,6 +27,9 @@ for (const graisse of [500, 600, 700, 800, 900]) {
     for (const famille of ["Axion Poppins", "Poppins"]) faces.push(`@font-face{font-family:"${famille}";font-weight:${graisse};font-style:normal;src:url(data:font/woff2;base64,${b64}) format("woff2");unicode-range:${plage}}`);
   }
 }
+// POLICES-P5-a : Manrope (police de marque du neuf), variable 200-800, embarquée une fois par nom de famille demandé.
+const manrope = readFileSync(resolve(racine, "studio-rendu/compositions/commune/polices/Manrope-Variable.ttf")).toString("base64");
+for (const famille of ["Axion Manrope", "Manrope"]) faces.push(`@font-face{font-family:"${famille}";font-weight:200 800;font-style:normal;src:url(data:font/ttf;base64,${manrope}) format("truetype")}`);
 writeFileSync(
   resolve(racine, "studio-rendu/compositions/commune/motion/sur-mesure/bibliotheques.genere.ts"),
   `/* FICHIER GÉNÉRÉ par scripts/motion/generer-bibliotheques.mjs — ne pas modifier. Licences : ./vendeur/LICENCES.md */
@@ -34,7 +37,7 @@ writeFileSync(
 export const GSAP_JS = ${JSON.stringify(gsap)};
 /** three.js r159 (UMD : \`window.THREE\`). */
 export const TROIS_D_JS = ${JSON.stringify(trois)};
-/** Poppins 500-900 en \`data:\` (familles « Axion Poppins » et « Poppins »). */
+/** Poppins 500-900 et Manrope 200-800 en \`data:\` (familles « Axion Poppins », « Poppins », « Axion Manrope » et « Manrope »). */
 export const POLICES_CSS = ${JSON.stringify(faces.join("\n"))};
 `,
 );

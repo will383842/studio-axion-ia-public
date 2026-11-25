@@ -1,5 +1,5 @@
 /**
- * GV2-34 · face caméra animée, montage final : une vraie fin (réglage `facecamAnimee.finDouce`, ÉTEINT par défaut), les vraies
+ * GV2-34 · face caméra animée, montage final : une vraie fin (réglage `facecamAnimee.finDouce`, ALLUMÉ par défaut depuis ALLUMER-INV-GROUPE-v21p ; `false` écrit l'éteint), les vraies
  * mesures du son dans le rapport, et des limites cohérentes entre le dépôt et le montage (4 Go, 20 000 caractères).
  * Réglage éteint : filtre et coupes identiques au caractère près à ceux de la répétition validée.
  */
@@ -109,7 +109,7 @@ describe("GV2-34 · réglage facecamAnimee.finDouce", () => {
 
   it("nom du réglage", () => expect(PARAM_FIN_DOUCE_FA).toBe("facecamAnimee.finDouce"));
 
-  it("allumé seulement si la valeur vaut exactement true ; absent, autre valeur ou lecture en échec : clé absente", async () => {
+  it("allumé si la valeur vaut exactement true ou est absente (défaut) ; autre valeur écrite ou lecture en échec : clé absente", async () => {
     lire.mockImplementation(async (id: string, defaut: unknown) => (id === PARAM_FIN_DOUCE_FA ? true : defaut));
     expect((await outilsAvec()).finDouce).toBe(true);
     for (const valeur of [false, "true", 1, null, undefined]) {
@@ -119,7 +119,13 @@ describe("GV2-34 · réglage facecamAnimee.finDouce", () => {
     lire.mockImplementation(async (id: string, defaut: unknown) => { if (id === PARAM_FIN_DOUCE_FA) throw new Error("lecture"); return defaut; });
     expect("finDouce" in (await outilsAvec())).toBe(false);
     lire.mockImplementation(async (_id: string, defaut: unknown) => defaut);
-    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
+    // Réglage absent (défaut) : finDouce allumé (ALLUMER-INV-GROUPE-v21p).
+    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "finDouce", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
+  });
+
+  it("`false` écrit : la liste d'aujourd'hui, sans finDouce", async () => {
+    lire.mockImplementation(async (id: string, defaut: unknown) => (id === PARAM_FIN_DOUCE_FA ? false : defaut));
+    expect(Object.keys(await outilsAvec()).sort()).toEqual(["appelerRealisateur", "garderMaster", "historique", "plafondClaudeAtteint", "rendre", "reperer", "transcrire", "videos"]);
   });
 });
 

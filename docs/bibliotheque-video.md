@@ -6,7 +6,7 @@ Document généré à partir du code. Il montre ce que la bibliothèque sait fai
 
 ## 1. Les capacités
 
-Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
+Le catalogue compte 105 capacités. L'état dit où elle en est : prod (déjà utilisée), demande (sur demande), eteint, coulisse (préparée, pas visible), absent, prevu.
 
 | Capacité | État | Chantier | Décision | Note |
 |---|---|---|---|---|
@@ -59,7 +59,7 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `cadrage.zoom-avocat` | prod | 8 | AM-16 |  |
 | `cadrage.zoom-demo` | prod | 8 | AM-16 |  |
 | `cadrage.camera-cas-concret` | prod | 8 | AM-16 |  |
-| `cadrage.zoom-v4` | absent | 8 | AM-16 | attend W-6 |
+| `cadrage.zoom-v4` | eteint | 8 | AM-16 | branché, éteint : facecamAnimee.zoomGratuit ; allumage après la planche C8-Z10 |
 | `motion.avis-client` | prevu | 8 | AM-16 |  |
 | `objet.trait` | prevu | 9 | D3 § C |  |
 | `objet.marque` | prevu | 9 | D3 § C |  |
@@ -87,6 +87,11 @@ Le catalogue compte 100 capacités. L'état dit où elle en est : prod (déjà u
 | `texte.mode-carte` | prevu | 11 |  | porte éteinte |
 | `texte.effets` | prevu | 11 |  | livrée, non branchée |
 | `texte.accents-role` | prevu | 11 |  | porte éteinte, rien ne l'importe |
+| `cadrage.camera-couverture` | eteint | 11 |  | un seul importeur : le film du tutoriel ; le cran du dosage décide |
+| `ecran.carte-video-arrondie` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.grilles-archive` | prevu | 11 |  | inscrite, non branchée |
+| `ecran.ecrans-composes` | prevu | 11 |  | inscrite, non branchée |
+| `motion.titre-etape-montante` | prevu | 11 |  | inscrite, non branchée |
 | `texte.poids-variable` | prevu | X1 |  |  |
 | `texte.minimal-dynamique` | prevu | X1 |  |  |
 | `ecran.fenetre-inclinee` | prevu | X1 |  |  |

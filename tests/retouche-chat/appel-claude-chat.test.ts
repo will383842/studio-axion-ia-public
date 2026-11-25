@@ -174,7 +174,7 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
     expect(pire).toBeLessThanOrEqual(0.09);
   });
 
-  it("f) gardes de texte : aucun importeur, un seul chemin de dépense", () => {
+  it("f) gardes de texte : un seul importeur (lecteur-studio.ts, G8-OBS), un seul chemin de dépense", () => {
     const src = readFileSync("src/services/retouche-chat/appel-claude-chat.ts", "utf8");
     expect(src).not.toMatch(/executerRolePourVideo\(|envoyerMessage\(|executerRole\(/);
     expect(src).not.toMatch(/tutoriel-claude/);
@@ -184,9 +184,6 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
         const p = join(d, n);
         return statSync(p).isDirectory() ? fichiers(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
       });
-    for (const f of fichiers("src")) {
-      if (f.endsWith("appel-claude-chat.ts")) continue;
-      expect(readFileSync(f, "utf8"), f).not.toMatch(/appel-claude-chat/);
-    }
+    expect(fichiers("src").filter((f) => !f.endsWith("appel-claude-chat.ts") && /appel-claude-chat/.test(readFileSync(f, "utf8")))).toEqual([join("src", "services", "retouche-chat", "lecteur-studio.ts")]);
   });
 });

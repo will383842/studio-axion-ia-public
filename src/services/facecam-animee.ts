@@ -51,7 +51,7 @@ export const PARAM_PLAFOND_CLAUDE_FA = "facecamAnimee.plafondClaudeUsd";
 export const PLAFOND_CLAUDE_FA_USD = 4;
 /** GV-MD-03b : calage des animations sur le début du mot dit. ÉTEINT par défaut (allumé seulement si la valeur vaut exactement `true`). */
 export const PARAM_CALAGE_AU_MOT_FA = "facecamAnimee.calageAuMot";
-/** GV2-34 : fin douce du montage (dernier passage prolongé, fondu de sortie du son). ÉTEINT par défaut (allumé seulement si la valeur vaut exactement `true`). */
+/** GV2-34 : fin douce du montage (dernier passage prolongé, fondu de sortie du son). ALLUMÉ par défaut (ALLUMER-INV-GROUPE-v21p) ; `false` en base éteint. */
 export const PARAM_FIN_DOUCE_FA = "facecamAnimee.finDouce";
 export const PREFIXE_ETAPE_FA = "Face caméra animée ·";
 /** Contrôle visuel des vidéos d'illustration (Sonnet) : plafond propre par vidéo finale, 0,60 $ (décision de Will du 18/10) ; défini avec les autres plafonds propres. */
@@ -181,10 +181,10 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   // GV-MD-03b / BR-TELEPHONE-a : lus par `optionsPayantesFA`, le MÊME lecteur que l'estimation affichée (BR-PRIX-FA-b).
   const { calageAuMot, telephoneVideo } = await optionsPayantesFA();
 
-  // GV2-34 : éteint par défaut ; une lecture en échec vaut éteint (coupes et filtre des vidéos existantes inchangés).
+  // GV2-34 : ALLUMÉ par défaut depuis ALLUMER-INV-GROUPE-v21p (règle du 20/11) ; `false` écrit en base éteint ; lecture en échec = éteint.
   let finDouce = false;
   try {
-    finDouce = (await lireParametre<unknown>(PARAM_FIN_DOUCE_FA, false)) === true;
+    finDouce = (await lireParametre<unknown>(PARAM_FIN_DOUCE_FA, true)) === true;
   } catch {
     finDouce = false;
   }
@@ -193,6 +193,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
   let extraitsMaison = false;
   let zoomGratuit = false;
   let garderMaster = false;
+  // G11-09d : ALLUMÉ par défaut depuis ALLUMER-MASTER-G11-09-v20j (Q21, 20/11) ; `false` écrit en base l'éteint.
   try {
     extraitsMaison = (await lireParametre<unknown>(PARAM_EXTRAITS_MAISON_FA, false)) === true;
   } catch {
@@ -204,7 +205,7 @@ export async function outilsFacecamAnimee(dep: DependancesOutilsFA): Promise<Out
     zoomGratuit = false;
   }
   try {
-    garderMaster = (await lireParametre<unknown>(PARAM_GARDER_MASTER_FA, false)) === true;
+    garderMaster = (await lireParametre<unknown>(PARAM_GARDER_MASTER_FA, true)) === true;
   } catch {
     garderMaster = false;
   }

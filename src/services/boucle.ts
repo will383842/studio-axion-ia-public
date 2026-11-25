@@ -312,6 +312,7 @@ export async function contenuDuTour(options: OptionsTour = {}): Promise<void> {
   void lancerAnnexe("santé des oppositions", async () => (await import("./sante-oppositions")).surveillerOppositions(), 0);
   // Tableau animé : écriture du script et découpage en scènes (plusieurs minutes) HORS du tour, une seule fois à la fois.
   void lancerAnnexe("tâches du tableau animé", async () => (await import("./tableau-creation")).travaillerTachesTableau(), 0);
+  void lancerAnnexe("capture automatique du tutoriel", async () => (await import("./tutoriel-capture-auto")).avancerCapturesTutoriel(), 0);
   // Comité éditorial des idées (éteint par défaut, réglage `idees.comite`) : lot groupé à moitié prix, HORS du tour.
   void lancerAnnexe("comité éditorial", async () => (await import("./comite-editorial")).travaillerComite(), 0);
   // Cas concrets déjà finis avant l'inscription des cas traités : inscrits une seule fois par processus (ajouts seulement).

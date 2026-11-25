@@ -72,7 +72,7 @@ const INSTANTANE_MASTER: string[] = [
   "cadrage.zoom-avocat|prod|8|",
   "cadrage.zoom-demo|prod|8|",
   "cadrage.camera-cas-concret|prod|8|",
-  "cadrage.zoom-v4|absent|8|",
+  "cadrage.zoom-v4|eteint|8|", // C8-X01-b-v20j (seconde lecture du pilote)
   "motion.avis-client|prevu|8|",
   "objet.trait|prevu|9|",
   "objet.marque|prevu|9|",
@@ -102,6 +102,12 @@ const INSTANTANE_MASTER: string[] = [
   "texte.mode-carte|prevu|11|",
   "texte.effets|prevu|11|",
   "texte.accents-role|prevu|11|",
+  // C11-C2-a-v20k
+  "cadrage.camera-couverture|eteint|11|",
+  "ecran.carte-video-arrondie|prevu|11|",
+  "ecran.grilles-archive|prevu|11|",
+  "ecran.ecrans-composes|prevu|11|",
+  "motion.titre-etape-montante|prevu|11|",
   "motion.v4-coulisse.LogoOutil|coulisse||",
   "motion.v4-coulisse.Equation|coulisse||",
   "motion.v4-coulisse.FriseEtapes|coulisse||",
