@@ -187,14 +187,14 @@ describe("TUTO-PLAFOND-1E-v21r · plafond Claude du tutoriel à 1 € (1,11 $)",
     expect(await tc.lecteurClaudeTutorielActif(lecteur({}))).toBe(false);
   });
 
-  it("j) panneau : mémoire vide → allumées exactement Claude et son regard ; `tutoriel.claude: false` → Claude éteint", async () => {
+  it("j) panneau : mémoire vide → allumées exactement Claude, son regard et la cloche du suivi ; `tutoriel.claude: false` → Claude éteint", async () => {
     const vide = await lireReglagesTutoriel({ lire: lecteur({}) });
-    expect(vide.filter((r) => r.allume).map((r) => r.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur"]);
+    expect(vide.filter((r) => r.allume).map((r) => r.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur", "tutoriel.suiviCloche"]);
     const coupe = await lireReglagesTutoriel({ lire: lecteur({ "tutoriel.claude": false }) });
     expect(coupe.find((r) => r.cle === "tutoriel.claude")?.allume).toBe(false);
     // Même règle que `claudeTutorielActif` : seul `false` éteint (la chaîne "true" n'éteint pas une ligne allumée par défaut).
     const chaine = await lireReglagesTutoriel({ lire: lecteur({ "tutoriel.claude": "true", "tutoriel.regardeur": 1 }) });
-    expect(chaine.filter((r) => r.allume).map((r) => r.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur"]);
+    expect(chaine.filter((r) => r.allume).map((r) => r.cle)).toEqual(["tutoriel.claude", "tutoriel.regardeur", "tutoriel.suiviCloche"]);
   });
 
   it("k) tirage au plafond réel : sans réglage, limite 100 c€, taux 0,9 → pas « plafond_video » ; réglage 2 $ → « plafond_video »", async () => {

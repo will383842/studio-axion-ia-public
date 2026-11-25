@@ -11,7 +11,7 @@ export const DOMAINE: Domaine = {
     "tutoriel.devisAvantDepense": "eteint",
     "tutoriel.finCommune": "eteint",
     "tutoriel.finitions": "eteint",
-    "tutoriel.suiviCloche": "eteint",
+    "tutoriel.suiviCloche": "allume",
     "videoLongue.actif": "eteint",
   },
   constantes: [
