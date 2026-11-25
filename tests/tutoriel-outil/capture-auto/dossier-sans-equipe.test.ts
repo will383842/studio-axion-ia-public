@@ -73,9 +73,9 @@ const LE = "2026-11-21T08:00:00.000Z";
 let boite: string;
 const puts = new Map<string, Buffer>();
 
-const commande = (script: string): CommandeFabrication =>
+const commande = (script: string, ratios: ("4:5" | "9:16" | "16:9")[] = ["4:5"]): CommandeFabrication =>
   commandeTutoriel({
-    ratios: ["4:5"],
+    ratios,
     distribution: [],
     script: { blocs: [], texteComplet: script },
     entrees: { tutorielOutil: { scriptColle: true, depot: { mode: "dossier", fichierId: "f-dossier1", attestationImages: true }, fin: "aucune", modeVoix: "sans-voix" } },
@@ -96,12 +96,12 @@ const stockage = {
 type Port = NonNullable<OutilsTutoriel["filmDossier"]>;
 
 /** Mène le moteur (SANS équipe, SANS voix) jusqu'à la pause du film (ou jusqu'au bout), puis installe vidéo, version et travail dans les dépôts. */
-async function lancer(script: string, filmDossier?: Port) {
+async function lancer(script: string, filmDossier?: Port, options: { ratios?: ("4:5" | "9:16" | "16:9")[]; commande?: CommandeFabrication } = {}) {
   const j: Journal = { voix: [], claude: [], rendus: [] };
   const o = { ...outilsDoubles(j), ...(filmDossier ? { filmDossier } : {}) } as OutilsTutoriel;
   expect(o.equipe).toBeUndefined();
   const moteur = creerMoteurTutorielOutil({ outils: une(o) });
-  const c = commande(script);
+  const c = options.commande ?? commande(script, options.ratios);
   let t: Travail = await moteur.lancer(c, { travailId: "t-to", versionId: "ver-1", titre: "Tuto", maintenant: T0 });
   const mener = async (version: CommandeFabrication, depart: number) => {
     for (let i = depart; i < depart + 400; i++) {
@@ -184,9 +184,9 @@ function repondre(): { maquette: string; largeur: number; hauteur: number } {
 const rendusComposition = (j: Journal) => j.rendus.filter((d) => d.operation === "composition");
 const proprietes = (d: { parametres: Record<string, unknown> }) => d.parametres.proprietes as Record<string, unknown> & { navigation?: Record<string, unknown> };
 
-async function deDossierAuBout(script: string) {
+async function deDossierAuBout(script: string, ratios?: ("4:5" | "9:16" | "16:9")[]) {
   const lireScenario = vi.fn(async () => SCENARIO as unknown);
-  const m = await lancer(script, { captureAuto: true, lireScenario });
+  const m = await lancer(script, { captureAuto: true, lireScenario }, { ratios });
   expect(m.t().parametres?.pause).toMatchObject({ code: "TO_FILM_A_CAPTURER" });
   expect(m.etat().scenarioDossier?.maquette).toBe("05-stocks");
   expect(m.etat().audio?.fournisseur).toBe("aucune");
@@ -208,7 +208,7 @@ async function deDossierAuBout(script: string) {
 
 describe("film d'un dossier sans équipe", () => {
   it("script de la maquette : pause film, capture, film rangé, rendu AVEC navigation filmée, 0 appel piégé", async () => {
-    const { m, t } = await deDossierAuBout(SCRIPT_STOCKS);
+    const { m, t } = await deDossierAuBout(SCRIPT_STOCKS, ["4:5", "9:16", "16:9"]);
     expect(t.erreur).toBeUndefined();
     expect(t.statut).toBe("termine");
     expect(m.etat().reserves.filter((r) => /Film de l'outil/.test(r))).toEqual([]);
@@ -216,9 +216,11 @@ describe("film d'un dossier sans équipe", () => {
     expect(cleFilm).toBeDefined();
     const cleRangee = cleFilm!.replace("https://depot.test/", "");
     const rendus = rendusComposition(m.j);
-    expect(rendus.length).toBeGreaterThan(0);
+    expect(rendus.length).toBeGreaterThanOrEqual(3);
     for (const d of rendus) {
       const p = proprietes(d);
+      // Plan nu au format maître ET aux autres formats : aucun panneau de repli par-dessus le film.
+      expect((p.plan as { scenes: unknown[] }).scenes).toEqual([]);
       expect(p.navigation).toBeDefined();
       expect(p.navigation).toMatchObject({ maquette: "05-stocks" });
       expect(p.navigation!.hautSousTitresPct).toBeTypeOf("number");
@@ -282,6 +284,21 @@ describe("film d'un dossier sans équipe", () => {
     expect(t.parametres?.pause).toMatchObject({ code: "TO_FILM_A_CAPTURER" });
     expect((t.parametres?.tutoriel as EtatTutoriel).scenarioDossier?.maquette).toBe("05-stocks");
     expect(lireScenario).toHaveBeenCalledTimes(2);
+  });
+
+  it("retouche (nouvelle version) : film du dossier déjà dans les entrées, sans scénario retenu : plan nu, 0 appel Claude", async () => {
+    await deDossierAuBout(SCRIPT_STOCKS);
+    const version = (await depots().versions.obtenir("ver-1"))!;
+    expect(version.commande.entrees.tutorielOutil.navigationFilmee).toBeDefined();
+    reinitialiserDepots();
+    const m = await lancer(SCRIPT_STOCKS, undefined, { commande: version.commande });
+    expect(m.etat().scenarioDossier).toBeUndefined();
+    expect(m.t().statut).toBe("termine");
+    expect(m.j.claude).toEqual([]);
+    expect(m.etat().reserves.filter((r) => /Composition|plan simple/i.test(r))).toEqual([]);
+    const rendus = rendusComposition(m.j);
+    expect(rendus.length).toBeGreaterThan(0);
+    for (const d of rendus) expect((proprietes(d).plan as { scenes: unknown[] }).scenes).toEqual([]);
   });
 
   it("sans le port filmDossier : comportement d'avant, aucune réserve neuve", async () => {

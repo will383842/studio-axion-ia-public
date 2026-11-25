@@ -686,6 +686,16 @@ async function pasPlan(etat: EtatTutoriel, commande: CommandeFabrication, outils
   return nouvelles.length ? { ...pas, etat: { ...pas.etat, reserves: [...pas.etat.reserves, ...nouvelles] } } : pas;
 }
 
+/**
+ * Vidéo sans voix, sans équipe, dont le film couvre toute la durée : le scénario du dossier est retenu (première version), ou le film du
+ * dossier est déjà dans les entrées (retouche : `scenarioDossier` n'est pas reporté). Plan nu : 0 appel Claude, aucune scène sur le film.
+ */
+function filmDeDossierSansVoix(etat: EtatTutoriel, commande: Pick<CommandeFabrication, "entrees">): boolean {
+  if (!estSansVoix(commande.entrees) || etat.equipe) return false;
+  const e = lireEntreesTutoriel(commande.entrees);
+  return !!etat.scenarioDossier || (!!e.navigationFilmee && e.depot?.mode === "dossier");
+}
+
 async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication, outils: OutilsTutoriel): Promise<PasTutoriel> {
   const texte = etat.script!.texte;
   const mots = etat.motsPlan!;
@@ -714,7 +724,7 @@ async function pasPlanSansFilm(etat: EtatTutoriel, commande: CommandeFabrication
   // X3-06 : cran du dosage figé dans la commande. Absent (dosage éteint) = chemin d'avant, inchangé.
   const cran = commande.dosageMotion?.cran;
   // Film d'un dossier sans voix : le film occupe toute la durée, plan nu (0 appel Claude, aucune réserve « plan simple »).
-  if (cran === "aucun" || (estSansVoix(commande.entrees) && etat.scenarioDossier)) {
+  if (cran === "aucun" || filmDeDossierSansVoix(etat, commande)) {
     // Plan nu : l'écran seul, aucune pièce, aucun calque ; `genererPlan` n'est pas appelé (0 appel Claude).
     const nu = planNu({ mots, format, facecam: false, dureeMs: mots.at(-1)?.finMs ?? 0 });
     return { statut: "faite", etat: { ...etat, plan: { plan: nu, remarques: [], source: "repli", empreinteEntree, scenesTouchees: nu.scenes.map((s) => s.id) } } };
@@ -762,6 +772,8 @@ function avecComposition(etat: EtatTutoriel, commande: CommandeFabrication, outi
 export function planPourRatio(plan: PlanValide, ratio: Ratio): PlanValide {
   const format = formatDuRatio(ratio);
   if (format.largeur === plan.format.largeur && format.hauteur === plan.format.hauteur) return plan;
+  // Plan nu (aucune scène : le film seul) : rien à revalider, `validerPlan` y verrait un plan illisible et poserait des panneaux sur le film.
+  if (plan.scenes.length === 0) return { ...plan, format };
   return validerPlan({ ...plan, format }, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs }).plan;
 }
 

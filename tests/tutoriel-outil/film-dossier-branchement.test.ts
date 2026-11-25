@@ -9,12 +9,13 @@ import { commandeTutoriel } from "./doubles";
 
 const reglages = new Map<string, unknown>();
 vi.mock("@/services/_commun", async (importOriginal) => ({ ...(await importOriginal<object>()), lireParametre: async (id: string, defaut: unknown) => (reglages.has(id) ? reglages.get(id) : defaut) }));
-const lectures = vi.hoisted(() => ({ dossier: 0, fichiers: [] as { chemin: string; contenu: string }[] }));
+const lectures = vi.hoisted(() => ({ dossier: 0, illisible: false, fichiers: [] as { chemin: string; contenu: string }[] }));
 vi.mock("@/services/tutoriel-equipe", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   portsEquipe: () => ({
     lireDossier: async () => {
       lectures.dossier++;
+      if (lectures.illisible) return null;
       return { fichiers: lectures.fichiers };
     },
   }),
@@ -35,6 +36,7 @@ beforeAll(async () => {
 beforeEach(() => {
   reglages.clear();
   lectures.dossier = 0;
+  lectures.illisible = false;
   lectures.fichiers = [{ chemin: "scenario.json", contenu: SCENARIO }];
 });
 
@@ -61,6 +63,16 @@ describe("branchement du film d'un dossier", () => {
     expect(lectures.dossier).toBe(0);
     expect(((await o.filmDossier!.lireScenario()) as { maquette: string }).maquette).toBe("05-stocks");
     expect(lectures.dossier).toBe(1);
+    lectures.fichiers = [{ chemin: "index.html", contenu: "<p/>" }];
+    expect(await o.filmDossier!.lireScenario()).toBeNull();
+  });
+
+  it("dossier PAS lu (lireDossier rend null : stockage en erreur, extraction refusée) : lireScenario rejette, la décision n'est pas figée ; dossier lu sans parcours : null", async () => {
+    reglages.set("tutoriel.captureAuto", true);
+    const o = await outils(commande(DOSSIER));
+    lectures.illisible = true;
+    await expect(o.filmDossier!.lireScenario()).rejects.toThrow();
+    lectures.illisible = false;
     lectures.fichiers = [{ chemin: "index.html", contenu: "<p/>" }];
     expect(await o.filmDossier!.lireScenario()).toBeNull();
   });

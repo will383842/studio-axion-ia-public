@@ -85,7 +85,9 @@ async function filmDuDossier(c: Parameters<typeof portsEquipe>[0] & { videoId: s
     captureAuto: await captureAutoAllumee(),
     lireScenario: async () => {
       const d = await portsEquipe(c, c.videoId).lireDossier();
-      return d ? scenarioDuDossier(d.fichiers) : null;
+      // `null` = dossier PAS lu (stockage en erreur, pas d'adresse, extraction refusée) : on lève, la chaîne attend (TO_DOSSIER_INCOMPLET) au lieu de figer « pas de scénario ».
+      if (!d) throw new Error("dossier illisible pour l'instant");
+      return scenarioDuDossier(d.fichiers);
     },
   };
 }
