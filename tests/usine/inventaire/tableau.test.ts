@@ -23,6 +23,6 @@ export const DOMAINE: Domaine = {
     "services/tableau-deja-vu-usine.ts:id": { exclu: "relais" }, // passe-plat (id) => lireParametre(id, false) ; clé tableau.deja_vu_usine.actif, seul true allume
   },
   env: [],
-  nombre: { litterales: 0, constantes: 4, gabarits: 0, planScenes: 0, retouche: 0, exclusCles: 2, parExpression: 1, env: 0 },
+  nombre: { litterales: 0, constantes: 5, gabarits: 0, planScenes: 0, retouche: 0, exclusCles: 2, parExpression: 1, env: 0 },
   retirees: [],
 };
