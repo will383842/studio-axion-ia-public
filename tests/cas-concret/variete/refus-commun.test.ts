@@ -67,9 +67,9 @@ describe("X2-11b-b · refusCommun du tirage", () => {
     expect(contraintesNonTenues(t, { ...contexte, refusCommun: () => null }, 0)).toEqual(contraintesNonTenues(t, { videoId: "v-refus-e", canaux: CANAUX, historique: [] }, 0));
   });
 
-  it("(f) un OutilsVariete sans refusCommun compile ; outilsVarieteDuStudio() n'en porte pas", () => {
+  it("(f) un OutilsVariete sans refusCommun compile ; outilsVarieteDuStudio() en porte un (X2-11b-c)", () => {
     const sans = { lireHistorique: async () => [], ajouter: async () => {} } satisfies OutilsVariete;
     expect(sans).not.toHaveProperty("refusCommun");
-    expect(Object.keys(outilsVarieteDuStudio())).not.toContain("refusCommun");
+    expect(Object.keys(outilsVarieteDuStudio())).toContain("refusCommun");
   });
 });
