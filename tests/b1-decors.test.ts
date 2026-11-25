@@ -293,13 +293,13 @@ describe("service « Mes décors » (essai, sans clé)", () => {
     expect(e).toMatchObject({ photosReelles: false, looksReels: false });
   });
 
-  it("demande : coût affiché AVANT (essai : 0 €), confirmation exigée, puis 3 propositions sur le double", async () => {
+  it("demande : coût affiché AVANT (essai : 0 €) ; Studio : part sans confirmation (08/11), Usine : confirmation exigée ; 3 propositions sur le double", async () => {
     const depensesAvant = await depots().depenses.compter();
     const est = await decors.estimerDemandeDecor("Un bureau en bois avec une bibliothèque");
     expect(est).toMatchObject({ propositions: 3, essai: true, cout: { centimes: 0 } });
     await expect(decors.estimerDemandeDecor("une personne")).rejects.toThrow(/Décrivez un lieu/);
-    await expect(decors.demanderDecor("Un bureau en bois", { confirme: false })).rejects.toThrow(/Confirmez/);
-    const r = await decors.demanderDecor("Un bureau en bois avec une bibliothèque", { confirme: true });
+    await expect(decors.demanderDecor("Un bureau en bois", { confirme: false, origine: "usine" })).rejects.toThrow(/Confirmez/);
+    const r = await decors.demanderDecor("Un bureau en bois avec une bibliothèque", { confirme: false });
     expect(r.propositionIds).toHaveLength(3);
     const e = await decors.ecranDecors();
     expect(e.demandes).toHaveLength(3);
@@ -338,14 +338,14 @@ describe("service « Mes décors » (essai, sans clé)", () => {
     expect((await decors.ecranDecors()).recurrents.map((d) => d.code)).toEqual(["N1", "N5", "N3", "N2", "N6"]);
   });
 
-  it("Look au premier usage : coût affiché, confirmation, un look par angle (visages générés à vérifier), puis réutilisé gratuitement", async () => {
+  it("Look au premier usage : coût affiché ; Studio : part sans confirmation (08/11), Usine : confirmation exigée ; un look par angle (visages générés à vérifier), puis réutilisé gratuitement", async () => {
     const est = await decors.estimerLookDecor("decor-r2-bibliotheque");
     expect(est).toMatchObject({ essai: true, reutilise: false, cout: { centimes: 0 } });
     expect(est.angles.sort()).toEqual(["face", "trois-quarts"]);
-    await expect(decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: false })).rejects.toThrow(/Confirmez/);
+    await expect(decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: false, origine: "usine" })).rejects.toThrow(/Confirmez/);
     const visagesAvant = await depots().visages.compter();
     const depensesAvant = await depots().depenses.compter();
-    const r = await decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: true });
+    const r = await decors.preparerLookDecor("decor-r2-bibliotheque", { confirme: false });
     expect(r.crees.sort()).toEqual(["face", "trois-quarts"]);
     const e = await depots().elements.obtenir("decor-r2-bibliotheque");
     const v = e!.valeur as ValeurDecor;

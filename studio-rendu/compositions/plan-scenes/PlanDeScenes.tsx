@@ -2,12 +2,12 @@
  * COMPOSITION GÉNÉRIQUE « PlanDeScenes » (lot C) : rend un plan de scènes VALIDÉ (`validerPlan`, côté studio).
  * Le dessin est dans `src/briques/plan-scenes/rendu.tsx` (pur) ; ici : l'image courante et Manrope chargée en local.
  */
-import { AbsoluteFill, continueRender, delayRender, useCurrentFrame } from "remotion";
+import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { ImagePlan, dureeImagesPlan } from "../../../src/briques/plan-scenes/rendu";
 import type { PlanValide } from "../../../src/briques/plan-scenes/schema";
 import type { DonneesCalque } from "../../../src/briques/sous-titres/scene";
 import { CalqueSousTitres } from "../sous-titres/CalqueSousTitres";
-import manrope from "../../../src/app/polices/manrope-latin.woff2";
+import { chargerPoliceMarque } from "../commune/police-marque";
 
 export type ProprietesPlanDeScenes = {
   plan: PlanValide;
@@ -15,17 +15,9 @@ export type ProprietesPlanDeScenes = {
   sousTitres?: DonneesCalque;
 };
 
-let chargement: Promise<void> | null = null;
+/** Nom historique conservé (importé par les écrans, planches et calques) : charge la police de marque, qui arrête le rendu si elle est illisible. */
 export function chargerManrope(): void {
-  if (chargement || typeof document === "undefined") return;
-  const attente = delayRender("Police Manrope");
-  const face = new FontFace("Manrope", `url(${manrope})`, { weight: "200 800" });
-  chargement = face
-    .load()
-    .then(() => {
-      document.fonts.add(face);
-    })
-    .finally(() => continueRender(attente));
+  chargerPoliceMarque();
 }
 
 export function PlanDeScenes({ plan, sousTitres }: ProprietesPlanDeScenes) {
