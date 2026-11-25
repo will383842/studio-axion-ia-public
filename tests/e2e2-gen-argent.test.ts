@@ -112,7 +112,7 @@ describe("E2E-2 argent n° 1 · retouche ratée chez Claude", () => {
     expect(traites).not.toContain("gen-orpheline");
   });
 
-  it("limite Claude du mois à 0 (repère, 08/11) : la retouche n'attend pas, elle part chez Claude ; réseau coupé : close « échec », version d'avant gardée", async () => {
+  it("limite Claude du mois à 0 (repère, 08/11) : la retouche n'attend pas, elle part chez Claude ; réseau coupé : close « échec », version d'avant gardée, rien n'est compté dans les 5", async () => {
     const id = await sujetEcrit();
     const v = (await depots().variantes.lister((x) => x.scriptMaitreId === id))[0];
     await ecrireParametre("fournisseur.script", "claude");
@@ -130,8 +130,7 @@ describe("E2E-2 argent n° 1 · retouche ratée chez Claude", () => {
     expect(tentatives).toBe(1);
     expect((await depots().evenements.lister()).map((x) => x.message)).toContain("Budget indicatif dépassé (Claude du mois) : Rien n'est arrêté : l'écriture continue (repère du mois). Seul un crédit Claude épuisé la met en attente.");
     expect((await depots().generations.lister((g) => g.portee === "retouche")).map((g) => g.statut)).toEqual(["echec"]);
-    // L'étape coupée est comptée à son pire cas (dépense non nulle) : la retouche compte dans les 5 (boucle-generation.ts:1342-1345).
-    expect(await lireParametre<number>(bg.cleRetouches(v.code), 0)).toBe(1);
+    expect(await lireParametre<number>(bg.cleRetouches(v.code), 0)).toBe(0);
     // Elle ne « reprend » jamais seule, même une fois la limite relevée.
     await gc.definirPlafondMensuelClaude(100);
     expect((await depots().generations.lister((g) => g.portee === "retouche")).map((g) => g.statut)).toEqual(["echec"]);
