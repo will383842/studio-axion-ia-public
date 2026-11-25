@@ -119,6 +119,12 @@ describe("garde charte Axion 2026", () => {
     ecrireRestantes(tmp, origine);
     const noms = readdirSync(DOSSIER).filter((n) => n.endsWith(".json"));
     expect(readdirSync(tmp).sort()).toEqual(noms.sort());
+    // La sortie de l'écrivain est contrôlée pour elle-même, indépendamment du dépôt : tout l'origine, rangé dans le bon fichier.
+    expect(lireRestantes(tmp)).toEqual(origine);
+    for (const nom of readdirSync(tmp).filter((n) => n.endsWith(".json"))) {
+      const e = JSON.parse(readFileSync(join(tmp, nom), "utf8")) as Record<string, number>;
+      for (const f of Object.keys(e)) expect(cleDossier(f) + ".json", `${f} rangé dans ${nom}`).toBe(nom);
+    }
     // Inclusion et non égalité : une baisse de cliquet (POLICES-P7-*) est permise ; une entrée de plus ou un compteur plus haut ne l'est jamais.
     for (const nom of noms) expect(horsOrigine(JSON.parse(readFileSync(join(DOSSIER, nom), "utf8")) as Record<string, number>, origine), nom).toEqual([]);
     const [premier] = Object.keys(origine);
