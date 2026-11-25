@@ -34,6 +34,8 @@ const fetchInterdit = (async (url: string | URL | Request) => {
 }) as typeof fetch;
 
 const REGLAGES = { reseaux: [...RESEAUX_DECLINAISON], formatId: "avocat", adresse: "vous" as const, mode: "avatar" as const, objectif: "notoriete" as const };
+// 5 idées DU DOMAINE (les 3 du banc + 2 écrites ici, sur l'automatisation par l'IA) : IDEES:37 contient 2 idées hors domaine, que lancerSerie ne lance pas.
+const IDEES_DOMAINE = [...SUJETS_BANC.map((s) => s.idee), "Un assistant IA qui répond la nuit aux questions des clients d'un site, quand plus personne n'est au bureau", "Les comptes rendus de réunion que personne ne relit, résumés en dix lignes par l'IA"];
 const IDEES = [...SUJETS_BANC.map((s) => s.idee), "Les réunions qui auraient pu être un e-mail", "Le devis refait trois fois"];
 
 beforeAll(async () => preparerMotDePasse(MDP));
@@ -93,46 +95,46 @@ describe("Série · prix total maximum calculé, budget et limite Claude respect
     expect(p2.totalMax.centimes).toBe(7 * p2.prixUnitaire.centimes);
   });
 
-  it("Claude branché, budget pour 2 sujets sur 3 (repère, 08/11) : les 3 partent, la limite « budget » est dite en information, aucun appel dans la requête", async () => {
+  it("Claude branché, budget pour 3 sujets sur 5 (repère, 08/11) : les 5 partent, la limite « budget » est dite en information, aucun appel dans la requête", async () => {
     await brancherClaude();
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, 10_000);
     const prix = (await bg.prixLancement()).centimes;
-    await resteDuBudget(2 * prix + prix - 1);
-    const ids = await noterIdees(IDEES.slice(0, 3));
-    const plan = await serie.planSerie(3);
-    expect(plan).toMatchObject({ demandees: 3, partiront: 3, essai: false, limite: "budget" });
+    await resteDuBudget(3 * prix + prix - 1);
+    const ids = await noterIdees(IDEES_DOMAINE.slice(0, 5));
+    const plan = await serie.planSerie(5);
+    expect(plan).toMatchObject({ demandees: 5, partiront: 5, essai: false, limite: "budget" });
 
-    const { serie: s } = await serie.lancerSerie(IDEES.slice(0, 3).map((texte, i) => ({ texte, ideeId: ids[i] })), REGLAGES, "serie-essai-budget");
-    expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    const { serie: s } = await serie.lancerSerie(IDEES_DOMAINE.slice(0, 5).map((texte, i) => ({ texte, ideeId: ids[i] })), REGLAGES, "serie-essai-budget");
+    expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti", "parti", "parti"]);
     // Chaque idée partie est reliée à SON sujet.
     for (const [i, e] of s.elements.entries()) {
       const idee = (await depots().idees.obtenir(ids[i]))!;
       expect(idee.scriptMaitreId).toBe(e.scriptMaitreId);
       const m = (await depots().scriptsMaitres.obtenir(e.scriptMaitreId!))!;
-      expect([m.brief.idee, m.brief.ideeId, m.brief.formatId, m.brief.adresseParDefaut]).toEqual([IDEES[i], ids[i], "avocat", "vous"]);
+      expect([m.brief.idee, m.brief.ideeId, m.brief.formatId, m.brief.adresseParDefaut]).toEqual([IDEES_DOMAINE[i], ids[i], "avocat", "vous"]);
     }
-    expect(await depots().generations.lister((g) => g.statut === "en-cours" && !g.estDemo)).toHaveLength(3);
+    expect(await depots().generations.lister((g) => g.statut === "en-cours" && !g.estDemo)).toHaveLength(5);
     expect(appelsClaude).toHaveLength(0);
     // Le reste du mois est dépassé : c'est un repère, une nouvelle série part aussi, la limite reste dite.
     expect(await serie.planSerie(2)).toMatchObject({ demandees: 2, partiront: 2, limite: "budget" });
   });
 
-  it("limite Claude du mois (repère, 08/11) : les écritures au-delà de la limite partent aussi, la limite « claude » est dite en information", async () => {
+  it("limite Claude du mois (repère, 08/11) : les 4 écritures partent, y compris au-delà de la limite, la limite « claude » est dite en information", async () => {
     await brancherClaude();
     await resteDuBudget(1_000_000);
     const engage = await gc.engageClaudeDuMoisCentimes();
     await ecrireParametre(gc.PARAM_PLAFOND_MENSUEL, (engage.depense + engage.reserve + 2 * 150 + 10) / 100);
-    const plan = await serie.planSerie(3);
-    expect(plan).toMatchObject({ demandees: 3, partiront: 3, limite: "claude" });
+    const plan = await serie.planSerie(4);
+    expect(plan).toMatchObject({ demandees: 4, partiront: 4, limite: "claude" });
     // L'Usine reste bloquante (src/services/mode-budget.ts:37-39) : au-dessus du seuil, sans total confirmé, rien ne part.
     const { reglerBudgetUsine } = await import("@/services/budget-mensuel");
     await reglerBudgetUsine({ budget_mensuel_cents: 5_000, mois: couts.moisParis() });
     await ecrireParametre("budget.seuilConfirmation", { centimes: plan.prixUnitaire.centimes, devise: "EUR" });
-    await expect(serie.lancerSerie(IDEES.slice(0, 3).map((texte) => ({ texte })), REGLAGES, "serie-essai-usine", undefined, undefined, "usine")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: plan.totalPartant.centimes });
+    await expect(serie.lancerSerie(IDEES_DOMAINE.slice(0, 4).map((texte) => ({ texte })), REGLAGES, "serie-essai-usine", undefined, undefined, "usine")).rejects.toMatchObject({ code: "CONFIRMATION_REQUISE", montant: plan.totalPartant.centimes });
     expect(await depots().generations.lister((g) => !g.estDemo)).toHaveLength(0);
-    const { serie: s } = await serie.lancerSerie(IDEES.slice(0, 3).map((texte) => ({ texte })), REGLAGES, "serie-essai-claude");
-    expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
-    expect(await depots().generations.lister((g) => g.statut === "en-cours" && !g.estDemo)).toHaveLength(3);
+    const { serie: s } = await serie.lancerSerie(IDEES_DOMAINE.slice(0, 4).map((texte) => ({ texte })), REGLAGES, "serie-essai-claude");
+    expect(s.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti", "parti"]);
+    expect(await depots().generations.lister((g) => g.statut === "en-cours" && !g.estDemo)).toHaveLength(4);
   });
 
   it("le même geste envoyé deux fois ne lance rien de plus", async () => {
