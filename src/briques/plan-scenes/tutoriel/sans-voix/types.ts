@@ -61,7 +61,7 @@ export type EvenementEcran =
       cartePulse?: number;
       source: PlageMots;
     }
-  /** Caméra douce vers une partie de l'écran (mise en valeur : contour terracotta et atténuation du reste, aucun zoom). */
+  /** Mise en valeur d'une partie de l'écran (contour terracotta et atténuation du reste ; AUCUN zoom, aucune caméra mobile). */
   | { genre: "focus"; aMs: number; finMs: number; cible: "cartes" | "liste" | "panneau" | "alerte" | "ensemble"; source: PlageMots };
 
 interface BaseScene {
@@ -84,12 +84,13 @@ export type SceneSansVoix =
       genre: "appel";
       question?: string;
       bouton: string;
+      /** Instant du mot du clic. Le clic réel arrive à min(clicAMs, début de scène + 1,5 s) : jamais avant que le bouton soit là. */
       clicAMs: number;
       /** Libellé de la carte de fin (ex. « axion-ia.com ») : texte PERMIS (comme le libellé de fin), affiché sous le bouton
-       *  (≥ 36 px) une fois le clic fait. La scène peut durer jusqu'à la fin de la vidéo (elle absorbe la carte de fin). */
+       *  (≥ 40 px) DÈS L'ENTRÉE de la scène (≤ 600 ms), avant le clic. La scène peut durer jusqu'à la fin de la vidéo (elle absorbe la carte de fin). */
       site?: string;
       /** Nom de marque de la carte de fin (ex. « Axion IA ») : texte PERMIS (comme le libellé de fin), affiché entre le bouton et le
-       *  site une fois le clic fait (Manrope ExtraBold noir, ≥ 56 px, avec un filet terracotta dessous). FACULTATIF. */
+       *  site dès l'entrée de la scène (Manrope ExtraBold noir, ≥ 72 px en portrait, ≥ 56 px en format bas, avec un filet terracotta dessous). FACULTATIF. */
       marque?: string;
     })
   /** Repli générique : le groupe nominal principal de la phrase sur une carte ivoire avec filet (jamais un fond nu). */
@@ -167,9 +168,12 @@ export interface ElementVisible {
   barre?: number;
   /** Forme « filet » ou barre squelette qui se trace/pousse : part 0..1. */
   progression?: number;
-  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, horloge (historique, avant / après).
-   *  Pour « horloge », `progression` (0..1) = tour de l'aiguille (0 = midi, 1 = un tour complet) : l'aiguille TOURNE. */
-  icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche";
+  /** Icône simple dessinée (pas de texte) : cloche d'alerte, point de fenêtre, pastille d'urgence, horloge (historique, avant / après),
+   *  et les pictogrammes des cartes-chiffres : « boite » (cube : stock), « seuil » (ligne horizontale et flèche vers le bas : seuil),
+   *  « valeur » (pile de pièces, sans « € » ni chiffre).
+   *  Pour « horloge » : la petite aiguille (heures) est FIXE à 300° (10 h) ; `progression` (0..1) = angle de la grande aiguille (0 = midi,
+   *  1 = un tour) : elle reste TOUJOURS à ≥ 60° de la petite (les deux partent du centre, jamais en ligne droite) ; icônes statiques : 0,1 (2 h). */
+  icone?: "cloche" | "point" | "pastille" | "horloge" | "fleche" | "boite" | "seuil" | "valeur";
   /** Curseur : point cliquant et anneau de clic (0..1, 0 = pas de clic). */
   pointe?: { x: number; y: number };
   anneauClic?: number;
