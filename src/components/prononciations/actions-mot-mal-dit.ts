@@ -80,3 +80,49 @@ export async function enregistrerMotMalDitAction(demande: DemandeMotMalDitAction
     return { action: calcul.action, id, message: calcul.message };
   });
 }
+
+/** Le réglage « refaire la voix avec la prononciation » est-il allumé ? Seul `false` écrit l'éteint ; lecture en panne : éteint. */
+export async function refaireVoixAllumeeAction(): Promise<boolean> {
+  await exigerSession();
+  try {
+    const { lireParametre } = await import("@/services/_commun");
+    const { PARAM_REFAIRE_AVEC_PRONONCIATION } = await import("@/services/refaire-voix");
+    return (await lireParametre<unknown>(PARAM_REFAIRE_AVEC_PRONONCIATION, true)) !== false;
+  } catch {
+    return false;
+  }
+}
+
+export interface DemandeRefaireVoixMotMalDit {
+  videoId: string;
+  /** Phrases de la vidéo (texte lu), une par plan. */
+  plans: { id: string; texte: string }[];
+  /** Les plans à refaire (ceux que l'aperçu a montrés). */
+  planIds: string[];
+  mot: string;
+  prononciation: string;
+}
+
+/**
+ * « Refaire la voix » : passe par `refaireVoixAvecPrononciation` (S2-16-b) qui garde le plafond par vidéo et la
+ * réservation de la retouche. Le refus « plafond » revient en phrase SANS montant. Les phrases visées sont relues ICI
+ * dans les plans nettoyés, jamais reprises telles quelles du navigateur.
+ */
+export async function refaireVoixMotMalDitAction(demande: DemandeRefaireVoixMotMalDit): Promise<Resultat<{ ok: true } | { ok: false; phrase: string }>> {
+  await exigerSession();
+  return essayer(async () => {
+    const n = nettoyer({ plans: demande.plans, mot: demande.mot, prononciation: demande.prononciation });
+    const ids = new Set((Array.isArray(demande.planIds) ? demande.planIds : []).map((i) => String(i)));
+    const visees = n.plans.filter((p) => ids.has(p.id));
+    if (!visees.length) return { ok: false as const, phrase: "Aucune phrase à refaire." };
+    const { refaireVoixAvecPrononciation } = await import("@/services/refaire-voix");
+    const r = await refaireVoixAvecPrononciation(
+      String(demande.videoId ?? ""),
+      visees.map((p) => p.id),
+      `Prononciation : « ${n.mot} » se dit « ${n.prononciation} »`,
+      { confirme: true, phrasesVisees: visees.map((p) => p.texte) },
+    );
+    revalidatePath(`/videos/${String(demande.videoId ?? "")}`);
+    return r.ok ? { ok: true as const } : { ok: false as const, phrase: r.phrase };
+  });
+}
