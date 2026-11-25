@@ -146,6 +146,20 @@ export const EXCEPTIONS_ECRITURE: readonly ExceptionEcriture[] = [
     levee: "brancher la recette, la mémoire (source à lire côté image-video, TODO C4), les contrôles et le débit mesuré, puis déclarer son contrat",
     raison: "format en service (masqué mais ouvert dans la navigation) ; n'importe ni la recette, ni la mémoire, ni la ressemblance communes",
   },
+  {
+    formatId: "tutoriel-outil",
+    depuis: "2026-11-25",
+    jusquAu: "2027-02-25",
+    levee: "brancher la recette, la mémoire, les contrôles communs et le débit mesuré, puis déclarer son contrat",
+    raison: "format masqué mais ouvert dans la navigation ; écrit par sa propre équipe de rôles ; recette, mémoire, contrôles communs et débit mesuré non branchés",
+  },
+  {
+    formatId: "video-longue",
+    depuis: "2026-11-25",
+    jusquAu: "2027-02-25",
+    levee: "brancher l'écriture commune si le studio doit écrire le script, puis déclarer son contrat",
+    raison: "format masqué mais ouvert dans la navigation ; le script est celui de l'utilisateur ; aucune écriture n'est branchée",
+  },
 ];
 
 const dateValide = (d: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
