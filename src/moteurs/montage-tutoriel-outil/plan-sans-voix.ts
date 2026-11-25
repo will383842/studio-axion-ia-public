@@ -237,13 +237,26 @@ function detecterClic(t: Tok[], p: Phrase, remarques: string[]): { clic: Extract
   return { clic, panneau: { genre: "panneau", aMs: t[o].debut, titre: titre.texte, rubriques, source: plageDe(o, p.dernier) } };
 }
 
-function condition(t: Tok[], p: Phrase): { debut: number; fin: number } | null {
-  for (const conj of CONJONCTIONS_CONDITION) {
-    if (!suiteA(t, p.premier, conj, p.dernier)) continue;
-    const debut = p.premier + conj.length;
-    for (let i = debut; i < p.dernier; i++) if (finVirgule(t[i])) return { debut, fin: i };
+const PREFIXE_ELIDE = /^(lorsqu|puisqu|quoiqu)['’]/i;
+
+/**
+ * Condition de la phrase, où que soit sa conjonction (quand / lorsque / lorsqu'un… / si / dès que…) : `conj` = mot de la
+ * conjonction, `debut` = 1er mot du libellé (le mot même de la conjonction si elle est élidée : « lorsqu'un »), `fin` = mot à virgule.
+ * Préfère une condition qui finit avant le mot d'alerte `k`.
+ */
+function condition(t: Tok[], p: Phrase, k = -1): { conj: number; debut: number; fin: number } | null {
+  const trouvees: { conj: number; debut: number; fin: number }[] = [];
+  for (let c = p.premier; c <= p.dernier; c++) {
+    let debut = -1;
+    if (/^(lorsqu|puisqu|quoiqu)'./.test(t[c].n)) debut = c;
+    else {
+      const conj = CONJONCTIONS_CONDITION.find((j) => suiteA(t, c, j, p.dernier));
+      if (conj) debut = c + conj.length;
+    }
+    if (debut < 0) continue;
+    for (let i = debut; i < p.dernier; i++) if (finVirgule(t[i])) { trouvees.push({ conj: c, debut, fin: i }); break; }
   }
-  return null;
+  return trouvees.find((x) => k < 0 || x.fin < k) ?? trouvees[0] ?? null;
 }
 
 function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { genre: "cartes-chiffres" }> | null): Extract<EvenementEcran, { genre: "alerte" }> | null {
@@ -252,18 +265,20 @@ function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { g
   if (k < 0) return null;
   const opt = { maxMots: 8, maxCar: MAX_ALERTE, garderDeterminants: true };
   const candidats: [number, number][] = [];
-  const cond = condition(t, p);
+  const cond = condition(t, p, k);
   if (cond && k > cond.fin) candidats.push([cond.debut, cond.fin]);
   candidats.push([p.premier, p.dernier]);
   const avantDet = k > p.premier && /^(un|une|l'|la|le|votre|des|les)$/.test(t[k - 1].n) ? k - 1 : k;
   candidats.push([avantDet, p.dernier]);
   let choisi: ReturnType<typeof nettoyerLibelle> = null;
   let base = 0;
+  // « Lorsqu'un article… » : le préfixe élidé de la conjonction n'est pas affiché (« Un article… »).
+  const motsDe = (a: number, b: number): string[] => brut(t, a, b).map((m, i) => (i === 0 ? m.replace(PREFIXE_ELIDE, "") : m));
   for (const [a, b] of candidats) {
-    const brutLib = nettoyerBords(brut(t, a, b).join(" "));
-    if (brutLib.length <= MAX_ALERTE) { choisi = nettoyerLibelle(brut(t, a, b), opt); base = a; if (choisi) break; }
+    const brutLib = nettoyerBords(motsDe(a, b).join(" "));
+    if (brutLib.length <= MAX_ALERTE) { choisi = nettoyerLibelle(motsDe(a, b), opt); base = a; if (choisi) break; }
   }
-  if (!choisi) { const [a, b] = candidats[candidats.length - 1]; choisi = nettoyerLibelle(brut(t, a, b), opt); base = a; }
+  if (!choisi) { const [a, b] = candidats[candidats.length - 1]; choisi = nettoyerLibelle(motsDe(a, b), opt); base = a; }
   if (!choisi) return null;
   const mots = new Set(choisi.texte.split(/\s+/).map(nu).filter((m) => m.length >= 5));
   let cartePulse: number | undefined;
@@ -274,7 +289,10 @@ function detecterAlerte(t: Tok[], p: Phrase, cartes: Extract<EvenementEcran, { g
       if (partages > meilleur) { meilleur = partages; cartePulse = idx; }
     });
   }
-  const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs: t[p.premier].debut, texte: choisi.texte, source: plageDe(Math.min(base + choisi.premier, k), Math.max(base + choisi.dernier, k)) };
+  const source = plageDe(Math.min(base + choisi.premier, k), Math.max(base + choisi.dernier, k));
+  // aMs : la conjonction de la condition si elle existe (où qu'elle soit dans la phrase), sinon le début du texte AFFICHÉ.
+  const aMs = cond ? t[cond.conj].debut : t[source.premier].debut;
+  const ev: Extract<EvenementEcran, { genre: "alerte" }> = { genre: "alerte", aMs, texte: choisi.texte, source };
   if (cartePulse !== undefined) ev.cartePulse = cartePulse;
   return ev;
 }
@@ -329,9 +347,19 @@ function videDeSens(texte: string): boolean {
   return mots.every((m) => DEBUTS_VIDES.has(m) || MOTS_SANS_SENS.has(m) || MOTS_VIDES_FIN.has(m) || DETERMINANTS.has(m));
 }
 
+const POLITESSES_FINALES: string[][] = [["merci"], ["bonne"], ["belle"], ["bon", "week-end"], ["a", "bientot"], ["a", "tres", "bientot"], ["a", "vite"], ["a", "demain"], ["au", "revoir"], ["cordialement"], ["bien", "cordialement"]];
+
+/** Phrase de politesse finale : elle COMMENCE par merci, bonne (journée), à bientôt, au revoir… */
+function politesseFinale(t: Tok[], p: Phrase): boolean {
+  return POLITESSES_FINALES.some((m) => suiteA(t, p.premier, m, p.dernier));
+}
+
 /** Titre plafonné (60 car.) : groupe de mots du début du script, coupé au mot, suite contiguë. */
+const sansDebutPonctue = (s: string): string => s.replace(/^[\s.,;:!?…–—-]+/, "").trim();
+const aDesMots = (s: string): boolean => /[\p{L}\p{N}]/u.test(s);
+
 function titrePlafonne(mots: string[]): string {
-  const brutTxt = mots.join(" ").trim();
+  const brutTxt = sansDebutPonctue(mots.join(" "));
   if (nettoyerBords(brutTxt).length <= MAX_SURTITRE) return brutTxt;
   const l = nettoyerLibelle(mots.slice(0, 14), { maxMots: 12, maxCar: MAX_SURTITRE, garderDeterminants: true });
   if (l) return l.texte;
@@ -366,7 +394,7 @@ function dureeImposee(e: EntreePlanSansVoix): number | null {
 
 /** Plan de secours : jamais de scène vide, une scène titre qui pave [0, dureeMs] ; plage de mots cohérente sans mots. */
 function planMinimal(e: EntreePlanSansVoix): PlanComposeSansVoix {
-  const sourceMots = (e.phraseTitre ?? "").trim() || String(e.texte ?? "").trim();
+  const sourceMots = [e.phraseTitre ?? "", String(e.texte ?? "")].map((x) => x.trim()).find(aDesMots) ?? "";
   const texte = titrePlafonne(sourceMots.split(/\s+/).filter(Boolean));
   const nMots = Array.isArray(e.mots) ? e.mots.length : 0;
   const fins = (nMots ? e.mots : []).map((m) => Number(m.finMs) || 0);
@@ -399,10 +427,31 @@ function remapperIndices(plan: PlanComposeSansVoix, t: Tok[], nMots: number): vo
   }
 }
 
+/** dureeMs plus courte que la parole : retire les scènes entièrement au-delà, et les événements hors de leur scène (ou les ramène à sa fin). */
+function tronquerA(scenes: SceneSansVoix[], dureeMs: number, remarques: string[]): void {
+  const avant = scenes.length;
+  for (let k = scenes.length - 1; k > 0; k--) if (scenes[k].debutMs >= dureeMs) scenes.splice(k, 1);
+  if (scenes.length < avant) remarques.push(`${avant - scenes.length} scène(s) au-delà de dureeMs retirée(s).`);
+  const dernier = scenes[scenes.length - 1];
+  if (dernier) dernier.finMs = Math.max(dernier.debutMs, dureeMs);
+  for (const sc of scenes) {
+    if (sc.genre === "appel" && sc.clicAMs > sc.finMs) sc.clicAMs = sc.finMs;
+    if (sc.genre !== "ecran") continue;
+    const gardes = sc.evenements.filter((ev) => ev.aMs < sc.finMs).map((ev) => (ev.genre === "focus" && ev.finMs > sc.finMs ? { ...ev, finMs: sc.finMs } : ev));
+    if (gardes.length < sc.evenements.length) remarques.push(`${sc.evenements.length - gardes.length} événement(s) d'écran au-delà de dureeMs retiré(s).`);
+    if (!gardes.length) gardes.push({ genre: "focus", aMs: sc.debutMs, finMs: sc.finMs, cible: "ensemble", source: plageDe(sc.mots.premier, sc.mots.dernier) });
+    sc.evenements = gardes;
+  }
+}
+
 function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanComposeSansVoix; remarques: string[] } {
   const t = jetons(e);
   if (!t.length) {
     remarques.push("Script vide : aucune scène déduite.");
+    return { plan: planMinimal(e), remarques };
+  }
+  if (!t.some((m) => aDesMots(m.texte))) {
+    remarques.push("Script sans mots (ponctuation seule) : une seule scène titre, rien d'autre n'est déduit.");
     return { plan: planMinimal(e), remarques };
   }
   const phrases = decouperPhrases(t);
@@ -422,7 +471,7 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   let appel: { premier: number; appel: number; question: number | null } | null = null;
   // Les phrases finales sans sens (« Merci. ») ne comptent pas : l'appel est la dernière phrase significative.
   let nA = nP - 1;
-  while (nA > 1 && videDeSens(phrases[nA].texte)) nA--;
+  while (nA > 1 && (videDeSens(phrases[nA].texte) || politesseFinale(t, phrases[nA]))) nA--;
   if (nA >= 1 && estAppel(t, phrases[nA])) {
     const q = nA - 1 >= 1 && phrases[nA - 1].question ? nA - 1 : null;
     appel = { premier: q ?? nA, appel: nA, question: q };
@@ -500,8 +549,8 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
   const brouillons: Brouillon[] = [];
   const idDe = (g: string) => `s${brouillons.length + 1}-${g}`;
   const p0 = phrases[0];
-  const texteP0 = nettoyerBords(p0.texte) === "" ? p0.texte : p0.texte.trim();
-  const titreSaisi = (e.phraseTitre ?? "").trim();
+  const texteP0 = sansDebutPonctue(p0.texte);
+  const titreSaisi = sansDebutPonctue(e.phraseTitre ?? "");
   {
     const texte = titreSaisi || titrePlafonne(brut(t, p0.premier, p0.dernier));
     if (!titreSaisi && texte !== texteP0) remarques.push("1re phrase trop longue pour le titre : groupe de mots du début, coupé au mot.");
@@ -546,10 +595,10 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
       const question = qTexte && qTexte.length <= MAX_SURTITRE ? questionTexte : undefined;
       if (qTexte && !question) remarques.push("La question finale est trop longue pour la scène d'appel : seul le bouton est affiché.");
       brouillons.push({
-        scene: { id: idDe("appel"), genre: "appel", ...(question ? { question } : {}), bouton, clicAMs: t[rdvIdx >= 0 ? rdvIdx : motAppel].debut, mots: plageDe(p.premier, pa.dernier) },
+        scene: { id: idDe("appel"), genre: "appel", ...(question ? { question } : {}), bouton, clicAMs: t[rdvIdx >= 0 ? rdvIdx : motAppel].debut, mots: plageDe(p.premier, phrases[nP - 1].dernier) },
         premierMot: p.premier,
       });
-      i = appel.appel + 1;
+      i = nP; // les politesses finales (« Merci, bonne journée. ») sont fondues dans la scène d'appel
       continue;
     }
     const r = reperes.get(i);
@@ -583,6 +632,7 @@ function composer(e: EntreePlanSansVoix, remarques: string[]): { plan: PlanCompo
     scenes.push({ ...b.scene, debutMs: debut, finMs: fin } as SceneSansVoix);
     borne = fin;
   });
+  if (dureeMs < finMots) tronquerA(scenes, dureeMs, remarques);
   const plan: PlanComposeSansVoix = { version: VERSION_SANS_VOIX, format: e.format, dureeMs, basPct: e.basPct, scenes };
   remapperIndices(plan, t, nMots);
   return { plan, remarques };
