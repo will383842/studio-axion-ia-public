@@ -1,15 +1,15 @@
 /**
- * PLAGES DE NOIR ET BLANC TIRÉES DU SCRIPT (C10-05, NOIR-BLANC-a). Pur, ÉTEINT, sans importeur.
+ * PLAGES DE NOIR ET BLANC TIRÉES DU SCRIPT (C10-05, NOIR-BLANC-a). Pur, ALLUMÉ ; importeur unique : parametres.ts.
  * Pour chaque passage « de A à B » (hors argent) : plage du début du mot « avant » au début du mot « après ».
  * Règles dures : 1 à 4 s (jamais tronquée ni étirée), 2 plages au plus, 0,5 s de garde aux bords,
- * jamais sur un plan visage interdit. Non branché : aucun appelant.
+ * jamais sur un plan visage interdit. Branché (NOIR-BLANC-b) et allumé (ALLUMER-NOIR-BLANC-v21t).
  */
 import { faitsDuScript } from "../faits-script/extraire";
 import { familleUnite, type Fait, type MotFait } from "../faits-script/types";
 import { normaliserPlagesNoirBlanc, type PlageNoirBlanc } from "../motion/habillage-commun/noir-blanc";
 
-/** Éteint par défaut : seul `true` allume. */
-export const NOIR_BLANC_ACTIF = false;
+/** ALLUMER-NOIR-BLANC-v21t : OUI du pilote du 25/11 12:00 (planches/noir-blanc-clips-25-11). Retour arrière : `false`. */
+export const NOIR_BLANC_ACTIF = true;
 export const NB_DUREE_MIN_SEC = 1;
 export const NB_DUREE_MAX_SEC = 4;
 export const NB_PLAGES_MAX = 2;

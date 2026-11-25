@@ -54,9 +54,10 @@ describe("plagesNoirBlancDesFaits", () => {
     expect(plagesNoirBlancDesFaits(passage(2000, 4000), { ...ON, plansInterdits: [[4, 6]] })).toEqual([[2, 4]]);
     expect(plagesNoirBlancDesFaits(passage(2000, 4000), { ...ON, plansInterdits: [[0, 2]] })).toEqual([[2, 4]]);
   });
-  it("(g) éteint par défaut, entrées vides ou invalides, 2e appel identique, mots intacts", () => {
-    expect(NOIR_BLANC_ACTIF).toBe(false);
-    expect(plagesNoirBlancDesFaits(mots(PASSAGE), { dureeSec: 60 })).toEqual([]);
+  it("(g) allumé depuis ALLUMER-NOIR-BLANC-v21t (OUI de Williams), entrées vides ou invalides, 2e appel identique, mots intacts", () => {
+    expect(NOIR_BLANC_ACTIF).toBe(true);
+    expect(plagesNoirBlancDesFaits(mots(PASSAGE), { dureeSec: 60 })).toEqual([[1.05, 2.1]]);
+    expect(plagesNoirBlancDesFaits(mots(PASSAGE), { dureeSec: 60, actif: false })).toEqual([]);
     expect(plagesNoirBlancDesFaits([], ON)).toEqual([]);
     expect(plagesNoirBlancDesFaits(mots(PASSAGE), { actif: true, dureeSec: 0 })).toEqual([]);
     expect(plagesNoirBlancDesFaits(mots(PASSAGE), { actif: true, dureeSec: Number.NaN })).toEqual([]);
