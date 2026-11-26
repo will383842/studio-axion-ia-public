@@ -147,9 +147,9 @@ const PREUVES: Partial<Record<TypeOperationFacecam, () => Promise<void>>> = {
     const passage = avec.application.etat.facecam.passages[0];
     const aMi = (plans: P[], t: number) => plans.find((p) => t >= p.debutSec && t < p.finSec)!;
     const t = (passage.debutSec + passage.finSec) / 2;
-    // Pendant le zoom, le cadre envoyé au cadrage est plus serré que sans zoom (130 % : largeur / 1,3).
-    expect(aMi(plansAvec, t).cadre.largeur).toBeLessThan(aMi(sans.cadrage.parametres!.plans as P[], t).cadre.largeur);
-    expect(aMi(plansAvec, t).cadre.largeur).toBe(Math.round(2160 * (9 / 16) / 1.3 / 2) * 2);
+    // Pendant le zoom, le cadre envoyé au cadrage est plus serré que sans zoom (115 % : largeur / 1,15 ; le plan qui précède le zoom repasse à 100 %, la coupe se voit).
+    expect(aMi(plansAvec, t).cadre.largeur).toBeLessThan(plansAvec[plansAvec.indexOf(aMi(plansAvec, t)) - 1].cadre.largeur);
+    expect(aMi(plansAvec, t).cadre.largeur).toBe(Math.round(2160 * (9 / 16) / 1.15 / 2) * 2);
   },
   async ecranPartage() {
     const f = await fabriquer([EXEMPLES.ecranPartage]);
@@ -318,7 +318,7 @@ describe("V6 P0 n° 6 · chaque opération est rendue OU refusée clairement", (
     expect(r.alertes.join(" ")).toMatch(/zoom net/i);
   });
 
-  it("brique réalisation : un zoom scinde le plan et serre le cadre (130 %), hors zoom rien ne change", () => {
+  it("brique réalisation : un zoom scinde le plan et serre le cadre (115 %), hors zoom rien ne change", () => {
     const gardes = [{ debutSec: 0, finSec: 12 }];
     const p = realiser({ gardes, mots: [], source: { largeur: 3840, hauteur: 2160 } });
     const z = appliquerZooms(p.plans, [{ debutSec: 3.2, finSec: 4 }], { largeur: 3840, hauteur: 2160 });

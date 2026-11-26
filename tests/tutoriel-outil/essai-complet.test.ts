@@ -340,7 +340,13 @@ describe("T-EXT-37a · essai complet du pilote 05 Stocks, à 0 €", () => {
       ...["TUT-CHIFFRES", "TUT-MOMENTS", "MARQUE-MOTS", "MARQUE-COULEURS", "MARQUE-POLICE"].map((id) => ({ id, libelle: id, etat: "reussi" as const, bloquant: true, details: ["ok"] })),
       { id: controleRegistre.id, libelle: controleRegistre.id, etat: controleRegistre.ok ? ("reussi" as const) : ("echoue" as const), bloquant: true, details: [controleRegistre.message] },
     ]);
-    const grille = noterTutoriel({ controleImage: imageOk(), controleur: verdictDouble, regardeur: { defauts: [], relues: 6, nonRelues: 0, partiesFautives: [] }, dureeSec: dureeHorsFin, imageFixeMaxSec: 0, niveauSonoreLufs: lufs });
+    const entreeGrille = { controleImage: imageOk(), controleur: verdictDouble, regardeur: { defauts: [], relues: 6, nonRelues: 0, partiesFautives: [] }, dureeSec: dureeHorsFin, imageFixeMaxSec: 0, niveauSonoreLufs: lufs };
+    // QUAL-4 : sans contrôle de composition, il est « non fait » = à corriger (−8), jamais bloquant : la vidéo reste proposable mais jamais à 100.
+    const sansCompo = noterTutoriel(entreeGrille);
+    expect(sansCompo.criteres.filter((k) => k.etat !== "reussi").map((k) => [k.id, k.etat, k.gravite])).toEqual([["composition", "non-fait", "a-corriger"]]);
+    expect(sansCompo.note).toBe(92);
+    expect(sansCompo.proposable).toBe(true);
+    const grille = noterTutoriel({ ...entreeGrille, composition: { ok: true, defauts: [], mesures: { textePlusPetitPx: null, videMaxMs: 0, echantillons: 1 } } });
     expect(grille.criteres.filter((k) => k.etat !== "reussi")).toEqual([]);
     expect(grille.proposable).toBe(true);
 
