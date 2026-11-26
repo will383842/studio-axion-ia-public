@@ -12,6 +12,7 @@ export const DOMAINE: Domaine = {
     "tutoriel.finCommune": "eteint",
     "tutoriel.finitions": "eteint",
     "tutoriel.suiviCloche": "allume",
+    "tutoriel.voletAvantApres": "eteint",
     "videoLongue.actif": "eteint",
   },
   constantes: [
@@ -34,6 +35,7 @@ export const DOMAINE: Domaine = {
     { cle: "imageVideo.accordEssaiReel", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /PARAM_ACCORD_ESSAI_IV, false\)/ },
     { cle: "imageVideo.sousTitresMinimal", etat: "eteint", appel: "src/services/image-video.ts", motif: /lireParametre<unknown>\(PARAM_SOUS_TITRES_MINIMAL_IV, false\)\.catch\(\(\) => false\)\) === true/ },
     { cle: "imageVideo.relireScript", etat: "eteint", appel: "src/services/image-video-ecran.ts", motif: /lireParametre<boolean>\(PARAM_RELIRE_SCRIPT_IV, false\)/ },
+    { cle: "imageVideo.preteAvecRemarques", etat: "eteint", appel: "src/services/prete-avec-remarques-iv.ts", motif: /lireParametre<unknown>\(PARAM_PRETE_AVEC_REMARQUES_IV, false\)\.catch\(\(\) => false\)\) === true/ },
     { cle: "avocat.multicamera", etat: "eteint", appel: "src/services/multicamera-avocat.ts", declare: "src/briques/multicamera/reglage.ts", motif: /lireParametre<unknown>\(PARAM_MULTICAMERA_AVOCAT, null\)/ },
     { cle: "facecam.multicamera", etat: "eteint", appel: "src/services/multicamera.ts", declare: "src/briques/multicamera/reglage.ts", motif: /lireParametre<unknown>\(paramMulticamera\(format\), null\)/ },
     { cle: "demoFacecam.reel", etat: "eteint", appel: "src/services/entrees-demo-facecam.ts", motif: /lireParametre<unknown>\(CLE_REGLAGE_DEMO_REEL, false\)\) === true/ },
@@ -137,6 +139,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 23, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // fusion master : parExpression 19 → 20 (cleParametrePlages) ; constantes 20 → 23 : 2 de cette branche + tutoriel.cap (master)
+  nombre: { litterales: 9, constantes: 24, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // fusion master : parExpression 19 → 20 (cleParametrePlages) ; constantes 20 → 23 : 2 de cette branche + tutoriel.cap (master); constantes 23 → 24 : + imageVideo.preteAvecRemarques (S-13-g-v21q) ; litterales 8 → 9 : + tutoriel.voletAvantApres (N-05-VOLET-g2-v21r)
   retirees: [],
 };

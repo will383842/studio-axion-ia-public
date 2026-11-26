@@ -4,7 +4,7 @@ import { messageSansMontant } from "@/components/ui/ConfirmationPrix";
 import { useEffect, useState, useTransition } from "react";
 import { Bouton, Champ, Icone, notifier } from "@/components/ui";
 import type { Id } from "@/domaine/types";
-import { enregistrerMotMalDitAction, previsualiserMotMalDitAction, type ApercuMotMalDit } from "./actions-mot-mal-dit";
+import { enregistrerMotMalDitAction, previsualiserMotMalDitAction, refaireVoixMotMalDitAction, type ApercuMotMalDit } from "./actions-mot-mal-dit";
 import { ecouterPrononciationAction } from "./actions";
 import { BoutonEcoute } from "./FeuilleAjoutPrononciation";
 import { useEcoute } from "./useEcoute";
@@ -16,6 +16,8 @@ export interface ProprietesPanneauMotMalDit {
   mot: string;
   /** Réservé à une voix ou à un personnage (sinon : toutes les voix). */
   portee?: { voixId?: Id; personnageId?: Id };
+  /** La vidéo : avec elle, « Refaire la voix » apparaît après l'enregistrement. */
+  videoId?: string;
   /** Après l'enregistrement : de quoi proposer « Refaire la phrase » plus loin. */
   onEnregistree?: (r: { id?: Id; mot: string; prononciation: string }) => void;
 }
@@ -23,12 +25,15 @@ export interface ProprietesPanneauMotMalDit {
 /**
  * « Ce mot est mal dit » (PRONONCIATION-b) : on écrit comment le mot se dit, on l'écoute AVANT / APRÈS, on voit les
  * phrases touchées (le texte écrit ne change pas) et on enregistre dans la liste des prononciations : ajouté, ou remplacé
- * (l'ancienne façon de dire reste dans « Archivés »). Monté nulle part pour l'instant.
+ * (l'ancienne façon de dire reste dans « Archivés »). Monté dans l'onglet Sous-titres quand le réglage de la voix refaite est allumé (PRONONCIATION-c).
  */
-export function PanneauMotMalDit({ plans, mot, portee, onEnregistree }: ProprietesPanneauMotMalDit) {
+export function PanneauMotMalDit({ plans, mot, portee, videoId, onEnregistree }: ProprietesPanneauMotMalDit) {
   const [dit, setDit] = useState("");
   const [apercu, setApercu] = useState<ApercuMotMalDit | null>(null);
   const [enCours, demarrer] = useTransition();
+  const [refaisant, demarrerRefaire] = useTransition();
+  const [aRefaire, setARefaire] = useState<{ planIds: string[]; mot: string; prononciation: string } | null>(null);
+  const [refaite, setRefaite] = useState(false);
   const ecoute = useEcoute();
   const m = mot.trim();
   const p = dit.trim();
@@ -67,7 +72,21 @@ export function PanneauMotMalDit({ plans, mot, portee, onEnregistree }: Propriet
         r.donnees.action === "modifier" ? "L'ancienne façon de dire est dans « Archivés »." : "La voix le dira ainsi dans vos prochaines vidéos.",
       );
       onEnregistree?.({ id: r.donnees.id, mot: m, prononciation: p });
+      setARefaire({ planIds: apercu?.phrases.map((ph) => ph.planId) ?? [], mot: m, prononciation: p });
+      setRefaite(false);
       setDit("");
+    });
+  }
+
+  function refaireLaVoix() {
+    if (!videoId || !aRefaire) return;
+    const demande = { videoId, plans, planIds: aRefaire.planIds, mot: aRefaire.mot, prononciation: aRefaire.prononciation };
+    demarrerRefaire(async () => {
+      const r = await refaireVoixMotMalDitAction(demande);
+      if (!r.ok) return void notifier.erreur(messageSansMontant(r.message));
+      if (!r.donnees.ok) return void notifier.erreur(messageSansMontant(r.donnees.phrase));
+      setRefaite(true);
+      notifier.succes("Voix en cours de fabrication", "L'ancienne version reste.");
     });
   }
 
@@ -104,6 +123,11 @@ export function PanneauMotMalDit({ plans, mot, portee, onEnregistree }: Propriet
       <Bouton taille="lg" pleineLargeur icone="coche" chargement={enCours} disabled={!peutEnregistrer} onClick={enregistrer}>
         {apercu?.action === "modifier" ? "Remplacer" : "Enregistrer"}
       </Bouton>
+      {videoId && aRefaire && aRefaire.planIds.length > 0 && (
+        <Bouton taille="lg" pleineLargeur variante="contour" icone="reessayer" chargement={refaisant} disabled={refaite} onClick={refaireLaVoix}>
+          {refaite ? "Voix en cours de fabrication" : "Refaire la voix"}
+        </Bouton>
+      )}
       <p className="flex items-center gap-2 text-xs text-texte-faible">
         <Icone nom="coche" size={14} />
         Le texte écrit et les sous-titres ne changent pas. Rien n&apos;est effacé.

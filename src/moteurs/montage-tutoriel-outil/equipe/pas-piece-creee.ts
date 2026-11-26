@@ -44,8 +44,16 @@ export const CODE_PIECE_A_VALIDER = "TO_PIECE_A_VALIDER";
 export const CODE_DEMANDE_ARRETEE = "TO_DEMANDE_ARRETEE";
 
 export const MESSAGE_PIECE_A_REVOIR = "La maquette proposée ne respecte pas les règles (détail sur l'écran) : vous pouvez en demander une autre. Rien n'a échoué.";
+/** Pièce « à revoir » alors que plus aucun essai n'existe : on ne propose plus d'en demander une autre. */
+export const MESSAGE_PLUS_DE_PROPOSITION = "Les deux essais de cette maquette sont faits : il n'y a plus d'autre proposition possible. Arrêtez cette demande et reformulez votre phrase. Rien n'a échoué.";
+/** Même chose pour une automatisation (flux). */
+export const MESSAGE_PLUS_DE_PROPOSITION_FLUX = "Les deux essais de cette automatisation sont faits : il n'y a plus d'autre proposition possible. Arrêtez cette demande et reformulez votre phrase. Rien n'a échoué.";
+/** Aperçu à défauts alors qu'aucun appel ne reste : les textes se corrigent encore, rien d'autre n'est à demander. */
+export const MESSAGE_APERCU_A_CORRIGER = "L'aperçu a relevé des points à revoir : corrigez les textes concernés ou arrêtez cette demande. Rien n'a échoué.";
 export const MESSAGE_PIECE_A_CONSTRUIRE = "La maquette se prépare sur le poste de capture : son aperçu arrive, rien n'est dépensé.";
 export const MESSAGE_PIECE_A_VALIDER = "Votre maquette attend votre choix : gardez-la, corrigez un texte ou demandez-en une autre.";
+/** Maquette à valider alors qu'aucun appel ne reste : on ne propose plus d'en demander une autre. */
+export const MESSAGE_PIECE_A_VALIDER_SANS_AUTRE = "Votre maquette attend votre choix : gardez-la, corrigez un texte ou arrêtez cette demande.";
 export const MESSAGE_DEMANDE_ARRETEE = "Vous avez arrêté cette demande : rien ne sera fabriqué.";
 const MESSAGE_APERCU_A_REVOIR = "L'aperçu de la maquette a relevé des points à revoir (détail sur l'écran) : vous pouvez en demander une autre. Rien n'a échoué.";
 
@@ -55,14 +63,33 @@ const DATE_EXEMPLE = "2026-01-01";
 export type PropositionPiece = { genre: "maquette"; proposition: 1 | 2; contenu: DescriptionMaquette } | { genre: "flux"; proposition: 1 | 2; contenu: FluxAutomatisation };
 
 /**
- * Relit la proposition par les contrôles des textes créés. Erreurs : « à revoir » (rien n'est construit, aucune reprise
- * automatique). Sinon « à construire » avec l'empreinte. Ne lève jamais.
+ * PHRASE-1 : tous les contrôles qu'une maquette doit passer AVANT le oui : les textes créés, puis ce que `appliquerPieceGardee`
+ * déduira après (la carte des zones, les données chiffrées), avec la même date fixe. Une maquette impossible à garder est
+ * ainsi refusée avant que Williams ne la voie. Les erreurs ne sont jamais répétées. Ne lève jamais.
+ */
+export function controlerMaquetteGardable(d: DescriptionMaquette, nomsPermis: readonly string[] = []): string[] {
+  try {
+    const erreurs = controlerTextesCrees(d, nomsPermis);
+    const carte = carteDepuisDescription(d);
+    if (!carte.ok) erreurs.push(...carte.erreurs);
+    const donnees = tableauDepuisDescription(d, DATE_EXEMPLE);
+    if (!donnees.ok) erreurs.push(...donnees.erreurs);
+    return [...new Set(erreurs)];
+  } catch {
+    return ["Proposition illisible."];
+  }
+}
+
+/**
+ * Relit la proposition par les contrôles des textes créés et par les déductions de la pièce gardée (maquette). Erreurs : « à
+ * revoir » (rien n'est construit ; la reprise automatique de la proposition n° 1 est décidée par l'orchestre, qui lit ces erreurs).
+ * Sinon « à construire » avec l'empreinte. Ne lève jamais.
  */
 export function recevoirProposition<E extends EtatPiece>(e: E, p: PropositionPiece, nomsPermis: readonly string[] = []): E & EtatPiece {
   let erreurs: string[];
   let empreinte = "";
   try {
-    erreurs = p.genre === "maquette" ? controlerTextesCrees(p.contenu, nomsPermis) : controlerFluxCree(p.contenu, nomsPermis);
+    erreurs = p.genre === "maquette" ? controlerMaquetteGardable(p.contenu, nomsPermis) : controlerFluxCree(p.contenu, nomsPermis);
     empreinte = p.genre === "maquette" ? empreinteDescription(p.contenu) : empreinteFlux(p.contenu);
   } catch {
     erreurs = ["Proposition illisible."];

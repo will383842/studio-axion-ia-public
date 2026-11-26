@@ -37,9 +37,10 @@ export function TelephoneVideo({ src, debutImage = 0, largeur = 560, son = false
   const hauteur = Math.round(largeur * 2);
   const cadre = Math.round(largeur * 0.03);
   const rayon = Math.round(largeur * 0.12);
+  // Ombre B (douce, sombre, dessous) choisie par le pilote sur le clip TELEPHONE le 25/11 (journal/DECISIONS-PILOTE-20-11-j.md).
   const aVideo = typeof src === "string" && src.trim() !== "";
   return (
-    <div style={{ position: "relative", width: largeur, height: hauteur, borderRadius: rayon, background: COULEURS_LOT6.ENCRE, padding: cadre, boxSizing: "border-box", boxShadow: `${Math.round(largeur * 0.02)}px ${Math.round(largeur * 0.025)}px 0 ${COULEURS_LOT6.GRIS}`, fontFamily: `${POLICE_LOT6}, sans-serif` }}>
+    <div style={{ position: "relative", width: largeur, height: hauteur, borderRadius: rayon, background: COULEURS_LOT6.ENCRE, padding: cadre, boxSizing: "border-box", boxShadow: `0 ${Math.round(largeur * 0.02)}px ${Math.round(largeur * 0.05)}px rgba(20, 20, 19, 0.35)`, fontFamily: `${POLICE_LOT6}, sans-serif` }}>
       <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: rayon - cadre, overflow: "hidden", background: COULEURS_LOT6.IVOIRE }}>
         {aVideo ? <OffthreadVideo src={src as string} trimBefore={debutImage} muted={son !== true} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
         <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: Math.round(largeur * 0.22), height: Math.round(largeur * 0.04), borderRadius: `0 0 ${Math.round(largeur * 0.03)}px ${Math.round(largeur * 0.03)}px`, background: COULEURS_LOT6.ENCRE }} />
