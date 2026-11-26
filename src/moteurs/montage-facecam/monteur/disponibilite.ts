@@ -17,7 +17,7 @@ export const PAS_ENCORE_POSSIBLE = "Pas encore possible";
 
 export const DISPONIBILITE_OPERATIONS: Record<TypeOperationFacecam, Disponibilite> = {
   ajouterCarte: { rendu: true, par: "habillage : carte rendue (Remotion) puis posée par la composition" },
-  zoom: { rendu: true, par: "réalisation : plan serré (130 %) sur le passage, rendu au cadrage" },
+  zoom: { rendu: true, par: "réalisation : plan serré (115 %) sur le passage, rendu au cadrage" },
   ecranPartage: { rendu: true, par: "habillage : écran partagé (carte en haut, Will en bas)" },
   miseEnPage: { rendu: true, par: "habillage : Will sur un côté ou en vignette" },
   couleurs: { rendu: true, par: "passe image : crans et teinte" },
