@@ -83,12 +83,13 @@ const reservationsChat = (videoId: string) => depots().reservations.lister((r) =
 const portsFa = (videoId: string) => ls.avecLecteurStudio(FA, videoId, portsGenerateurStudio(FA));
 
 describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
-  it("a) éteint = identique (réglage absent, false, \"true\", 1) : aperçu égal à portsGenerateurStudio seul, 0 appel, 0 dépense, 0 réservation", async () => {
+  // ALLUMER-LECTEUR-CHAT-v20k (seconde lecture du pilote) : l'absent est désormais ALLUMÉ ; « éteint = identique » est GARDÉ pour `false` écrit (et "true", 1).
+  it("a) éteint = identique (false, \"true\", 1 écrits) : aperçu égal à portsGenerateurStudio seul, 0 appel, 0 dépense, 0 réservation", async () => {
     const appels = brancherClaude();
     const temoin = [];
     for (const d of [COMPRISE, NON_COMPRISE, AUTRE]) temoin.push(await apercevoirRetouche("v-04", d, portsGenerateurStudio(FA)));
-    for (const valeur of [undefined, false, "true", 1]) {
-      if (valeur !== undefined) await commun.ecrireParametre(CLE_FA, valeur);
+    for (const valeur of [false, "true", 1]) {
+      await commun.ecrireParametre(CLE_FA, valeur);
       const vus = [];
       const temoinPorts = portsGenerateurStudio(FA);
       expect(await ls.avecLecteurStudio(FA, "v-04", temoinPorts), String(valeur)).toBe(temoinPorts);
@@ -240,10 +241,10 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
     expect(lire).not.toHaveBeenCalled();
   });
 
-  it("h) tableau : éteint → claudeAllume faux ; allumé → même compteur et même plafond que le chat (1 du tableau + 2 du chat = 3, la 4e refusée)", async () => {
+  it("h) tableau : absent → allumé, éteint (false, \"true\", 1) → claudeAllume faux ; allumé → même compteur et même plafond que le chat (1 du tableau + 2 du chat = 3, la 4e refusée)", async () => {
     const t = ls.portsLecteurTableauStudio("v-04");
     expect(ls.CLE_REGLAGE_LECTEUR_TABLEAU).toBe("retoucheChat.tableauLecteur");
-    expect(await t.claudeAllume()).toBe(false);
+    expect(await t.claudeAllume()).toBe(true); // ALLUMER-LECTEUR-CHAT-v20k : absent = allumé (seconde lecture du pilote)
     for (const v of [false, "true", 1]) {
       await commun.ecrireParametre(ls.CLE_REGLAGE_LECTEUR_TABLEAU, v);
       expect(await t.claudeAllume()).toBe(false);
@@ -285,7 +286,7 @@ describe("G8-OBS-v21r · lecteur du chat branché côté serveur", () => {
   it("j) gardes de texte : un seul importeur dans src/** : la route (S-05-b), une seule lecture de réglage, clés de lecteur aux seuls endroits connus", () => {
     const src = readFileSync("src/services/retouche-chat/lecteur-studio.ts", "utf8");
     expect(src.match(/lireParametre</g)).toHaveLength(1);
-    expect(src).toContain("lireParametre<unknown>(cle, false)) === true");
+    expect(src).toContain("lireParametre<unknown>(cle, true)) === true"); // ALLUMER-LECTEUR-CHAT-v20k : absent = allumé, seul `true` (ou l'absent) allume
     expect(src).not.toMatch(/ecrireParametre|executerRolePourVideo\(|envoyerMessage\(|\.\/tableau"|tutoriel-claude|credits|generation-claude|VideoAnimeeV4|briques-v4|motion-v4\//);
     expect(src).not.toMatch(/\d+(,\d+)? ?(€|\$)/);
     const fichiers = (d: string): string[] =>
