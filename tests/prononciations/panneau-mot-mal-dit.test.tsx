@@ -123,8 +123,8 @@ describe("panneau", () => {
   });
 });
 
-describe("éteint : monté nulle part", () => {
-  it("aucun fichier de src/ n'importe le panneau (ni, hors de l'action, le module de calcul)", () => {
+describe("monté seulement dans l'onglet Sous-titres (PRONONCIATION-c-v20l)", () => {
+  it("la liste des importeurs du panneau est EXACTE : l'onglet Sous-titres et lui seul", () => {
     const vus: string[] = [];
     const marche = (d: string) => {
       for (const f of readdirSync(d)) {
@@ -134,7 +134,7 @@ describe("éteint : monté nulle part", () => {
       }
     };
     marche(join(RACINE, "src"));
-    expect(vus).toEqual([]);
+    expect(vus.map((p) => p.slice(RACINE.length + 1).split("\\").join("/"))).toEqual(["src/components/videos/fiche/OngletSousTitres.tsx"]);
   });
 
   it("les fichiers déjà là ne bougent pas : actions.ts n'a aucune action « mot mal dit »", () => {

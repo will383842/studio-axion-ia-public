@@ -20,6 +20,8 @@ export interface VueSuiviFabrication {
   /** Phrase lisible (ErreurLisible / ErreurStudio seulement). */
   message?: string;
   lien?: { href: string; libelle: string };
+  /** Facultatif : le travail est en pause (la barre dit « En pause » au lieu d'un temps restant). */
+  enPause?: boolean;
 }
 
 const STATUT = { faite: "terminee", "en-cours": "en_cours", "a-venir": "en_attente", arretee: "echec", ignoree: "ignoree" } as const;
@@ -80,8 +82,8 @@ export function SuiviFabrication({
       <ProgressionEtapes
         etapes={etapesDeVue(vue)}
         progression={vue.progression ?? progressionDeVue(vue)}
-        resteSec={vue.resteSec}
-        suivi={vue.suivi}
+        resteSec={vue.enPause ? undefined : vue.resteSec}
+        suivi={vue.enPause && vue.suivi ? { ...vue.suivi, resteMin: undefined, heureFin: undefined, rang: undefined } : vue.suivi}
         onReessayer={onReessayer}
         reessaiEnCours={reessaiEnCours}
         compacte={compacte}
@@ -89,6 +91,11 @@ export function SuiviFabrication({
         action={actions}
         message={message ?? (vue.etat === "coincee" ? vue.message : undefined)}
       />
+      {vue.enPause && (
+        <p role="status" className="mt-2 text-sm text-texte-doux">
+          En pause
+        </p>
+      )}
       {specifiqueSuivi && <div className="mt-4">{specifiqueSuivi}</div>}
       {pied && <div className="mt-3 flex justify-end text-xs tabular-nums text-texte-faible">{pied}</div>}
       {vue.lien && (

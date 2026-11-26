@@ -129,11 +129,12 @@ describe("S-05-b-v21s · la route du chat pose le lecteur commun sur l'aperçu (
     expect(appels).toHaveLength(0);
   });
 
-  it("(a) éteint = identique : clé absente, \"true\", 1, lecture qui lève → même réponse qu'avant la fiche, 0 appel, 0 dépense", async () => {
+  // ALLUMER-LECTEUR-CHAT-v20k (seconde lecture du pilote) : la clé absente est désormais ALLUMÉE ; « éteint = identique » est GARDÉ pour `false` écrit.
+  it("(a) éteint = identique : `false`, \"true\", 1 écrits, lecture qui lève → même réponse qu'avant la fiche, 0 appel, 0 dépense", async () => {
     const appels = brancherClaude();
     const temoin: unknown[] = [];
     for (const d of [COMPRISE, NON_COMPRISE, VIDE]) temoin.push(await avant(FA, d));
-    for (const valeur of [undefined, "true", 1, "lève"] as const) {
+    for (const valeur of [false, "true", 1, "lève"] as const) {
       if (valeur === "lève") {
         const lire = commun.lireParametre;
         vi.spyOn(commun, "lireParametre").mockImplementation(((id: string, defaut: unknown) => (id === CLE_FA ? Promise.reject(new Error("base en panne")) : lire(id, defaut))) as typeof lire);
@@ -201,6 +202,7 @@ describe("S-05-b-v21s · la route du chat pose le lecteur commun sur l'aperçu (
   });
 
   it("(g) démo face caméra : clé de lecteur éteinte → identique ; allumée + double → 1 appel", async () => {
+    await commun.ecrireParametre(CLE_DEMO, false); // ALLUMER-LECTEUR-CHAT-v20k : absent = allumé, l'éteint s'écrit `false` (seconde lecture du pilote)
     const appels = brancherClaude();
     for (const d of [COMPRISE, NON_COMPRISE]) expect((await apercu(DEMO, d)).corps, d).toEqual(await avant(DEMO, d));
     await commun.ecrireParametre(CLE_FA, true); // la clé d'un AUTRE générateur n'allume pas la démo

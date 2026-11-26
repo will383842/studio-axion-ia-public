@@ -30,8 +30,8 @@ describe("constat des zooms existants (15/11)", () => {
     expect(decoupage).toContain("R9  zoom lent 100 → 106 %");
   });
 
-  it("face caméra classique : plan serré 130 %", () => {
-    expect(ZOOM_TAILLE).toBe(130);
+  it("face caméra classique : plan serré 115 % (plafond du pilote, ZOOM-PLAFOND-115-v21u)", () => {
+    expect(ZOOM_TAILLE).toBe(115);
   });
 
   it("démo : facteur de zoom maximal 2,5", () => {

@@ -54,6 +54,8 @@ import { controlerApresCalage } from "./equipe/controleur";
 import { appliquerSortie, prochainPas, type DossierLu, type EtatEquipe } from "./equipe/orchestre";
 import { noterRole, type IdRole, type LigneJournal } from "./journal-roles";
 import { dejaPaye, payerUneFois, type RegistrePaye } from "./reprise";
+import { ID_VOLET, poserCapturesVolet } from "@/briques/plan-scenes/poser-captures-volet";
+import type { CaptureGardee } from "./artefacts-retouche";
 
 export const ETAPES_TUTORIEL = ["script", "voix", "calage", "plan", "montage", "exports"] as const;
 export type CleEtapeTutoriel = (typeof ETAPES_TUTORIEL)[number];
@@ -149,6 +151,14 @@ export interface OutilsTutoriel {
     accord: { empreinte: string; le: string } | null;
     /** Ce qui a déjà été dépensé pour ce travail (appels revenus, caractères lus, rendus demandés), lu dans son état. */
     consomme(etat: EtatTutoriel): Promise<{ appelsClaude: number; caracteresVoix: number; rendus: number }>;
+  };
+  /**
+   * N-05-VOLET-g2 : le volet « avant / après » (service ; le moteur n'en importe aucun). Absent = éteint : aucun volet proposé,
+   * demandes de rendu identiques. `captures` tire les 2 images du film (gratuit) ; `copieDeRendu` pose les adresses signées sur une COPIE.
+   */
+  volet?: {
+    captures(x: { idTravail: string; entrees: CommandeFabrication["entrees"]; deja: unknown }): Promise<{ etat: "fini"; captures: CaptureGardee[] } | { etat: "en-cours" } | null>;
+    copieDeRendu(plan: PlanValide, projet: unknown, signer: (cle: string) => Promise<string>): Promise<PlanValide>;
   };
 }
 
@@ -312,6 +322,13 @@ export interface EtatTutoriel {
   grille?: GrilleTutoriel;
   /** T-EXT-45b : appels payants déjà revenus (étape + empreinte de l'entrée) : une reprise ne les repaie pas. Résultats seulement. */
   payes?: RegistrePaye;
+  /** N-05-VOLET-g2 : les 2 images du volet (avant, après), tirées une fois ; `[]` : pas de volet au rendu. Absent tant que le pas n'a pas eu lieu. */
+  captures?: CaptureGardee[];
+}
+
+/** N-05-VOLET-g2 : le volet seul, permis si le port est là ou si le plan en porte déjà un (validé) ; jamais une autre pièce. */
+function objetsPermisDu(plan?: PlanValide, outils?: Pick<OutilsTutoriel, "volet">): string[] | undefined {
+  return outils?.volet || (plan && poserCapturesVolet(plan, null) !== plan) ? [ID_VOLET] : undefined;
 }
 
 /** Enveloppe d'un appel Claude : ne compte que les appels revenus sans lever. */
@@ -605,7 +622,8 @@ function fusionnerAvecParent(nouveau: PlanValide, parent: PlanValide): PlanValid
     void _e;
     return { ...contenu, id: s.id, version: p.version, mots: s.mots, debutMs: s.debutMs, finMs: s.finMs };
   });
-  return validerPlan({ ...nouveau, scenes }, { mots: nouveau.mots, format: nouveau.format, facecam: false, dureeMs: nouveau.dureeMs }).plan;
+  const permis = objetsPermisDu({ ...nouveau, scenes } as PlanValide);
+  return validerPlan({ ...nouveau, scenes }, { mots: nouveau.mots, format: nouveau.format, facecam: false, dureeMs: nouveau.dureeMs, ...(permis ? { objetsPermis: permis } : {}) }).plan;
 }
 
 const secondes = (ms: number) => (ms / 1000).toFixed(1).replace(".", ",");
@@ -657,7 +675,9 @@ async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: {
     return { statut: "faite", etat: { ...etat, plan: { plan: parent, remarques: [], source: "repris", empreinteEntree, scenesTouchees: [] } } };
   }
   const n = { v: 0 };
-  const payee = await payerUneFois(etat.payes, "plan", empreinteEntree, () => genererPlan({ script: texte, mots, format, facecam: false }, compterAppels(outils.claude, n)), e.faitLe);
+  // N-05-VOLET-g2 : port du volet présent → le volet SEUL est proposé à Claude ; absent → consigne d'avant, inchangée.
+  const permisPlan = objetsPermisDu(undefined, outils);
+  const payee = await payerUneFois(etat.payes, "plan", empreinteEntree, () => genererPlan({ script: texte, mots, format, facecam: false, ...(permisPlan ? { objetsPermis: permisPlan } : {}) }, compterAppels(outils.claude, n)), e.faitLe);
   const r = payee.resultat;
   etat = avecAppels(avecPayes(etat, payee.registre, n.v > 0), "plan", n.v);
   const plan = parent ? fusionnerAvecParent(r.plan, parent) : r.plan;
@@ -670,7 +690,8 @@ async function pasPlanClassique(etat: EtatTutoriel, outils: OutilsTutoriel, e: {
 export function planPourRatio(plan: PlanValide, ratio: Ratio): PlanValide {
   const format = formatDuRatio(ratio);
   if (format.largeur === plan.format.largeur && format.hauteur === plan.format.hauteur) return plan;
-  return validerPlan({ ...plan, format }, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs }).plan;
+  const permis = objetsPermisDu(plan);
+  return validerPlan({ ...plan, format }, { mots: plan.mots, format, facecam: false, dureeMs: plan.dureeMs, ...(permis ? { objetsPermis: permis } : {}) }).plan;
 }
 
 /** T-EXT-26a : la fin retenue (état d'abord : une fois choisie, elle ne change plus ; puis celle du parent ; puis l'entrée et l'interrupteur). */
@@ -701,16 +722,45 @@ async function demandeRendu(etat: EtatTutoriel, ratio: Ratio, essai: number, com
   // T-EXT-52b : la navigation retenue (film d'avant gardé quand le film change) ; absente, celle des entrées.
   const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
   // Le film de navigation (T-EXT-38) arrive par l'entrée « filmNavigation » (jamais « navigation » : elle écraserait l'objet).
-  const lectures: Record<string, string> = { ...(voix ? { audio: voix } : {}), ...(nav ? { filmNavigation: nav.videoCle } : {}) };
+  const lectures: Record<string, string> = { ...(voix ? { audio: voix } : {}), ...(nav ? { filmNavigation: nav.videoCle } : {}), ...lecturesVolet(etat, outils) };
   const signe = await outils.rendu.signer(lectures, { cle, mime: "video/mp4" });
+  const proprietes = proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav, commande);
   return {
     idRendu: serie ? `${travailId}-${nomRatio(ratio)}-r${serie}-${essai}` : `${travailId}-${nomRatio(ratio)}-${essai}`,
     operation: "composition",
     file: "longue",
-    entrees: signe.lectures,
+    entrees: entreesSansVolet(signe.lectures),
     sortie: { urlDepot: signe.urlDepot, cle },
-    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav, commande) },
+    parametres: { composition: COMPOSITION_TUTORIEL, proprietes: { ...proprietes, plan: await planDeRendu(proprietes.plan, etat, outils, signe.lectures) } },
   };
+}
+
+/** N-05-VOLET-g2 : les 2 images à signer avec la voix et le film (port présent ET 2 captures) ; sinon aucune. */
+function lecturesVolet(etat: EtatTutoriel, outils: Pick<OutilsTutoriel, "volet">): Record<string, string> {
+  const c = etat.captures;
+  return outils.volet && c?.length === 2 ? { voletAvant: c[0]!.cle, voletApres: c[1]!.cle } : {};
+}
+
+/** Les 2 adresses du volet ne partent JAMAIS comme entrées du serveur de rendu (elles deviendraient des propriétés parasites). */
+function entreesSansVolet(lectures: Record<string, string>): Record<string, string> {
+  if (!("voletAvant" in lectures) && !("voletApres" in lectures)) return lectures;
+  const { voletAvant: _a, voletApres: _b, ...reste } = lectures;
+  void _a;
+  void _b;
+  return reste;
+}
+
+/** N-05-VOLET-g2 : COPIE du plan pour le rendu (adresses signées posées) ; sans port ou sans images, le volet est retiré (même référence sans volet). */
+async function planDeRendu(plan: PlanValide, etat: EtatTutoriel, outils: Pick<OutilsTutoriel, "volet">, signees: Record<string, string>): Promise<PlanValide> {
+  const c = etat.captures;
+  const volet = outils.volet;
+  if (!volet || c?.length !== 2 || !signees.voletAvant || !signees.voletApres) return poserCapturesVolet(plan, null);
+  const adresses = new Map([[c[0]!.cle, signees.voletAvant], [c[1]!.cle, signees.voletApres]]);
+  try {
+    return await volet.copieDeRendu(plan, { captures: c }, async (cle) => adresses.get(cle) ?? "");
+  } catch {
+    return poserCapturesVolet(plan, null);
+  }
 }
 
 /**
@@ -743,16 +793,17 @@ function choixPlages(etat: EtatTutoriel, ratio: Ratio, commande: CommandeFabrica
 async function demandePlage(etat: EtatTutoriel, ratio: Ratio, i: number, plage: PlageImages, commande: CommandeFabrication, outils: OutilsTutoriel, travailId: string): Promise<DemandeRendu> {
   const cle = outils.rendu.cle(`tutoriel-${nomRatio(ratio)}-plage${i}.mp4`);
   const nav = etat.navigationFilm ?? lireEntreesTutoriel(commande.entrees).navigationFilmee;
-  const signe = await outils.rendu.signer(nav ? { filmNavigation: nav.videoCle } : {}, { cle, mime: "video/mp4" });
+  const signe = await outils.rendu.signer({ ...(nav ? { filmNavigation: nav.videoCle } : {}), ...lecturesVolet(etat, outils) }, { cle, mime: "video/mp4" });
+  const proprietes = proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav, commande);
   return {
     idRendu: `${travailId}-${nomRatio(ratio)}-plage${i}-0`,
     operation: "composition",
     file: "longue",
-    entrees: signe.lectures,
+    entrees: entreesSansVolet(signe.lectures),
     sortie: { urlDepot: signe.urlDepot, cle },
     parametres: {
       composition: COMPOSITION_TUTORIEL,
-      proprietes: proprietesTutoriel(etat, ratio, commande.briques["sous-titres"] !== false, outils, nav && commande.dosageMotion?.cran ? { ...nav, cran: commande.dosageMotion.cran } : nav, commande),
+      proprietes: { ...proprietes, plan: await planDeRendu(proprietes.plan, etat, outils, signe.lectures) },
       mode: "plage",
       debut: plage.debut,
       fin: plage.fin,
@@ -1105,6 +1156,17 @@ async function pasMontage(etat: EtatTutoriel, ratios: Ratio[], commande: Command
     const m = await pasMixage(e, commande, outils, travailId);
     if (!m.fini) return { statut: "en-cours", etat: m.etat };
     e = m.etat;
+  }
+  // N-05-VOLET-g2 : les 2 images du volet, tirées UNE fois avant le premier rendu (port absent ou plan sans volet : rien ne change).
+  if (outils.volet && e.captures === undefined && e.plan && poserCapturesVolet(e.plan.plan, null) !== e.plan.plan) {
+    let r: Awaited<ReturnType<NonNullable<OutilsTutoriel["volet"]>["captures"]>> = null;
+    try {
+      r = await outils.volet.captures({ idTravail: travailId, entrees: commande.entrees, deja: { captures: e.captures } });
+    } catch {
+      r = null;
+    }
+    if (r?.etat === "en-cours") return { statut: "en-cours", etat: e };
+    e = { ...e, captures: r?.etat === "fini" ? r.captures : [] };
   }
   const faitRatio = (r: Ratio) => {
     const x = e.rendus.find((y) => y.ratio === r);
