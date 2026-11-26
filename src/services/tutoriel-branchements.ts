@@ -24,6 +24,24 @@ import { scriptRetenu } from "@/moteurs/montage-tutoriel-outil/script";
 import type { PortEquipe } from "@/moteurs/montage-tutoriel-outil/chaine";
 import { avecReleve } from "@/moteurs/montage-tutoriel-outil/equipe/strategie-valeur";
 import { relevePourStratege } from "@/moteurs/montage-tutoriel-outil/performance";
+import { porteCapacite } from "@/briques/bibliotheque-video/moteur";
+import { extraireCapturesVolet, type PortExtraction } from "./captures-volet-source";
+import { copieDeRenduAvecVolet } from "./captures-volet-tutoriel";
+
+/**
+ * N-05-VOLET-g2 : le port du volet « avant / après » (réglage `tutoriel.voletAvantApres`, ÉTEINT par défaut). Posé SEULEMENT si la
+ * valeur lue est exactement `true`, que la commande porte un film de navigation et que la bibliothèque, si elle est là, permet
+ * `objet.ecran` (règle des deux portes). Sinon `undefined` : rien ne change. Extraction par NOTRE serveur (0 €), copie signée à l'envoi.
+ */
+export function portVoletTutoriel(valeur: unknown, entrees: unknown, deps: { extraire: PortExtraction; cle: (nom: string) => string }): OutilsTutoriel["volet"] | undefined {
+  if (valeur !== true || !lireEntreesTutoriel(entrees as Record<string, unknown> | undefined).navigationFilmee) return undefined;
+  const porte = porteCapacite(entrees, "objet.ecran");
+  if (porte.bibliotheque && !porte.permis) return undefined;
+  return {
+    captures: ({ idTravail, entrees: e, deja }) => extraireCapturesVolet(lireEntreesTutoriel(e), deja, { extraire: deps.extraire, idTravail, cle: deps.cle }),
+    copieDeRendu: (plan, projet, signer) => copieDeRenduAvecVolet(plan, projet, { signer }),
+  };
+}
 
 /** T-EXT-52b : retouche sans tout refaire. ÉTEINT par défaut. */
 export const PARAM_RETOUCHE_PARTIELLE_TUTORIEL = "tutoriel.retouchePartielle";
@@ -117,6 +135,22 @@ brancherServicesTutoriel({
     const voixReelle = sansVoix ? undefined : b.voix;
     // T-EXT-55 : l'équipe de rôles (T-EXT-48b : l'appel du stratège reçoit le relevé si `tutoriel.performance` vaut `true`). Éteinte (champ absent) sans `tutoriel.equipe` ET `tutoriel.claude` à `true`.
     const equipe = (await equipeTutorielActive()) ? equipeAvecReleve(await portsEquipeAvecPhrase(c, c.videoId)) : undefined;
+    // N-05-VOLET-g2 : les 2 images tirées du film par l'étape `images` de `studio-aligneur` (modèle : regardeur-tableau.ts). Éteint : champ absent.
+    const extraire: PortExtraction = async (d) => {
+      const facecam = (await import("@/fournisseurs/facecam")).fournisseurFacecam({ reel: true });
+      let e = await facecam.suivre("image", d.idTravail);
+      if (e.statut === "echec" && e.erreur.travailInconnu) {
+        const s = await b.montage.signer({ source: d.source }, Object.values(d.cles).map((cle) => ({ cle, mime: "image/jpeg" })));
+        const depots = Object.fromEntries(Object.entries(d.cles).map(([nom, cle]) => [nom, s.depots[cle] ?? ""]));
+        e = await facecam.soumettre("image", { idTravail: d.idTravail, source: s.lectures.source ?? "", depots, parametres: { etape: "images", instants: d.instants, largeur: d.largeur, cles: d.cles } });
+      }
+      if (e.statut === "en_file" || e.statut === "en_cours") return { statut: "en-cours" };
+      if (e.statut === "echec") throw new Error(e.erreur.message);
+      const liste = (e.resultat as unknown as { images?: unknown } | null)?.images;
+      const images = (Array.isArray(liste) ? liste : []).flatMap((x: { nom?: unknown; cle?: unknown } | null) => (typeof x?.nom === "string" && typeof x.cle === "string" && d.cles[x.nom] === x.cle ? [{ nom: x.nom, cle: x.cle }] : []));
+      return { statut: "fini", images };
+    };
+    const portVolet = portVoletTutoriel(await lireParametre<unknown>("tutoriel.voletAvantApres", false), c.entrees, { extraire, cle: rendu.cle });
     return {
       ...(devis
         ? {
@@ -153,6 +187,7 @@ brancherServicesTutoriel({
           },
       ...(regarder ? { regarder } : {}),
       ...(equipe ? { equipe } : {}),
+      ...(portVolet ? { volet: portVolet } : {}),
       rendu,
     };
   },

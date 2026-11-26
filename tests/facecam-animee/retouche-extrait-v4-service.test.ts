@@ -167,6 +167,7 @@ describe("R4-03-b2 : clip d'un extrait pour un téléphone", () => {
       return statSync(p).isDirectory() ? parcourir(p) : /\.(ts|tsx)$/.test(n) ? [p] : [];
     });
     const importeurs = parcourir(join(RACINE, "src")).filter((f) => !f.endsWith("services/retouche-extrait-v4.ts") && /services\/retouche-extrait-v4/.test(readFileSync(f, "utf8")));
-    expect(importeurs).toEqual([]);
+    // R4-03-d2b : liste blanche +1, l'action serveur importe `@/services/retouche-extrait-v4-demande` (seconde lecture du pilote).
+    expect(importeurs.map((f) => f.slice(RACINE.length + 1).split("\\").join("/"))).toEqual(["src/app/(studio)/videos/actions-changer-extrait-v4.ts"]);
   });
 });

@@ -152,7 +152,7 @@ describe("S2-07 · appel Claude du chat de retouche", () => {
       const o = (executer.mock.calls[0] as unknown as [string, unknown, unknown, { etape: string; origine?: string; plafondPropre: { id: string; parametre: string; defautUsd: number; prefixeEtape: string } }])[3];
       expect(o.etape).toBe("Retouche chat · lecture");
       expect(o.origine).toBe("usine");
-      expect(o.plafondPropre).toEqual({ id: "rtcht", parametre: "retoucheChat.plafondLectureUsd", defautUsd: 0.27, prefixeEtape: "Retouche chat ·" });
+      expect(o.plafondPropre).toEqual({ id: "rtcht", parametre: "retoucheChat.plafondLectureUsd", defautUsd: 0.25, prefixeEtape: "Retouche chat ·" }); // ALLUMER-LECTEUR-CHAT-v20k : plafond par vidéo 0,27 → 0,25 $ (pilote 25/11 07:30)
     }
   });
 

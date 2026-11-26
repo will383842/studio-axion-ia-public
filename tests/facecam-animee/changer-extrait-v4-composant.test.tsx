@@ -46,7 +46,8 @@ describe("R4-03-d2a : ChangerExtraitV4", () => {
   });
 
   it("h) rien dans src/ n'importe ChangerExtraitV4 ni changer-extrait-v4-ecran (montés nulle part)", () => {
-    const siens = ["src/components/formats/facecam-animee/ChangerExtraitV4.tsx", "src/services/changer-extrait-v4-ecran.ts"].map((f) => join(RACINE, f));
+    // R4-03-d2b : liste blanche +1, la page de la vidéo monte le panneau (seconde lecture du pilote).
+    const siens = ["src/components/formats/facecam-animee/ChangerExtraitV4.tsx", "src/services/changer-extrait-v4-ecran.ts", "src/app/(studio)/videos/[id]/page.tsx"].map((f) => join(RACINE, f));
     for (const f of fichiers(join(RACINE, "src"))) {
       if (siens.includes(f)) continue;
       const t = readFileSync(f, "utf8");
