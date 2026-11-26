@@ -749,7 +749,7 @@
           "copie_depot": null
         },
         "duplication": {
-          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h",
+          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h ; Zernio recommande aussi des variantes de contenu pour X et Pinterest afin d'éviter les signalements de doublon (`RecyclingConfig`)",
           "preuve": "officiel",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-26",
@@ -798,7 +798,7 @@
           "copie_depot": null
         },
         "texte_alternatif": {
-          "valeur": "500 signes au plus sur Pinterest (125 sur les autres réseaux du Studio)",
+          "valeur": "500 signes au plus sur Pinterest",
           "preuve": "officiel",
           "url": "https://zernio.com/openapi.json",
           "date": "2026-11-26",
@@ -866,14 +866,14 @@
     },
     {
       "nom": "IMAGES_MAX.pinterest",
-      "valeur_code": "1",
+      "valeur_code": "1 (à poser en PR 3)",
       "statut": "inconnu",
       "cellule": "pinterest.zernio.format_carrousel_document",
       "note": "Constante à poser en PR 3 (pas encore dans le code). La documentation Zernio des médias Pinterest (docs.zernio.com, lue le 2026-11-26) donne une seule image ou une seule vidéo, ni carrousel ni texte seul ; cette page n'est pas dans l'extrait du dépôt, d'où « inconnu » tant que l'extrait n'est pas régénéré."
     },
     {
       "nom": "ALT_MAX_PINTEREST",
-      "valeur_code": "500 signes",
+      "valeur_code": "500 signes (à poser en PR 3)",
       "statut": "conforme",
       "cellule": "pinterest.zernio.texte_alternatif",
       "note": "Constante à poser en PR 3 (pas encore dans le code). La spec Zernio dit : Pinterest, 500 signes au plus. Les autres réseaux restent à 125 (ALT_MAX)."

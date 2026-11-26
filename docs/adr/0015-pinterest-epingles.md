@@ -19,19 +19,19 @@ Cette PR ne contient que des documents. Aucun interrupteur n'est allumé, aucun 
 
 **Amendement D9 (cibles).** Cible Pinterest : `"<accountId>:pin:<boardId>"`. Jamais le premier tableau : un envoi sans tableau est refusé avant le réseau. Seuls les tableaux publics (`privacy === "PUBLIC"`) sont proposés. Les identifiants vivent en base, jamais dans le dépôt.
 
-**Amendement D10 (médias et formats).** Pinterest : exactement une image (JPEG, PNG ou WebP), 20 Mo au plus (marge sous les 32 Mo de Zernio), rapport 2:3 à ± 1 %, largeur d'au moins 1 000 px ; ni vidéo, ni document, ni deux images. Texte alternatif de **1 à 500 signes pour Pinterest seulement** (les autres réseaux restent à 125). Titre de 1 à 100 signes, description de 800 signes au plus. Lien obligatoire, en https, sans identifiants ni port, dont l'hôte est **égal** au domaine du site (réglage `site.domaine`) : ni sous-domaine, ni autre domaine.
+**Amendement D10 (médias et formats).** Pinterest : exactement une image (JPEG, PNG ou WebP), 20 Mo au plus (marge sous les 32 Mo de Zernio), rapport 2:3 à ± 1 %, largeur d'au moins 1 000 px ; ni vidéo, ni document, ni deux images. Texte alternatif de **1 à 500 signes pour Pinterest seulement** (les autres réseaux restent à 125). Titre de 1 à 100 signes, description de 800 signes au plus. Lien obligatoire, en https, sans identifiants ni port, dont l'hôte est **égal** au domaine du site (réglage `site.domaine`, créé en PR 3, défaut = hôte de `BASE_PUBLIQUE`) : ni sous-domaine, ni autre domaine. La garde réutilise `lienDeChezNous` (`fournisseurs/publication/zernio-inbox-corps.ts`) avec égalité stricte d'hôte, plutôt qu'une garde neuve.
 
 **ADR-0010 (validation).** Un lot importé naît « à valider ». Le geste « Valider ce lot » vaut validation datée du fondateur, créneau par créneau ; rien ne part avant le tour d'envoi.
 
-**ADR-0012 (anti-répétition).** L'import d'épingles refuse un doublon : même empreinte d'image, ou même couple lien + tableau.
+**ADR-0012 (anti-répétition).** L'import d'épingles signale un doublon et le fondateur tranche, comme le pose l'ADR-0012 : même empreinte d'image, ou même couple lien + tableau. La comparaison porte sur les contenus déjà publiés ou programmés, pas seulement sur le lot importé. Aucun amendement de l'ADR-0012.
 
-**Créneaux.** 08:30, 12:30, 17:30 et 21:00, heure de Paris, soit 4 épingles par jour au plus, avec 210 minutes d'écart minimum entre deux créneaux décidés. Un seul compte Pinterest est prévu (le code en tolère plusieurs).
+**Créneaux.** 08:30, 12:30, 17:30 et 21:00, heure de Paris, soit 4 épingles par jour au plus, avec 210 minutes d'écart : c'est le plus petit écart entre deux créneaux décidés (17:30 → 21:00), appliqué comme écart conseillé de la cadence (message, pas refus). Les quatre heures vivent dans `REGLAGES_CADENCE_DEFAUT.reseaux.pinterest`, lues par l'import, jamais codées dans la page. Un seul compte Pinterest est prévu (le code en tolère plusieurs).
 
 **Limites écrites.**
 
 - Aucune modification d'une épingle déjà envoyée : seule la description serait modifiable chez Zernio, par une route en bêta fermée chez Pinterest. Avant l'envoi, la règle CAL-23 existante s'applique (une modification renvoie l'entrée « à valider »).
 - Une épingle publiée hors du Studio n'est pas rapatriée, comme pour les autres réseaux.
-- Pinterest n'a pas de premier commentaire, ni de boîte de réception côté Zernio.
+- Pinterest n'a pas de premier commentaire, ni de boîte de réception côté Zernio (doc `reference.mdx`, hors extrait).
 
 ## Conséquences
 
@@ -58,5 +58,5 @@ Dans cette PR : `tests/reseaux/regles-officielles.test.ts` (section `pinterest` 
 
 ## Points laissés ouverts
 
-- L'extrait `docs/zernio/openapi-extrait-1.418.1.json` ne contient pas encore la route des tableaux : il doit être régénéré par une session qui joint zernio.com (il ne se modifie pas à la main). Cette PR ne le touche pas.
+- L'extrait `docs/zernio/openapi-extrait-1.418.1.json` ne contient pas encore la route des tableaux : il doit être régénéré par une session qui joint zernio.com (il ne se modifie pas à la main). Cette PR ne le touche pas. Cette régénération est un préalable de la PR 3 (avant la PR 3), car la route des tableaux de D6 en dépend ; d'ici là, 1 média, description de 800 et 32 Mo restent « inconnu ».
 - Confirmation hors dépôt, avant les PR 1 à 7 : qu'aucun fichier qu'elles visent n'est patché sur le serveur.
