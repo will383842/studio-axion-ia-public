@@ -645,6 +645,166 @@
     },
     "youtube": {
       "statut": "éteint"
+    },
+    "pinterest": {
+      "reseau": {
+        "premier_commentaire": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "statistiques": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_posts": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_texte": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "plafond_mots_dieses": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_video": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_carrousel_document": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "texte_alternatif": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        }
+      },
+      "zernio": {
+        "premier_commentaire": {
+          "valeur": "Aucun champ « premier commentaire » dans les champs propres à Pinterest : rien n'est transmis",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/PinterestPlatformData/properties"
+        },
+        "reponses_commentaires": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "messages_prives": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "duplication": {
+          "valeur": "Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/409"
+        },
+        "statistiques": {
+          "valeur": "Même route de statistiques de posts ; le nombre d'enregistrements (saves) couvre Instagram, Pinterest et X",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get"
+        },
+        "plafond_posts": {
+          "valeur": "Plafond de rythme : 25 posts par heure et par compte, plus des plafonds quotidiens par plateforme (valeurs non données)",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/429"
+        },
+        "plafond_texte": {
+          "valeur": "Titre de l'épingle : 100 signes au plus ; longueur de la description non donnée par l'extrait du dépôt",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/PinterestPlatformData/properties/title/maxLength"
+        },
+        "plafond_mots_dieses": {
+          "valeur": "Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description"
+        },
+        "format_video": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "format_carrousel_document": {
+          "valeur": "inconnu",
+          "preuve": "inconnu",
+          "url": null,
+          "date": null,
+          "copie_depot": null
+        },
+        "texte_alternatif": {
+          "valeur": "500 signes au plus sur Pinterest (125 sur les autres réseaux du Studio)",
+          "preuve": "officiel",
+          "url": "https://zernio.com/openapi.json",
+          "date": "2026-11-26",
+          "copie_depot": "docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description"
+        }
+      }
     }
   },
   "constantes": [
@@ -703,6 +863,20 @@
       "statut": "écart",
       "cellule": "instagram.zernio.format_carrousel_document",
       "note": "Le code limite le carrousel à 10 images ; la spec Zernio (schéma InstagramPlatformData) permet jusqu'à 20 éléments. Écart prudent (le code refuse plus que nécessaire), sans risque d'envoi refusé."
+    },
+    {
+      "nom": "IMAGES_MAX.pinterest",
+      "valeur_code": "1",
+      "statut": "inconnu",
+      "cellule": "pinterest.zernio.format_carrousel_document",
+      "note": "Constante à poser en PR 3 (pas encore dans le code). La documentation Zernio des médias Pinterest (docs.zernio.com, lue le 2026-11-26) donne une seule image ou une seule vidéo, ni carrousel ni texte seul ; cette page n'est pas dans l'extrait du dépôt, d'où « inconnu » tant que l'extrait n'est pas régénéré."
+    },
+    {
+      "nom": "ALT_MAX_PINTEREST",
+      "valeur_code": "500 signes",
+      "statut": "conforme",
+      "cellule": "pinterest.zernio.texte_alternatif",
+      "note": "Constante à poser en PR 3 (pas encore dans le code). La spec Zernio dit : Pinterest, 500 signes au plus. Les autres réseaux restent à 125 (ALT_MAX)."
     }
   ]
 }

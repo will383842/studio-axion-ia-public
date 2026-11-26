@@ -8,6 +8,8 @@ Niveaux de preuve : **officiel** (page du réseau ou de Zernio lue), **secondair
 
 YouTube : éteint (non relevé).
 
+Pinterest (ajouté le 2026-11-26, PR 0 du chantier épingles) : les deux couches sont relevées ; ce que l'extrait Zernio du dépôt ne couvre pas (route des tableaux, description de 800 signes, médias, 32 Mo, absence de boîte de réception) vaut « inconnu » tant que l'extrait n'est pas régénéré par une session qui joint zernio.com. Rien de cela n'a été écrit à la main dans l'extrait.
+
 ## LinkedIn
 
 ### Couche 1 : règles du réseau (LinkedIn)
@@ -144,6 +146,40 @@ YouTube : éteint (non relevé).
 | Carrousel / document PDF | Carrousel photo jusqu'à 35 images | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/TikTokPlatformData` | 2026-11-12 |
 | Texte alternatif | Ignoré : TikTok n'a pas de texte alternatif | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description` | 2026-11-12 |
 
+## Pinterest
+
+### Couche 1 : règles du réseau (Pinterest)
+
+| Règle | Valeur | Preuve | URL | Lu dans | Lu le |
+|---|---|---|---|---|---|
+| Premier commentaire | inconnu | inconnu | — | — | — |
+| Réponses aux commentaires | inconnu | inconnu | — | — | — |
+| Messages privés | inconnu | inconnu | — | — | — |
+| Duplication de contenu | inconnu | inconnu | — | — | — |
+| Statistiques | inconnu | inconnu | — | — | — |
+| Plafond de posts | inconnu | inconnu | — | — | — |
+| Longueur de texte | inconnu | inconnu | — | — | — |
+| Mots-dièse | inconnu | inconnu | — | — | — |
+| Vidéo (durée, taille) | inconnu | inconnu | — | — | — |
+| Carrousel / document PDF | inconnu | inconnu | — | — | — |
+| Texte alternatif | inconnu | inconnu | — | — | — |
+
+### Couche 2 : règles de Zernio (Pinterest)
+
+| Règle | Valeur | Preuve | URL | Lu dans | Lu le |
+|---|---|---|---|---|---|
+| Premier commentaire | Aucun champ « premier commentaire » dans les champs propres à Pinterest : rien n'est transmis | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/PinterestPlatformData/properties` | 2026-11-26 |
+| Réponses aux commentaires | inconnu | inconnu | — | — | — |
+| Messages privés | inconnu | inconnu | — | — | — |
+| Duplication de contenu | Refus (409) d'un contenu identique pour la même plateforme et le même compte dans les 24 h ; clé d'idempotence valable 24 h | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/409` | 2026-11-26 |
+| Statistiques | Même route de statistiques de posts ; le nombre d'enregistrements (saves) couvre Instagram, Pinterest et X | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1analytics/get` | 2026-11-26 |
+| Plafond de posts | Plafond de rythme : 25 posts par heure et par compte, plus des plafonds quotidiens par plateforme (valeurs non données) | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/responses/429` | 2026-11-26 |
+| Longueur de texte | Titre de l'épingle : 100 signes au plus ; longueur de la description non donnée par l'extrait du dépôt | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/PinterestPlatformData/properties/title/maxLength` | 2026-11-26 |
+| Mots-dièse | Les mots-dièse ne sont pas ajoutés tout seuls : ils doivent figurer dans le texte du post | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/paths/~1v1~1posts/post/requestBody/content/application~1json/schema/properties/hashtags/description` | 2026-11-26 |
+| Vidéo (durée, taille) | inconnu | inconnu | — | — | — |
+| Carrousel / document PDF | inconnu | inconnu | — | — | — |
+| Texte alternatif | 500 signes au plus sur Pinterest (125 sur les autres réseaux du Studio) | officiel | [source](https://zernio.com/openapi.json) | `docs/zernio/openapi-extrait-1.418.1.json#/components/schemas/MediaItem/properties/altText/description` | 2026-11-26 |
+
 ## Constantes de `zernio-corps.ts` confrontées à leur source
 
 (Fichier lu seulement, non modifié.)
@@ -158,6 +194,8 @@ YouTube : éteint (non relevé).
 | `IMAGES_MAX.facebook` | 10 | **conforme** | `facebook.zernio.format_carrousel_document` | La spec Zernio dit : jusqu'à 10 images. |
 | `IMAGES_MAX.tiktok` | 35 | **conforme** | `tiktok.zernio.format_carrousel_document` | La spec Zernio dit : carrousel photo jusqu'à 35 images. |
 | `IMAGES_MAX.instagram` | 10 | **écart** | `instagram.zernio.format_carrousel_document` | Le code limite le carrousel à 10 images ; la spec Zernio (schéma InstagramPlatformData) permet jusqu'à 20 éléments. Écart prudent (le code refuse plus que nécessaire), sans risque d'envoi refusé. |
+| `IMAGES_MAX.pinterest` | 1 | **inconnu** | `pinterest.zernio.format_carrousel_document` | Constante à poser en PR 3 (pas encore dans le code). La documentation Zernio des médias Pinterest (docs.zernio.com, lue le 2026-11-26) donne une seule image ou une seule vidéo, ni carrousel ni texte seul ; cette page n'est pas dans l'extrait du dépôt, d'où « inconnu » tant que l'extrait n'est pas régénéré. |
+| `ALT_MAX_PINTEREST` | 500 signes | **conforme** | `pinterest.zernio.texte_alternatif` | Constante à poser en PR 3 (pas encore dans le code). La spec Zernio dit : Pinterest, 500 signes au plus. Les autres réseaux restent à 125 (ALT_MAX). |
 
 ## À valider par le fondateur
 
@@ -166,8 +204,8 @@ YouTube : éteint (non relevé).
 - Texte alternatif 125 signes : aucune source trouvée, à prouver ou à retirer.
 - Titre de document LinkedIn 60 signes : aucune source trouvée, à prouver ou à retirer.
 - Instagram : le code limite le carrousel à 10, Zernio en accepte 20. Garder 10 ?
-- Zernio limite à 25 posts par heure et par compte : à garder en tête pour les grosses séries.
-- Zernio refuse un texte identique sur le même compte dans les 24 h.
+- Zernio limite à 25 posts par heure et par compte, et refuse un texte identique sur le même compte dans les 24 h : à garder en tête pour les grosses séries.
 - Premier commentaire : Zernio le gère pour Facebook, Instagram et LinkedIn, pas pour TikTok.
 - Réponses aux commentaires et messages privés : rien dans la spec Zernio lue, à chercher ailleurs.
 - Statistiques d'un profil LinkedIn personnel : seulement pour les posts passés par Zernio.
+- Pinterest : régénérer l'extrait Zernio (ajout de `GET /v1/accounts/{accountId}/pinterest-boards`) par une session qui joint zernio.com, puis compléter les cellules « inconnu » de Pinterest (description 800, médias, 32 Mo, débit) et `IMAGES_MAX.pinterest`.
