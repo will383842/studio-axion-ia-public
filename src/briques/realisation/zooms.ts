@@ -1,7 +1,7 @@
 /**
  * ZOOMS DEMANDÉS AU MONTEUR → PLANS (rapport V6, P0 n° 6). PUR.
  *
- * Un zoom demandé (« zoome quand je dis gratuit ») devient un PLAN SERRÉ (130 %) sur son passage, centré sur le même
+ * Un zoom demandé (« zoome quand je dis gratuit ») devient un PLAN SERRÉ (115 %, plafond du pilote du 25/11) sur son passage, centré sur le même
  * visage que le plan qu'il coupe : le plan d'origine est scindé aux bornes du zoom (jamais au-delà d'une coupe, les
  * plans s'arrêtent déjà aux coupes). C'est un punch-in : coupe franche à l'entrée et à la sortie (grammaire B.19).
  * Le plan qui suit un zoom repasse à 100 % s'il était déjà serré (le zoom reste visible). Un zoom tient au moins
@@ -9,7 +9,7 @@
  */
 import { cadrePour, type CadreSource, type PlanCamera, type TaillePlan } from "./index";
 
-export const ZOOM_TAILLE: TaillePlan = 130;
+export const ZOOM_TAILLE: TaillePlan = 115;
 export const ZOOM_MIN_SEC = 2;
 const RESTE_MIN_SEC = 0.4;
 const arrondi = (x: number) => +x.toFixed(3);

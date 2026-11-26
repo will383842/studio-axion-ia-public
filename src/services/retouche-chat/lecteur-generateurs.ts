@@ -1,23 +1,23 @@
 /**
- * S-05-a-v20k — le lecteur commun par générateur (SENSIBLE ARGENT, ÉTEINT : aucun importeur, et chaque réglage n'allume que par `true`).
+ * S-05-a-v20k — le lecteur commun par générateur (SENSIBLE ARGENT ; ALLUMER-LECTEUR-CHAT-v20k : chaque réglage absent = allumé, seul `false` éteint).
  * Pur : le réglage et le compteur de lectures sont INJECTÉS ; aucune lecture de base ici. Règles d'abord, au plus UN appel (`lireDemande`).
  */
 import { appelPourGenerateur, estGenerateurRetouche, type LireReglage } from "./generateurs";
 import { creerLecteur, type PortsLecteur } from "./lecteur-demande";
 import type { PortsRetoucheChat } from "./service";
 
-/** Réglage (éteint par défaut) de la lecture par Claude, par générateur. Absents volontairement : avocat, image-video (« plus tard »), tutoriel-outil (clé de will-97), video-longue (session vl/), tableau (S-06). */
+/** Réglage de la lecture par Claude, par générateur : ALLUMÉ par défaut (ALLUMER-LECTEUR-CHAT-v20k, Williams 20/11 23:55), seul `false` éteint. Absents volontairement : avocat, image-video (« plus tard »), tutoriel-outil (clé de will-97), video-longue (session vl/), tableau (S-06). */
 export const CLES_REGLAGE_LECTEUR: Readonly<Record<string, string>> = {
   "facecam-animee": "retoucheChat.facecamAnimeeLecteur",
   "demo-facecam": "retoucheChat.demoFacecamLecteur",
 };
 
-/** Vrai SEULEMENT si le générateur a une clé ET que le réglage vaut `true` exactement ; toute autre valeur ou une lecture en échec : faux. */
+/** Vrai si le générateur a une clé ET que le réglage vaut `true` (absent = `true`) ; `false`, toute autre valeur écrite ou une lecture en échec : faux. */
 export async function lecteurClaudeActif(generateur: string, lire: LireReglage): Promise<boolean> {
   const cle = Object.hasOwn(CLES_REGLAGE_LECTEUR, generateur) ? CLES_REGLAGE_LECTEUR[generateur] : undefined;
   if (!cle) return false;
   try {
-    return (await lire(cle, false)) === true;
+    return (await lire(cle, true)) === true;
   } catch {
     return false;
   }

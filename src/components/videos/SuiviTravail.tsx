@@ -14,6 +14,7 @@ import { notifier } from "@/components/ui/Toast";
 import { ACTIONS_FABRICATION } from "@/domaine/libelles";
 import { useTravaux } from "@/hooks/useTravaux";
 import type { VueTravail } from "@/services/vues";
+import { estEnPause, estSansReprise } from "@/moteurs/montage-tutoriel-outil/vue-roles";
 import { BoutonAnnuler } from "./BoutonAnnuler";
 import { BoutonArreter } from "./BoutonArreter";
 import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
@@ -24,7 +25,7 @@ import { avecConfirmationPrix } from "@/components/ui/ConfirmationPrix";
  * bandeau quand un outil est ralenti, et « Arrêter ». Titre par `EnTeteSuivi`, actions rangées par `ActionsSuivi`, rendu par `SuiviFabrication` ;
  * le montant (`pied`, « Déjà payé : x ») reste ici, jamais pour un format sans prix. Une vidéo prête n'a pas de titre en plus (la fiche le dit déjà).
  */
-export function SuiviTravail({ initial, compacte, sansPrix }: { initial: VueTravail; compacte?: boolean; sansPrix?: boolean }) {
+export function SuiviTravail({ initial, compacte, sansPrix, signalerPause }: { initial: VueTravail; compacte?: boolean; sansPrix?: boolean; /** Facultatif (tutoriel) : une pause du moteur se dit « En pause » au lieu de « encore … min ». */ signalerPause?: boolean }) {
   const router = useRouter();
   const [relance, setRelance] = useState(false);
   const [devant, passerDevant] = useTransition();
@@ -38,10 +39,10 @@ export function SuiviTravail({ initial, compacte, sansPrix }: { initial: VueTrav
     },
   });
   const t = travail ?? initial;
-  const vue = versSuiviFabrication(t);
+  const vue = signalerPause && estEnPause(t) ? { ...versSuiviFabrication(t), enPause: true } : versSuiviFabrication(t);
   return (
     <div className="space-y-4">
-      {vue.etat !== "prete" && <EnTeteSuivi etat={vue.etat} sansTemps />}
+      {vue.etat !== "prete" && !(signalerPause && estSansReprise(t)) && <EnTeteSuivi etat={vue.etat} sansTemps />}
       <SuiviFabrication
         vue={vue}
         compacte={compacte}

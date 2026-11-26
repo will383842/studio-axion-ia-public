@@ -1,6 +1,7 @@
 /**
- * G8-OBS-v21r — le branchement RÉEL de Claude sur le chat de retouche côté serveur (SENSIBLE ARGENT, ÉTEINT trois fois :
- * aucun appelant, chaque clé de lecteur n'allume que par `true` exact, et le chat de chaque générateur est lui-même éteint).
+ * G8-OBS-v21r — le branchement RÉEL de Claude sur le chat de retouche côté serveur (SENSIBLE ARGENT). ALLUMER-LECTEUR-CHAT-v20k :
+ * chaque clé de lecteur est ALLUMÉE par défaut (seul `false` éteint ; Williams 20/11 23:55), le chat de chaque générateur garde son propre
+ * réglage, et chaque lecture reste bornée par le compteur (3 par vidéo) et le plafond PAR VIDÉO (barrière dure).
  * UN seul assembleur : réglage (lu ici, une seule fois), appel facturé (`appelClaudeChat`), barrière dure AVANT tout appel
  * (`appelSousBarriere` + `sousPlafond`, même en budget « indicatif »), compteur de lectures par vidéo (`lecturesRestantes`).
  * Aucune écriture de réglage, aucun montant dans une phrase. Appelants prévus : la route (S-05-b), le tableau (S-06-b).
@@ -15,13 +16,13 @@ import type { PortsLecteur } from "./lecteur-demande";
 import { appelSousBarriere, lecturesRestantes, sousPlafond } from "./plafond-lectures";
 import type { PortsRetoucheChat } from "./service";
 
-/** Réglage (éteint par défaut) de la lecture par Claude du chat du tableau (S-06-b). */
+/** Réglage de la lecture par Claude du chat du tableau (S-06-b) : ALLUMÉ par défaut (ALLUMER-LECTEUR-CHAT-v20k), seul `false` éteint. */
 export const CLE_REGLAGE_LECTEUR_TABLEAU = "retoucheChat.tableauLecteur";
 
-/** La SEULE lecture de réglage du fichier : vrai seulement pour `true` exact ; une lecture en échec vaut « non ». */
+/** La SEULE lecture de réglage du fichier : absent = allumé ; `false` ou toute autre valeur écrite = non ; une lecture en échec vaut « non ». */
 async function reglageAllume(cle: string): Promise<boolean> {
   try {
-    return (await lireParametre<unknown>(cle, false)) === true;
+    return (await lireParametre<unknown>(cle, true)) === true;
   } catch {
     return false;
   }
