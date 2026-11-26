@@ -14,7 +14,6 @@ import type { PlanProduit } from "@/moteurs/types";
 import { parametresComposition } from "@/briques/composition";
 import { NOIR_BLANC_ACTIF } from "@/briques/composition/plages-noir-blanc";
 
-// La constante de la pièce a reste fausse en vrai ; ce double la lit par un getter pour (b) à (f).
 const MAINTENANT = "2026-10-02T08:00:00.000Z";
 const SCRIPT = "on passe de 2 heures à 20 minutes par semaine"; // « 2 » = mot 3 (1,05 s), « 20 » = mot 6 (2,1 s)
 
@@ -99,10 +98,11 @@ describe("ALLUMER-NOIR-BLANC-v21t · le noir et blanc de la partie « avant » e
 
   it("(e) 2 plages au plus, bords gardés", () => {
     const texte = "on passe de 2 heures à 20 minutes puis de 5 jours à 1 jour puis de 8 mois à 2 mois";
-    const m = motsDe(texte, { 3: 3, 6: 5, 10: 8, 13: 10, 17: 13, 20: 15 });
-    const plages = NB(couleursDe(commande(), [illu(1, 0, 20)], m)) ?? [];
-    expect(plages.length).toBeGreaterThan(0);
-    expect(plages.length).toBeLessThanOrEqual(2);
+    // Débuts monotones (en s) ; plan illustration sur 0-9 s : « 2 »1 → « 20 »2,5 · « 5 »3,5 → « 1 »5 · « 8 »6 → « 2 »7,5,
+    // trois plages valides (1,5 s chacune, hors des 0,5 s de bord).
+    const m = motsDe(texte, { 0: 0.2, 1: 0.5, 2: 0.8, 3: 1, 4: 1.4, 5: 1.9, 6: 2.5, 7: 2.9, 8: 3, 9: 3.2, 10: 3.5, 11: 4, 12: 4.5, 13: 5, 14: 5.3, 15: 5.6, 16: 5.8, 17: 6, 18: 6.5, 19: 7, 20: 7.5, 21: 8 });
+    // Trois passages ⇒ 2 plages : les 2 PREMIÈRES, secondes exactes.
+    expect(NB(couleursDe(commande(), TOUT_ILLU, m))).toEqual([[1, 2.5], [3.5, 5]]);
     // Passage dans la première demi-seconde : ignoré.
     expect("noirBlanc" in couleursDe(commande(), [illu(1, 0, 9)], motsDe("de 2 heures à 20 minutes", { 1: 0.1, 4: 1.6 }))).toBe(false);
   });
