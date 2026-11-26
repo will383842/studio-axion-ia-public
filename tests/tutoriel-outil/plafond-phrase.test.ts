@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { pireCasRequete, type DefinitionRole } from "@/generateur/roles/types";
 import { entreeMaquettiste, roleMaquettiste, type ContexteMaquettiste, type ManqueMaquettiste } from "@/moteurs/montage-tutoriel-outil/equipe/maquettiste";
 import { PROPOSITIONS_PIECE_MAX } from "@/moteurs/montage-tutoriel-outil/maquette-creee";
+import { PLAFOND_TUTORIEL_USD } from "@/services/plafond-tutoriel";
 import { coutPirePieceCreeeUsd, ETAPE_PIECE_TUTORIEL, PREFIXE_ETAPE_TUTORIEL, plafondTutorielParDefautUsd, plafondTutorielPhraseUsd, detailPlafondTutorielUsd } from "@/services/tutoriel-claude";
 
 const role = roleMaquettiste as unknown as DefinitionRole;
@@ -14,10 +15,21 @@ const ctx = (n: number): ContexteMaquettiste => ({ metier: "x".repeat(40), carte
 const unePropositionMax = (n: number) => Math.max(pireCasRequete(role, entreeMaquettiste("maquette", ctx(n))), pireCasRequete(role, entreeMaquettiste("flux-automatisation" as ManqueMaquettiste, ctx(n))));
 
 describe("T-EXT-V2-07 : plafond depuis une phrase", () => {
-  it("la création au pire = 2 × le pire cas d'une proposition, recalculé ici", () => {
+  it("la création au pire = 1 proposition + 1 reprise portant le bloc de 6 remarques de 200 caractères, recalculé ici", () => {
     expect(PROPOSITIONS_PIECE_MAX).toBe(2);
-    expect(coutPirePieceCreeeUsd()).toBeCloseTo(2 * unePropositionMax(300), 10);
-    expect(coutPirePieceCreeeUsd()).toBeGreaterThan(0);
+    const sans = entreeMaquettiste("maquette", ctx(300));
+    const bloc = Array.from({ length: 6 }, () => "x".repeat(200)).join(" | ");
+    const avec = { ...sans, variable: `${sans.variable}\n<remarques_precedentes>${bloc}</remarques_precedentes>` };
+    const reprise = Math.max(pireCasRequete(role, avec), pireCasRequete(role, entreeMaquettiste("flux-automatisation" as ManqueMaquettiste, ctx(300))));
+    expect(coutPirePieceCreeeUsd()).toBeCloseTo(unePropositionMax(300) + reprise, 10);
+    // Le bloc de remarques coûte un peu plus (environ 0,002 $) : le calcul le compte, il n'est plus « 2 × une proposition ».
+    expect(coutPirePieceCreeeUsd()).toBeGreaterThan(2 * unePropositionMax(300));
+    expect(coutPirePieceCreeeUsd() - 2 * unePropositionMax(300)).toBeLessThan(0.01);
+  });
+
+  it("le plafond EFFECTIF d'une phrase reste 1,11 $ (le plafond calculé ne sert qu'au-dessous)", () => {
+    expect(Math.min(PLAFOND_TUTORIEL_USD, plafondTutorielPhraseUsd())).toBe(PLAFOND_TUTORIEL_USD);
+    expect(PLAFOND_TUTORIEL_USD).toBe(1.11);
   });
 
   it("le plafond d'une phrase est au moins celui d'un dossier, et un multiple de 0,05", () => {

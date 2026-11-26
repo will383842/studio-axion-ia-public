@@ -5,7 +5,7 @@
  *  - cadre FIXE par plan (médiane du visage sur le plan, jamais de suivi qui flotte), recentré seulement aux coupes,
  *    avec une zone morte : un visage qui a bougé de moins de 3 % garde le cadre précédent de la même taille ;
  *  - yeux à 30-38 % de la hauteur de l'image (cible 34 %) ;
- *  - 3 tailles au plus : 100, 115 et 130 % (115 % au plus si le grain mesuré est fort) ;
+ *  - 2 tailles : 100 et 115 % (plafond du pilote du 25/11 ; 130 reste dans le type, jamais produit) ;
  *  - chaque coupe de nettoyage change la taille d'au moins 12 % (alternance 100 / 115) ; même cadre toléré une fois
  *    sur 4, si le plan précédent est très court et que la tête bouge de moins de 3 % ;
  *  - rythme (Équilibré par défaut) : un changement toutes les 2 à 3 s, jamais plus de 6 s sans changement ; entre deux
@@ -171,7 +171,7 @@ function tailleSuivante(precedente: TaillePlan, ch: Changement, maxi: TaillePlan
 export function realiser(e: EntreeRealisation): PlanRealisation {
   const rythme = e.rythme ?? "equilibre";
   const ratio = e.ratioSortie ?? 9 / 16;
-  const maxi: TaillePlan = e.grainFort ? 115 : 130;
+  const maxi: TaillePlan = 115; // ZOOM-PLAFOND-115-v21u : plafond du pilote (25/11), grain fort ou non
   const gardes = e.gardes.filter((g) => g.finSec > g.debutSec);
   // Temps du montage de chaque passage gardé.
   const segments: { prise: Intervalle; montage: Intervalle }[] = [];

@@ -12,8 +12,8 @@ import type { executerRolePourVideo } from "../depense-claude-video";
 
 export const ETAPE_LECTURE_CHAT = "Retouche chat · lecture";
 export const PARAM_PLAFOND_LECTURE_CHAT = "retoucheChat.plafondLectureUsd";
-/** 3 lectures par vidéo (décision n° 1, STRATEGIE-CLAUDE.md:230) × 9 centimes : borne haute acceptée par Williams le 20/11 ; valeur définitive : CHIFFRAGE-CHAT-RETOUCHE-20-11.md. */
-export const PLAFOND_LECTURE_CHAT_USD = 0.27;
+/** Plafond PAR VIDÉO de la lecture du chat : 0,25 $ (CHIFFRAGE-CHAT-RETOUCHE-20-11.md § 4 ; Williams 20/11 23:55 « ok pour ca » ; pilote 25/11 07:30 : 0,27 → 0,25). */
+export const PLAFOND_LECTURE_CHAT_USD = 0.25;
 export const PREFIXE_APPEL_CHAT = "txtpub-rtcht-";
 const PREFIXE_ETAPE_CHAT = "Retouche chat ·";
 
