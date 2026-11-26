@@ -18,6 +18,7 @@ import { ErreurRendu } from "@/fournisseurs/rendu/client";
 import type { PlanValide } from "@/briques/plan-scenes/schema";
 import { jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { ID_VOLET, poserCapturesVolet } from "@/briques/plan-scenes/poser-captures-volet";
 import type { ContexteLancement, DefinitionEtapeMoteur, Estimation, MoteurVideo, OperationMontage, ParentRetouche, ResultatFabrication } from "../types";
 import { empreinteAudioMaitre } from "@/briques/empreinte-audio";
 import { bilanReprise, relancerRendusTombes } from "./reprise";
@@ -287,6 +288,8 @@ function resultatDe(etat: EtatTutoriel, commande: CommandeFabrication): Resultat
         ...(etat.reglagesFilm !== undefined ? { reglagesFilm: etat.reglagesFilm } : {}),
         // T-EXT-55 : l'équipe reste dans le projet (la retouche et le regardeur en ont besoin).
         ...(etat.equipe ? { equipe: etat.equipe } : {}),
+        // N-05-VOLET-g2 : les 2 images du volet (lues par la copie de rendu) ; absentes : exactement comme avant.
+        ...(etat.captures?.length ? { captures: etat.captures } : {}),
         // T-EXT-52b : écrit seulement quand le réglage a calculé les empreintes (éteint : exactement comme avant).
         ...(etat.empreintesFormats
           ? {
@@ -521,7 +524,7 @@ export function creerMoteurTutorielOutil(deps: DependancesMoteurTutoriel = {}): 
     if (!brut || typeof brut !== "object") return parent;
     if (brut.mots !== undefined && jsonCanonique(brut.mots) !== jsonCanonique(parent.mots)) return parent;
     if (brut.format !== undefined && jsonCanonique(brut.format) !== jsonCanonique(parent.format)) return parent;
-    const r = validerPlan(op.plan, { mots: parent.mots, format: parent.format, facecam: false, dureeMs: parent.dureeMs });
+    const r = validerPlan(op.plan, { mots: parent.mots, format: parent.format, facecam: false, dureeMs: parent.dureeMs, ...(poserCapturesVolet(parent, null) !== parent ? { objetsPermis: [ID_VOLET] } : {}) });
     return r.remarques.some((x) => x.code === "PLAN_ILLISIBLE") ? parent : r.plan;
   }
 

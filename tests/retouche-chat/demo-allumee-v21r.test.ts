@@ -125,9 +125,11 @@ describe("ALLUMER-RETOUCHE-DEMO-v21r · b) c) aperçu et « Appliquer » à 0 �
 });
 
 describe("ALLUMER-RETOUCHE-DEMO-v21r · e) f) g) rien de payant, coupe-circuit, N-22", () => {
-  it("e) lecteur Claude de la démo absent → faux ; « fabriquer » pour la démo → 409 ; aucun appel réseau", async () => {
+  // ALLUMER-LECTEUR-CHAT-v20k (seconde lecture du pilote) : le lecteur de la démo est ALLUMÉ par défaut ; `false` écrit garde l'éteint.
+  it("e) lecteur Claude de la démo absent → vrai, `false` → faux ; « fabriquer » pour la démo → 409 ; aucun appel réseau", async () => {
     const { video, POST, lire } = await monter();
-    expect(await lecteurClaudeActif("demo-facecam", lire)).toBe(false);
+    expect(await lecteurClaudeActif("demo-facecam", lire)).toBe(true);
+    expect(await lecteurClaudeActif("demo-facecam", async () => false)).toBe(false);
     const r = await poster(POST, { action: "fabriquer", generateur: "demo-facecam", videoId: video.id, demande: "x", plan: plan0() });
     expect(r.statut).toBe(409);
     expect(fetchEspion).not.toHaveBeenCalled();

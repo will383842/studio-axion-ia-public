@@ -12,6 +12,7 @@ export const DOMAINE: Domaine = {
     "tutoriel.finCommune": "eteint",
     "tutoriel.finitions": "eteint",
     "tutoriel.suiviCloche": "allume",
+    "tutoriel.voletAvantApres": "eteint",
     "videoLongue.actif": "eteint",
   },
   constantes: [
@@ -138,6 +139,6 @@ export const DOMAINE: Domaine = {
     "services/multicamera.ts:paramMulticamera(format)": { couvre: "facecam.multicamera" },
   },
   env: [],
-  nombre: { litterales: 8, constantes: 24, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // fusion master : parExpression 19 → 20 (cleParametrePlages) ; constantes 20 → 23 : 2 de cette branche + tutoriel.cap (master); constantes 23 → 24 : + imageVideo.preteAvecRemarques (S-13-g-v21q)
+  nombre: { litterales: 9, constantes: 24, gabarits: 2, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 20, env: 0 }, // fusion master : parExpression 19 → 20 (cleParametrePlages) ; constantes 20 → 23 : 2 de cette branche + tutoriel.cap (master); constantes 23 → 24 : + imageVideo.preteAvecRemarques (S-13-g-v21q) ; litterales 8 → 9 : + tutoriel.voletAvantApres (N-05-VOLET-g2-v21r)
   retirees: [],
 };
