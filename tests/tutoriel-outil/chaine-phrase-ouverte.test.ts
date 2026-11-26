@@ -66,11 +66,12 @@ async function etatApresLeChef(c: CommandeFabrication, phraseOuverte: unknown): 
 }
 
 describe("CORR-V2-10-1 · phrase ouverte lue par la chaîne", () => {
-  it("phraseOuverte: true, dépôt « phrase » : le maquettiste est appelé (1 appel), pause « pièce à construire »", async () => {
+  it("phraseOuverte: true, dépôt « phrase » : le maquettiste est appelé ; réponse illisible = une reprise (PHRASE-1), puis pause, jamais un 3e appel", async () => {
     const eq = portDouble({ phraseOuverte: true });
     const { code } = await mener(eq.port, commandePhrase());
-    expect(eq.appels).toEqual(["maquettiste"]);
+    expect(eq.appels).toEqual(["maquettiste", "maquettiste"]);
     expect(code).not.toBe("TO_CAS_V2");
+    expect(code).toBe("TO_EQUIPE_BLOQUEE");
   });
 
   it("phraseOuverte: true : `prochainPasPaye` rend true (le pas réel paiera le maquettiste : le devis le réserve)", async () => {

@@ -180,6 +180,18 @@ async function propositionTableau(videoId: Id, texte: string, base: Pick<Proposi
     return { ...base, ...vide, resume: message, horsCapacite: { message, prixVideo: await prixVideo() }, statut: "hors-capacite" };
   }
   const r = traduireDemandeTableau(tableau.fiche, texte, tableau.contexte);
+  // S-06-b : règles muettes → le lecteur commun du tableau (clé lue dans ses ports ; éteinte : 0 appel, la phrase d'aujourd'hui).
+  if (!r) {
+    const [{ lireDemandeTableauParClaude }, { portsLecteurTableauStudio }, { apercuRetouche }] = await Promise.all([import("./retouche-chat/tableau"), import("./retouche-chat/lecteur-studio"), import("@/moteurs/montage-tableau/retouches")]);
+    const fiche = tableau.fiche, op = await lireDemandeTableauParClaude(fiche, texte, tableau.contexte, portsLecteurTableauStudio(videoId));
+    const a = op ? apercuRetouche(fiche, op, tableau.contexte) : null;
+    if (op && a?.ok) {
+      const ecrans = [...new Set([...(op.type === "changerFin" ? [] : [fiche.scenes.findIndex((s) => s.id === op.sceneId) + 1]), ...a.scenesRefaites.map((id) => fiche.scenes.findIndex((s) => s.id === id) + 1)])].filter((x) => x > 0).sort((x, y) => x - y);
+      const resume = `Je propose ce changement sur le tableau${ecrans.length ? ` : écran${ecrans.length > 1 ? "s" : ""} ${ecrans.join(", ")}` : ""}.${a.payant ? " La voix est refaite (payant)." : ""}`;
+      const cout = (await moteurDeCommande(tableau.version.commande).estimerRetouche(tableau.version.commande, [])).total;
+      return { ...base, ...vide, resume, plansTouches: ecrans, cout, operationsTableau: [op], statut: "proposee" };
+    }
+  }
   if (!r) {
     const exemples = exemplesTableau(tableau.fiche, tableau.contexte);
     return { ...base, ...vide, resume: `Je n'ai pas trouvé quoi changer sur le tableau.${exemples.length ? ` Vous pouvez par exemple demander : « ${exemples.join(" », « ")} ».` : ""}`, statut: "incomprise" };
