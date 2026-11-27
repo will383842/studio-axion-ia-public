@@ -20,11 +20,14 @@ export interface RegleRepublication {
   readonly refuseFiligrane: boolean;
 }
 
-export const RESEAUX_REPUBLICATION: readonly IdReseau[] = ["tiktok", "instagram", "youtube-shorts", "youtube", "linkedin", "facebook"];
+/** Les réseaux qui se republient. Pinterest volontairement absent : une épingle ne se republie pas (ADR-0015) ; `regleRepublication("pinterest")` lève, comme pour tout réseau sans règle. */
+export type ReseauRepublicable = Exclude<IdReseau, "pinterest">;
+
+export const RESEAUX_REPUBLICATION: readonly ReseauRepublicable[] = ["tiktok", "instagram", "youtube-shorts", "youtube", "linkedin", "facebook"];
 
 const hyp = <T>(valeur: T): ValeurSourcee<T> => ({ statut: "hypothese", valeur });
 
-export const REGLES_REPUBLICATION: Readonly<Record<IdReseau, RegleRepublication>> = Object.freeze({
+export const REGLES_REPUBLICATION: Readonly<Record<ReseauRepublicable, RegleRepublication>> = Object.freeze({
   tiktok: { delaiMinJours: hyp(30), seuilPerformance: hyp(500), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: true },
   instagram: { delaiMinJours: hyp(30), seuilPerformance: hyp(500), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
   "youtube-shorts": { delaiMinJours: hyp(60), seuilPerformance: hyp(1000), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
@@ -33,7 +36,7 @@ export const REGLES_REPUBLICATION: Readonly<Record<IdReseau, RegleRepublication>
   facebook: { delaiMinJours: hyp(45), seuilPerformance: hyp(300), contenuNeufDerive: true, refuseIdentique: true, refuseFiligrane: false },
 });
 
-function reseauConnu(reseau: unknown): reseau is IdReseau {
+function reseauConnu(reseau: unknown): reseau is ReseauRepublicable {
   return typeof reseau === "string" && Object.prototype.hasOwnProperty.call(REGLES_REPUBLICATION, reseau);
 }
 

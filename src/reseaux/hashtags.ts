@@ -120,6 +120,8 @@ export const LIMITES_MOTS_DIESES: Record<IdReseau, LimiteMotsDieses> = {
   tiktok: "inconnu",
   youtube: "inconnu",
   "youtube-shorts": "inconnu",
+  // Pinterest : le relevé L8-01 n'a aucune preuve (« inconnu ») : aucun nombre inventé.
+  pinterest: "inconnu",
 };
 
 export function limiteMotsDieses(reseau: IdReseau): LimiteMotsDieses {

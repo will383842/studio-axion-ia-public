@@ -5,10 +5,10 @@
  */
 import type { IdReseau } from "@/domaine/types";
 import { modePremierCommentaire, type ModePremierCommentaire } from "@/domaine/ecriture-post/commentaire";
-import { obtenirReseau } from "@/reseaux";
+import { definitionAffichage } from "@/reseaux/hors-video";
 import { jourDeParis } from "@/domaine/usine-calendrier";
 
-export const RESEAUX_CADENCE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
+export const RESEAUX_CADENCE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts", "pinterest"];
 const NOMS: Record<IdReseau, string> = {
   linkedin: "LinkedIn",
   instagram: "Instagram",
@@ -16,6 +16,7 @@ const NOMS: Record<IdReseau, string> = {
   tiktok: "TikTok",
   youtube: "YouTube",
   "youtube-shorts": "YouTube Shorts",
+  pinterest: "Pinterest",
 };
 export const nomReseauCadence = (r: IdReseau): string => NOMS[r];
 
@@ -84,7 +85,7 @@ const SOURCE_RELEVE = "Relevé des règles des réseaux (L8-01)";
 const SOURCE_REGISTRE = "Valeur de départ du studio, pas encore vérifiée auprès du réseau";
 
 function reglesDeDepart(id: IdReseau): ReglesReseau {
-  const legende = obtenirReseau(id).legende;
+  const legende = definitionAffichage(id).legende;
   const texteSource = id === "tiktok";
   const commentaireSource = id === "linkedin" || id === "instagram" || id === "facebook" || id === "tiktok";
   const regles: ReglesReseau = {
@@ -115,6 +116,8 @@ export const REGLAGES_CADENCE_DEFAUT: ReglagesCadence = {
     tiktok: un(["12:00", "19:00"], 1, 240),
     youtube: un(["17:00"], 1, 240),
     "youtube-shorts": un(["12:00", "18:00"], 1, 240),
+    // Pinterest (ADR-0015) : 4 épingles par jour ; 210 min = le plus petit écart entre deux créneaux décidés (17:30 → 21:00).
+    pinterest: un(["08:30", "12:30", "17:30", "21:00"], 4, 210),
   },
   objectifs: {
     video: { quantite: 1, periode: "jour" },

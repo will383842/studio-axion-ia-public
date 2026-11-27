@@ -4,6 +4,7 @@
  * rien ne part : l'envoi reste décidé ailleurs, par le fondateur.
  * Les transitions (visuel et créneau) sont portées par L1-04 et L1-08 ; ce module ne fait que les appeler.
  */
+import { nomDuReseau } from "@/reseaux/hors-video";
 import "server-only";
 import type { Depot, LotEcritures } from "@/domaine/depots";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
@@ -111,7 +112,6 @@ export const PHRASES_RETRAIT = {
   passee: "L'heure est passée : cette publication ne se retire plus d'ici.",
 } as const;
 
-const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook" };
 const JOUR_COURT = (instant: string): string => cleJour(instant).split("-").reverse().slice(0, 2).join("/");
 
 /**
@@ -158,7 +158,7 @@ export async function retirerVisuel(
   const retirees = pubs
     .map((p) => ({ reseau: p.reseau as string, date: p.date }))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const detail = retirees.map((r) => `${NOMS_RESEAUX[r.reseau] ?? r.reseau} le ${JOUR_COURT(r.date)} à ${heureAffichageParis(r.date)}`).join(", ");
+  const detail = retirees.map((r) => `${nomDuReseau(r.reseau)} le ${JOUR_COURT(r.date)} à ${heureAffichageParis(r.date)}`).join(", ");
   const evenement: Evenement = {
     id: "ev_retrait_" + c.id, type: "calendrier",
     message: `Carrousel « ${v.titre} » retiré du calendrier avant tout envoi : ${detail}. Lignes retirées : ${pubs.map((p) => p.id).join(", ")}.`,

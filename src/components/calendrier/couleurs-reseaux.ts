@@ -12,10 +12,11 @@ export const COULEURS_RESEAUX: Readonly<Record<IdReseau, string>> = {
   tiktok: "var(--res-tiktok)",
   youtube: "var(--res-youtube)",
   "youtube-shorts": "var(--res-youtube-shorts)",
+  pinterest: "var(--res-pinterest)",
 };
 
 /** Les réseaux qui ont une couleur, dans l'ordre de la légende. */
-export const RESEAUX_COLORES: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
+export const RESEAUX_COLORES: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts", "pinterest"];
 
 /** La couleur (jeton CSS) d'un réseau. */
 export function couleurReseau(reseau: IdReseau): string | undefined {

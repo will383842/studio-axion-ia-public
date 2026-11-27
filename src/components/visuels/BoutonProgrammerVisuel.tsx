@@ -14,6 +14,7 @@ import { changerStatut, creerCreneau, type CreneauPlan } from "@/services/plan-e
 import { ErreurVisuel } from "@/visuels/services/carrousels";
 import { programmerVisuel, type DepotsPasserelle } from "@/services/plan-vers-publication";
 
+// Pinterest volontairement absent : une épingle ne naît que par l'import (PR 6), jamais par ce bouton « un clic ».
 /** Heure de publication (Paris) par réseau : fixe, le fondateur peut décaler ensuite depuis le calendrier. */
 const HEURES: Partial<Record<IdReseau, string>> = { linkedin: "08:30", instagram: "12:30", facebook: "17:30" };
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;

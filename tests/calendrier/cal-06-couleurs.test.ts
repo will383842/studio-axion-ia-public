@@ -40,10 +40,10 @@ function contraste(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts" };
+const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts", pinterest: "Pinterest" };
 
 describe("CAL-06 : jetons de réseau", () => {
-  it("couvre les six réseaux", () => {
+  it("couvre les sept réseaux (six vidéo + Pinterest)", () => {
     expect([...RESEAUX_COLORES].sort()).toEqual(Object.keys(NOMS).sort());
   });
   it.each(Object.keys(NOMS))("%s a un jeton dans :root ET dans .theme-sombre", (r) => {

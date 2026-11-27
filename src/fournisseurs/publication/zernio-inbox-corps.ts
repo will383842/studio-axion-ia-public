@@ -187,6 +187,7 @@ export const TYPE_EVENEMENT_COMMENTAIRE_AUTO = "zernio.commentaire";
 export const TYPE_EVENEMENT_COMMENTAIRE_MANUEL = "zernio.commentaire_manuel";
 
 /** Réseaux dont on peut demander la liste. YouTube : jamais lu ici (pas d'événement) → « mise à jour différée ». */
+// Pinterest volontairement absent : pas de boîte de réception Pinterest côté Zernio.
 export const RESEAUX_LISTE_COMMENTAIRES = ["instagram", "facebook", "linkedin_page", "tiktok", "youtube"] as const;
 export type ReseauListeCommentaires = (typeof RESEAUX_LISTE_COMMENTAIRES)[number];
 export type ReseauCommentaireLu = Exclude<ReseauListeCommentaires, "youtube">;

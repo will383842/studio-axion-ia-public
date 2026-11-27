@@ -5,7 +5,7 @@ import { Pastille } from "@/components/ui/Pastille";
 import type { EntreeCalendrier } from "@/domaine/calendrier";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { RESEAUX } from "@/reseaux";
+import { chercherDefinitionAffichage } from "@/reseaux/hors-video";
 import { PictoReseau } from "./PictoReseau";
 import { VignetteDiffuseur } from "./VignetteDiffuseur";
 import { couleurReseau } from "./couleurs-reseaux";
@@ -64,7 +64,7 @@ export function heureLisible(heure: string | null | undefined): string | null {
 }
 
 function definition(reseau: string) {
-  return RESEAUX.find((r) => r.id === reseau);
+  return chercherDefinitionAffichage(reseau);
 }
 
 export function reseauConnu(reseau: string): reseau is IdReseau {

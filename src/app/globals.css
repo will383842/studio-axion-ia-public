@@ -64,6 +64,7 @@
   --res-tiktok: #0b8f8a;
   --res-youtube: #cc0000;
   --res-youtube-shorts: #cc0000;
+  --res-pinterest: #b5121b;
   --statut-brouillon-fond: var(--surface-3);
   --statut-brouillon-texte: var(--texte-doux);
   --statut-fabrication-fond: var(--accent-doux);
@@ -159,6 +160,7 @@
   --res-tiktok: #5fd3cd;
   --res-youtube: #ff7b7b;
   --res-youtube-shorts: #ff7b7b;
+  --res-pinterest: #ff8a8f;
   --statut-brouillon-fond: var(--surface-3);
   --statut-brouillon-texte: var(--texte-doux);
   --statut-fabrication-fond: var(--accent-doux);
