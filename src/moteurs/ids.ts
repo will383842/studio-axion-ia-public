@@ -8,6 +8,9 @@ import type { CommandeFabrication } from "@/domaine/types";
 export const IDS_MOTEURS = ["simulation", "montage-avocat", "montage-facecam", "montage-tableau", "montage-cas-concret", "montage-facecam-animee", "montage-image-video", "montage-tutoriel-outil", "montage-demo-facecam", "montage-video-longue", "montage-donnees"] as const;
 export type IdMoteur = (typeof IDS_MOTEURS)[number];
 
+/** Vidéo importée (déjà faite hors du Studio) : pas un moteur, mais PAS un essai non plus (rien n'est simulé). */
+export const MOTEUR_IMPORT_EXTERNE = "import-externe";
+
 export function moteurExiste(id: string): boolean {
   return (IDS_MOTEURS as readonly string[]).includes(id);
 }

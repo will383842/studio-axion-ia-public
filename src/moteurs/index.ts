@@ -21,7 +21,7 @@ import { moteurMontageVideoLongue } from "./montage-video-longue";
 import { moteurMontageDonnees } from "./montage-donnees";
 import { moteurSimulation } from "./simulation";
 import type { MoteurVideo } from "./types";
-import { idMoteurDeCommande, moteurExiste, type IdMoteur } from "./ids";
+import { idMoteurDeCommande, MOTEUR_IMPORT_EXTERNE, moteurExiste, type IdMoteur } from "./ids";
 
 export { idMoteurDeCommande, moteurExiste } from "./ids";
 
@@ -81,7 +81,7 @@ export function choisirMoteurAuLancement(formatId: string, valeurEnBase?: string
  * C'est CE test qui décide partout : refus, prix, pastilles, notification, envoi à Buffer.
  */
 export function commandeEnEssai(commande: Pick<CommandeFabrication, "moteurId" | "formatId"> | null | undefined): boolean {
-  return !!commande && idMoteurDeCommande(commande) === "simulation";
+  return !!commande && commande.moteurId !== MOTEUR_IMPORT_EXTERNE && idMoteurDeCommande(commande) === "simulation";
 }
 
 /** Moteur qui fait foi pour tout travail lancé (B.0 §7). */

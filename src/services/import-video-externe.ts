@@ -7,6 +7,7 @@
 import "server-only";
 import { controlerImportVideo, type DemandeImportVideo } from "@/domaine/import-video-externe";
 import type { Fichier, Id, Ratio, Sortie, Video, VersionVideo, CommandeFabrication } from "@/domaine/types";
+import { MOTEUR_IMPORT_EXTERNE } from "@/moteurs/ids";
 import { nouvelId } from "@/lib/ids";
 import { depots, ErreurStudio, horodatage, journaliser } from "./_commun";
 import { exigerSession } from "./auth";
@@ -71,7 +72,7 @@ export async function creerVideoImportee(donnees: DonneesImportVideo, fichier: F
     terminee: h.creeLe,
     ...h,
   };
-  const commande = { versionContrat: 2, moteurId: "import-externe", videoId, formatId: FORMAT_VIDEO_IMPORTEE, versionFormat: 1, profilRenduVersion: 1, dureeCibleSec: dureeSec, ratios: [ratio], origine: "studio", entrees: {}, reglages: {}, plans: [], prononciations: [], distribution: [], styles: {}, briques: {}, script: { blocs: [], texteComplet: "" } } as unknown as CommandeFabrication;
+  const commande = { versionContrat: 2, moteurId: MOTEUR_IMPORT_EXTERNE, videoId, formatId: FORMAT_VIDEO_IMPORTEE, versionFormat: 1, profilRenduVersion: 1, dureeCibleSec: dureeSec, ratios: [ratio], origine: "studio", entrees: {}, reglages: {}, plans: [], prononciations: [], distribution: [], styles: {}, briques: {}, script: { blocs: [], texteComplet: "" } } as unknown as CommandeFabrication;
   const version: VersionVideo = { id: versionId, videoId, numero: 1, commande, statut: "prete", choisie: true, ...h };
   const sortie: Sortie = {
     id: sortieId,

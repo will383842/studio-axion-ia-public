@@ -2,7 +2,8 @@
  * IMPORT-VIDEO-EXTERNE : importer une vidéo déjà faite dans « À publier ».
  * Dépôts en mémoire, aucun envoi, aucun fournisseur appelé.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hash } from "@node-rs/argon2";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation, reinitialiserRequete } from "./helpers/next-mocks";
 import type { Fichier } from "@/domaine/types";
 
@@ -19,7 +20,11 @@ vi.mock("@/services/_commun", async (original) => {
 const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { creerVideoImportee } = await import("@/services/import-video-externe");
 const { controlerImportVideo, TAILLE_MAX_IMPORT_OCTETS, DUREE_MAX_IMPORT_SEC } = await import("@/domaine/import-video-externe");
-const { listerAPublier } = await import("@/services/publications");
+const { listerAPublier, videoEnEssai } = await import("@/services/publications");
+const { importerVideoExterne, ratioDeLaTaille } = await import("@/services/import-video-externe");
+const { commandeEnEssai } = await import("@/moteurs");
+const auth = await import("@/services/auth");
+const MDP_TEST = "essai-import-123";
 
 const MO = 1024 * 1024;
 function fichier(p: Partial<Fichier> = {}): Fichier {
@@ -32,6 +37,12 @@ async function compte() {
   const d = depots();
   return [await d.videos.compter(() => true), await d.versions.compter(() => true), await d.sorties.compter(() => true), await d.publications.compter(() => true)];
 }
+
+beforeAll(async () => {
+  process.env.SESSION_SECRET = "s".repeat(48);
+  const empreinte = await hash(MDP_TEST, { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 });
+  process.env.STUDIO_PASSWORD_HASH_B64 = Buffer.from(empreinte).toString("base64");
+});
 
 beforeEach(() => {
   reinitialiserDepots();
@@ -93,5 +104,121 @@ describe("import d'une vidéo déjà faite", () => {
     await creerVideoImportee(BASE, fichier());
     await listerAPublier();
     expect(sondes.fournisseurs.filter((t) => t !== "stockage")).toEqual([]);
+  });
+});
+
+describe("la vidéo importée n'est pas un essai", () => {
+  it("la vidéo importée n'est pas un essai et peut partir", async () => {
+    const { videoId } = await creerVideoImportee(BASE, fichier());
+    const video = (await depots().videos.obtenir(videoId))!;
+    const version = (await depots().versions.obtenir(video.versionChoisieId!))!;
+    expect(commandeEnEssai(version.commande)).toBe(false);
+    expect(await videoEnEssai(video)).toBe(false);
+    // et une vidéo de simulation reste bien un essai (le garde-fou n'est pas levé pour tout le monde)
+    expect(commandeEnEssai({ moteurId: "simulation", formatId: "video-importee" })).toBe(true);
+    expect(commandeEnEssai({ moteurId: "inconnu", formatId: "video-importee" })).toBe(true);
+  });
+
+  it("l'origine « importée » suffit à écarter l'essai, même si la commande est illisible", async () => {
+    const { videoId } = await creerVideoImportee(BASE, fichier());
+    const video = (await depots().videos.obtenir(videoId))!;
+    const version = (await depots().versions.obtenir(video.versionChoisieId!))!;
+    await depots().versions.enregistrer({ ...version, commande: { ...version.commande, moteurId: "simulation" } });
+    expect(await videoEnEssai({ versionChoisieId: video.versionChoisieId })).toBe(true);
+    expect(await videoEnEssai({ versionChoisieId: video.versionChoisieId, origineVideo: "importee" })).toBe(false);
+  });
+});
+
+describe("règles du domaine", () => {
+  const ok = { nom: "a.mp4", mime: "video/mp4", taille: MO, dureeSec: 30, titre: "T", reseaux: ["instagram"], valide: true };
+  it("refuse un fichier vide", () => {
+    expect(controlerImportVideo({ ...ok, taille: 0 })).toMatchObject({ ok: false, code: "TAILLE" });
+  });
+  it("refuse un titre vide ou fait d'espaces", () => {
+    expect(controlerImportVideo({ ...ok, titre: "" })).toMatchObject({ ok: false, code: "TITRE" });
+    expect(controlerImportVideo({ ...ok, titre: "   " })).toMatchObject({ ok: false, code: "TITRE" });
+  });
+  it("un réseau inconnu est ignoré, et sans réseau connu rien n'est créé", async () => {
+    expect(controlerImportVideo({ ...ok, reseaux: ["instagram", "myspace"] })).toMatchObject({ ok: true, reseaux: ["instagram"] });
+    expect(controlerImportVideo({ ...ok, reseaux: [] })).toMatchObject({ ok: false, code: "RESEAUX" });
+    expect(controlerImportVideo({ ...ok, reseaux: ["myspace"] })).toMatchObject({ ok: false, code: "RESEAUX" });
+    const avant = await compte();
+    await expect(creerVideoImportee({ ...BASE, reseaux: ["myspace"] }, fichier())).rejects.toMatchObject({ code: "RESEAUX" });
+    expect(await compte()).toEqual(avant);
+  });
+  it("tolère un type MIME vide et video/x-m4v pour un mp4, pas pour un mov", () => {
+    expect(controlerImportVideo({ ...ok, mime: "" }).ok).toBe(true);
+    expect(controlerImportVideo({ ...ok, mime: "video/x-m4v" }).ok).toBe(true);
+    expect(controlerImportVideo({ ...ok, nom: "a.mov", mime: "video/x-m4v" })).toMatchObject({ ok: false, code: "FORMAT" });
+  });
+  it("coupe le titre à 120 caractères et fusionne les réseaux en double", () => {
+    const r = controlerImportVideo({ ...ok, titre: "x".repeat(200), reseaux: ["instagram", "instagram", "linkedin"] });
+    expect(r).toMatchObject({ ok: true, reseaux: ["instagram", "linkedin"] });
+    expect(r.ok && r.titre.length).toBe(120);
+  });
+});
+
+describe("ratio déduit de la taille", () => {
+  it("16:9, 1:1, 4:5, 9:16 ; taille absente, nulle ou négative → 9:16", () => {
+    expect(ratioDeLaTaille(1920, 1080)).toBe("16:9");
+    expect(ratioDeLaTaille(1080, 1080)).toBe("1:1");
+    expect(ratioDeLaTaille(1080, 1350)).toBe("4:5");
+    expect(ratioDeLaTaille(1080, 1920)).toBe("9:16");
+    expect(ratioDeLaTaille()).toBe("9:16");
+    expect(ratioDeLaTaille(0, 1080)).toBe("9:16");
+    expect(ratioDeLaTaille(1920, 0)).toBe("9:16");
+    expect(ratioDeLaTaille(-1920, -1080)).toBe("9:16");
+  });
+  it("la sortie crée porte le ratio et la résolution lus", async () => {
+    const { videoId } = await creerVideoImportee({ ...BASE, largeur: 1920, hauteur: 1080 }, fichier());
+    expect((await depots().videos.obtenir(videoId))?.ratios).toEqual(["16:9"]);
+    expect((await depots().sorties.lister((x) => x.videoId === videoId))[0]).toMatchObject({ ratio: "16:9", resolution: "1920x1080" });
+  });
+});
+
+describe("importerVideoExterne : session et fichier réellement arrivé", () => {
+  async function deposer(p: Partial<Fichier> = {}) {
+    await depots().fichiers.enregistrer(fichier(p));
+  }
+  it("l'import exige une session", async () => {
+    await deposer();
+    const avant = await compte();
+    await expect(importerVideoExterne(BASE)).rejects.toThrow(/REDIRECT/);
+    expect(await compte()).toEqual(avant);
+  });
+  it("sans case cochée, le fichier n'est même pas lu (NON_VALIDEE avant tout)", async () => {
+    await auth.seConnecter(MDP_TEST, false);
+    const avant = await compte();
+    // fichier inexistant : si le fichier était lu d'abord, le code serait FICHIER_INCONNU
+    await expect(importerVideoExterne({ ...BASE, fichierId: "f-absent", valide: false })).rejects.toMatchObject({ code: "NON_VALIDEE" });
+    expect(await compte()).toEqual(avant);
+  });
+  it("refuse un fichier envoyé pour une autre vidéo, une autre destination ou pas encore arrivé", async () => {
+    await auth.seConnecter(MDP_TEST, false);
+    const avant = await compte();
+    await deposer();
+    await expect(importerVideoExterne({ ...BASE, entiteId: "autre" })).rejects.toMatchObject({ code: "FICHIER_INCONNU" });
+    reinitialiserDepots();
+    await deposer({ cleStockage: "studio/dev/image/imp-1/f-essai1.mp4" });
+    await expect(importerVideoExterne(BASE)).rejects.toMatchObject({ code: "FICHIER_INCONNU" });
+    reinitialiserDepots();
+    await deposer({ origine: "demo" as Fichier["origine"] });
+    await expect(importerVideoExterne(BASE)).rejects.toMatchObject({ code: "FICHIER_INCONNU" });
+    reinitialiserDepots();
+    await deposer({ statut: "en-cours" as Fichier["statut"] });
+    await expect(importerVideoExterne(BASE)).rejects.toMatchObject({ code: "ENVOI_INCOMPLET" });
+    await expect(importerVideoExterne({ ...BASE, fichierId: "pas-un-id" })).rejects.toMatchObject({ code: "FICHIER_INCONNU" });
+    expect((await compte()).slice(0, 3)).toEqual(avant.slice(0, 3));
+  });
+  it("cas nominal : vidéo créée et ligne de journal écrite", async () => {
+    await auth.seConnecter(MDP_TEST, false);
+    await deposer();
+    const avant = await compte();
+    const journalAvant = await depots().evenements.compter((e) => e.type === "videos");
+    const { videoId } = await importerVideoExterne(BASE);
+    expect(await depots().videos.obtenir(videoId)).toMatchObject({ origineVideo: "importee" });
+    expect(await compte()).toEqual([avant[0] + 1, avant[1] + 1, avant[2] + 1, avant[3]]);
+    expect(await depots().evenements.compter((e) => e.type === "videos" && e.entiteId === videoId)).toBe(1);
+    expect(await depots().evenements.compter((e) => e.type === "videos")).toBe(journalAvant + 1);
   });
 });

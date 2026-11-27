@@ -247,8 +247,8 @@ async function texteParClaude(s: SourceTextes, reseau: IdReseau, options: { parW
  * démonstration) ? Alors Claude n'écrit rien (rien n'est payé, l'écriture automatique reste pour la vraie vidéo) et la
  * vidéo ne part jamais chez Buffer.
  */
-export async function videoEnEssai(video: Pick<Video, "versionChoisieId">): Promise<boolean> {
-  if (!video.versionChoisieId) return false;
+export async function videoEnEssai(video: Pick<Video, "versionChoisieId"> & Partial<Pick<Video, "origineVideo">>): Promise<boolean> {
+  if (video.origineVideo === "importee" || !video.versionChoisieId) return false;
   return commandeEnEssai((await depots().versions.obtenir(video.versionChoisieId))?.commande);
 }
 
