@@ -6,10 +6,10 @@
  * Rouge sans le lot : recette APP-C → aucune carte éteinte (fantôme) au début de la toile.
  */
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe as decrire, expect, it, vi } from "vitest";
 import type { CodeVariante, RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
@@ -26,7 +26,22 @@ import { Toile } from "../../../studio-rendu/compositions/image-video/Toile";
 import { ContexteVariete } from "../../../studio-rendu/compositions/image-video/variete/ContexteVariete";
 import { invariantsVarieteIV } from "./invariants";
 
-const exiger = createRequire(join(process.cwd(), "studio-rendu/package.json"));
+/**
+ * Dépendances de `studio-rendu` (hors espace de travail pnpm). Les jobs CI « tests des fichiers touchés » et « tests des nouveaux
+ * fichiers de test » ne les installent pas (seuls tests-cibles et gv-tests-moteurs le font) : sans elles, `remotion` est introuvable et le
+ * FICHIER ne se charge pas. On le rend alors chargeable (stub inerte) et la suite est sautée ; avec les dépendances, rien ne change.
+ */
+const DEPS_RENDU = existsSync(join(process.cwd(), "studio-rendu/node_modules/remotion/package.json"));
+vi.mock("remotion", async () => {
+  if (existsSync(join(process.cwd(), "studio-rendu/node_modules/remotion/package.json"))) {
+    const exiger = createRequire(join(process.cwd(), "studio-rendu/package.json"));
+    return await import(/* @vite-ignore */ exiger.resolve("remotion"));
+  }
+  return new Proxy({ __esModule: true }, { get: (cible, nom) => (nom === "then" ? undefined : nom in cible ? (cible as Record<string | symbol, unknown>)[nom] : () => null) });
+});
+const describe = Object.assign((nom: string, fn: () => void) => decrire.skipIf(!DEPS_RENDU)(nom, fn), decrire);
+
+const exiger = createRequire(join(process.cwd(), DEPS_RENDU ? "studio-rendu/package.json" : "package.json"));
 const { createElement } = exiger("react") as typeof import("react");
 const { renderToStaticMarkup } = exiger("react-dom/server") as typeof import("react-dom/server");
 
