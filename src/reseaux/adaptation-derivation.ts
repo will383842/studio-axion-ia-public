@@ -9,6 +9,7 @@ import { adaptationsActives, segmentsFacultatifsRetenus } from "./adaptations";
 import { ecritureReseau } from "./ecriture";
 import type { ReseauDeclinaison } from "@/domaine/types";
 
+// Pinterest volontairement absent : une épingle n'est pas une vidéo dérivée.
 const RESEAUX: readonly string[] = ["tiktok", "instagram", "facebook", "linkedin", "youtube-shorts"];
 
 export function adapterBlocsDuCorps(e: { actif: unknown; blocs: BlocScript[]; reseau: string; formatId: string; estCollee: boolean; dureeTexte: (texte: string) => number; /** Durée de l'ouverture et de la fin (le plafond porte sur TOUTE la vidéo). */ dureeHorsCorpsSec?: number }): BlocScript[] {

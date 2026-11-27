@@ -4,6 +4,7 @@
  * Un format refusé n'empêche jamais l'ajout : l'appelant garde la publication en brouillon et affiche la raison.
  */
 import type { IdReseau, Ratio } from "@/domaine/types";
+import { nomDuReseau } from "@/reseaux/hors-video";
 
 export type TypeMedia = "video" | "image" | "pdf";
 const Mo = 1024 * 1024;
@@ -28,9 +29,10 @@ export const LIMITES_FORMAT: Record<IdReseau, LimitesReseau> = {
   tiktok: { video: { mimes: VIDEO_MP4, tailleMax: 4 * Go } },
   youtube: { video: { mimes: VIDEO_MP4, tailleMax: 4 * Go } },
   "youtube-shorts": { video: { mimes: VIDEO_MP4, tailleMax: 4 * Go, dureeMaxSec: 180 } },
+  // Pinterest : une épingle = une image (ADR-0015 D10), jamais de vidéo.
+  pinterest: { image: { mimes: ["image/jpeg", "image/png", "image/webp"], tailleMax: 20 * Mo } },
 };
 
-const NOM_RESEAU: Record<IdReseau, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts" };
 const NOM_TYPE: Record<TypeMedia, string> = { video: "la vidéo", image: "l'image", pdf: "le PDF" };
 
 export interface MediaDecrit {
@@ -54,7 +56,7 @@ function libelleTaille(octets: number): string {
 }
 
 export function verifierFormat(reseau: IdReseau, media: MediaDecrit): ResultatFormat {
-  const nom = NOM_RESEAU[reseau] ?? String(reseau);
+  const nom = nomDuReseau(reseau);
   const type = typeDuMime(media.mime);
   if (!type) return { ok: false, raison: "Ce fichier n'est ni une vidéo, ni une image, ni un PDF : le format n'est pas reconnu." };
   if (!Number.isFinite(media.taille) || media.taille <= 0) return { ok: false, raison: "Ce fichier semble vide : il n'a pas été reçu en entier." };

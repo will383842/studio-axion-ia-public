@@ -3,6 +3,7 @@
  * Principe de /videos/a-ranger, sans le modifier. Tout est injecté (dépôt, verrou) : aucun appel réel ici.
  * Rejouer le même rangement ne change rien ; un contenu déjà rangé sous un autre réseau n'est jamais écrasé.
  */
+import { RESEAUX_VISUEL_ENVOI } from "@/domaine/reseaux-visuel-envoi";
 import type { Reseau } from "@/briques/visuels/reseaux";
 import type { Depot } from "@/domaine/depots";
 import type { Visuel } from "@/domaine/visuels/visuel";
@@ -23,7 +24,7 @@ export interface ContenuARanger {
 export type ResultatRangement = { ok: true; deja: boolean } | { ok: false; code: "INTROUVABLE" | "RESEAU_INVALIDE" | "DEJA_RANGE"; message: string };
 
 /** Réseaux d'un carrousel ou d'une image (les vidéos ont leur propre écran). */
-export const RESEAUX_RANGEMENT: readonly Reseau[] = ["linkedin", "instagram", "facebook"];
+export const RESEAUX_RANGEMENT: readonly Reseau[] = RESEAUX_VISUEL_ENVOI;
 
 const sansReseau = (v: Visuel) => !v.corbeilleLe && (v.reseaux ?? []).length === 0;
 

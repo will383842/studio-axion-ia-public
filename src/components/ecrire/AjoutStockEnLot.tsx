@@ -19,6 +19,9 @@ const PRIORITES: { valeur: PrioriteStock; libelle: string }[] = [
  * Collez plusieurs messages séparés par une ligne vide (ou une ligne de tirets) : ils sont ajoutés au stock d'un geste.
  * L'enregistrement est confié à `onAjouter` ; les doublons exacts sont signalés et ne sont pas ajoutés.
  */
+// Pinterest volontairement absent : une épingle ne naît que par l'import.
+const RESEAUX_STOCK = RESEAUX_TAXONOMIE.filter((r) => r !== "pinterest");
+
 export function AjoutStockEnLot({ existantes, onAjouter }: { existantes: MessageStock[]; onAjouter: (entrees: MessageStock[]) => Promise<void> }) {
   const [texte, setTexte] = useState("");
   const [reseaux, setReseaux] = useState<IdReseau[]>([]);
@@ -58,7 +61,7 @@ export function AjoutStockEnLot({ existantes, onAjouter }: { existantes: Message
       </label>
       <fieldset className="mt-3">
         <legend>Réseaux par défaut (modifiables ensuite)</legend>
-        {RESEAUX_TAXONOMIE.map((r) => (
+        {RESEAUX_STOCK.map((r) => (
           <label key={r} className="mr-3">
             <input type="checkbox" checked={reseaux.includes(r)} onChange={(ev) => setReseaux(ev.target.checked ? [...reseaux, r] : reseaux.filter((x) => x !== r))} /> {NOMS_RESEAUX[r] ?? r}
           </label>

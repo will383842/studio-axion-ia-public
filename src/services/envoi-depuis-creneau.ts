@@ -16,7 +16,7 @@ import type { Depot } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { CLE_DIFFUSEUR } from "@/domaine/envoi-planifie";
 import { STATUTS_CRENEAU_ENVOYABLES } from "@/domaine/plan-editorial/envoyable";
-import type { ReseauDeclinaison } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 import { CODES_AVANT_RESEAU, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, enteteIdempotenceStudio } from "@/fournisseurs/publication/zernio-client";
 import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
@@ -34,7 +34,7 @@ export interface CreneauCalendrier {
   videoId: string;
   /** Absent = vidéo. */
   nature?: "video" | "visuel";
-  reseau: ReseauDeclinaison;
+  reseau: ReseauEnvoiCreneau;
   versionCreneau: number;
   /** AAAA-MM-JJ, heure de Paris. */
   jour: string;
@@ -56,7 +56,7 @@ export interface DemandeBrouillonCreneau {
   nature?: "video" | "visuel";
   /** Le créneau du plan d'origine. */
   creneauId?: string;
-  reseau: ReseauDeclinaison;
+  reseau: ReseauEnvoiCreneau;
   dateIso: string;
   texte: string;
   premierCommentaire?: string;
