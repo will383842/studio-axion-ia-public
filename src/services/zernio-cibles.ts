@@ -15,7 +15,7 @@ import { journaliserEnvoi } from "./journal-envoi";
 export type CiblesZernio = { ok: true; canaux: CanalPublication[] } | { ok: false; code: "CIBLE_ABSENTE" | "CIBLE_INCONNUE" | "CIBLE_AMBIGUE"; message: string };
 
 /** Réseaux dont la cible doit être choisie à la main : plusieurs pages ou profils sous un même compte. */
-const CIBLE_EXPLICITE: readonly string[] = ["facebook", "linkedin"];
+export const CIBLE_EXPLICITE: readonly string[] = ["facebook", "linkedin", "pinterest"];
 
 export async function ciblesZernioPour(service: FournisseurPublication, reseau: IdReseau, choisies?: string[]): Promise<CiblesZernio> {
   const c = await ciblesZernioPourInterne(service, reseau, choisies);
@@ -43,11 +43,13 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
     const organisations = disponibles.filter((c) => c.genre === "page");
     if (organisations.length === 1) return { ok: true, canaux: organisations };
   }
-  // Rien de choisi : jamais pour Facebook (aucune page par défaut) ; ailleurs, seulement s'il n'y a qu'un compte.
+  // Rien de choisi : jamais pour Facebook ni Pinterest (aucune page ni aucun tableau par défaut) ; ailleurs, seulement s'il n'y a qu'un compte.
   if (CIBLE_EXPLICITE.includes(plateforme)) {
     const noms = disponibles.map((c) => `« ${c.nom} »`);
-    const aCocher = noms.length ? ` Pages ou profils reliés à Zernio : ${noms.join(", ")}.` : "";
-    return { ok: false, code: "CIBLE_ABSENTE", message: `Cochez la page ou le profil de destination (liste des comptes de la page) : aucune cible par défaut n'est utilisée.${aCocher}` };
+    const pinterest = plateforme === "pinterest";
+    const aCocher = noms.length ? ` ${pinterest ? "Pages, profils ou tableaux" : "Pages ou profils"} reliés à Zernio : ${noms.join(", ")}.` : "";
+    const quoi = pinterest ? "la page, le profil ou le tableau" : "la page ou le profil";
+    return { ok: false, code: "CIBLE_ABSENTE", message: `Cochez ${quoi} de destination (liste des comptes de la page) : aucune cible par défaut n'est utilisée.${aCocher}` };
   }
   if (disponibles.length === 1) return { ok: true, canaux: disponibles };
   if (!disponibles.length) return { ok: false, code: "CIBLE_ABSENTE", message: "Aucun compte relié à l'outil de publication pour ce réseau." };
