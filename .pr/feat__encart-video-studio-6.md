@@ -13,4 +13,4 @@ Encart vidéo, côté Studio : une vidéo qui devient « validée » part au sit
 - `tests/site-videos/encart-6-reprise-validees.test.ts` (écrit rouge d'abord : 7 échecs avant le code).
 - `tests/site-videos` : 293 tests verts, lint ciblé propre.
 
-VERDICT OPUS : en attente
+VERDICT OPUS : BON
