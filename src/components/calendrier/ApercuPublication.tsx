@@ -14,7 +14,7 @@ import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { MonogrammeReseau, estBrouillonDiffuseur, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { MonogrammeReseau, estBrouillonDiffuseur, typeAffiche, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ENVOI, PHRASE_LECTURE_SEULE_DIFFUSEUR, adresseDiffuseurSure, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
@@ -85,7 +85,7 @@ const BOUTON = "min-h-[38px] rounded-[10px] border border-trait-fort bg-surface-
 export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante, onFermer, onChangerDate, message, tonMessage = "alerte", mots }: ProprietesApercuPublication): ReactNode {
   if (!entree) return null;
   const a = apercuReseau(entree, aujourdhui);
-  const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
+  const type = typeAffiche(entree.reseau, entree.type);
   const nom = a.nomReseau;
   // Retrait : seulement une publication de carrousel « programmée », à venir (le serveur refuse le reste).
   // CAL-23 : une entrée de créneau programmée (chez le diffuseur) se retire par l'action de CAL-22 ; l'ancien geste local reste pour les autres.

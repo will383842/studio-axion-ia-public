@@ -84,8 +84,8 @@ const RELEVE_L8_01 = "2026-11-12";
 const SOURCE_RELEVE = "Relevé des règles des réseaux (L8-01)";
 const SOURCE_REGISTRE = "Valeur de départ du studio, pas encore vérifiée auprès du réseau";
 
-/** Pinterest : le nombre de mots-dièses n'est pas vérifié (LIMITES_MOTS_DIESES.pinterest = inconnu) ; la valeur reste une valeur de départ. */
-const SOURCE_NON_VERIFIEE_PINTEREST = "Non vérifiée : la limite de mots-dièses de Pinterest est inconnue, valeur de départ du studio";
+/** Pinterest : la limite de mots-dièses de la plateforme n'est pas sourcée (LIMITES_MOTS_DIESES.pinterest = inconnu) ; notre règle est d'en mettre 0 (hors-video.ts). */
+const SOURCE_NON_VERIFIEE_PINTEREST = "Non vérifiée : la limite de mots-dièses de Pinterest est inconnue ; le studio n'en met aucun (valeur de départ)";
 
 function reglesDeDepart(id: IdReseau): ReglesReseau {
   const legende = definitionAffichage(id).legende;

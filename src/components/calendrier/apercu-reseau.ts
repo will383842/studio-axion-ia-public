@@ -5,7 +5,7 @@
  */
 import type { TableLibelles } from "./PastilleStatutPlan";
 import { etatDepuisStatut } from "./PastilleStatutPlan";
-import { TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, trierEntrees, type TypeContenu } from "./CarteEntreeCalendrier";
+import { TYPES_CONTENU, typeAffiche, heureLisible, jourLisible, nomReseau, reseauConnu, trierEntrees, type TypeContenu } from "./CarteEntreeCalendrier";
 import { PHRASES_VERROU, lireCleFiche, phraseEtat, sansPremierCommentaire, verrouFiche, type EntreeFiche, type RaisonVerrou } from "./FicheEntree";
 import { cleJour, heure as heureDeParis } from "@/lib/dates";
 import { RESEAUX } from "@/reseaux";
@@ -78,6 +78,7 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
   facebook: "texte-dessus",
   instagram: "media-dessus",
   tiktok: "legende-sur-media",
+  pinterest: "media-dessus",
 };
 
 export interface ApercuReseau {
@@ -149,7 +150,7 @@ export function apercuReseau(entree: EntreeApercu, aujourdhui: string): ApercuRe
   return {
     nomReseau: reseauConnu(entree.reseau) ? nomReseau(entree.reseau) : "Réseau",
     disposition: DISPOSITIONS[entree.reseau] ?? "texte-dessus",
-    formatLibelle: [type?.libelle ?? "Publication", ratio].filter(Boolean).join(" · "),
+    formatLibelle: [(type ? typeAffiche(entree.reseau, entree.type as TypeContenu).libelle : "Publication"), ratio].filter(Boolean).join(" · "),
     texte,
     hashtags: extraireHashtags(texte),
     premierCommentaire,
