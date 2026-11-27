@@ -11,7 +11,7 @@ import { envoyerFichier, MESSAGE_ENVOI_RATE } from "@/lib/envoi-multipart";
 import { ApercuEpingle } from "@/components/visuels/ApercuEpingle";
 
 /** Images acceptées pour une épingle (mêmes formats que le lot : nom « .jpg », « .png » ou « .webp »). */
-const IMAGE_EPINGLE = /.(jpe?g|png|webp)$/i;
+const IMAGE_EPINGLE = /\.(jpe?g|png|webp)$/i;
 
 const LIBELLES = { pret: "Prête", refusee: "Refusée", "deja-la": "Déjà là", "attente-image": "En attente d'image" } as const;
 
