@@ -13,4 +13,4 @@ Dépendance : à fusionner après la PR 2 (routes alignées), sinon le retrait d
 - `tests/site-videos`, `corbeille`, `correctifs`, `fiche-video-statut-usine`, `verification-transversale` : verts. Un test, `e2e1-console-services` n° 17 (recherche de personnages), échoue déjà sur `master`, sans lien avec cette PR.
 - Lint ciblé propre.
 
-VERDICT OPUS : en attente
+VERDICT OPUS : BON
