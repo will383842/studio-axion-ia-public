@@ -1069,8 +1069,6 @@ export async function estimerRetoucheVideo(videoId: Id, planIds: Id[], operation
   if (!video || !courante) throw new ErreurStudio("INTROUVABLE", "Aucune version à retoucher.");
   // Vidéo importée : aucun plan, et le moteur de repli serait la simulation. Refus AVANT tout (rien n'est payé ni créé).
   if (estVideoImportee(video)) throw new ErreurStudio("RETOUCHE_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
-  // Vidéo importée : aucun plan, et le moteur de repli serait la simulation. Refus AVANT tout (rien n'est payé ni créé).
-  if (estVideoImportee(video)) throw new ErreurStudio("RETOUCHE_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
   if (!planIds.length) return { total: centimes(0), dureeSec: 0 };
   const ids = await plansDeLaCommande(courante.id, courante.commande, planIds);
   await preparerReglagesMoteur(courante.commande);
