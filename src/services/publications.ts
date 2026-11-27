@@ -2,7 +2,7 @@
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
 import "server-only";
-import { estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
+import { PINTEREST_TOUR_GENERAL, RESEAUX_VISUEL_ENVOI, estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, estRapatriee, sourceSure, videoIdSure } from "@/domaine/types";
 import { centimesUsd } from "@/fournisseurs/claude/tarifs";
 import { DELAI_TOTAL_MS } from "@/fournisseurs/claude/client";
@@ -51,7 +51,7 @@ import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
 import { BASE_PUBLIQUE } from "@/domaine/site-videos/contrat";
 import { lienDuSite } from "@/fournisseurs/publication/liens-du-site";
 import { construireDemandeVisuel, type FichierVisuel } from "./demande-publication-visuel";
-import { porteCalendrierPour } from "./essai-zernio";
+import { essaiCouvre, porteCalendrierPour } from "./essai-zernio";
 import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
 import { versCarte } from "./presentation";
@@ -1277,6 +1277,13 @@ export interface OptionsEnvoiVisuelCreneau {
   lireUrl?: (cle: string) => Promise<string>;
 }
 
+/** Pinterest : fermé par défaut. Il faut le tour général (constante de code, fermée) OU l'essai borné de CE créneau. Refus avant tout appel. */
+async function exigerPinterestOuvert(reseau: unknown, creneauId: string | undefined): Promise<void> {
+  if (reseau !== "pinterest" || PINTEREST_TOUR_GENERAL) return;
+  if (creneauId && (await essaiCouvre(creneauId, "brouillon").catch(() => false))) return;
+  throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "Pinterest n'est pas encore ouvert : rien n'est parti.");
+}
+
 /**
  * L5-02 · envoi d'un visuel depuis UN CRÉNEAU DU CALENDRIER : le créneau est relu en base (jamais fourni par l'appelant) et doit être
  * « valide » avec une validation datée lisible et passée, ni refusé ni retiré, pour CE visuel. La date, le compte et les textes
@@ -1340,6 +1347,8 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   if (v.modeTexte === "simulation") throw new ErreurStudio("VISUEL_ESSAI", "C'est un visuel d'essai (texte simulé) : il ne part pas sur vos réseaux.");
   // Une épingle ne part que sur Pinterest, et rien d'autre qu'une épingle n'y part.
   if ((v.famille === "epingle") !== (reseau === "pinterest")) throw new ErreurStudio("VISUEL_REFUSE", reseau === "pinterest" ? "Seule une épingle part sur Pinterest : rien n'est parti." : "Une épingle ne part que sur Pinterest : rien n'est parti.");
+  // Pinterest : tour général OU essai de ce créneau, sinon refus avant tout appel (le tour général du calendrier ne suffit pas : cette porte-ci tient seule).
+  await exigerPinterestOuvert(reseau, options.creneauId);
   const epingle = reseau === "pinterest" ? v.epingle : undefined;
   if (reseau === "pinterest" && !epingle) throw new ErreurStudio("VISUEL_REFUSE", "Cette épingle est incomplète : rien n'est parti.");
   // Le lien de l'épingle doit mener au site (réglage `site.domaine`, défaut : l'hôte public) : refus avant tout appel.

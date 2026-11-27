@@ -198,6 +198,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     const lignes: CreneauCalendrier[] = [];
     // Pinterest : une ligne n'existe que si le tour général est ouvert pour Pinterest, ou pour le seul créneau de l'essai borné.
     const essaiPinterest = (await lireEssai(maintenant()).catch(() => null))?.creneauId;
+    const essaiPinterestValable = async (id: string): Promise<boolean> => essaiPinterest === id && (await essaiCouvre(id, "brouillon", maintenant()).catch(() => false));
     let creationsPinterest = 0;
     const plan = (await depots().creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[];
     for (const c of plan) {
@@ -223,7 +224,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
           continue;
         }
         if (!estReseauVisuelEnvoi(reseau)) continue;
-        if (reseau === "pinterest" && !PINTEREST_TOUR_GENERAL && essaiPinterest !== c.id) continue;
+        if (reseau === "pinterest" && !PINTEREST_TOUR_GENERAL && !(await essaiPinterestValable(c.id))) continue;
         // a'. Version courante annulée (dévalidée puis revalidée) : jamais de refus silencieux, une seule notification.
         if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && e.statut === "annule")).length) {
           await exclu("annule", "Cette publication a été modifiée après une première préparation : elle ne partira pas seule à cette date. Pour qu'elle parte seule, décalez-la ; sinon, programmez-la dans l'outil de publication.");
@@ -264,8 +265,8 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       throw new ErreurStudio("RESEAU", "Ce créneau ne part pas seul depuis le calendrier : rien n'est envoyé.");
     }
     // Une épingle ne part que sur Pinterest, rien d'autre n'y part : refus AVANT de résoudre le fournisseur.
-    const visuelDemande = await depots().visuels.obtenir(d.videoId);
-    if (visuelDemande && (visuelDemande.famille === "epingle") !== (d.reseau === "pinterest")) {
+    const visuel = await depots().visuels.obtenir(d.videoId);
+    if (visuel && (visuel.famille === "epingle") !== (d.reseau === "pinterest")) {
       throw new ErreurStudio("VISUEL_REFUSE", d.reseau === "pinterest" ? "Seule une épingle part sur Pinterest : rien n'est parti." : "Une épingle ne part que sur Pinterest : rien n'est parti.");
     }
     let service: FournisseurPublication;
@@ -275,7 +276,6 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       throw new ErreurStudio("OUTIL_NON_RELIE", "L'outil de publication n'est pas relié : rien n'est envoyé.");
     }
     const reseau = d.reseau as ReseauVisuelEnvoi;
-    const visuel = await depots().visuels.obtenir(d.videoId);
     const textesAlternatifs = reseau === "linkedin" ? [] : reseau === "pinterest" ? (visuel?.epingle ? [visuel.epingle.texteAlternatif] : []) : textesAlternatifsDuVisuel(visuel?.spec?.alt, visuel?.rendu?.pages?.length ?? 0);
     // Délai maximal : un appel qui ne rend jamais la main ne bloque pas les tours suivants ; l'erreur (code inconnu) = « à vérifier », jamais un renvoi.
     let minuteur: ReturnType<typeof setTimeout> | undefined;
