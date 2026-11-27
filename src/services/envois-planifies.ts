@@ -5,11 +5,12 @@
 import "server-only";
 import type { Depot } from "@/domaine/depots";
 import { CLE_DIFFUSEUR, cleEnvoi, cleEnvoiCreneau, peutTransiter, type EnvoiPlanifie, type StatutEnvoi } from "@/domaine/envoi-planifie";
-import type { Id, ReseauDeclinaison } from "@/domaine/types";
+import type { Id } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 
 export interface DemandeEnvoi {
   videoId: Id;
-  reseau: ReseauDeclinaison;
+  reseau: ReseauEnvoiCreneau;
   versionCreneau: number;
   jour: string;
   heure?: string;
@@ -36,7 +37,7 @@ async function lire(d: Depot<EnvoiPlanifie>, id: Id): Promise<EnvoiPlanifie> {
  */
 export async function resoudreCleEnvoi(
   depot: { obtenir(id: Id): Promise<EnvoiPlanifie | null | undefined> },
-  d: { videoId: Id; reseau: ReseauDeclinaison; versionCreneau: number; creneauId?: string },
+  d: { videoId: Id; reseau: ReseauEnvoiCreneau; versionCreneau: number; creneauId?: string },
 ): Promise<string> {
   const ancienne = cleEnvoi(d.videoId, d.reseau, d.versionCreneau);
   if (!d.creneauId) return ancienne;

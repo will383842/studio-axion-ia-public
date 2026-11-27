@@ -2,6 +2,7 @@
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
 import "server-only";
+import { estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, estRapatriee, sourceSure, videoIdSure } from "@/domaine/types";
 import { centimesUsd } from "@/fournisseurs/claude/tarifs";
 import { DELAI_TOTAL_MS } from "@/fournisseurs/claude/client";
@@ -1250,7 +1251,7 @@ export function resumeRefus(problemes: ProblemeEnvoi[]): string {
 }
 
 /** Réseaux où un visuel (carrousel, infographie) peut partir depuis le créneau : LinkedIn en document PDF, Instagram et Facebook en images. */
-export type ReseauVisuelEnvoi = "linkedin" | "instagram" | "facebook";
+export type { ReseauVisuelEnvoi };
 
 export interface OptionsEnvoiVisuel {
   /** Compte de destination chez le diffuseur (obligatoire, relu dans la liste des comptes reliés). */
@@ -1321,7 +1322,7 @@ async function urlVisuelParDefaut(cle: string): Promise<string> {
 async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuel): Promise<{ publication: Publication; deja: boolean }> {
   // Sans identifiant de créneau (appelants hors calendrier) : porte générale seule.
   if (!(await porteCalendrierPour(options.creneauId))) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
-  if (!(reseau in PROFILS_RESEAUX) || !["linkedin", "instagram", "facebook"].includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
+  if (!(reseau in PROFILS_RESEAUX) || !estReseauVisuelEnvoi(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   if (!options.cible?.trim()) throw new ErreurStudio("CIBLE_ZERNIO", "Choisissez le compte de destination : rien n'est parti.");
   // Aucun appel au diffuseur, même en brouillon, sans validation datée du créneau (lisible et passée).
   const validee = typeof options.valideeLe === "string" && options.valideeLe ? Date.parse(options.valideeLe) : NaN;
