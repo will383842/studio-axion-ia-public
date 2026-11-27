@@ -30,7 +30,7 @@ const PARAM_MODES = "zernio.mode_envoi";
 const PARAM_BASCULES = "zernio.bascules";
 const PARAM_TESTS = "zernio.tests";
 const PARAM_BUDGET = "zernio.budget_info";
-const RESEAUX_CONNUS: readonly IdReseau[] = ["instagram", "facebook", "linkedin", "tiktok"];
+const RESEAUX_CONNUS: readonly IdReseau[] = ["instagram", "facebook", "linkedin", "tiktok", "pinterest"];
 
 export interface CompteVue {
   /** Identifiant d'affichage (jamais l'identifiant du fournisseur). */
