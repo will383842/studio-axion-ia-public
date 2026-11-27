@@ -46,8 +46,10 @@ async function ciblesZernioPourInterne(service: FournisseurPublication, reseau: 
   // Rien de choisi : jamais pour Facebook ni Pinterest (aucune page ni aucun tableau par défaut) ; ailleurs, seulement s'il n'y a qu'un compte.
   if (CIBLE_EXPLICITE.includes(plateforme)) {
     const noms = disponibles.map((c) => `« ${c.nom} »`);
-    const aCocher = noms.length ? ` Pages, profils ou tableaux reliés à Zernio : ${noms.join(", ")}.` : "";
-    return { ok: false, code: "CIBLE_ABSENTE", message: `Cochez la page, le profil ou le tableau de destination (liste des comptes de la page) : aucune cible par défaut n'est utilisée.${aCocher}` };
+    const pinterest = plateforme === "pinterest";
+    const aCocher = noms.length ? ` ${pinterest ? "Pages, profils ou tableaux" : "Pages ou profils"} reliés à Zernio : ${noms.join(", ")}.` : "";
+    const quoi = pinterest ? "la page, le profil ou le tableau" : "la page ou le profil";
+    return { ok: false, code: "CIBLE_ABSENTE", message: `Cochez ${quoi} de destination (liste des comptes de la page) : aucune cible par défaut n'est utilisée.${aCocher}` };
   }
   if (disponibles.length === 1) return { ok: true, canaux: disponibles };
   if (!disponibles.length) return { ok: false, code: "CIBLE_ABSENTE", message: "Aucun compte relié à l'outil de publication pour ce réseau." };
