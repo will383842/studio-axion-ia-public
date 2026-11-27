@@ -110,7 +110,11 @@ export function extraireHashtags(texte: string): string[] {
 
 const JOUR_DIT = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
+/** Ratio d'affichage d'une épingle : chaîne d'affichage, hors du type `Ratio` (qui ne décrit que des vidéos). */
+const RATIO_PINTEREST = "2:3";
+
 function ratioDuReseau(reseau: string): string {
+  if (reseau === "pinterest") return RATIO_PINTEREST;
   return RESEAUX.find((r) => r.id === reseau)?.ratioPrefere ?? "";
 }
 

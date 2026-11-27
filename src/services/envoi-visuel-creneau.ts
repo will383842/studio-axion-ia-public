@@ -10,10 +10,10 @@
 import type { FournisseurPublication } from "@/fournisseurs/types";
 import { creneauEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { depots, ErreurStudio, fournisseur } from "./_commun";
-import { envoyerVisuel, type ReseauVisuelEnvoi } from "./publications";
+import { envoyerVisuel } from "./publications";
+import { RESEAUX_VISUEL_ENVOI, estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { porteCalendrierPour } from "./essai-zernio";
 
-const RESEAUX_VISUELS: readonly ReseauVisuelEnvoi[] = ["linkedin", "instagram", "facebook"];
 const DUREE_LECTURE_SEC = 900;
 
 export interface OptionsEnvoiVisuelDuCreneau {
@@ -81,7 +81,7 @@ async function verifierFichiers(visuelId: string, reseau: ReseauVisuelEnvoi, o: 
 export async function envoyerVisuelDuCreneau(service: FournisseurPublication, creneauId: string, reseau: ReseauVisuelEnvoi, options: OptionsEnvoiVisuelDuCreneau = {}) {
   // Porte d'abord : fermée, illisible ou absente = rien n'est lu, rien n'est appelé. Générale, ou essai borné de CE créneau.
   if (!(await porteCalendrierPour(creneauId).catch(() => false))) throw FERME();
-  if (!RESEAUX_VISUELS.includes(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
+  if (!estReseauVisuelEnvoi(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
   if (!c || !creneauEnvoyable(c) || !c.visuelId || c.videoId) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas un créneau validé portant un visuel : rien n'est envoyé.");
   await verifierFichiers(c.visuelId, reseau, options);
@@ -96,7 +96,7 @@ export async function envoyerVisuelDuCreneauSurReseaux(service: FournisseurPubli
   if (!(await porteCalendrierPour(creneauId).catch(() => false))) throw FERME();
   const c = await depots().creneauxEditoriaux.obtenir(creneauId);
   if (!c) throw new ErreurStudio("CRENEAU_NON_VALIDE", "Ce créneau n'est pas un créneau validé portant un visuel : rien n'est envoyé.");
-  const reseaux = RESEAUX_VISUELS.filter((r) => c.heuresParReseau?.[r]);
+  const reseaux = RESEAUX_VISUEL_ENVOI.filter((r) => c.heuresParReseau?.[r]);
   const sorties: ResultatReseau[] = [];
   for (const reseau of reseaux) {
     try {

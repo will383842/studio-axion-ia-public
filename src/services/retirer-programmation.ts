@@ -12,6 +12,7 @@
  *  - « Annuler » dans les 10 secondes : un NOUVEAU créneau à la même date (version suivante, donc nouvelle clé d'idempotence), jamais deux.
  * Tout est injecté : aucun service serveur, aucun appel réel ici. Les trois réglages d'envoi doivent être ouverts pour tout appel au diffuseur.
  */
+import { nomDuReseau } from "@/reseaux/hors-video";
 import type { LotEcritures } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { transitionner } from "@/domaine/plan-editorial/statuts";
@@ -220,8 +221,7 @@ export async function retirerProgrammation(d: DepsRetrait, creneauId: string): P
   return { ok: true, etat: "retire", message: PHRASES_RETRAIT_PROGRAMMATION.retiree, creneauId: c.id, annulableJusquA: new Date(t + DELAI_ANNULER_RETRAIT_MS).toISOString() };
 }
 
-const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube" };
-const nomReseau = (r: string): string => NOMS_RESEAUX[r] ?? r;
+const nomReseau = (r: string): string => nomDuReseau(r);
 
 /** Retrait partiel : dit quels réseaux sont retirés et lesquels restent programmés (le message de base seul serait faux pour les premiers). */
 function avecPartiel(res: ResultatRetrait, retires: Set<string>, avecPost: EnvoiPlanifie[], variante?: "trop-proche" | "en-ligne"): ResultatRetrait {

@@ -12,8 +12,8 @@ export type TypeContenu = (typeof TYPES_CONTENU)[number];
 
 export const LIBELLES_TYPE_CONTENU: Readonly<Record<TypeContenu, string>> = { video: "Vidéo", image: "Image", carrousel: "Carrousel" };
 
-/** Les six réseaux du registre, dans l'ordre de la table de correspondance. */
-export const RESEAUX_TAXONOMIE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
+/** Les six réseaux du registre vidéo + Pinterest (registre d'affichage `reseaux/hors-video.ts`), dans l'ordre de la table de correspondance. */
+export const RESEAUX_TAXONOMIE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts", "pinterest"];
 
 /** Thèmes : exactement les 12 types du ciblage (un test garde la non-divergence). */
 export const THEMES_CONTENU: readonly { id: TypeAutomatisation; libelle: string }[] = TYPES_AUTOMATISATION.map((t) => ({ id: t.id, libelle: t.libelle }));

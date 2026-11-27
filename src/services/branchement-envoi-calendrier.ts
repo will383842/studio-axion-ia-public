@@ -17,13 +17,15 @@
  *     `garde-creneau-diffuseur.ts` : un décalage ou une modification du texte ne passe plus entre la relecture et le PUT.
  */
 import "server-only";
+import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { cleEnvoi } from "@/domaine/envoi-planifie";
 import { creneauEnvoyable } from "@/domaine/plan-editorial/envoyable";
 import { heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
-import type { Publication, ReseauDeclinaison } from "@/domaine/types";
+import type { Publication } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 import { fournisseurParId } from "@/fournisseurs";
 import { CODES_AVANT_RESEAU, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
@@ -44,7 +46,6 @@ export const INTERVALLE_TOUR_ENVOIS_MS = 5 * 60_000;
 /** Préfixe des états durables (paramètres existants : aucune table neuve, aucune migration). */
 export const PREFIXE_ETATS_ENVOI_CALENDRIER = "envoi-calendrier:";
 
-const RESEAUX_VISUELS: readonly ReseauDeclinaison[] = ["linkedin", "instagram", "facebook"];
 const ALT_MAX = 125;
 export const DELAI_ENVOI_MAX_MS = 90_000;
 
@@ -99,7 +100,7 @@ const etatsParametres: EtatsPromotion = {
  * État d'envoi d'un créneau sur un réseau, pour l'affichage (lecture seule, ne lève jamais) :
  * `aCompleter` quand le texte du réseau est vide, `dernierRefus` quand un refus a été gardé pour la version courante.
  */
-export async function etatEnvoiDuCreneau(c: CreneauEditorial, reseau: ReseauDeclinaison): Promise<{ aCompleter?: string; dernierRefus?: { raison: string; le: string } }> {
+export async function etatEnvoiDuCreneau(c: CreneauEditorial, reseau: ReseauEnvoiCreneau): Promise<{ aCompleter?: string; dernierRefus?: { raison: string; le: string } }> {
   try {
     const media = c.videoId ?? c.visuelId;
     const sortie: { aCompleter?: string; dernierRefus?: { raison: string; le: string } } = {};
@@ -143,7 +144,7 @@ async function notifierUneFois(etats: EtatsPromotion, notifier: (n: Notification
 }
 
 /** Les publications qui occupent déjà ce compte sur ce réseau (toute date, tout outil), hors notre propre brouillon de cette version. */
-async function occupantsDuCompte(c: CreneauEditorial, media: string, reseau: ReseauDeclinaison, version: number): Promise<Publication[]> {
+async function occupantsDuCompte(c: CreneauEditorial, media: string, reseau: ReseauEnvoiCreneau, version: number): Promise<Publication[]> {
   const siennes = (await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === version)).map((e) => e.cleDiffuseur).filter((k): k is string => typeof k === "string");
   const occupantes = await depots().publications.lister(
     (p) => (p.videoId === media || p.visuelId === media) && p.reseau === reseau && (estCompteParDefaut(c.compteCible) || !p.canalId || p.canalId === c.compteCible) && occupeBuffer(p),
@@ -158,7 +159,7 @@ const jjmm = (jour: string | undefined, heure: string | undefined): string | und
 };
 
 /** Le texte de l'exclusion « occupe », selon la publication qui occupe le compte (L5-02d). Le motif et la clé d'état ne changent pas. */
-async function messageOccupe(c: CreneauEditorial, reseau: ReseauDeclinaison, occupants: Publication[], etats: EtatsPromotion): Promise<string> {
+async function messageOccupe(c: CreneauEditorial, reseau: ReseauEnvoiCreneau, occupants: Publication[], etats: EtatsPromotion): Promise<string> {
   const anciennes = await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau < c.decalages);
   const ancienne = anciennes.sort((a, b) => b.versionCreneau - a.versionCreneau).find((e) => typeof e.cleDiffuseur === "string" && occupants.some((p) => p.cleEnvoi === e.cleDiffuseur));
   if (!ancienne) {
@@ -201,7 +202,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
       const media = c.videoId ?? c.visuelId;
       if (!media) continue;
       const estVideo = !!c.videoId;
-      for (const reseau of Object.keys(c.heuresParReseau ?? {}) as ReseauDeclinaison[]) {
+      for (const reseau of Object.keys(c.heuresParReseau ?? {}) as ReseauEnvoiCreneau[]) {
         const instant = c.heuresParReseau[reseau];
         if (typeof instant !== "string" || !Number.isFinite(Date.parse(instant))) continue;
         // Un créneau déjà passé n'a aucune ligne : au premier allumage, l'historique ne remplit pas la cloche.
@@ -216,7 +217,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
           await exclu("video", "Une vidéo ne part pas seule depuis le calendrier pour l'instant : rien n'est envoyé. Elle suit son propre parcours.");
           continue;
         }
-        if (!RESEAUX_VISUELS.includes(reseau)) continue;
+        if (!estReseauVisuelEnvoi(reseau)) continue;
         // a'. Version courante annulée (dévalidée puis revalidée) : jamais de refus silencieux, une seule notification.
         if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && e.statut === "annule")).length) {
           await exclu("annule", "Cette publication a été modifiée après une première préparation : elle ne partira pas seule à cette date. Pour qu'elle parte seule, décalez-la ; sinon, programmez-la dans l'outil de publication.");
@@ -250,7 +251,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
 
   /** Adaptateur : un visuel par `envoyerVisuelDuCreneau` (L5-21) ; la vidéo n'a pas de branche en V1. */
   async function envoyerReel(_outil: "zernio", d: DemandeBrouillonCreneau): Promise<{ cleDiffuseur: string } | void> {
-    if (d.nature !== "visuel" || !d.creneauId || !RESEAUX_VISUELS.includes(d.reseau as ReseauDeclinaison) || d.reseau === "tiktok") {
+    if (d.nature !== "visuel" || !d.creneauId || !estReseauVisuelEnvoi(d.reseau)) {
       throw new ErreurStudio("RESEAU", "Ce créneau ne part pas seul depuis le calendrier : rien n'est envoyé.");
     }
     let service: FournisseurPublication;

@@ -18,6 +18,7 @@
  *  - chaque déplacement écrit sa ligne du journal des décalages (ancien et nouveau jour), comme L4-06.
  * Tout est injecté : aucun service serveur, aucun appel réel, aucun fournisseur importé ici.
  */
+import { nomDuReseau } from "@/reseaux/hors-video";
 import { verifierSaisie } from "@/components/calendrier/FicheEntree";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { LotEcritures } from "@/domaine/depots";
@@ -120,8 +121,7 @@ export const PHRASES_DEPLACEMENT = {
 
 const ETATS_FIN_ENVOI = new Set(["envoye", "a-envoyer"]);
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
-const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube" };
-const nomReseau = (r: string): string => NOMS_RESEAUX[r] ?? r;
+const nomReseau = (r: string): string => nomDuReseau(r);
 const instants = (c: CreneauPlan): number[] => Object.values(c.heuresParReseau ?? {}).filter((h): h is string => typeof h === "string").map((h) => Date.parse(h));
 const jourExiste = (j: string): boolean => {
   if (!JOUR.test(j)) return false;

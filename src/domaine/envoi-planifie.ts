@@ -3,7 +3,8 @@
  * Rien ne part sans la validation du fondateur : `programme` ne mène jamais directement à `a-envoyer`,
  * il faut passer par `confirme` (geste explicite). Aucun envoi réel ici : ce module ne fait que décrire l'état.
  */
-import type { EntiteBase, DateIso, Id, ReseauDeclinaison } from "./types";
+import type { EntiteBase, DateIso, Id } from "./types";
+import type { ReseauEnvoiCreneau } from "./reseaux-visuel-envoi";
 
 export type StatutEnvoi = "brouillon" | "valide" | "programme" | "confirme" | "a-envoyer" | "envoye" | "echec" | "annule";
 
@@ -30,7 +31,7 @@ export interface EnvoiPlanifie extends EntiteBase {
   creneauId?: string;
   /** Clé de 64 signes hexadécimaux réellement envoyée au diffuseur en `metadata.studioCle` (= `Publication.cleEnvoi`) ; jamais recalculée. */
   cleDiffuseur?: string;
-  reseau: ReseauDeclinaison;
+  reseau: ReseauEnvoiCreneau;
   versionCreneau: number;
   /** AAAA-MM-JJ, heure de Paris. */
   jour: string;
@@ -47,12 +48,12 @@ export interface EnvoiPlanifie extends EntiteBase {
 /** Forme de la clé du diffuseur : sha256 en hexadécimal minuscule. */
 export const CLE_DIFFUSEUR = /^[0-9a-f]{64}$/;
 
-export function cleEnvoi(videoId: Id, reseau: ReseauDeclinaison, versionCreneau: number): string {
+export function cleEnvoi(videoId: Id, reseau: ReseauEnvoiCreneau, versionCreneau: number): string {
   return `envoi:${videoId}:${reseau}:v${versionCreneau}`;
 }
 
 /** Clé propre à UN créneau : utilisée quand la clé ancienne appartient déjà à un autre créneau. */
-export function cleEnvoiCreneau(videoId: Id, reseau: ReseauDeclinaison, versionCreneau: number, creneauId: string): string {
+export function cleEnvoiCreneau(videoId: Id, reseau: ReseauEnvoiCreneau, versionCreneau: number, creneauId: string): string {
   return `${cleEnvoi(videoId, reseau, versionCreneau)}:${creneauId}`;
 }
 

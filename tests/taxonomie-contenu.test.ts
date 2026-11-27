@@ -4,6 +4,7 @@ import { STATUTS_VISUEL } from "@/domaine/visuels/statuts";
 import type { StatutVideo } from "@/domaine/types";
 import { motsInterditsEnvoi } from "@/fournisseurs/publication/mots-interdits-envoi";
 import { RESEAUX } from "@/reseaux";
+import { RESEAUX_HORS_VIDEO } from "@/reseaux/hors-video";
 import { RESEAUX_TAXONOMIE, STATUTS_COMMUNS, THEMES_CONTENU, TYPES_CONTENU, libelleStatutCommun, projeterStatutVideo, projeterStatutVisuel } from "@/domaine/taxonomie-contenu";
 
 const STATUTS_VIDEO: StatutVideo[] = ["brouillon", "maquette", "en_file", "en_fabrication", "prete", "echec", "annulee", "archivee"];
@@ -14,9 +15,9 @@ describe("taxonomie du contenu", () => {
     expect(THEMES_CONTENU.map((t) => t.id)).toEqual(TYPES_AUTOMATISATION.map((t) => t.id));
     expect(THEMES_CONTENU.map((t) => t.libelle)).toEqual(TYPES_AUTOMATISATION.map((t) => t.libelle));
   });
-  it("liste 3 types de contenu et les 6 réseaux du registre", () => {
+  it("liste 3 types de contenu et les réseaux du registre vidéo + du registre d'affichage (Pinterest)", () => {
     expect([...TYPES_CONTENU]).toEqual(["video", "image", "carrousel"]);
-    expect([...RESEAUX_TAXONOMIE].sort()).toEqual(RESEAUX.map((r) => r.id).sort());
+    expect([...RESEAUX_TAXONOMIE].sort()).toEqual([...RESEAUX.map((r) => r.id), ...RESEAUX_HORS_VIDEO.map((r) => r.id)].sort());
   });
   it("projette chaque statut visuel", () => {
     for (const s of STATUTS_VISUEL) expect(STATUTS_COMMUNS).toContain(projeterStatutVisuel(s));
