@@ -1,5 +1,6 @@
 {
-  "versionContrat": 1,
+  "schemaVersion": 1,
+  "luLe": "2025-10-18T10:00:00.000Z",
   "certifexempleCertificationObtenue": false,
   "avisPublies": false
 }
