@@ -4,8 +4,8 @@
  * CommandeFabrication versionnée (contrat v2). Un moteur ne lit que la commande.
  * Le moteur est FIGÉ au lancement (`commande.moteurId`) : tout travail lancé lit `moteurDeCommande`.
  */
-import { estVideoImportee, IMPORTEE_PAS_REFABRICABLE } from "@/domaine/import-video-externe";
 import "server-only";
+import { estVideoImportee, IMPORTEE_PAS_REFABRICABLE } from "@/domaine/import-video-externe";
 import type {
   CommandeFabrication,
   DistributionResolue,
