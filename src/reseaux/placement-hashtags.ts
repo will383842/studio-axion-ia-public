@@ -8,6 +8,7 @@
  */
 import type { IdReseau } from "@/domaine/types";
 import { ecritureReseau } from "./ecriture";
+import { definitionAffichage } from "./hors-video";
 import { estInterdit, limiteMotsDieses } from "./hashtags";
 import { premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
@@ -84,6 +85,11 @@ export function premierCommentairePossible(reseau: IdReseau, outil: OutilPlaceme
 }
 
 function bornes(reseau: IdReseau): [number, number] {
+  // Pinterest : pas de règle d'écriture datée (`ecritureReseau` ne décrit que les réseaux de déclinaison) ; bornes d'affichage.
+  if (reseau === "pinterest") {
+    const { motsDieseConseilles, motsDieseMax } = definitionAffichage(reseau).legende;
+    return [motsDieseConseilles, motsDieseMax];
+  }
   const hors = reseau === "youtube" ? "youtube-shorts" : reseau;
   const [min, max] = ecritureReseau(hors).motsDiese.valeur;
   const limite = limiteMotsDieses(reseau);

@@ -25,6 +25,7 @@ const SERVICE_HISTORIQUE: Readonly<Record<IdReseau, string>> = {
   tiktok: "tiktok",
   youtube: "youtube",
   "youtube-shorts": "youtube",
+  pinterest: "pinterest",
 };
 
 /** Service d'un réseau du studio chez l'ancien outil (lecture des comptes et de l'historique). */

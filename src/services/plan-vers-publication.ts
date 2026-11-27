@@ -4,6 +4,7 @@
  * rien ne part : l'envoi reste décidé ailleurs, par le fondateur.
  * Les transitions (visuel et créneau) sont portées par L1-04 et L1-08 ; ce module ne fait que les appeler.
  */
+import { nomDuReseau } from "@/reseaux/hors-video";
 import "server-only";
 import type { Depot, LotEcritures } from "@/domaine/depots";
 import { heureAffichageParis, transitionner } from "@/domaine/plan-editorial/statuts";
@@ -11,7 +12,7 @@ import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { resoudreCleEnvoi } from "@/services/envois-planifies";
 import type { Evenement, Publication } from "@/domaine/types";
 import { cleJour } from "@/lib/dates";
-import type { ReseauDeclinaison } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import { transitionPermise } from "@/domaine/visuels/statuts";
 import { changerStatut, estConfie, identifiantsProgrammation, peutProgrammer, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
@@ -49,9 +50,14 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   }
 
   const lignes = identifiantsProgrammation(c);
+  // Pinterest n'est pas programmable depuis ce chemin : un créneau qui ne vise QUE Pinterest est refusé (rien d'écrit, aucun
+  // fournisseur appelé) au lieu de passer « programme » avec 0 Publication. Un créneau mixte ignore Pinterest (`lignes` l'exclut).
+  if (lignes.length === 0 && Boolean((c.heuresParReseau as Record<string, string | undefined>).pinterest)) {
+    throw new Error("Pinterest ne peut pas encore être programmé depuis ce chemin : refus, rien d'écrit.");
+  }
   // Une Publication existe déjà pour ce visuel et ce réseau si elle porte l'id courant ou celui d'une version
   // antérieure (le créneau a été décalé depuis) : on la réutilise, on ne recrée jamais.
-  const plan: { reseau: ReseauDeclinaison; id: string; existante: Publication | null }[] = [];
+  const plan: { reseau: ReseauEnvoiCreneau; id: string; existante: Publication | null }[] = [];
   for (const { reseau, cle: cleAncienne } of lignes) {
     // Même clé que l'envoi du créneau (une entrée de l'ancienne clé peut appartenir à un autre créneau).
     const cle = d.envoisPlanifies
@@ -111,7 +117,6 @@ export const PHRASES_RETRAIT = {
   passee: "L'heure est passée : cette publication ne se retire plus d'ici.",
 } as const;
 
-const NOMS_RESEAUX: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook" };
 const JOUR_COURT = (instant: string): string => cleJour(instant).split("-").reverse().slice(0, 2).join("/");
 
 /**
@@ -158,7 +163,7 @@ export async function retirerVisuel(
   const retirees = pubs
     .map((p) => ({ reseau: p.reseau as string, date: p.date }))
     .sort((a, b) => a.date.localeCompare(b.date));
-  const detail = retirees.map((r) => `${NOMS_RESEAUX[r.reseau] ?? r.reseau} le ${JOUR_COURT(r.date)} à ${heureAffichageParis(r.date)}`).join(", ");
+  const detail = retirees.map((r) => `${nomDuReseau(r.reseau)} le ${JOUR_COURT(r.date)} à ${heureAffichageParis(r.date)}`).join(", ");
   const evenement: Evenement = {
     id: "ev_retrait_" + c.id, type: "calendrier",
     message: `Carrousel « ${v.titre} » retiré du calendrier avant tout envoi : ${detail}. Lignes retirées : ${pubs.map((p) => p.id).join(", ")}.`,

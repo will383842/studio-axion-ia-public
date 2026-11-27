@@ -7,6 +7,7 @@
  * Aucun réglage n'est écrit ici ; sans envoi injecté ou avec un réglage fermé, rien ne part. Aucune donnée supprimée.
  * Tout est injecté : aucun service serveur importé.
  */
+import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { validerProposition } from "@/domaine/plan-editorial/statuts";
 import type { CreneauPlan } from "@/services/plan-editorial";
 import type { LigneCreneau } from "@/services/envoi-depuis-creneau";
@@ -72,7 +73,7 @@ export async function validerEntree(deps: DepsValiderEntree, id: string, par: st
   if (!ouverts) return { ok: true, creneau: valide, libelle: "Programmé, envoi éteint : rien ne partira tant que l'envoi n'est pas allumé." };
   // L5-02c : ouvert, la validation n'appelle jamais le diffuseur ; c'est le tour de la boucle du Studio qui prépare le brouillon, puis le programme.
   // Seul un visuel part seul en V1 (LinkedIn, Instagram, Facebook) : ni vidéo (« vid-… » comprises), ni validation relayée par l'usine, ni heure illisible.
-  const premierVisuel = Math.min(...Object.entries(valide.heuresParReseau ?? {}).filter(([r, h]) => ["linkedin", "instagram", "facebook"].includes(r) && typeof h === "string").map(([, h]) => Date.parse(h as string)));
+  const premierVisuel = Math.min(...Object.entries(valide.heuresParReseau ?? {}).filter(([r, h]) => estReseauVisuelEnvoi(r) && typeof h === "string").map(([, h]) => Date.parse(h as string)));
   const partSeule = !!valide.visuelId && !valide.videoId && !id.startsWith("vid-") && !par.startsWith("usine:") && Number.isFinite(premierVisuel);
   if (!deps.envoyer && !partSeule) return { ok: true, creneau: valide, libelle: "Validée. Elle ne part pas seule depuis le calendrier pour l'instant." };
   if (!deps.envoyer) return { ok: true, creneau: valide, libelle: `Validée. Elle partira seule à ${heureParis(new Date(premierVisuel).toISOString())} (heure de Paris) : le brouillon est préparé au plus tôt 6 jours avant.` };

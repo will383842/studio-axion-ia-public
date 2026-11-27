@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
+import { RESEAUX_CALENDRIER } from "@/domaine/usine-calendrier";
 import { depots } from "@/donnees/memoire";
 import { creneauxOccupes } from "@/services/cadence";
 import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
@@ -12,7 +12,7 @@ import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 export const dynamic = "force-dynamic";
 
 const ROUTE = "POST /api/usine/creneaux-occupes";
-const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_TAXONOMIE);
+const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_CALENDRIER);
 const JOURS_MAX = 400;
 
 function jourValide(v: unknown): v is string {
