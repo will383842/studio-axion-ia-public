@@ -10,6 +10,6 @@ Encart vidéo, côté Studio : le corps d'envoi au format du site (fonction pure
 `master`, indépendante des autres PR.
 
 ## Tests
-- `tests/site-videos/encart-7-corps-site.test.ts` : 9 tests ; lint ciblé propre. La copie du schéma reprend aussi les règles croisées du site (chapitres, chemins). Les chapitres dont le début arrondi tomberait sur la durée ou sur le précédent sont écartés, et aucun chapitre n’est envoyé sous 30 s. Relecture opus, tour 1 : « À corriger », corrigé.
+- `tests/site-videos/encart-7-corps-site.test.ts` : 9 tests ; lint ciblé propre. La copie du schéma reprend aussi les règles croisées du site (chapitres, chemins). Les chapitres dont le début arrondi tomberait sur la durée ou sur le précédent sont écartés, et aucun chapitre n’est envoyé sous 30 s. Relecture opus : tours 1 et 2 « À corriger », corrigés ; tour 3 BON.
 
-VERDICT OPUS : en attente
+VERDICT OPUS : BON
