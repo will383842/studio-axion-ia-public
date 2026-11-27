@@ -15,7 +15,6 @@
 import { construireGrapheMot, type DefinitionWorkflow, type EtapeGraphe, type ResultatGraphe } from "./mots-graphe";
 import type { TextesMot } from "./mots-textes";
 
-// Pinterest volontairement absent : pas de boîte de réception Pinterest côté Zernio.
 export const RESEAUX = ["facebook", "instagram", "linkedin_page", "tiktok", "linkedin_profil"] as const;
 export type Reseau = (typeof RESEAUX)[number];
 
