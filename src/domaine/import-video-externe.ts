@@ -16,6 +16,12 @@ export const DUREE_MIN_IMPORT_SEC = 3;
 export const DUREE_MAX_IMPORT_SEC = 600;
 export const TITRE_MAX_IMPORT = 120;
 
+/** Phrase du refus de toute refabrication d'une vidéo importée (retouche, modification, nouveau format, nouvelle fabrication). */
+export const IMPORTEE_PAS_REFABRICABLE = "Cette vidéo vient d'être importée : elle ne peut pas être retouchée ni refaite ici. Modifiez-la dans votre outil, puis importez-la à nouveau.";
+
+/** Vrai pour une vidéo importée : le Studio n'a pas de plan ni de moteur pour la refabriquer. */
+export const estVideoImportee = (video: { origineVideo?: string } | null | undefined): boolean => video?.origineVideo === "importee";
+
 const RESEAUX_VALIDES: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts", "pinterest"];
 
 export interface DemandeImportVideo {

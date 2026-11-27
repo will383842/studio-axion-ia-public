@@ -21,6 +21,10 @@ const { reinitialiserDepots, depots } = await import("@/donnees/memoire");
 const { creerVideoImportee } = await import("@/services/import-video-externe");
 const { controlerImportVideo, TAILLE_MAX_IMPORT_OCTETS, DUREE_MAX_IMPORT_SEC } = await import("@/domaine/import-video-externe");
 const { listerAPublier, videoEnEssai } = await import("@/services/publications");
+const { vueAPublier } = await import("@/services/a-publier");
+const { lancerRetouche, reexporter, lancerFabrication, estimerReexport } = await import("@/services/fabrication");
+const { proposerModification, exemplesModification } = await import("@/services/modifications");
+const { DUREE_MIN_IMPORT_SEC } = await import("@/domaine/import-video-externe");
 const { importerVideoExterne, ratioDeLaTaille } = await import("@/services/import-video-externe");
 const { commandeEnEssai } = await import("@/moteurs");
 const auth = await import("@/services/auth");
@@ -87,11 +91,21 @@ describe("import d'une vidéo déjà faite", () => {
     expect(await compte()).toEqual([avant[0] + 1, avant[1] + 1, avant[2] + 1, avant[3]]);
   });
 
-  it("la vidéo importée apparaît dans listerAPublier", async () => {
+  it("la vidéo importée apparaît dans listerAPublier (une carte par vidéo)", async () => {
     const { videoId } = await creerVideoImportee(BASE, fichier());
     const liste = await listerAPublier();
     expect(liste.map((c) => c.id)).toContain(videoId);
     expect(liste.find((c) => c.id === videoId)).toMatchObject({ titre: "Ma vidéo", etapeEditoriale: "validee" });
+  });
+
+  it("chaque réseau coché a sa ligne dans À publier", async () => {
+    await auth.seConnecter(MDP_TEST, false);
+    const coches = ["instagram", "linkedin", "tiktok"];
+    const { videoId } = await creerVideoImportee({ ...BASE, reseaux: coches }, fichier());
+    expect((await depots().videos.obtenir(videoId))?.reseau).toBeUndefined();
+    const lignes = (await vueAPublier()).lignes.filter((l) => l.videoId === videoId);
+    expect(lignes.map((l) => l.reseau).sort()).toEqual([...coches].sort());
+    for (const l of lignes) expect([...(l.reseauxVideo ?? [])].sort()).toEqual([...coches].sort());
   });
 
   it("sans case cochée rien n'est créé", async () => {
@@ -108,7 +122,19 @@ describe("import d'une vidéo déjà faite", () => {
 });
 
 describe("la vidéo importée n'est pas un essai", () => {
-  it("la vidéo importée n'est pas un essai et peut partir", async () => {
+  it("la ligne À publier d'une vidéo importée n'a aucun blocage (ni essai, ni exemple) et n'est pas d'origine usine", async () => {
+    await auth.seConnecter(MDP_TEST, false);
+    const { videoId } = await creerVideoImportee(BASE, fichier());
+    const lignes = (await vueAPublier()).lignes.filter((l) => l.videoId === videoId);
+    expect(lignes.length).toBeGreaterThan(0);
+    for (const l of lignes) {
+      expect(l.blocage).toBeUndefined();
+      expect(l.blocageVideo).toBeUndefined();
+      expect(l.origineUsine).toBeUndefined();
+    }
+  });
+
+  it("la vidéo importée n'est pas un essai (commande et vidéo)", async () => {
     const { videoId } = await creerVideoImportee(BASE, fichier());
     const video = (await depots().videos.obtenir(videoId))!;
     const version = (await depots().versions.obtenir(video.versionChoisieId!))!;
@@ -220,5 +246,37 @@ describe("importerVideoExterne : session et fichier réellement arrivé", () => 
     expect(await compte()).toEqual([avant[0] + 1, avant[1] + 1, avant[2] + 1, avant[3]]);
     expect(await depots().evenements.compter((e) => e.type === "videos" && e.entiteId === videoId)).toBe(1);
     expect(await depots().evenements.compter((e) => e.type === "videos")).toBe(journalAvant + 1);
+  });
+});
+
+describe("bornes exactes (incluses)", () => {
+  it("3 s et 600 s sont acceptées, juste en dessous / au-dessus refusées", async () => {
+    expect((await creerVideoImportee({ ...BASE, dureeSec: DUREE_MIN_IMPORT_SEC }, fichier())).videoId).toBeTruthy();
+    expect((await creerVideoImportee({ ...BASE, dureeSec: DUREE_MAX_IMPORT_SEC }, fichier())).videoId).toBeTruthy();
+    await expect(creerVideoImportee({ ...BASE, dureeSec: DUREE_MIN_IMPORT_SEC - 0.5 }, fichier())).rejects.toMatchObject({ code: "TROP_COURTE" });
+    await expect(creerVideoImportee({ ...BASE, dureeSec: DUREE_MAX_IMPORT_SEC + 0.5 }, fichier())).rejects.toMatchObject({ code: "TROP_LONGUE" });
+  });
+  it("1 Go pile est accepté, 1 octet de plus refusé", async () => {
+    expect((await creerVideoImportee(BASE, fichier({ taille: TAILLE_MAX_IMPORT_OCTETS }))).videoId).toBeTruthy();
+    await expect(creerVideoImportee(BASE, fichier({ taille: TAILLE_MAX_IMPORT_OCTETS + 1 }))).rejects.toMatchObject({ code: "TROP_LOURD" });
+  });
+});
+
+describe("une vidéo importée ne peut être ni retouchée ni refabriquée", () => {
+  it("retouche, modification, nouveau format et fabrication refusés, sans version ni travail ni fournisseur", async () => {
+    await auth.seConnecter(MDP_TEST, false);
+    const { videoId } = await creerVideoImportee(BASE, fichier());
+    const d = depots();
+    const avant = [await d.versions.compter(() => true), await d.travaux.compter(() => true), await d.retouches.compter(() => true)];
+    sondes.fournisseurs.length = 0;
+    await expect(lancerRetouche(videoId, [], "Demande : coupe")).rejects.toMatchObject({ code: "RETOUCHE_INDISPONIBLE" });
+    await expect(proposerModification(videoId, "coupe le début")).rejects.toMatchObject({ code: "RETOUCHE_INDISPONIBLE" });
+    await expect(reexporter(videoId, "1:1")).rejects.toMatchObject({ code: "REEXPORT_INDISPONIBLE" });
+    await expect(lancerFabrication(videoId)).rejects.toMatchObject({ code: "FABRICATION_INDISPONIBLE" });
+    expect((await estimerReexport(videoId, "1:1")).centimes).toBe(0);
+    expect(await exemplesModification(videoId)).toMatchObject({ exemples: [] });
+    expect([await d.versions.compter(() => true), await d.travaux.compter(() => true), await d.retouches.compter(() => true)]).toEqual(avant);
+    expect(sondes.fournisseurs).toEqual([]);
+    expect((await d.videos.obtenir(videoId))?.statut).toBe("prete");
   });
 });

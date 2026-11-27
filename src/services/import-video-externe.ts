@@ -66,7 +66,7 @@ export async function creerVideoImportee(donnees: DonneesImportVideo, fichier: F
     // Aucune mention IA ajoutée : la vidéo est telle que livrée.
     mentionIA: { incrustee: false, position: "bas-droite", dureeSec: 0, texte: "", dansLegende: false },
     versionChoisieId: versionId,
-    reseau: controle.reseaux[0],
+    // Pas de `reseau` ici : ce champ marque une « version par réseau » ; les réseaux de la Sortie font foi (une ligne chacun).
     langue: "fr-FR",
     origineVideo: "importee",
     terminee: h.creeLe,
