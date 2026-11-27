@@ -87,6 +87,15 @@ describe("encart PR 3 : l'interrupteur", () => {
     const r = controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: { ...passeportConforme(), titreWeb: texte(70) } }));
     expect(r.controles.filter((c) => !c.ok && c.champ === "titreWeb").map((c) => c.code)).toEqual(["SITE-11"]);
   });
+  it("allumé : titre vide ou résumé vide : un seul signalement par champ (SITE-11, SITE-10)", () => {
+    const sur = (surcharge: object) => controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: { ...passeportConforme(), ...surcharge } })).controles.filter((c) => !c.ok).map((c) => `${c.code}:${c.champ}`);
+    expect(sur({ titreWeb: "" })).toEqual(["SITE-11:titreWeb"]);
+    expect(sur({ resume: "" })).toEqual(["SITE-10:resume"]);
+  });
+  it("allumé : un titre de 60 caractères suivi d'espaces est signalé par SITE-18 (longueur brute)", () => {
+    const sur = controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: { ...passeportConforme(), titreWeb: `${texte(60)}  ` } })).controles.filter((c) => !c.ok).map((c) => `${c.code}:${c.champ}`);
+    expect(sur).toEqual(["SITE-18:titreWeb"]);
+  });
   it("allumé : un passeport trop court n'est plus publiable ; un passeport conforme l'est", () => {
     expect(controlerAvantSite(entreeOk({ bornesDuSite: true })).publiable).toBe(false);
     const conforme = controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: passeportConforme() }));

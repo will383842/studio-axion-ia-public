@@ -250,7 +250,13 @@ function site17(e: EntreeControlesSite): ControleSite[] {
   return [{ code: "SITE-17", gravite: "avertissement", ok: false, message: "Le site affichera « Vidéo réalisée avec un double numérique »." }];
 }
 
+/** Champs déjà signalés en échec par SITE-10 (page vide) ou SITE-11 (titre) : SITE-18 ne les redit pas. */
+function dejaSignale(champ: keyof PasseportWeb | undefined, existants: ControleSite[]): boolean {
+  return !!champ && existants.some((c) => !c.ok && (c.code === "SITE-10" || c.code === "SITE-11") && c.champ === champ);
+}
+
 export function controlerAvantSite(entree: EntreeControlesSite): ResultatControlesSite {
-  const controles = [...site01(entree), ...site02(entree), ...site03(entree), ...site04(entree), ...site05(entree), ...site06(entree), ...site07(entree), ...site08(entree), ...site09(entree), ...site10(entree), ...site11(entree), ...site12(entree), ...site13(entree), ...site14(entree), ...site15(entree), ...site16(entree), ...site17(entree), ...(entree.bornesDuSite ? controlerBornesSite(entree.passeport).filter((c) => c.ok || c.champ !== "titreWeb" || entree.passeport.titreWeb.length <= TITRE_WEB_MAX) : [])];
+  const controlesExistants = [...site01(entree), ...site02(entree), ...site03(entree), ...site04(entree), ...site05(entree), ...site06(entree), ...site07(entree), ...site08(entree), ...site09(entree), ...site10(entree), ...site11(entree), ...site12(entree), ...site13(entree), ...site14(entree), ...site15(entree), ...site16(entree), ...site17(entree)];
+  const controles = [...controlesExistants, ...(entree.bornesDuSite ? controlerBornesSite(entree.passeport).filter((c) => c.ok || !dejaSignale(c.champ, controlesExistants)) : [])];
   return { publiable: !controles.some((c) => !c.ok && c.gravite === "bloquant"), controles };
 }
