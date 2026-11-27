@@ -65,9 +65,11 @@ function rendreToile(b: BlocToile, t: number, avecVariete = true): string {
  * version du 23/10, on reçoit 2332d320…) ; remplacée par la valeur calculée sur master, identique sur deux `npm ci` à froid. Changements voulus
  * depuis le 23/10 : 2ba329dd #30 tempo de la voix ; 5b4efdf3 #42 4:5 (empreintes 9:16 recalculées) ; 4b27b662 #120 blocs déjà vus ;
  * 34a4203d #130 jamais un bloc coupé ; 083d531e #241 charte Manrope ; 4e9445f7 #280 correctif de charte (tableau : journal/FIX-ROUGES-APPARITION-v21t.md).
+ * MAJ 27/11 : 3ffc05c6… était l'empreinte de master au 25/11 ; les fusions de master suivantes (fond, rail, téléphone vidéo) ont changé le HTML de la toile ;
+ * valeur recalculée sur la fusion courante (master seul donne la même, ff1dbf99…).
  * L'invariant testé reste : sans variété et APP-A + MAT-A donnent la MÊME empreinte.
  */
-const EMPREINTE_TOILE_REFERENCE = "3ffc05c694f575d36a4165323f81026e93cf90220a807f66a756dfbf03845e93";
+const EMPREINTE_TOILE_REFERENCE = "ff1dbf99264cf312a1d6791daac5bad74dc120ef61c398492e30726c78fe719f";
 
 function empreinteToiles(variete?: RecetteVarieteIV): string {
   const h = createHash("sha256");
