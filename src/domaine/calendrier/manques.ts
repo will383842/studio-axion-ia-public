@@ -53,12 +53,14 @@ export interface OptionsManques {
 }
 
 const SEMAINE = [1, 2, 3, 4, 5, 6, 7] as const;
+// Pinterest volontairement absent : aucun jour attendu en V1 (le calendrier ne signale pas de manque d'épingle).
 export const JOURS_ATTENDUS_DEPART: Readonly<Partial<Record<IdReseau, readonly number[]>>> = {
   linkedin: [1, 2, 3, 4, 5],
   facebook: [1, 2, 3, 4, 5],
   instagram: SEMAINE,
   tiktok: [],
 };
+// Pinterest volontairement absent (voir JOURS_ATTENDUS_DEPART) : aucun manque n'est calculé pour une épingle.
 const ORDRE_RESEAUX: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
 const IGNOREES = new Set(["idee", "archive"]);
 const HEURES_URGENCE = 24;

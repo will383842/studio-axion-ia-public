@@ -123,6 +123,6 @@ describe("module pur, sans importeur", () => {
       }
     };
     marche(join(RACINE, "src"));
-    expect(vus.map((p) => p.slice(RACINE.length + 1))).toEqual(["src/services/refaire-voix.ts", "src/services/retouche-chat/apercu-commun.ts"]);
+    expect(vus.map((p) => p.slice(RACINE.length + 1))).toEqual(["src/components/prononciations/actions-mot-mal-dit.ts", "src/services/refaire-voix.ts", "src/services/retouche-chat/apercu-commun.ts"]);
   });
 });

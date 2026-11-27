@@ -7,6 +7,7 @@
 import { fnv1a64, jsonCanonique } from "@/briques/plan-scenes/empreinte";
 import { schemaPlanStrict, type MotMinute, type PlanValide, type SceneValide } from "@/briques/plan-scenes/schema";
 import { validerPlan } from "@/briques/plan-scenes/validateur";
+import { ID_VOLET, poserCapturesVolet } from "@/briques/plan-scenes/poser-captures-volet";
 import type { EtapeCalee } from "./calage-scenario";
 import type { RoleEtapeScenario } from "./scenario-maquette";
 
@@ -58,7 +59,7 @@ function planDuMorceau(plan: PlanValide, scene: SceneValide): PlanValide | null 
 /** Le morceau repasse le validateur ; toute modification de la scène (repli, recalage) = non rendable seule. */
 function rendableSeul(morceau: PlanValide): boolean {
   if (!schemaPlanStrict.safeParse(morceau).success) return false;
-  const { plan: relu } = validerPlan(copie(morceau), { mots: morceau.mots, format: morceau.format, facecam: false, dureeMs: morceau.dureeMs });
+  const { plan: relu } = validerPlan(copie(morceau), { mots: morceau.mots, format: morceau.format, facecam: false, dureeMs: morceau.dureeMs, ...(poserCapturesVolet(morceau, null) !== morceau ? { objetsPermis: [ID_VOLET] } : {}) });
   const sans = (p: PlanValide) => jsonCanonique({ ...p, scenes: p.scenes.map(({ empreinte: _e, ...s }) => (void _e, s)) });
   return sans(relu) === sans(morceau);
 }

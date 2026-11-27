@@ -322,7 +322,7 @@ describe("8e tableau de bord inconnu : la chaîne passe sans fiche nouvelle", ()
     const apres = controlerApresCalage({ script, parcours, etapes: [], dureeVoixMs: dureeSec * 1000, dureeFinMs: 0 });
     expect(apres.controles.find((c) => c.id === "TUT-DUREE")?.etat).toBe("reussi");
     const controleur = { ...avant, controles: [...avant.controles, ...apres.controles.filter((c) => c.id === "TUT-DUREE")] };
-    const grille = noterTutoriel({ controleImage: rapportImageReussi(), controleur, regardeur: regard, dureeSec, imageFixeMaxSec: 0, niveauSonoreLufs: -14 });
+    const grille = noterTutoriel({ controleImage: rapportImageReussi(), controleur, regardeur: regard, dureeSec, imageFixeMaxSec: 0, niveauSonoreLufs: -14, composition: { ok: true, defauts: [], mesures: { textePlusPetitPx: null, videMaxMs: 0, echantillons: 1 } } });
     if (!grille.proposable) maillon("grille de qualité", `note ${grille.note} ; ${grille.criteres.filter((c) => c.etat !== "reussi").map((c) => `${c.id}:${c.etat}`).join(", ")}`);
     expect(grille.proposable).toBe(true);
     void publiable;

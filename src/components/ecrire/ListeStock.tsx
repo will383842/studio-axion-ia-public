@@ -4,17 +4,15 @@ import { useState } from "react";
 import { filtrerStock, etatDe, reseauxDe, type EtatStock, type MessageStock } from "@/domaine/stock-messages";
 import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
 import type { IdReseau } from "@/domaine/types";
+import { nomDuReseau } from "@/reseaux/hors-video";
 
 const ETATS: { valeur: EtatStock; libelle: string }[] = [
   { valeur: "en-stock", libelle: "À placer" },
   { valeur: "planifie", libelle: "Planifié" },
   { valeur: "publie", libelle: "Publié" },
 ];
-const NOMS_RESEAUX: Record<IdReseau, string> = {
-  linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts",
-} as Record<IdReseau, string>;
 const RESEAUX = RESEAUX_TAXONOMIE;
-const nom = (r: IdReseau) => NOMS_RESEAUX[r] ?? r;
+const nom = (r: IdReseau) => nomDuReseau(r);
 
 /** Textes mis de côté : filtres par réseau, état et échéance. Liste distincte des idées et des scripts. */
 export function ListeStock({ entrees }: { entrees: MessageStock[] }) {

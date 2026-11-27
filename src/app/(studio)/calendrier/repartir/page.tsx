@@ -29,12 +29,15 @@ function lireSujets(brut: string | undefined): SujetAPlanifier[] {
  * RÉPARTIR UN LOT (L4-09) : on propose un plan sur 2 à 4 semaines, avec le moteur de cadence. Rien n'est enregistré, rien n'est envoyé :
  * la page ne fait que lire les créneaux déjà pris et afficher la proposition.
  */
+// Pinterest absent de la case à cocher : une épingle ne naît que par l'import, `planifierPublications` l'ignorerait.
+const RESEAUX_REPARTIS = RESEAUX_CADENCE.filter((r) => r !== "pinterest");
+
 export default async function PageRepartirLot({ searchParams }: { searchParams: Promise<{ debut?: string; semaines?: string; reseaux?: string | string[]; sujets?: string }> }) {
   await exigerSession();
   const p = await searchParams;
   const debut = /^\d{4}-\d{2}-\d{2}$/.test(p.debut ?? "") ? (p.debut as string) : cleJour(new Date());
   const semaines = Number.parseInt(p.semaines ?? "3", 10);
-  const choisis = (Array.isArray(p.reseaux) ? p.reseaux : p.reseaux ? [p.reseaux] : []).filter((r): r is ReseauDeclinaison => (RESEAUX_CADENCE as readonly string[]).includes(r));
+  const choisis = (Array.isArray(p.reseaux) ? p.reseaux : p.reseaux ? [p.reseaux] : []).filter((r): r is ReseauDeclinaison => (RESEAUX_REPARTIS as readonly string[]).includes(r));
   const sujets = lireSujets(p.sujets);
   const demande = sujets.length > 0;
   let resultat: ReturnType<typeof repartirLot> | null = null;
@@ -58,7 +61,7 @@ export default async function PageRepartirLot({ searchParams }: { searchParams: 
         </label>
         <fieldset className="flex flex-wrap gap-3 rounded-2xl border border-trait p-3">
           <legend className="px-1 text-sm font-semibold">Réseaux</legend>
-          {RESEAUX_CADENCE.map((r) => (
+          {RESEAUX_REPARTIS.map((r) => (
             <label key={r} className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="reseaux" value={r} defaultChecked={choisis.includes(r as ReseauDeclinaison)} />
               {nomReseauCadence(r)}

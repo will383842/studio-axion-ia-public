@@ -108,8 +108,8 @@ describe("codes de version et noms de fichiers (B.2.4, B.6.10)", () => {
     for (const r of RESEAUX_DECLINAISON) expect(nomFichier({ code: codeVariante({ numero: 1, codeFormat: "TST", reseau: r }), titre: "Été / « spécial » #1", ratio: "1:1", extension: "mp4" })).toMatch(/^[A-Za-z0-9-]+\.mp4$/);
   });
 
-  it("codes réseau : un par réseau, YouTube long à part ; 5 réseaux de déclinaison", () => {
-    expect(Object.values(CODES_RESEAU)).toEqual(["TT", "IG", "FB", "LI", "YS", "YT"]);
+  it("codes réseau : un par réseau, YouTube long à part, Pinterest (PI) en dernier ; 5 réseaux de déclinaison", () => {
+    expect(Object.values(CODES_RESEAU)).toEqual(["TT", "IG", "FB", "LI", "YS", "YT", "PI"]);
     expect(RESEAUX_DECLINAISON).toEqual(["tiktok", "instagram", "youtube-shorts", "linkedin", "facebook"]);
   });
 });

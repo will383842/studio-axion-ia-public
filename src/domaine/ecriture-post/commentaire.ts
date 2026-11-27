@@ -10,6 +10,7 @@
 import type { IdReseau } from "@/domaine/types";
 import type { ContenuSourceType } from "./contenu-source";
 
+// Pinterest volontairement absent : une épingle n'a pas de premier commentaire (ADR-0015, limites écrites).
 export const PREMIER_COMMENTAIRE_RESEAUX: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
 
 export type ModePremierCommentaire = "auto" | "a-confirmer" | "a-la-main";
@@ -37,6 +38,8 @@ const AVEC_LIEN: Record<IdReseau, (lien: string) => string> = {
   tiktok: (l) => `Adresse à retenir : ${l}`,
   youtube: (l) => `Pour retrouver les ressources de cette vidéo : ${l}`,
   "youtube-shorts": (l) => `La version complète vous attend ici : ${l}`,
+  // Pinterest : pas de premier commentaire ; jamais appelé (réseau absent de PREMIER_COMMENTAIRE_RESEAUX), vide par construction.
+  pinterest: () => "",
 };
 const SANS_LIEN: Record<IdReseau, string> = {
   linkedin: "Une question sur ce sujet ? Écrivez-nous en message privé, nous vous répondons.",
@@ -45,6 +48,7 @@ const SANS_LIEN: Record<IdReseau, string> = {
   tiktok: "Retrouvez la suite dans le prochain épisode.",
   youtube: "Abonnez-vous pour recevoir la prochaine vidéo.",
   "youtube-shorts": "La prochaine vidéo arrive bientôt.",
+  pinterest: "",
 };
 
 export function composerPremierCommentaire(d: { contenu?: ContenuSourceType; reseau: IdReseau; objectif?: ObjectifCommentaire; lien?: string }): string {
