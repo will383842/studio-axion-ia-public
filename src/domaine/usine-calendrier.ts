@@ -24,7 +24,8 @@ export const CODES_REFUS_CALENDRIER = {
 } as const;
 export type CodeRefusCalendrier = keyof typeof CODES_REFUS_CALENDRIER;
 
-export const RESEAUX_CALENDRIER: readonly IdReseau[] = RESEAUX_TAXONOMIE;
+/** Pinterest hors contrat 2 de l'usine (V1) : l'ouvrir demande une décision et une version de contrat. */
+export const RESEAUX_CALENDRIER: readonly IdReseau[] = RESEAUX_TAXONOMIE.filter((r) => r !== "pinterest");
 /** Seuls les types ACTIFS de l'usine se proposent (carrousel, image, texte, story : refusés tant qu'ils sont inactifs). */
 export const TYPES_PROPOSABLES: readonly string[] = TYPES_CONTENU_USINE.filter((t) => t.actif).map((t) => t.id);
 const TYPES_CONNUS: readonly string[] = TYPES_CONTENU_USINE.map((t) => t.id);

@@ -18,6 +18,7 @@ import { LIBELLES_ENVOI } from "@/components/calendrier/apercu-reseau";
 import { TYPES_CONTENU, type TypeContenu } from "@/components/calendrier/CarteEntreeCalendrier";
 import { ETATS_CALENDRIER } from "@/components/calendrier/PastilleStatutPlan";
 import { RESEAUX_CALENDRIER, basculerReseau } from "@/components/calendrier/BarreFiltres";
+import { lireReseaux } from "@/components/calendrier/lire-reseaux";
 import { libellePeriode } from "@/components/calendrier/BarreVue";
 import { EnTeteCalendrier } from "@/components/calendrier/EnTeteCalendrier";
 import { BandeauDepart, PanneauAFaire } from "@/components/calendrier/PanneauAFaire";
@@ -55,13 +56,6 @@ function lireDate(brut: string | undefined): string | null {
   const jour = `${m[1]}-${m[2]}-${m[3] ?? "01"}`;
   const d = new Date(`${jour}T12:00:00Z`);
   return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== jour ? null : jour;
-}
-
-/** Réseaux allumés d'après ?reseaux=a,b (absent : les quatre ; vide ou inconnu : aucun). Toujours dans l'ordre de la maquette. */
-function lireReseaux(brut: string | string[] | undefined): IdReseau[] {
-  if (brut === undefined) return [...RESEAUX_CALENDRIER];
-  const demandes = new Set((Array.isArray(brut) ? brut.join(",") : brut).split(","));
-  return RESEAUX_CALENDRIER.filter((r) => demandes.has(r));
 }
 
 const TYPES_CONNUS = Object.keys(TYPES_CONTENU) as TypeContenu[];
@@ -164,7 +158,7 @@ export default async function PageCalendrier({ searchParams }: { searchParams: P
   // Entrées de la semaine et filtres RC-37 : pour l'instant les réseaux allumés (?reseaux=), partagés par la grille et l'agenda.
   // Même état affiché sur ordinateur et sur téléphone : un envoi refusé, à vérifier ou en cours n'est plus « Programmé ».
   const entreesBrutes = await entreesAvecMedias(semaine);
-  // Les quatre réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
+  // Tous les réseaux de la barre allumés : aucun filtre (YouTube et les autres réseaux restent visibles).
   const criteresComplets: CriteresFiltre = { ...filtres, reseaux: reseauxActifs.length === RESEAUX_CALENDRIER.length ? undefined : reseauxActifs };
   // Le mot est déjà appliqué ici (sur titre + texte) : la grille et l'Agenda reçoivent des critères SANS mot, sinon ils refiltreraient sur le titre seul.
   const criteres: CriteresFiltre = { ...criteresComplets, motCle: "" };

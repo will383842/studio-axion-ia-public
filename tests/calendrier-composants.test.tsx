@@ -321,10 +321,10 @@ describe("GrilleSemaine", () => {
     expect(html.indexOf('data-entete-jour="2026-11-09"')).toBeLessThan(html.indexOf('data-entete-jour="2026-11-15"'));
     expect(compter(html, 'aria-current="date"')).toBe(1);
     expect(html).toMatch(/aria-current="date"[^>]*data-entete-jour="2026-11-11"|data-entete-jour="2026-11-11"[^>]*aria-current="date"/);
-    expect(compter(html, 'data-couloir="')).toBe(4);
-    for (const nom of ["LinkedIn", "Instagram", "Facebook", "TikTok"]) expect(html).toContain(nom);
-    expect(compter(html, 'data-case="')).toBe(28);
-    expect(compter(html, 'data-aujourdhui="true"')).toBe(4);
+    expect(compter(html, 'data-couloir="')).toBe(5);
+    for (const nom of ["LinkedIn", "Instagram", "Facebook", "TikTok", "Pinterest"]) expect(html).toContain(nom);
+    expect(compter(html, 'data-case="')).toBe(35);
+    expect(compter(html, 'data-aujourdhui="true"')).toBe(5);
   });
 
   it("range chaque carte dans la case de son réseau et de son jour, par heure", () => {
@@ -343,8 +343,8 @@ describe("GrilleSemaine", () => {
     const html = rendre(el);
     expect(html).not.toContain("Ajouter sur LinkedIn, mardi 10 novembre");
     expect(html).toContain('aria-label="Ajouter sur LinkedIn, mercredi 11 novembre"');
-    expect(compter(html, 'aria-label="Ajouter sur ')).toBe(20);
-    expect(compter(html, 'data-passe="true"')).toBe(8);
+    expect(compter(html, 'aria-label="Ajouter sur ')).toBe(25);
+    expect(compter(html, 'data-passe="true"')).toBe(10);
     expect(compter(html, "Créneau vide")).toBe(1);
     cliquer(el, "Ajouter sur TikTok, dimanche 15 novembre");
     expect(onAjouter).toHaveBeenCalledWith("2026-11-15", "tiktok");
@@ -455,24 +455,24 @@ describe("GrilleSemaine", () => {
 
 describe("BarreFiltres (filtre simple par réseau)", () => {
   it("une pastille par réseau, avec picto, nom et état allumé ou éteint", () => {
-    expect(RESEAUX_CALENDRIER).toEqual(["linkedin", "instagram", "facebook", "tiktok"]);
+    expect(RESEAUX_CALENDRIER).toEqual(["linkedin", "instagram", "facebook", "tiktok", "pinterest"]);
     const html = rendre(<BarreFiltres actifs={["linkedin", "tiktok"]} onBasculer={() => {}} />);
     expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="LinkedIn"|aria-label="LinkedIn"[^>]*aria-pressed="true"/);
     expect(html).toMatch(/aria-pressed="false"[^>]*aria-label="Instagram"|aria-label="Instagram"[^>]*aria-pressed="false"/);
     expect(compter(html, 'aria-pressed="true"')).toBe(2);
-    expect(compter(html, 'aria-pressed="false"')).toBe(2);
-    for (const t of [">in<", ">IG<", ">f<", ">TT<", "LinkedIn", "Instagram", "Facebook", "TikTok"]) expect(html).toContain(t);
+    expect(compter(html, 'aria-pressed="false"')).toBe(3);
+    for (const t of [">in<", ">IG<", ">f<", ">TT<", ">P<", "LinkedIn", "Instagram", "Facebook", "TikTok", "Pinterest"]) expect(html).toContain(t);
     expect(html).toContain("--c:var(--res-linkedin, var(--trait-fort))");
   });
 
   it("le filtre LinkedIn fonctionne : seules les publications LinkedIn restent, dans la liste et dans les grilles", () => {
-    const entrees = [carte({ cle: "li", reseau: "linkedin" }), carte({ cle: "ig", reseau: "instagram" }), carte({ cle: "fb", reseau: "facebook" }), carte({ cle: "tt", reseau: "tiktok" })];
+    const entrees = [carte({ cle: "li", reseau: "linkedin" }), carte({ cle: "ig", reseau: "instagram" }), carte({ cle: "fb", reseau: "facebook" }), carte({ cle: "tt", reseau: "tiktok" }), carte({ cle: "pi", reseau: "pinterest" })];
     const onBasculer = vi.fn();
     const barre = <BarreFiltres actifs={[...RESEAUX_CALENDRIER]} onBasculer={onBasculer} />;
     cliquer(barre, "Instagram");
     expect(onBasculer).toHaveBeenCalledWith("instagram");
     let actifs = [...RESEAUX_CALENDRIER];
-    for (const r of ["instagram", "facebook", "tiktok"] as const) actifs = basculerReseau(actifs, r);
+    for (const r of ["instagram", "facebook", "tiktok", "pinterest"] as const) actifs = basculerReseau(actifs, r);
     expect(actifs).toEqual(["linkedin"]);
     const restantes = filtrerParReseau(entrees, actifs);
     expect(restantes.map((e) => e.cle)).toEqual(["li"]);
@@ -480,7 +480,7 @@ describe("BarreFiltres (filtre simple par réseau)", () => {
     expect(compter(html, 'data-couloir="')).toBe(1);
     expect(html).toContain('data-couloir="linkedin"');
     expect(html).toContain('data-carte="li"');
-    for (const cle of ["ig", "fb", "tt"]) expect(html).not.toContain(`data-carte="${cle}"`);
+    for (const cle of ["ig", "fb", "tt", "pi"]) expect(html).not.toContain(`data-carte="${cle}"`);
     // Même sans filtrer la liste, la grille ne montre que les réseaux allumés.
     expect(compter(rendre(<GrilleSemaine semaineDu={AUJOURDHUI} aujourdhui={AUJOURDHUI} entrees={entrees} reseaux={actifs} />), 'data-carte="')).toBe(1);
   });

@@ -110,7 +110,17 @@ describe("jeton et validation", () => {
     expect((await r.json()).code).toBe("champ_invalide");
   });
 
-  it("accepte chacun des réseaux de la taxonomie (la liste de la route ne diverge pas)", async () => {
-    for (const reseau of RESEAUX_TAXONOMIE) expect((await POST(appel(ok({ reseau })))).status, reseau).toBe(200);
+  it("accepte chacun des réseaux du contrat usine, soit la taxonomie sans Pinterest (la liste de la route ne diverge pas)", async () => {
+    for (const reseau of RESEAUX_TAXONOMIE.filter((r) => r !== "pinterest")) expect((await POST(appel(ok({ reseau })))).status, reseau).toBe(200);
+  });
+});
+
+describe("Pinterest : le contrat avec l'usine reste sans Pinterest", () => {
+  it("filtre reseau « pinterest » : même refus qu'un réseau inconnu (400)", async () => {
+    const inconnu = await POST(appel(ok({ reseau: "inconnu" })));
+    const r = await POST(appel(ok({ reseau: "pinterest" })));
+    expect(r.status).toBe(400);
+    expect(r.status).toBe(inconnu.status);
+    expect((await r.json()).code).toBe((await inconnu.json()).code);
   });
 });

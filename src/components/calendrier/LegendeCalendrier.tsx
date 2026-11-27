@@ -1,5 +1,6 @@
 import { Icone } from "@/components/ui/Icone";
 import { RESEAUX } from "@/reseaux";
+import { RESEAUX_HORS_VIDEO } from "@/reseaux/hors-video";
 import { MonogrammeReseau, styleReseau } from "./CarteEntreeCalendrier";
 import { ETATS_CALENDRIER, PastilleStatutPlan } from "./PastilleStatutPlan";
 
@@ -11,7 +12,7 @@ export function LegendeCalendrier() {
   return (
     <section aria-label="Légende" data-legende className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-texte-doux">
       <b className="text-texte">Légende</b>
-      {RESEAUX.map((r) => (
+      {[...RESEAUX, ...RESEAUX_HORS_VIDEO].map((r) => (
         <span key={r.id} className="inline-flex items-center gap-1" style={styleReseau(r.id)}>
           <MonogrammeReseau reseau={r.id} taille="sm" />
           {r.nom}
