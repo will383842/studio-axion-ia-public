@@ -9,7 +9,7 @@ import type { Depot, DepotAjoutSeul, JournalDecalage } from "@/domaine/depots";
 import { cleEnvoi } from "@/domaine/envoi-planifie";
 import { transitionner, validerCreneau, heureAffichageParis } from "@/domaine/plan-editorial/statuts";
 import type { AuteurPlan, CreneauEditorial, StatutPlan } from "@/domaine/plan-editorial/types";
-import type { ReseauDeclinaison } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 import { instantParis } from "@/lib/horloge-paris";
 
 /** Créneau du plan, avec le drapeau « à renvoyer à l'usine » (posé par un décalage, sans appel). */
@@ -30,8 +30,8 @@ export interface DemandeDecalage {
 }
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
-/** Réseaux pour lesquels un envoi planifié existe (ReseauDeclinaison). */
-const RESEAUX_ENVOI: readonly ReseauDeclinaison[] = ["tiktok", "instagram", "facebook", "linkedin", "youtube-shorts"];
+/** Réseaux pour lesquels un envoi planifié existe (ReseauEnvoiCreneau). */
+const RESEAUX_ENVOI: readonly ReseauEnvoiCreneau[] = ["tiktok", "instagram", "facebook", "linkedin", "youtube-shorts"];
 
 async function lire(d: DepotsPlan, id: string): Promise<CreneauPlan> {
   const c = await d.creneaux.obtenir(id);
@@ -111,7 +111,7 @@ export async function lirePeriode(d: DepotsPlan, du: string, au: string, options
 }
 
 /** Correspondance plan → envois planifiés : une clé d'envoi par réseau géré, version = nombre de décalages. */
-export function identifiantsProgrammation(c: CreneauPlan): { reseau: ReseauDeclinaison; cle: string }[] {
+export function identifiantsProgrammation(c: CreneauPlan): { reseau: ReseauEnvoiCreneau; cle: string }[] {
   const media = c.videoId ?? c.visuelId;
   if (!media) return [];
   return RESEAUX_ENVOI.filter((r) => c.heuresParReseau[r]).map((reseau) => ({ reseau, cle: cleEnvoi(media, reseau, c.decalages) }));

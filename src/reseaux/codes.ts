@@ -13,6 +13,7 @@ export const CODES_RESEAU: Readonly<Record<IdReseau, string>> = {
   linkedin: "LI",
   "youtube-shorts": "YS",
   youtube: "YT",
+  pinterest: "PI",
 };
 
 /**

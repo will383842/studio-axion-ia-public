@@ -3,7 +3,7 @@
  * comptages, écart de somme, lots, confirmation. Tout vient des données reçues.
  */
 
-export type Reseau = "instagram" | "facebook" | "linkedin" | "tiktok";
+export type Reseau = "instagram" | "facebook" | "linkedin" | "tiktok" | "pinterest";
 export type EtatPost = "laisse-buffer" | "verifie-zernio" | "a-verifier" | "restant";
 export type CodeLot = "A" | "B" | "C";
 

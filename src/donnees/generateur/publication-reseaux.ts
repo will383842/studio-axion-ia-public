@@ -59,6 +59,8 @@ export const TEXTE_PUBLICATION: Readonly<Record<IdReseau, TextePublicationReseau
   // YouTube (long) n'est pas un réseau de déclinaison : son champ titre est dit ici.
   youtube: { titres: true, particularites: [], consignes: ["Description : la première phrase dit ce que la vidéo répond ; titre de 100 caractères au plus, avec le sujet exact."] },
   "youtube-shorts": { particularites: [], consignes: [] },
+  // Pinterest : jamais écrit par le rôle « publication » (titre, description et lien vivent dans l'épingle importée).
+  pinterest: { particularites: [], consignes: [] },
 };
 
 /** Le texte de ce réseau a-t-il un champ titre ? (`CHAMPS_PUBLICATION`, sinon l'exception du réseau hors déclinaison.) */
