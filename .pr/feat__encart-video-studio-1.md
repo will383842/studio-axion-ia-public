@@ -9,4 +9,4 @@ Ajoute l'ADR-0016 : le Studio s'aligne sur le contrat du site pour envoyer ses v
 ## Tests
 Aucun code touché : document seul. Relecture opus : tour 1 « À corriger » (9 points), corrigés ici.
 
-VERDICT OPUS : en attente
+VERDICT OPUS : BON
