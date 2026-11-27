@@ -19,6 +19,7 @@ export async function comptesCibles(reseaux: IdReseau[]): Promise<Partial<Record
     const resultat = defaut();
     for (const r of reseaux) {
       try {
+        if (r === "pinterest") continue; // jamais de tableau posé d'office : il se choisit explicitement
         const plateforme = plateformeZernio(r);
         const dispo = canaux.filter((c) => c.service === plateforme && !c.deconnecte && !(c.service === "facebook" && pageInterdite(c.id.includes(":fb:") ? c.id.split(":fb:")[1] : undefined, c.nom)));
         if (dispo.length === 1 && compteCibleValide(dispo[0].id)) resultat[r] = dispo[0].id;
