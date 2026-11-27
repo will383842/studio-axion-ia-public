@@ -46,7 +46,7 @@ export function raisonNonEligible(
   if (!creneauEnvoyable(c)) return "Ce créneau n'est ni validé ni programmé (ou il est refusé, retiré ou à renvoyer) : seul un créneau validé ou programmé peut servir à l'essai.";
   if (c.videoId || !c.visuelId) return "Seul un créneau portant un visuel (carrousel) peut servir à l'essai : les vidéos sont exclues.";
   const reseaux = Object.keys(c.heuresParReseau ?? {});
-  if (reseaux.length !== 1 || !estReseauVisuelEnvoi(reseaux[0])) return "L'essai exige un créneau sur UN seul réseau (LinkedIn, Instagram ou Facebook).";
+  if (reseaux.length !== 1 || !estReseauVisuelEnvoi(reseaux[0])) return "L'essai exige un créneau sur UN seul réseau (LinkedIn, Instagram, Facebook ou Pinterest).";
   const t = Date.parse(c.heuresParReseau?.[reseaux[0]] ?? "");
   if (!Number.isFinite(t) || t < maintenant + JOUR_MS || t > maintenant + 6 * JOUR_MS) return "La date du créneau doit tomber entre demain et dans 6 jours.";
   return null;

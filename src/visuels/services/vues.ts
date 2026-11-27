@@ -10,11 +10,12 @@ import { ERREUR_MISE_EN_PAGE, lireVisuel, RENDU_PERIME_MS, type DependancesCarro
 export type DependancesVues = Pick<DependancesCarrousels, "depot" | "urlLecture" | "urlTelechargement" | "allume" | "maintenant">;
 export type VueListe = "tous" | "a_valider" | "valides" | "corbeille";
 
+// Une épingle Pinterest n'est jamais listée parmi les carrousels (elle vit dans le calendrier).
 const filtres: Record<VueListe, (v: Visuel) => boolean> = {
-  tous: (v) => !v.corbeilleLe,
-  a_valider: (v) => !v.corbeilleLe && v.statut === "a_valider",
-  valides: (v) => !v.corbeilleLe && v.statut === "valide",
-  corbeille: (v) => !!v.corbeilleLe,
+  tous: (v) => v.famille !== "epingle" && !v.corbeilleLe,
+  a_valider: (v) => v.famille !== "epingle" && !v.corbeilleLe && v.statut === "a_valider",
+  valides: (v) => v.famille !== "epingle" && !v.corbeilleLe && v.statut === "valide",
+  corbeille: (v) => v.famille !== "epingle" && !!v.corbeilleLe,
 };
 
 async function carte(v: Visuel, deps: DependancesVues): Promise<VueCarrouselCarte> {
@@ -48,6 +49,7 @@ function renduRecent(v: Visuel, maintenantMs: number): boolean {
 
 /** Calculées depuis TRANSITIONS et l'état corbeille : l'écran n'invente aucune action. */
 function actionsPermises(v: Visuel, maintenantMs: number): ActionCarrousel[] {
+  if (v.famille === "epingle") return []; // aucune action de rendu pour une épingle
   if (v.corbeilleLe) return joursRestants(v.corbeilleLe, maintenantMs) > 0 ? ["restaurer"] : [];
   const vers = TRANSITIONS[v.statut];
   const actions: ActionCarrousel[] = [];

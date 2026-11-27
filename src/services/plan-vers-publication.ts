@@ -12,7 +12,7 @@ import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { resoudreCleEnvoi } from "@/services/envois-planifies";
 import type { Evenement, Publication } from "@/domaine/types";
 import { cleJour } from "@/lib/dates";
-import type { ReseauDeclinaison } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 import type { Visuel } from "@/domaine/visuels/visuel";
 import { transitionPermise } from "@/domaine/visuels/statuts";
 import { changerStatut, estConfie, identifiantsProgrammation, peutProgrammer, type CreneauPlan, type DepotsPlan } from "@/services/plan-editorial";
@@ -52,7 +52,7 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   const lignes = identifiantsProgrammation(c);
   // Une Publication existe déjà pour ce visuel et ce réseau si elle porte l'id courant ou celui d'une version
   // antérieure (le créneau a été décalé depuis) : on la réutilise, on ne recrée jamais.
-  const plan: { reseau: ReseauDeclinaison; id: string; existante: Publication | null }[] = [];
+  const plan: { reseau: ReseauEnvoiCreneau; id: string; existante: Publication | null }[] = [];
   for (const { reseau, cle: cleAncienne } of lignes) {
     // Même clé que l'envoi du créneau (une entrée de l'ancienne clé peut appartenir à un autre créneau).
     const cle = d.envoisPlanifies

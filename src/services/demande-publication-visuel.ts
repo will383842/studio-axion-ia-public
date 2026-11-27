@@ -13,8 +13,12 @@ export interface FichierVisuel {
 
 export type ErreurDemandeVisuel = "aucun-fichier" | "format-refuse" | "trop-de-pages" | "legende-trop-longue" | ErreurTexteAlternatif;
 
+/** Profil Pinterest local : `briques/visuels/reseaux.ts` est copié dans l'image de rendu et n'est pas touché. */
+const PROFIL_PINTEREST = { livrable: "images", pagesMax: 1, legendeMax: 800 } as const;
+const profilDe = (r: Reseau | "pinterest") => (r === "pinterest" ? PROFIL_PINTEREST : PROFILS_RESEAUX[r]);
+
 export interface DemandeVisuel {
-  reseau: Reseau;
+  reseau: Reseau | "pinterest";
   medias: { cle: string; alt: string }[];
   legende?: string;
   envoiAutorise: false;
@@ -22,9 +26,9 @@ export interface DemandeVisuel {
 
 export type ResultatDemandeVisuel = { ok: true; demande: DemandeVisuel } | { ok: false; erreurs: ErreurDemandeVisuel[] };
 
-export function construireDemandeVisuel(entree: { reseau: Reseau; fichiers: FichierVisuel[]; legende?: string }): ResultatDemandeVisuel {
+export function construireDemandeVisuel(entree: { reseau: Reseau | "pinterest"; fichiers: FichierVisuel[]; legende?: string }): ResultatDemandeVisuel {
   const { reseau, fichiers, legende } = entree;
-  const profil = PROFILS_RESEAUX[reseau];
+  const profil = profilDe(reseau);
   const erreurs = new Set<ErreurDemandeVisuel>();
   if (fichiers.length === 0) erreurs.add("aucun-fichier");
   const attendu = profil.livrable === "pdf" ? "pdf" : "image";

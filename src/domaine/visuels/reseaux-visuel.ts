@@ -13,5 +13,5 @@ export function reseauxDuVisuel(v: Pick<Visuel, "reseaux">): IdReseau[] {
 
 /** Type de contenu d'un visuel : les carrousels (pages ou continu) sont des carrousels, l'infographie est une image. */
 export function typeContenuDuVisuel(v: Pick<Visuel, "famille">): TypeContenu {
-  return v.famille === "infographie" ? "image" : "carrousel";
+  return v.famille === "infographie" || v.famille === "epingle" ? "image" : "carrousel";
 }

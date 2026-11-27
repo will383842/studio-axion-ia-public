@@ -25,7 +25,7 @@ describe("RES-01 · carrousel Instagram", () => {
     expect(() => corps({ images: images(21) })).toThrow(/instagram accepte 20 images au plus\. Rien n'a été envoyé/);
   });
   it("les autres limites d'images ne bougent pas", () => {
-    expect(IMAGES_MAX).toEqual({ instagram: 20, facebook: 10, linkedin: 20, tiktok: 35 });
+    expect(IMAGES_MAX).toEqual({ instagram: 20, facebook: 10, linkedin: 20, tiktok: 35, pinterest: 1 });
   });
 });
 

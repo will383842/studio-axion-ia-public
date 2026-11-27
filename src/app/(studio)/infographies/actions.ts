@@ -4,7 +4,7 @@
  * Actions des écrans de l'infographie (INF-01). Session exigée. Créer garde un BROUILLON ; Valider le passe à « validée ».
  * Aucun rendu, aucun envoi, aucune programmation : ces gestes ne sont pas dans cette fiche.
  */
-import { RESEAUX_VISUEL_ENVOI } from "@/domaine/reseaux-visuel-envoi";
+import { RESEAUX_VISUEL_CLASSIQUES } from "@/domaine/reseaux-visuel-envoi";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -14,7 +14,7 @@ import { ecrireParametre, journaliser, lireParametre, maintenant, sousVerrou } f
 import { exigerSession } from "@/services/auth";
 
 const STYLES: readonly StyleInfographie[] = ["liste", "avant", "chiffre"];
-const RESEAUX: readonly ReseauInfographie[] = RESEAUX_VISUEL_ENVOI;
+const RESEAUX: readonly ReseauInfographie[] = RESEAUX_VISUEL_CLASSIQUES;
 const FORME_ID = /^inf_[0-9a-f-]{36}$/;
 
 /** Cle du dossier de l'infographie et de la liste des identifiants, dans les paramètres du studio. */

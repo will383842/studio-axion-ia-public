@@ -16,7 +16,7 @@ import type { Depot } from "@/domaine/depots";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { CLE_DIFFUSEUR } from "@/domaine/envoi-planifie";
 import { STATUTS_CRENEAU_ENVOYABLES } from "@/domaine/plan-editorial/envoyable";
-import type { ReseauDeclinaison } from "@/domaine/types";
+import type { ReseauEnvoiCreneau } from "@/domaine/reseaux-visuel-envoi";
 import { CODES_AVANT_RESEAU, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { PROMOTION_MARGE_MIN_MS, enteteIdempotenceStudio } from "@/fournisseurs/publication/zernio-client";
 import type { ClientZernio } from "@/fournisseurs/publication/zernio-client";
@@ -34,7 +34,7 @@ export interface CreneauCalendrier {
   videoId: string;
   /** Absent = vidéo. */
   nature?: "video" | "visuel";
-  reseau: ReseauDeclinaison;
+  reseau: ReseauEnvoiCreneau;
   versionCreneau: number;
   /** AAAA-MM-JJ, heure de Paris. */
   jour: string;
@@ -56,7 +56,7 @@ export interface DemandeBrouillonCreneau {
   nature?: "video" | "visuel";
   /** Le créneau du plan d'origine. */
   creneauId?: string;
-  reseau: ReseauDeclinaison;
+  reseau: ReseauEnvoiCreneau;
   dateIso: string;
   texte: string;
   premierCommentaire?: string;
@@ -122,6 +122,8 @@ export interface DepsEnvoiCreneau {
   /** Essai borné : la porte générale fermée, cet identifiant de créneau peut-il quand même créer SON brouillon ? Absent = non. */
   porteEssai?: (creneauId: string) => Promise<boolean>;
   suivi?: OptionsPromotionEnvois["suivi"];
+  /** Pinterest : tableau voulu, relu dans la Publication de la clé d'envoi (garde de la promotion). */
+  tableauAttendu?: OptionsPromotionEnvois["tableauAttendu"];
   /** Facultatif : trace des outils appelés (tests). */
   outilsAppeles?: string[];
 }
@@ -408,6 +410,7 @@ async function tourSansFile(deps: DepsEnvoiCreneau): Promise<ResultatTourCreneau
       suivi: deps.suivi,
       etats: deps.etats,
       notifier: deps.notifier,
+      tableauAttendu: deps.tableauAttendu,
     });
   }
   return res;

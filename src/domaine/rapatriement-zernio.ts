@@ -39,6 +39,7 @@ const PLATEFORME_VERS_RESEAU: Readonly<Record<string, IdReseau>> = {
   linkedin: "linkedin",
   tiktok: "tiktok",
   youtube: "youtube-shorts",
+  pinterest: "pinterest",
 };
 
 export function reseauDepuisPlateforme(platform: string): IdReseau | null {
