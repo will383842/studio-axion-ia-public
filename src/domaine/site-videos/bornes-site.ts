@@ -52,6 +52,8 @@ function hors(valeur: string, [min, max]: readonly [number, number]): "court" | 
 export function echecsBornes(p: PasseportWeb): EchecBorne[] {
   const echecs: EchecBorne[] = [];
   const verifier = (ou: string, champ: keyof PasseportWeb, valeur: string, borne: readonly [number, number]) => {
+    // Un texte vide est déjà signalé par SITE-10 (page complète) ou SITE-11 (titre) : on ne le redit pas.
+    if (!valeur.trim()) return;
     const h = hors(valeur, borne);
     if (h) echecs.push({ champ, message: `${ou} fait ${valeur.length} caractères : ${h === "court" ? `${borne[0]} au moins` : `${borne[1]} au plus`} pour le site.` });
   };
@@ -62,7 +64,7 @@ export function echecsBornes(p: PasseportWeb): EchecBorne[] {
     verifier(`La question n° ${i + 1}`, "questions", q.question, BORNES_SITE.question);
     verifier(`La réponse n° ${i + 1}`, "questions", q.reponse, BORNES_SITE.reponse);
   });
-  if (!themeDeRubrique(p.rubrique)) echecs.push({ champ: "rubrique", message: "La rubrique doit être l'un des thèmes du site : Formations IA, Coaching IA 1-to-1, Audit IA, Automatisation ou Sites web et SaaS IA." });
+  if (p.rubrique.trim() && !themeDeRubrique(p.rubrique)) echecs.push({ champ: "rubrique", message: "La rubrique doit être l'un des thèmes du site : Formations IA, Coaching IA 1-to-1, Audit IA, Automatisation ou Sites web et SaaS IA." });
   return echecs;
 }
 

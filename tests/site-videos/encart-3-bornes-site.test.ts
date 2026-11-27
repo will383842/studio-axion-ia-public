@@ -92,6 +92,11 @@ describe("encart PR 3 : l'interrupteur", () => {
     expect(sur({ titreWeb: "" })).toEqual(["SITE-11:titreWeb"]);
     expect(sur({ resume: "" })).toEqual(["SITE-10:resume"]);
   });
+  it("allumé : un texte vide n'est signalé que par SITE-10 (un « À retenir » vide parmi 3, résumé et rubrique vides)", () => {
+    const sur = (surcharge: object) => controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: { ...passeportConforme(), ...surcharge } })).controles.filter((c) => !c.ok).map((c) => c.code);
+    expect(sur({ aRetenir: [texte(25), "", texte(25)] })).toEqual(["SITE-10"]);
+    expect(sur({ resume: "", rubrique: "" })).toEqual(["SITE-10"]);
+  });
   it("allumé : un titre de 60 caractères suivi d'espaces est signalé par SITE-18 (longueur brute)", () => {
     const sur = controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: { ...passeportConforme(), titreWeb: `${texte(60)}  ` } })).controles.filter((c) => !c.ok).map((c) => `${c.code}:${c.champ}`);
     expect(sur).toEqual(["SITE-18:titreWeb"]);
