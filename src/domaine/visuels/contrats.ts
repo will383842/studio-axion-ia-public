@@ -85,7 +85,7 @@ export interface VueCarrouselFiche extends VueCarrouselCarte {
   renduEnCours: boolean;
   noteTexte?: string;
   /** Réseaux préparés (absent : aucun choix enregistré). */
-  reseaux?: Reseau[];
+  reseaux?: (Reseau | "pinterest")[];
   refus: { motif: MotifRefus; libelleMotif: string; page?: number; commentaire?: string; le: string }[];
   actionsPermises: ActionCarrousel[];
   generateurAllume: boolean;
