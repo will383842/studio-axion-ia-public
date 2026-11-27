@@ -99,6 +99,10 @@ afterEach(() => {
 });
 
 describe("Pinterest PR 5 · envoyerVisuel d'une épingle", () => {
+  // Ces cas portent sur le contenu de l'envoi : le tour Pinterest y est ouvert (constante forcée). Le tour fermé a son bloc plus bas.
+  beforeEach(() => {
+    porte.ouverte = true;
+  });
   it("demande : cible tableau, une image, alt de 500 sans suffixe de page, titre, lien, description, contenuIA, brouillon", async () => {
     await visuelEpingle();
     const id = await creneau("cr-1", "vis_pin", "pinterest");
@@ -157,6 +161,64 @@ describe("Pinterest PR 5 · envoyerVisuel d'une épingle", () => {
     await depots().creneauxEditoriaux.modifier(id, { textes: { pinterest: { texte: "Description d'exemple", premierCommentaire: "Bonjour" } } } as never);
     await expect(pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl })).rejects.toMatchObject({ code: "PREMIER_COMMENTAIRE_NON_TRANSMIS" });
     expect(appels).toHaveLength(0);
+  });
+});
+
+describe("Pinterest PR 5 · porte Pinterest propre à l'envoi (porte générale ouverte, tour fermé)", () => {
+  const poserEssai = async (creneauId: string, p: Record<string, unknown> = {}): Promise<void> => {
+    const t = Date.now();
+    await ecrireParametre("zernio.essai_brouillon", { version: 1, creneauId, compte: CIBLE, reseau: "pinterest", poseLe: new Date(t - 3600_000).toISOString(), expireLe: new Date(t + 3 * 3600_000).toISOString(), ...p });
+  };
+  beforeEach(() => {
+    vi.stubEnv("ZERNIO_API_KEY", "cle-essai");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+  it("tour fermé, pas d'essai : refus avant tout appel, rien d'écrit", async () => {
+    await visuelEpingle();
+    const id = await creneau("cr-1", "vis_pin", "pinterest");
+    const avant = await depots().publications.compter();
+    await expect(pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(appels).toHaveLength(0);
+    expect(await depots().publications.compter()).toBe(avant);
+  });
+  it("essai d'un AUTRE créneau : refus ; essai de CE créneau : brouillon créé", async () => {
+    await visuelEpingle();
+    const id = await creneau("cr-1", "vis_pin", "pinterest");
+    await creneau("cr-2", "vis_pin", "pinterest");
+    await poserEssai("cr-2");
+    await expect(pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(appels).toHaveLength(0);
+    await poserEssai("cr-1");
+    const r = await pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl });
+    expect(r.deja).toBe(false);
+    expect(appels).toHaveLength(1);
+  });
+  it("essai expiré : refus, zéro appel", async () => {
+    await visuelEpingle();
+    const id = await creneau("cr-1", "vis_pin", "pinterest");
+    await poserEssai("cr-1", { poseLe: new Date(Date.now() - 5 * 3600_000).toISOString(), expireLe: new Date(Date.now() - 3600_000).toISOString() });
+    await expect(pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl })).rejects.toMatchObject({ code: "ENVOI_CALENDRIER_FERME" });
+    expect(appels).toHaveLength(0);
+  });
+  it("image d'épingle hors ligne : refus, zéro appel", async () => {
+    porte.ouverte = true;
+    await visuelEpingle();
+    const id = await creneau("cr-1", "vis_pin", "pinterest");
+    await expect(pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl: async () => "http://hors-ligne.test/x.png" })).rejects.toMatchObject({ code: "FICHIER_HORS_LIGNE" });
+    expect(appels).toHaveLength(0);
+  });
+  it("tour : l'essai d'un créneau Pinterest donne sa seule ligne, un essai expiré n'en donne aucune", async () => {
+    const deps = () => construireDepsEnvoiCalendrier({ service: () => faux(), lireUrl, porte: async () => true, client: creerFauxClientZernio().client });
+    for (const i of [1, 2]) {
+      await visuelEpingle(`vis_${i}`, { epingle: epingle({ cle: `ep-${i}` }) });
+      await creneau(`cr-${i}`, `vis_${i}`, "pinterest", new Date(Date.now() + (2 + i) * 24 * 3600_000).toISOString());
+    }
+    await poserEssai("cr-1");
+    expect((await deps().creneaux()).filter((l) => l.reseau === "pinterest").map((l) => l.id)).toEqual(["cr-1"]);
+    await poserEssai("cr-1", { poseLe: new Date(Date.now() - 5 * 3600_000).toISOString(), expireLe: new Date(Date.now() - 3600_000).toISOString() });
+    expect((await deps().creneaux()).filter((l) => l.reseau === "pinterest")).toEqual([]);
   });
 });
 
