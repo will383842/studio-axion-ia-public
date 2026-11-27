@@ -1,6 +1,6 @@
 /**
- * Copie, pour les tests, du schéma de réception du site (`schemaVersion: 1`, `src/server/videos/contrat.ts` du dépôt du site, branche principale
- * au 2026-11-27) : objets stricts, bornes, thèmes fermés, et les règles croisées (chapitres, chemins de fichiers). Seule la liste
+ * Copie, pour les tests, du schéma de réception du site (`schemaVersion: 1`, `src/server/videos/contrat.ts` du dépôt du site, branche
+ * `docs/conception-encart-video`, commit 58ea91f5, relu le 2026-11-27) : objets stricts, bornes, thèmes fermés, et les règles croisées (chapitres, chemins de fichiers). Seule la liste
  * blanche des liens n'est pas reprise. À réaligner à la main si le site change son contrat.
  */
 import { z } from "zod";

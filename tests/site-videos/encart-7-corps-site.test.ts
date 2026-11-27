@@ -78,9 +78,9 @@ describe("encart PR 7 : corps au format du site", () => {
 
   it("chapitres : le début arrondi ne dépasse jamais la durée arrondie ni le précédent (écarté plutôt que refusé par le site)", () => {
     const chap = (debutSec: number, libelle: string) => ({ debutSec, finSec: debutSec + 5, libelle, blocRecette: "coeur" });
-    const p = { ...entree().passeport, chapitres: [chap(0, "Début"), chap(12.4, "Milieu"), chap(12.6, "Trop proche"), chap(39.6, "Fin")] };
+    const p = { ...entree().passeport, chapitres: [chap(0, "Début"), chap(12.4, "Milieu"), chap(12.49, "Même seconde"), chap(13.6, "Suivant"), chap(39.6, "Fin")] };
     const c = corpsSite(entree({ passeport: p, dureeSec: 40.4 }));
-    expect(c.chapitres).toEqual([{ titre: "Début", debutSecondes: 0 }, { titre: "Milieu", debutSecondes: 12 }, { titre: "Trop proche", debutSecondes: 13 }]);
+    expect(c.chapitres).toEqual([{ titre: "Début", debutSecondes: 0 }, { titre: "Milieu", debutSecondes: 12 }, { titre: "Suivant", debutSecondes: 14 }]);
     expect(schemaPublicationSite.safeParse(c).success).toBe(true);
   });
 
