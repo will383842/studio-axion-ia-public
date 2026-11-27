@@ -394,7 +394,13 @@ export async function archiverVideos(ids: Id[]): Promise<void> {
       bloquees.length > 1 ? `${bloquees.length} vidéos sont en fabrication : archivez-les une fois prêtes.` : `« ${bloquees[0].titre} » est en fabrication : archivez-la une fois prête.`,
     );
   }
-  for (const v of videos) if (v.statut !== "archivee") await d.videos.modifier(v.id, { statut: "archivee", statutAvantArchive: v.statut });
+  // Une vidéo archivée ne reste pas en ligne : retrait du site AVANT l'archivage (site injoignable : rien n'est archivé).
+  const aArchiver = videos.filter((v) => v.statut !== "archivee");
+  if (aArchiver.length) {
+    const { retirerAvantSuppression } = await import("./site-videos");
+    await retirerAvantSuppression(aArchiver.map((v) => v.id));
+  }
+  for (const v of aArchiver) await d.videos.modifier(v.id, { statut: "archivee", statutAvantArchive: v.statut });
   await journaliser("video", videos.length > 1 ? `${videos.length} vidéos archivées` : "1 vidéo archivée");
 }
 
