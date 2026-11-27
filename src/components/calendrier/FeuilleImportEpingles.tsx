@@ -91,7 +91,7 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
             <Bouton type="button" variante="principal" onClick={() => setConfirmer(true)}>Valider ce lot</Bouton>
           ) : (
             <>
-              <p className="text-sm text-texte">Valider {ids.length} épingle(s) du calendrier ? Elles seront programmées dans le Studio ; l&apos;envoi se fait ensuite au tour du calendrier.</p>
+              <p className="text-sm text-texte">Valider {cree.resume?.nombre ?? ids.length} épingle(s) du calendrier{cree.resume?.premier ? `, du ${cree.resume.premier} au ${cree.resume.dernier}` : ""} ? Elles seront programmées dans le Studio ; l&apos;envoi se fait ensuite au tour du calendrier.</p>
               <Bouton type="submit" variante="principal" disabled={enValidation}>Oui, valider {ids.length} épingle(s)</Bouton>
             </>
           )}

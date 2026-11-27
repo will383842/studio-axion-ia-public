@@ -17,11 +17,11 @@ import { canauxZernioEnregistres } from "@/services/comptes-envoi-zernio";
 import { depots, ecrireParametre, fournisseur, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
 import { commencerEnvoi } from "@/services/envois";
 import { domaineDuSite, epingleDuVisuel } from "../charger-medias";
-import { analyserLot, importerLot, validerLot, type DepsLot, type RapportLot, type ResultatImport, type ResultatValidation, type SaisieLot } from "@/services/epingles/import-lot";
+import { analyserLot, importerLot, resumeLot, validerLot, type DepsLot, type RapportLot, type ResultatImport, type ResultatValidation, type SaisieLot } from "@/services/epingles/import-lot";
 
 /** Ce qu'il faut voir avant « Valider ce lot » : l'image, le texte alternatif, le titre, le lien et le tableau de chaque épingle créée. */
 export type ApercuLot = { creneauId: string; imageUrl: string | null; titre: string; description: string; texteAlternatif: string; lien: string; tableau: string; contenuIA: boolean; domaine: string };
-export type EtatImport = { rapport?: RapportLot; resultat?: ResultatImport; validation?: ResultatValidation; apercus?: ApercuLot[]; erreur?: string };
+export type EtatImport = { rapport?: RapportLot; resultat?: ResultatImport; validation?: ResultatValidation; apercus?: ApercuLot[]; resume?: { nombre: number; premier?: string; dernier?: string }; erreur?: string };
 
 async function deps(): Promise<DepsLot> {
   const d = depots();
@@ -84,7 +84,7 @@ export async function importerLotAction(_: EtatImport, f: FormData): Promise<Eta
   const d = await deps();
   const resultat = await importerLot(d, s);
   revalidatePath("/calendrier");
-  return { rapport: resultat.rapport, resultat, apercus: await apercusDuLot(d, resultat.creneauIds, s.compte) };
+  return { rapport: resultat.rapport, resultat, apercus: await apercusDuLot(d, resultat.creneauIds, s.compte), resume: await resumeLot(d, resultat.creneauIds) };
 }
 
 /** Aperçu de chaque épingle créée (lecture seule). Une épingle dont la lecture échoue est montrée sans image, jamais omise. */

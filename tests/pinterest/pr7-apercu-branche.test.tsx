@@ -17,6 +17,12 @@ describe("PR 7 · branchement de ApercuEpingle", () => {
     expect(src.indexOf("<ApercuEpingle")).toBeLessThan(src.indexOf("Valider ce lot</Bouton>"));
     expect(src).toContain("cree.apercus");
   });
+  it("la confirmation « Valider ce lot » affiche le nombre et les dates venant de resumeLot", () => {
+    const f = readFileSync("src/components/calendrier/FeuilleImportEpingles.tsx", "utf8");
+    const a = readFileSync("src/app/(studio)/calendrier/importer-epingles/actions.ts", "utf8");
+    expect(a).toContain("resume: await resumeLot(d, resultat.creneauIds)");
+    for (const m of ["cree.resume?.nombre", "cree.resume.premier", "cree.resume.dernier"]) expect(f).toContain(m);
+  });
   it("la fiche du calendrier monte ApercuEpingle pour une entrée Pinterest qui porte une épingle", () => {
     const src = readFileSync("src/components/calendrier/ApercuPublication.tsx", "utf8");
     expect(src).toContain('from "@/components/visuels/ApercuEpingle"');

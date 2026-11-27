@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => mockNavigation);
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: () => undefined }));
 
 const { reinitialiserDepots, depots, appliquerLot } = await import("@/donnees/memoire");
-const { analyserLot, importerLot, validerLot } = await import("@/services/epingles/import-lot");
+const { analyserLot, importerLot, resumeLot, validerLot } = await import("@/services/epingles/import-lot");
 const { validerParLeFondateur } = await import("@/components/visuels/BoutonProgrammerVisuel");
 const pub = await import("@/services/publications");
 const { listerCarrousels } = await import("@/visuels/services/vues");
@@ -145,6 +145,13 @@ describe("PR 6 · import puis « Valider ce lot »", () => {
     expect(vs.map((v) => v.epingle?.contenuIA).sort()).toEqual([false, true]);
     expect(await depots().publications.lister((p) => p.reseau === "pinterest")).toHaveLength(0);
     expect(faux.faux.appels).toHaveLength(0);
+  });
+  it("resumeLot donne le nombre d'épingles et la première et la dernière date du lot", async () => {
+    deposer(1); deposer(2);
+    const r = await importerLot(deps(), saisie(json(ligne(1), ligne(2))));
+    const resume = await resumeLot(deps(), r.creneauIds);
+    const jours = (await depots().creneauxEditoriaux.lister()).map((c) => c.jourVise).sort();
+    expect(resume).toEqual({ nombre: 2, premier: jours[0], dernier: jours[1] });
   });
   it("« Valider ce lot » : 2 publications Pinterest au calendrier, créneaux et visuels « programme », aucun appel Zernio", async () => {
     deposer(1); deposer(2);
