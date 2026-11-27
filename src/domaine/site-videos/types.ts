@@ -69,6 +69,8 @@ export interface EtatSite {
   fichiersPublics: string[];
   /** Case de la feuille « Aucun client nommé, aucun logo » (cochée par Will après vérification). */
   aucunClient?: boolean;
+  /** Posé quand le fondateur décoche la case « Sur le site », effacé quand il la recoche : la reprise automatique le respecte. */
+  decocheeParWill?: boolean;
   /** Retirée parce que son générateur a été éteint : à republier quand il est rallumé. */
   retireeParGenerateur?: boolean;
   derniereErreur?: string;
