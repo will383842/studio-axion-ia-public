@@ -502,9 +502,17 @@ export async function changerEtapeEditoriale(id: Id, etape: EtapeEditoriale): Pr
     const v = await depots().variantes.obtenir(video.varianteId);
     if (etape === "validee" && v && v.etat === "a-relire") await validerVariante(v.id);
     await synchroniserEtats(video.varianteId);
+    await reprendreHorsVerrou(id);
     return;
   }
   await depots().videos.modifier(id, { etapeEditoriale: etape });
+  await reprendreHorsVerrou(id);
+}
+
+/** Vidéo devenue validée : envoi au site si l'interrupteur « reprise des vidéos validées » est allumé (éteint par défaut). */
+async function reprendreHorsVerrou(id: Id): Promise<void> {
+  const { reprendreSiValidee } = await import("./site-videos");
+  await reprendreSiValidee(id);
 }
 
 export async function renommerVideo(id: Id, titre: string): Promise<void> {

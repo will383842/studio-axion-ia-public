@@ -25,6 +25,7 @@ import { stockagePublicFacticeCourant } from "@/fournisseurs/site/simulation";
 import type { StockageFichiers } from "@/fournisseurs/types";
 import { slugWeb } from "@/domaine/site-videos/passeport";
 import { ErreurSite, type StockagePublic } from "@/fournisseurs/site/types";
+import { gardeRepriseAuto } from "@/domaine/site-videos/reprise-auto";
 import { depots, ecrireParametre, ErreurStudio, fournisseur, fournisseurSimule, journaliser, lireParametre, maintenant } from "./_commun";
 import { exigerSession } from "./auth";
 import { sousTitresDepuisTexte, sousTitresUtilisables } from "./telechargements-sous-titres";
@@ -871,6 +872,57 @@ export async function publicationAuto(videoId: string): Promise<"rien" | "a-reli
     console.error("[studio] envoi automatique sur le site", e);
     return "rien";
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reprise des vidéos validées (encart vidéo, ADR-0016)                  */
+/* ------------------------------------------------------------------ */
+
+const PARAM_REPRISE_VALIDEES = "site.repriseValidees";
+
+/** Interrupteur « les vidéos validées partent au site » (ÉTEINT par défaut). Sans lui, rien ne se passe. */
+export async function repriseValideesAllumee(): Promise<boolean> {
+  return (await lireParametre<boolean>(PARAM_REPRISE_VALIDEES, false)) === true;
+}
+
+export async function definirRepriseValidees(allume: boolean): Promise<void> {
+  await exigerSession();
+  await ecrireParametre(PARAM_REPRISE_VALIDEES, allume === true);
+}
+
+/**
+ * Appelé APRÈS qu'une vidéo est devenue validée (jamais sous un verrou : un appel au site peut durer 10 s). Respecte la
+ * garde de reprise (jamais « à relire », retirée, retrait raté, décochée par le fondateur, déjà en ligne), puis laisse
+ * `publicationAuto` faire ses propres contrôles (générateur autorisé, envoi automatique allumé, SITE-01 à 17). Ne lève
+ * jamais. Retourne vrai si un envoi a abouti.
+ */
+export async function reprendreSiValidee(videoId: string): Promise<boolean> {
+  try {
+    if (!(await repriseValideesAllumee())) return false;
+    const d = depots();
+    const video = await d.videos.obtenir(videoId);
+    if (!video) return false;
+    const kit = await d.kits.trouver((k) => k.videoId === videoId);
+    if (!gardeRepriseAuto({ etape: video.etapeEditoriale, site: kit?.site }).reprendre) return false;
+    return (await publicationAuto(videoId)) === "publiee";
+  } catch (e) {
+    console.error("[studio] reprise d'une vidéo validée", e);
+    return false;
+  }
+}
+
+/** Passe de rattrapage, à lancer à la main : reprend toutes les vidéos prêtes déjà validées, programmées ou publiées. */
+export async function rattraperVideosValidees(): Promise<{ examinees: number; envoyees: number }> {
+  const resume = { examinees: 0, envoyees: 0 };
+  if (!(await repriseValideesAllumee())) return resume;
+  const d = depots();
+  for (const v of await d.videos.lister((x) => x.statut === "prete")) {
+    const kit = await d.kits.trouver((k) => k.videoId === v.id);
+    if (!gardeRepriseAuto({ etape: v.etapeEditoriale, site: kit?.site }).reprendre) continue;
+    resume.examinees++;
+    if ((await publicationAuto(v.id)) === "publiee") resume.envoyees++;
+  }
+  return resume;
 }
 
 /**
