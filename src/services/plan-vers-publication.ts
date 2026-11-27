@@ -50,6 +50,11 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
   }
 
   const lignes = identifiantsProgrammation(c);
+  // Pinterest n'est pas programmable depuis ce chemin : un créneau qui ne vise QUE Pinterest est refusé (rien d'écrit, aucun
+  // fournisseur appelé) au lieu de passer « programme » avec 0 Publication. Un créneau mixte ignore Pinterest (`lignes` l'exclut).
+  if (lignes.length === 0 && Boolean((c.heuresParReseau as Record<string, string | undefined>).pinterest)) {
+    throw new Error("Pinterest ne peut pas encore être programmé depuis ce chemin : refus, rien d'écrit.");
+  }
   // Une Publication existe déjà pour ce visuel et ce réseau si elle porte l'id courant ou celui d'une version
   // antérieure (le créneau a été décalé depuis) : on la réutilise, on ne recrée jamais.
   const plan: { reseau: ReseauDeclinaison; id: string; existante: Publication | null }[] = [];
