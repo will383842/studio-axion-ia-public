@@ -33,7 +33,7 @@ const RUBRIQUES = [
   "premier_commentaire", "reponses_commentaires", "messages_prives", "duplication", "statistiques",
   "plafond_posts", "plafond_texte", "plafond_mots_dieses", "format_video", "format_carrousel_document", "texte_alternatif",
 ];
-const ACTIFS = ["linkedin", "instagram", "facebook", "tiktok"];
+const ACTIFS = ["linkedin", "instagram", "facebook", "tiktok", "pinterest"];
 
 function cellules(): { chemin: string; c: Cellule }[] {
   const out: { chemin: string; c: Cellule }[] = [];
@@ -46,7 +46,7 @@ function cellules(): { chemin: string; c: Cellule }[] {
 }
 
 describe("relevé des règles officielles (L8-01)", () => {
-  it("a la bonne forme : 4 réseaux actifs, deux couches séparées, YouTube éteint", () => {
+  it("a la bonne forme : 5 réseaux actifs, deux couches séparées, YouTube éteint", () => {
     expect(releve.version).toBe(1);
     expect(releve.consulte_le).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     for (const r of ACTIFS) {
@@ -97,7 +97,7 @@ describe("relevé des règles officielles (L8-01)", () => {
 
   it("confronte les constantes de zernio-corps.ts à leur source", () => {
     const noms = releve.constantes.map((k) => k.nom);
-    for (const n of ["REEL_FACEBOOK_DUREE_SEC", "ALT_MAX", "TITRE_DOCUMENT_MAX"]) expect(noms).toContain(n);
+    for (const n of ["REEL_FACEBOOK_DUREE_SEC", "ALT_MAX", "TITRE_DOCUMENT_MAX", "IMAGES_MAX.pinterest", "ALT_MAX_PINTEREST"]) expect(noms).toContain(n);
     const toutes = new Set(cellules().map((x) => x.chemin));
     for (const k of releve.constantes) {
       expect(["conforme", "écart", "inconnu"], k.nom).toContain(k.statut);
@@ -133,7 +133,7 @@ describe("relevé des règles officielles (L8-01)", () => {
 
   it("le document reprend exactement le relevé : chaque ligne de chaque couche et des constantes", () => {
     const md = readFileSync("docs/reseaux/REGLES-OFFICIELLES.md", "utf8");
-    const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok" };
+    const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", pinterest: "Pinterest" };
     const LIBELLES = [
       "Premier commentaire", "Réponses aux commentaires", "Messages privés", "Duplication de contenu", "Statistiques",
       "Plafond de posts", "Longueur de texte", "Mots-dièse", "Vidéo (durée, taille)", "Carrousel / document PDF", "Texte alternatif",
