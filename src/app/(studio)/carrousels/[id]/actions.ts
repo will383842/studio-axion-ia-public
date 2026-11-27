@@ -1,6 +1,7 @@
 "use server";
 
 /** Actions de la fiche d'un carrousel. Session exigée ; seuls l'identifiant, le motif, la page et le commentaire sont lus. */
+import { RESEAUX_VISUEL_ENVOI } from "@/domaine/reseaux-visuel-envoi";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -126,7 +127,7 @@ export async function programmerAction(donnees: FormData): Promise<void> {
   });
 }
 
-const RESEAUX_LEGENDE = ["linkedin", "instagram", "facebook"] as const;
+const RESEAUX_LEGENDE = RESEAUX_VISUEL_ENVOI;
 type ReseauLegende = (typeof RESEAUX_LEGENDE)[number];
 const cleLegende = (id: string, reseau: ReseauLegende) => `visuels.legende.${id}.${reseau}`;
 const clePrecedente = (id: string, reseau: ReseauLegende) => `visuels.legende-precedente.${id}.${reseau}`;
