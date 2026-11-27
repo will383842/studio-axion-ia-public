@@ -100,3 +100,14 @@ describe("« Tout arrêter »", () => {
     expect((await POST(appel(commande()))).status).toBe(201);
   });
 });
+
+describe("Pinterest : le contrat avec l'usine reste sans Pinterest", () => {
+  it("reseau « pinterest » : même refus qu'un réseau inconnu, rien n'est écrit", async () => {
+    const inconnu = await POST(appel(commande({ reseau: "inconnu" })));
+    const r = await POST(appel(commande({ reseau: "pinterest" })));
+    expect(r.status).toBe(400);
+    expect(r.status).toBe(inconnu.status);
+    expect((await r.json()).code).toBe((await inconnu.json()).code);
+    expect(await depots().creneauxEditoriaux.lister()).toHaveLength(0);
+  });
+});

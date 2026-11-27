@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
+import { RESEAUX_CALENDRIER } from "@/domaine/usine-calendrier";
 import type { IdReseau } from "@/domaine/types";
 import { depots } from "@/donnees/memoire";
 import { recevoirProgrammation } from "@/services/porte-programmations";
@@ -15,7 +15,7 @@ import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 export const dynamic = "force-dynamic";
 
 const ROUTE = "POST /api/usine/programmations";
-const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_TAXONOMIE);
+const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_CALENDRIER);
 const CLE_VALIDE = /^[A-Za-z0-9._:-]{8,100}$/;
 const INSTANT_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/;
 const NOM_COURT = /^[A-Za-z0-9._:-]{1,100}$/;

@@ -17,8 +17,11 @@ export function empreinteTexte(texte: string): string {
   return h.toString(36);
 }
 
+// Pinterest volontairement absent : une épingle ne naît que par l'import.
+const RESEAUX_STOCK = RESEAUX_TAXONOMIE.filter((r) => r !== "pinterest");
+
 export async function mettreEnStock(texte: string, source: string) {
-  return creerEntreeStockAction({ texte, reseaux: [...RESEAUX_TAXONOMIE], priorite: "normale", cle: `${source}-${empreinteTexte(texte)}` });
+  return creerEntreeStockAction({ texte, reseaux: RESEAUX_STOCK, priorite: "normale", cle: `${source}-${empreinteTexte(texte)}` });
 }
 
 async function lancer(texte: string, cle: string) {

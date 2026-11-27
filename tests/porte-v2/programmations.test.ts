@@ -169,3 +169,15 @@ describe("critère 3 : jamais de statut venant de l'usine, jeton exigé, rejeu s
     expect(await creneaux()).toHaveLength(0);
   });
 });
+
+describe("Pinterest : le contrat avec l'usine reste sans Pinterest", () => {
+  it("reseau « pinterest » : même refus qu'un réseau inconnu (400 champ_invalide), rien n'est écrit ni envoyé", async () => {
+    const inconnu = await POST(appel(programmation({ reseau: "inconnu" })));
+    const r = await POST(appel(programmation({ reseau: "pinterest" })));
+    expect(r.status).toBe(400);
+    expect(r.status).toBe(inconnu.status);
+    expect((await r.json()).code).toBe((await inconnu.json()).code);
+    expect(await creneaux()).toHaveLength(0);
+    expect(envoi.fetch).not.toHaveBeenCalled();
+  });
+});
