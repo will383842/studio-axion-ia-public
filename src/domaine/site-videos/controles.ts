@@ -6,6 +6,7 @@ import { MOTS_TEMOIGNAGE } from "@/moteurs/montage-cas-concret/regles";
 import type { EcrivainInterdits } from "@/domaine/qualite-script/types";
 import { titreCommenceParCodeInterne } from "@/domaine/miniatures";
 import { casesRequises, nomCourtFormat } from "@/formats";
+import { controlerBornesSite } from "./bornes-site";
 import { TITRE_WEB_MAX } from "./passeport";
 import type { PasseportWeb } from "./types";
 
@@ -34,6 +35,8 @@ export interface EntreeControlesSite {
   /** Case de la feuille « Aucun client nommé, aucun logo ». */
   caseAucunClient: boolean;
   reglagesSite: ReglagesDuSite;
+  /** Encart vidéo (ADR-0016) : contrôle SITE-18, bornes de longueur et thèmes du site. Éteint par défaut. */
+  bornesDuSite?: boolean;
 }
 
 export interface ControleSite {
@@ -248,6 +251,6 @@ function site17(e: EntreeControlesSite): ControleSite[] {
 }
 
 export function controlerAvantSite(entree: EntreeControlesSite): ResultatControlesSite {
-  const controles = [...site01(entree), ...site02(entree), ...site03(entree), ...site04(entree), ...site05(entree), ...site06(entree), ...site07(entree), ...site08(entree), ...site09(entree), ...site10(entree), ...site11(entree), ...site12(entree), ...site13(entree), ...site14(entree), ...site15(entree), ...site16(entree), ...site17(entree)];
+  const controles = [...site01(entree), ...site02(entree), ...site03(entree), ...site04(entree), ...site05(entree), ...site06(entree), ...site07(entree), ...site08(entree), ...site09(entree), ...site10(entree), ...site11(entree), ...site12(entree), ...site13(entree), ...site14(entree), ...site15(entree), ...site16(entree), ...site17(entree), ...(entree.bornesDuSite ? controlerBornesSite(entree.passeport) : [])];
   return { publiable: !controles.some((c) => !c.ok && c.gravite === "bloquant"), controles };
 }
