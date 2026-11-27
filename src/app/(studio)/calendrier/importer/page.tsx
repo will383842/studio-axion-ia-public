@@ -19,7 +19,7 @@ export default async function PageImporter({ searchParams }: { searchParams: Pro
         retour={{ href: "/calendrier", libelle: "Calendrier" }}
       />
       <p className="mb-4 text-sm text-texte-doux">
-        Un lot d'épingles Pinterest ? <Link href="/calendrier/importer-epingles" className="font-semibold underline">Importer un lot d'épingles</Link>
+        Un lot d&apos;épingles Pinterest ? <Link href="/calendrier/importer-epingles" className="font-semibold underline">Importer un lot d&apos;épingles</Link>
       </p>
       <FeuilleImportPlan compteCible={typeof compte === "string" ? compte : ""} />
     </div>

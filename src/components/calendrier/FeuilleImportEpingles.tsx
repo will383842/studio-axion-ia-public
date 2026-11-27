@@ -47,7 +47,7 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
           <textarea name="json" value={json} onChange={(e) => setJson(e.target.value)} rows={10} required className="rounded-champ border border-trait bg-surface-1 p-3 font-mono text-xs font-normal text-texte" />
         </label>
         <div className="flex flex-wrap gap-3">
-          <Bouton type="submit" variante="secondaire" formAction={analyser} disabled={enAnalyse || !json.trim()}>Analyser (rien n'est écrit)</Bouton>
+          <Bouton type="submit" variante="secondaire" formAction={analyser} disabled={enAnalyse || !json.trim()}>Analyser (rien n&apos;est écrit)</Bouton>
           <Bouton type="submit" variante="principal" formAction={creer} disabled={enCreation || !json.trim()}>Créer les épingles au calendrier</Bouton>
         </div>
       </form>
@@ -58,7 +58,7 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
         <section aria-label="Rapport du lot" className="space-y-2">
           <p className="text-sm text-texte">
             {rapport.lus} lues : {rapport.lignes.filter((l) => l.statut === "pret").length} prêtes, {rapport.lignes.filter((l) => l.statut === "deja-la").length} déjà là,{" "}
-            {rapport.lignes.filter((l) => l.statut === "refusee").length} refusées, {rapport.lignes.filter((l) => l.statut === "attente-image").length} en attente d'image.
+            {rapport.lignes.filter((l) => l.statut === "refusee").length} refusées, {rapport.lignes.filter((l) => l.statut === "attente-image").length} en attente d&apos;image.
           </p>
           {rapport.imagesAttendues.length > 0 && <p className="text-sm text-texte-doux">Images à déposer avec le lot : {rapport.imagesAttendues.join(", ")}.</p>}
           {rapport.avertissements.map((a) => <p key={a} className="text-sm text-texte-doux">{a}</p>)}
@@ -77,7 +77,7 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
       {cree.resultat && ids.length > 0 && (
         <form action={valider} className="space-y-2" aria-label="Valider ce lot">
           <section aria-label="Aperçu des épingles du lot" className="space-y-3">
-            <p className="text-sm text-texte-doux">Voici chaque épingle telle qu'elle partira : image, texte alternatif, tableau. Vérifiez avant de valider.</p>
+            <p className="text-sm text-texte-doux">Voici chaque épingle telle qu&apos;elle partira : image, texte alternatif, tableau. Vérifiez avant de valider.</p>
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {(cree.apercus ?? []).map((a) => (
                 <li key={a.creneauId}>
@@ -91,7 +91,7 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
             <Bouton type="button" variante="principal" onClick={() => setConfirmer(true)}>Valider ce lot</Bouton>
           ) : (
             <>
-              <p className="text-sm text-texte">Valider {ids.length} épingle(s) du calendrier ? Elles seront programmées dans le Studio ; l'envoi se fait ensuite au tour du calendrier.</p>
+              <p className="text-sm text-texte">Valider {ids.length} épingle(s) du calendrier ? Elles seront programmées dans le Studio ; l&apos;envoi se fait ensuite au tour du calendrier.</p>
               <Bouton type="submit" variante="principal" disabled={enValidation}>Oui, valider {ids.length} épingle(s)</Bouton>
             </>
           )}
