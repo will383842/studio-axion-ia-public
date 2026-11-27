@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { creerPublicationZernio } from "@/fournisseurs/publication/zernio";
 import { ciblesZernioPour } from "@/services/zernio-cibles";
 import { comptesACocherZernio } from "@/services/comptes-envoi-zernio";
-import { reseauDepuisPlateforme } from "@/domaine/rapatriement-zernio";
+import { deciderRapatriement, reseauDepuisPlateforme } from "@/domaine/rapatriement-zernio";
 import { plateformeZernio } from "@/fournisseurs/publication/zernio-corps";
 import { creerFauxClientZernio, CLE_FICTIVE, postExemple, type AppelEnregistre, type ReponsePreparee } from "./aides/faux-zernio";
 
@@ -64,6 +64,37 @@ describe("Pinterest · canaux", () => {
   });
 });
 
+describe("Pinterest · panne de lecture des tableaux", () => {
+  const serveurEnPanne = (statut: number, corps: unknown = {}) => (a: AppelEnregistre): ReponsePreparee => {
+    if (a.url.endsWith("/v1/accounts")) return { statut: 200, corps: { accounts: [{ _id: "exemple-compte-ig", platform: "instagram", displayName: "Insta exemple" }, { _id: ACC, platform: "pinterest", displayName: "Compte exemple" }] } };
+    if (a.url.endsWith("/pinterest-boards")) return { statut, corps };
+    return { statut: 404, corps: {} };
+  };
+  for (const [nom, statut, corps] of [["500", 500, {}], ["404", 404, {}], ["429", 429, {}], ["réponse sans boards", 200, { autre: 1 }]] as const) {
+    it(`boards en ${nom} → les canaux Instagram restent listés, aucun canal Pinterest`, async () => {
+      const t = creerFauxClientZernio(serveurEnPanne(statut, corps));
+      const f = creerPublicationZernio(CLE_FICTIVE, { clientPret: t.client, maintenant: t.horloge.maintenant });
+      const canaux = await f.listerCanaux!();
+      expect(canaux.map((c) => c.id)).toEqual(["exemple-compte-ig"]);
+    });
+  }
+});
+
+describe("Pinterest · interrupteur du fournisseur", () => {
+  const demande = {
+    reseau: "pinterest", texte: "Description d'exemple", date: "2026-11-05T10:00:00Z", fichierCle: "https://exemple.test/a.png", cible: `${ACC}:pin:111`, cleEnvoi: "c".repeat(64),
+    images: [{ url: "https://exemple.test/a.png", texteAlternatif: "Une photo d'exemple" }], epingle: { titre: "Titre d'exemple", lien: "https://exemple.fr/page" },
+  } as unknown as Parameters<ReturnType<typeof creerPublicationZernio>["envoyer"]>[0];
+  for (const [nom, lire] of [["fermé (faux)", async () => false], ["absent", async () => undefined], ["illisible (exception)", async () => { throw new Error("base illisible"); }]] as const) {
+    it(`interrupteur ${nom} → refus, zéro appel client`, async () => {
+      const t = creerFauxClientZernio(() => ({ statut: 500 }));
+      const f = creerPublicationZernio(CLE_FICTIVE, { clientPret: t.client, maintenant: t.horloge.maintenant, lirePinterestActif: lire, lireDomaineSite: async () => "exemple.fr" });
+      await expect(f.envoyer(demande)).rejects.toThrow(/éteint/);
+      expect(t.faux.appels).toHaveLength(0);
+    });
+  }
+});
+
 describe("Pinterest · promotion", () => {
   const post = (boardId: unknown) => postExemple({ platforms: [{ platform: "pinterest", accountId: ACC, status: "pending", platformSpecificData: { boardId } }] });
   const demande = { postId: "exemple-post-1", cleJournal: "studio-exemple", dateJournal: "2026-11-09T10:00:00Z" };
@@ -76,6 +107,12 @@ describe("Pinterest · promotion", () => {
   it("tableau attendu absent de la demande → refus aussi (jamais promu sans garde)", async () => {
     const { client, faux } = creerFauxClientZernio((a) => (a.methode === "GET" ? { statut: 200, corps: { post: post("111") } } : { statut: 500 }));
     expect((await client.promouvoir(demande)).etat).toBe("refuse");
+    expect(faux.appels.filter((a) => a.methode === "PUT")).toHaveLength(0);
+  });
+  it("Pinterest pas en première position : le tableau est quand même contrôlé, aucun PUT", async () => {
+    const mixte = postExemple({ platforms: [{ platform: "instagram", accountId: "exemple-compte-1", status: "pending" }, { platform: "pinterest", accountId: ACC, status: "pending", platformSpecificData: { boardId: "999" } }] });
+    const { client, faux } = creerFauxClientZernio((a) => (a.methode === "GET" ? { statut: 200, corps: { post: mixte } } : { statut: 500 }));
+    expect((await client.promouvoir({ ...demande, tableauAttendu: "111" })).etat).toBe("refuse");
     expect(faux.appels.filter((a) => a.methode === "PUT")).toHaveLength(0);
   });
   it("même tableau → PUT de promotion envoyé", async () => {
@@ -92,5 +129,12 @@ describe("Pinterest · accord des tables", () => {
   it("RESEAUX_PLATEFORME ↔ PLATEFORME_VERS_RESEAU", () => {
     expect(plateformeZernio("pinterest")).toBe("pinterest");
     expect(reseauDepuisPlateforme("pinterest")).toBe("pinterest");
+  });
+  it("une épingle déjà programmée chez Zernio est rapatriée au calendrier (sans envoi)", () => {
+    const p = postExemple({ _id: "exemple-epingle-1", status: "scheduled", scheduledFor: "2026-11-20T08:30:00.000Z", metadata: {}, platforms: [{ platform: "pinterest", accountId: ACC, status: "pending" }] });
+    const d = deciderRapatriement([p], { idsExternes: new Set(), clesEnvoi: new Set(), clesCreneaux: new Set() }, { instant: "2026-11-20T10:00:00.000Z" });
+    expect(d.ecarts).toEqual([]);
+    expect(d.aCreer).toHaveLength(1);
+    expect(d.aCreer[0]).toMatchObject({ reseau: "pinterest", statut: "programmee", via: "zernio", idExterne: "exemple-epingle-1" });
   });
 });
