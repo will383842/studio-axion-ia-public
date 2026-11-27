@@ -539,6 +539,8 @@ export interface DemandePublication {
   contenuIA?: boolean;
   format?: string;
   dureeSec?: number;
+  /** Pinterest : titre et lien de l'épingle (la description est `texte`). */
+  epingle?: { titre: string; lien: string };
 }
 
 export interface FournisseurPublication extends FournisseurBase {

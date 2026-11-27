@@ -35,7 +35,7 @@ const idPage = (c: CanalPublication) => (c.id.includes(":fb:") ? c.id.split(":fb
 
 /**
  * Les comptes à cocher pour ce réseau chez Zernio. Rien (undefined) s'il n'y a rien à cocher : un seul compte hors Facebook
- * (Zernio le prend seul), ou comptes jamais lus. Facebook : toujours une liste, la page se choisit explicitement.
+ * (Zernio le prend seul), ou comptes jamais lus. Facebook et Pinterest : toujours une liste, la page ou le tableau se choisit explicitement.
  */
 export function comptesACocherZernio(reseau: IdReseau, canaux: readonly CanalPublication[] | undefined): ComptesReseauEnvoi | undefined {
   let plateforme: string;
@@ -48,7 +48,7 @@ export function comptesACocherZernio(reseau: IdReseau, canaux: readonly CanalPub
     .filter((c) => c.service === plateforme && !c.deconnecte && !(c.service === "facebook" && pageInterdite(idPage(c), c.nom)))
     .map((c) => ({ id: c.id, nom: c.nom, ...(c.genre ? { genre: c.genre } : {}) }));
   if (!choix.length) return undefined;
-  if (choix.length === 1 && reseau !== "facebook") return undefined;
+  if (choix.length === 1 && plateforme !== "facebook" && plateforme !== "pinterest") return undefined;
   return { choix, memorises: [] };
 }
 

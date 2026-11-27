@@ -7,6 +7,7 @@
  *   liste des posts est LUE (retrouver `metadata.studioCle`) avant toute conclusion ; jamais de renvoi à l'aveugle.
  * - Sans clé : le fournisseur n'est pas inscrit (voir `inscription.ts`), la simulation reste.
  */
+import { BASE_PUBLIQUE } from "@/domaine/site-videos/contrat";
 import { cleEnvoiPublication } from "@/domaine/outil-publication";
 import { CLE_PREMIER_COMMENTAIRE_COUPE } from "@/domaine/interrupteurs/registre";
 import type { StatutPublication } from "@/domaine/types";
@@ -33,6 +34,10 @@ export interface OptionsPublicationZernio {
   lirePremierCommentaireCoupe?: () => Promise<unknown>;
   /** Lecture de l'interrupteur et des réglages YouTube (tests) ; sinon la lecture en base. */
   lireYoutube?: () => Promise<{ actif: unknown; reglages: unknown }>;
+  /** Pinterest : lecture du domaine du site (tests) ; sinon le réglage `site.domaine`, par défaut l'hôte de `BASE_PUBLIQUE`. */
+  lireDomaineSite?: () => Promise<unknown>;
+  /** Interrupteur Pinterest (tests) ; sinon le réglage `zernio.pinterest_actif` (défaut : fermé). */
+  lirePinterestActif?: () => Promise<unknown>;
 }
 
 const DELAI_LECTURE_COUPE_MS = 500;
@@ -55,6 +60,38 @@ const lireReglagePremierCommentaireCoupe = async (): Promise<unknown> => (await 
 const lireYoutubeEnBase = async (): Promise<{ actif: unknown; reglages: unknown }> => {
   const { lireParametre } = await import("@/services/_commun");
   return { actif: await lireParametre<unknown>(CLE_YOUTUBE_ACTIF, false), reglages: await lireParametre<unknown>(CLE_REGLAGES_YOUTUBE, null) };
+};
+
+export const CLE_PINTEREST_ACTIF = "zernio.pinterest_actif";
+const lirePinterestActifEnBase = async (): Promise<unknown> => (await import("@/services/_commun")).lireParametre<unknown>(CLE_PINTEREST_ACTIF, false);
+
+/** Pinterest : porte du fournisseur. Lecture bornée à 500 ms ; exception, délai ou valeur autre que `true` = fermé, rien n'est envoyé. */
+async function verifierPinterestPermis(lecture: () => Promise<unknown>): Promise<void> {
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  let ouvert = false;
+  try {
+    const attente = new Promise<undefined>((r) => { minuteur = setTimeout(() => r(undefined), DELAI_LECTURE_COUPE_MS); });
+    ouvert = (await Promise.race([lecture(), attente])) === true;
+  } catch {
+    ouvert = false;
+  } finally {
+    clearTimeout(minuteur);
+  }
+  if (!ouvert) throw new ErreurZernio("refuse", "Pinterest : l'envoi est éteint (réglage à allumer). Rien n'a été envoyé.");
+}
+
+/** Domaine du site pour le lien d'une épingle : réglage `site.domaine`, sinon l'hôte public du site. Illisible ou vide = tout lien refusé. */
+async function domaineDuSite(lecture: () => Promise<unknown>): Promise<string> {
+  try {
+    const v = await lecture();
+    return typeof v === "string" ? v.trim() : "";
+  } catch {
+    return "";
+  }
+}
+const lireDomaineSiteEnBase = async (): Promise<unknown> => {
+  const { lireParametre } = await import("@/services/_commun");
+  return lireParametre<unknown>("site.domaine", new URL(BASE_PUBLIQUE).host);
 };
 
 /** YouTube Shorts : lecture bornée à 500 ms ; exception, délai ou interrupteur autre que `true` = éteint, rien n'est envoyé. */
@@ -150,10 +187,14 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const cible = analyserCible(d.cible ?? d.canalId);
       // YouTube Shorts : porte du fournisseur, AVANT le premier corps et tout appel client (les autres réseaux ne lisent rien).
       const youtube = plateformeZernio(d.reseau) === "youtube" ? await reglagesYoutubeSiPermis(options.lireYoutube ?? lireYoutubeEnBase) : undefined;
+      // Pinterest : porte du fournisseur (interrupteur fermé par défaut), AVANT tout corps et tout appel client.
+      if (plateformeZernio(d.reseau) === "pinterest") await verifierPinterestPermis(options.lirePinterestActif ?? lirePinterestActifEnBase);
+      // Pinterest : domaine du site lu à chaque envoi (les autres réseaux ne lisent rien).
+      const domaineSite = plateformeZernio(d.reseau) === "pinterest" ? await domaineDuSite(options.lireDomaineSite ?? lireDomaineSiteEnBase) : undefined;
       // 1. Tout refus pur, avant le réseau (TikTok : réglages fictifs prudents, remplacés par les vrais ensuite).
       const niveau = d.niveauConfidentialiteTiktok ?? "";
       const prudent: CreateurTiktok = { privacyLevels: [niveau], allowComment: false, allowDuet: false, allowStitch: false };
-      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, youtube });
+      corpsPostZernio(d, { maintenant: instant, createurTiktok: prudent, profilLinkedinProuve: true, youtube, domaineSite });
       // LinkedIn profil : prouvé par la lecture du compte (jamais présumé).
       const profilLinkedinProuve = cible.profilLinkedin ? compteLinkedinEstProfil((await client.listerComptes()).find((c) => c._id === cible.accountId)) : false;
       const demandes = mediasDemandes(d);
@@ -163,7 +204,7 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
       const medias = await televerserMedias(client, lire, demandes, hotesPublics);
       // Seule attente de la lecture : juste avant la création (au plus 500 ms, en pratique déjà terminée).
       const coupe = await coupeP;
-      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe, youtube });
+      const corps = corpsPostZernio(d, { maintenant: instant, createurTiktok, medias, hotesPublics, profilLinkedinProuve, premierCommentaireCoupe: coupe, youtube, domaineSite });
       // 3. Création, clé d'idempotence neutre. Sous essai borné : brouillon seul, compte de l'essai seul, refus AVANT l'appel.
       await (await import("@/services/essai-zernio")).verifierCorpsSousEssai(corps);
       let resultat;
@@ -223,6 +264,19 @@ export function creerPublicationZernio(cle: string, options: OptionsPublicationZ
             const l = linkedin.get(o.id) ?? [];
             l.push({ canal: { ...base, id: `${c._id}:li:${o.id}`, nom, genre: "page" }, compte: c as Record<string, unknown>, organisation: o, nomOrganisation: nom });
             linkedin.set(o.id, l);
+          }
+        } else if (c.platform === "pinterest") {
+          // Un canal par tableau PUBLIC (cible explicite « compte:pin:tableau ») ; un tableau secret ou sans identifiant n'est jamais proposé.
+          // Une panne de lecture (404, 429, 500, réponse sans `boards`) ne bloque jamais les autres réseaux : ce compte n'a alors aucun canal.
+          let tableaux: Awaited<ReturnType<typeof client.tableauxPinterest>> = [];
+          try {
+            tableaux = await client.tableauxPinterest(c._id);
+          } catch {
+            tableaux = [];
+          }
+          for (const t of tableaux) {
+            if (t.privacy !== "PUBLIC" || !/^\d{1,24}$/.test(t.id)) continue;
+            canaux.push({ ...base, id: `${c._id}:pin:${t.id}`, nom: `${base.nom} · ${t.name ?? t.id}`, genre: "tableau" });
           }
         } else canaux.push(base);
       }
