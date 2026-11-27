@@ -1073,7 +1073,7 @@ export interface Sortie extends EntiteBase {
 /* Publication                                                         */
 /* ------------------------------------------------------------------ */
 
-export type IdReseau = "linkedin" | "instagram" | "facebook" | "tiktok" | "youtube" | "youtube-shorts";
+export type IdReseau = "linkedin" | "instagram" | "facebook" | "tiktok" | "youtube" | "youtube-shorts" | "pinterest";
 
 export interface TexteReseau {
   texte: string;

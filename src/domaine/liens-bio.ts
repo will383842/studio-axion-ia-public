@@ -7,6 +7,7 @@
  */
 import { ErreurLienSuivi, construireLienSuivi, type ActiviteLien, type EntreeLienSuivi } from "./mesures";
 
+// Pinterest volontairement absent : pas de lien en bio géré ici (ADR-0015).
 export const RESEAUX_LIEN_PROFIL = ["linkedin", "instagram", "facebook", "tiktok", "youtube"] as const;
 export type ReseauLienProfil = (typeof RESEAUX_LIEN_PROFIL)[number];
 

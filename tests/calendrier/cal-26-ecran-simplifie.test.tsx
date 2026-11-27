@@ -23,12 +23,12 @@ const liens = { precedent: "/p", suivant: "/s", aujourdhui: "/a", semaine: "/se"
 
 describe("CAL-26 : en-tête à six commandes", () => {
   it("contient la période et ses flèches, Aujourd'hui, Semaine/Mois, Filtrer, + Ajouter et les pastilles des réseaux", () => {
-    const h = renderToStaticMarkup(<EnTeteCalendrier vue="semaine" periode="Cette semaine" liens={liens} reseauxActifs={["linkedin", "instagram", "facebook", "tiktok"]} lienReseau={() => "/x"} lienTout="/t" lienAjouter="/calendrier?vue=jour" />);
+    const h = renderToStaticMarkup(<EnTeteCalendrier vue="semaine" periode="Cette semaine" liens={liens} reseauxActifs={["linkedin", "instagram", "facebook", "tiktok", "pinterest"]} lienReseau={() => "/x"} lienTout="/t" lienAjouter="/calendrier?vue=jour" />);
     expect(h).toContain("Cette semaine");
     for (const l of ["Période précédente", "Période suivante", "Revenir à aujourd&#x27;hui", "Afficher la semaine", "Afficher le mois"]) expect(h).toContain(l);
     expect(h).toContain("Filtrer");
     expect(h).toContain("+ Ajouter");
-    expect(h.match(/<a [^>]*data-reseau="/g)).toHaveLength(4);
+    expect(h.match(/<a [^>]*data-reseau="/g)).toHaveLength(5);
     expect(h).not.toContain("Idées de l");
   });
 });

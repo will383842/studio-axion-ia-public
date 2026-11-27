@@ -11,6 +11,7 @@
  * demandée pour la vidéo laisse le carré de LinkedIn sans appel (`FIN_SANS_APPEL_LINKEDIN`), et le rapport le dit.
  * PUR : aucun accès base ni réseau.
  */
+import { RESEAUX_FIN } from "@/briques/fins/types";
 import { APPEL_A_COMMENTER_LINKEDIN, choisirFinLiens, estObjectifFinLiens, EMPLACEMENT_MOT, ErreurFin, RESEAUX_SANS_APPEL_A_COMMENTER, TABLE_FINS, estAppelACommenter, finPour, groupeDe, type FinTable, type ReseauFin } from "@/briques/fins";
 import type { CommandeFabrication } from "@/domaine/types";
 import { lireEntreesTableau } from "@/moteurs/montage-tableau/etapes";
@@ -25,7 +26,9 @@ export const AUCUNE_FIN_VALIDEE = "Aucune fin validée pour ce réseau : la vid�
  * prudente : premier des `reseauxConseilles` du format, recopié ici pour ne pas charger tout le registre des formats).
  */
 export function reseauDuTableau(c: Pick<CommandeFabrication, "reseaux" | "variante">): ReseauFin {
-  return c.variante?.reseau ?? c.reseaux?.[0] ?? "instagram";
+  // Pinterest (épingle, hors vidéo) n'a pas de fin de vidéo : repli prudent.
+  const choisi = c.variante?.reseau ?? c.reseaux?.[0];
+  return choisi !== undefined && (RESEAUX_FIN as readonly string[]).includes(choisi) ? (choisi as ReseauFin) : "instagram";
 }
 
 /** Réseaux où rien n'est envoyé : la fin au mot n'y est jamais choisie. */
@@ -59,7 +62,8 @@ export { RESEAUX_DES_SORTIES };
 export function reseauDeLaSortie(sortie: IdSortie, c: Pick<CommandeFabrication, "reseaux" | "variante"> & { entrees?: CommandeFabrication["entrees"] }, sorties?: readonly IdSortie[]): ReseauFin {
   const servis = reseauxDeLaSortie(sortie, sorties ?? lireEntreesTableau(c.entrees).sorties ?? []);
   const prefere = reseauDuTableau(c);
-  return servis.includes(prefere) ? prefere : servis[0];
+  // Les sorties vidéo ne servent jamais Pinterest (registre vidéo) : `servis[0]` est donc un réseau de fin.
+  return servis.includes(prefere) ? prefere : (servis[0] as ReseauFin);
 }
 
 /** Une fin utilisable sur ce réseau : validée, de son groupe, prévue pour lui, jamais la fin au mot sur TikTok ou Shorts, jamais un appel à commenter sur LinkedIn. */
