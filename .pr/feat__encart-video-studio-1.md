@@ -7,6 +7,6 @@ Ajoute l'ADR-0016 : le Studio s'aligne sur le contrat du site pour envoyer ses v
 `master`.
 
 ## Tests
-Aucun code touché. Contrôles du dépôt : voir ci-dessous.
+Aucun code touché : document seul. Relecture opus : tour 1 « À corriger » (9 points), corrigés ici.
 
 VERDICT OPUS : en attente
