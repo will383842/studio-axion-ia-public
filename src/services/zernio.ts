@@ -6,6 +6,7 @@
  *   `platformPostUrl`. Un post introuvable depuis 30 minutes devient « À vérifier » : jamais renvoyé à l'aveugle.
  * - Rien n'est jamais effacé chez Zernio ; une publication change d'état, elle n'est jamais supprimée.
  */
+import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import "server-only";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { estRapatriee, type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
@@ -502,7 +503,6 @@ function etapeVisuel(courante: StatutVisuel, cible: CibleVisuel): StatutVisuel |
   return vers !== courante ? vers : undefined;
 }
 
-const RESEAUX_AVEC_VISUEL: readonly string[] = ["linkedin", "instagram", "facebook"];
 
 /** Réseaux prévus au(x) créneau(x) vivant(s) du visuel. */
 async function reseauxPrevusDuVisuel(visuelId: string): Promise<Set<string>> {
@@ -510,7 +510,7 @@ async function reseauxPrevusDuVisuel(visuelId: string): Promise<Set<string>> {
   // Un réseau dont l'envoi a été refusé net par le diffuseur reste « prévu » : le nouvel essai doit rester possible.
   const refuses = await depots().publications.lister((p) => p.visuelId === visuelId && p.via === "zernio" && (p.etatEnvoi === "refuse" || p.etatEnvoi === "absent"));
   // Seuls les réseaux qui reçoivent un visuel comptent (un créneau peut porter d'autres réseaux, jamais envoyés par cette voie).
-  return new Set([...creneaux.flatMap((c) => Object.entries(c.heuresParReseau).filter(([, h]) => !!h).map(([r]) => r)), ...refuses.map((p) => p.reseau)].filter((r) => RESEAUX_AVEC_VISUEL.includes(r)));
+  return new Set([...creneaux.flatMap((c) => Object.entries(c.heuresParReseau).filter(([, h]) => !!h).map(([r]) => r)), ...refuses.map((p) => p.reseau)].filter((r) => estReseauVisuelEnvoi(r)));
 }
 
 /**

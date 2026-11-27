@@ -16,6 +16,7 @@
  *     posée sous le MÊME `sousVerrou` que la relecture du plan (jamais de notification sous ce verrou), et lue par la garde
  *     `garde-creneau-diffuseur.ts` : un décalage ou une modification du texte ne passe plus entre la relecture et le PUT.
  */
+import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import "server-only";
 import { occupeBuffer } from "@/domaine/buffer";
 import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
@@ -44,7 +45,6 @@ export const INTERVALLE_TOUR_ENVOIS_MS = 5 * 60_000;
 /** Préfixe des états durables (paramètres existants : aucune table neuve, aucune migration). */
 export const PREFIXE_ETATS_ENVOI_CALENDRIER = "envoi-calendrier:";
 
-const RESEAUX_VISUELS: readonly ReseauDeclinaison[] = ["linkedin", "instagram", "facebook"];
 const ALT_MAX = 125;
 export const DELAI_ENVOI_MAX_MS = 90_000;
 
@@ -216,7 +216,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
           await exclu("video", "Une vidéo ne part pas seule depuis le calendrier pour l'instant : rien n'est envoyé. Elle suit son propre parcours.");
           continue;
         }
-        if (!RESEAUX_VISUELS.includes(reseau)) continue;
+        if (!estReseauVisuelEnvoi(reseau)) continue;
         // a'. Version courante annulée (dévalidée puis revalidée) : jamais de refus silencieux, une seule notification.
         if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && e.statut === "annule")).length) {
           await exclu("annule", "Cette publication a été modifiée après une première préparation : elle ne partira pas seule à cette date. Pour qu'elle parte seule, décalez-la ; sinon, programmez-la dans l'outil de publication.");
@@ -250,7 +250,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
 
   /** Adaptateur : un visuel par `envoyerVisuelDuCreneau` (L5-21) ; la vidéo n'a pas de branche en V1. */
   async function envoyerReel(_outil: "zernio", d: DemandeBrouillonCreneau): Promise<{ cleDiffuseur: string } | void> {
-    if (d.nature !== "visuel" || !d.creneauId || !RESEAUX_VISUELS.includes(d.reseau as ReseauDeclinaison) || d.reseau === "tiktok") {
+    if (d.nature !== "visuel" || !d.creneauId || !estReseauVisuelEnvoi(d.reseau)) {
       throw new ErreurStudio("RESEAU", "Ce créneau ne part pas seul depuis le calendrier : rien n'est envoyé.");
     }
     let service: FournisseurPublication;
