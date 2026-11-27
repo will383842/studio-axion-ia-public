@@ -9,18 +9,24 @@ import type { DemandePublication } from "../types";
 import { motsInterditsEnvoiZernio } from "./mots-interdits-envoi";
 import { pageInterdite } from "./zernio-pages-interdites";
 import { ErreurZernio } from "./zernio-erreurs";
+import { lienDuSite } from "./liens-du-site";
 import { PROMOTION_MARGE_MIN_MS, type CorpsPostZernio, type MediaItemZernio, type PlateformePostZernio } from "./zernio-client";
 import { DESCRIPTION_YOUTUBE_OCTETS_MAX, SHORT_DUREE_MAX_SEC, SHORT_FORMATS, titreYoutubeDepuisStudio, type ReglagesYoutube } from "./zernio-youtube";
 
 export const FUSEAU_STUDIO = "Europe/Paris";
 export const ALT_MAX = 125;
+/** Texte alternatif sur Pinterest SEULEMENT (ADR-0015 D10) : 500 signes. Les autres réseaux restent à `ALT_MAX`. */
+export const ALT_MAX_PINTEREST = 500;
+export const TITRE_EPINGLE_MAX = 100;
+export const DESCRIPTION_EPINGLE_MAX = 800;
+export const LIEN_EPINGLE_MAX = 2000;
 export const TITRE_DOCUMENT_MAX = 60;
 export const DOCUMENT_TAILLE_MAX = 100 * 1024 * 1024;
 /**
  * Images au plus par post. Relevé officiel L8-01 (docs/reseaux/regles-officielles.json, lu le 2026-11-12, spec Zernio
  * 1.429.1) : Instagram 20 éléments (schéma InstagramPlatformData), Facebook 10, LinkedIn 20, TikTok 35.
  */
-export const IMAGES_MAX: Readonly<Record<string, number>> = { instagram: 20, facebook: 10, linkedin: 20, tiktok: 35 };
+export const IMAGES_MAX: Readonly<Record<string, number>> = { instagram: 20, facebook: 10, linkedin: 20, tiktok: 35, pinterest: 1 };
 /**
  * Reel Facebook : on garde 60 s, par prudence. Deux sources divergent : le réseau (guide Meta, cité par la spec Zernio,
  * page Meta non consultée) donne 3 à 90 s ; le diffuseur (Zernio) ne contrôle pas la durée. Relevé L8-01 du 2026-11-12.
@@ -40,6 +46,8 @@ export interface CibleZernio {
   organizationUrn?: string;
   /** LinkedIn : profil personnel, forme explicite « accountId:li:profil » (à prouver par la lecture du compte). */
   profilLinkedin?: true;
+  /** Pinterest : tableau choisi, forme explicite « accountId:pin:<boardId> » (jamais le premier tableau). */
+  tableauId?: string;
 }
 
 /** Demande Zernio : la demande commune + le niveau de confidentialité TikTok choisi par la personne. */
@@ -66,6 +74,7 @@ export function analyserCible(brute: string | undefined | null): CibleZernio {
   if (genre === "fb" && reste && SEGMENT.test(reste)) return { accountId, pageId: reste };
   if (genre === "li" && reste === "profil") return { accountId, profilLinkedin: true };
   if (genre === "li" && reste && /^\d{1,20}$/.test(reste)) return { accountId, organizationUrn: `urn:li:organization:${reste}` };
+  if (genre === "pin" && reste && /^\d{1,24}$/.test(reste)) return { accountId, tableauId: reste };
   throw refus("La cible de la publication est illisible.");
 }
 
@@ -104,9 +113,9 @@ export function dateZernio(dateIso: string): string {
   return new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-function texteAlt(brut: string): string {
+function texteAlt(brut: string, max: number = ALT_MAX): string {
   const t = brut.replace(/\s+/g, " ").trim();
-  if (t.length > ALT_MAX) throw refus(`Le texte alternatif d'une image dépasse ${ALT_MAX} signes : raccourcissez-le.`);
+  if (t.length > max) throw refus(`Le texte alternatif d'une image dépasse ${max} signes : raccourcissez-le.`);
   return t;
 }
 
@@ -115,7 +124,7 @@ function exigerSansMotInterdit(texte: string, quoi: string): void {
   if (mots.length) throw new ErreurZernio("mot-interdit", `${quoi} contient un mot interdit : rien n'a été envoyé. Retirez-le puis réessayez.`, { detailTechnique: `mots interdits : ${mots.join(", ")}` });
 }
 
-const RESEAUX_PLATEFORME: Readonly<Record<string, string>> = { instagram: "instagram", facebook: "facebook", linkedin: "linkedin", tiktok: "tiktok", "youtube-shorts": "youtube" };
+const RESEAUX_PLATEFORME: Readonly<Record<string, string>> = { instagram: "instagram", facebook: "facebook", linkedin: "linkedin", tiktok: "tiktok", pinterest: "pinterest", "youtube-shorts": "youtube" };
 
 /** Plateforme Zernio d'un réseau du Studio. YouTube Shorts : youtube (lot B) ; YouTube long n'est pas porté. */
 export function plateformeZernio(reseau: string): string {
@@ -146,6 +155,8 @@ export interface OptionsCorps {
   premierCommentaireCoupe?: boolean;
   /** YouTube Shorts : réglages lus en base par l'appelant ; absents = refus. */
   youtube?: ReglagesYoutube;
+  /** Pinterest : domaine du site (réglage `site.domaine`, lu par l'appelant). Absent ou vide = tout lien est refusé. */
+  domaineSite?: string;
 }
 
 /** Médias demandés, sans adresse Zernio : sert au téléversement et au corps. Types : image | video | document. */
@@ -164,11 +175,12 @@ export function mediasDemandes(d: DemandePublication): MediaItemZernio[] {
   }
   if (plateforme === "youtube" && d.images?.length) throw refus("YouTube Shorts : seule une vidéo est publiée.");
   const images = d.images ?? [];
+  if (plateforme === "pinterest" && images.length !== 1) throw refus("Pinterest : une épingle porte exactement une image (ni vidéo, ni document, ni plusieurs images).");
   if (images.length) {
     const max = IMAGES_MAX[plateforme];
     if (images.length > max) throw refus(`${plateforme} accepte ${max} images au plus.`);
     return images.map((im) => {
-      const alt = texteAlt(im.texteAlternatif ?? "");
+      const alt = texteAlt(im.texteAlternatif ?? "", plateforme === "pinterest" ? ALT_MAX_PINTEREST : ALT_MAX);
       if (!alt) throw refus("Une image n'a pas de texte alternatif.");
       exigerSansMotInterdit(alt, "Le texte alternatif d'une image");
       return { type: "image", url: im.url, altText: alt };
@@ -251,6 +263,22 @@ export function corpsPostZernio(d: DemandeZernio, options: OptionsCorps): CorpsP
       specifique.madeForKids = r.pourEnfants;
       specifique.containsSyntheticMedia = r.synthetique === "oui" ? true : r.synthetique === "non" ? false : d.contenuIA === true;
       break; // jamais firstComment, playlistId, notifySubscribers ni tags
+    }
+    case "pinterest": {
+      // ADR-0015 D9 : tableau explicite, jamais le premier ; aucun commentaire, section ni couverture.
+      if (!cible.tableauId) throw refus("Pinterest : aucun tableau choisi (le premier tableau n'est jamais utilisé).");
+      if (type !== "image") throw refus("Pinterest : une épingle porte exactement une image.");
+      const titre = (d.epingle?.titre ?? "").replace(/\s+/g, " ").trim();
+      if (!titre) throw refus("Pinterest : le titre de l'épingle manque.");
+      if (titre.length > TITRE_EPINGLE_MAX) throw refus(`Pinterest : le titre dépasse ${TITRE_EPINGLE_MAX} signes.`);
+      exigerSansMotInterdit(titre, "Le titre de l'épingle");
+      if (d.texte.length > DESCRIPTION_EPINGLE_MAX) throw refus(`Pinterest : la description dépasse ${DESCRIPTION_EPINGLE_MAX} signes.`);
+      const lien = (d.epingle?.lien ?? "").trim();
+      if (!lien || lien.length > LIEN_EPINGLE_MAX || !lienDuSite(lien, options.domaineSite)) {
+        throw new ErreurZernio("lien-hors-domaine", "Pinterest : le lien doit mener au site (https, sans identifiants, domaine exact). Rien n'a été envoyé.", { champs: ["lien"] });
+      }
+      Object.assign(specifique, { boardId: cible.tableauId, title: titre, link: lien, ...(d.contenuIA === true ? { isAiGenerated: true } : {}) });
+      break;
     }
     case "tiktok": {
       if (d.consentementTiktok !== true) throw refus("TikTok : la case de consentement n'est pas cochée.");

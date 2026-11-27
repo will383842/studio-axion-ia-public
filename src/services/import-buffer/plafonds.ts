@@ -11,7 +11,7 @@ const HEURE = 60 * MINUTE;
 
 export const REQUETES_PAR_MINUTE = 25;
 export const OPERATIONS_PAR_HEURE_ET_COMPTE = 20;
-export const OPERATIONS_PAR_JOUR: Readonly<Record<string, number>> = { instagram: 90, facebook: 90, linkedin: 45 };
+export const OPERATIONS_PAR_JOUR: Readonly<Record<string, number>> = { instagram: 90, facebook: 90, linkedin: 45, pinterest: 20 };
 export const MARGE_CREATION_MS = 3 * HEURE;
 export const MARGE_PROMOTION_MS = 30 * MINUTE;
 /** Pause maximale acceptée sur un Retry-After (au-delà : le lot s'arrête, jamais de boucle). */
