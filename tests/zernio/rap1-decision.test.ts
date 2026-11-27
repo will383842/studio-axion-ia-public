@@ -69,7 +69,7 @@ describe("RAP-1 · deciderRapatriement", () => {
   });
 
   it("une plateforme sans correspondance n'est JAMAIS jetée en silence : elle compte dans l'écart", () => {
-    const e = compterEcart([post(1, { platforms: [{ platform: "pinterest", accountId: "c" }] })], VIDE);
+    const e = compterEcart([post(1, { platforms: [{ platform: "snapchat", accountId: "c" }] })], VIDE);
     expect(e.chezDiffuseur).toBe(1);
     expect(e.absents).toEqual([{ postId: "post-fictif-1", raison: "reseau-inconnu" }]);
   });
