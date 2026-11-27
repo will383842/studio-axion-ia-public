@@ -817,6 +817,8 @@ export interface Video extends EntiteBase {
   reseau?: IdReseau;
   /** Version par réseau (VarianteReseau) : son état d'écriture FAIT FOI, `etapeEditoriale` n'en est qu'une copie. */
   varianteId?: Id;
+  /** Vidéo faite hors du Studio puis importée dans « À publier » (aucune fabrication, aucun sous-titre ajouté). Absent : fabriquée ici. */
+  origineVideo?: "importee";
 }
 
 export type StatutVersion = "maquette" | "en_fabrication" | "prete" | "echec" | "annulee";

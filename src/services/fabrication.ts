@@ -5,6 +5,7 @@
  * Le moteur est FIGÉ au lancement (`commande.moteurId`) : tout travail lancé lit `moteurDeCommande`.
  */
 import "server-only";
+import { estVideoImportee, IMPORTEE_PAS_REFABRICABLE } from "@/domaine/import-video-externe";
 import type {
   CommandeFabrication,
   DistributionResolue,
@@ -826,6 +827,7 @@ async function lancerSousVerrou(videoId: Id, options: OptionsLancement): Promise
   const d = depots();
   const video = await d.videos.obtenir(videoId);
   if (!video) throw new ErreurStudio("INTROUVABLE", "Cette vidéo n'existe plus.");
+  if (estVideoImportee(video)) throw new ErreurStudio("FABRICATION_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
   const deja = await d.travaux.trouver((t) => t.cibleId === videoId && (t.statut === "en_cours" || t.statut === "en_file"));
   if (deja) return { travailId: deja.id, versionId: deja.versionId ?? "" };
   // Brique 6 : le texte fabriqué est celui que Will a relu (une lettre changée depuis : refus, avant toute dépense).
@@ -1065,6 +1067,8 @@ export async function estimerRetoucheVideo(videoId: Id, planIds: Id[], operation
   const video = await d.videos.obtenir(videoId);
   const courante = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
   if (!video || !courante) throw new ErreurStudio("INTROUVABLE", "Aucune version à retoucher.");
+  // Vidéo importée : aucun plan, et le moteur de repli serait la simulation. Refus AVANT tout (rien n'est payé ni créé).
+  if (estVideoImportee(video)) throw new ErreurStudio("RETOUCHE_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
   if (!planIds.length) return { total: centimes(0), dureeSec: 0 };
   const ids = await plansDeLaCommande(courante.id, courante.commande, planIds);
   await preparerReglagesMoteur(courante.commande);
@@ -1078,7 +1082,7 @@ export async function estimerReexport(videoId: Id, ratio: Ratio): Promise<Montan
   const d = depots();
   const video = await d.videos.obtenir(videoId);
   const courante = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
-  if (!video || !courante) return centimes(0);
+  if (!video || !courante || estVideoImportee(video)) return centimes(0);
   return (await moteurDeCommande(courante.commande).estimerReexport(courante.commande, ratio)).total;
 }
 
@@ -1113,6 +1117,8 @@ async function retoucheSousVerrou(videoId: Id, planIds: Id[], consigne: string, 
   const video = await d.videos.obtenir(videoId);
   const courante = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
   if (!video || !courante) throw new ErreurStudio("INTROUVABLE", "Aucune version à retoucher.");
+  // Vidéo importée : aucun plan, et le moteur de repli serait la simulation. Refus AVANT tout (rien n'est payé ni créé).
+  if (estVideoImportee(video)) throw new ErreurStudio("RETOUCHE_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
   // E2E-2 argent n° 3 : la même retouche déjà en cours (double envoi, deux onglets) n'est ni relancée ni repayée.
   const memes = (a: Id[], b: Id[]) => a.length === b.length && [...a].sort().join("|") === [...b].sort().join("|");
   for (const r of await d.retouches.lister((x) => x.videoId === videoId && x.statut === "en_cours" && x.consigne === consigne && memes(x.planIds, planIds))) {
@@ -1186,6 +1192,7 @@ async function reexportSousVerrou(videoId: Id, ratio: Ratio, options: { confirme
   const video = await d.videos.obtenir(videoId);
   const courante = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
   if (!video || !courante) throw new ErreurStudio("INTROUVABLE", "Aucune version à exporter.");
+  if (estVideoImportee(video)) throw new ErreurStudio("REEXPORT_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
   const deja = await d.travaux.trouver((t) => t.cibleId === videoId && t.type === "reexport" && t.parametres?.ratio === ratio && (t.statut === "en_cours" || t.statut === "en_file"));
   if (deja) return { travailId: deja.id };
   const moteur = moteurDeCommande(courante.commande);

@@ -50,6 +50,7 @@ import { exigerSession } from "@/services/auth";
 import { listerPartages } from "@/services/partages";
 import { obtenirKit, resultatsVideo, telechargementsVideo } from "@/services/publications";
 import { listerConnexions, lireReglages } from "@/services/reglages";
+import { estVideoImportee } from "@/domaine/import-video-externe";
 import { estimerReexport } from "@/services/fabrication";
 import { exemplesModification, historiqueModifications } from "@/services/modifications";
 import { commandeEnEssai, moteurDeCommande } from "@/moteurs";
@@ -128,7 +129,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
   // Plan facecam v4 (lot D) : « Votre vidéo » face caméra (null pour tous les autres formats : page inchangée).
   const facecam = v.formatId === "facecam" ? await vueVotreVideo(v.id) : null;
   // « Demander une modification » (17/10) : exemples que le format et la vidéo permettent vraiment.
-  const exemplesRetouche = prete && !facecam ? await exemplesModification(id) : { exemples: [] };
+  const exemplesRetouche = prete && !facecam && !estVideoImportee(v) ? await exemplesModification(id) : { exemples: [] };
   // Lot J : options payantes qui attendent « Confirmer » (Décor IA, 3 caméras réelles…), tous formats.
   const optionsPayantes = await cartesEnAttente(v.id);
   const extraits = await proprietesExtraitsDeLaVideo(v.id).catch(() => null); // X4-13b : éteint → rien, jamais bloquant
@@ -223,7 +224,7 @@ export default async function PageVideo({ params }: { params: Promise<{ id: stri
             contenu: (
               <div className="space-y-4">
                 <RetoucheChatGenerateur videoId={v.id} formatId={v.formatId} {...(d.versionCourante ? { versionId: d.versionCourante.id } : {})} />
-                {!facecam && <DemanderModification videoId={v.id} historique={modifications} possible={prete && !enFabrication} essai={fabricationSimulee} sansPrix={trouverFormat(v.formatId)?.sansPrix === true} {...exemplesRetouche} />}
+                {!facecam && !estVideoImportee(v) && <DemanderModification videoId={v.id} historique={modifications} possible={prete && !enFabrication} essai={fabricationSimulee} sansPrix={trouverFormat(v.formatId)?.sansPrix === true} {...exemplesRetouche} />}
                 <OngletRetouches
                 videoId={v.id}
                 possible={prete && !enFabrication}

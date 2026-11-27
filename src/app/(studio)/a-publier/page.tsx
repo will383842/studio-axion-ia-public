@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ImporterVideo } from "@/components/publication/ImporterVideo";
 import { ListeAPublier } from "@/components/publication/ListeAPublier";
 import { filtreDepuis, nombreAffichees } from "@/components/publication/liste-a-publier";
 import { Bouton } from "@/components/ui/Bouton";
@@ -30,6 +31,7 @@ export default async function PageAPublier({ searchParams }: { searchParams: Pro
         sousTitre="Voici tout ce qui est prêt à partir. Rien n'est envoyé sans votre accord : vous relisez, puis vous validez."
         actions={
           <>
+            <ImporterVideo />
             <Bouton asChild variante="secondaire" icone="oeil">
               <Link href="/videos?etape=a_relire">À relire ({vue.nbARelire ?? 0})</Link>
             </Bouton>

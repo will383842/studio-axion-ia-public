@@ -13,6 +13,7 @@
  * ceux que la vidéo permet vraiment.
  */
 import "server-only";
+import { estVideoImportee, IMPORTEE_PAS_REFABRICABLE } from "@/domaine/import-video-externe";
 import { RETOUCHE_PAS_DISPONIBLE } from "@/domaine/voix-phrases";
 import type { CommandeFabrication, Id, Montant } from "@/domaine/types";
 import type { DemandeModification } from "@/fournisseurs";
@@ -156,6 +157,7 @@ export async function exemplesModification(videoId: Id): Promise<{ exemples: str
   if (!video || !courante) return { exemples: [] };
   // Réglage `casConcret.retouches` : relu avant d'interroger le moteur (son refus est synchrone).
   await preparerReglagesMoteur(courante.commande);
+  if (estVideoImportee(video)) return { exemples: [], note: IMPORTEE_PAS_REFABRICABLE };
   if (!retouchable(video, courante.commande)) return { exemples: [], note: NOTE_SANS_RETOUCHE };
   if (idMoteurDeCommande(courante.commande) === ID_MOTEUR_CAS_CONCRET) return { exemples: await exemplesRetouche(videoId) };
   if (idMoteurDeCommande(courante.commande) === "montage-tableau") {
@@ -254,6 +256,8 @@ export async function proposerModification(videoId: Id, texte: string, dep: Depe
   const video = await d.videos.obtenir(videoId);
   const courante = video?.versionChoisieId ? await d.versions.obtenir(video.versionChoisieId) : null;
   if (!video || !courante) throw new ErreurStudio("INTROUVABLE", "Aucune version à modifier.");
+  // Vidéo importée : refus AVANT tout appel fournisseur (la lecture de la demande est payante en réel), rien d'enregistré.
+  if (estVideoImportee(video)) throw new ErreurStudio("RETOUCHE_INDISPONIBLE", IMPORTEE_PAS_REFABRICABLE);
   const plans = (await d.plans.lister((p) => p.versionId === courante.id)).sort((a, b) => a.ordre - b.ordre);
   const demande: DemandeModification = {
     texte: demandeTexte,
