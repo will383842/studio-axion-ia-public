@@ -16,6 +16,7 @@ import { CompositionsImageVideo } from "./image-video/Compositions";
 import { CompositionsVisuels } from "./visuels/Compositions";
 import { CompositionsInfographie } from "./visuels/infographie/Racine";
 import { CompositionsHabillage } from "./commune/habillage/Compositions";
+import { CompositionsVideoLongue } from "./plan-scenes/longue/Compositions";
 import { PLAN_VIDE, PlanDeScenes, metaPlanDeScenes } from "./plan-scenes/PlanDeScenes";
 import { TutorielOutil, metaTutorielOutil } from "./plan-scenes/TutorielOutil";
 import { DEMO_FACECAM_VIDE, DemoFacecam, metaDemoFacecam } from "./demo-facecam/DemoFacecam";
@@ -158,6 +159,7 @@ export function Racine() {
       <CompositionsVisuels />
       <CompositionsInfographie />
       <CompositionsHabillage />
+      <CompositionsVideoLongue />
     </>
   );
 }
