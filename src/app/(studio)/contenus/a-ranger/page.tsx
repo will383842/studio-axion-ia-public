@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "À ranger" };
 export const dynamic = "force-dynamic";
 
 const NOMS_RESEAUX: Record<(typeof RESEAUX_RANGEMENT)[number], string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook" };
-const NOMS_FAMILLES = { carrousel: "Carrousel", "carrousel-continu": "Carrousel continu", infographie: "Image" } as const;
+const NOMS_FAMILLES = { carrousel: "Carrousel", "carrousel-continu": "Carrousel continu", infographie: "Image", epingle: "Épingle" } as const;
 const PHRASES_ERREURS: Record<string, string> = {
   INTROUVABLE: "Ce contenu n'existe plus.",
   RESEAU_INVALIDE: "Ce réseau n'est pas proposé.",
