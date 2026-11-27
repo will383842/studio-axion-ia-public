@@ -14,6 +14,19 @@ export interface EntreeAFaire {
   titre?: string;
   /** Adresse de la publication. */
   href?: string | null;
+  /** Nom lisible du réseau (lignes « À corriger » et brouillons). */
+  reseau?: string;
+  /** Raison courte (« envoi en échec », « brouillon non envoyé »). */
+  raison?: string;
+  /** Nombre de tentatives regroupées dans la ligne. */
+  tentatives?: number;
+}
+
+/** Libellé d'une ligne : titre, puis réseau, raison et « N tentatives » s'il y en a plusieurs. */
+export function libelleLigne(e: EntreeAFaire): string {
+  const titre = e.titre || "Sans titre";
+  const details = [e.reseau, e.raison, e.tentatives && e.tentatives > 1 ? `${e.tentatives} tentatives` : undefined].filter(Boolean);
+  return details.length ? `${titre} · ${details.join(" · ")}` : titre;
 }
 
 /** Trie les entrées dans les trois groupes du panneau ; les autres états n'y sont pas. */
@@ -38,10 +51,10 @@ function Groupe({ titre, etat, entrees }: { titre: string; etat: string; entrees
           <li key={e.cle}>
             {e.href ? (
               <Link href={e.href} className="flex min-h-11 items-center rounded-[10px] border border-trait bg-surface-1 px-3 text-sm text-texte hover:border-trait-fort">
-                {e.titre || "Sans titre"}
+                {libelleLigne(e)}
               </Link>
             ) : (
-              <span className="flex min-h-11 items-center rounded-[10px] border border-trait bg-surface-1 px-3 text-sm text-texte">{e.titre || "Sans titre"}</span>
+              <span className="flex min-h-11 items-center rounded-[10px] border border-trait bg-surface-1 px-3 text-sm text-texte">{libelleLigne(e)}</span>
             )}
           </li>
         ))}
