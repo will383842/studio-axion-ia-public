@@ -123,5 +123,14 @@ export async function terminerEnvoi(d: DescriptifEnvoi & { fichierId: string; cl
       signalerEmpreinteManquante(); // le rattrapage repassera sur ce fichier
     });
   }
+  // Image d'épingle (petite, plafonnée par l'import) : l'empreinte est calculée TOUT DE SUITE, car l'import du lot retrouve
+  // l'image par son nom ET son empreinte, sous verrou, où l'on ne peut plus la calculer. Échec : fichier rendu sans empreinte
+  // (l'analyse le dira « en attente d'image », un nouveau dépôt réessaie).
+  if (enregistre.statut === "pret" && d.typeEntite === "epingle" && !enregistre.sha256) {
+    return assurerEmpreinte(enregistre).catch((e) => {
+      console.error("[empreinte epingle]", d.fichierId, e);
+      return enregistre;
+    });
+  }
   return enregistre;
 }
