@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { motsInterditsEnvoiZernio } from "../../fournisseurs/publication/mots-interdits-envoi";
 import { lienDuSite } from "../../fournisseurs/publication/liens-du-site";
+import { ALT_MAX_PINTEREST, DESCRIPTION_EPINGLE_MAX, TITRE_EPINGLE_MAX } from "../../fournisseurs/publication/epingle-limites";
 
 export const LOT_EPINGLES_LIGNES_MAX = 500;
 export const LOT_EPINGLES_OCTETS_MAX = 1024 * 1024;
@@ -41,11 +42,11 @@ export function schemaEpingle(domaineSite: string) {
   return z
     .object({
       cle: z.string().trim().regex(/^[A-Za-z0-9_-]{1,80}$/, "clé : lettres, chiffres, - et _ (80 au plus)").optional(),
-      titre: z.string().transform(normaliser).pipe(z.string().min(1, "titre vide").max(100, "titre : 100 signes au plus").refine(sansMotInterdit, "titre : mot interdit")),
-      description: z.string().trim().min(1, "description vide").max(800, "description : 800 signes au plus").refine(sansMotInterdit, "description : mot interdit"),
-      url: z.string().trim().max(2000, "lien trop long").refine((u) => lienDuSite(u, domaineSite), "lien : https vers le site, domaine exact, sans identifiants ni port"),
+      titre: z.string().transform(normaliser).pipe(z.string().min(1, "titre vide").max(TITRE_EPINGLE_MAX, `titre : ${TITRE_EPINGLE_MAX} signes au plus`).refine(sansMotInterdit, "titre : mot interdit")),
+      description: z.string().trim().min(1, "description vide").max(DESCRIPTION_EPINGLE_MAX, `description : ${DESCRIPTION_EPINGLE_MAX} signes au plus`).refine(sansMotInterdit, "description : mot interdit"),
+      url: z.string().trim().max(2000, "lien trop long").refine((u) => lienDuSite(u, domaineSite), "lien : https vers le site, domaine exact, sans identifiants ni port").refine(sansMotInterdit, "lien : mot interdit"),
       tableau: z.string().trim().min(1, "tableau manquant"),
-      texteAlternatif: z.string().transform(normaliser).pipe(z.string().min(1, "texte alternatif vide").max(500, "texte alternatif : 500 signes au plus").refine(sansMotInterdit, "texte alternatif : mot interdit")),
+      texteAlternatif: z.string().transform(normaliser).pipe(z.string().min(1, "texte alternatif vide").max(ALT_MAX_PINTEREST, `texte alternatif : ${ALT_MAX_PINTEREST} signes au plus`).refine(sansMotInterdit, "texte alternatif : mot interdit")),
       contenuIA: z.boolean({ message: "contenuIA : vrai ou faux, obligatoire" }),
       image: z.string().trim().regex(NOM_IMAGE_EPINGLE, "image : nom de fichier .jpg, .png ou .webp (pas d'adresse)"),
     })

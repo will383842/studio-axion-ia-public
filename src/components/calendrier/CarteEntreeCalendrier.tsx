@@ -21,6 +21,15 @@ export const TYPES_CONTENU: Readonly<Record<TypeContenu, { libelle: string; icon
   image: { libelle: "Image", icone: "image" },
 };
 
+/**
+ * Type affiché d'une carte : une épingle (image sur Pinterest) se dit « Épingle », pas « Image ». Le type de la carte reste
+ * « image » (comme `typeContenuDuVisuel`) ; seul le mot change.
+ */
+export function typeAffiche(reseau: string, type: TypeContenu): { libelle: string; icone: NomIcone } {
+  const t = TYPES_CONTENU[type] ?? TYPES_CONTENU.video;
+  return reseau === "pinterest" && type === "image" ? { ...t, libelle: "Épingle" } : t;
+}
+
 /** Une carte du calendrier : une publication, sur UN réseau, un jour de Paris. */
 export interface EntreeCarte {
   /** Unique dans la vue. */
@@ -150,13 +159,13 @@ export function cartesDepuisEntrees(entrees: readonly EntreeCalendrier[], option
     const etat = etatDepuisStatut(e.statut, options.statuts);
     if (etat === null && !statutConnu(e.statut, options.statuts)) options.surStatutInconnu?.((e.statut ?? "").trim(), e);
     if (!etat) return [];
-    return e.reseaux.filter(reseauConnu).map((reseau) => ({ cle: `${e.cle}|${reseau}`, jour: e.jour, reseau, type: e.famille === "carrousel" ? "carrousel" : "video", etat, titre: e.titre, mediaId: e.mediaId }) satisfies EntreeCarte);
+    return e.reseaux.filter(reseauConnu).map((reseau) => ({ cle: `${e.cle}|${reseau}`, jour: e.jour, reseau, type: e.famille === "epingle" ? "image" : e.famille === "carrousel" ? "carrousel" : "video", etat, titre: e.titre, mediaId: e.mediaId }) satisfies EntreeCarte);
   });
 }
 
 /** Ce qu'un lecteur d'écran dit de la carte : réseau, compte, type, heure, état. */
 export function libelleCarte(entree: EntreeCarte, libellesEtat?: TableLibelles): string {
-  return [nomReseau(entree.reseau), entree.compte, TYPES_CONTENU[entree.type]?.libelle, heureLisible(entree.heure), libelleEtat(entree.etat, libellesEtat).libelle].filter(Boolean).join(", ");
+  return [nomReseau(entree.reseau), entree.compte, TYPES_CONTENU[entree.type] ? typeAffiche(entree.reseau, entree.type).libelle : undefined, heureLisible(entree.heure), libelleEtat(entree.etat, libellesEtat).libelle].filter(Boolean).join(", ");
 }
 
 export interface ProprietesCarteEntreeCalendrier {
@@ -197,7 +206,7 @@ export function PlusCase({ jour, aujourdhui, reseau, onOuvrir, className }: { jo
  * Le liseré de gauche prend la couleur du réseau (`--c`) ; l'état d'idée est en pointillé.
  */
 export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verrouillee, tropProche, alerte, href, onOuvrir, className }: ProprietesCarteEntreeCalendrier) {
-  const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
+  const type = typeAffiche(entree.reseau, entree.type);
   const heure = heureLisible(entree.heure);
   // Le libellé remplace le contenu pour un lecteur d'écran : le verrou et l'alerte y sont donc redits.
   const libelle = [libelleCarte(entree, libellesEtat), verrouillee && "verrouillée", tropProche && "trop proche d'une autre publication", alerte && `à compléter : ${alerte}`].filter(Boolean).join(", ");
@@ -247,7 +256,14 @@ export function CarteEntreeCalendrier({ entree, libellesEtat, avecTitre, verroui
           {entree.titre && <span className="text-xs text-texte-doux">{entree.titre}</span>}
         </span>
       ) : (
-        avecTitre && entree.titre && <span className="mt-1 block text-xs text-texte-doux">{entree.titre}</span>
+        <>
+          {entree.vignette && entree.type === "image" && entree.reseau === "pinterest" && (
+            <span data-vignette-epingle className="mt-1 flex">
+              <VignetteDiffuseur src={entree.vignette} alt={`Image de l'épingle${entree.titre ? ` : ${entree.titre}` : ""}`} taille={40} />
+            </span>
+          )}
+          {avecTitre && entree.titre && <span className="mt-1 block text-xs text-texte-doux">{entree.titre}</span>}
+        </>
       )}
     </>
   );

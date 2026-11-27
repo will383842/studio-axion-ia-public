@@ -120,7 +120,8 @@ export const LIMITES_MOTS_DIESES: Record<IdReseau, LimiteMotsDieses> = {
   tiktok: "inconnu",
   youtube: "inconnu",
   "youtube-shorts": "inconnu",
-  // Pinterest : le relevé L8-01 n'a aucune preuve (« inconnu ») : aucun nombre inventé.
+  // Pinterest : aucune limite sourcée (« inconnu », aucun nombre inventé). Notre règle d'écriture est de n'en mettre aucun :
+  // 0 conseillé et 0 au plus dans `hors-video.ts` (ADR-0015, amendé en PR 8), que `placement-hashtags` lit.
   pinterest: "inconnu",
 };
 

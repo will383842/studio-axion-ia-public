@@ -119,7 +119,7 @@ export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<E
     if (p.reseau === "pinterest") {
       try {
         const epingle = await epingleDuVisuel(p.visuelId, await domaineDuSite());
-        if (epingle) return { ...base, type: "image", epingle };
+        if (epingle) return { ...base, type: "image", epingle, vignette: epingle.imageUrl ?? undefined };
       } catch {
         return base;
       }

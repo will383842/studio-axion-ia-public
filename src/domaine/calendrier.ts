@@ -4,7 +4,7 @@
  * déjà pour le même média, le même réseau et le même jour de Paris (la publication fait foi).
  */
 
-export type FamilleEntree = "video" | "carrousel";
+export type FamilleEntree = "video" | "carrousel" | "epingle";
 export type OrigineEntree = "publication" | "creneau";
 
 export interface EntreeCalendrier {

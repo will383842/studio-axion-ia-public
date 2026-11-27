@@ -29,6 +29,8 @@ const MEDIA_DIFFUSEUR: Media = { famille: "carrousel", id: null, titre: "Program
 async function chercherMedia(d: DepotsCalendrier, source: { videoId?: string; visuelId?: string }): Promise<Media> {
   if (source.visuelId) {
     const v = await d.visuels.obtenir(source.visuelId);
+    // Une épingle : « Épingle » avec sa vignette (l'image déposée), jamais un carrousel sans image.
+    if (v?.famille === "epingle" && v.epingle) return { famille: "epingle", id: source.visuelId, titre: v.titre, vignette: v.epingle.image.cle };
     return { famille: "carrousel", id: v ? source.visuelId : null, titre: v?.titre ?? "Carrousel", vignette: v?.rendu?.vignetteCle ?? v?.renduToile?.vignetteCle ?? null };
   }
   if (source.videoId) {

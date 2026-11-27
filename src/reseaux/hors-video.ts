@@ -8,6 +8,7 @@
  * légende. `listerReseaux()` et `obtenirReseau` restent vidéo seulement.
  */
 import type { IdReseau } from "@/domaine/types";
+import { DESCRIPTION_EPINGLE_MAX } from "../fournisseurs/publication/epingle-limites";
 import { CODES_RESEAU } from "./codes";
 import { RESEAUX } from "./index";
 
@@ -29,7 +30,7 @@ export const RESEAUX_HORS_VIDEO: DefinitionAffichageReseau[] = [
     nom: "Pinterest",
     monogramme: "P",
     codeClassement: CODES_RESEAU.pinterest,
-    legende: { longueurMax: 800, longueurVisible: 100, motsDieseMax: 5, motsDieseConseilles: 2 },
+    legende: { longueurMax: DESCRIPTION_EPINGLE_MAX, longueurVisible: 100, motsDieseMax: 0, motsDieseConseilles: 0 },
     etiquetteIA: "Mention « modifié par IA » de Pinterest",
   },
 ];

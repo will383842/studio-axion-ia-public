@@ -3,6 +3,7 @@
  * Aucun envoi : la demande est un brouillon, `envoiAutorise` reste faux (rien ne part sans le geste du fondateur).
  */
 import { PROFILS_RESEAUX, type Reseau } from "@/briques/visuels/reseaux";
+import { DESCRIPTION_EPINGLE_MAX } from "@/fournisseurs/publication/epingle-limites";
 import { verifierTexteAlternatif, type ErreurTexteAlternatif } from "./texte-alternatif-visuel";
 
 export interface FichierVisuel {
@@ -14,7 +15,7 @@ export interface FichierVisuel {
 export type ErreurDemandeVisuel = "aucun-fichier" | "format-refuse" | "trop-de-pages" | "legende-trop-longue" | ErreurTexteAlternatif;
 
 /** Profil Pinterest local : `briques/visuels/reseaux.ts` est copié dans l'image de rendu et n'est pas touché. */
-const PROFIL_PINTEREST = { livrable: "images", pagesMax: 1, legendeMax: 800 } as const;
+export const PROFIL_PINTEREST = { livrable: "images", pagesMax: 1, legendeMax: DESCRIPTION_EPINGLE_MAX } as const;
 const profilDe = (r: Reseau | "pinterest") => (r === "pinterest" ? PROFIL_PINTEREST : PROFILS_RESEAUX[r]);
 
 export interface DemandeVisuel {
