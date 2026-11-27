@@ -251,6 +251,6 @@ function site17(e: EntreeControlesSite): ControleSite[] {
 }
 
 export function controlerAvantSite(entree: EntreeControlesSite): ResultatControlesSite {
-  const controles = [...site01(entree), ...site02(entree), ...site03(entree), ...site04(entree), ...site05(entree), ...site06(entree), ...site07(entree), ...site08(entree), ...site09(entree), ...site10(entree), ...site11(entree), ...site12(entree), ...site13(entree), ...site14(entree), ...site15(entree), ...site16(entree), ...site17(entree), ...(entree.bornesDuSite ? controlerBornesSite(entree.passeport) : [])];
+  const controles = [...site01(entree), ...site02(entree), ...site03(entree), ...site04(entree), ...site05(entree), ...site06(entree), ...site07(entree), ...site08(entree), ...site09(entree), ...site10(entree), ...site11(entree), ...site12(entree), ...site13(entree), ...site14(entree), ...site15(entree), ...site16(entree), ...site17(entree), ...(entree.bornesDuSite ? controlerBornesSite(entree.passeport).filter((c) => c.ok || c.champ !== "titreWeb" || entree.passeport.titreWeb.length <= TITRE_WEB_MAX) : [])];
   return { publiable: !controles.some((c) => !c.ok && c.gravite === "bloquant"), controles };
 }

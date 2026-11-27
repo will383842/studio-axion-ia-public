@@ -12,7 +12,7 @@ const LIBELLES_THEMES: Record<ThemeSite, string[]> = {
   "coaching-ia": ["coaching ia", "coaching ia 1 to 1", "coaching"],
   "audit-ia": ["audit ia", "audit"],
   automatisation: ["automatisation", "implementation ia", "implementation"],
-  "sites-web-ia": ["sites web ia", "site web ia", "sites web", "site web"],
+  "sites-web-ia": ["sites web et saas ia", "sites web ia", "site web ia", "sites web", "site web"],
 };
 
 const normaliser = (t: string) =>
@@ -43,7 +43,8 @@ export interface EchecBorne {
 }
 
 function hors(valeur: string, [min, max]: readonly [number, number]): "court" | "long" | null {
-  const n = valeur.trim().length;
+  // Longueur brute, comme le site (qui ne retire aucune espace) : l'envoi n'ajuste rien.
+  const n = valeur.length;
   return n < min ? "court" : n > max ? "long" : null;
 }
 
@@ -52,7 +53,7 @@ export function echecsBornes(p: PasseportWeb): EchecBorne[] {
   const echecs: EchecBorne[] = [];
   const verifier = (ou: string, champ: keyof PasseportWeb, valeur: string, borne: readonly [number, number]) => {
     const h = hors(valeur, borne);
-    if (h) echecs.push({ champ, message: `${ou} fait ${valeur.trim().length} caractères : ${h === "court" ? `${borne[0]} au moins` : `${borne[1]} au plus`} pour le site.` });
+    if (h) echecs.push({ champ, message: `${ou} fait ${valeur.length} caractères : ${h === "court" ? `${borne[0]} au moins` : `${borne[1]} au plus`} pour le site.` });
   };
   verifier("Le titre", "titreWeb", p.titreWeb, BORNES_SITE.titre);
   verifier("Le résumé", "resume", p.resume, BORNES_SITE.resume);
@@ -61,7 +62,7 @@ export function echecsBornes(p: PasseportWeb): EchecBorne[] {
     verifier(`La question n° ${i + 1}`, "questions", q.question, BORNES_SITE.question);
     verifier(`La réponse n° ${i + 1}`, "questions", q.reponse, BORNES_SITE.reponse);
   });
-  if (!themeDeRubrique(p.rubrique)) echecs.push({ champ: "rubrique", message: "La rubrique doit être l'un des thèmes du site : Formations IA, Coaching IA, Audit IA, Automatisation ou Sites web IA." });
+  if (!themeDeRubrique(p.rubrique)) echecs.push({ champ: "rubrique", message: "La rubrique doit être l'un des thèmes du site : Formations IA, Coaching IA 1-to-1, Audit IA, Automatisation ou Sites web et SaaS IA." });
   return echecs;
 }
 

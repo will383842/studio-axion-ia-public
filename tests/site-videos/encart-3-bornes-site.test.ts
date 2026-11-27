@@ -57,8 +57,23 @@ describe("encart PR 3 : bornes de longueur", () => {
     const ok = (n: number) => controlerBornesSite({ ...passeportConforme(), titreWeb: texte(n) }).every((c) => c.ok);
     expect([ok(19), ok(20), ok(60), ok(61)]).toEqual([false, true, true, false]);
   });
-  it("les espaces autour ne comptent pas", () => {
-    expect(controlerBornesSite({ ...passeportConforme(), titreWeb: `  ${texte(20)}  ` }).every((c) => c.ok)).toBe(true);
+  it("longueur brute, comme le site : les espaces autour comptent", () => {
+    expect(controlerBornesSite({ ...passeportConforme(), titreWeb: `${texte(60)}  ` }).some((c) => !c.ok && c.champ === "titreWeb")).toBe(true);
+    expect(controlerBornesSite({ ...passeportConforme(), resume: `${texte(1500)}\n` }).some((c) => !c.ok && c.champ === "resume")).toBe(true);
+  });
+  it("chaque texte : borne basse et haute, avec le bon champ", () => {
+    const echec = (surcharge: object) => controlerBornesSite({ ...passeportConforme(), ...surcharge }).filter((c) => !c.ok).map((c) => c.champ);
+    expect(echec({ resume: texte(399) })).toEqual(["resume"]);
+    expect(echec({ resume: texte(400) })).toEqual([]);
+    expect(echec({ resume: texte(1501) })).toEqual(["resume"]);
+    expect(echec({ aRetenir: [texte(19), texte(25), texte(25)] })).toEqual(["aRetenir"]);
+    expect(echec({ aRetenir: [texte(25), texte(25), texte(201)] })).toEqual(["aRetenir"]);
+    expect(echec({ questions: [{ question: texte(9), reponse: texte(50) }, { question: texte(10), reponse: texte(50) }] })).toEqual(["questions"]);
+    expect(echec({ questions: [{ question: texte(161), reponse: texte(50) }, { question: texte(10), reponse: texte(50) }] })).toEqual(["questions"]);
+    expect(echec({ questions: [{ question: texte(10), reponse: texte(39) }, { question: texte(10), reponse: texte(601) }] })).toEqual(["questions", "questions"]);
+  });
+  it("le libellé exact du site est reconnu", () => {
+    expect(themeDeRubrique("Sites web et SaaS IA")).toBe("sites-web-ia");
   });
 });
 
@@ -67,6 +82,10 @@ describe("encart PR 3 : l'interrupteur", () => {
     const sans = controlerAvantSite(entreeOk());
     expect(sans.controles.some((c) => c.code === "SITE-18")).toBe(false);
     expect(sans.publiable).toBe(true);
+  });
+  it("allumé : un titre de plus de 60 caractères n'est signalé qu'une fois (SITE-11)", () => {
+    const r = controlerAvantSite(entreeOk({ bornesDuSite: true, passeport: { ...passeportConforme(), titreWeb: texte(70) } }));
+    expect(r.controles.filter((c) => !c.ok && c.champ === "titreWeb").map((c) => c.code)).toEqual(["SITE-11"]);
   });
   it("allumé : un passeport trop court n'est plus publiable ; un passeport conforme l'est", () => {
     expect(controlerAvantSite(entreeOk({ bornesDuSite: true })).publiable).toBe(false);
