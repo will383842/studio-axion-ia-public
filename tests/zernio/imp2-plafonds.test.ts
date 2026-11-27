@@ -14,8 +14,8 @@ describe("IMP-2 plafonds", () => {
     expect(dateUtilisable("n'importe quoi", T0).ok).toBe(false);
   });
 
-  it("plafonds du jour : 90 / 90 / 45", () => {
-    expect(OPERATIONS_PAR_JOUR).toEqual({ instagram: 90, facebook: 90, linkedin: 45 });
+  it("plafonds du jour : 90 / 90 / 45, et 20 pour Pinterest (marge sous le débit conseillé)", () => {
+    expect(OPERATIONS_PAR_JOUR).toEqual({ instagram: 90, facebook: 90, linkedin: 45, pinterest: 20 });
   });
 
   it("grille : 20 dans l'heure passe, 21 est refusé", () => {

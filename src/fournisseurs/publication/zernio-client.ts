@@ -84,6 +84,7 @@ export type RouteZernio =
   | "organisations-linkedin"
   | "createur-tiktok"
   | "limite-instagram"
+  | "tableaux-pinterest"
   | "presign"
   | "televersement"
   | "creer-post"
@@ -143,6 +144,12 @@ export interface PlateformePostZernio {
   customContent?: string;
   platformSpecificData?: Record<string, unknown>;
   [cle: string]: unknown;
+}
+
+export interface TableauPinterestZernio {
+  id: string;
+  name?: string;
+  privacy?: string;
 }
 
 export interface MediaItemZernio {
@@ -205,6 +212,11 @@ export interface DemandePromotionZernio {
   cleJournal: string;
   /** Date du journal (ISO avec Z, à la seconde, sans fraction). */
   dateJournal: string;
+  /**
+   * Pinterest : tableau voulu à l'envoi du brouillon. Le post relu doit porter ce même `boardId`, sinon refus et aucun PUT.
+   * Absent pour une épingle = refus.
+   */
+  tableauAttendu?: string;
   /** Médias du post : date du téléversement et fonction de nouveau téléversement (si plus de 6 jours). */
   medias?: { televerseLe: string; reteleverser: () => Promise<MediaItemZernio[]> };
 }
@@ -262,6 +274,8 @@ export interface ClientZernio {
   organisationsLinkedin(accountId: string): Promise<OrganisationLinkedinZernio[]>;
   infoCreateurTiktok(accountId: string): Promise<Record<string, unknown>>;
   limitePublicationInstagram(accountId: string): Promise<Record<string, unknown>>;
+  /** Lecture seule : tableaux Pinterest d'un compte (sans pagination). Entrées sans `id` texte écartées. */
+  tableauxPinterest(accountId: string): Promise<TableauPinterestZernio[]>;
   /** Lecture seule : cette personne suit-elle le compte ? `null` = inconnu. Ne rend jamais ni nom ni pseudo. */
   suiviInstagram(accountId: string, idUtilisateur: string): Promise<{ suit: boolean | null }>;
   preparerTeleversement(d: { filename: string; contentType: string; size?: number }): Promise<TeleversementPrepareZernio>;
@@ -333,6 +347,8 @@ const ROUTES: readonly { methode: MethodeHttp; motif: RegExp; route: RouteZernio
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/linkedin-organizations$`), route: "organisations-linkedin" },
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/tiktok/creator-info$`), route: "createur-tiktok" },
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/instagram/publishing-limit$`), route: "limite-instagram" },
+  // Pinterest : lecture seule (ADR-0015). Jamais PUT ni POST sur cette route (création ou tableau par défaut), jamais POST /v1/posts/{id}/edit.
+  { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/pinterest-boards$`), route: "tableaux-pinterest" },
   { methode: "GET", motif: new RegExp(`^/v1/accounts/${SEGMENT_ID}/follow-status/${SEGMENT_ID}$`), route: "suivi-instagram" },
   { methode: "POST", motif: /^\/v1\/media\/presign$/, route: "presign" },
   { methode: "POST", motif: /^\/v1\/posts$/, route: "creer-post" },
@@ -931,6 +947,15 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       return exigerObjet(corps, "limite Instagram");
     },
 
+    async tableauxPinterest(accountId) {
+      const { corps } = await requete({ methode: "GET", chemin: `/v1/accounts/${segment(accountId)}/pinterest-boards` });
+      const lus = exigerObjet(corps, "tableaux Pinterest").boards;
+      if (!Array.isArray(lus)) return [];
+      return lus
+        .filter((b): b is Record<string, unknown> => estObjet(b) && typeof b.id === "string" && b.id.trim() !== "")
+        .map((b) => ({ id: b.id as string, ...(typeof b.name === "string" ? { name: b.name } : {}), ...(typeof b.privacy === "string" ? { privacy: b.privacy } : {}) }));
+    },
+
     async suiviInstagram(accountId, idUtilisateur) {
       const { corps } = await requete({ methode: "GET", chemin: `/v1/accounts/${segment(accountId)}/follow-status/${segment(idUtilisateur)}`, query: { refresh: "true" } });
       const v = typeof corps === "object" && corps !== null ? (corps as Record<string, unknown>).isFollower : undefined;
@@ -1012,6 +1037,12 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
       return { etat: "refuse", raison: "Post sans origine Studio ou import Buffer : il n'est pas à nous." };
     }
     if (avant.metadata?.studioCle !== d.cleJournal) return { etat: "refuse", raison: "La clé du post ne correspond pas à celle du journal." };
+    // Pinterest : le tableau du brouillon relu doit être celui que le journal attend (jamais promu sur un autre tableau).
+    const epingle = (Array.isArray(avant.platforms) ? avant.platforms : []).find((p) => p.platform === "pinterest");
+    if (avant.platforms.some((p) => p.platform === "pinterest")) {
+      const lu = epingle?.platformSpecificData?.boardId;
+      if (d.tableauAttendu === undefined || typeof lu !== "string" || lu !== d.tableauAttendu) return { etat: "refuse", raison: "Le tableau Pinterest du brouillon ne correspond pas à celui attendu : rien n'a été promu." };
+    }
     const mots = motsInterditsDuCorps(avant);
     if (mots.length > 0) return { etat: "refuse", raison: `Mot interdit dans le post relu (${[...new Set(mots.map((m) => m.chemin))].join(", ")}).` };
 
