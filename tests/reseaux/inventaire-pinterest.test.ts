@@ -65,7 +65,6 @@ const EXCLUSIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["src/services/plan-editorial.ts", "RESEAUX_ENVOI", "RESEAUX_ENVOI : Pinterest absent jusqu'à la PR 5"],
   ["src/domaine/reseaux-visuel-envoi.ts", "RESEAUX_VISUEL_ENVOI", "liste unique des réseaux qui reçoivent un visuel : Pinterest absent jusqu'aux PR 3 à 5"],
   ["src/domaine/visuels/depot.ts", "z.enum", "dépôt de visuels envoyés (zod, image de rendu) : Pinterest absent jusqu'aux PR 2 à 5"],
-  ["src/app/(studio)/reglages/actions-zernio.ts", "RESEAUX_CONNUS", "RESEAUX_CONNUS (comptes Zernio) : Pinterest arrive en PR 3"],
   ["src/domaine/calendrier/manques.ts", "ORDRE_RESEAUX", "créneaux attendus : Pinterest n'a pas de jour attendu en V1"],
   // Anciens liens du calendrier : les quatre réseaux d'avant Pinterest, lus comme « tous » (lireReseaux).
   ["src/components/calendrier/lire-reseaux.ts", "ANCIENS_RESEAUX", "les quatre réseaux d'avant Pinterest : un ancien lien ?reseaux= est lu comme « tous »"],
