@@ -67,4 +67,26 @@ describe("encart PR 7 : corps au format du site", () => {
   it("le schéma du site refuse bien un corps hors bornes (la copie du schéma est vivante)", () => {
     expect(schemaPublicationSite.safeParse(corpsSite(entree({ description: "court" }))).success).toBe(false);
   });
+
+  it("la copie du schéma applique les règles croisées du site (chapitres, chemins)", () => {
+    const base = corpsSite(entree());
+    const refuse = (c: unknown) => schemaPublicationSite.safeParse(c).success === false;
+    expect(refuse({ ...base, dureeSecondes: 20 })).toBe(true);
+    expect(refuse({ ...base, chapitres: [{ titre: "Deux", debutSecondes: 20 }, { titre: "Un", debutSecondes: 5 }] })).toBe(true);
+    expect(refuse({ ...base, version: 9 })).toBe(true);
+  });
+
+  it("chapitres : le début arrondi ne dépasse jamais la durée arrondie ni le précédent (écarté plutôt que refusé par le site)", () => {
+    const chap = (debutSec: number, libelle: string) => ({ debutSec, finSec: debutSec + 5, libelle, blocRecette: "coeur" });
+    const p = { ...entree().passeport, chapitres: [chap(0, "Début"), chap(12.4, "Milieu"), chap(12.6, "Trop proche"), chap(39.6, "Fin")] };
+    const c = corpsSite(entree({ passeport: p, dureeSec: 40.4 }));
+    expect(c.chapitres).toEqual([{ titre: "Début", debutSecondes: 0 }, { titre: "Milieu", debutSecondes: 12 }, { titre: "Trop proche", debutSecondes: 13 }]);
+    expect(schemaPublicationSite.safeParse(c).success).toBe(true);
+  });
+
+  it("sous 30 s : aucun chapitre envoyé", () => {
+    const c = corpsSite(entree({ dureeSec: 20 }));
+    expect(c.chapitres).toEqual([]);
+    expect(schemaPublicationSite.safeParse(c).success).toBe(true);
+  });
 });

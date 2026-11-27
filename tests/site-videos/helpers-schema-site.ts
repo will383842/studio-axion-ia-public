@@ -1,4 +1,8 @@
-/** Copie, pour les tests, du schéma strict de réception du site (`schemaVersion: 1`) : sans la liste blanche des liens ni la liste des thèmes. */
+/**
+ * Copie, pour les tests, du schéma de réception du site (`schemaVersion: 1`, `src/server/videos/contrat.ts` du dépôt du site, branche principale
+ * au 2026-11-27) : objets stricts, bornes, thèmes fermés, et les règles croisées (chapitres, chemins de fichiers). Seule la liste
+ * blanche des liens n'est pas reprise. À réaligner à la main si le site change son contrat.
+ */
 import { z } from "zod";
 
 const slug = (max: number) => z.string().max(max).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
@@ -6,7 +10,7 @@ const texte = (min: number, max: number) => z.string().min(min).max(max);
 const base = { chemin: z.string().max(300), octets: z.number().int().positive() };
 const image = z.object({ ...base, type: z.enum(["image/avif", "image/webp", "image/jpeg"]), largeur: z.number().int().positive(), hauteur: z.number().int().positive() }).strict();
 
-export const schemaPublicationSite = z
+const publicationBrute = z
   .object({
     schemaVersion: z.literal(1),
     studioVideoId: z.string().regex(/^[a-z0-9_-]{8,64}$/),
@@ -38,3 +42,19 @@ export const schemaPublicationSite = z
     attestations: z.object({ aucunNomNiLogoDeClient: z.literal(true) }).strict(),
   })
   .strict();
+
+export const schemaPublicationSite = publicationBrute.superRefine((v, ctx) => {
+  if (v.dureeSecondes < 30 && v.chapitres.length > 0) ctx.addIssue({ code: "custom", path: ["chapitres"], message: "aucun chapitre sous 30 s" });
+  for (let i = 0; i < v.chapitres.length; i++) {
+    const precedent = i > 0 ? v.chapitres[i - 1]!.debutSecondes : -1;
+    if (v.chapitres[i]!.debutSecondes >= v.dureeSecondes || v.chapitres[i]!.debutSecondes <= precedent) {
+      ctx.addIssue({ code: "custom", path: ["chapitres"], message: "débuts strictement croissants et inférieurs à la durée" });
+      break;
+    }
+  }
+  const prefixe = `/medias/videos/${v.slug}/v${v.version}/`;
+  for (const [nom, f] of Object.entries(v.fichiers)) {
+    const reste = f.chemin.startsWith(prefixe) ? f.chemin.slice(prefixe.length) : null;
+    if (reste === null || !/^[a-z0-9][a-z0-9._-]*$/.test(reste) || reste.includes("..")) ctx.addIssue({ code: "custom", path: ["fichiers", nom, "chemin"], message: `doit commencer par ${prefixe}` });
+  }
+});

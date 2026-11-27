@@ -59,6 +59,24 @@ export interface EntreeCorpsSite {
   aucunClient: boolean;
 }
 
+/** Seuil du site : aucun chapitre sous 30 s. */
+const DUREE_CHAPITRES_MIN_SEC = 30;
+
+/**
+ * Chapitres au format du site : débuts arrondis à la seconde, strictement croissants et inférieurs à la durée arrondie (le
+ * site refuse sinon). Un chapitre dont l'arrondi tomberait sur le précédent ou sur la fin est écarté ; sous 30 s, aucun.
+ */
+function chapitresSite(chapitres: PasseportWeb["chapitres"], dureeSecondes: number): CorpsSite["chapitres"] {
+  if (dureeSecondes < DUREE_CHAPITRES_MIN_SEC) return [];
+  const sortie: CorpsSite["chapitres"] = [];
+  for (const c of chapitres) {
+    const debut = Math.round(c.debutSec);
+    if (debut >= dureeSecondes || (sortie.length && debut <= sortie[sortie.length - 1]!.debutSecondes)) continue;
+    sortie.push({ titre: c.libelle, debutSecondes: debut });
+  }
+  return sortie;
+}
+
 /** Le JSON envoyé au site. Lève si l'attestation « aucun client nommé » n'est pas donnée (le site la refuserait). */
 export function corpsSite(e: EntreeCorpsSite): CorpsSite {
   if (e.aucunClient !== true) throw new RangeError("L'attestation « aucun client nommé, aucun logo » est obligatoire.");
@@ -78,7 +96,7 @@ export function corpsSite(e: EntreeCorpsSite): CorpsSite {
     serie: e.serie ?? null,
     lien: { ...e.lien },
     dureeSecondes: Math.round(e.dureeSec),
-    chapitres: p.chapitres.map((c) => ({ titre: c.libelle, debutSecondes: Math.round(c.debutSec) })),
+    chapitres: chapitresSite(p.chapitres, Math.round(e.dureeSec)),
     fichiers: e.fichiers,
     transcription: p.transcription.trim() ? p.transcription : null,
     ia: { ...e.ia },
