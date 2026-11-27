@@ -18,7 +18,7 @@ import { transiterEnvoi } from "./envois-planifies";
 import { cleDans } from "@/fournisseurs/mesures/commun";
 import { creerClientZernio, type ClientZernio, type CompteZernio, type PlateformePostZernio, type PostZernio } from "@/fournisseurs/publication/zernio-client";
 import { alertesJetonsZernio, compteSurveilleDepuisZernio } from "@/fournisseurs/publication/zernio-alertes-jetons";
-import { estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
+import { MESSAGE_COMPTE_SUSPENDU, estCompteSuspendu, estErreurZernio } from "@/fournisseurs/publication/zernio-erreurs";
 import { phraseLisible } from "@/lib/erreur-lisible";
 import { obtenirReseau } from "@/reseaux";
 import { CONSTATS_INTROUVABLE_REQUIS, MESSAGE_AUCUN_POST_RETROUVE, RELECTURE_INTROUVABLE_MIN_MS, RELECTURES_INTROUVABLES_PAR_PASSAGE } from "./constantes-introuvable";
@@ -390,7 +390,12 @@ export interface EcartCalendrier {
   espaceRetrouveLe?: string;
   /** RAP-3 · dernier passage où l'espace a été VRAIMENT jugé (lecture complète). Seul repère des imports « trop récents » : jamais avancé par une écriture de repli. */
   espaceJugeLe?: string;
+  /** Pourquoi la lecture a échoué, quand on le sait : « compte-suspendu » = compte du diffuseur en pause (HTTP 402). S'efface à la première lecture réussie. */
+  motif?: "compte-suspendu";
 }
+
+export const TITRE_COMPTE_SUSPENDU = "Compte du diffuseur en pause";
+export const MESSAGE_COMPTE_SUSPENDU_LONG = `${MESSAGE_COMPTE_SUSPENDU} Rien ne se publie tant que ce n'est pas réglé.`;
 
 /** RAP-3 · publication attendue chez le diffuseur : née au Studio saine, ou rapatriée (saine ou « à vérifier »). Une née au Studio « à vérifier » n'atteste rien. */
 const attendueChezDiffuseur = (p: Publication): boolean =>
@@ -591,6 +596,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
   // RAP-2 · rapatriement des posts du diffuseur absents du calendrier : lecture seule chez le diffuseur (6 requêtes au plus, décomptées du budget),
   // écriture seulement dans le Studio. Son échec n'arrête jamais la synchro ; les posts lus servent aux lectures du passage (jamais relus seuls).
   const deRapatriement = new Map<string, PostZernio>();
+  let motifLecture: EcartCalendrier["motif"]; // posé par la lecture des listes si le diffuseur répond 402
   let espaceSuspect = false; // la clé relie probablement un autre espace : une seule notification groupée, pas une par publication
   {
     const budgetRap = { restant: BUDGET_RAPATRIEMENT_PAR_PASSAGE };
@@ -601,7 +607,7 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       // Avant tout import : les publications locales et la mesure précédente, pour juger si la liste lue est bien celle de NOTRE espace.
       const avantLocal = await d.publications.lister(() => true);
       const precedente = (await d.parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as EcartCalendrier | undefined;
-      const resultat = await rapatrierPostsZernio({ ...deps, client: { listerPosts: (q) => client.listerPosts(q) }, instant: () => luLe, budget: budgetRap }, { aBlanc: !actif });
+      const resultat = await rapatrierPostsZernio({ ...deps, client: { listerPosts: (q) => client.listerPosts(q).catch((e: unknown) => { if (estCompteSuspendu(e)) motifLecture = "compte-suspendu"; throw e; }) }, instant: () => luLe, budget: budgetRap }, { aBlanc: !actif });
       for (const x of resultat.posts) if (postDeListeComplet(x)) deRapatriement.set(x._id, x);
       // Lecture incomplète : l'espace n'est pas rejugé, on garde ce qui était connu.
       // Fenêtre au retour de la bonne clé : nos rapatriées « à vérifier » retrouvées dans les listes sont remises à la normale AVANT l'écriture de la mesure.
@@ -610,13 +616,18 @@ export async function synchroniserEtatsZernio(options: { force?: boolean; instan
       }
       const espace = resultat.lectureComplete ? espaceDepuis(avantLocal, resultat.posts, precedente, luLe) : { suivies: precedente?.suivies, connusFiables: precedente?.connusFiables, espaceSuspectLe: precedente?.espaceSuspectLe, espaceRetrouveLe: precedente?.espaceRetrouveLe, espaceJugeLe: repereJugement(precedente) };
       espaceSuspect = !!espace.espaceSuspectLe;
-      await ecrireEcartCalendrier(ecartDepuis(resultat, luLe, espace));
+      // UNE notification par pause (création d'abord, mesure ensuite : si la création échoue, elle reviendra au passage suivant).
+      if (motifLecture && precedente?.motif !== motifLecture) await creerNotification({ type: "echec", titre: TITRE_COMPTE_SUSPENDU, message: MESSAGE_COMPTE_SUSPENDU_LONG, lien: "/calendrier" }, { cloche: true });
+      await ecrireEcartCalendrier({ ...ecartDepuis(resultat, luLe, espace), ...(motifLecture ? { motif: motifLecture } : {}) });
     } catch {
       // Lecture ou écriture locale impossible : la mesure est « non vérifiée », la synchro continue.
       try {
         const avant = (await d.parametres.obtenir(PARAM_ECART_CALENDRIER))?.valeur as EcartCalendrier | undefined;
         // Le repli recopie la mesure telle quelle (dont `espaceJugeLe`, qui ne bouge pas : l'espace n'a pas été rejugé).
-        await ecrireEcartCalendrier({ chezDiffuseur: 0, absents: 0, exemples: [], ...avant, ...(avant && repereJugement(avant) ? { espaceJugeLe: repereJugement(avant) } : {}), luLe, verifie: false });
+        // Le motif connu reste tant qu'aucune lecture n'a réussi : une panne locale ne prouve pas que le compte est réglé.
+        const { motif: motifAvant, ...reste } = avant ?? ({} as Partial<EcartCalendrier>);
+        const motif = motifLecture ?? motifAvant;
+        await ecrireEcartCalendrier({ chezDiffuseur: 0, absents: 0, exemples: [], ...reste, ...(avant && repereJugement(avant) ? { espaceJugeLe: repereJugement(avant) } : {}), luLe, verifie: false, ...(motif ? { motif } : {}) });
       } catch {
         /* rien de plus à faire : on réessaiera au prochain passage */
       }

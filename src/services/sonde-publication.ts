@@ -9,6 +9,7 @@ import type { EnvoiPlanifie } from "@/domaine/envoi-planifie";
 import { instantParis } from "@/lib/horloge-paris";
 import { depots, ecrireParametre, lireParametre } from "./_commun";
 import { alerterHeureH } from "./notifications";
+import { PARAM_ECART_CALENDRIER, type EcartCalendrier } from "./zernio";
 
 export const SEUIL_RETARD_PUBLICATION_MS = 20 * 60_000;
 export const PARAM_MARQUEUR_SONDE = "sonde-publication.marques";
@@ -21,7 +22,8 @@ export const TEXTE_SONDE_PUBLICATION = {
   message: (jour: string, heure: string) => `La publication prévue le ${jour} à ${heure} n'est pas partie à l'heure. Ouvrez le calendrier pour vérifier : rien n'a été renvoyé.`,
 } as const;
 
-export type EtatSondePublication = "ok" | "a-verifier" | "arret" | "inconnu";
+/** `alerte` : le compte du diffuseur est en pause (402), rien ne peut se publier. */
+export type EtatSondePublication = "ok" | "a-verifier" | "arret" | "inconnu" | "alerte";
 
 /** PUR : les envois échus depuis au moins 20 minutes et pas encore partis. */
 export function envoisEnRetard(entrees: Pick<EnvoiPlanifie, "cle" | "jour" | "heure" | "statut">[], instant: number): typeof entrees {
@@ -50,6 +52,9 @@ export async function sonderPublication(options: OptionsSonde = {}): Promise<Res
   try {
     const ouverte = options.autorisee ? await options.autorisee() : (await lireParametre<unknown>(CLE_ENVOI_AUTOMATIQUE, false)) === true;
     if (ouverte !== true) return { etat: "arret", retards: 0, alertes: 0 };
+    // Compte du diffuseur en pause : lecture de la mesure locale seulement (aucun appel au diffuseur). La cloche est déjà prévenue par la synchro.
+    const mesure = await lireParametre<Partial<EcartCalendrier> | null>(PARAM_ECART_CALENDRIER, null);
+    if (mesure?.motif === "compte-suspendu") return { etat: "alerte", retards: 0, alertes: 0 };
     const entrees = await depots().envoisPlanifies.lister((e) => ATTENDUS.has(e.statut));
     const retards = envoisEnRetard(entrees, instant);
     if (!retards.length) return { etat: "ok", retards: 0, alertes: 0 };
