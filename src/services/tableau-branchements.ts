@@ -116,6 +116,8 @@ brancherServicesTableau({
       // Fin tirée de `fiche.appelId` (une fin non validée par Will n'est jamais rendue), pour le groupe de réseaux de chaque
       // sortie, avec le mot à commenter saisi à la création ; mêmes appels pour « Changer la fin ».
       choisirFin: choisirFinTableau(c, { ...(entrees.mot ? { mot: entrees.mot } : {}), ...(entrees.finLiens ? { finLiens: entrees.finLiens } : {}) }),
+      // S-10-BRANCHER : regard de Claude sur la sortie principale (réglage regardeur.tableau, plafond tbreg, 2 regards au plus).
+      ...(await (await import("./regard-tableau-reglage")).regardTableauRegle({ videoId: c.videoId, env: b.env, ...(c.origine ? { origine: c.origine } : {}), finEcran: (f) => ((x) => ("ecran" in x ? x.ecran : undefined))(choisirFinTableau(c, { ...(entrees.mot ? { mot: entrees.mot } : {}), ...(entrees.finLiens ? { finLiens: entrees.finLiens } : {}) })(f.appelId ?? null, lireSorties(entrees.sorties)[0])) })),
       // Traçabilité écrite par la fabrication elle-même (ajout seul) ; version du code lue à la construction.
       tracer: (e) => ajouterEvenement({ ...e, origine: "fabrication" }),
       versionCode: versionDuCode(process.env),

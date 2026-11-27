@@ -161,7 +161,8 @@ describe("relecteurTableau (S-10-v19b)", () => {
     const parcourir = (d: string) => { for (const n of readdirSync(d)) { const f = join(d, n); if (statSync(f).isDirectory()) parcourir(f); else if (/\.(ts|tsx)$/.test(n)) fichiers.push(f); } };
     parcourir(racine);
     const appelants = fichiers.filter((f) => !f.endsWith("services/regardeur-tableau.ts") && /regardeur-tableau"/.test(readFileSync(f, "utf8")) && /services\/regardeur-tableau"|\.\/regardeur-tableau"/.test(readFileSync(f, "utf8")));
-    expect(appelants).toEqual([]);
+    // S-10-BRANCHER-v20l (25/11, seconde lecture du pilote) : un seul appelant, le réglage du regard (liste fermée EXACTE).
+    expect(appelants.map((f) => f.slice(racine.length + 1))).toEqual(["services/regard-tableau-reglage.ts"]);
     for (const f of ["moteurs/montage-tableau/fabriquer.ts", "moteurs/montage-tableau/controles.ts", "services/tableau-branchements.ts"]) {
       expect(readFileSync(join(racine, f), "utf8")).not.toContain("regardeur-tableau\"");
     }
