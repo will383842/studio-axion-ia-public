@@ -512,7 +512,12 @@ async function exigerSelectionnable(videoId: string): Promise<Video> {
 export async function cocherSurLeSite(videoId: string, choisie: boolean): Promise<EtatSite> {
   await exigerSession();
   await exigerSelectionnable(videoId);
-  return majEtatSite(videoId, (e) => ({ ...e, choisie: choisie === true }));
+  return majEtatSite(videoId, (e) => {
+    const suivant: EtatSite = { ...e, choisie: choisie === true };
+    if (choisie === true) delete suivant.decocheeParWill;
+    else suivant.decocheeParWill = true;
+    return suivant;
+  });
 }
 
 /** Case « Aucun client nommé, aucun logo » de la feuille de relecture. */
