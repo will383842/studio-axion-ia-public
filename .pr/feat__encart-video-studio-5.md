@@ -12,4 +12,4 @@ Encart vidéo, côté Studio : marqueur « décochée par le fondateur » et gar
 - `tests/site-videos/encart-5-reprise-auto.test.ts` (écrit rouge d'abord).
 - `tests/site-videos` : 285 tests verts, lint ciblé propre.
 
-VERDICT OPUS : en attente
+VERDICT OPUS : BON
