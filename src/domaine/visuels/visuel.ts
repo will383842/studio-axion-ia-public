@@ -8,7 +8,7 @@ import type { Reseau } from "../../briques/visuels/reseaux";
 import type { VersionStockee } from "./depot";
 import type { ToileSpecType } from "./continu/schema-toile";
 
-export type ModeTexte = "simulation" | "session" | "api";
+export type ModeTexte = "simulation" | "session" | "api" | "import";
 export type MotifRefus = "texte" | "mise_en_page" | "sujet" | "ton" | "autre";
 export const LIBELLES_MOTIF: Record<MotifRefus, string> = { texte: "Le texte", mise_en_page: "La mise en page", sujet: "Le sujet", ton: "Le ton", autre: "Autre chose" };
 
@@ -20,12 +20,25 @@ export interface RenduVisuel {
   renduLe: string;
 }
 
+export interface EpingleVisuel {
+  titre: string;
+  lien: string;
+  texteAlternatif: string;
+  /** Mention « modifié par IA » : booléen obligatoire, jamais déduit. */
+  contenuIA: boolean;
+  image: { cle: string; largeur: number; hauteur: number; mime: "image/jpeg" | "image/png" | "image/webp"; sha256: string; taille: number };
+  /** Clé de l'épingle (anti-doublon de l'import). */
+  cle: string;
+}
+
 export interface Visuel {
   /** "vis_" + crypto.randomUUID() */
   id: Id;
-  famille: "carrousel" | "carrousel-continu" | "infographie";
-  /** Réseaux visés (L1-02) ; absent sur un ancien visuel. */
-  reseaux?: Reseau[];
+  famille: "carrousel" | "carrousel-continu" | "infographie" | "epingle";
+  /** Réseaux visés (L1-02) ; absent sur un ancien visuel. « pinterest » seulement pour une épingle. */
+  reseaux?: (Reseau | "pinterest")[];
+  /** Épingle Pinterest (famille « epingle ») : titre, lien, texte alternatif (500), mention IA et l'image déposée. */
+  epingle?: EpingleVisuel;
   /** Sous-type libre du classement (L1-02), 40 signes au plus ; absent sur un ancien visuel. */
   sousType?: string;
   /** Versions rendues par cadre, gardées avec le visuel (L1-02) : un rendu déjà fait n'est pas refait. */

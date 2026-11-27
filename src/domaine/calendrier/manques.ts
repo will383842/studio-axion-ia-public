@@ -7,7 +7,7 @@
  *    Jours attendus au départ : LinkedIn et Facebook du lundi au vendredi, Instagram tous les jours, TikTok aucun.
  *    Le quota des réglages de cadence est un plafond conseillé : il ne sert ici qu'à savoir s'il faut un créneau (0 = aucun).
  *  - texte manquant : publication à venir sans texte ;
- *  - commentaire manquant : publication à venir sans premier commentaire, sauf sur TikTok (pas de premier commentaire) ;
+ *  - commentaire manquant : publication à venir sans premier commentaire, sauf sur TikTok et Pinterest (pas de premier commentaire) ;
  *  - visuel non validé : « urgent » à moins de 24 h de la publication, simple alerte au-delà.
  * Seuls les 7 jours à venir sont regardés (aujourd'hui compris), jamais le passé. Jours et heures : Europe/Paris.
  */
@@ -53,15 +53,15 @@ export interface OptionsManques {
 }
 
 const SEMAINE = [1, 2, 3, 4, 5, 6, 7] as const;
-// Pinterest volontairement absent : aucun jour attendu en V1 (le calendrier ne signale pas de manque d'épingle).
+// Pinterest : 4 épingles par jour (cadence), donc tous les jours de la semaine sont attendus, comme Instagram.
 export const JOURS_ATTENDUS_DEPART: Readonly<Partial<Record<IdReseau, readonly number[]>>> = {
   linkedin: [1, 2, 3, 4, 5],
   facebook: [1, 2, 3, 4, 5],
   instagram: SEMAINE,
   tiktok: [],
+  pinterest: SEMAINE,
 };
-// Pinterest volontairement absent (voir JOURS_ATTENDUS_DEPART) : aucun manque n'est calculé pour une épingle.
-const ORDRE_RESEAUX: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
+const ORDRE_RESEAUX: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "pinterest", "youtube", "youtube-shorts"];
 const IGNOREES = new Set(["idee", "archive"]);
 const HEURES_URGENCE = 24;
 const AVEC_DECALAGE = /(Z|[+-]\d{2}:?\d{2})$/i;
@@ -136,7 +136,7 @@ export function calculerManques(entrees: readonly EntreeManque[], options: Optio
     const base = { reseau: e.reseau, jour, entreeId: e.id, bloquant: false as const };
     const lieu = `${nom(e.reseau)}, ${libelleJour(jour)}`;
     if (vide(e.texte)) out.push({ ...base, code: "texte-manquant", gravite: "alerte", message: `${lieu} : il manque le texte.` });
-    if (e.reseau !== "tiktok" && vide(e.premierCommentaire)) out.push({ ...base, code: "commentaire-manquant", gravite: "alerte", message: `${lieu} : il manque le premier commentaire.` });
+    if (e.reseau !== "tiktok" && e.reseau !== "pinterest" && vide(e.premierCommentaire)) out.push({ ...base, code: "commentaire-manquant", gravite: "alerte", message: `${lieu} : il manque le premier commentaire.` });
     if (e.visuelValide === false) {
       const urgent = t - now < HEURES_URGENCE * 3600e3;
       out.push({ ...base, code: "visuel-non-valide", gravite: urgent ? "urgent" : "alerte", message: `${lieu} : le visuel n'est pas validé${urgent ? ", publication dans moins de 24 h" : ""}.` });
