@@ -10,6 +10,8 @@ import { RESEAUX_HORS_VIDEO, definitionAffichage, nomDuReseau } from "@/reseaux/
 import { CODES_RESEAU } from "@/reseaux/codes";
 import { LIMITES_MOTS_DIESES } from "@/reseaux/hashtags";
 import { COULEURS_RESEAUX, RESEAUX_COLORES, couleurReseau } from "@/components/calendrier/couleurs-reseaux";
+import { PINTEREST_CLAIR, PINTEREST_SOMBRE } from "@/components/calendrier/couleurs-pinterest";
+import { styleReseau } from "@/components/calendrier/CarteEntreeCalendrier";
 import { RESEAUX_CALENDRIER as FILTRES_CALENDRIER, filtrerParReseau } from "@/components/calendrier/BarreFiltres";
 import { REGLAGES_CADENCE_DEFAUT, RESEAUX_CADENCE, nomReseauCadence } from "@/domaine/cadence/reglages";
 import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
@@ -43,10 +45,12 @@ describe("Pinterest : registre d'affichage séparé du registre vidéo", () => {
 });
 
 describe("Pinterest : affichage au calendrier", () => {
-  it("jeton de couleur présent en clair ET en sombre", () => {
-    const i = CSS.indexOf("\n.theme-sombre {");
-    expect(CSS.slice(0, i)).toMatch(/^\s*--res-pinterest:\s*#[0-9a-fA-F]{6};/m);
-    expect(CSS.slice(i)).toMatch(/^\s*--res-pinterest:\s*#[0-9a-fA-F]{6};/m);
+  it("couleur en clair ET en sombre, hors de globals.css (zone partagée : la garde de zone la refuse sans annonce)", () => {
+    expect(CSS).not.toMatch(/--res-pinterest/);
+    expect(PINTEREST_CLAIR).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(PINTEREST_SOMBRE).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(PINTEREST_CLAIR).not.toBe(PINTEREST_SOMBRE);
+    expect((styleReseau("pinterest") as Record<string, string>)["--c"]).toBe(`var(--res-pinterest, light-dark(${PINTEREST_CLAIR}, ${PINTEREST_SOMBRE}))`);
     expect(couleurReseau("pinterest")).toBe("var(--res-pinterest)");
     expect(COULEURS_RESEAUX.pinterest).toBe("var(--res-pinterest)");
     expect(RESEAUX_COLORES).toContain("pinterest");

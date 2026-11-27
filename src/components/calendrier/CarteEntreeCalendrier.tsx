@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { chercherDefinitionAffichage } from "@/reseaux/hors-video";
 import { PictoReseau } from "./PictoReseau";
 import { VignetteDiffuseur } from "./VignetteDiffuseur";
-import { couleurReseau } from "./couleurs-reseaux";
+import { couleurReseau, repliReseau } from "./couleurs-reseaux";
 import { PastilleStatutPlan, etatDepuisStatut, statutConnu, libelleEtat, type EtatAffiche, type TableLibelles, type TableStatuts } from "./PastilleStatutPlan";
 
 export type TypeContenu = "video" | "carrousel" | "infographie" | "image";
@@ -87,7 +87,7 @@ export function monogrammeReseau(reseau: IdReseau): string {
 export function styleReseau(reseau: IdReseau | string | null | undefined): CSSProperties {
   const jeton = typeof reseau === "string" && reseauConnu(reseau) ? couleurReseau(reseau) : undefined;
   if (!jeton) return { "--c": "var(--trait-fort)" } as CSSProperties;
-  return { "--c": `${jeton.slice(0, -1)}, var(--trait-fort))` } as CSSProperties;
+  return { "--c": `${jeton.slice(0, -1)}, ${repliReseau(reseau as IdReseau)})` } as CSSProperties;
 }
 
 /** Picto d'un réseau (monogramme). Décoratif : le nom du réseau est toujours écrit ou dit à côté. */

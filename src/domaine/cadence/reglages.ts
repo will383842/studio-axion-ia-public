@@ -84,19 +84,23 @@ const RELEVE_L8_01 = "2026-11-12";
 const SOURCE_RELEVE = "Relevé des règles des réseaux (L8-01)";
 const SOURCE_REGISTRE = "Valeur de départ du studio, pas encore vérifiée auprès du réseau";
 
+/** Pinterest : le nombre de mots-dièses n'est pas vérifié (LIMITES_MOTS_DIESES.pinterest = inconnu) ; la valeur reste une valeur de départ. */
+const SOURCE_NON_VERIFIEE_PINTEREST = "Non vérifiée : la limite de mots-dièses de Pinterest est inconnue, valeur de départ du studio";
+
 function reglesDeDepart(id: IdReseau): ReglesReseau {
   const legende = definitionAffichage(id).legende;
   const texteSource = id === "tiktok";
+  const sansObjetPinterest = id === "pinterest";
   const commentaireSource = id === "linkedin" || id === "instagram" || id === "facebook" || id === "tiktok";
   const regles: ReglesReseau = {
     texteMax: texteSource
       ? { valeur: legende.longueurMax, verifieLe: RELEVE_L8_01, source: `${SOURCE_RELEVE} : titre de vidéo de 2200 signes au plus (source secondaire)` }
       : { valeur: legende.longueurMax, verifieLe: null, source: SOURCE_REGISTRE },
-    motsDieseMax: { valeur: legende.motsDieseMax, verifieLe: null, source: SOURCE_REGISTRE },
+    motsDieseMax: { valeur: legende.motsDieseMax, verifieLe: null, source: sansObjetPinterest ? SOURCE_NON_VERIFIEE_PINTEREST : SOURCE_REGISTRE },
     premierCommentaire: {
       valeur: modePremierCommentaire(id).mode,
       verifieLe: commentaireSource ? RELEVE_L8_01 : null,
-      source: commentaireSource ? `${SOURCE_RELEVE} : ${id === "tiktok" ? "pas de premier commentaire envoyé avec la publication" : "le premier commentaire peut partir avec la publication"}` : SOURCE_REGISTRE,
+      source: sansObjetPinterest ? "Sans objet : une épingle n'a pas de premier commentaire" : commentaireSource ? `${SOURCE_RELEVE} : ${id === "tiktok" ? "pas de premier commentaire envoyé avec la publication" : "le premier commentaire peut partir avec la publication"}` : SOURCE_REGISTRE,
     },
   };
   if (id === "linkedin") regles.pdfCarrousel = { valeur: 1, verifieLe: RELEVE_L8_01, source: `${SOURCE_RELEVE} : un seul PDF par carrousel (source officielle)` };

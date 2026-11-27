@@ -13,6 +13,7 @@ import { CarteEntreeCalendrier } from "@/components/calendrier/CarteEntreeCalend
 import { PictoReseau } from "@/components/calendrier/PictoReseau";
 import { styleReseau } from "@/components/calendrier/CarteEntreeCalendrier";
 import { COULEURS_RESEAUX, RESEAUX_COLORES, couleurReseau } from "@/components/calendrier/couleurs-reseaux";
+import { PINTEREST_CLAIR, PINTEREST_SOMBRE } from "@/components/calendrier/couleurs-pinterest";
 
 const RACINE = join(__dirname, "../..");
 const lire = (p: string) => readFileSync(join(RACINE, p), "utf-8");
@@ -31,6 +32,11 @@ function valeur(b: string, nom: string): string {
   expect(m, `jeton --${nom} (valeur #rrggbb)`).not.toBeNull();
   return m![1]!;
 }
+/** Pinterest n'a pas de jeton dans globals.css (zone partagée) : sa couleur vit dans couleurs-reseaux.ts, clair et sombre. */
+function couleurReseauDe(b: string, r: string): string {
+  if (r === "pinterest") return b === racine ? PINTEREST_CLAIR : PINTEREST_SOMBRE;
+  return valeur(b, `res-${r}`);
+}
 function lum(hex: string): number {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
@@ -46,7 +52,7 @@ describe("CAL-06 : jetons de réseau", () => {
   it("couvre les sept réseaux (six vidéo + Pinterest)", () => {
     expect([...RESEAUX_COLORES].sort()).toEqual(Object.keys(NOMS).sort());
   });
-  it.each(Object.keys(NOMS))("%s a un jeton dans :root ET dans .theme-sombre", (r) => {
+  it.each(Object.keys(NOMS).filter((r) => r !== "pinterest"))("%s a un jeton dans :root ET dans .theme-sombre", (r) => {
     expect(racine).toMatch(new RegExp(`^\\s*--res-${r}:`, "m"));
     expect(sombre).toMatch(new RegExp(`^\\s*--res-${r}:`, "m"));
   });
@@ -63,7 +69,7 @@ describe("CAL-06 : jetons de réseau", () => {
     const fond = valeur(b, "surface-1");
     // Le libellé est toujours écrit dans la couleur de texte normale (jamais dans la couleur du réseau) : 4,5:1.
     expect(contraste(texte, fond)).toBeGreaterThanOrEqual(4.5);
-    for (const r of Object.keys(NOMS)) expect(contraste(valeur(b, `res-${r}`), fond), r).toBeGreaterThanOrEqual(3);
+    for (const r of Object.keys(NOMS)) expect(contraste(couleurReseauDe(b, r), fond), r).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -90,7 +96,7 @@ describe("CAL-06 : couleurs de réseau distinctes des jetons d'alerte", () => {
     for (const [n, c] of alertes) {
       for (const r of Object.keys(NOMS)) {
         if (r === "youtube-shorts") continue; // même rouge que YouTube, volontairement
-        expect(distance(c, valeur(b, `res-${r}`)), `${n} / ${r}`).toBeGreaterThanOrEqual(30);
+        expect(distance(c, couleurReseauDe(b, r)), `${n} / ${r}`).toBeGreaterThanOrEqual(30);
       }
     }
     for (let i = 0; i < alertes.length; i++) for (let j = i + 1; j < alertes.length; j++) expect(distance(alertes[i]![1], alertes[j]![1]), `${alertes[i]![0]} / ${alertes[j]![0]}`).toBeGreaterThanOrEqual(30);
