@@ -213,7 +213,7 @@ export const fournisseurSiteSimulation: FournisseurSite = {
   capacites: { asynchrone: false, accordExige: false },
   lireReglages: () => creerFournisseurSiteSimulation(siteFacticeCourant()).lireReglages(),
   publier: (corps) => creerFournisseurSiteSimulation(siteFacticeCourant()).publier(corps),
-  retirer: (id) => creerFournisseurSiteSimulation(siteFacticeCourant()).retirer(id),
+  retirer: (id, motif) => creerFournisseurSiteSimulation(siteFacticeCourant()).retirer(id, motif),
 };
 
 /* ------------------------------------------------------------------ */

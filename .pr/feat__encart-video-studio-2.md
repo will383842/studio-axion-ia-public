@@ -8,7 +8,7 @@ Encart vidéo, côté Studio : le Studio parle au site avec les bonnes routes et
 - Le site factice et les exemples du contrat (`docs/site-videos/contrat/`) suivent les mêmes formes.
 - Rien n'est branché : le fournisseur « simulation » reste le choix par défaut.
 
-Limite connue : le site factice laisse encore republier une vidéo retirée (le vrai site répond 409) ; à aligner dans une PR suivante avec la reprise automatique. Le corps du POST (noms de champs) est traité par les PR 3 et 4.
+Limites connues : le site rend `qualiopiCertificationObtenue` alors que le Studio lit `certifexempleCertificationObtenue` (nom anonymisé dans cette copie publique ; à aligner après vérification dans le dépôt privé) : la certification se lit donc « inconnue », ce qui rend les contrôles plus stricts, jamais moins ; `schemaVersion` des réglages n'est pas encore vérifié ; le plan `PLAN-LOTS-STUDIO.md` cite encore les anciennes routes. Aussi : le site factice laisse encore republier une vidéo retirée (le vrai site répond 409) ; à aligner dans une PR suivante avec la reprise automatique. Relecture opus, tour 1 : « À corriger », corrigé (200 de retrait vérifié, message du 409 `version_deja_publiee`, motif transmis par la simulation du registre, test des réglages). Le corps du POST (noms de champs) est traité par les PR 3 et 4.
 
 ## Base
 `master` (indépendante des autres PR de la série ; la décision écrite est dans la PR 1).

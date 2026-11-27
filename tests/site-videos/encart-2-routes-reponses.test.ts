@@ -21,6 +21,11 @@ describe("encart PR 2 : routes", () => {
     expect(vues[0]).toMatchObject({ methode: "GET", chemin: "/api/interne/reglages-publics" });
   });
 
+  it("les réglages lus : `avisPublies` est repris tel que le site le rend", async () => {
+    const { f } = fournisseurAvec(() => ({ statut: 200, corps: { schemaVersion: 1, avisPublies: true } }));
+    expect((await f.lireReglages()).avisPublies).toBe(true);
+  });
+
   it("le retrait est un DELETE sur la route des vidéos, avec un corps {schemaVersion, studioVideoId, motif}", async () => {
     expect(CHEMIN_RETRAIT).toBe(CHEMIN_VIDEOS);
     const { f, vues } = fournisseurAvec(() => ({ statut: 200, corps: { ok: true, statut: "retiree", slug: "a", rejeu: false } }));
@@ -46,6 +51,13 @@ describe("encart PR 2 : réponses", () => {
     for (const corps of [null, { erreur: "introuvable" }, "<html>"]) {
       const { f } = fournisseurAvec(() => ({ statut: 404, corps }));
       await expect(f.retirer("vid_exemple_1")).rejects.toMatchObject({ code: "route-absente" });
+    }
+  });
+
+  it("un 200 de retrait sans le bon corps n'est pas un succès (page de proxy, corps vide)", async () => {
+    for (const corps of [null, {}, { ok: true }, { ok: false, statut: "retiree" }, "<html>"]) {
+      const { f } = fournisseurAvec(() => ({ statut: 200, corps }));
+      await expect(f.retirer("vid_exemple_1")).rejects.toMatchObject({ code: "serveur" });
     }
   });
 
@@ -79,7 +91,8 @@ describe("encart PR 2 : réponses", () => {
     expect(code("slug_deja_pris").message).toMatch(/adresse/);
     expect(code("slug_immuable").message).toMatch(/adresse/);
     expect(code("version_perimee").message).toMatch(/plus récente/);
-    expect(code("version_deja_publiee").message).toMatch(/plus récente|déjà/);
+    expect(code("version_deja_publiee").message).toMatch(/même version/);
+    expect(code("nonce_reutilise").message).toMatch(/réessayez/);
     expect(erreurDepuisReponse({ statut: 409, corps: null }).code).toBe("conflit");
   });
 
@@ -88,5 +101,22 @@ describe("encart PR 2 : réponses", () => {
     expect(e.code).toBe("eteinte");
     expect(e.message).toMatch(/réception/i);
     expect(e).toBeInstanceOf(ErreurSite);
+  });
+});
+
+describe("encart PR 2 : simulation et nouveaux essais", () => {
+  it("le fournisseur de simulation du registre transmet le motif", async () => {
+    const { fournisseurSiteSimulation, creerSiteFactice, injecterSiteFactice } = await import("@/fournisseurs/site/simulation");
+    const site = creerSiteFactice({ secret: "s" });
+    const recus: unknown[] = [];
+    const traiter = site.traiter.bind(site);
+    site.traiter = async (r) => { if (r.methode === "DELETE") recus.push(JSON.parse(r.corps)); return traiter(r); };
+    injecterSiteFactice(site);
+    try {
+      await fournisseurSiteSimulation.retirer("vid_exemple_1", "autre");
+    } finally {
+      injecterSiteFactice(null);
+    }
+    expect(recus).toEqual([{ schemaVersion: 1, studioVideoId: "vid_exemple_1", motif: "autre" }]);
   });
 });

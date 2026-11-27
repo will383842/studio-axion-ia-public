@@ -33,6 +33,8 @@ export function erreurDepuisReponse(r: ReponseSite): ErreurSite {
   if (r.statut === 409) {
     if (code === "video_retiree") return new ErreurSite("retiree", "Cette vidéo a été retirée du site : le retrait est définitif, elle ne peut pas y revenir.", 409);
     if (code === "slug_deja_pris" || code === "slug_immuable") return new ErreurSite("conflit", "L'adresse de cette page n'est pas disponible ou ne peut plus changer sur le site.", 409);
+    if (code === "version_deja_publiee") return new ErreurSite("conflit", "Le site a déjà cette même version avec un contenu différent : changez le numéro de version.", 409);
+    if (code === "nonce_reutilise") return new ErreurSite("conflit", "Le site a refusé l'envoi (appel déjà vu) : réessayez.", 409);
     return new ErreurSite("conflit", "Le site a déjà une version plus récente de cette vidéo.", 409);
   }
   if (r.statut === 410) return new ErreurSite("retiree", "Cette page a été retirée du site.", 410);
@@ -96,6 +98,8 @@ export function fournisseurSiteDepuisTransport(e: {
         throw new ErreurSite("route-absente", "Le site ne connaît pas cette adresse de retrait : rien n'a été retiré, vérifiez le branchement.", 404);
       }
       if (r.statut !== 200) throw erreurDepuisReponse(r);
+      // Un 200 sans le corps du site (page de proxy, corps vide) n'est pas un retrait prouvé.
+      if (!estObjet(r.corps) || r.corps.ok !== true || r.corps.statut !== "retiree") throw new ErreurSite("serveur", "La réponse du site au retrait est illisible : vérifiez sur le site.", r.statut);
       return { statut: "retiree" };
     },
   };

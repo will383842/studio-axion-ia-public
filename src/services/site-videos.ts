@@ -754,7 +754,7 @@ export async function retirerPageAvecEssais(videoId: string): Promise<void> {
 }
 
 /**
- * Retire la vidéo du site (la vidéo reste dans le studio). Ordre (plan § 6.3) : `DELETE` signé (200 ou 404 = succès),
+ * Retire la vidéo du site (la vidéo reste dans le studio). Ordre (plan § 6.3) : `DELETE` signé (200 ou 404 « video_inconnue » = succès),
  * PUIS tous les fichiers publics (le site ne touche jamais aux fichiers). Une vidéo qui n'est pas sur le site : aucun
  * appel. Site injoignable après les essais : état « échec », SITE_INJOIGNABLE, rien n'est effacé.
  */
