@@ -7,7 +7,11 @@
 import { useActionState, useState } from "react";
 import { analyserLotAction, importerLotAction, validerLotAction, type EtatImport } from "@/app/(studio)/calendrier/importer-epingles/actions";
 import { Bouton } from "@/components/ui/Bouton";
+import { envoyerFichier, MESSAGE_ENVOI_RATE } from "@/lib/envoi-multipart";
 import { ApercuEpingle } from "@/components/visuels/ApercuEpingle";
+
+/** Images acceptées pour une épingle (mêmes formats que le lot : nom « .jpg », « .png » ou « .webp »). */
+const IMAGE_EPINGLE = /\.(jpe?g|png|webp)$/i;
 
 const LIBELLES = { pret: "Prête", refusee: "Refusée", "deja-la": "Déjà là", "attente-image": "En attente d'image" } as const;
 
@@ -17,6 +21,25 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
   const [cree, creer, enCreation] = useActionState<EtatImport, FormData>(importerLotAction, {});
   const [valide, valider, enValidation] = useActionState<EtatImport, FormData>(validerLotAction, {});
   const [confirmer, setConfirmer] = useState(false);
+  const [depot, setDepot] = useState<{ fait: number; total: number; nom: string; rates: string[] } | null>(null);
+  const enDepot = !!depot && depot.fait < depot.total;
+
+  // Dépôt des images du lot : chaque fichier va du navigateur au stockage (destination « epingle »),
+  // puis l'analyse le retrouve par son nom. Rien n'est créé au calendrier ici.
+  async function deposerImages(liste: FileList | null) {
+    const fichiers = Array.from(liste ?? []).filter((f) => IMAGE_EPINGLE.test(f.name)).slice(0, 500);
+    if (!fichiers.length || enDepot) return;
+    const rates: string[] = [];
+    for (const [i, f] of fichiers.entries()) {
+      setDepot({ fait: i, total: fichiers.length, nom: f.name, rates: [...rates] });
+      try {
+        await envoyerFichier(f, { typeEntite: "epingle", entiteId: "lot-import" });
+      } catch {
+        rates.push(f.name);
+      }
+    }
+    setDepot({ fait: fichiers.length, total: fichiers.length, nom: "", rates });
+  }
   const rapport = cree.rapport ?? analyse.rapport;
   const ids = cree.resultat?.creneauIds ?? [];
 
@@ -46,6 +69,16 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
           Le lot (JSON, version 1)
           <textarea name="json" value={json} onChange={(e) => setJson(e.target.value)} rows={10} required className="rounded-champ border border-trait bg-surface-1 p-3 font-mono text-xs font-normal text-texte" />
         </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Images du lot (déposez-les, puis « Analyser » de nouveau)
+          <input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={enDepot} onChange={(e) => { void deposerImages(e.currentTarget.files); e.currentTarget.value = ""; }} className="min-h-11 rounded-champ border border-trait bg-surface-1 px-3 py-2 font-normal text-texte" />
+        </label>
+        {depot && (
+          <p role="status" className="text-sm text-texte-doux">
+            {enDepot ? `Dépôt des images : ${depot.fait} sur ${depot.total} (${depot.nom})…` : `${depot.total - depot.rates.length} image(s) déposée(s) sur ${depot.total}.`}
+            {!enDepot && depot.rates.length > 0 ? ` ${MESSAGE_ENVOI_RATE} Non envoyées : ${depot.rates.join(", ")}.` : ""}
+          </p>
+        )}
         <div className="flex flex-wrap gap-3">
           <Bouton type="submit" variante="secondaire" formAction={analyser} disabled={enAnalyse || !json.trim()}>Analyser (rien n&apos;est écrit)</Bouton>
           <Bouton type="submit" variante="principal" formAction={creer} disabled={enCreation || !json.trim()}>Créer les épingles au calendrier</Bouton>
