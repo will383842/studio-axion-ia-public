@@ -250,9 +250,9 @@ function site17(e: EntreeControlesSite): ControleSite[] {
   return [{ code: "SITE-17", gravite: "avertissement", ok: false, message: "Le site affichera « Vidéo réalisée avec un double numérique »." }];
 }
 
-/** Champs déjà signalés en échec par SITE-10 (page vide) ou SITE-11 (titre) : SITE-18 ne les redit pas. */
+/** Titre déjà signalé en échec par SITE-11 : SITE-18 ne le redit pas. Les textes vides sont ignorés par SITE-18 lui-même (SITE-10 les signale) ; SITE-10 ne désigne qu'un champ, il ne sert donc pas de filtre. */
 function dejaSignale(champ: keyof PasseportWeb | undefined, existants: ControleSite[]): boolean {
-  return !!champ && existants.some((c) => !c.ok && (c.code === "SITE-10" || c.code === "SITE-11") && c.champ === champ);
+  return champ === "titreWeb" && existants.some((c) => !c.ok && c.code === "SITE-11");
 }
 
 export function controlerAvantSite(entree: EntreeControlesSite): ResultatControlesSite {

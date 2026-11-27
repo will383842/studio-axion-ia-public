@@ -11,8 +11,8 @@ Encart vidéo, côté Studio : thèmes fermés et longueurs du site contrôlés 
 
 ## Tests
 - `tests/site-videos/encart-3-bornes-site.test.ts` (l'interrupteur était rouge avant le branchement).
-- `tests/site-videos` : 293 tests verts ; lint ciblé propre.
+- `tests/site-videos` : 294 tests verts ; lint ciblé propre.
 
-Relecture opus : trois tours. Tours 1 et 2 « À corriger » (libellé du thème, longueur brute, doubles signalements), corrigés. Tour 3 « À corriger » : il restait un double signalement SITE-10 / SITE-18 sur les textes vides ; correctif appliqué ensuite (SITE-18 ignore un texte vide, deux tests ajoutés), non revu par opus (limite de trois tours atteinte).
+Relecture opus : tour 1 de cette reprise « BON » sur le contrat (thèmes, bornes, interrupteur éteint, aucun double signalement). Défaut relevé : SITE-10 ne désigne qu'un champ, le filtre par champ pouvait masquer un défaut d'un autre champ ; corrigé (SITE-18 ne se filtre plus que contre SITE-11 sur le titre ; les textes vides sont déjà ignorés par SITE-18), test ajouté. Tests : `tests/site-videos` 294 verts ; lint ciblé propre.
 
-VERDICT OPUS : À CORRIGER (tour 3 : double signalement des textes vides ; corrigé après coup, à faire revoir)
+VERDICT OPUS : EN COURS (tour 2 sur le correctif)
