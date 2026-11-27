@@ -19,6 +19,11 @@ export interface IdeeSerie {
 
 const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
+/** Phrase de la notification de lancement : dit vrai sur ce qui est parti et sur ce qui s'est arrêté (fonction pure, testée). */
+export function phraseLancementSerie({ partis, restes, horsDomaine, aCompleter }: { partis: number; restes: number; horsDomaine?: number; aCompleter?: number }): string {
+  return `${pluriel(partis, "idée")} en écriture${horsDomaine ? ` · ${horsDomaine} hors du domaine d'Axion-IA` : ""}${aCompleter ? ` · ${aCompleter} à compléter` : ""}${restes ? ` · ${restes} gardée${restes > 1 ? "s" : ""} en idée` : ""}`;
+}
+
 /**
  * Confirmation d'une écriture en série (B7) : ce que le mois couvre, et les réglages communs. Rien ne part avant « Écrire ».
  */
@@ -94,7 +99,7 @@ export function FeuilleSerie({
         return;
       }
       const { partis, restes, horsDomaine, aCompleter, essai } = r.donnees;
-      const phrase = `${pluriel(partis, "idée")} en écriture${horsDomaine ? ` · ${horsDomaine} hors du domaine d'Axion-IA` : ""}${aCompleter ? ` · ${aCompleter} à compléter` : ""}${restes ? ` · ${restes} gardée${restes > 1 ? "s" : ""} en idée` : ""}`;
+      const phrase = phraseLancementSerie({ partis, restes, horsDomaine, aCompleter });
       if (essai) notifier.essai(`${phrase}, rien n'est payé`);
       else notifier.succes(phrase);
       changerOuverture(false);

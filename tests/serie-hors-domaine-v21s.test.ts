@@ -111,11 +111,11 @@ describe("FIX-SERIE-PARTI-v21s", () => {
     await brancherClaude();
     const r = await actions.lancerSerieAction(IDEES.map((texte) => ({ texte })), REGLAGES, "serie-shd-e");
     expect(r).toEqual({ ok: true, donnees: { partis: 3, restes: 0, horsDomaine: 2, essai: false } });
-    const f = lire("src/components/generateur/FeuilleSerie.tsx");
-    expect(f).toContain("hors du domaine d'Axion-IA");
-    expect(f).toContain("à compléter");
-    expect(f).toMatch(/horsDomaine/);
-    expect(f).toMatch(/aCompleter/);
+    const { phraseLancementSerie } = await import("@/components/generateur/FeuilleSerie");
+    // Comptes tous distincts : chaque nombre doit apparaître à sa place.
+    expect(phraseLancementSerie({ partis: 3, restes: 1, horsDomaine: 2, aCompleter: 1 })).toBe("3 idées en écriture · 2 hors du domaine d'Axion-IA · 1 à compléter · 1 gardée en idée");
+    expect(phraseLancementSerie({ partis: 1, restes: 4, horsDomaine: 3, aCompleter: 2 })).toBe("1 idée en écriture · 3 hors du domaine d'Axion-IA · 2 à compléter · 4 gardées en idée");
+    expect(phraseLancementSerie({ partis: 2, restes: 0, horsDomaine: 0, aCompleter: 0 })).toBe("2 idées en écriture");
   });
 
   it("(f) le suivi est inchangé", async () => {
