@@ -1,8 +1,8 @@
 /**
  * Variété « Image → vidéo » · lot APP-MAT · axe 6, APPARITION des cartes du schéma (APP-B feutre, APP-C fantôme qui
  * s'allume, APP-D cartes qui tombent ; APP-A = référence). Seul le dessin change : invariants de la ligne de temps
- * tenus sur les 6 cartes ; sans variété, `Toile`/`Noeud` rendent EXACTEMENT le HTML d'avant le lot (empreinte figée
- * avant toute modification). Rendu statique par `react-dom/server` de `studio-rendu` (un seul React).
+ * tenus sur les 6 cartes ; sans variété, `Toile`/`Noeud` rendent EXACTEMENT le HTML de référence (empreinte recalée sur master au 27/11, cf.
+ * `EMPREINTE_TOILE_REFERENCE`). Rendu statique par `react-dom/server` de `studio-rendu` (un seul React).
  * Rouge sans le lot : recette APP-C → aucune carte éteinte (fantôme) au début de la toile.
  */
 import { createHash } from "node:crypto";
@@ -57,14 +57,14 @@ function rendreToile(b: BlocToile, t: number, avecVariete = true): string {
 }
 
 /**
- * Empreinte du HTML de `Toile` SANS variété (6 cartes, 1re version, toutes les toiles, un instant tous les 0,25 s), figée AVANT le lot.
+ * Empreinte du HTML de `Toile` SANS variété (6 cartes, 1re version, toutes les toiles, un instant tous les 0,25 s), recalée sur master au 27/11 (ff1dbf99…).
  * Caméra (17/10, bloc entier sur son mot) : seule la toile b06 de la carte F change (la caméra ne quitte plus n09
  * avant son mot : n08 surgit 0,31 s et n10 0,17 s après leur mot, décalage existant ≤ 0,6 s ; trajectoire et bruitage
  * de caméra suivent).
- * MAJ 25/11 (FIX-ROUGES-APPARITION-v21t, voulue, à relire) : l'ancienne valeur 09542bc8… n'a jamais été reproductible (même sur 55d99567, la
- * version du 23/10, on reçoit 2332d320…) ; remplacée par la valeur calculée sur master, identique sur deux `npm ci` à froid. Changements voulus
+ * MAJ 25/11 (FIX-ROUGES-APPARITION-v21t, voulue, à relire) : l'ancienne valeur 09542bc8… n'était plus reproductible (même sur 55d99567, la
+ * version du 23/10, elle n'est pas retrouvée) ; remplacée par la valeur calculée sur master, identique sur deux `npm ci` à froid. Changements voulus
  * depuis le 23/10 : 2ba329dd #30 tempo de la voix ; 5b4efdf3 #42 4:5 (empreintes 9:16 recalculées) ; 4b27b662 #120 blocs déjà vus ;
- * 34a4203d #130 jamais un bloc coupé ; 083d531e #241 charte Manrope ; 4e9445f7 #280 correctif de charte (tableau : journal/FIX-ROUGES-APPARITION-v21t.md).
+ * 34a4203d #130 jamais un bloc coupé ; 083d531e #241 charte Manrope ; 4e9445f7 #280 correctif de charte.
  * MAJ 27/11 : 3ffc05c6… était l'empreinte de master au 25/11 ; les fusions de master suivantes (fond, rail, téléphone vidéo) ont changé le HTML de la toile ;
  * valeur recalculée sur la fusion courante (master seul donne la même, ff1dbf99…).
  * L'invariant testé reste : sans variété et APP-A + MAT-A donnent la MÊME empreinte.
@@ -87,7 +87,7 @@ function empreinteToiles(variete?: RecetteVarieteIV): string {
 }
 
 describe("APP · référence inchangée", () => {
-  it("sans variété : le HTML de la toile est identique à celui d'avant le lot", () => {
+  it("sans variété : le HTML de la toile est celui de master au 27/11 (ff1dbf99…)", () => {
     expect(empreinteToiles()).toBe(EMPREINTE_TOILE_REFERENCE);
   }, 30_000);
 
