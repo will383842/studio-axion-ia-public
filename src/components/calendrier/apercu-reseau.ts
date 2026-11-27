@@ -26,9 +26,22 @@ export interface VisuelApercu {
   dureeSec?: number;
 }
 
+/** Ce que montre l'aperçu d'une épingle (visuel de famille « epingle ») : l'image est une adresse signée, lue à la demande. */
+export interface DonneesEpingle {
+  imageUrl: string | null;
+  titre: string;
+  texteAlternatif: string;
+  lien: string;
+  contenuIA: boolean;
+  /** Domaine exigé à l'envoi (réglage `site.domaine`). */
+  domaine: string;
+}
+
 /** Une entrée telle que le panneau la montre : la fiche (texte, premier commentaire), plus le visuel et la campagne. */
 export interface EntreeApercu extends EntreeFiche {
   media?: VisuelApercu;
+  /** Épingle Pinterest : image, texte alternatif, titre, lien (aperçu `ApercuEpingle`). */
+  epingle?: DonneesEpingle;
   /** Campagne d'origine ; absente ou vide : aucune ligne. */
   campagne?: string;
   /** Lien vers la vidéo d'origine (ouvre sa page ; ne publie rien). */

@@ -7,6 +7,7 @@
 import { useActionState, useState } from "react";
 import { analyserLotAction, importerLotAction, validerLotAction, type EtatImport } from "@/app/(studio)/calendrier/importer-epingles/actions";
 import { Bouton } from "@/components/ui/Bouton";
+import { ApercuEpingle } from "@/components/visuels/ApercuEpingle";
 
 const LIBELLES = { pret: "Prête", refusee: "Refusée", "deja-la": "Déjà là", "attente-image": "En attente d'image" } as const;
 
@@ -75,6 +76,16 @@ export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { i
 
       {cree.resultat && ids.length > 0 && (
         <form action={valider} className="space-y-2" aria-label="Valider ce lot">
+          <section aria-label="Aperçu des épingles du lot" className="space-y-3">
+            <p className="text-sm text-texte-doux">Voici chaque épingle telle qu'elle partira : image, texte alternatif, tableau. Vérifiez avant de valider.</p>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(cree.apercus ?? []).map((a) => (
+                <li key={a.creneauId}>
+                  <ApercuEpingle imageUrl={a.imageUrl} titre={a.titre} description={a.description} texteAlternatif={a.texteAlternatif} lien={a.lien} tableau={a.tableau} contenuIA={a.contenuIA} domaine={a.domaine} />
+                </li>
+              ))}
+            </ul>
+          </section>
           <input type="hidden" name="creneaux" value={ids.join(",")} />
           {!confirmer ? (
             <Bouton type="button" variante="principal" onClick={() => setConfirmer(true)}>Valider ce lot</Bouton>

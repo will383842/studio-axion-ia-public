@@ -12,6 +12,7 @@ const base = {
   lien: "https://exemple.fr/blog/jardin-sobre?utm=x",
   tableau: "Jardin",
   contenuIA: false,
+  domaine: "exemple.fr",
 };
 
 describe("domaine/epingles/apercu", () => {
@@ -27,9 +28,34 @@ describe("domaine/epingles/apercu", () => {
   it("limitesEpingle signale titre > 100, description > 800, alt vide ou > 500, lien non https", () => {
     expect(limitesEpingle(base)).toEqual([]);
     const codes = limitesEpingle({ ...base, titre: "x".repeat(101), description: "y".repeat(801), texteAlternatif: "", lien: "http://exemple.fr" }).map((p) => p.code);
-    expect(codes).toEqual(["titre-trop-long", "description-trop-longue", "alt-absent", "lien-non-https"]);
+    expect(codes).toEqual(["titre-trop-long", "description-trop-longue", "alt-absent", "lien-hors-site"]);
     expect(limitesEpingle({ ...base, texteAlternatif: "z".repeat(501) }).map((p) => p.code)).toEqual(["alt-trop-long"]);
     expect(limitesEpingle({ ...base, titre: " " }).map((p) => p.code)).toEqual(["titre-absent"]);
+  });
+});
+
+describe("domaine exact exigé à l'envoi (même fonction que l'envoi)", () => {
+  const code = (lien: string, domaine: string | null | undefined) => limitesEpingle({ ...base, lien, domaine }).map((p) => p.code);
+  it("accepte le domaine exact, refuse un sous-domaine, un autre site, un port, des identifiants et l'absence de domaine", () => {
+    expect(code("https://exemple.fr/a", "exemple.fr")).toEqual([]);
+    expect(code("https://blog.exemple.fr/a", "exemple.fr")).toEqual(["lien-hors-site"]);
+    expect(code("https://autre.fr/a", "exemple.fr")).toEqual(["lien-hors-site"]);
+    expect(code("https://exemple.fr:8443/a", "exemple.fr")).toEqual(["lien-hors-site"]);
+    expect(code("https://moi@exemple.fr/a", "exemple.fr")).toEqual(["lien-hors-site"]);
+    expect(code("https://exemple.fr/a", "")).toEqual(["lien-hors-site"]);
+    expect(code("https://exemple.fr/a", undefined)).toEqual(["lien-hors-site"]);
+  });
+  it("les plafonds sont ceux de l'envoi (une seule source)", async () => {
+    const l = await import("@/fournisseurs/publication/epingle-limites");
+    const a = await import("@/domaine/epingles/apercu");
+    expect([a.TITRE_MAX, a.DESCRIPTION_MAX, a.ALT_MAX]).toEqual([l.TITRE_EPINGLE_MAX, l.DESCRIPTION_EPINGLE_MAX, l.ALT_MAX_PINTEREST]);
+  });
+});
+
+describe("ApercuEpingle · lien hors site", () => {
+  it("dit en mots que le lien ne mène pas au site", () => {
+    const h = renderToStaticMarkup(<ApercuEpingle {...base} lien="https://autre.fr/x" />);
+    expect(h).toContain("Le lien doit mener au site");
   });
 });
 
