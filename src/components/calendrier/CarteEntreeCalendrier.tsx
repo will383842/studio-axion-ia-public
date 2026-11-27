@@ -150,7 +150,7 @@ export function cartesDepuisEntrees(entrees: readonly EntreeCalendrier[], option
     const etat = etatDepuisStatut(e.statut, options.statuts);
     if (etat === null && !statutConnu(e.statut, options.statuts)) options.surStatutInconnu?.((e.statut ?? "").trim(), e);
     if (!etat) return [];
-    return e.reseaux.filter(reseauConnu).map((reseau) => ({ cle: `${e.cle}|${reseau}`, jour: e.jour, reseau, type: e.famille === "carrousel" ? "carrousel" : "video", etat, titre: e.titre, mediaId: e.mediaId }) satisfies EntreeCarte);
+    return e.reseaux.filter(reseauConnu).map((reseau) => ({ cle: `${e.cle}|${reseau}`, jour: e.jour, reseau, type: e.famille === "video" ? "video" : "carrousel", etat, titre: e.titre, mediaId: e.mediaId }) satisfies EntreeCarte);
   });
 }
 
