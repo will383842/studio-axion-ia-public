@@ -16,7 +16,7 @@ import { libelleJour } from "./BarreVue";
 import { estVerrouillee, jourLisible, nomReseau, type EntreeCarte, type TypeContenu } from "./CarteEntreeCalendrier";
 import { decisionDepot, peutGlisser } from "./GrilleSemaine";
 
-const RESEAUX: readonly Reseau[] = ["instagram", "facebook", "linkedin", "tiktok"];
+const RESEAUX: readonly Reseau[] = ["instagram", "facebook", "linkedin", "tiktok", "pinterest"];
 
 /** Entrée du plan → ligne affichable par AReprogrammer (le composant migration n'est ni modifié ni dupliqué). */
 export function enPost(c: CreneauPlan): PostMigration[] {

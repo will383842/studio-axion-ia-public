@@ -6,7 +6,7 @@ import { nomReseau, styleReseau } from "./CarteEntreeCalendrier";
 import { PictoReseau } from "./PictoReseau";
 
 /** Les réseaux du calendrier, dans l'ordre de la maquette. */
-export const RESEAUX_CALENDRIER: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok"];
+export const RESEAUX_CALENDRIER: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "pinterest"];
 
 /** Allume ou éteint un réseau ; le résultat suit l'ordre de `ordre`. Ne modifie pas la liste reçue. */
 export function basculerReseau(actifs: readonly IdReseau[], reseau: IdReseau, ordre: readonly IdReseau[] = RESEAUX_CALENDRIER): IdReseau[] {

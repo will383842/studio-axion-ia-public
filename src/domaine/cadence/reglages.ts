@@ -5,10 +5,10 @@
  */
 import type { IdReseau } from "@/domaine/types";
 import { modePremierCommentaire, type ModePremierCommentaire } from "@/domaine/ecriture-post/commentaire";
-import { obtenirReseau } from "@/reseaux";
+import { definitionAffichage } from "@/reseaux/hors-video";
 import { jourDeParis } from "@/domaine/usine-calendrier";
 
-export const RESEAUX_CADENCE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"];
+export const RESEAUX_CADENCE: readonly IdReseau[] = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts", "pinterest"];
 const NOMS: Record<IdReseau, string> = {
   linkedin: "LinkedIn",
   instagram: "Instagram",
@@ -16,6 +16,7 @@ const NOMS: Record<IdReseau, string> = {
   tiktok: "TikTok",
   youtube: "YouTube",
   "youtube-shorts": "YouTube Shorts",
+  pinterest: "Pinterest",
 };
 export const nomReseauCadence = (r: IdReseau): string => NOMS[r];
 
@@ -83,19 +84,23 @@ const RELEVE_L8_01 = "2026-11-12";
 const SOURCE_RELEVE = "Relevé des règles des réseaux (L8-01)";
 const SOURCE_REGISTRE = "Valeur de départ du studio, pas encore vérifiée auprès du réseau";
 
+/** Pinterest : le nombre de mots-dièses n'est pas vérifié (LIMITES_MOTS_DIESES.pinterest = inconnu) ; la valeur reste une valeur de départ. */
+const SOURCE_NON_VERIFIEE_PINTEREST = "Non vérifiée : la limite de mots-dièses de Pinterest est inconnue, valeur de départ du studio";
+
 function reglesDeDepart(id: IdReseau): ReglesReseau {
-  const legende = obtenirReseau(id).legende;
+  const legende = definitionAffichage(id).legende;
   const texteSource = id === "tiktok";
+  const sansObjetPinterest = id === "pinterest";
   const commentaireSource = id === "linkedin" || id === "instagram" || id === "facebook" || id === "tiktok";
   const regles: ReglesReseau = {
     texteMax: texteSource
       ? { valeur: legende.longueurMax, verifieLe: RELEVE_L8_01, source: `${SOURCE_RELEVE} : titre de vidéo de 2200 signes au plus (source secondaire)` }
       : { valeur: legende.longueurMax, verifieLe: null, source: SOURCE_REGISTRE },
-    motsDieseMax: { valeur: legende.motsDieseMax, verifieLe: null, source: SOURCE_REGISTRE },
+    motsDieseMax: { valeur: legende.motsDieseMax, verifieLe: null, source: sansObjetPinterest ? SOURCE_NON_VERIFIEE_PINTEREST : SOURCE_REGISTRE },
     premierCommentaire: {
       valeur: modePremierCommentaire(id).mode,
       verifieLe: commentaireSource ? RELEVE_L8_01 : null,
-      source: commentaireSource ? `${SOURCE_RELEVE} : ${id === "tiktok" ? "pas de premier commentaire envoyé avec la publication" : "le premier commentaire peut partir avec la publication"}` : SOURCE_REGISTRE,
+      source: sansObjetPinterest ? "Sans objet : une épingle n'a pas de premier commentaire" : commentaireSource ? `${SOURCE_RELEVE} : ${id === "tiktok" ? "pas de premier commentaire envoyé avec la publication" : "le premier commentaire peut partir avec la publication"}` : SOURCE_REGISTRE,
     },
   };
   if (id === "linkedin") regles.pdfCarrousel = { valeur: 1, verifieLe: RELEVE_L8_01, source: `${SOURCE_RELEVE} : un seul PDF par carrousel (source officielle)` };
@@ -115,6 +120,8 @@ export const REGLAGES_CADENCE_DEFAUT: ReglagesCadence = {
     tiktok: un(["12:00", "19:00"], 1, 240),
     youtube: un(["17:00"], 1, 240),
     "youtube-shorts": un(["12:00", "18:00"], 1, 240),
+    // Pinterest (ADR-0015) : 4 épingles par jour ; 210 min = le plus petit écart entre deux créneaux décidés (17:30 → 21:00).
+    pinterest: un(["08:30", "12:30", "17:30", "21:00"], 4, 210),
   },
   objectifs: {
     video: { quantite: 1, periode: "jour" },

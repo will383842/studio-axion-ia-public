@@ -193,8 +193,9 @@ describe("codes de refus du contrat", () => {
 });
 
 describe("non-divergence avec le reste du Studio", () => {
-  it("réseaux = taxonomie (une seule liste)", () => {
-    expect([...RESEAUX_CALENDRIER]).toEqual([...RESEAUX_TAXONOMIE]);
+  it("réseaux du contrat = taxonomie SANS Pinterest (hors contrat usine en V1)", () => {
+    expect([...RESEAUX_CALENDRIER]).toEqual(RESEAUX_TAXONOMIE.filter((r) => r !== "pinterest"));
+    expect(refus(corps([ligne({ reseau: "pinterest" })]))).toEqual({ code: "reseau_inconnu", http: 422 });
   });
   it("types proposables = types actifs de l'usine ; story existe dans la liste, inactif", () => {
     expect([...TYPES_PROPOSABLES]).toEqual(TYPES_CONTENU_USINE.filter((t) => t.actif).map((t) => t.id));

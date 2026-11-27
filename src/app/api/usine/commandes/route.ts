@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { RESEAUX_TAXONOMIE } from "@/domaine/taxonomie-contenu";
+import { RESEAUX_CALENDRIER } from "@/domaine/usine-calendrier";
 import type { IdReseau } from "@/domaine/types";
 import { depots } from "@/donnees/memoire";
 import { creerCreneau } from "@/services/plan-editorial";
@@ -22,7 +22,7 @@ import { garderPorte, reponseErreur, reponseJson } from "@/usine/garde-porte";
 export const dynamic = "force-dynamic";
 
 const ROUTE = "POST /api/usine/commandes";
-const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_TAXONOMIE);
+const RESEAUX: ReadonlySet<string> = new Set(RESEAUX_CALENDRIER);
 /** Valeur de départ, à confirmer par le fondateur. */
 export const QUOTA_PAR_RESEAU_ET_JOUR = 1;
 const PREFIXE_COTE = "usine-commande-cote:";

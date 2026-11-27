@@ -22,7 +22,8 @@ import { cleJour } from "@/lib/dates";
 import { dureeDeLaVideo } from "@/domaine/duree-video";
 import { avertissementReelFacebook } from "@/domaine/reel-facebook";
 import { lienDeVersion, PAGE_SUIVIE_PAR_DEFAUT } from "@/domaine/mesures";
-import { listerReseaux, obtenirReseau, verifierPourReseau, type AvertissementReseau } from "@/reseaux";
+import { nomDuReseau } from "@/reseaux/hors-video";
+import { listerReseaux, verifierPourReseau, type AvertissementReseau } from "@/reseaux";
 import { libelleFichierEnvoye, meilleureSortie } from "@/reseaux/sorties";
 import { occupeBuffer, refusDoublonEntreOutils, serviceHistorique, type ComptesPourReseau } from "@/domaine/buffer";
 import { cleEnvoiPublication, estChezUnOutil, OUTILS_ENVOI, outilDe, type OutilPublication } from "@/domaine/outil-publication";
@@ -213,7 +214,7 @@ type IssueClaude = { ok: true; texte: TexteReseau } | { ok: false; message: stri
  */
 async function texteParClaude(s: SourceTextes, reseau: IdReseau, options: { parWill?: boolean } = {}): Promise<IssueClaude> {
   const v = s.video;
-  const nom = obtenirReseau(reseau).nom;
+  const nom = nomDuReseau(reseau);
   const lien = { type: "video" as const, id: v.id };
   let donnees = donneesDe(s, reseau, await depots().reglesDatees.lister());
   for (let tour = 1; tour <= ESSAIS_TEXTE_PUBLICATION; tour++) {
@@ -303,7 +304,7 @@ export async function genererKit(videoId: string, options: { autoriserDepense?: 
     const r: IssueClaude = arret ? { ok: false, message: "", arret: true } : await texteParClaude(s, reseau);
     if (!(await d.kits.obtenir(kit.id))) return kit;
     if (r.ok) {
-      if (!(await poserSiInchange(kit.id, reseau, avant, r.texte))) await journaliser("publication", `Texte ${obtenirReseau(reseau).nom} : retouché pendant l'écriture, votre version est gardée`, { type: "video", id: videoId });
+      if (!(await poserSiInchange(kit.id, reseau, avant, r.texte))) await journaliser("publication", `Texte ${nomDuReseau(reseau)} : retouché pendant l'écriture, votre version est gardée`, { type: "video", id: videoId });
     } else {
       nonEcrits.push(reseau);
       arret ||= r.arret;
@@ -314,7 +315,7 @@ export async function genererKit(videoId: string, options: { autoriserDepense?: 
       const k = await d.kits.obtenir(kit.id);
       if (k) await d.kits.modifier(kit.id, { ecritureAuto: { le: k.ecritureAuto?.le ?? maintenant(), nonEcrits } });
     });
-    await journaliser("publication", `Textes non écrits par Claude (${nonEcrits.map((r) => obtenirReseau(r).nom).join(", ")}) : le texte d'essai reste, « Réécrire » le fait écrire`, { type: "video", id: videoId });
+    await journaliser("publication", `Textes non écrits par Claude (${nonEcrits.map((r) => nomDuReseau(r)).join(", ")}) : le texte d'essai reste, « Réécrire » le fait écrire`, { type: "video", id: videoId });
   }
   return (await d.kits.obtenir(kit.id)) ?? kit;
 }
@@ -729,7 +730,7 @@ export async function envoyerVersBuffer(
 async function refuserSiTextesManquants(videoId: Id, kitVue: VueKit, reseaux: IdReseau[]): Promise<void> {
   if (!(await formatSansRedacteur(videoId))) return;
   const sans = [...new Set(reseaux)].filter((r) => !kitVue.reseaux.find((x) => x.reseau === r)?.texte.trim());
-  if (sans.length) throw new ErreurStudio("TEXTES_MANQUANTS", `Le texte de cette vidéo manque pour ${sans.map((r) => obtenirReseau(r).nom).join(", ")} : il est écrit avec la vidéo, rien n'est envoyé sans lui.`);
+  if (sans.length) throw new ErreurStudio("TEXTES_MANQUANTS", `Le texte de cette vidéo manque pour ${sans.map((r) => nomDuReseau(r)).join(", ")} : il est écrit avec la vidéo, rien n'est envoyé sans lui.`);
 }
 
 async function envoyerVersBufferInterne(
@@ -754,7 +755,7 @@ async function envoyerVersBufferInterne(
   // Générateur (G1b, B.5.5) : une vidéo issue d'une version part sur SON réseau ; ailleurs, seulement après confirmation.
   const reseauVersion = kitVue.variante?.reseau;
   if (reseauVersion && !options.autreReseauConfirme && reseaux.some((r) => r !== reseauVersion)) {
-    throw new ErreurStudio("RESEAU_DIFFERENT", `Cette vidéo a été écrite pour ${obtenirReseau(reseauVersion).nom}. Confirmez pour l'envoyer ailleurs.`);
+    throw new ErreurStudio("RESEAU_DIFFERENT", `Cette vidéo a été écrite pour ${nomDuReseau(reseauVersion)}. Confirmez pour l'envoyer ailleurs.`);
   }
   await refuserSiTextesManquants(videoId, kitVue, reseaux);
   if (!kitVue.publiable) throw new ErreurStudio("AVANT_DE_PUBLIER", phraseVerifications(kitVue));
@@ -1055,7 +1056,7 @@ async function envoyerReelInterne(outil: OutilPublication, service: FournisseurP
     // Contrôle précoce (vidéo d'essai, hors ligne) : refus avant toute réservation. L'adresse signée, elle, est refaite juste avant chaque téléversement (les envois se font l'un après l'autre et peuvent dépasser 1 h).
     await urlVideoPourBuffer(r.sortieConseillee.fichierId);
     const fichierId = r.sortieConseillee.fichierId;
-    const nomReseau = obtenirReseau(reseau).nom;
+    const nomReseau = nomDuReseau(reseau);
     const { texte, commentaire } = await preparerEnvoi(kitVue, r, commentaires[reseau], avecVideo, outil, placements);
     if (commentaire.aLaMain) aPoserALaMain.add(reseau);
     verifierTextesAEnvoyer(reseau, texte, r.titre);
@@ -1366,7 +1367,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   // La cible RÉSOLUE remplace le marqueur partout en aval (clé d'envoi, anti-doublon, canal, cible).
   const cible = cibles.canaux[0].id;
   const cleEnvoi = cleEnvoiPublication(visuelId, reseau, dateIso, cible);
-  const nom = obtenirReseau(reseau).nom;
+  const nom = nomDuReseau(reseau);
   // Une seule réservation, sous le verrou, AVANT l'appel.
   const decision = await sousVerrou(async (): Promise<{ existante: Publication } | { nouvelle: Publication }> => {
     // Par visuel, réseau et compte, quelle que soit la date : une autre date ne contourne jamais l'anti-doublon.
@@ -1472,7 +1473,7 @@ export async function listerCalendrier(debutIso: string, finIso: string): Promis
       cartes.set(videoId, v ? await versCarte(v) : null);
     }
     const jour = cleJour(p.date);
-    parJour.set(jour, [...(parJour.get(jour) ?? []), { ...p, video: (videoId ? cartes.get(videoId) : null) ?? null, reseauNom: obtenirReseau(p.reseau).nom }]);
+    parJour.set(jour, [...(parJour.get(jour) ?? []), { ...p, video: (videoId ? cartes.get(videoId) : null) ?? null, reseauNom: nomDuReseau(p.reseau) }]);
   }
   return Array.from(parJour, ([jour, publications]) => ({ jour, publications }));
 }
@@ -1552,7 +1553,7 @@ export async function resultatsVideo(videoId: string) {
     (t, p) => ({ vues: t.vues + (p.stats?.vues ?? 0), likes: t.likes + (p.stats?.likes ?? 0), commentaires: t.commentaires + (p.stats?.commentaires ?? 0), partages: t.partages + (p.stats?.partages ?? 0) }),
     { vues: 0, likes: 0, commentaires: 0, partages: 0 },
   );
-  return { total, parReseau: pubs.map((p) => ({ reseau: p.reseau, nom: obtenirReseau(p.reseau).nom, stats: p.stats, date: p.date, url: p.urlPubliee })) };
+  return { total, parReseau: pubs.map((p) => ({ reseau: p.reseau, nom: nomDuReseau(p.reseau), stats: p.stats, date: p.date, url: p.urlPubliee })) };
 }
 
 /** Fichiers à télécharger d'une vidéo (bouton « Télécharger », choix du ratio) + sous-titres. */
