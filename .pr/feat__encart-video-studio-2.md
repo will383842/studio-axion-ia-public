@@ -15,6 +15,6 @@ Limites connues : le site rend `qualiopiCertificationObtenue` alors que le Studi
 
 ## Tests
 - Nouveau : `tests/site-videos/encart-2-routes-reponses.test.ts` (écrit rouge d'abord : 9 échecs avant le code).
-- `tests/site-videos` : 289 tests verts. Typecheck complet propre, lint ciblé propre.
+- `tests/site-videos` : 292 tests verts. Typecheck complet propre, lint ciblé propre.
 
 VERDICT OPUS : BON
