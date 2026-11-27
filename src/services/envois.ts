@@ -14,7 +14,7 @@ import { depots, ErreurStudio, fournisseur, horodatage } from "./_commun";
 /** Forme d'une clé de dépôt acceptée (aucune autre clé ne peut être signée). */
 const CLE_VALIDE = /^studio\/(dev|prod)\/[a-z0-9-]+\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\.[a-z0-9]{1,8}$/;
 /** Types d'entité qui reçoivent des fichiers. */
-const TYPES_ENTITE = new Set(["visage", "voix", "personnage", "element", "video", "rush", "accord", "plan", "entree"]);
+const TYPES_ENTITE = new Set(["visage", "voix", "personnage", "element", "video", "rush", "accord", "plan", "entree", "epingle"]);
 /** 4 Go au plus par fichier (règle commune) ; une prise d'un format qui en déclare plus (facecam : 15 Go) y a droit. */
 const TAILLE_MAX = TAILLE_MAX_ENVOI;
 

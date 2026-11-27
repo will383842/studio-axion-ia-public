@@ -31,7 +31,7 @@ export interface DemandeDecalage {
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 /** Réseaux pour lesquels un envoi planifié existe (ReseauEnvoiCreneau). */
-const RESEAUX_ENVOI: readonly ReseauEnvoiCreneau[] = ["tiktok", "instagram", "facebook", "linkedin", "youtube-shorts"];
+const RESEAUX_ENVOI: readonly ReseauEnvoiCreneau[] = ["tiktok", "instagram", "facebook", "linkedin", "youtube-shorts", "pinterest"];
 
 async function lire(d: DepotsPlan, id: string): Promise<CreneauPlan> {
   const c = await d.creneaux.obtenir(id);

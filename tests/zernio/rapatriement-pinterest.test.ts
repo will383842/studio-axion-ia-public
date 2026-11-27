@@ -76,10 +76,10 @@ describe("PR 4 · domaine", () => {
     expect(lienMedia("epingle", null)).toBeNull();
   });
 
-  it("une entrée de famille epingle donne une carte de type carrousel (image), jamais vidéo", () => {
+  it("une entrée de famille epingle donne une carte de type image (affichée « Épingle »), jamais vidéo", () => {
     const cartes = cartesDepuisEntrees([{ cle: "publication:x", jour: "2026-12-01", famille: "epingle", origine: "publication", titre: "t", vignette: null, lien: null, reseaux: ["pinterest"], mediaId: null, statut: "programmee" }]);
     expect(cartes).toHaveLength(1);
-    expect(cartes[0].type).toBe("carrousel");
+    expect(cartes[0].type).toBe("image");
   });
 });
 

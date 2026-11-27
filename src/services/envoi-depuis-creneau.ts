@@ -122,6 +122,8 @@ export interface DepsEnvoiCreneau {
   /** Essai borné : la porte générale fermée, cet identifiant de créneau peut-il quand même créer SON brouillon ? Absent = non. */
   porteEssai?: (creneauId: string) => Promise<boolean>;
   suivi?: OptionsPromotionEnvois["suivi"];
+  /** Pinterest : tableau voulu, relu dans la Publication de la clé d'envoi (garde de la promotion). */
+  tableauAttendu?: OptionsPromotionEnvois["tableauAttendu"];
   /** Facultatif : trace des outils appelés (tests). */
   outilsAppeles?: string[];
 }
@@ -408,6 +410,7 @@ async function tourSansFile(deps: DepsEnvoiCreneau): Promise<ResultatTourCreneau
       suivi: deps.suivi,
       etats: deps.etats,
       notifier: deps.notifier,
+      tableauAttendu: deps.tableauAttendu,
     });
   }
   return res;
