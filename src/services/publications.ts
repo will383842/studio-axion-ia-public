@@ -1,8 +1,8 @@
 /**
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
-import { RESEAUX_VISUEL_ENVOI, estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import "server-only";
+import { estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, estRapatriee, sourceSure, videoIdSure } from "@/domaine/types";
 import { centimesUsd } from "@/fournisseurs/claude/tarifs";
 import { DELAI_TOTAL_MS } from "@/fournisseurs/claude/client";

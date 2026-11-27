@@ -6,8 +6,8 @@
  *   `platformPostUrl`. Un post introuvable depuis 30 minutes devient « À vérifier » : jamais renvoyé à l'aveugle.
  * - Rien n'est jamais effacé chez Zernio ; une publication change d'état, elle n'est jamais supprimée.
  */
-import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import "server-only";
+import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { DELAI_ABSENCE_MS } from "@/domaine/buffer";
 import { estRapatriee, type Publication, type StatutPublication, videoIdSure } from "@/domaine/types";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";

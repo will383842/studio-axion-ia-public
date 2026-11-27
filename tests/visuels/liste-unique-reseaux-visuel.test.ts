@@ -22,7 +22,7 @@ describe("liste unique des réseaux qui reçoivent un visuel", () => {
       for (const nom of readdirSync(dossier)) {
         const chemin = join(dossier, nom);
         if (statSync(chemin).isDirectory()) parcourir(chemin);
-        else if (/\.tsx?$/.test(nom) && /"linkedin",\s*"instagram",\s*"facebook"\s*[\]\)]/.test(readFileSync(chemin, "utf8"))) fautifs.push(chemin);
+        else if (/\.tsx?$/.test(nom) && (/"linkedin",\s*"instagram",\s*"facebook"\s*[\]\)]/.test(readFileSync(chemin, "utf8")) || /===\s*"linkedin"\s*\|\|\s*\w+\s*===\s*"instagram"\s*\|\|\s*\w+\s*===\s*"facebook"/.test(readFileSync(chemin, "utf8")))) fautifs.push(chemin);
       }
     };
     parcourir("src/services");

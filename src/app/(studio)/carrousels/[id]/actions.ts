@@ -1,7 +1,7 @@
 "use server";
 
 /** Actions de la fiche d'un carrousel. Session exigée ; seuls l'identifiant, le motif, la page et le commentaire sont lus. */
-import { RESEAUX_VISUEL_ENVOI } from "@/domaine/reseaux-visuel-envoi";
+import { RESEAUX_VISUEL_ENVOI, estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -98,7 +98,7 @@ export async function restaurerAction(donnees: FormData): Promise<void> {
 /** « Préparer pour les réseaux » : les cases cochées (linkedin, instagram, facebook) ; tout autre valeur est ignorée. */
 export async function preparerReseauxAction(donnees: FormData): Promise<void> {
   await exigerSession();
-  const reseaux = donnees.getAll("reseau").filter((r): r is Reseau => r === "linkedin" || r === "instagram" || r === "facebook");
+  const reseaux = donnees.getAll("reseau").filter((r): r is Reseau => estReseauVisuelEnvoi(r));
   await agir(donnees, (id, deps) => preparerPourReseaux(id, reseaux, deps));
 }
 
