@@ -7,7 +7,7 @@
  *    Jours attendus au départ : LinkedIn et Facebook du lundi au vendredi, Instagram tous les jours, TikTok aucun.
  *    Le quota des réglages de cadence est un plafond conseillé : il ne sert ici qu'à savoir s'il faut un créneau (0 = aucun).
  *  - texte manquant : publication à venir sans texte ;
- *  - commentaire manquant : publication à venir sans premier commentaire, sauf sur TikTok (pas de premier commentaire) ;
+ *  - commentaire manquant : publication à venir sans premier commentaire, sauf sur TikTok et Pinterest (pas de premier commentaire) ;
  *  - visuel non validé : « urgent » à moins de 24 h de la publication, simple alerte au-delà.
  * Seuls les 7 jours à venir sont regardés (aujourd'hui compris), jamais le passé. Jours et heures : Europe/Paris.
  */
@@ -136,7 +136,7 @@ export function calculerManques(entrees: readonly EntreeManque[], options: Optio
     const base = { reseau: e.reseau, jour, entreeId: e.id, bloquant: false as const };
     const lieu = `${nom(e.reseau)}, ${libelleJour(jour)}`;
     if (vide(e.texte)) out.push({ ...base, code: "texte-manquant", gravite: "alerte", message: `${lieu} : il manque le texte.` });
-    if (e.reseau !== "tiktok" && vide(e.premierCommentaire)) out.push({ ...base, code: "commentaire-manquant", gravite: "alerte", message: `${lieu} : il manque le premier commentaire.` });
+    if (e.reseau !== "tiktok" && e.reseau !== "pinterest" && vide(e.premierCommentaire)) out.push({ ...base, code: "commentaire-manquant", gravite: "alerte", message: `${lieu} : il manque le premier commentaire.` });
     if (e.visuelValide === false) {
       const urgent = t - now < HEURES_URGENCE * 3600e3;
       out.push({ ...base, code: "visuel-non-valide", gravite: urgent ? "urgent" : "alerte", message: `${lieu} : le visuel n'est pas validé${urgent ? ", publication dans moins de 24 h" : ""}.` });
