@@ -87,8 +87,8 @@ describe("Pinterest : cadence et taxonomie", () => {
   });
 });
 
-describe("Pinterest : aucun envoi (jusqu'à la PR 3)", () => {
-  it("plateformeZernio('pinterest') lève encore « non pris en charge »", () => {
-    expect(() => plateformeZernio("pinterest")).toThrow(/pas pris en charge/);
+describe("Pinterest : client prêt (PR 3), envoi encore fermé", () => {
+  it("plateformeZernio('pinterest') est reconnue ; aucun réseau d'envoi de visuel n'inclut Pinterest (PR 5)", () => {
+    expect(plateformeZernio("pinterest")).toBe("pinterest");
   });
 });
