@@ -152,7 +152,7 @@ describe("parcours variés : tirage", () => {
   }
 
   it("historique sans parcours noté : compté comme la référence", () => {
-    const h = [{ scenes: ["titre"] as Scene[] }];
+    const h: { parcours?: string; scenes: Scene[] }[] = [{ scenes: ["titre"] }];
     for (const id of ids.slice(0, 50)) expect(tirerParcoursIV({ graine: id, type: "chaine", historique: h })).not.toBe(CODE_PARCOURS_REFERENCE);
   });
 });

@@ -37,7 +37,7 @@ describe("parts de liens à null", () => {
   for (const nom of Object.keys(IMAGES) as (keyof typeof IMAGES)[]) {
     it(`carte ${nom} : aucune chaîne « null % »`, () => {
       const carte0: CarteImage = JSON.parse(readFileSync(join(DOSSIER, `${nom}.json`), "utf8"));
-      const carte = { ...carte0, liens: carte0.liens.map((l) => ({ ...l, part: null })) } as CarteImage;
+      const carte = { ...carte0, liens: carte0.liens.map((l) => ({ ...l, part: null })) } as unknown as CarteImage;
       const fiche = FICHES_SIMULEES[IMAGES[nom]];
       const fin = planDesFinsIV({ reseaux: RESEAUX_IV, offre: carte.offre, questionCommentaire: fiche.questionCommentaire.texteDit }).fins[0];
       const r = mettreEnSceneIV({ carte, fiche, voix: pisteSimulee(fiche, fin.muet ? null : fin), fin, reseaux: fin.reseaux, bruitagesValides: [], variete: RECETTE_REFERENCE_IV, format: "9:16" });

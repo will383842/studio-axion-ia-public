@@ -58,7 +58,7 @@ describe("RelireScript : un geste avec montant part directement, sans confirmati
     await cliquer({ prixCentimes: 0 });
     await cliquer({ prixCentimes: 0, prixDejaPaye: true, libelleLancer: "Fabriquer" });
     expect(confirmerPrix).not.toHaveBeenCalled();
-    expect(lancer.mock.calls.map((c) => c[1])).toEqual([0, 0]);
+    expect(lancer.mock.calls.map((c) => (c as unknown[])[1])).toEqual([0, 0]);
   });
 });
 
