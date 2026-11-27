@@ -1,17 +1,23 @@
 /** Aperçu d'une épingle (PR 7) : fonctions pures, importables côté client. Limites : ADR-0015 (Pinterest via Zernio). */
 
-export const TITRE_MAX = 100;
-export const DESCRIPTION_MAX = 800;
-export const ALT_MAX = 500;
+import { ALT_MAX_PINTEREST, DESCRIPTION_EPINGLE_MAX, TITRE_EPINGLE_MAX } from "../../fournisseurs/publication/epingle-limites";
+import { lienDuSite } from "../../fournisseurs/publication/liens-du-site";
+
+/** Mêmes plafonds que l'envoi (une seule source : epingle-limites.ts). */
+export const TITRE_MAX = TITRE_EPINGLE_MAX;
+export const DESCRIPTION_MAX = DESCRIPTION_EPINGLE_MAX;
+export const ALT_MAX = ALT_MAX_PINTEREST;
 
 export interface ChampsEpingle {
   titre: string;
   description: string;
   texteAlternatif: string;
   lien: string;
+  /** Domaine exigé à l'envoi (réglage `site.domaine`) ; absent ou vide : tout lien est refusé, comme à l'envoi. */
+  domaine?: string | null;
 }
 
-export type CodeProbleme = "titre-absent" | "titre-trop-long" | "description-trop-longue" | "alt-absent" | "alt-trop-long" | "lien-non-https";
+export type CodeProbleme = "titre-absent" | "titre-trop-long" | "description-trop-longue" | "alt-absent" | "alt-trop-long" | "lien-hors-site";
 export interface ProblemeEpingle {
   code: CodeProbleme;
   phrase: string;
@@ -41,6 +47,7 @@ export function limitesEpingle(c: ChampsEpingle): ProblemeEpingle[] {
   const alt = c.texteAlternatif.trim();
   if (alt.length === 0) p.push({ code: "alt-absent", phrase: "Texte alternatif manquant." });
   else if (alt.length > ALT_MAX) p.push({ code: "alt-trop-long", phrase: `Texte alternatif trop long : ${alt.length} signes sur ${ALT_MAX}.` });
-  if (!c.lien.startsWith("https://")) p.push({ code: "lien-non-https", phrase: "Le lien doit commencer par https://." });
+  // Même fonction que l'envoi : https, domaine exact du site, sans identifiants ni port.
+  if (!lienDuSite(c.lien, c.domaine)) p.push({ code: "lien-hors-site", phrase: "Le lien doit mener au site (https, domaine exact) : sinon l'épingle ne part pas." });
   return p;
 }

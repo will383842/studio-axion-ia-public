@@ -15,10 +15,12 @@ export interface ProprietesApercuEpingle {
   lien: string;
   tableau: string;
   contenuIA: boolean;
+  /** Domaine exigé à l'envoi (`site.domaine`) : le lien est vérifié par la même fonction que l'envoi. */
+  domaine?: string | null;
 }
 
-export function ApercuEpingle({ imageUrl, titre, description, texteAlternatif, lien, tableau, contenuIA }: ProprietesApercuEpingle): ReactNode {
-  const problemes = limitesEpingle({ titre, description, texteAlternatif, lien });
+export function ApercuEpingle({ imageUrl, titre, description, texteAlternatif, lien, tableau, contenuIA, domaine }: ProprietesApercuEpingle): ReactNode {
+  const problemes = limitesEpingle({ titre, description, texteAlternatif, lien, domaine });
   const hote = hoteDuLien(lien);
   return (
     <figure aria-label="Aperçu de l'épingle" className="flex max-w-xs flex-col gap-2 rounded-champ border border-trait bg-surface-1 p-3 text-texte">

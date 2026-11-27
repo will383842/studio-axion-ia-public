@@ -16,9 +16,12 @@ import { appliquerLot } from "@/donnees/memoire";
 import { canauxZernioEnregistres } from "@/services/comptes-envoi-zernio";
 import { depots, ecrireParametre, fournisseur, lireParametre, maintenant, sousVerrou } from "@/services/_commun";
 import { commencerEnvoi } from "@/services/envois";
+import { domaineDuSite, epingleDuVisuel } from "../charger-medias";
 import { analyserLot, importerLot, validerLot, type DepsLot, type RapportLot, type ResultatImport, type ResultatValidation, type SaisieLot } from "@/services/epingles/import-lot";
 
-export type EtatImport = { rapport?: RapportLot; resultat?: ResultatImport; validation?: ResultatValidation; erreur?: string };
+/** Ce qu'il faut voir avant « Valider ce lot » : l'image, le texte alternatif, le titre, le lien et le tableau de chaque épingle créée. */
+export type ApercuLot = { creneauId: string; imageUrl: string | null; titre: string; description: string; texteAlternatif: string; lien: string; tableau: string; contenuIA: boolean; domaine: string };
+export type EtatImport = { rapport?: RapportLot; resultat?: ResultatImport; validation?: ResultatValidation; apercus?: ApercuLot[]; erreur?: string };
 
 async function deps(): Promise<DepsLot> {
   const d = depots();
@@ -78,9 +81,27 @@ export async function importerLotAction(_: EtatImport, f: FormData): Promise<Eta
   await exigerSession();
   const s = lireSaisie(f);
   if (typeof s === "string") return { erreur: s };
-  const resultat = await importerLot(await deps(), s);
+  const d = await deps();
+  const resultat = await importerLot(d, s);
   revalidatePath("/calendrier");
-  return { rapport: resultat.rapport, resultat };
+  return { rapport: resultat.rapport, resultat, apercus: await apercusDuLot(d, resultat.creneauIds, s.compte) };
+}
+
+/** Aperçu de chaque épingle créée (lecture seule). Une épingle dont la lecture échoue est montrée sans image, jamais omise. */
+async function apercusDuLot(d: DepsLot, creneauIds: string[], compte: string): Promise<ApercuLot[]> {
+  if (!creneauIds.length) return [];
+  const domaine = await d.domaineSite();
+  const canaux = await d.canaux();
+  const sortie: ApercuLot[] = [];
+  for (const id of creneauIds) {
+    const c = await d.depots.creneaux.obtenir(id).catch(() => undefined);
+    const e = c?.visuelId ? await epingleDuVisuel(c.visuelId, domaine).catch(() => null) : null;
+    if (!c || !e) continue;
+    const canal = canaux.find((x) => x.id === c.compteCible && x.id.startsWith(`${compte}:pin:`));
+    const tableau = canal ? canal.nom.split(" · ").slice(1).join(" · ").trim() : "";
+    sortie.push({ creneauId: id, imageUrl: e.imageUrl, titre: e.titre, description: c.textes?.pinterest?.texte ?? "", texteAlternatif: e.texteAlternatif, lien: e.lien, tableau: tableau || "—", contenuIA: e.contenuIA, domaine });
+  }
+  return sortie;
 }
 
 /** Étape 5 : « Valider ce lot ». Aucun appel Zernio. */
