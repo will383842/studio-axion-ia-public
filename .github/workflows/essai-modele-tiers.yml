@@ -282,7 +282,7 @@ jobs:
             echo "Le pilote ouvre la PR (une PR ouverte par ce workflow ne lancerait pas la CI) :"
             echo
             echo '```'
-            echo "gh pr create --repo $GITHUB_REPOSITORY --base master --head $BRANCHE --label essai-modele-tiers --title \"[essai $FOURNISSEUR] $NOM\" --body-file corps-pr.md"
+            echo "gh pr create --repo ${{ github.repository }} --base master --head $BRANCHE --label essai-modele-tiers --title \"[essai $FOURNISSEUR] $NOM\" --body-file corps-pr.md"
             echo '```'
             echo
             echo "Le label essai-modele-tiers doit exister (a creer une fois a la main). Corps de PR a enregistrer dans corps-pr.md :"
