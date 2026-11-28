@@ -67,7 +67,7 @@ export async function construireExemples(): Promise<Record<string, string>> {
   };
   const reglages = await appeler("GET", CHEMIN_REGLAGES, undefined, "a".repeat(32));
   const publication = await appeler("POST", CHEMIN_VIDEOS, corps, "b".repeat(32));
-  const retrait = await appeler("DELETE", `${CHEMIN_VIDEOS}/vid_exemple`, undefined, "c".repeat(32));
+  const retrait = await appeler("DELETE", CHEMIN_VIDEOS, { schemaVersion: 1, studioVideoId: "vid_exemple", motif: "obsolete" }, "c".repeat(32));
   const texteCorps = JSON.stringify(corps);
   const entetes = signerAppel({ secret: SECRET_EXEMPLE, methode: "POST", chemin: CHEMIN_VIDEOS, corps: texteCorps, horodatageSec: HORODATAGE_EXEMPLE, nonce: NONCE_EXEMPLE });
   const chaine = chaineASigner({ horodatage: String(HORODATAGE_EXEMPLE), nonce: NONCE_EXEMPLE, methode: "POST", chemin: CHEMIN_VIDEOS, sha256Corps: sha256Hex(texteCorps) });

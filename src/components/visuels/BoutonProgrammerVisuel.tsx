@@ -32,7 +32,7 @@ export function jourParDefautParis(instant: string): string {
  * simple changement de statut). Reprend un créneau resté « propose » ou « a_valider » par un clic interrompu ; un
  * créneau déjà « valide » ou au-delà n'est pas touché (la passerelle décide).
  */
-async function validerParLeFondateur(d: DepotsPasserelle, creneauId: string, maintenant: string): Promise<void> {
+export async function validerParLeFondateur(d: DepotsPasserelle, creneauId: string, maintenant: string): Promise<void> {
   if ((await d.creneaux.obtenir(creneauId))?.statut === "propose") await changerStatut(d, creneauId, "a_valider", "studio", maintenant);
   const c = await d.creneaux.obtenir(creneauId);
   if (c?.statut !== "a_valider") return;

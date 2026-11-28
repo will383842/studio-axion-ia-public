@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { EnTetePage } from "@/components/ui/EnTetePage";
 import { EtatVide } from "@/components/ui/EtatVide";
-import { obtenirReseau } from "@/reseaux";
+import { nomDuReseau } from "@/reseaux/hors-video";
 import { fournisseurParId } from "@/fournisseurs";
 import { depots, ErreurStudio } from "@/services/_commun";
 import { exigerSession } from "@/services/auth";
@@ -68,7 +68,7 @@ export default async function PageACorriger({ searchParams }: { searchParams: Pr
             <li key={l.publicationId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
               <div>
                 <p className="font-medium text-texte">
-                  {obtenirReseau(l.reseau).nom} · {quand(l.date)}
+                  {nomDuReseau(l.reseau)} · {quand(l.date)}
                 </p>
                 <p className="text-texte-doux">{l.phrase}</p>
               </div>

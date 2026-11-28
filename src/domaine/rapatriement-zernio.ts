@@ -6,7 +6,10 @@
 import type { PostZernio, PlateformePostZernio } from "../fournisseurs/publication/zernio-client";
 import type { IdReseau, Publication } from "./types";
 
-/** Statuts lus chez le diffuseur pour le rapatriement (« à venir »). */
+/**
+ * Statuts lus chez le diffuseur pour le rapatriement (« à venir »). Limite écrite : un post déjà `published` ou `failed`, et un
+ * post publié hors du Studio (fait directement chez le diffuseur ou sur le réseau), ne sont PAS rapatriés.
+ */
 export const STATUTS_RAPATRIES = ["scheduled", "draft", "publishing"] as const;
 
 export type RaisonEcart = "absent" | "sans-date" | "reseau-inconnu";
@@ -39,6 +42,7 @@ const PLATEFORME_VERS_RESEAU: Readonly<Record<string, IdReseau>> = {
   linkedin: "linkedin",
   tiktok: "tiktok",
   youtube: "youtube-shorts",
+  pinterest: "pinterest",
 };
 
 export function reseauDepuisPlateforme(platform: string): IdReseau | null {
@@ -53,6 +57,18 @@ export function cleRapatriement(postId: string, accountId: string): string {
 
 const idCompte = (pf: PlateformePostZernio): string => (typeof pf.accountId === "string" ? pf.accountId : String(pf.accountId?._id ?? ""));
 const studioCleDe = (post: PostZernio): string | undefined => (typeof post.metadata?.studioCle === "string" && post.metadata.studioCle ? post.metadata.studioCle : undefined);
+
+/**
+ * Canal d'une plateforme : l'identifiant du compte, ou « <compte>:pin:<tableau> » pour une épingle dont le tableau est lu
+ * (même forme que les canaux tableau de `zernio.canaux`). Lecture défensive : tout ce qui n'est pas un identifiant numérique
+ * de tableau retombe sur le compte, jamais sur un écart.
+ */
+function canalDe(pf: PlateformePostZernio): string {
+  const compte = idCompte(pf);
+  if (reseauDepuisPlateforme(pf.platform) !== "pinterest") return compte;
+  const tableau = pf.platformSpecificData?.boardId;
+  return typeof tableau === "string" && /^\d{1,24}$/.test(tableau) ? `${compte}:pin:${tableau}` : compte;
+}
 
 /** Un post du diffuseur est « connu » (jamais rapatrié deux fois) : même identifiant externe, même clé d'envoi, ou clé d'un envoi planifié. */
 export function estConnu(post: PostZernio, c: ConnusLocaux): boolean {
@@ -108,7 +124,8 @@ export function deciderRapatriement(
       const compte = idCompte(pf);
       const id = cleRapatriement(post._id, compte);
       if (c.idsExternes.has(id)) continue;
-      const nom = o.nomsComptes?.get(compte);
+      const canal = canalDe(pf);
+      const nom = o.nomsComptes?.get(canal) ?? o.nomsComptes?.get(compte);
       const cleEnvoi = studioCleDe(post);
       aCreer.push({
         id,
@@ -119,7 +136,7 @@ export function deciderRapatriement(
         texte: pf.customContent ?? post.content ?? "",
         idExterne: post._id,
         etatEnvoi: "envoye",
-        canalId: compte,
+        canalId: canal,
         ...(nom ? { canalNom: nom } : {}),
         ...(cleEnvoi ? { cleEnvoi } : {}),
         envoiCommenceLe: o.instant,

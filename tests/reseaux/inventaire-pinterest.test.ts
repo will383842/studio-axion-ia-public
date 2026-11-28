@@ -39,7 +39,6 @@ const EXCLUSIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["src/domaine/duree-par-reseau.ts", "RESEAUX_DUREE", "durées de vidéo : Pinterest volontairement absent"],
   ["src/domaine/classement-generateur.ts", "ORDRE_PUBLICATION_PAR_DEFAUT", "classement du générateur vidéo : Pinterest volontairement absent"],
   ["src/domaine/reseaux-par-defaut.ts", "RESEAUX_PAR_DEFAUT", "réseaux par défaut d'une vidéo : Pinterest volontairement absent"],
-  ["src/domaine/mesures-visuels.ts", "ORDRE_RESEAUX", "mesures de visuels : Pinterest volontairement absent jusqu'à la PR 8"],
   ["src/services/cas-concret.ts", "RESEAUX_CAS", "format vidéo « cas concret » : Pinterest volontairement absent"],
   ["src/services/cas-concret-suivi.ts", "const RESEAUX", "format vidéo « cas concret » : Pinterest volontairement absent"],
   ["src/services/cas-concret-vue.ts", "const RESEAUX", "format vidéo « cas concret » : Pinterest volontairement absent"],
@@ -49,7 +48,7 @@ const EXCLUSIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["src/services/tableau-code.ts", "const ORDRE", "codes de version d'un tableau animé : Pinterest volontairement absent"],
   ["src/services/pret-a-partir.ts", "HASHTAGS_ATTENDUS", "kit « prêt à partir » d'une vidéo : Pinterest volontairement absent"],
   ["src/services/mesures-exemples.ts", "const RESEAUX", "exemples de mesures : Pinterest volontairement absent jusqu'à la PR 8"],
-  ["src/domaine/mesures.ts", "RESEAUX_LIEN", "mesures par réseau : Pinterest volontairement absent jusqu'à la PR 8"],
+  ["src/domaine/mesures-visuels.ts", "ORDRE_RESEAUX:", "ORDRE_RESEAUX : les cinq déclinaisons seules, c'est la liste de la republication ; Pinterest s'y ajoute dans ORDRE_RESEAUX_VISUELS (mesures)"],
   ["src/domaine/mesures.ts", "RESEAUX_MESSAGE", "mesures par réseau : Pinterest volontairement absent jusqu'à la PR 8"],
   ["src/donnees/memoire/demo.ts", "const publications", "données de démonstration"],
   // Boîte de réception : Pinterest n'en a pas côté Zernio (ADR-0015, limites écrites).
@@ -62,11 +61,8 @@ const EXCLUSIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["src/domaine/ecriture-post/commentaire.ts", "PREMIER_COMMENTAIRE_RESEAUX", "PREMIER_COMMENTAIRE_RESEAUX : pas de premier commentaire sur Pinterest"],
   ["src/domaine/republication/regles.ts", "RESEAUX_REPUBLICATION", "RESEAUX_REPUBLICATION : une épingle ne se republie pas"],
   // Envoi : Pinterest ne s'envoie pas avant les PR 3 à 5 (la liste unique des réseaux d'envoi arrive en PR 2).
-  ["src/services/plan-editorial.ts", "RESEAUX_ENVOI", "RESEAUX_ENVOI : Pinterest absent jusqu'à la PR 5"],
-  ["src/domaine/reseaux-visuel-envoi.ts", "RESEAUX_VISUEL_ENVOI", "liste unique des réseaux qui reçoivent un visuel : Pinterest absent jusqu'aux PR 3 à 5"],
-  ["src/domaine/visuels/depot.ts", "z.enum", "dépôt de visuels envoyés (zod, image de rendu) : Pinterest absent jusqu'aux PR 2 à 5"],
-  ["src/app/(studio)/reglages/actions-zernio.ts", "RESEAUX_CONNUS", "RESEAUX_CONNUS (comptes Zernio) : Pinterest arrive en PR 3"],
-  ["src/domaine/calendrier/manques.ts", "ORDRE_RESEAUX", "créneaux attendus : Pinterest n'a pas de jour attendu en V1"],
+  ["src/domaine/reseaux-visuel-envoi.ts", "RESEAUX_VISUEL_CLASSIQUES", "les trois réseaux des carrousels et infographies : Pinterest ne reçoit que des épingles (liste séparée)"],
+  ["src/domaine/visuels/depot.ts", "z.enum", "versions rendues (zod, image de rendu) : carrousels seulement, une épingle n'a pas de version rendue"],
   // Anciens liens du calendrier : les quatre réseaux d'avant Pinterest, lus comme « tous » (lireReseaux).
   ["src/components/calendrier/lire-reseaux.ts", "ANCIENS_RESEAUX", "les quatre réseaux d'avant Pinterest : un ancien lien ?reseaux= est lu comme « tous »"],
   // Anciens outils et files de travail sans Pinterest.
@@ -75,6 +71,27 @@ const EXCLUSIONS: ReadonlyArray<readonly [string, string, string]> = [
   ["src/fournisseurs/publication/buffer.ts", "RESEAUX_PREMIER_COMMENTAIRE", "ancien outil : Pinterest n'y existe pas"],
   ["src/services/a-traiter-onglets.ts", "ONGLETS_A_TRAITER", "file « à traiter » : Pinterest absent en V1"],
   ["src/services/a-traiter-types.ts", "RESEAUX_A_TRAITER", "file « à traiter » : Pinterest absent en V1"],
+  // Tables de noms et de codes { cle: "Nom" } : chacune dit pourquoi Pinterest n'y figure pas (sinon : nomDuReseau).
+  ["src/app/(studio)/bibliotheque/source-extraits/page.tsx", "LIBELLE_RESEAU", "extraits de vidéos : Pinterest volontairement absent"],
+  ["src/app/(studio)/calendrier/importer/actions.ts", "RESEAUX:", "import CSV de l'ancien outil : Pinterest a son propre import en lot"],
+  ["src/app/(studio)/contenus/a-ranger/page.tsx", "NOMS_RESEAUX", "rangement des carrousels et infographies (trois réseaux) : une épingle n'a pas de rangement"],
+  ["src/app/(studio)/reglages/actions-zernio.ts", "NOMS_RESEAU_ESSAI", "essai borné du brouillon : trois réseaux, Pinterest hors essai"],
+  ["src/app/(studio)/reglages/page.tsx", "NOMS_PLACEMENT", "placement des hashtags : Pinterest n'en a pas, volontairement absent"],
+  ["src/components/ecrire/AjoutStockEnLot.tsx", "NOMS_RESEAUX", "stock de textes : Pinterest volontairement absent"],
+  ["src/components/mots/fiche-mot-libelles.ts", "NOM_RESEAU", "mots de la boîte de réception : Pinterest n'en a pas"],
+  ["src/components/mots/tableau-mots-libelles.ts", "reseau:", "mots de la boîte de réception : Pinterest n'en a pas"],
+  ["src/components/reglages/EssaiBrouillon.tsx", "RESEAUX", "essai borné du brouillon : trois réseaux, Pinterest hors essai"],
+  ["src/components/visuels/BoutonProgrammerVisuel.tsx", "HEURES", "heures par défaut des carrousels : l'épingle prend les heures de la cadence Pinterest"],
+  ["src/components/visuels/FicheInfographie.tsx", "LIBELLES_RESEAU", "infographies (trois réseaux) : Pinterest volontairement absent"],
+  ["src/components/visuels/LegendeReseaux.tsx", "NOMS", "légendes de carrousels (trois réseaux) : Pinterest volontairement absent"],
+  ["src/domaine/duree-par-reseau.ts", "NOMS", "durées de vidéo : Pinterest volontairement absent"],
+  ["src/reseaux/placement-hashtags.ts", "PLACEMENT_PAR_DEFAUT", "placement des hashtags : Pinterest n'en met pas, volontairement absent"],
+  ["src/services/a-traiter-onglets.ts", "LIBELLE_RESEAU_A_TRAITER", "file « à traiter » : Pinterest absent en V1"],
+  ["src/services/cas-concret-vue.ts", "NOM_RESEAU", "format vidéo « cas concret » : Pinterest volontairement absent"],
+  ["src/services/import-buffer/lire-publies.ts", "NOM_RESEAU", "import de l'ancien outil : Pinterest n'y existe pas"],
+  ["src/services/mesures-exemples.ts", "CODES", "exemples de mesures : Pinterest volontairement absent"],
+  ["src/services/mots-lecture.ts", "CAPACITE_DU_RESEAU", "capacités de la boîte de réception : Pinterest n'en a pas"],
+  ["src/services/placement-hashtags.ts", "NOMS", "placement des hashtags : Pinterest n'en met pas, volontairement absent"],
 ];
 
 function sources(dossier: string): string[] {
@@ -97,6 +114,9 @@ interface Liste {
   avecPinterest: boolean;
 }
 const LISTES: Liste[] = [];
+/** Objet plat { cle: "Nom", ... } : au moins trois réseaux en clé, chacun avec une valeur chaîne (table de noms écrite en dur). */
+const OBJET = /\{([^{}]*)\}/g;
+const ENTREE = /(?:^|[,\s])["']?(linkedin|instagram|facebook|tiktok|youtube-shorts|youtube)["']?\s*:\s*["'`]/g;
 for (const chemin of sources(join(RACINE, "src"))) {
   const texte = readFileSync(chemin, "utf-8");
   const fichier = relative(RACINE, chemin).split("\\").join("/");
@@ -105,6 +125,17 @@ for (const chemin of sources(join(RACINE, "src"))) {
     if (ids.size < 3 || !IDS.some((i) => ids.has(i))) continue;
     const ligne = texte.slice(0, m.index).split("\n").length;
     LISTES.push({ fichier, ligne, texteLigne: texte.split("\n")[ligne - 1]!, avecPinterest: /["']pinterest["']/.test(m[1]!) });
+  }
+}
+
+for (const chemin of sources(join(RACINE, "src"))) {
+  const texte = readFileSync(chemin, "utf-8");
+  const fichier = relative(RACINE, chemin).split("\\").join("/");
+  for (const m of texte.matchAll(OBJET)) {
+    const ids = new Set([...m[1]!.matchAll(ENTREE)].map((x) => x[1]));
+    if (ids.size < 3) continue;
+    const ligne = texte.slice(0, m.index).split("\n").length;
+    LISTES.push({ fichier, ligne, texteLigne: texte.split("\n")[ligne - 1]!, avecPinterest: /(?:^|[,\s])["']?pinterest["']?\s*:/.test(m[1]!) });
   }
 }
 

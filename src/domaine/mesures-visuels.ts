@@ -8,6 +8,9 @@
 import { INDICATEURS, MINIMUM_GROUPE, rangsParReseau, resultatsDepuisStats, tousLesRangs, type Indicateur, type RangVideo, type ResultatsVideo, type VideoMesuree } from "./mesures-rangs";
 import type { Publication, ReseauDeclinaison, StatsPublication } from "./types";
 
+/** Réseaux où l'on mesure un visuel : les cinq déclinaisons et Pinterest (une épingle est mesurée comme un carrousel : classement séparé des vidéos). */
+export type ReseauMesureVisuel = ReseauDeclinaison | "pinterest";
+
 export type EtatMesure = "mesure" | "pas-encore" | "non-disponible";
 
 /** Sans aucun relevé, une publication partie depuis plus de ce nombre de jours est « non disponible ». */
@@ -35,12 +38,13 @@ export function carrouselCommeVideoMesuree(entree: {
   visuelId: string;
   famille: string;
   titre: string;
-  reseau: ReseauDeclinaison;
+  reseau: ReseauMesureVisuel;
   date: string;
   stats: Partial<StatsPublication> | undefined;
 }): VideoMesuree {
   return {
-    reseau: entree.reseau,
+    // Le classement ne lit que la valeur de `reseau` : « pinterest » est rangé comme les autres réseaux, dans sa propre colonne.
+    reseau: entree.reseau as ReseauDeclinaison,
     formatId: entree.famille,
     publicationId: entree.publicationId,
     varianteId: entree.visuelId,
@@ -70,7 +74,7 @@ const CHAMP_INDICATEUR: Record<Indicateur, keyof ResultatsVideo> = {
 };
 
 export interface ClassementReseauVisuels {
-  reseau: ReseauDeclinaison;
+  reseau: ReseauMesureVisuel;
   nombre: number;
   /** Moins de `MINIMUM_GROUPE` carrousels sur ce réseau : « trop tôt pour dire ». */
   tropTot: boolean;
@@ -87,7 +91,18 @@ export interface ClassementCarrousels {
 
 const ORDRE_RESEAUX: readonly ReseauDeclinaison[] = ["tiktok", "instagram", "youtube-shorts", "linkedin", "facebook"];
 
-/** Le réseau est-il l'un de ceux où l'on classe ? (un autre n'est ni classé ni compté). */
+/** Ordre d'affichage du classement des visuels : les déclinaisons, puis Pinterest. */
+const ORDRE_RESEAUX_VISUELS: readonly ReseauMesureVisuel[] = [...ORDRE_RESEAUX, "pinterest"];
+
+/** Le réseau est-il l'un de ceux où l'on mesure un visuel (Pinterest compris) ? */
+export function estReseauMesureVisuel(reseau: string): reseau is ReseauMesureVisuel {
+  return (ORDRE_RESEAUX_VISUELS as readonly string[]).includes(reseau);
+}
+
+/**
+ * Le réseau est-il l'un de ceux de la republication ? Pinterest n'y est PAS : une épingle ne se republie pas (ADR-0015).
+ * Le classement des mesures, lui, passe par `estReseauMesureVisuel`.
+ */
 export function estReseauClasse(reseau: string): reseau is ReseauDeclinaison {
   return (ORDRE_RESEAUX as readonly string[]).includes(reseau);
 }
@@ -109,9 +124,9 @@ export function classerCarrousels(liste: VideoMesuree[]): ClassementCarrousels {
   const propres = liste.map(sansIndicateursNonDisponibles);
   const parReseau = rangsParReseau(propres);
   const nombre = tousLesRangs(propres).length;
-  const reseaux: ClassementReseauVisuels[] = ORDRE_RESEAUX.filter((r) => parReseau[r]?.length).map((reseau) => {
-    const rangs = parReseau[reseau]!;
-    return { reseau, nombre: rangs.length, tropTot: rangs.length < MINIMUM_GROUPE, nonDisponibles: [...(MESURES_NON_DISPONIBLES[reseau] ?? [])], rangs };
+  const reseaux: ClassementReseauVisuels[] = ORDRE_RESEAUX_VISUELS.filter((r) => parReseau[r as ReseauDeclinaison]?.length).map((reseau) => {
+    const rangs = parReseau[reseau as ReseauDeclinaison]!;
+    return { reseau, nombre: rangs.length, tropTot: rangs.length < MINIMUM_GROUPE, nonDisponibles: [...(MESURES_NON_DISPONIBLES[reseau as ReseauDeclinaison] ?? [])], rangs };
   });
   return { nombre, tropTot: nombre < MINIMUM_GROUPE, reseaux };
 }

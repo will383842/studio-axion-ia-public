@@ -1,0 +1,392 @@
+# Robot Claude Code (CLI) sur un runner GitHub, payé par les crédits de l'API Claude (compte B seulement).
+# Fiche : CI-ROBOT-B. Porté depuis le workflow du dépôt du site, avec ses pièges déjà payés :
+#   - on lance la CLI directement (l'action officielle se trompe sur le solde) ;
+#   - le bac à sable de la CLI exige bubblewrap + socat et l'autorisation des espaces de noms (AppArmor) ;
+#   - GITHUB_TOKEN ne peut pas créer de PR : le robot pousse une branche, la session pilote ouvre la PR.
+# ARCHITECTURE EN DEUX JOBS (audit de sécurité) :
+#   - `coder` : lecture seule, aucun jeton d'écriture (persist-credentials: false). Claude tourne sous un
+#     utilisateur Linux dédié sans sudo, dans le bac à sable de la CLI. Il COMMITE en local, ne pousse jamais.
+#     Un balayage anti-fuite (clé du compte B + motifs de jetons) lit TOUS les commits, puis un `git bundle`
+#     est publié comme artefact (1 jour). Le bundle est fait depuis un dépôt de contrôle neuf, pas depuis
+#     le dépôt que Claude a pu piéger (config, hooks, attributs).
+#   - `pousser` : seul job avec contents: write. Aucun code de Claude n'y tourne : il valide les noms de branche
+#     (^robot/[A-Za-z0-9._-]{1,60}$) puis pousse.
+#   - sudo -k ne suffirait pas : l'utilisateur du runner a sudo sans mot de passe. D'où l'utilisateur dédié.
+# CE DÉPÔT EST PUBLIC et ses journaux d'Actions aussi. Règles de ce fichier :
+#   - la consigne est lue dans $GITHUB_EVENT_PATH, jamais via `env:` ni `${{ inputs.* }}` dans un script ;
+#   - aucune sortie de Claude (texte, diff, chemin) n'est affichée : le journal ne montre que
+#     succès/échec, coût, nombre de tours et noms (validés) des branches poussées ;
+#   - le seul artefact est le bundle git (rétention 1 jour), publié après le balayage ; ne JAMAIS
+#     activer le mode debug sur ce workflow.
+# Déclenchement MANUEL seulement (workflow_dispatch), par le propriétaire du dépôt, depuis master.
+# Une seule clé : le secret ANTHROPIC_API_KEY_COMPTE_B. Absente : échec clair, aucun repli.
+# Le robot ne peut pousser que robot/<nom> ; master et main sont refusés par le job `pousser`.
+#
+# Usage (depuis une session pilote) :
+#   gh workflow run claude-credit-api.yml -R <proprietaire>/studio-axion-ia-public --ref master \
+#     -f consigne="$(cat consigne.md)" -f modele=claude-sonnet-5-5 -f tours_max=150
+# La consigne doit nommer la branche à pousser, qui DOIT s'appeler robot/<nom>, et demander le corps de PR
+# dans un fichier versionné (par ex. .pr/<nom>.md) ; la session pilote ouvre ensuite la PR avec ce corps.
+
+name: Claude (crédit API, compte B)
+
+on:
+  workflow_dispatch:
+    inputs:
+      consigne:
+        description: "Consigne complète (texte). Doit nommer la branche robot/<nom>. Jamais affichée dans le journal."
+        required: true
+      modele:
+        description: "Modèle"
+        type: choice
+        options: [claude-sonnet-5-5, claude-opus-5-5]
+        default: claude-sonnet-5-5
+      tours_max:
+        description: "Nombre maximal de tours"
+        type: choice
+        options: ["40", "80", "150", "250"]
+        default: "150"
+
+permissions:
+  contents: read
+
+jobs:
+  coder:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    outputs:
+      base: ${{ steps.bundle.outputs.base }}
+    steps:
+      - name: Vérifier la présence de la clé du compte B (aucun repli)
+        env:
+          CLE_B_PRESENTE: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B != '' }}
+        run: |
+          if [ "$CLE_B_PRESENTE" != "true" ]; then
+            echo "::error::Secret ANTHROPIC_API_KEY_COMPTE_B absent du dépôt : à créer. Aucun autre compte n'est utilisé."
+            exit 1
+          fi
+
+      # Pas de jeton laissé dans .git/config ; profondeur 1 : le bundle ne contient que les commits de Claude.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+
+      # Pas de `cache: pnpm` : aucune écriture de cache depuis ce job (empoisonnement du cache).
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      # Dépendances installées AVANT Claude, par l'utilisateur du runner. Claude n'a pas besoin d'installer
+      # quoi que ce soit : il lance pnpm exec tsc / eslint / vitest sur les modules déjà présents.
+      # Même commande que la CI du dépôt. Le Studio n'a pas de génération Prisma : rien d'autre à lancer.
+      - name: Installer les dépendances du projet
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          test -x node_modules/.bin/tsc && test -x node_modules/.bin/vitest && test -x node_modules/.bin/eslint
+
+      # La consigne ne passe JAMAIS par `env:` ni par `${{ inputs.consigne }}` dans un script (journal public).
+      - name: Écrire la consigne (fichier ignoré par git, jamais affiché)
+        run: |
+          jq -r '.inputs.consigne // empty' "$GITHUB_EVENT_PATH" > .consigne-claude.md
+          echo ".consigne-claude.md" >> .git/info/exclude
+          test -s .consigne-claude.md || { echo "::error::Consigne vide."; exit 1; }
+          echo "Consigne écrite."
+
+      - name: Installer Claude Code, le bac à sable et l'utilisateur dédié sans sudo
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq bubblewrap socat >/dev/null
+          command -v socat >/dev/null || { echo "socat manquant"; exit 1; }
+          command -v bwrap >/dev/null || { echo "bubblewrap manquant"; exit 1; }
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
+          npm i -g --no-audit --no-fund @anthropic-ai/claude-code@2.1.332 >/dev/null 2>&1
+          claude --version >/dev/null
+          # Utilisateur dédié : pas de sudo, aucun accès aux fichiers du runner ($RUNNER_TEMP/_runner_file_commands,
+          # GITHUB_ENV, GITHUB_PATH, GITHUB_OUTPUT). C'est lui qui exécute Claude.
+          sudo useradd -m -s /bin/bash robot
+          if sudo -n -u robot sudo -n true >/dev/null 2>&1; then echo "robot a sudo : arrêt"; exit 1; fi
+          # Bac à sable de la CLI, dans le HOME de robot (hors dépôt). Clés vérifiées dans la doc officielle
+          # (settings-reference) : sandbox.enabled, failIfUnavailable, allowUnsandboxedCommands,
+          # network.allowedDomains, network.strictAllowlist (CLI >= 2.1.219).
+          sudo install -d -o robot -g robot -m 700 /home/robot/.claude
+          sudo -u robot tee /home/robot/.claude/settings.json >/dev/null <<'JSON'
+          {
+            "sandbox": {
+              "enabled": true,
+              "failIfUnavailable": true,
+              "allowUnsandboxedCommands": false,
+              "network": {
+                "allowedDomains": ["registry.npmjs.org"],
+                "strictAllowlist": true
+              }
+            }
+          }
+          JSON
+          # Identité propre à ce run, pour les commits locaux de Claude.
+          git config user.name "robot-credit-api"
+          git config user.email "robot-credit-api-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@users.noreply.github.com"
+          # Point de départ : Claude ne peut pas écrire dans $RUNNER_TEMP.
+          git rev-parse HEAD > "$RUNNER_TEMP/base.txt"
+          # Le dépôt appartient à robot pendant l'exécution de Claude.
+          sudo chown -R robot:robot "$GITHUB_WORKSPACE"
+
+      # Relais local : la vraie clé ne vit que dans CE processus (utilisateur runner) ; robot ne reçoit qu'une
+      # fausse clé et l'adresse du relais (ANTHROPIC_BASE_URL, documenté dans les variables d'environnement de la CLI).
+      - name: Lancer le relais d'API (la vraie clé reste hors de portée du robot)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Secret ANTHROPIC_API_KEY_COMPTE_B absent ou vide. Aucun repli."; exit 1
+          fi
+          umask 077
+          r="$RUNNER_TEMP/relais"
+          mkdir -p "$r"; chmod 700 "$r"
+          cat > "$r/relais.js" <<'JS'
+          const http = require('http'), https = require('https'), fs = require('fs');
+          const cle = process.env.ANTHROPIC_API_KEY;
+          delete process.env.ANTHROPIC_API_KEY;
+          const dir = process.argv[2];
+          const retirer = new Set(['x-api-key', 'authorization', 'host', 'connection']);
+          const srv = http.createServer((req, res) => {
+            // Liste blanche stricte (chemin comparé sans la chaîne de requête, qui reste permise).
+            const chemin = typeof req.url === 'string' ? req.url.split('?')[0] : '';
+            const permis = (req.method === 'POST' && (chemin === '/v1/messages' || chemin === '/v1/messages/count_tokens'))
+              || (req.method === 'GET' && chemin === '/v1/models');
+            if (!permis) { res.statusCode = 403; return res.end(); }
+            const h = {};
+            for (const [k, v] of Object.entries(req.headers)) if (!retirer.has(k.toLowerCase())) h[k] = v;
+            h['x-api-key'] = cle;
+            h['host'] = 'api.anthropic.com';
+            const up = https.request({ host: 'api.anthropic.com', port: 443, path: req.url, method: req.method, headers: h }, (r) => {
+              res.writeHead(r.statusCode, r.headers);
+              r.pipe(res);
+            });
+            up.on('error', () => { if (!res.headersSent) res.statusCode = 502; res.end(); });
+            req.on('aborted', () => up.destroy());
+            req.pipe(up);
+          });
+          srv.listen(0, '127.0.0.1', () => {
+            fs.writeFileSync(dir + '/pid', String(process.pid));
+            fs.writeFileSync(dir + '/port', String(srv.address().port));
+          });
+          JS
+          chmod 700 "$r/relais.js"
+          # Détaché de l'étape ; l'étape finale « Arrêter le relais » l'arrête (if: always()).
+          RUNNER_TRACKING_ID="" setsid nohup node "$r/relais.js" "$r" >/dev/null 2>&1 &
+          for i in $(seq 1 50); do [ -s "$r/port" ] && break; sleep 0.2; done
+          port=$(cat "$r/port" 2>/dev/null || true)
+          [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "::error::Relais non démarré."; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'x-api-key: cle-factice-robot' -H 'anthropic-version: 2023-06-01' "http://127.0.0.1:$port/v1/models" || true)
+          if [ "$code" = "200" ]; then echo "test de santé du relais : oui"; else echo "test de santé du relais : non"; exit 1; fi
+
+      - name: Claude (compte B)
+        id: run1
+        continue-on-error: true
+        env:
+          MODELE: ${{ inputs.modele }}
+          TOURS: ${{ inputs.tours_max }}
+        run: |
+          port=$(cat "$RUNNER_TEMP/relais/port")
+          f="$RUNNER_TEMP/execution.json"
+          PROMPT="Ta consigne est dans le fichier .consigne-claude.md à la racine du dépôt. Lis-le et exécute-le. Ne le committe jamais. Tu n'as ni jeton GitHub ni accès réseau vers GitHub : COMMITE en local sur une branche dont le nom est OBLIGATOIREMENT robot/<nom> (lettres, chiffres, point, tiret, soulignement, 60 caractères au plus, sans autre barre oblique) et ne pousse rien ; un autre job pousse ta branche. Ne crée aucune autre branche, ne commite jamais sur master ni main. Écris le corps de PR dans le fichier versionné demandé. Ne touche pas à .github/. Les dépendances sont DÉJÀ installées : ne lance pas pnpm install ; lance directement pnpm exec tsc --noEmit, pnpm exec eslint <fichiers>, pnpm exec vitest run <fichiers>. Si pnpm-lock.yaml doit changer, signale-le dans le corps de PR au lieu de réinstaller. Écris tout contenu en public sans prénom, prix, adresse IP ni chemin personnel, et ne recopie jamais aucune clé ni aucun jeton."
+          # Seules les variables utiles sont transmises à l'utilisateur robot ; il n'a pas sudo.
+          # Les fichiers GITHUB_* du runner ne sont pas transmis.
+          cd "$GITHUB_WORKSPACE"
+          mail="$(git config user.email)"
+          sudo -u robot -H \
+            env PATH="$PATH" HOME=/home/robot CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 CI=true \
+            ANTHROPIC_BASE_URL="http://127.0.0.1:$port" ANTHROPIC_API_KEY=cle-factice-robot \
+            GIT_AUTHOR_NAME=robot-credit-api GIT_COMMITTER_NAME=robot-credit-api \
+            GIT_AUTHOR_EMAIL="$mail" GIT_COMMITTER_EMAIL="$mail" \
+            timeout 4200 claude -p "$PROMPT" \
+            --model "$MODELE" --max-turns "$TOURS" \
+            --allowedTools Bash,Read,Edit,Write,Glob,Grep,Agent,TodoWrite \
+            --output-format json > "$RUNNER_TEMP/brut.json" 2> "$RUNNER_TEMP/err.txt" || true
+          # Plus aucun processus de robot ne doit survivre.
+          sudo pkill -9 -u robot >/dev/null 2>&1 || true
+          sudo rm -f "$GITHUB_WORKSPACE/.consigne-claude.md"
+          jq -s '.' "$RUNNER_TEMP/brut.json" > "$f" 2>/dev/null || echo '[]' > "$f"
+          rm -f "$RUNNER_TEMP/brut.json" "$RUNNER_TEMP/err.txt"
+          echo "execution_file=$f" >> "$GITHUB_OUTPUT"
+          # Le dépôt est PUBLIC : on n'affiche que des nombres et un verdict, jamais le texte de la réponse
+          # ni le message d'erreur de la CLI.
+          if jq -e 'any(.[]; .type == "result" and .is_error == false)' "$f" >/dev/null 2>&1; then
+            echo "Claude : succès."
+            echo "conclusion=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Claude n'a produit aucun résultat réussi (détail volontairement non affiché : journal public)."
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+
+      - name: Bilan (nombres seulement)
+        if: always()
+        env:
+          F1: ${{ steps.run1.outputs.execution_file }}
+        run: |
+          # Le fichier vient d'une machine où Claude avait Bash : on n'en garde que des nombres revalidés.
+          num() { if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then printf '%s' "$1"; else printf 0; fi; }
+          cout=0; tours=0
+          if [ -n "$F1" ] && [ -f "$F1" ]; then
+            cout=$(jq -r '[.[] | select(.type=="result") | .total_cost_usd // 0] | add // 0' "$F1" 2>/dev/null || echo 0)
+            tours=$(jq -r '[.[] | select(.type=="result") | .num_turns // 0] | add // 0' "$F1" 2>/dev/null || echo 0)
+          fi
+          {
+            echo "### Coût Claude (crédit API, compte B)"
+            echo "- $(num "$cout") \$ US, $(num "$tours") tours"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verdict de Claude
+        env:
+          C1: ${{ steps.run1.outputs.conclusion }}
+        run: |
+          if [ "$C1" != "success" ]; then
+            echo "::error::L'exécution de Claude a échoué."; exit 1; fi
+
+      # Dépôt de contrôle NEUF : on n'y ramène que les branches robot/* du dépôt de Claude. Ni sa config, ni ses
+      # hooks, ni ses attributs ne s'exécutent ensuite. Aucune clé dans cette étape.
+      - name: Préparer le dépôt de contrôle (sans clé)
+        run: |
+          base=$(cat "$RUNNER_TEMP/base.txt")
+          [[ "$base" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Point de départ invalide."; exit 1; }
+          git init -q --bare "$RUNNER_TEMP/verif.git"
+          export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+          git -C "$RUNNER_TEMP/verif.git" -c safe.directory='*' -c protocol.file.allow=always \
+            fetch -q --no-tags "$GITHUB_WORKSPACE/.git" "$base:refs/base" '+refs/heads/robot/*:refs/heads/robot/*' >/dev/null 2>&1 \
+            || { echo "::error::Récupération des commits impossible (aucune branche robot/* ?)."; exit 1; }
+          # Aucune branche hors du motif ; master et main ne peuvent pas y figurer.
+          n=0
+          for b in $(git -C "$RUNNER_TEMP/verif.git" for-each-ref --format='%(refname:strip=3)' refs/heads/robot/); do
+            [[ "robot/$b" =~ ^robot/[A-Za-z0-9._-]{1,60}$ ]] || { echo "::error::Nom de branche refusé."; exit 1; }
+            n=$((n+1))
+          done
+          [ "$n" -ge 1 ] || { echo "::error::Claude a fini sans créer de branche robot/<nom>."; exit 1; }
+
+      # Nettoyage TOUJOURS exécutée (même si une étape précédente a échoué) : tout ce que Claude a laissé (config git,
+      # hooks, .npmrc, scripts) est détruit AVANT les étapes post (checkout, pnpm) et tout outil lancé par
+      # l'utilisateur runner. Dossier recréé vide. Les étapes suivantes n'utilisent que le dépôt de contrôle.
+      - name: Nettoyer le dossier de travail
+        if: always()
+        run: |
+          sudo pkill -9 -u robot >/dev/null 2>&1 || true
+          cd "$RUNNER_TEMP"
+          sudo rm -rf "$GITHUB_WORKSPACE"
+          mkdir -p "$GITHUB_WORKSPACE"
+
+      # Balayage de TOUS les objets poussés (commits, arbres, blobs) et des messages, dans le dépôt de contrôle neuf :
+      # la clé du compte B (comparaison littérale, fichier 0600 toujours supprimé) puis les motifs de jetons.
+      # La clé n'est présente que dans l'env de CETTE étape, qui ne lance que git et grep sur le dépôt neuf.
+      # Double sécurité : la vraie clé n'est de toute façon jamais dans l'env du robot (relais local).
+      - name: Balayage anti-fuite
+        env:
+          CLE: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B }}
+        run: |
+          umask 077
+          base=$(cat "$RUNNER_TEMP/base.txt")
+          export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+          k="$RUNNER_TEMP/k"; ids="$RUNNER_TEMP/ids.txt"; flux="$RUNNER_TEMP/flux.bin"
+          trap 'rm -f "$k" "$ids" "$ids.t" "$flux"' EXIT
+          printf %s "$CLE" > "$k"
+          v="$RUNNER_TEMP/verif.git"
+          fuite=0
+          [ -s "$k" ] || fuite=1
+          git -C "$v" rev-list --objects --branches='robot/*' "^$base" 2>/dev/null | cut -d' ' -f1 > "$ids" || fuite=1
+          [ -s "$ids" ] || fuite=1
+          git -C "$v" cat-file --batch-check='%(objectname) %(objecttype)' < "$ids" 2>/dev/null | awk '$2=="blob" || $2=="commit" || $2=="tree" || $2=="tag" {print $1}' > "$ids.t" || fuite=1
+          # Contenu brut de tous les objets (blobs, mais aussi commits et arbres : en-têtes, noms de fichiers).
+          git -C "$v" cat-file --batch < "$ids.t" > "$flux" 2>/dev/null || fuite=1
+          git -C "$v" log --format=%B --branches='robot/*' "^$base" >> "$flux" 2>/dev/null || fuite=1
+          [ -s "$flux" ] || fuite=1
+          if grep -a -F -q -f "$k" "$flux" 2>/dev/null; then fuite=1; fi
+          if grep -a -E -q '(sk-ant-|ghs_|ghp_|github_pat_)' "$flux" 2>/dev/null; then fuite=1; fi
+          if [ "$fuite" -ne 0 ]; then
+            echo "::error::FUITE DÉTECTÉE, rien n'est poussé."
+            exit 1
+          fi
+          echo "balayage propre"
+
+      - name: Créer le bundle (sans clé)
+        id: bundle
+        run: |
+          base=$(cat "$RUNNER_TEMP/base.txt")
+          export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+          mkdir -p "$RUNNER_TEMP/sortie"
+          git -C "$RUNNER_TEMP/verif.git" bundle create "$RUNNER_TEMP/sortie/robot.bundle" --branches='robot/*' "^$base" >/dev/null 2>&1
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "Bundle créé."
+
+      # Publié seulement APRÈS le balayage. Dépôt public : les artefacts sont téléchargeables par qui a accès en
+      # lecture ; rétention d'un jour, contenu déjà balayé.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: robot-bundle
+          path: ${{ runner.temp }}/sortie/robot.bundle
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Arrêter le relais
+        if: always()
+        run: |
+          # Deuxième filet : même nettoyage que ci-dessus.
+          sudo pkill -9 -u robot >/dev/null 2>&1 || true
+          cd "$RUNNER_TEMP"
+          sudo rm -rf "$GITHUB_WORKSPACE"
+          mkdir -p "$GITHUB_WORKSPACE"
+          pid=$(cat "$RUNNER_TEMP/relais/pid" 2>/dev/null || true)
+          if [[ "$pid" =~ ^[0-9]+$ ]]; then kill "$pid" 2>/dev/null || true; fi
+          rm -rf "$RUNNER_TEMP/relais"
+          exit 0
+
+  pousser:
+    needs: coder
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Valider le point de départ
+        env:
+          BASE: ${{ needs.coder.outputs.base }}
+        run: |
+          [[ "$BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Point de départ invalide."; exit 1; }
+
+      # Le checkout garde le jeton de CE job, qui n'exécute aucun code de Claude (ni hook ni script du dépôt).
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.coder.outputs.base }}
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: robot-bundle
+          path: ${{ runner.temp }}/entree
+
+      - name: Valider les branches puis pousser
+        run: |
+          set -e
+          f="$RUNNER_TEMP/entree/robot.bundle"
+          test -s "$f" || { echo "::error::Bundle absent."; exit 1; }
+          git bundle verify "$f" >/dev/null 2>&1 || { echo "::error::Bundle invalide."; exit 1; }
+          refs=$(git bundle list-heads "$f" | awk '{print $2}')
+          [ -n "$refs" ] || { echo "::error::Bundle sans branche."; exit 1; }
+          for r in $refs; do
+            b=${r#refs/heads/}
+            case "$b" in master|main) echo "::error::Branche protégée refusée."; exit 1 ;; esac
+            [[ "$r" == refs/heads/* && "$b" =~ ^robot/[A-Za-z0-9._-]{1,60}$ && "$b" != *..* && "$b" != *.lock ]] \
+              || { echo "::error::Nom de branche refusé."; exit 1; }
+          done
+          for r in $refs; do
+            git fetch -q "$f" "+$r:$r"
+          done
+          echo "Branches poussées :"
+          for r in $refs; do
+            git push -q origin "$r:$r"
+            printf '  %s\n' "${r#refs/heads/}"
+          done

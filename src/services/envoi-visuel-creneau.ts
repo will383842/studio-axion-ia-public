@@ -53,6 +53,15 @@ async function existeParDefaut(cle: string): Promise<boolean> {
 /** Les fichiers du réseau, dans l'ordre d'envoi : 1 PDF (LinkedIn) ou les pages (Instagram, Facebook). Rien de lisible = refus. */
 async function verifierFichiers(visuelId: string, reseau: ReseauVisuelEnvoi, o: OptionsEnvoiVisuelDuCreneau): Promise<void> {
   const v = await depots().visuels.obtenir(visuelId);
+  // Épingle : un seul fichier (l'image déposée), son texte alternatif est celui de l'épingle (pas de texte par page).
+  if (reseau === "pinterest") {
+    if (v && v.famille !== "epingle") throw new ErreurStudio("VISUEL_REFUSE", "Seule une épingle part sur Pinterest : rien n'est parti.");
+    const cle = v?.epingle?.image?.cle;
+    if (typeof cle !== "string" || !cle.trim()) throw ABSENT();
+    await verifierExistence([cle], o);
+    return;
+  }
+  if (v?.famille === "epingle") throw new ErreurStudio("VISUEL_REFUSE", "Une épingle ne part que sur Pinterest : rien n'est parti.");
   const rendu = v?.rendu;
   if (!v || !rendu) throw ABSENT();
   const pages = [...(rendu.pages ?? [])].sort((a, b) => a.index - b.index);
@@ -64,6 +73,10 @@ async function verifierFichiers(visuelId: string, reseau: ReseauVisuelEnvoi, o: 
       throw new ErreurStudio("TEXTE_ALTERNATIF_MANQUANT", "Chaque page a besoin de son texte alternatif : rien n'est parti.");
     }
   }
+  await verifierExistence(cles, o);
+}
+
+async function verifierExistence(cles: string[], o: OptionsEnvoiVisuelDuCreneau): Promise<void> {
   const existe = o.fichierExiste ?? existeParDefaut;
   const lire = o.lireUrl ?? lireParDefaut;
   for (const cle of cles) {
