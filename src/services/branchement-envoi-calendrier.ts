@@ -37,6 +37,7 @@ import { dansEssai, essaiCouvre, essaiEnCours, lireEssai } from "./essai-zernio"
 import { annulerEnvoi, resoudreCleEnvoi } from "./envois-planifies";
 import { creerNotification } from "./notifications";
 import { tableauDeLaCible, type EtatsPromotion, type NotificationPromotion } from "./promotion-envois";
+import { CLE_PINTEREST_ACTIF } from "@/fournisseurs/publication/zernio";
 import { clientZernio, editorialeActive, envoiCalendrierAutorise, envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 
@@ -198,6 +199,8 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     const lignes: CreneauCalendrier[] = [];
     // Pinterest : une ligne n'existe que si le tour général est ouvert pour Pinterest, ou pour le seul créneau de l'essai borné.
     const essaiPinterest = (await lireEssai(maintenant()).catch(() => null))?.creneauId;
+    /** Interrupteur `zernio.pinterest_actif` : seul `true` ouvre, lecture en panne = fermé. */
+    const pinterestInterrupteurOuvert = async (): Promise<boolean> => (await lireParametre<unknown>(CLE_PINTEREST_ACTIF, false).catch(() => false)) === true;
     const essaiPinterestValable = async (id: string): Promise<boolean> => essaiPinterest === id && (await essaiCouvre(id, "brouillon", maintenant()).catch(() => false));
     let creationsPinterest = 0;
     const plan = (await depots().creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[];
@@ -224,7 +227,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
           continue;
         }
         if (!estReseauVisuelEnvoi(reseau)) continue;
-        if (reseau === "pinterest" && !PINTEREST_TOUR_GENERAL && !(await essaiPinterestValable(c.id))) continue;
+        if (reseau === "pinterest" && !(PINTEREST_TOUR_GENERAL && (await pinterestInterrupteurOuvert())) && !(await essaiPinterestValable(c.id))) continue;
         // a'. Version courante annulée (dévalidée puis revalidée) : jamais de refus silencieux, une seule notification.
         if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && e.statut === "annule")).length) {
           await exclu("annule", "Cette publication a été modifiée après une première préparation : elle ne partira pas seule à cette date. Pour qu'elle parte seule, décalez-la ; sinon, programmez-la dans l'outil de publication.");

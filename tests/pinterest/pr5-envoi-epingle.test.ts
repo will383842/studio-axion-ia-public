@@ -1,6 +1,6 @@
 /**
  * Pinterest, PR 5 : envoi d'une épingle depuis le calendrier. Faux fournisseur, dépôts en mémoire, aucun appel réel.
- * Données fictives (exemple.test). Le tour général reste FERMÉ à Pinterest.
+ * Données fictives (exemple.test). Le tour général est ouvert à Pinterest (fiche PIN-R2) ; la constante est forcée dans ce fichier, l'interrupteur `zernio.pinterest_actif` reste la protection.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
@@ -236,8 +236,25 @@ describe("Pinterest PR 5 · tour du calendrier : fermé à Pinterest", () => {
     expect((await deps().creneaux()).filter((l) => l.reseau === "pinterest")).toEqual([]);
     expect(appels).toHaveLength(0);
   });
+  it("tour ouvert, interrupteur Pinterest FERMÉ : 0 ligne Pinterest, 0 appel", async () => {
+    porte.ouverte = true;
+    await sept();
+    expect((await deps().creneaux()).filter((l) => l.reseau === "pinterest")).toEqual([]);
+    expect(appels).toHaveLength(0);
+  });
+  it("tour ouvert, interrupteur ouvert : l'épingle programmée est reprise par le tour puis envoyée", async () => {
+    porte.ouverte = true;
+    await ecrireParametre("zernio.pinterest_actif", true);
+    await visuelEpingle();
+    const id = await creneau("cr-1", "vis_pin", "pinterest", heure(0));
+    expect((await deps().creneaux()).filter((l) => l.reseau === "pinterest").map((l) => l.id)).toEqual(["cr-1"]);
+    const r = await pub.envoyerVisuel(faux(), id, "pinterest", { lireUrl });
+    expect(r.deja).toBe(false);
+    expect(appels).toHaveLength(1);
+  });
   it("tour ouvert (constante forcée) : au plus 3 créations par tour", async () => {
     porte.ouverte = true;
+    await ecrireParametre("zernio.pinterest_actif", true);
     await sept();
     expect(CREATIONS_PINTEREST_PAR_TOUR).toBe(3);
     const lignes = (await deps().creneaux()).filter((l) => l.reseau === "pinterest");
@@ -245,6 +262,7 @@ describe("Pinterest PR 5 · tour du calendrier : fermé à Pinterest", () => {
   });
   it("tour suivant : les créneaux déjà créés ne comptent plus dans le plafond, 3 nouveaux passent", async () => {
     porte.ouverte = true;
+    await ecrireParametre("zernio.pinterest_actif", true);
     await sept();
     const premiers = (await deps().creneaux()).filter((l) => l.reseau === "pinterest");
     for (const l of premiers) {

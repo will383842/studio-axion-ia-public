@@ -1,7 +1,7 @@
 /**
  * Pinterest par Zernio : interrupteur `zernio.pinterest_actif` (FERMÉ par défaut : seul le booléen `true` ouvre), lu et écrit
- * depuis Réglages › Pinterest, comme YouTube Shorts. Aucun appel au diffuseur. L'interrupteur n'ouvre pas le tour général :
- * celui-ci reste fermé par la constante `PINTEREST_TOUR_GENERAL` (seul l'essai d'un créneau peut partir).
+ * depuis Réglages › Pinterest, comme YouTube Shorts. Aucun appel au diffuseur. Le tour général du calendrier est ouvert
+ * (constante `PINTEREST_TOUR_GENERAL`) : l'interrupteur reste la seule protection, fermé = aucune épingle ne part.
  */
 import "server-only";
 import { PINTEREST_TOUR_GENERAL } from "@/domaine/reseaux-visuel-envoi";

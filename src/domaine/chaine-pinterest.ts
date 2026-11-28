@@ -9,7 +9,7 @@ export interface VuePinterest {
   compte: EtatComptePinterest;
   /** Domaine exigé dans le lien des épingles (réglage `site.domaine`), en lecture seule ; vide = tout lien est refusé. */
   domaine: string;
-  /** Le tour général du calendrier est-il ouvert à Pinterest ? Constante de code, fermée. */
+  /** Le tour général du calendrier est-il ouvert à Pinterest ? Constante de code, ouverte : l'interrupteur reste la protection. */
   tourGeneral: boolean;
 }
 
