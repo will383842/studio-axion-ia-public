@@ -688,10 +688,10 @@
     "tableau/exemples.ts": "95dbcee14855bfbea1516f080b41cc22cdce94a6e18b6e387a87083d18ee2f68",
     "tableau/plan.ts": "cd09fa13fe8a6b4bb7343ea038dfb94270803ce4763634324b4411fcf222fcea",
     "tableau/proprietes.ts": "5f2f83c577f69def0a22f0f8f32227293eafb215257f5e2697c316c150e4bf7f",
-    "tableau/reference/PageReference.tsx": "032ce58839fcc77a462fc0f575a80d9af38615d0ec0b34743971e9a3f2bfe1a0",
-    "tableau/reference/PageReference3.tsx": "0f9679c30b869c51439760e50cee5f923c900f17c38335baf333f5958aae9653",
+    "tableau/reference/PageReference.tsx": "30f77aeb5efe3830c8d530f4e9c11b89a25ee309169df93aa505a947b4db7ee6",
+    "tableau/reference/PageReference3.tsx": "4a2df0561fe7c39d1962ebedef529545cd55deb620dd63cfe0a69dedb46588d3",
     "tableau/textes-chiffres.ts": "176c4b3d1840d4269a606a36b3e5eaee7fe4bd0c4b0f563f1c065d1196026b9f",
-    "tableau/trois-styles/PageTableau.tsx": "12c7c5e52a4aa9f26095a58dc7999a32ae8dcc520c9d676687c8b90075be6433",
+    "tableau/trois-styles/PageTableau.tsx": "2048827a07d2e6467d67858ed110b201b0792eb676f2197f27e49e1488c1f44e",
     "tableau/trois-styles/support.ts": "4e6ee6ae40eae3c16b4fcc02790debbdfe08dd1ed2749add0fb4173b3682bf2e",
     "tableau/types.ts": "899f8234d5d8ffacb06c851f7a5539f9436f52abd87550c2e59073875cbef15b",
     "tableau/v2/EcranV2.tsx": "7d96b5b64c56e094ebd66d5a1026b58e3d07e4ba619c5499f7107905356857ec"

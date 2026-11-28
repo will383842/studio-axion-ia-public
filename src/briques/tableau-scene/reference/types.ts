@@ -131,6 +131,8 @@ export type ProprietesReference = {
   finVideoMs: number;
   /** Dernière scène de la vidéo : le crayon se pose sous la page finie, puis l'image s'efface. */
   derniere: boolean;
+  /** BOUCLE-TABLEAU-b : dernière scène d'une vidéo qui boucle : le fondu de fin va vers la page vide, jamais vers le noir (absent : noir). */
+  finEnBoucle?: true;
   /**
    * Heures (ms, horloge de la vidéo) de TOUT ce qui s'écrit sur la page (éléments et gestes de toutes ses scènes) et
    * les scènes de la page : le crayon est planifié page par page, il ne saute jamais d'une scène à la suivante.

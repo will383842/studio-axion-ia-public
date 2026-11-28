@@ -868,13 +868,16 @@ function dessiner(g: Ctx, sc: Scene, p: ProprietesTableauScene, plan: Plan3, ava
       if (pl) outil(g, sc, pl.x, pl.y, pl.lev, pl.col);
     }
   }
-  // Fin de la vidéo : l'image s'efface en noir.
+  // Fin de la vidéo : l'image s'efface en noir ; en boucle (BOUCLE-TABLEAU-b), vers le support vide.
   const r = p.styleReference!;
   if (r.derniere) {
     const f = borne((t * 1000 - (r.finVideoMs - FIN_REFERENCE.fonduImageMs)) / FIN_REFERENCE.fonduImageMs);
-    if (f > 0) {
+    if (f > 0 && !r.finEnBoucle) {
       g.fillStyle = `rgba(0,0,0,${f})`;
       g.fillRect(0, 0, W, H);
+    }
+    if (f > 0 && r.finEnBoucle) {
+      g.globalAlpha = f; g.drawImage(sc.sup.fond, 0, 0); g.globalAlpha = 1;
     }
   }
 }

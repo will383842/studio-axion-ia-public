@@ -58,7 +58,7 @@ export function PageReference3({ p }: { p: ProprietesTableauScene }) {
       </div>
       <Barre p={p} t={t} />
       {pose ? <CrayonAxion x={pose.pointe.x} y={pose.pointe.y + dy} angle={pose.angle} k={plan.k} opacite={tr.enCours ? tr.opacite : 1} /> : null}
-      {fondu > 0 ? <AbsoluteFill style={{ backgroundColor: "#000000", opacity: fondu }} /> : null}
+      {fondu > 0 ? <AbsoluteFill style={{ backgroundColor: r.finEnBoucle ? C.fond : "#000000", opacity: fondu }} /> : null}
     </AbsoluteFill>
   );
 }
