@@ -37,6 +37,7 @@ import { dansEssai, essaiCouvre, essaiEnCours, lireEssai } from "./essai-zernio"
 import { annulerEnvoi, resoudreCleEnvoi } from "./envois-planifies";
 import { creerNotification } from "./notifications";
 import { tableauDeLaCible, type EtatsPromotion, type NotificationPromotion } from "./promotion-envois";
+import { CLE_PINTEREST_ACTIF } from "@/fournisseurs/publication/zernio";
 import { clientZernio, editorialeActive, envoiCalendrierAutorise, envoiZernioAutorise, publicationEditorialeAutorisee } from "./zernio";
 import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 
@@ -52,6 +53,8 @@ const ALT_MAX = 125;
 export const DELAI_ENVOI_MAX_MS = 90_000;
 
 export interface InjectionsEnvoiCalendrier {
+  /** Interrupteur Pinterest (tests) ; sinon le réglage `zernio.pinterest_actif`. */
+  lirePinterestActif?: () => Promise<unknown>;
   /** Porte (défaut : `publicationEditorialeAutorisee`). Une erreur = fermé. */
   porte?: () => Promise<boolean>;
   client?: ClientZernio;
@@ -198,6 +201,19 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
     const lignes: CreneauCalendrier[] = [];
     // Pinterest : une ligne n'existe que si le tour général est ouvert pour Pinterest, ou pour le seul créneau de l'essai borné.
     const essaiPinterest = (await lireEssai(maintenant()).catch(() => null))?.creneauId;
+    // Interrupteur `zernio.pinterest_actif` lu UNE fois par tour, borné à 500 ms comme le fournisseur : seul `true` ouvre, échec ou délai = fermé.
+    const pinterestOuvert = await (async (): Promise<boolean> => {
+      let minuteur: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const attente = new Promise<undefined>((r) => { minuteur = setTimeout(() => r(undefined), 500); });
+        const lecture = (inj.lirePinterestActif ?? (() => lireParametre<unknown>(CLE_PINTEREST_ACTIF, false)))();
+        return (await Promise.race([lecture, attente])) === true;
+      } catch {
+        return false;
+      } finally {
+        clearTimeout(minuteur);
+      }
+    })();
     const essaiPinterestValable = async (id: string): Promise<boolean> => essaiPinterest === id && (await essaiCouvre(id, "brouillon", maintenant()).catch(() => false));
     let creationsPinterest = 0;
     const plan = (await depots().creneauxEditoriaux.lister()) as (CreneauEditorial & { aRenvoyer?: boolean })[];
@@ -224,7 +240,7 @@ export function construireDepsEnvoiCalendrier(inj: InjectionsEnvoiCalendrier = {
           continue;
         }
         if (!estReseauVisuelEnvoi(reseau)) continue;
-        if (reseau === "pinterest" && !PINTEREST_TOUR_GENERAL && !(await essaiPinterestValable(c.id))) continue;
+        if (reseau === "pinterest" && !(PINTEREST_TOUR_GENERAL && pinterestOuvert) && !(await essaiPinterestValable(c.id))) continue;
         // a'. Version courante annulée (dévalidée puis revalidée) : jamais de refus silencieux, une seule notification.
         if ((await depots().envoisPlanifies.lister((e) => e.creneauId === c.id && e.reseau === reseau && e.versionCreneau === c.decalages && e.statut === "annule")).length) {
           await exclu("annule", "Cette publication a été modifiée après une première préparation : elle ne partira pas seule à cette date. Pour qu'elle parte seule, décalez-la ; sinon, programmez-la dans l'outil de publication.");

@@ -22,10 +22,11 @@ export function reseauxEnvoiDeLaFamille(famille: string): readonly ReseauVisuelE
 }
 
 /**
- * Pinterest dans le TOUR GÉNÉRAL du calendrier : FERMÉ. Constante de code (PR 5b d'une ligne pour l'ouvrir, après l'essai réel borné).
- * Fermé, seul l'essai d'UN créneau peut produire une ligne Pinterest.
+ * Pinterest dans le TOUR GÉNÉRAL du calendrier : OUVERT (fiche PIN-R2). Constante de code.
+ * La vraie protection reste l'interrupteur `zernio.pinterest_actif` (fermé par défaut) : fermé, aucune épingle ne part,
+ * ni par le tour (gardé dans `branchement-envoi-calendrier`) ni par le fournisseur.
  */
-export const PINTEREST_TOUR_GENERAL = false;
+export const PINTEREST_TOUR_GENERAL = true;
 
 /** Réseaux d'un créneau d'envoi : les déclinaisons vidéo, plus Pinterest. */
 export type ReseauEnvoiCreneau = ReseauDeclinaison | "pinterest";
