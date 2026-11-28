@@ -10,6 +10,7 @@ import type { ClientZernio, PostZernio } from "@/fournisseurs/publication/zernio
 import { cleJour } from "@/lib/dates";
 import { depots, horodatage, maintenant, sousVerrou } from "./_commun";
 import { clientZernio, comptesZernioEnregistres, listerToutesLesPagesZernio } from "./zernio";
+import { canauxZernioEnregistres } from "./comptes-envoi-zernio";
 
 const LIMITE_PAGE = 100;
 
@@ -129,7 +130,12 @@ export async function depsRapatriementServeur(): Promise<DepsRapatriement> {
     client: { listerPosts: (q) => clientZernio().listerPosts(q) },
     publications: () => depots().publications.lister(),
     clesCreneaux: async () => new Set((await depots().envoisPlanifies.lister()).map((e) => e.cleDiffuseur ?? e.cle).filter((k): k is string => typeof k === "string")),
-    nomsComptes: async () => new Map((await comptesZernioEnregistres())?.comptes.map((c) => [c.id, c.nom] as const) ?? []),
+    nomsComptes: async () => {
+      const noms = new Map((await comptesZernioEnregistres())?.comptes.map((c) => [c.id, c.nom] as const) ?? []);
+      // PR 4 : les canaux « tableau » (`<compte>:pin:<tableau>`) copiés au dernier « Tester » ; lecture en base seule.
+      for (const c of (await canauxZernioEnregistres().catch(() => null))?.canaux ?? []) if (!noms.has(c.id)) noms.set(c.id, c.nom);
+      return noms;
+    },
     creerSiAbsente: (p) =>
       sousVerrou(async () => {
         if (await depots().publications.obtenir(p.id)) return "existait" as const;

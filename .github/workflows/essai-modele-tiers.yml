@@ -1,0 +1,294 @@
+# ESSAI D'UN MODELE DE CODE TIERS (Kimi ou DeepSeek) : fait coder UNE fiche par Claude Code sans interface, puis livre un correctif VALIDE en artefact.
+# But : comparer qualite et cout sur une fiche bornee. Declenchement manuel seulement.
+# NE JAMAIS FUSIONNER SANS RELECTURE OPUS. Secrets requis : KIMI_API_KEY et/ou DEEPSEEK_API_KEY. Aucun secret Anthropic.
+# Le job 1 (coder) est NON FIABLE PAR CONCEPTION : le modele tiers peut y executer du code et y lire sa propre cle.
+# Un PLAFOND DE DEPENSE BAS est donc obligatoire sur le compte du fournisseur. Le job 1 n'a aucun droit d'ecriture ;
+# le job 2 (verifier-correctif), sur une machine neuve et en lecture seule, verifie tout puis envoie le correctif valide
+# en artefact. Aucune ecriture depuis ce workflow : le pilote cree la branche et la PR (voir le resume du run).
+name: essai-modele-tiers
+
+on:
+  workflow_dispatch:
+    inputs:
+      fiche:
+        description: "Texte de la consigne (la fiche a coder)"
+        required: true
+        type: string
+      fournisseur:
+        description: "Fournisseur du modele"
+        required: true
+        type: choice
+        options: [kimi, deepseek]
+        default: kimi
+      modele:
+        description: "Nom du modele (vide = defaut du fournisseur : kimi-k3[1m] / deepseek-flash)"
+        required: false
+        type: string
+        default: ""
+      nom:
+        description: "Identifiant court de la fiche (minuscules, chiffres, tirets), sert a nommer la branche"
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: essai-modele-tiers-${{ inputs.fournisseur }}-${{ inputs.nom }}
+  cancel-in-progress: false
+
+jobs:
+  coder:
+    name: coder (non fiable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Valider les entrees et le secret du fournisseur
+        id: valider
+        env:
+          FOURNISSEUR: ${{ inputs.fournisseur }}
+          NOM: ${{ inputs.nom }}
+          MODELE_SAISI: ${{ inputs.modele }}
+          SECRET_KIMI: ${{ secrets.KIMI_API_KEY }}
+          SECRET_DEEPSEEK: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if ! [[ "$NOM" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; then
+            echo "::error::Entree nom invalide : 1 a 40 caracteres, minuscules, chiffres et tirets."; exit 1
+          fi
+          if [ -n "$MODELE_SAISI" ] && ! [[ "$MODELE_SAISI" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}(\[[0-9a-z]{1,8}\])?$ ]]; then
+            echo "::error::Entree modele invalide."; exit 1
+          fi
+          case "$FOURNISSEUR" in
+            kimi)     [ -n "$SECRET_KIMI" ]     || { echo "::error::Le secret KIMI_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
+            deepseek) [ -n "$SECRET_DEEPSEEK" ] || { echo "::error::Le secret DEEPSEEK_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
+            *) echo "::error::Fournisseur inconnu : $FOURNISSEUR"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Installer les dependances du depot
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Version figee de Claude Code (derniere stable verifiee le 2026-11-28).
+      - name: Installer Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.332
+
+      - name: Choisir le modele et ecrire les reglages (hors depot)
+        env:
+          FOURNISSEUR: ${{ inputs.fournisseur }}
+          MODELE_SAISI: ${{ inputs.modele }}
+        run: |
+          if [ -n "$MODELE_SAISI" ]; then MODELE="$MODELE_SAISI"
+          elif [ "$FOURNISSEUR" = "kimi" ]; then MODELE='kimi-k3[1m]'
+          else MODELE='deepseek-flash'; fi
+          printf 'MODELE=%s\n' "$MODELE" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/reglages-essai.json" <<'JSON'
+          {
+            "permissions": {
+              "deny": [
+                "Read(./.env*)",
+                "Read(**/.env*)",
+                "Read(**/*secret*)",
+                "Read(**/*.pem)",
+                "Read(**/*.key)",
+                "Read(./.git/**)",
+                "Edit(./.git/**)",
+                "Write(./.git/**)",
+                "Bash(curl:*)",
+                "Bash(wget:*)"
+              ]
+            }
+          }
+          JSON
+
+      - name: Lancer Claude Code (modele tiers)
+        env:
+          FICHE: ${{ inputs.fiche }}
+          NOM: ${{ inputs.nom }}
+          ANTHROPIC_BASE_URL: ${{ inputs.fournisseur == 'kimi' && 'https://api.moonshot.ai/anthropic' || 'https://api.deepseek.com/anthropic' }}
+          ANTHROPIC_AUTH_TOKEN: ${{ inputs.fournisseur == 'kimi' && secrets.KIMI_API_KEY || secrets.DEEPSEEK_API_KEY }}
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+          CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
+        run: |
+          unset ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN
+          # Toutes les variables de modele = le modele choisi (sinon echecs silencieux, voir la doc du fournisseur).
+          export ANTHROPIC_MODEL="$MODELE"
+          export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELE"
+          export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELE"
+          export CLAUDE_CODE_SUBAGENT_MODEL="$MODELE"
+          mkdir -p "$RUNNER_TEMP/essai"
+          RAPPEL="CONSIGNES FIXES : travaille sur la fiche ci-dessous seulement. Ne touche jamais a .github/, aux Dockerfile*, aux migrations, ni aux fichiers de secrets ou d'environnement. Ne modifie ni package.json ni le fichier de verrouillage. Lance les tests cibles existants qui concernent ta fiche, s'il y en a (par exemple pnpm exec vitest run <fichier de test>). Pas de commit : laisse les modifications dans l'arbre de travail."
+          set +e
+          claude -p "$RAPPEL
+
+          FICHE :
+          $FICHE" \
+            --output-format json \
+            --settings "$RUNNER_TEMP/reglages-essai.json" \
+            --permission-mode acceptEdits \
+            --allowedTools "Read" "Edit" "Write" "Glob" "Grep" "Bash(pnpm exec vitest run:*)" "Bash(git status)" "Bash(git diff:*)" \
+            --disallowedTools "WebFetch" "WebSearch" "Bash(node:*)" "Bash(npm:*)" "Bash(npx:*)" "Bash(git commit:*)" "Bash(git config:*)" \
+            > "$RUNNER_TEMP/essai/essai-$NOM.json" 2> "$RUNNER_TEMP/essai/essai-$NOM.err"
+          CODE=$?
+          set -e
+          tail -c 2000 "$RUNNER_TEMP/essai/essai-$NOM.err" || true
+          [ "$CODE" -eq 0 ] || { echo "::error::claude s'est termine avec le code $CODE"; exit 1; }
+
+      - name: Produire le correctif
+        env:
+          NOM: ${{ inputs.nom }}
+        run: |
+          git add -A
+          git diff --cached --binary --full-index --no-renames "$GITHUB_SHA" > "$RUNNER_TEMP/essai/essai-$NOM.patch"
+
+      - name: Sauver le correctif et la sortie JSON en artefact
+        if: always() && steps.valider.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: essai-${{ inputs.fournisseur }}-${{ inputs.nom }}
+          path: |
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.json
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.patch
+          if-no-files-found: warn
+
+  verifier-correctif:
+    name: verifier le correctif (confiance, lecture seule)
+    needs: coder
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Valider les entrees
+        env:
+          FOURNISSEUR: ${{ inputs.fournisseur }}
+          NOM: ${{ inputs.nom }}
+          MODELE_SAISI: ${{ inputs.modele }}
+        run: |
+          [[ "$NOM" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] || { echo "::error::Entree nom invalide."; exit 1; }
+          if [ -n "$MODELE_SAISI" ] && ! [[ "$MODELE_SAISI" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}(\[[0-9a-z]{1,8}\])?$ ]]; then
+            echo "::error::Entree modele invalide."; exit 1
+          fi
+          case "$FOURNISSEUR" in kimi|deepseek) ;; *) echo "::error::Fournisseur inconnu."; exit 1 ;; esac
+          if [ -n "$MODELE_SAISI" ]; then MODELE="$MODELE_SAISI"
+          elif [ "$FOURNISSEUR" = "kimi" ]; then MODELE='kimi-k3[1m]'
+          else MODELE='deepseek-flash'; fi
+          printf 'MODELE=%s\n' "$MODELE" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: essai-${{ inputs.fournisseur }}-${{ inputs.nom }}
+          path: ${{ runner.temp }}/essai
+
+      - name: Verifier le modele reellement utilise
+        env:
+          NOM: ${{ inputs.nom }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
+            const s = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
+            if (s.is_error || s.subtype !== "success") { console.error("::error::Sortie en erreur ou non terminee (subtype=" + s.subtype + ")."); process.exit(1); }
+            const noms = Object.keys(s.modelUsage || {});
+            console.log("Modeles utilises : " + JSON.stringify(noms));
+            if (noms.length === 0) { console.error("::error::modelUsage vide : modele reel non verifiable."); process.exit(1); }
+            const claude = noms.filter(n => /^claude-/i.test(n));
+            if (claude.length) { console.error("::error::Repli silencieux sur un modele Claude : " + claude.join(", ")); process.exit(1); }
+            const norme = x => x.replace(/\[[^\]]*\]$/, "").toLowerCase();
+            if (!noms.some(n => norme(n) === norme(process.env.MODELE))) { console.error("::error::Modele attendu absent (" + process.env.MODELE + ") parmi " + noms.join(", ")); process.exit(1); }
+          '
+
+      - name: Appliquer le correctif
+        env:
+          NOM: ${{ inputs.nom }}
+        run: git apply --index --binary "$RUNNER_TEMP/essai/essai-$NOM.patch"
+
+      - name: Garde des chemins interdits
+        run: |
+          if git diff --cached --no-renames --raw | awk '{print $2}' | grep -Eq '^(120000|160000)$'; then
+            echo "::error::Lien symbolique ou sous-module dans le correctif."; exit 1
+          fi
+          git -c core.quotePath=false diff --cached --no-renames --name-only > "$RUNNER_TEMP/touches.txt"
+          if [ ! -s "$RUNNER_TEMP/touches.txt" ]; then echo "::error::Diff vide : rien n'a ete code."; exit 1; fi
+          if grep -q '^"' "$RUNNER_TEMP/touches.txt"; then echo "::error::Nom de fichier entre guillemets (caracteres speciaux)."; exit 1; fi
+          echo "Fichiers touches :"; cat "$RUNNER_TEMP/touches.txt"
+          # Chemins interdits (insensible a la casse) : CI, conteneurs, migrations, base, secrets, configuration d'outils et de depot,
+          # gardes et pilotage, deploiement, consignes d'agents, dependances, paiement, facturation, authentification, licences,
+          # connexions externes, et la zone interdite de outils/gardes/zone-interdite.mjs (zernio, parcours, mots, guide-reseau).
+          INTERDIT='^(\.github/|\.claude/|\.mcp\.json$|\.npmrc$|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|scripts/echecs-connus\.json$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|src/fournisseurs/.*zernio|src/services/parcours-|src/services/mots-|src/domaine/guide-reseau/|src/components/mots/|src/app/\(studio\)/mots/|tests/zernio/|docs/zernio/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)|(^|/)package\.json$|(^|/)\.git[^/]*|(^|/)(AGENTS|CLAUDE)\.md$|(^|/)(next|vitest|eslint|postcss|playwright[^/.]*)\.config\.[^/]*$|(^|/)tsconfig[^/]*\.json$|parcours-conversation\.ts$|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential'
+          if grep -Eiq "$INTERDIT" "$RUNNER_TEMP/touches.txt"; then
+            echo "::error::Fichier(s) interdit(s) touche(s) :"; grep -Ei "$INTERDIT" "$RUNNER_TEMP/touches.txt"; exit 1
+          fi
+
+      - name: Resume pour le pilote et artefact du correctif valide
+        env:
+          FOURNISSEUR: ${{ inputs.fournisseur }}
+          NOM: ${{ inputs.nom }}
+          FICHE: ${{ inputs.fiche }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
+            const s = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
+            const u = s.usage || {};
+            const sur = x => /^[A-Za-z0-9._:\/\[\]-]{1,80}$/.test(x);
+            const nb = v => Number.isFinite(Number(v)) ? String(Number(v)) : "?";
+            const corps = [
+              "Essai automatique d un modele de code tiers. **Ne pas fusionner sans relecture Opus.**",
+              "",
+              "- Fournisseur : " + process.env.FOURNISSEUR,
+              "- Modele verifie (modelUsage) : " + Object.keys(s.modelUsage || {}).filter(sur).join(", "),
+              "- Jetons entree : " + nb(u.input_tokens) + " ; sortie : " + nb(u.output_tokens) +
+                " ; cache ecrit : " + nb(u.cache_creation_input_tokens) + " ; cache lu : " + nb(u.cache_read_input_tokens),
+              "- Cout indique par la sortie JSON : " + nb(s.total_cost_usd) + " USD (estimation, verifier la console du fournisseur)",
+              "- Duree : " + (nb(s.duration_ms) !== "?" ? Math.round(Number(s.duration_ms) / 1000) + " s" : "?") + " (" + nb(s.num_turns) + " tours)",
+              "",
+              "Consigne :",
+              "",
+              process.env.FICHE.split("\n").map(l => "> " + l).join("\n"),
+              "",
+              "Correctif valide : artefact correctif-valide-" + process.env.FOURNISSEUR + "-" + process.env.NOM + " du run " + process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID
+            ].join("\n");
+            fs.writeFileSync(process.env.RUNNER_TEMP + "/corps-pr.md", corps);
+          '
+          {
+            echo "## Correctif valide : branche a creer par le pilote"
+            echo
+            echo "Branche : essai/$FOURNISSEUR/$NOM"
+            echo "Titre de PR : [essai $FOURNISSEUR] $NOM"
+            echo "Artefact : correctif-valide-$FOURNISSEUR-$NOM (patch + JSON)"
+            echo
+            echo "Corps de PR :"
+            echo
+            echo '~~~markdown'
+            cat "$RUNNER_TEMP/corps-pr.md"
+            echo
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Envoyer le correctif valide
+        uses: actions/upload-artifact@v4
+        with:
+          name: correctif-valide-${{ inputs.fournisseur }}-${{ inputs.nom }}
+          path: |
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.json
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.patch
+          if-no-files-found: error

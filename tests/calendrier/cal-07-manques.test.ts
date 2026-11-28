@@ -74,6 +74,11 @@ describe("CAL-07 · calculerManques", () => {
     expect(m?.message).toContain("texte");
   });
 
+  it("Pinterest sans premier commentaire : ce n'est pas un manque", () => {
+    const l = calculerManques([...igToutesLesJours, entree({ reseau: "pinterest", instant: "2026-11-13T19:00:00+01:00", premierCommentaire: undefined })], { maintenant: MAINTENANT });
+    expect(l.some((m) => m.reseau === "pinterest" && m.code === "commentaire-manquant")).toBe(false);
+  });
+
   it("Instagram sans premier commentaire : manque signalé ; avec commentaire, rien", () => {
     const sans = calculerManques([entree({ id: "x", instant: "2026-11-14T09:45:00+01:00", premierCommentaire: undefined }), ...igToutesLesJours.filter((e) => !e.instant.startsWith("2026-11-14"))], { maintenant: MAINTENANT });
     expect(codes(sans).filter((c) => c.startsWith("instagram"))).toEqual(["instagram:2026-11-14:commentaire-manquant"]);

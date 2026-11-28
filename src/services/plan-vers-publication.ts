@@ -49,9 +49,11 @@ export async function programmerVisuel(d: DepotsPasserelle, creneauId: string, m
     if (autre) throw new Error(`Visuel déjà programmé sur un autre créneau (${autre.id}) : refus, rien d'écrit.`);
   }
 
-  const lignes = identifiantsProgrammation(c);
-  // Pinterest n'est pas programmable depuis ce chemin : un créneau qui ne vise QUE Pinterest est refusé (rien d'écrit, aucun
-  // fournisseur appelé) au lieu de passer « programme » avec 0 Publication. Un créneau mixte ignore Pinterest (`lignes` l'exclut).
+  // Pinterest ne reçoit QUE une épingle, et une épingle ne reçoit QUE Pinterest ; tout autre visuel (carrousel, image…) perd sa ligne Pinterest.
+  const estEpingle = v.famille === "epingle";
+  const lignes = identifiantsProgrammation(c).filter((l) => (l.reseau === "pinterest") === estEpingle);
+  // Un créneau qui ne vise QUE Pinterest avec un visuel non-épingle est refusé (rien d'écrit, aucun fournisseur appelé)
+  // au lieu de passer « programme » avec 0 Publication.
   if (lignes.length === 0 && Boolean((c.heuresParReseau as Record<string, string | undefined>).pinterest)) {
     throw new Error("Pinterest ne peut pas encore être programmé depuis ce chemin : refus, rien d'écrit.");
   }

@@ -1,0 +1,142 @@
+"use client";
+
+/**
+ * Import en lot d'épingles Pinterest (PR 6). Quatre gestes : analyser (à blanc), créer au calendrier (« à valider »),
+ * « Valider ce lot » (avec confirmation). Aucun envoi n'est lancé d'ici : seul le tour du calendrier envoie, plus tard.
+ */
+import { useActionState, useState } from "react";
+import { analyserLotAction, importerLotAction, validerLotAction, type EtatImport } from "@/app/(studio)/calendrier/importer-epingles/actions";
+import { Bouton } from "@/components/ui/Bouton";
+import { envoyerFichier, MESSAGE_ENVOI_RATE } from "@/lib/envoi-multipart";
+import { ApercuEpingle } from "@/components/visuels/ApercuEpingle";
+
+/** Images acceptées pour une épingle (mêmes formats que le lot : nom « .jpg », « .png » ou « .webp »). */
+const IMAGE_EPINGLE = /\.(jpe?g|png|webp)$/i;
+
+const LIBELLES = { pret: "Prête", refusee: "Refusée", "deja-la": "Déjà là", "attente-image": "En attente d'image" } as const;
+
+export function FeuilleImportEpingles({ comptes, jourParDefaut }: { comptes: { id: string; nom: string }[]; jourParDefaut: string }) {
+  const [json, setJson] = useState("");
+  const [analyse, analyser, enAnalyse] = useActionState<EtatImport, FormData>(analyserLotAction, {});
+  const [cree, creer, enCreation] = useActionState<EtatImport, FormData>(importerLotAction, {});
+  const [valide, valider, enValidation] = useActionState<EtatImport, FormData>(validerLotAction, {});
+  const [confirmer, setConfirmer] = useState(false);
+  const [depot, setDepot] = useState<{ fait: number; total: number; nom: string; rates: string[] } | null>(null);
+  const enDepot = !!depot && depot.fait < depot.total;
+
+  // Dépôt des images du lot : chaque fichier va du navigateur au stockage (destination « epingle »),
+  // puis l'analyse le retrouve par son nom. Rien n'est créé au calendrier ici.
+  async function deposerImages(liste: FileList | null) {
+    const fichiers = Array.from(liste ?? []).filter((f) => IMAGE_EPINGLE.test(f.name)).slice(0, 500);
+    if (!fichiers.length || enDepot) return;
+    const rates: string[] = [];
+    for (const [i, f] of fichiers.entries()) {
+      setDepot({ fait: i, total: fichiers.length, nom: f.name, rates: [...rates] });
+      try {
+        await envoyerFichier(f, { typeEntite: "epingle", entiteId: "lot-import" });
+      } catch {
+        rates.push(f.name);
+      }
+    }
+    setDepot({ fait: fichiers.length, total: fichiers.length, nom: "", rates });
+  }
+  const rapport = cree.rapport ?? analyse.rapport;
+  const ids = cree.resultat?.creneauIds ?? [];
+
+  return (
+    <div className="space-y-5">
+      <form className="space-y-3" aria-label="Lot d'épingles">
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Compte Pinterest
+          <select name="compte" required className="min-h-11 rounded-champ border border-trait bg-surface-1 px-3 font-normal text-texte">
+            {comptes.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Jour de départ
+          <input type="date" name="jourDepart" defaultValue={jourParDefaut} required className="min-h-11 rounded-champ border border-trait bg-surface-1 px-3 font-normal text-texte" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Heures de ce lot (vide : celles de la cadence)
+          <input type="text" name="heures" placeholder="08:30 12:30 17:30 21:00" className="min-h-11 rounded-champ border border-trait bg-surface-1 px-3 font-normal text-texte" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Jours exclus (AAAA-MM-JJ, séparés par des espaces)
+          <input type="text" name="joursExclus" className="min-h-11 rounded-champ border border-trait bg-surface-1 px-3 font-normal text-texte" />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-texte-doux"><input type="checkbox" name="alterner" /> Alterner les tableaux</label>
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Le lot (JSON, version 1)
+          <textarea name="json" value={json} onChange={(e) => setJson(e.target.value)} rows={10} required className="rounded-champ border border-trait bg-surface-1 p-3 font-mono text-xs font-normal text-texte" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold text-texte-doux">
+          Images du lot (déposez-les, puis « Analyser » de nouveau)
+          <input type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={enDepot} onChange={(e) => { void deposerImages(e.currentTarget.files); e.currentTarget.value = ""; }} className="min-h-11 rounded-champ border border-trait bg-surface-1 px-3 py-2 font-normal text-texte" />
+        </label>
+        {depot && (
+          <p role="status" className="text-sm text-texte-doux">
+            {enDepot ? `Dépôt des images : ${depot.fait} sur ${depot.total} (${depot.nom})…` : `${depot.total - depot.rates.length} image(s) déposée(s) sur ${depot.total}.`}
+            {!enDepot && depot.rates.length > 0 ? ` ${MESSAGE_ENVOI_RATE} Non envoyées : ${depot.rates.join(", ")}.` : ""}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          <Bouton type="submit" variante="secondaire" formAction={analyser} disabled={enAnalyse || !json.trim()}>Analyser (rien n&apos;est écrit)</Bouton>
+          <Bouton type="submit" variante="principal" formAction={creer} disabled={enCreation || !json.trim()}>Créer les épingles au calendrier</Bouton>
+        </div>
+      </form>
+
+      {(analyse.erreur || cree.erreur) && <p role="alert" className="text-sm text-texte">{analyse.erreur ?? cree.erreur}</p>}
+      {rapport && !rapport.ok && <p role="alert" className="text-sm text-texte">{rapport.erreur}</p>}
+      {rapport?.ok && (
+        <section aria-label="Rapport du lot" className="space-y-2">
+          <p className="text-sm text-texte">
+            {rapport.lus} lues : {rapport.lignes.filter((l) => l.statut === "pret").length} prêtes, {rapport.lignes.filter((l) => l.statut === "deja-la").length} déjà là,{" "}
+            {rapport.lignes.filter((l) => l.statut === "refusee").length} refusées, {rapport.lignes.filter((l) => l.statut === "attente-image").length} en attente d&apos;image.
+          </p>
+          {rapport.imagesAttendues.length > 0 && <p className="text-sm text-texte-doux">Images à déposer avec le lot : {rapport.imagesAttendues.join(", ")}.</p>}
+          {rapport.avertissements.map((a) => <p key={a} className="text-sm text-texte-doux">{a}</p>)}
+          <ul className="space-y-1 text-sm">
+            {rapport.lignes.map((l) => (
+              <li key={l.numero} className="rounded-champ border border-trait bg-surface-1 px-3 py-2">
+                Ligne {l.numero} · {LIBELLES[l.statut]}
+                {l.placement ? ` · ${l.placement.jour} à ${l.placement.heure}` : ""}
+                {l.raisons.length ? ` — ${l.raisons.join(" ; ")}` : ""}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {cree.resultat && ids.length > 0 && (
+        <form action={valider} className="space-y-2" aria-label="Valider ce lot">
+          <section aria-label="Aperçu des épingles du lot" className="space-y-3">
+            <p className="text-sm text-texte-doux">Voici chaque épingle telle qu&apos;elle partira : image, texte alternatif, tableau. Vérifiez avant de valider.</p>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(cree.apercus ?? []).map((a) => (
+                <li key={a.creneauId}>
+                  <ApercuEpingle imageUrl={a.imageUrl} titre={a.titre} description={a.description} texteAlternatif={a.texteAlternatif} lien={a.lien} tableau={a.tableau} contenuIA={a.contenuIA} domaine={a.domaine} />
+                </li>
+              ))}
+            </ul>
+          </section>
+          <input type="hidden" name="creneaux" value={ids.join(",")} />
+          {!confirmer ? (
+            <Bouton type="button" variante="principal" onClick={() => setConfirmer(true)}>Valider ce lot</Bouton>
+          ) : (
+            <>
+              <p className="text-sm text-texte">Valider {cree.resume?.nombre ?? ids.length} épingle(s) du calendrier{cree.resume?.premier ? `, du ${cree.resume.premier} au ${cree.resume.dernier}` : ""} ? Elles seront programmées dans le Studio ; l&apos;envoi se fait ensuite au tour du calendrier.</p>
+              <Bouton type="submit" variante="principal" disabled={enValidation}>Oui, valider {ids.length} épingle(s)</Bouton>
+            </>
+          )}
+        </form>
+      )}
+      {valide.erreur && <p role="alert" className="text-sm text-texte">{valide.erreur}</p>}
+      {valide.validation && (
+        <p className="text-sm text-texte">
+          {valide.validation.valides} validée(s), {valide.validation.ignores} ignorée(s), {valide.validation.erreurs.length} en erreur.
+          {valide.validation.premier ? ` Du ${valide.validation.premier} au ${valide.validation.dernier}.` : ""}
+        </p>
+      )}
+    </div>
+  );
+}

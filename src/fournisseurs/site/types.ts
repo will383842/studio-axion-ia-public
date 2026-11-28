@@ -16,6 +16,9 @@ export interface ReponsePublication {
   inchange: boolean;
 }
 
+/** Motifs de retrait acceptés par le site. */
+export type MotifRetrait = "obsolete" | "erreur" | "demande_tiers" | "autre";
+
 export interface ReponseRetrait {
   /** « inconnue » : le site ne connaissait pas cette vidéo (traité comme un succès, idempotent). */
   statut: "retiree" | "inconnue";
@@ -23,15 +26,15 @@ export interface ReponseRetrait {
 
 export interface FournisseurSite extends FournisseurBase {
   type: "site";
-  /** `GET /api/interne/videos/reglages` — jamais une copie : les vrais réglages du site. */
+  /** `GET /api/interne/reglages-publics` — jamais une copie : les vrais réglages du site. */
   lireReglages(): Promise<ReglagesDuSite>;
   /** `POST /api/interne/videos` — idempotent par (idStudio, versionPasseport). */
   publier(corps: CorpsPasseport): Promise<ReponsePublication>;
-  /** `DELETE /api/interne/videos/<idStudio>` — 200 ou 404 = succès. */
-  retirer(idStudio: string): Promise<ReponseRetrait>;
+  /** `DELETE /api/interne/videos` avec un corps {schemaVersion, studioVideoId, motif} — 200 ou 404 « video_inconnue » = succès. */
+  retirer(idStudio: string, motif?: MotifRetrait): Promise<ReponseRetrait>;
 }
 
-export type CodeErreurSite = "signature" | "conflit" | "invalide" | "retiree" | "injoignable" | "serveur";
+export type CodeErreurSite = "signature" | "conflit" | "invalide" | "retiree" | "injoignable" | "serveur" | "route-absente" | "eteinte";
 
 /** Refus ou panne du site, en phrase simple (jamais le texte brut du site à l'écran). */
 export class ErreurSite extends Error {

@@ -6,6 +6,7 @@
  *   Vidéos et carrousels ont chacun leur classement ; ils ne sont jamais comparés entre eux.
  * - Une donnée absente est « non disponible », jamais un zéro. Un vrai zéro (aucune publication) reste un zéro.
  */
+import { nomDuReseau } from "@/reseaux/hors-video";
 import { ajouterJoursParis, instantParis } from "@/lib/horloge-paris";
 import { lundiDeLaSemaine } from "@/lib/calendrier-plages";
 import { formateurDate } from "@/lib/intl";
@@ -53,15 +54,7 @@ export interface EntreeBilan {
   contenus: readonly ContenuMesure[];
 }
 
-const NOMS_RESEAUX: Readonly<Record<string, string>> = {
-  tiktok: "TikTok",
-  instagram: "Instagram",
-  facebook: "Facebook",
-  linkedin: "LinkedIn",
-  youtube: "YouTube",
-  "youtube-shorts": "YouTube Shorts",
-};
-const nomReseau = (r: string) => NOMS_RESEAUX[r] ?? r;
+const nomReseau = (r: string) => nomDuReseau(r);
 
 const ND = "non disponible";
 

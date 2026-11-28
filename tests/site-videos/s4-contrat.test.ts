@@ -55,8 +55,8 @@ describe("S4.1 exemples du contrat (docs/site-videos/contrat/)", () => {
 
   it("les réponses d'exemple viennent du site factice (mêmes clés que le contrat)", async () => {
     const e = await construireExemples();
-    expect(Object.keys(JSON.parse(e["reponse-publication.exemple.json"]))).toEqual(["statut", "slug", "url", "versionPasseport", "inchange"]);
-    expect(JSON.parse(e["reponse-retrait.exemple.json"])).toEqual({ statut: "retiree" });
-    expect(Object.keys(JSON.parse(e["reglages.exemple.json"]))).toEqual(["versionContrat", "certifexempleCertificationObtenue", "avisPublies"]);
+    expect(Object.keys(JSON.parse(e["reponse-publication.exemple.json"]))).toEqual(["ok", "statut", "slug", "url", "version", "rejeu"]);
+    expect(JSON.parse(e["reponse-retrait.exemple.json"])).toEqual({ ok: true, statut: "retiree", slug: "automatiser-ses-devis-en-10-minutes", rejeu: false });
+    expect(Object.keys(JSON.parse(e["reglages.exemple.json"]))).toEqual(["schemaVersion", "luLe", "certifexempleCertificationObtenue", "avisPublies"]);
   });
 });

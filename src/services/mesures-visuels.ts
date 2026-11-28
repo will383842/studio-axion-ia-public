@@ -3,7 +3,7 @@
  * aucune notification, aucun réglage lu : les chiffres des carrousels arrivent par les relevés déjà enregistrés.
  */
 import "server-only";
-import { carrouselCommeVideoMesuree, classerCarrousels, estReseauClasse, etatMesurePublication, type ClassementCarrousels } from "@/domaine/mesures-visuels";
+import { carrouselCommeVideoMesuree, classerCarrousels, estReseauMesureVisuel, etatMesurePublication, type ClassementCarrousels } from "@/domaine/mesures-visuels";
 import { estMesuree, type VideoMesuree } from "@/domaine/mesures-rangs";
 import type { Publication } from "@/domaine/types";
 import { depots, filtreExemples } from "./_commun";
@@ -30,7 +30,7 @@ export async function ceQuiMarcheVisuels(maintenant: Date = new Date()): Promise
   const mesures: VideoMesuree[] = [];
   for (const p of publications) {
     const visuel = await d.visuels.obtenir(p.visuelId!);
-    if (!visuel || visuel.corbeilleLe || !estReseauClasse(p.reseau)) continue;
+    if (!visuel || visuel.corbeilleLe || !estReseauMesureVisuel(p.reseau)) continue;
     const etat = etatMesurePublication(p, maintenant);
     if (etat === "mesure") etats.mesure++;
     else if (etat === "pas-encore") etats.pasEncore++;

@@ -14,12 +14,13 @@ import { Icone } from "@/components/ui/Icone";
 import { cn } from "@/lib/cn";
 import { plageSemaine } from "@/lib/calendrier-plages";
 import { RESEAUX_CALENDRIER } from "./BarreFiltres";
-import { MonogrammeReseau, estBrouillonDiffuseur, TYPES_CONTENU, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
+import { MonogrammeReseau, estBrouillonDiffuseur, typeAffiche, trierEntrees, heureLisible, jourLisible, reseauConnu, styleReseau, type EntreeCarte } from "./CarteEntreeCalendrier";
 import { GrilleSemaine } from "./GrilleSemaine";
 import { PHRASES_VERROU, lireCleFiche, verrouFiche } from "./FicheEntree";
 import { LIBELLES_ENVOI, PHRASE_LECTURE_SEULE_DIFFUSEUR, adresseDiffuseurSure, PHRASE_DEPUIS_LA_VIDEO, apercuReseau, deplacerEntree, entreeVoisine, extraireHashtags, type EntreeApercu } from "./apercu-reseau";
 import { AlerteDureeReseau } from "@/components/publication/AlerteDureeReseau";
 import { ApercuMedia } from "./ApercuMedia";
+import { ApercuEpingle } from "@/components/visuels/ApercuEpingle";
 import { PastilleStatutPlan } from "./PastilleStatutPlan";
 import { PretAPartir } from "./PretAPartir";
 import { RetirerDuCalendrier } from "./RetirerDuCalendrier";
@@ -84,7 +85,7 @@ const BOUTON = "min-h-[38px] rounded-[10px] border border-trait-fort bg-surface-
 export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante, onFermer, onChangerDate, message, tonMessage = "alerte", mots }: ProprietesApercuPublication): ReactNode {
   if (!entree) return null;
   const a = apercuReseau(entree, aujourdhui);
-  const type = TYPES_CONTENU[entree.type] ?? TYPES_CONTENU.video;
+  const type = typeAffiche(entree.reseau, entree.type);
   const nom = a.nomReseau;
   // Retrait : seulement une publication de carrousel « programmée », à venir (le serveur refuse le reste).
   // CAL-23 : une entrée de créneau programmée (chez le diffuseur) se retire par l'action de CAL-22 ; l'ancien geste local reste pour les autres.
@@ -110,7 +111,14 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
     else if (e.key === "ArrowLeft") onPrecedente();
   };
 
-  const visuel = (
+  // Épingle Pinterest : l'aperçu dédié (image 2:3, texte alternatif, tableau, lien vérifié comme à l'envoi) remplace le visuel générique.
+  const ep = entree.reseau === "pinterest" ? entree.epingle : undefined;
+  const tableau = (entree.canalNom ?? "").split(" · ").slice(1).join(" · ").trim() || entree.canalNom || "—";
+  const visuel = ep ? (
+    <div className="my-2">
+      <ApercuEpingle imageUrl={ep.imageUrl} titre={ep.titre} description={entree.texte ?? ""} texteAlternatif={ep.texteAlternatif} lien={ep.lien} tableau={tableau} contenuIA={ep.contenuIA} domaine={ep.domaine} />
+    </div>
+  ) : (
     <div className="relative my-2 grid min-h-[160px] place-items-center overflow-hidden rounded-[10px] border border-trait bg-surface-3 text-center text-sm font-bold text-texte-doux">
       {chez ? (
         entree.vignette ? <VignetteDiffuseur key={entree.cle} src={entree.vignette} alt={`Image du post ${nom} ${estBrouillonDiffuseur(entree.etat) ? "brouillon chez le diffuseur" : "programmé chez le diffuseur"}`} taille={320} grande /> : <span>Pas d&apos;image sur ce post</span>
@@ -128,7 +136,7 @@ export function ApercuPublication({ entree, aujourdhui, onPrecedente, onSuivante
       )}
     </div>
   );
-  const texte = (
+  const texte = ep ? null : (
     <p className="my-2 whitespace-pre-line text-sm text-texte">{a.texte || "Texte à écrire."}</p>
   );
 

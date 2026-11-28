@@ -75,7 +75,13 @@ export interface OptionsPromotionEnvois {
   suivi?: SuiviDebitImport;
   etats: EtatsPromotion;
   notifier: (n: NotificationPromotion) => Promise<void>;
+  /** Pinterest : tableau voulu, relu dans la Publication de la clé d'envoi (« compte:pin:tableau »). Défaut : lecture des publications. */
+  tableauAttendu?: (cleEnvoi: string) => Promise<string | undefined>;
 }
+
+/** Tableau Pinterest d'une cible « compte:pin:<id> » ; undefined sinon. */
+export const tableauDeLaCible = (canalId: string | undefined): string | undefined => /^[^:]+:pin:(\d{1,24})$/.exec(canalId ?? "")?.[1];
+
 
 const cleVerifier = (cle: string): string => `a-verifier:${cle}`;
 const cleNotifie = (e: EnvoiPlanifie): string => `a-reprogrammer:${e.cle}:${e.jour}:${e.heure ?? ""}`;
@@ -229,7 +235,9 @@ export async function promouvoirEnvoisPlanifies(o: OptionsPromotionEnvois): Prom
       const attente = suivi.delaiAvant(o.maintenant());
       if (attente > 0) await attendre(attente);
       for (let i = 0; i < 3; i++) suivi.noterRequete(o.maintenant()); // GET avant + PUT + GET après
-      const r = await o.client.promouvoir({ postId: post._id, cleJournal: e.cleDiffuseur ?? e.cle, dateJournal: new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z") });
+      const cleJournal = e.cleDiffuseur ?? e.cle;
+      const tableauAttendu = reseau === "pinterest" ? await o.tableauAttendu?.(cleJournal) : undefined;
+      const r = await o.client.promouvoir({ postId: post._id, cleJournal, dateJournal: new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z"), ...(tableauAttendu ? { tableauAttendu } : {}) });
       suivi.noterOperation(compte, o.maintenant());
       if (r.etat === "programme") {
         await transiterEnvoi(o.depot, e.id, "programme", new Date(o.maintenant()).toISOString());
