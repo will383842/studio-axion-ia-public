@@ -39,6 +39,8 @@ function corps(surcharge: Partial<CorpsPasseport> = {}): CorpsPasseport {
   };
 }
 
+const retrait = (studioVideoId: string) => ({ schemaVersion: 1, studioVideoId, motif: "obsolete" });
+
 function fabrique() {
   let maintenant = T0;
   const site = creerSiteFactice({ secret: SECRET, maintenant: () => maintenant });
@@ -55,13 +57,13 @@ async function appeler(f: ReturnType<typeof creerSiteFactice>, methode: "GET" | 
 describe("S3.1 signature", () => {
   it("une signature juste passe", async () => {
     const { site } = fabrique();
-    const r = await appeler(site, "GET", "/api/interne/videos/reglages");
+    const r = await appeler(site, "GET", "/api/interne/reglages-publics");
     expect(r.statut).toBe(200);
-    expect(r.corps).toMatchObject({ versionContrat: 1, certifexempleCertificationObtenue: false, avisPublies: false });
+    expect(r.corps).toMatchObject({ schemaVersion: 1, certifexempleCertificationObtenue: false, avisPublies: false });
   });
   it("une signature fausse est refusée (401), un secret différent aussi", async () => {
     const { site } = fabrique();
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { secret: "autre-secret" })).statut).toBe(401);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { secret: "autre-secret" })).statut).toBe(401);
   });
   it("un corps modifié d'un octet après la signature est refusé", async () => {
     const { site } = fabrique();
@@ -71,18 +73,18 @@ describe("S3.1 signature", () => {
   it("un horodatage de plus de 5 minutes est refusé (avant comme après)", async () => {
     const { site } = fabrique();
     const s = Math.floor(T0 / 1000);
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { horodatageSec: s - 301 })).statut).toBe(401);
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { horodatageSec: s + 301 })).statut).toBe(401);
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { horodatageSec: s - 299 })).statut).toBe(200);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { horodatageSec: s - 301 })).statut).toBe(401);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { horodatageSec: s + 301 })).statut).toBe(401);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { horodatageSec: s - 299 })).statut).toBe(200);
   });
   it("un nonce rejoué est refusé, puis oublié après 10 minutes", async () => {
     const { site, avancer } = fabrique();
     const nonce = "a".repeat(32);
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { nonce })).statut).toBe(200);
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { nonce })).statut).toBe(401);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { nonce })).statut).toBe(200);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { nonce })).statut).toBe(401);
     avancer(11 * 60 * 1000);
     const s = Math.floor((T0 + 11 * 60 * 1000) / 1000);
-    expect((await appeler(site, "GET", "/api/interne/videos/reglages", undefined, { nonce, horodatageSec: s })).statut).toBe(200);
+    expect((await appeler(site, "GET", "/api/interne/reglages-publics", undefined, { nonce, horodatageSec: s })).statut).toBe(200);
   });
   it("la chaîne signée porte l'horodatage, le nonce, la méthode, le chemin et le hash du corps", () => {
     expect(chaineASigner({ horodatage: "1760000000", nonce: "ab", methode: "POST", chemin: "/api/interne/videos", sha256Corps: "cd" })).toBe("v1\n1760000000\nab\nPOST\n/api/interne/videos\ncd");
@@ -93,10 +95,11 @@ describe("S3.1 publication", () => {
   it("rejeu de la même version : « inchangé », une seule page", async () => {
     const { site } = fabrique();
     const a = await appeler(site, "POST", "/api/interne/videos", corps());
-    expect(a.statut).toBe(200);
-    expect(a.corps).toMatchObject({ statut: "publiee", slug: "automatiser-ses-devis", versionPasseport: 1, inchange: false, url: "https://site-factice.invalid/fr/videos/automatiser-ses-devis" });
+    expect(a.statut).toBe(201);
+    expect(a.corps).toMatchObject({ ok: true, statut: "publiee", slug: "automatiser-ses-devis", version: 1, rejeu: false, url: "https://site-factice.invalid/fr/videos/automatiser-ses-devis" });
     const b = await appeler(site, "POST", "/api/interne/videos", corps());
-    expect(b.corps).toMatchObject({ inchange: true, url: (a.corps as { url: string }).url });
+    expect(b.statut).toBe(200);
+    expect(b.corps).toMatchObject({ rejeu: true, url: (a.corps as { url: string }).url });
     expect(site.pages.size).toBe(1);
     expect(site.appels.publier).toBe(2);
   });
@@ -110,7 +113,7 @@ describe("S3.1 publication", () => {
     const a = await appeler(site, "POST", "/api/interne/videos", corps());
     avancer(60_000);
     const b = await appeler(site, "POST", "/api/interne/videos", corps({ versionPasseport: 2, slugPropose: "un-autre-slug" }));
-    expect(b.corps).toMatchObject({ versionPasseport: 2, inchange: false, url: (a.corps as { url: string }).url });
+    expect(b.corps).toMatchObject({ version: 2, rejeu: false, url: (a.corps as { url: string }).url });
     const page = site.pages.get("vid_1")!;
     expect(page.version).toBe(2);
     expect(page.modifieLe).not.toBe(site.pages.get("vid_1")!.cree);
@@ -119,7 +122,7 @@ describe("S3.1 publication", () => {
     const { site } = fabrique();
     const r = await appeler(site, "POST", "/api/interne/videos", corps({ titre: "" }));
     expect(r.statut).toBe(422);
-    expect((r.corps as { erreurs: string[] }).erreurs.length).toBeGreaterThan(0);
+    expect((r.corps as { champs: string[] }).champs.length).toBeGreaterThan(0);
   });
   it("deux vidéos qui proposent le même slug ont deux adresses", async () => {
     const { site } = fabrique();
@@ -135,21 +138,23 @@ describe("S3.1 retrait", () => {
     const { site } = fabrique();
     await appeler(site, "POST", "/api/interne/videos", corps());
     expect(site.statutPage("vid_1")).toBe(200);
-    expect((await appeler(site, "DELETE", "/api/interne/videos/vid_1")).corps).toEqual({ statut: "retiree" });
+    expect((await appeler(site, "DELETE", "/api/interne/videos", retrait("vid_1"))).corps).toMatchObject({ ok: true, statut: "retiree", rejeu: false });
     expect(site.statutPage("vid_1")).toBe(410);
-    expect((await appeler(site, "DELETE", "/api/interne/videos/vid_1")).statut).toBe(200);
+    expect((await appeler(site, "DELETE", "/api/interne/videos", retrait("vid_1"))).corps).toMatchObject({ rejeu: true });
   });
   it("une vidéo jamais connue : 404 chez le site", async () => {
     const { site } = fabrique();
-    expect((await appeler(site, "DELETE", "/api/interne/videos/vid_inconnue")).statut).toBe(404);
+    const r = await appeler(site, "DELETE", "/api/interne/videos", retrait("vid_inconnue"));
+    expect(r.statut).toBe(404);
+    expect(r.corps).toMatchObject({ ok: false, erreur: "video_inconnue" });
     expect(site.statutPage("vid_inconnue")).toBe(404);
   });
   it("republier après un retrait est possible, même adresse", async () => {
     const { site } = fabrique();
     const a = await appeler(site, "POST", "/api/interne/videos", corps());
-    await appeler(site, "DELETE", "/api/interne/videos/vid_1");
+    await appeler(site, "DELETE", "/api/interne/videos", retrait("vid_1"));
     const b = await appeler(site, "POST", "/api/interne/videos", corps());
-    expect(b.corps).toMatchObject({ inchange: false, url: (a.corps as { url: string }).url });
+    expect(b.corps).toMatchObject({ rejeu: false, url: (a.corps as { url: string }).url });
     expect(site.statutPage("vid_1")).toBe(200);
   });
 });

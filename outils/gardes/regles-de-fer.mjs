@@ -48,6 +48,8 @@ export const EXCEPTIONS = {
     "src/services/tableau-scripts/index.ts": 1
   },
   "purge": {
+    // Robot crédits B (PR #1793, accord de Will le 28/11) : efface le dossier de travail jetable du runner et le dossier du relais, jamais des données.
+    ".github/workflows/claude-credit-api.yml": 3,
     "outils/maquettes-variete/rendre.mjs": 1,
     "outils/maquettes-variete/serveur.sh": 3,
     "src/app/(studio)/bibliotheque/actions.ts": 1,
@@ -82,6 +84,8 @@ export const EXCEPTIONS = {
     "src/visuels/services/corbeille.ts": 5
   },
   "push": {
+    // Robot crédits B (PR #1793, accord de Will le 28/11) : seul le job « pousser », sans la clé, pousse des branches robot/* après balayage.
+    ".github/workflows/claude-credit-api.yml": 1,
     "src/components/coquille/EnregistrementPwa.tsx": 3,
     "src/fournisseurs/catalogue.ts": 1,
     "src/fournisseurs/notification/inscription.ts": 3,

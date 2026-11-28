@@ -12,11 +12,15 @@ export type VerdictTexteAlternatif = { ok: true } | { ok: false; erreurs: Erreur
 
 const MOTS_INTERDITS = /qualiopi|certifi/i;
 
-export function longueurAltMax(reseau: Reseau): number {
+/** Pinterest : 500 signes (ADR-0015), la borne de référence des autres réseaux ne s'y applique pas. */
+export const ALT_MAX_PINTEREST = 500;
+
+export function longueurAltMax(reseau: Reseau | "pinterest"): number {
+  if (reseau === "pinterest") return ALT_MAX_PINTEREST;
   return Math.min(PROFILS_RESEAUX[reseau].altMax, ALT_MAX_REFERENCE.valeur);
 }
 
-export function verifierTexteAlternatif(alt: string, reseau: Reseau): VerdictTexteAlternatif {
+export function verifierTexteAlternatif(alt: string, reseau: Reseau | "pinterest"): VerdictTexteAlternatif {
   const erreurs: ErreurTexteAlternatif[] = [];
   const texte = alt.trim();
   if (texte.length === 0) erreurs.push("alt-vide");

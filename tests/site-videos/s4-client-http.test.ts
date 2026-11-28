@@ -48,10 +48,11 @@ describe("S4.11 le client réel contre le site factice", () => {
     expect(a.entetes["content-type"]).toBe("application/json");
     expect(JSON.parse(a.corps).idStudio).toBe("vid_exemple");
     await client.retirer("vid_exemple");
-    expect(appels[1].url).toBe(`${BASE}/api/interne/videos/vid_exemple`);
+    expect(appels[1].url).toBe(`${BASE}/api/interne/videos`);
     expect(appels[1].methode).toBe("DELETE");
+    expect(JSON.parse(appels[1].corps)).toEqual({ schemaVersion: 1, studioVideoId: "vid_exemple", motif: "obsolete" });
     await client.lireReglages();
-    expect(appels[2].url).toBe(`${BASE}/api/interne/videos/reglages`);
+    expect(appels[2].url).toBe(`${BASE}/api/interne/reglages-publics`);
     expect(appels[2].methode).toBe("GET");
   });
 
@@ -63,7 +64,7 @@ describe("S4.11 le client réel contre le site factice", () => {
       return factice.fetch(url, init);
     }) as typeof fetch;
     await creerFournisseurSiteHttp({ url: `${BASE}/`, secret: SECRET, fetch: f, maintenant: () => T0 }).lireReglages();
-    expect(vues[0]).toBe(`${BASE}/api/interne/videos/reglages`);
+    expect(vues[0]).toBe(`${BASE}/api/interne/reglages-publics`);
   });
 
   it("chaque appel porte un nonce neuf", async () => {

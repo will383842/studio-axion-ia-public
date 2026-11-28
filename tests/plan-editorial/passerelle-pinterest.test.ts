@@ -1,6 +1,6 @@
 /**
- * Pinterest : un créneau visuel qui ne vise QUE Pinterest est refusé par `programmerVisuel` (rien d'écrit, aucun fournisseur).
- * Un créneau mixte programme les autres réseaux et ignore Pinterest. Dépôts en mémoire, données fictives.
+ * Pinterest : seule une épingle (famille « epingle ») a une Publication Pinterest, et elle n'a QUE celle-là.
+ * Un carrousel (ou autre) ignore Pinterest ; un créneau qui ne vise que Pinterest avec un non-épingle est refusé (rien d'écrit, aucun fournisseur). Dépôts en mémoire, données fictives.
  */
 import { describe, expect, it, vi } from "vitest";
 import type { Depot, JournalDecalage } from "@/domaine/depots";
@@ -25,9 +25,9 @@ function faux<T extends { id: string }>(): Depot<T> {
 }
 const T0 = "2026-11-20T10:00:00.000Z";
 
-async function monter(heures: Record<string, string>) {
+async function monter(heures: Record<string, string>, famille = "carrousel") {
   const d: DepotsPasserelle = { creneaux: faux<CreneauPlan>(), journal: faux<JournalDecalage>(), publications: faux<Publication>(), visuels: faux<Visuel>() };
-  await d.visuels.enregistrer({ id: "vis_1", titre: "Visuel fictif", statut: "valide" } as unknown as Visuel);
+  await d.visuels.enregistrer({ id: "vis_1", titre: "Visuel fictif", statut: "valide", famille } as unknown as Visuel);
   await d.creneaux.enregistrer({
     id: "c1", jourVise: "2026-11-25", compteCible: "compte-fictif-1", visuelId: "vis_1", statut: "valide", decalages: 0,
     heuresParReseau: heures,
@@ -48,11 +48,19 @@ describe("programmerVisuel et Pinterest", () => {
     fetchEspion.mockRestore();
   });
 
-  it("un créneau mixte programme seulement les réseaux hors Pinterest", async () => {
+  it("(a) créneau mixte carrousel + heure Pinterest : aucune Publication Pinterest, les autres réseaux inchangés", async () => {
     const d = await monter({ pinterest: "2026-11-25T09:00:00.000Z", linkedin: "2026-11-25T08:30:00.000Z", instagram: "2026-11-25T16:00:00.000Z" });
     const pubs = await programmerVisuel(d, "c1", T0);
     expect(pubs.map((p) => p.reseau).sort()).toEqual(["instagram", "linkedin"]);
     expect((await d.publications.lister()).map((p) => p.reseau).sort()).toEqual(["instagram", "linkedin"]);
+    expect((await d.creneaux.obtenir("c1"))?.statut).toBe("programme");
+  });
+
+  it("(b) une épingle : exactement 1 Publication Pinterest, aucun autre réseau même si le créneau porte d'autres heures", async () => {
+    const d = await monter({ pinterest: "2026-11-25T09:00:00.000Z", instagram: "2026-11-25T16:00:00.000Z", facebook: "2026-11-25T17:00:00.000Z" }, "epingle");
+    const pubs = await programmerVisuel(d, "c1", T0);
+    expect(pubs.map((p) => p.reseau)).toEqual(["pinterest"]);
+    expect((await d.publications.lister()).map((p) => p.reseau)).toEqual(["pinterest"]);
     expect((await d.creneaux.obtenir("c1"))?.statut).toBe("programme");
   });
 });

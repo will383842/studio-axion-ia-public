@@ -14,12 +14,17 @@ beforeAll(async () => {
   await preparerMotDePasse(MDP_SITE);
 });
 beforeEach(async () => {
+  // Horloge figée : la démo est relative (« il y a 60 jours »…) et ne doit pas tomber dans les semaines d'octobre testées.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-26T10:00:00.000Z") });
   await preparerBase();
   vi.stubGlobal("fetch", async () => {
     throw new Error("réseau interdit");
   });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 async function poser(id: string, date: string, videoId: string) {
   await depots().publications.enregistrer({ id, videoId, reseau: "tiktok", statut: "programmee", via: "manuel", date, texte: "t", creeLe: date, modifieLe: date } as never);

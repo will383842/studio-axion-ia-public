@@ -1,9 +1,10 @@
 import "server-only";
 import { lireCleFiche } from "@/components/calendrier/FicheEntree";
-import { entreeDepuisPublication, type EntreeApercu, type PublicationApercu } from "@/components/calendrier/apercu-reseau";
+import { entreeDepuisPublication, type DonneesEpingle, type EntreeApercu, type PublicationApercu } from "@/components/calendrier/apercu-reseau";
 import { LIMITE_PAGES } from "@/services/pdf-pages";
 import { DUREE_LECTURE_SEC } from "@/services/medias-deposes";
-import { depots, fournisseur } from "@/services/_commun";
+import { depots, fournisseur, lireParametre } from "@/services/_commun";
+import { BASE_PUBLIQUE } from "@/domaine/site-videos/contrat";
 import type { CreneauEditorial } from "@/domaine/plan-editorial/types";
 
 /** Seules les adresses https ou les chemins du Studio (jamais « // », jamais « javascript: ») sont gardées. */
@@ -25,6 +26,28 @@ async function pagesDuVisuel(visuelId: string): Promise<MediaVisuel> {
   // Une page illisible n'empêche pas les autres.
   const signees = await Promise.all(cles.map((cle) => signer(cle).catch(() => "")));
   return { type, pages: signees.filter((a) => typeof a === "string" && ADRESSE_SURE.test(a)) };
+}
+
+/** Domaine exigé à l'envoi d'une épingle : même réglage et même défaut que l'import en lot. */
+export async function domaineDuSite(): Promise<string> {
+  const v = await lireParametre<unknown>("site.domaine", new URL(BASE_PUBLIQUE).host).catch(() => "");
+  return typeof v === "string" ? v : "";
+}
+
+/** Données d'aperçu d'un visuel « épingle » : image signée (ou absente), texte alternatif, titre, lien. Null si ce n'est pas une épingle. */
+export async function epingleDuVisuel(visuelId: string, domaine: string): Promise<DonneesEpingle | null> {
+  const visuel = await depots().visuels.obtenir(visuelId);
+  const e = visuel?.famille === "epingle" ? visuel.epingle : undefined;
+  if (!e) return null;
+  let imageUrl: string | null = null;
+  try {
+    const stockage = await fournisseur("stockage");
+    const a = stockage.urlLectureDuree ? await stockage.urlLectureDuree(e.image.cle, DUREE_LECTURE_SEC) : await stockage.urlLecture(e.image.cle);
+    imageUrl = typeof a === "string" && ADRESSE_SURE.test(a) ? a : null;
+  } catch {
+    imageUrl = null;
+  }
+  return { imageUrl, titre: e.titre, texteAlternatif: e.texteAlternatif, lien: e.lien, contenuIA: e.contenuIA === true, domaine };
 }
 
 const dateParis = (iso: string): string => {
@@ -93,6 +116,14 @@ export async function entreesAvecMedias(semaine: PublicationApercu[]): Promise<E
     const base: EntreeApercu = cleFiche?.origine === "creneau" && cleFiche.id === essaiId ? { ...sansPastille, essai: true, ...(essaiLu?.expire ? { essaiExpire: true } : {}) } : sansPastille;
     if (p.videoId) return avecDuree(base, p.videoId);
     if (!p.visuelId) return base;
+    if (p.reseau === "pinterest") {
+      try {
+        const epingle = await epingleDuVisuel(p.visuelId, await domaineDuSite());
+        if (epingle) return { ...base, type: "image", epingle, vignette: epingle.imageUrl ?? undefined };
+      } catch {
+        return base;
+      }
+    }
     try {
       let attente = memo.get(p.visuelId);
       if (!attente) {

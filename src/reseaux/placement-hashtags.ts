@@ -8,7 +8,7 @@
  */
 import type { IdReseau } from "@/domaine/types";
 import { ecritureReseau } from "./ecriture";
-import { definitionAffichage } from "./hors-video";
+import { definitionAffichage, nomDuReseau } from "./hors-video";
 import { estInterdit, limiteMotsDieses } from "./hashtags";
 import { premierCommentaireTransmissible } from "@/fournisseurs/publication/buffer";
 import { premierCommentaireTransmissibleZernio } from "@/fournisseurs/publication/zernio-corps";
@@ -96,7 +96,6 @@ function bornes(reseau: IdReseau): [number, number] {
   return [min, typeof limite === "number" ? Math.min(max, limite) : max];
 }
 
-const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok" };
 
 export function placerHashtags(e: EntreePlacement): SortiePlacement {
   const messages: string[] = [];
@@ -112,7 +111,9 @@ export function placerHashtags(e: EntreePlacement): SortiePlacement {
 
   if (mots.length > max) {
     // Jamais de coupe silencieuse : le texte de la personne garde tous ses mots-dièse, seul le message avertit.
-    messages.push(`${mots.length} mots-dièse : ${max} au plus pour ce réseau, tous sont gardés, à vous de les réduire.`);
+    messages.push(max === 0
+      ? `${mots.length} mot${mots.length > 1 ? "s" : ""}-dièse : on n'en met pas sur ce réseau, tous sont gardés, à vous de les retirer.`
+      : `${mots.length} mots-dièse : ${max} au plus pour ce réseau, tous sont gardés, à vous de les réduire.`);
   } else if (mots.length < min) {
     messages.push(`${mots.length} mot${mots.length > 1 ? "s" : ""}-dièse : ${min} au moins pour ce réseau.`);
   }
@@ -131,7 +132,7 @@ export function placerHashtags(e: EntreePlacement): SortiePlacement {
   }
   sortie.texte = e.texte ? `${e.texte}\n\n${ligne}` : ligne;
   if (e.placement === "premier-commentaire") {
-    const nom = NOMS[e.reseau] ?? e.reseau;
+    const nom = nomDuReseau(e.reseau);
     sortie.repli =
       e.reseau === "tiktok"
         ? "TikTok n'accepte pas de premier commentaire : vos hashtags restent à la fin du texte."

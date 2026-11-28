@@ -1,3 +1,4 @@
+import { nomDuReseau } from "@/reseaux/hors-video";
 import { Icone } from "@/components/ui/Icone";
 import { controlerPretAPartir, type CodeControle, type OptionsControle, type PublicationAControler } from "@/services/pret-a-partir";
 
@@ -16,16 +17,14 @@ const A_VERIFIER: Partial<Record<CodeControle, string>> = {
   mot: "Le mot à commenter est à vérifier à la main.",
 };
 
-const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts" };
-
 /** Liste « Prêt à partir ? » du tiroir : ce qui manque, réseau par réseau. Informe, n'empêche rien. */
 export function PretAPartir({ publications, mots, onCopier, averifier = [] }: ProprietesPretAPartir) {
   const blocs = publications.map((p) => ({
     p,
     lignes: [
       ...controlerPretAPartir(p, { mots }).filter((l) => !averifier.includes(l.code)),
-      // Pas de premier commentaire sur TikTok : rien à vérifier de ce côté.
-      ...averifier.filter((code) => A_VERIFIER[code] && !(code === "premier-commentaire" && p.reseau === "tiktok")).map((code) => ({ code, message: A_VERIFIER[code] as string, copier: undefined as string | undefined })),
+      // Pas de premier commentaire sur TikTok ni sur Pinterest : rien à vérifier de ce côté.
+      ...averifier.filter((code) => A_VERIFIER[code] && !(code === "premier-commentaire" && (p.reseau === "tiktok" || p.reseau === "pinterest"))).map((code) => ({ code, message: A_VERIFIER[code] as string, copier: undefined as string | undefined })),
     ],
   }));
   return (
@@ -34,7 +33,7 @@ export function PretAPartir({ publications, mots, onCopier, averifier = [] }: Pr
       {blocs.every((b) => b.lignes.length === 0) && <p className="text-texte-doux">Tout est prêt : rien ne manque.</p>}
       {blocs.filter((b) => b.lignes.length > 0).map(({ p, lignes }) => (
         <div key={p.reseau} data-reseau={p.reseau} className="mb-2 last:mb-0">
-          <h4 className="font-bold">{NOMS[p.reseau] ?? p.reseau}</h4>
+          <h4 className="font-bold">{nomDuReseau(p.reseau)}</h4>
           <ul className="mt-1 space-y-1">
             {lignes.map((l) => (
               <li key={l.code} className="flex items-start gap-1.5 text-texte-doux">

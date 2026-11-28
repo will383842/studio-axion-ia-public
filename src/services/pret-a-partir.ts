@@ -4,6 +4,7 @@
  * `bloquant` vaut toujours false, rien n'empêche l'ajout ni (sauf fichier absent ou refusé par le réseau) la validation.
  * Les mots actifs sont fournis par l'appelant (lecture de src/services/mots-lecture.ts) ; sans eux : « à vérifier à la main ».
  */
+import { nomDuReseau } from "@/reseaux/hors-video";
 import { verifierFormat, type MediaDecrit } from "@/domaine/calendrier/formats-media";
 import type { IdReseau } from "@/domaine/types";
 
@@ -43,7 +44,6 @@ export interface OptionsControle {
   mots?: readonly MotActifLu[] | null;
 }
 
-const NOMS: Record<string, string> = { linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok", youtube: "YouTube", "youtube-shorts": "YouTube Shorts" };
 const DE_TYPE = { video: "la vidéo", carrousel: "le carrousel", infographie: "l'infographie", image: "l'image" } as const;
 /** Règle de départ des hashtags (HSH-01, à confirmer) : au moins un sur ces réseaux. */
 const HASHTAGS_ATTENDUS = new Set<string>(["linkedin", "instagram", "facebook", "tiktok"]);
@@ -52,13 +52,14 @@ const vide = (v: unknown): boolean => typeof v !== "string" || v.trim() === "";
 
 export function controlerPretAPartir(p: PublicationAControler, options: OptionsControle = {}): LigneControle[] {
   const reseau = p.reseau;
-  const nom = NOMS[reseau] ?? String(reseau);
+  const nom = nomDuReseau(String(reseau));
   const out: LigneControle[] = [];
   const ligne = (code: CodeControle, message: string, copier?: string) => out.push({ code, reseau, message, ...(copier ? { copier } : {}), bloquant: false });
 
   if (vide(p.texte)) ligne("texte", `Il manque le texte : décrivez ${DE_TYPE[p.typeContenu ?? "video"]} en une phrase, puis Proposer`);
   if (HASHTAGS_ATTENDUS.has(reseau) && !(p.hashtags ?? []).some((h) => h.trim() !== "")) ligne("hashtags", `Il manque les hashtags pour ${nom}.`);
-  if (reseau !== "tiktok") {
+  // Pas de premier commentaire sur TikTok ni sur Pinterest (une épingle n'en a pas).
+  if (reseau !== "tiktok" && reseau !== "pinterest") {
     if (vide(p.premierCommentaire)) ligne("premier-commentaire", `Il manque le premier commentaire pour ${nom}.`);
     else if (reseau === "instagram") ligne("premier-commentaire", "Le premier commentaire est à poser à la main sur Instagram.", p.premierCommentaire);
   }

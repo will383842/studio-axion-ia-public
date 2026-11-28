@@ -82,21 +82,21 @@ afterEach(() => {
 });
 
 describe("Pinterest : les portes d'envoi refusent, sans aucun appel au fournisseur", () => {
-  it("envoyerVisuel (porte de `envoyerVisuelValide`) : « Ce réseau ne reçoit pas de visuel », zéro appel, rien d'écrit", async () => {
+  it("envoyerVisuel : un CARROUSEL ne part jamais sur Pinterest (PR 5 : seule une épingle y part), zéro appel, rien d'écrit", async () => {
     const id = await creneauPinterest();
     const avant = await depots().publications.compter();
-    await expect(pub.envoyerVisuel(faux(), id, "pinterest" as never, { lireUrl })).rejects.toMatchObject({ code: "RESEAU", message: expect.stringContaining("Ce réseau ne reçoit pas de visuel") });
+    await expect(pub.envoyerVisuel(faux(), id, "pinterest" as never, { lireUrl })).rejects.toMatchObject({ code: "VISUEL_REFUSE", message: expect.stringContaining("Seule une épingle part sur Pinterest") });
     expect(appels).toHaveLength(0);
     expect(await depots().publications.compter()).toBe(avant);
   });
 
-  it("le branchement d'envoi du calendrier (`RESEAUX_VISUELS`) refuse Pinterest : zéro appel au fournisseur", async () => {
+  it("le branchement d'envoi du calendrier refuse un carrousel sur Pinterest : zéro appel au fournisseur", async () => {
     const id = await creneauPinterest();
     const service = vi.fn(() => faux());
     const deps = construireDepsEnvoiCalendrier({ service, lireUrl, porte: async () => true, client: creerFauxClientZernio().client });
     const demande = { videoId: "vis_1", creneauId: id, reseau: "pinterest", nature: "visuel", versionCreneau: 0, jour: DEMAIN.slice(0, 10), heure: "10:00" };
     await expect(deps.envoyerReel!("zernio", demande as never)).rejects.toBeInstanceOf(ErreurStudio);
-    await expect(deps.envoyerReel!("zernio", demande as never)).rejects.toMatchObject({ code: "RESEAU" });
+    await expect(deps.envoyerReel!("zernio", demande as never)).rejects.toMatchObject({ code: "VISUEL_REFUSE" });
     expect(service).not.toHaveBeenCalled();
     expect(appels).toHaveLength(0);
   });
