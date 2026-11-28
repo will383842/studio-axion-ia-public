@@ -268,10 +268,10 @@ jobs:
           done
           [ "$n" -ge 1 ] || { echo "::error::Claude a fini sans créer de branche robot/<nom>."; exit 1; }
 
-      # Purge TOUJOURS exécutée (même si une étape précédente a échoué) : tout ce que Claude a laissé (config git,
+      # Nettoyage TOUJOURS exécutée (même si une étape précédente a échoué) : tout ce que Claude a laissé (config git,
       # hooks, .npmrc, scripts) est détruit AVANT les étapes post (checkout, pnpm) et tout outil lancé par
       # l'utilisateur runner. Dossier recréé vide. Les étapes suivantes n'utilisent que le dépôt de contrôle.
-      - name: Purger le dossier de travail
+      - name: Nettoyer le dossier de travail
         if: always()
         run: |
           sudo pkill -9 -u robot >/dev/null 2>&1 || true
@@ -333,7 +333,7 @@ jobs:
       - name: Arrêter le relais
         if: always()
         run: |
-          # Deuxième filet : même purge que ci-dessus.
+          # Deuxième filet : même nettoyage que ci-dessus.
           sudo pkill -9 -u robot >/dev/null 2>&1 || true
           cd "$RUNNER_TEMP"
           sudo rm -rf "$GITHUB_WORKSPACE"
