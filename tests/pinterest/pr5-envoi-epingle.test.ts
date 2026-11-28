@@ -242,6 +242,12 @@ describe("Pinterest PR 5 · tour du calendrier : fermé à Pinterest", () => {
     expect((await deps().creneaux()).filter((l) => l.reseau === "pinterest")).toEqual([]);
     expect(appels).toHaveLength(0);
   });
+  it("tour ouvert, lecture de l'interrupteur qui ne répond pas : fermé, 0 ligne Pinterest", async () => {
+    porte.ouverte = true;
+    await sept();
+    const muet = construireDepsEnvoiCalendrier({ service: () => faux(), lireUrl, porte: async () => true, client: creerFauxClientZernio().client, lirePinterestActif: () => new Promise(() => undefined) });
+    expect((await muet.creneaux()).filter((l) => l.reseau === "pinterest")).toEqual([]);
+  });
   it("tour ouvert, interrupteur ouvert : l'épingle programmée est reprise par le tour puis envoyée", async () => {
     porte.ouverte = true;
     await ecrireParametre("zernio.pinterest_actif", true);
