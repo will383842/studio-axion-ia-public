@@ -233,7 +233,7 @@ jobs:
           # Chemins interdits (insensible a la casse) : CI, conteneurs, migrations, base, secrets, configuration d'outils et de depot,
           # gardes et pilotage, deploiement, consignes d'agents, dependances, paiement, facturation, authentification, licences,
           # connexions externes, et la zone interdite de outils/gardes/zone-interdite.mjs (zernio, parcours, mots, guide-reseau).
-          INTERDIT='^(\.github/|\.claude/|\.mcp\.json$|\.npmrc$|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|scripts/echecs-connus\.json$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|src/fournisseurs/.*zernio|src/services/parcours-|src/services/mots-|src/domaine/guide-reseau/|src/components/mots/|src/app/\(studio\)/mots/|tests/zernio/|docs/zernio/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)|(^|/)\.git[^/]*|(^|/)(AGENTS|CLAUDE)\.md$|(^|/)(next|vitest|eslint|postcss|playwright[^/.]*)\.config\.[^/]*$|(^|/)tsconfig[^/]*\.json$|parcours-conversation\.ts$|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential'
+          INTERDIT='^(\.github/|\.claude/|\.mcp\.json$|\.npmrc$|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|scripts/echecs-connus\.json$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|src/fournisseurs/.*zernio|src/services/parcours-|src/services/mots-|src/domaine/guide-reseau/|src/components/mots/|src/app/\(studio\)/mots/|tests/zernio/|docs/zernio/|(^|/)package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)|(^|/)\.git[^/]*|(^|/)(AGENTS|CLAUDE)\.md$|(^|/)(next|vitest|eslint|postcss|playwright[^/.]*)\.config\.[^/]*$|(^|/)tsconfig[^/]*\.json$|parcours-conversation\.ts$|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential'
           if grep -Eiq "$INTERDIT" "$RUNNER_TEMP/touches.txt"; then
             echo "::error::Fichier(s) interdit(s) touche(s) :"; grep -Ei "$INTERDIT" "$RUNNER_TEMP/touches.txt"; exit 1
           fi
@@ -249,15 +249,17 @@ jobs:
             const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
             const s = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
             const u = s.usage || {};
+            const sur = x => /^[A-Za-z0-9._:\/\[\]-]{1,80}$/.test(x);
+            const nb = v => Number.isFinite(Number(v)) ? String(Number(v)) : "?";
             const corps = [
               "Essai automatique d un modele de code tiers. **Ne pas fusionner sans relecture Opus.**",
               "",
               "- Fournisseur : " + process.env.FOURNISSEUR,
-              "- Modele verifie (modelUsage) : " + Object.keys(s.modelUsage || {}).join(", "),
-              "- Jetons entree : " + (u.input_tokens ?? "?") + " ; sortie : " + (u.output_tokens ?? "?") +
-                " ; cache ecrit : " + (u.cache_creation_input_tokens ?? "?") + " ; cache lu : " + (u.cache_read_input_tokens ?? "?"),
-              "- Cout indique par la sortie JSON : " + (s.total_cost_usd ?? "?") + " USD (estimation, verifier la console du fournisseur)",
-              "- Duree : " + (s.duration_ms != null ? Math.round(s.duration_ms / 1000) + " s" : "?") + " (" + (s.num_turns ?? "?") + " tours)",
+              "- Modele verifie (modelUsage) : " + Object.keys(s.modelUsage || {}).filter(sur).join(", "),
+              "- Jetons entree : " + nb(u.input_tokens) + " ; sortie : " + nb(u.output_tokens) +
+                " ; cache ecrit : " + nb(u.cache_creation_input_tokens) + " ; cache lu : " + nb(u.cache_read_input_tokens),
+              "- Cout indique par la sortie JSON : " + nb(s.total_cost_usd) + " USD (estimation, verifier la console du fournisseur)",
+              "- Duree : " + (nb(s.duration_ms) !== "?" ? Math.round(Number(s.duration_ms) / 1000) + " s" : "?") + " (" + nb(s.num_turns) + " tours)",
               "",
               "Consigne :",
               "",
