@@ -5,6 +5,8 @@
 # Un PLAFOND DE DEPENSE BAS est donc obligatoire sur le compte du fournisseur. Le job 1 n'a aucun droit d'ecriture ;
 # le job 2 (verifier-correctif), sur une machine neuve et en lecture seule, verifie tout puis envoie le correctif valide
 # en artefact. Aucune ecriture depuis ce workflow : le pilote cree la branche et la PR (voir le resume du run).
+# DEPOT PUBLIC : la fiche est lue dans $GITHUB_EVENT_PATH, jamais via `env:`, elle n'est pas recopiee dans le resume,
+# et aucune reponse du modele n'est journalisee. Ne JAMAIS activer le mode debug sur ce workflow.
 name: essai-modele-tiers
 
 on:
@@ -39,6 +41,8 @@ concurrency:
 jobs:
   coder:
     name: coder (non fiable)
+    # Proprietaire du depot, depuis master seulement (comme claude-credit-api.yml).
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -50,8 +54,9 @@ jobs:
           FOURNISSEUR: ${{ inputs.fournisseur }}
           NOM: ${{ inputs.nom }}
           MODELE_SAISI: ${{ inputs.modele }}
-          SECRET_KIMI: ${{ secrets.KIMI_API_KEY }}
-          SECRET_DEEPSEEK: ${{ secrets.DEEPSEEK_API_KEY }}
+          # Booleens seulement : la valeur des secrets n'est exposee qu'a l'etape du modele.
+          KIMI_PRESENT: ${{ secrets.KIMI_API_KEY != '' }}
+          DEEPSEEK_PRESENT: ${{ secrets.DEEPSEEK_API_KEY != '' }}
         run: |
           if ! [[ "$NOM" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; then
             echo "::error::Entree nom invalide : 1 a 40 caracteres, minuscules, chiffres et tirets."; exit 1
@@ -60,8 +65,8 @@ jobs:
             echo "::error::Entree modele invalide."; exit 1
           fi
           case "$FOURNISSEUR" in
-            kimi)     [ -n "$SECRET_KIMI" ]     || { echo "::error::Le secret KIMI_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
-            deepseek) [ -n "$SECRET_DEEPSEEK" ] || { echo "::error::Le secret DEEPSEEK_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
+            kimi)     [ "$KIMI_PRESENT" = "true" ]     || { echo "::error::Le secret KIMI_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
+            deepseek) [ "$DEEPSEEK_PRESENT" = "true" ] || { echo "::error::Le secret DEEPSEEK_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
             *) echo "::error::Fournisseur inconnu : $FOURNISSEUR"; exit 1 ;;
           esac
 
@@ -118,13 +123,22 @@ jobs:
           sudo chown -R runner: "$GITHUB_WORKSPACE/.git" && sudo chmod -R go-w "$GITHUB_WORKSPACE/.git"
           sudo -u essai -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
           chmod 644 "$RUNNER_TEMP/reglages-essai.json"
+          # Auto-controle avant le modele : l'utilisateur isole ne doit ni ecrire dans les fichiers de commandes du runner
+          # (GITHUB_ENV, GITHUB_PATH...) ni obtenir sudo. Sinon on echoue sans lancer le modele.
+          for f in "$GITHUB_ENV" "$GITHUB_PATH" "$GITHUB_OUTPUT" "$GITHUB_STATE" "$GITHUB_STEP_SUMMARY"; do
+            if [ -n "$f" ] && sudo -u essai test -w "$f"; then
+              echo "::error::Isolement insuffisant : l'utilisateur essai peut ecrire dans un fichier de commandes du runner."; exit 1
+            fi
+          done
+          if sudo -u essai sudo -n true 2>/dev/null; then
+            echo "::error::Isolement insuffisant : l'utilisateur essai peut utiliser sudo."; exit 1
+          fi
 
       - name: Lancer Claude Code (modele tiers)
         env:
-          FICHE: ${{ inputs.fiche }}
           NOM: ${{ inputs.nom }}
           ANTHROPIC_BASE_URL: ${{ inputs.fournisseur == 'kimi' && 'https://api.moonshot.ai/anthropic' || 'https://api.deepseek.com/anthropic' }}
-          ANTHROPIC_AUTH_TOKEN: ${{ inputs.fournisseur == 'kimi' && secrets.KIMI_API_KEY || secrets.DEEPSEEK_API_KEY }}
+          ANTHROPIC_AUTH_TOKEN: ${{ inputs.fournisseur == 'kimi' && secrets.KIMI_API_KEY || inputs.fournisseur == 'deepseek' && secrets.DEEPSEEK_API_KEY || '' }}
           CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
           CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
         run: |
@@ -134,11 +148,15 @@ jobs:
           export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELE"
           export CLAUDE_CODE_SUBAGENT_MODEL="$MODELE"
+          export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELE"
           export ANTHROPIC_SMALL_FAST_MODEL="$MODELE"
           mkdir -p "$RUNNER_TEMP/essai"
+          # La fiche vient du fichier d'evenement du runner (depot public : jamais par env:, jamais affichee).
+          FICHE="$(jq -r '.inputs.fiche // empty' "$GITHUB_EVENT_PATH")"
+          [ -n "$FICHE" ] || { echo "::error::Fiche vide."; exit 1; }
           RAPPEL="CONSIGNES FIXES : travaille sur la fiche ci-dessous seulement. Ne touche jamais a .github/, aux Dockerfile*, aux migrations, ni aux fichiers de secrets ou d'environnement. Ne modifie ni package.json ni le fichier de verrouillage. Lance les tests cibles existants qui concernent ta fiche, s'il y en a (par exemple pnpm exec vitest run <fichier de test>). Pas de commit : laisse les modifications dans l'arbre de travail."
           set +e
-          sudo -u essai -H --preserve-env=ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_MODEL,ANTHROPIC_DEFAULT_OPUS_MODEL,ANTHROPIC_DEFAULT_SONNET_MODEL,ANTHROPIC_SMALL_FAST_MODEL,CLAUDE_CODE_SUBAGENT_MODEL,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,CLAUDE_CODE_ATTRIBUTION_HEADER env "PATH=$PATH" claude -p "$RAPPEL
+          sudo -u essai -H --preserve-env=ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_MODEL,ANTHROPIC_DEFAULT_OPUS_MODEL,ANTHROPIC_DEFAULT_SONNET_MODEL,ANTHROPIC_DEFAULT_HAIKU_MODEL,ANTHROPIC_SMALL_FAST_MODEL,CLAUDE_CODE_SUBAGENT_MODEL,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,CLAUDE_CODE_ATTRIBUTION_HEADER env "PATH=$PATH" claude -p "$RAPPEL
 
           FICHE :
           $FICHE" \
@@ -150,10 +168,19 @@ jobs:
             --disallowedTools "WebFetch" "WebSearch" "Bash(node:*)" "Bash(npm:*)" "Bash(npx:*)" "Bash(git commit:*)" "Bash(git config:*)" \
             > "$RUNNER_TEMP/essai/essai-$NOM.json" 2> "$RUNNER_TEMP/essai/essai-$NOM.err"
           CODE=$?
-          sudo pkill -KILL -u essai || true; sudo chown -R runner: "$GITHUB_WORKSPACE"
           set -e
           # La sortie d erreur du modele n est pas affichee : les journaux de ce depot sont publics.
           [ "$CODE" -eq 0 ] || { echo "::error::claude s'est termine avec le code $CODE"; exit 1; }
+
+      # Nettoyage TOUJOURS execute, avant tout upload : tue tout processus restant du modele (deux passes), puis reprend la
+      # propriete de l'espace de travail. Separe de l'etape du modele pour ne pas dependre de sa fin.
+      - name: Nettoyer apres le modele (toujours)
+        if: always()
+        run: |
+          sudo pkill -KILL -u essai || true
+          sleep 1
+          sudo pkill -KILL -u essai || true
+          sudo chown -R runner: "$GITHUB_WORKSPACE"
 
       - name: Produire le correctif
         env:
@@ -200,6 +227,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -218,14 +246,15 @@ jobs:
             const fs = require("fs");
             const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
             const s = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
-            if (s.is_error || s.subtype !== "success") { console.error("::error::Sortie en erreur ou non terminee (subtype=" + s.subtype + ")."); process.exit(1); }
+            if (s.is_error || s.subtype !== "success") { console.error("::error::Sortie en erreur ou non terminee (subtype=" + String(s.subtype).replace(/[^a-z_]/g, "").slice(0, 20) + ")."); process.exit(1); }
             const noms = Object.keys(s.modelUsage || {});
-            console.log("Modeles utilises : " + JSON.stringify(noms.filter(n => /^[A-Za-z0-9._:\/\[\]-]{1,40}$/.test(n) && !/^sk-/i.test(n))));
+            const sur = x => /^[A-Za-z0-9._:\/\[\]-]{1,40}$/.test(x) && !/^sk-/i.test(x);
+            console.log("Modeles utilises : " + JSON.stringify(noms.filter(sur)));
             if (noms.length === 0) { console.error("::error::modelUsage vide : modele reel non verifiable."); process.exit(1); }
             const claude = noms.filter(n => /claude|anthropic/i.test(n));
-            if (claude.length) { console.error("::error::Repli silencieux sur un modele Claude : " + claude.join(", ")); process.exit(1); }
+            if (claude.length) { console.error("::error::Repli silencieux sur un modele Claude : " + claude.filter(sur).join(", ")); process.exit(1); }
             const norme = x => x.replace(/\[[^\]]*\]$/, "").toLowerCase();
-            if (!noms.some(n => norme(n) === norme(process.env.MODELE))) { console.error("::error::Modele attendu absent (" + process.env.MODELE + ") parmi " + noms.join(", ")); process.exit(1); }
+            if (!noms.some(n => norme(n) === norme(process.env.MODELE))) { console.error("::error::Modele attendu absent (" + process.env.MODELE + ") parmi " + noms.filter(sur).join(", ")); process.exit(1); }
           '
 
       - name: Appliquer le correctif
@@ -241,11 +270,15 @@ jobs:
           git -c core.quotePath=false diff --cached --no-renames --name-only > "$RUNNER_TEMP/touches.txt"
           if [ ! -s "$RUNNER_TEMP/touches.txt" ]; then echo "::error::Diff vide : rien n'a ete code."; exit 1; fi
           if grep -q '^"' "$RUNNER_TEMP/touches.txt"; then echo "::error::Nom de fichier entre guillemets (caracteres speciaux)."; exit 1; fi
+          # Aucun nom de fichier n'est affiche avant d'avoir verifie qu'il ne contient que des caracteres sobres (journal public).
+          if grep -Evq '^[][A-Za-z0-9._/@()+-]{1,200}$' "$RUNNER_TEMP/touches.txt"; then
+            echo "::error::Nom de fichier a caracteres non autorises ou trop long (liste non affichee)."; exit 1
+          fi
           echo "Fichiers touches :"; cat "$RUNNER_TEMP/touches.txt"
           # Chemins interdits (insensible a la casse) : CI, conteneurs, migrations, base, secrets, configuration d'outils et de depot,
           # gardes et pilotage, deploiement, consignes d'agents, dependances, paiement, facturation, authentification, licences,
           # connexions externes, et la zone interdite de outils/gardes/zone-interdite.mjs (zernio, parcours, mots, guide-reseau).
-          INTERDIT='^(\.github/|\.claude/|\.mcp\.json$|\.npmrc$|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|scripts/echecs-connus\.json$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|src/fournisseurs/.*zernio|src/services/parcours-|src/services/mots-|src/domaine/guide-reseau/|src/components/mots/|src/app/\(studio\)/mots/|tests/zernio/|docs/zernio/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)|(^|/)package\.json$|(^|/)\.git[^/]*|(^|/)(AGENTS|CLAUDE)\.md$|(^|/)(next|vitest|eslint|postcss|playwright[^/.]*)\.config\.[^/]*$|(^|/)tsconfig[^/]*\.json$|parcours-conversation\.ts$|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential'
+          INTERDIT='^(\.github/|\.claude/|\.mcp\.json$|\.npmrc$|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|scripts/echecs-connus\.json$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|src/fournisseurs/.*zernio|src/services/parcours-|src/services/mots-|src/domaine/guide-reseau/|src/components/mots/|src/app/\(studio\)/mots/|tests/zernio/|docs/zernio/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|scripts/comparer-echecs\.mjs$|scripts/coordinateur\.mjs$)|(^|/)package\.json$|(^|/)\.git[^/]*|(^|/)(AGENTS|CLAUDE)\.md$|(^|/)(next|vitest|eslint|postcss|playwright[^/.]*)\.config\.[^/]*$|(^|/)tsconfig[^/]*\.json$|parcours-conversation\.ts$|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential|(^|/)\.pnpmfile\.c?js$|(^|/)\.vscode/|(^|/)\.devcontainer/|(^|/)\.husky/'
           if grep -Eiq "$INTERDIT" "$RUNNER_TEMP/touches.txt"; then
             echo "::error::Fichier(s) interdit(s) touche(s) :"; grep -Ei "$INTERDIT" "$RUNNER_TEMP/touches.txt"; exit 1
           fi
@@ -254,7 +287,6 @@ jobs:
         env:
           FOURNISSEUR: ${{ inputs.fournisseur }}
           NOM: ${{ inputs.nom }}
-          FICHE: ${{ inputs.fiche }}
         run: |
           node -e '
             const fs = require("fs");
@@ -263,6 +295,7 @@ jobs:
             const u = s.usage || {};
             const sur = x => /^[A-Za-z0-9._:\/\[\]-]{1,40}$/.test(x) && !/^sk-/i.test(x);
             const nb = v => Number.isFinite(Number(v)) ? String(Number(v)) : "?";
+            // Depot public : la fiche n est PAS recopiee ici (le pilote la connait).
             const corps = [
               "Essai automatique d un modele de code tiers. **Ne pas fusionner sans relecture Opus.**",
               "",
@@ -272,10 +305,6 @@ jobs:
                 " ; cache ecrit : " + nb(u.cache_creation_input_tokens) + " ; cache lu : " + nb(u.cache_read_input_tokens),
               "- Cout indique par la sortie JSON : " + nb(s.total_cost_usd) + " USD (estimation, verifier la console du fournisseur)",
               "- Duree : " + (nb(s.duration_ms) !== "?" ? Math.round(Number(s.duration_ms) / 1000) + " s" : "?") + " (" + nb(s.num_turns) + " tours)",
-              "",
-              "Consigne :",
-              "",
-              process.env.FICHE.split("\n").map(l => "> " + l).join("\n"),
               "",
               "Correctif valide : artefact correctif-valide-" + process.env.FOURNISSEUR + "-" + process.env.NOM + " du run " + process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID
             ].join("\n");
