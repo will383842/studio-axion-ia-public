@@ -48,6 +48,7 @@ export const DOMAINE: Domaine = {
     "infographies.index": "memoire",
     "partages.codesSupprimes": "memoire",
     "site.depart": "memoire",
+    "site.domaine": "valeur", // domaine du site pour le lien d'une épingle (valeur de réglage), pas un interrupteur
     "site.dernierBilan": "memoire",
     "site.derniereLecture": "memoire",
     "suivi.miroir_site": "memoire",
@@ -67,6 +68,6 @@ export const DOMAINE: Domaine = {
     "visuels/services/production.ts:PREFIXE_REGISTRE + empreinte": { exclu: "dedoublonnage" },
   },
   env: [],
-  nombre: { litterales: 1, constantes: 6, gabarits: 3, planScenes: 0, retouche: 0, exclusCles: 10, parExpression: 12, env: 0 },
+  nombre: { litterales: 1, constantes: 6, gabarits: 3, planScenes: 0, retouche: 0, exclusCles: 11, parExpression: 12, env: 0 },
   retirees: [],
 };

@@ -27,11 +27,11 @@ describe("Pinterest : registre d'affichage séparé du registre vidéo", () => {
     expect(RESEAUX.map((r) => r.id)).not.toContain("pinterest");
     expect(listerReseaux().map((r) => r.id)).not.toContain("pinterest");
   });
-  it("le registre d'affichage porte Pinterest, code PI, légende de 800 signes", () => {
+  it("le registre d'affichage porte Pinterest, code PI, légende de 500 signes", () => {
     expect(RESEAUX_HORS_VIDEO.map((r) => r.id)).toEqual(["pinterest"]);
     const p = definitionAffichage("pinterest");
     expect(p).toMatchObject({ nom: "Pinterest", monogramme: "P", codeClassement: "PI" });
-    expect(p.legende).toEqual({ longueurMax: 800, longueurVisible: 100, motsDieseMax: 5, motsDieseConseilles: 2 });
+    expect(p.legende).toEqual({ longueurMax: 500, longueurVisible: 100, motsDieseMax: 0, motsDieseConseilles: 0 });
     expect(CODES_RESEAU.pinterest).toBe("PI");
   });
   it("definitionAffichage retrouve aussi un réseau vidéo", () => {

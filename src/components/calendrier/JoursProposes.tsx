@@ -1,5 +1,5 @@
 import { LIBELLES_A_RELANCER } from "@/components/calendrier/ContenusARelancer";
-import { obtenirReseau } from "@/reseaux";
+import { nomDuReseau } from "@/reseaux/hors-video";
 import type { SuggestionJour } from "@/services/republication-auto";
 
 /** Libellés fixes du bloc (vouvoiement, mots simples, aucun prix). */
@@ -40,7 +40,7 @@ export function JoursProposes({ suggestions, comptes, action }: ProprietesJoursP
           return (
             <li key={s.publicationId} className="px-4 py-3 text-sm">
               <p className="font-medium text-texte">
-                {obtenirReseau(s.reseau).nom} · {quand(s.jour)}, {s.heure}
+                {nomDuReseau(s.reseau)} · {quand(s.jour)}, {s.heure}
               </p>
               <p className="mt-1 text-texte">{s.debutTexte}</p>
               <p className="text-texte-doux">{s.raison}</p>

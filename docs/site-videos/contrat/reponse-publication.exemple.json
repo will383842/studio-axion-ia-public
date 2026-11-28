@@ -1,7 +1,8 @@
 {
+  "ok": true,
   "statut": "publiee",
   "slug": "automatiser-ses-devis-en-10-minutes",
   "url": "https://site-factice.invalid/fr/videos/automatiser-ses-devis-en-10-minutes",
-  "versionPasseport": 3,
-  "inchange": false
+  "version": 3,
+  "rejeu": false
 }

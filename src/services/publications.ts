@@ -2,7 +2,7 @@
  * KIT DE PUBLICATION, ENVOI (simulé) ET CALENDRIER (B.8 #8, AV2.3-1/11/12/13, AV2.4-2/4).
  */
 import "server-only";
-import { estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
+import { PINTEREST_TOUR_GENERAL, RESEAUX_VISUEL_ENVOI, estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { type Id, type IdReseau, type KitPublication, type LigneCout, type ModeEnvoiPublication, type Montant, type Publication, type TexteReseau, type Video, estRapatriee, sourceSure, videoIdSure } from "@/domaine/types";
 import { centimesUsd } from "@/fournisseurs/claude/tarifs";
 import { DELAI_TOTAL_MS } from "@/fournisseurs/claude/client";
@@ -48,8 +48,10 @@ import { canauxEnregistres, cleEnvoiBuffer, comptesBufferPour, lireModeBuffer, m
 import { exigerSession } from "./auth";
 import { exigerYoutubeZernioPret } from "./youtube-zernio";
 import { PROFILS_RESEAUX } from "@/briques/visuels/reseaux";
+import { BASE_PUBLIQUE } from "@/domaine/site-videos/contrat";
+import { lienDuSite } from "@/fournisseurs/publication/liens-du-site";
 import { construireDemandeVisuel, type FichierVisuel } from "./demande-publication-visuel";
-import { porteCalendrierPour } from "./essai-zernio";
+import { essaiCouvre, porteCalendrierPour } from "./essai-zernio";
 import { reseauxParDefautNeufs } from "@/domaine/reseaux-par-defaut";
 import { urlsFichiers } from "./fichiers";
 import { versCarte } from "./presentation";
@@ -1275,6 +1277,13 @@ export interface OptionsEnvoiVisuelCreneau {
   lireUrl?: (cle: string) => Promise<string>;
 }
 
+/** Pinterest : fermé par défaut. Il faut le tour général (constante de code, fermée) OU l'essai borné de CE créneau. Refus avant tout appel. */
+async function exigerPinterestOuvert(reseau: unknown, creneauId: string | undefined): Promise<void> {
+  if (reseau !== "pinterest" || PINTEREST_TOUR_GENERAL) return;
+  if (creneauId && (await essaiCouvre(creneauId, "brouillon").catch(() => false))) return;
+  throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "Pinterest n'est pas encore ouvert : rien n'est parti.");
+}
+
 /**
  * L5-02 · envoi d'un visuel depuis UN CRÉNEAU DU CALENDRIER : le créneau est relu en base (jamais fourni par l'appelant) et doit être
  * « valide » avec une validation datée lisible et passée, ni refusé ni retiré, pour CE visuel. La date, le compte et les textes
@@ -1322,7 +1331,7 @@ async function urlVisuelParDefaut(cle: string): Promise<string> {
 async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id, reseau: ReseauVisuelEnvoi, dateIso: string, options: OptionsEnvoiVisuel): Promise<{ publication: Publication; deja: boolean }> {
   // Sans identifiant de créneau (appelants hors calendrier) : porte générale seule.
   if (!(await porteCalendrierPour(options.creneauId))) throw new ErreurStudio("ENVOI_CALENDRIER_FERME", "L'envoi du calendrier est fermé (réglage à ouvrir, publication éditoriale comprise) : rien n'est parti.");
-  if (!(reseau in PROFILS_RESEAUX) || !estReseauVisuelEnvoi(reseau)) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
+  if (!estReseauVisuelEnvoi(reseau) || (reseau !== "pinterest" && !(reseau in PROFILS_RESEAUX))) throw new ErreurStudio("RESEAU", "Ce réseau ne reçoit pas de visuel depuis le calendrier.");
   if (!options.cible?.trim()) throw new ErreurStudio("CIBLE_ZERNIO", "Choisissez le compte de destination : rien n'est parti.");
   // Aucun appel au diffuseur, même en brouillon, sans validation datée du créneau (lisible et passée).
   const validee = typeof options.valideeLe === "string" && options.valideeLe ? Date.parse(options.valideeLe) : NaN;
@@ -1336,15 +1345,27 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   if (!v || !visuelEnvoyable(v) || v.corbeilleLe) throw new ErreurStudio("VISUEL_NON_VALIDE", "Ce visuel n'est pas validé : il ne part pas.");
   if (v.estDemo) throw new ErreurStudio("VISUEL_EXEMPLE", "C'est un visuel d'exemple : il ne part pas sur vos réseaux.");
   if (v.modeTexte === "simulation") throw new ErreurStudio("VISUEL_ESSAI", "C'est un visuel d'essai (texte simulé) : il ne part pas sur vos réseaux.");
+  // Une épingle ne part que sur Pinterest, et rien d'autre qu'une épingle n'y part.
+  if ((v.famille === "epingle") !== (reseau === "pinterest")) throw new ErreurStudio("VISUEL_REFUSE", reseau === "pinterest" ? "Seule une épingle part sur Pinterest : rien n'est parti." : "Une épingle ne part que sur Pinterest : rien n'est parti.");
+  // Pinterest : tour général OU essai de ce créneau, sinon refus avant tout appel (le tour général du calendrier ne suffit pas : cette porte-ci tient seule).
+  await exigerPinterestOuvert(reseau, options.creneauId);
+  const epingle = reseau === "pinterest" ? v.epingle : undefined;
+  if (reseau === "pinterest" && !epingle) throw new ErreurStudio("VISUEL_REFUSE", "Cette épingle est incomplète : rien n'est parti.");
+  // Le lien de l'épingle doit mener au site (réglage `site.domaine`, défaut : l'hôte public) : refus avant tout appel.
+  if (epingle) {
+    const domaine = await lireParametre<unknown>("site.domaine", new URL(BASE_PUBLIQUE).host).catch(() => "");
+    if (!lienDuSite(epingle.lien, typeof domaine === "string" ? domaine : "")) throw new ErreurStudio("LIEN_HORS_DOMAINE", "Le lien de l'épingle ne mène pas au site (https, domaine exact) : rien n'est parti.");
+  }
   const rendu = v.rendu;
-  if (!rendu) throw new ErreurStudio("VISUEL_SANS_RENDU", "Ce visuel n'a pas de rendu prêt : il ne part pas.");
+  if (!epingle && !rendu) throw new ErreurStudio("VISUEL_SANS_RENDU", "Ce visuel n'a pas de rendu prêt : il ne part pas.");
 
   // Préparation complète avant la moindre réservation.
-  const pages = [...rendu.pages].sort((a, b) => a.index - b.index);
+  const pages = [...(rendu?.pages ?? [])].sort((a, b) => a.index - b.index);
   const textesAlt = options.textesAlternatifs ?? [];
-  const fichiers: FichierVisuel[] =
-    reseau === "linkedin"
-      ? [{ type: "pdf", cle: rendu.pdfCle, alt: v.titre }]
+  const fichiers: FichierVisuel[] = epingle
+    ? [{ type: "image" as const, cle: epingle.image.cle, alt: epingle.texteAlternatif }] // texte alternatif tel quel, sans suffixe de page
+    : reseau === "linkedin"
+      ? [{ type: "pdf", cle: rendu!.pdfCle, alt: v.titre }]
       : pages.map((p, i) => ({ type: "image" as const, cle: p.x1Cle, alt: textesAlt[i] ?? "" }));
   const demande = construireDemandeVisuel({ reseau, fichiers, legende: options.legende });
   if (!demande.ok) throw new ErreurStudio("VISUEL_REFUSE", `Ce visuel ne peut pas partir sur ce réseau (${demande.erreurs.join(", ")}) : rien n'est parti.`);
@@ -1352,7 +1373,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
   if (reseau === "linkedin" && (!titreDocument || [...titreDocument].length > (PROFILS_RESEAUX.linkedin.titreDocumentMax ?? 40))) {
     throw new ErreurStudio("VISUEL_REFUSE", "Le titre du document est vide ou trop long pour LinkedIn : rien n'est parti.");
   }
-  verifierTextesAEnvoyer(reseau, `${options.legende}\n${titreDocument}`, undefined);
+  verifierTextesAEnvoyer(reseau, `${options.legende}\n${epingle ? `${epingle.titre}\n${epingle.lien}` : titreDocument}`, undefined);
   const lire = options.lireUrl ?? urlVisuelParDefaut;
   const urls: string[] = [];
   for (const m of demande.demande.medias) {
@@ -1410,6 +1431,7 @@ async function envoyerVisuelValide(service: FournisseurPublication, visuelId: Id
       cible,
       cleEnvoi,
       ...(options.premierCommentaire?.trim() ? { premierCommentaire: options.premierCommentaire } : {}),
+      ...(epingle ? { epingle: { titre: epingle.titre, lien: epingle.lien }, contenuIA: epingle.contenuIA } : {}),
       ...(reseau === "linkedin" ? { document: { url: urls[0], titre: titreDocument } } : { images: demande.demande.medias.map((m, i) => ({ url: urls[i], texteAlternatif: m.alt })) }),
     });
     if (envoi.via !== "zernio") throw new ErreurZernio("creation-incomplete", "réponse sans confirmation", { statut: 200 });

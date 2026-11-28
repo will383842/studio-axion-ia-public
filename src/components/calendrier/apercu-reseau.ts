@@ -5,7 +5,7 @@
  */
 import type { TableLibelles } from "./PastilleStatutPlan";
 import { etatDepuisStatut } from "./PastilleStatutPlan";
-import { TYPES_CONTENU, heureLisible, jourLisible, nomReseau, reseauConnu, trierEntrees, type TypeContenu } from "./CarteEntreeCalendrier";
+import { TYPES_CONTENU, typeAffiche, heureLisible, jourLisible, nomReseau, reseauConnu, trierEntrees, type TypeContenu } from "./CarteEntreeCalendrier";
 import { PHRASES_VERROU, lireCleFiche, phraseEtat, sansPremierCommentaire, verrouFiche, type EntreeFiche, type RaisonVerrou } from "./FicheEntree";
 import { cleJour, heure as heureDeParis } from "@/lib/dates";
 import { RESEAUX } from "@/reseaux";
@@ -26,9 +26,22 @@ export interface VisuelApercu {
   dureeSec?: number;
 }
 
+/** Ce que montre l'aperçu d'une épingle (visuel de famille « epingle ») : l'image est une adresse signée, lue à la demande. */
+export interface DonneesEpingle {
+  imageUrl: string | null;
+  titre: string;
+  texteAlternatif: string;
+  lien: string;
+  contenuIA: boolean;
+  /** Domaine exigé à l'envoi (réglage `site.domaine`). */
+  domaine: string;
+}
+
 /** Une entrée telle que le panneau la montre : la fiche (texte, premier commentaire), plus le visuel et la campagne. */
 export interface EntreeApercu extends EntreeFiche {
   media?: VisuelApercu;
+  /** Épingle Pinterest : image, texte alternatif, titre, lien (aperçu `ApercuEpingle`). */
+  epingle?: DonneesEpingle;
   /** Campagne d'origine ; absente ou vide : aucune ligne. */
   campagne?: string;
   /** Lien vers la vidéo d'origine (ouvre sa page ; ne publie rien). */
@@ -65,6 +78,7 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
   facebook: "texte-dessus",
   instagram: "media-dessus",
   tiktok: "legende-sur-media",
+  pinterest: "media-dessus",
 };
 
 export interface ApercuReseau {
@@ -136,7 +150,7 @@ export function apercuReseau(entree: EntreeApercu, aujourdhui: string): ApercuRe
   return {
     nomReseau: reseauConnu(entree.reseau) ? nomReseau(entree.reseau) : "Réseau",
     disposition: DISPOSITIONS[entree.reseau] ?? "texte-dessus",
-    formatLibelle: [type?.libelle ?? "Publication", ratio].filter(Boolean).join(" · "),
+    formatLibelle: [(type ? typeAffiche(entree.reseau, entree.type as TypeContenu).libelle : "Publication"), ratio].filter(Boolean).join(" · "),
     texte,
     hashtags: extraireHashtags(texte),
     premierCommentaire,
