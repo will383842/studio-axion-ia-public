@@ -37,7 +37,7 @@ beforeEach(async () => {
   factice = creerSiteFactice({ secret: "secret-bout-en-bout", maintenant: () => horloge });
   const traiter = factice.traiter.bind(factice);
   factice.traiter = async (r) => {
-    if (r.methode === "DELETE") journal.push(`DELETE:${(await depots().videos.obtenir(decodeURIComponent(r.chemin.split("/").pop()!))) ? "video-presente" : "video-absente"}`);
+    if (r.methode === "DELETE") journal.push(`DELETE:${(await depots().videos.obtenir((JSON.parse(r.corps) as { studioVideoId: string }).studioVideoId)) ? "video-presente" : "video-absente"}`);
     return traiter(r);
   };
   publics = creerStockagePublicFactice({ lireSource: async () => mp4Test(true) });
