@@ -126,4 +126,9 @@ describe("workflow tests-nouveau", () => {
     expect(compterLances(partiel)).toBe(1);
     expect(comparer(partiel, { echecs: [] }).ok).toBe(true);
   });
+
+  it("un fichier sans aucun cas (rien déclaré) n'est pas « sauté » : seul un cas sauté l'est", () => {
+    const vide = rapportVitest({ "tests/a.test.ts": [["un", "passed"]], "tests/vide.test.ts": [] });
+    expect(fichiersSautes(vide)).toEqual([]);
+  });
 });

@@ -39,7 +39,9 @@ vi.mock("remotion", async () => {
   }
   return new Proxy({ __esModule: true }, { get: (cible, nom) => (nom === "then" ? undefined : nom in cible ? (cible as Record<string | symbol, unknown>)[nom] : () => null) });
 });
-const describe = Object.assign((nom: string, fn: () => void) => decrire.skipIf(!DEPS_RENDU)(nom, fn), decrire);
+// Seules les suites qui RENDENT la toile (HTML) ont besoin de remotion ; les autres (moteur, déterminisme) tournent toujours, pour que le fichier ne soit jamais entièrement sauté.
+const describe = decrire;
+const describeRendu = decrire.skipIf(!DEPS_RENDU);
 
 const exiger = createRequire(join(process.cwd(), DEPS_RENDU ? "studio-rendu/package.json" : "package.json"));
 const { createElement } = exiger("react") as typeof import("react");
@@ -101,7 +103,7 @@ function empreinteToiles(variete?: RecetteVarieteIV): string {
   return h.digest("hex");
 }
 
-describe("APP · référence inchangée", () => {
+describeRendu("APP · référence inchangée", () => {
   it("sans variété : le HTML de la toile est celui de master au 27/11 (ff1dbf99…)", () => {
     expect(empreinteToiles()).toBe(EMPREINTE_TOILE_REFERENCE);
   }, 30_000);
@@ -148,7 +150,7 @@ describe("APP · moteur", () => {
   });
 });
 
-describe("APP · dessin", () => {
+describeRendu("APP · dessin", () => {
   const ligneC = (code: CodeVariante) => mettreEnSceneIV({ ...entrees("C")[0], variete: recette(code) }).ligne;
 
   it("APP-C (rouge sans le lot) : au début de la toile, toutes les cartes sont là, éteintes et sans texte ; chacune s'allume à son mot", () => {
