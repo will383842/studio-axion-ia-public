@@ -148,7 +148,6 @@ jobs:
           export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELE"
           export CLAUDE_CODE_SUBAGENT_MODEL="$MODELE"
-          export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELE"
           export ANTHROPIC_SMALL_FAST_MODEL="$MODELE"
           mkdir -p "$RUNNER_TEMP/essai"
           # La fiche vient du fichier d'evenement du runner (depot public : jamais par env:, jamais affichee).
@@ -156,7 +155,7 @@ jobs:
           [ -n "$FICHE" ] || { echo "::error::Fiche vide."; exit 1; }
           RAPPEL="CONSIGNES FIXES : travaille sur la fiche ci-dessous seulement. Ne touche jamais a .github/, aux Dockerfile*, aux migrations, ni aux fichiers de secrets ou d'environnement. Ne modifie ni package.json ni le fichier de verrouillage. Lance les tests cibles existants qui concernent ta fiche, s'il y en a (par exemple pnpm exec vitest run <fichier de test>). Pas de commit : laisse les modifications dans l'arbre de travail."
           set +e
-          sudo -u essai -H --preserve-env=ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_MODEL,ANTHROPIC_DEFAULT_OPUS_MODEL,ANTHROPIC_DEFAULT_SONNET_MODEL,ANTHROPIC_DEFAULT_HAIKU_MODEL,ANTHROPIC_SMALL_FAST_MODEL,CLAUDE_CODE_SUBAGENT_MODEL,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,CLAUDE_CODE_ATTRIBUTION_HEADER env "PATH=$PATH" claude -p "$RAPPEL
+          sudo -u essai -H --preserve-env=ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_MODEL,ANTHROPIC_DEFAULT_OPUS_MODEL,ANTHROPIC_DEFAULT_SONNET_MODEL,ANTHROPIC_SMALL_FAST_MODEL,CLAUDE_CODE_SUBAGENT_MODEL,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,CLAUDE_CODE_ATTRIBUTION_HEADER env "PATH=$PATH" claude -p "$RAPPEL
 
           FICHE :
           $FICHE" \
