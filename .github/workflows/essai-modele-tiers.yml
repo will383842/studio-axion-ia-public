@@ -134,12 +134,11 @@ jobs:
           export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELE"
           export CLAUDE_CODE_SUBAGENT_MODEL="$MODELE"
-          export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELE"
           export ANTHROPIC_SMALL_FAST_MODEL="$MODELE"
           mkdir -p "$RUNNER_TEMP/essai"
           RAPPEL="CONSIGNES FIXES : travaille sur la fiche ci-dessous seulement. Ne touche jamais a .github/, aux Dockerfile*, aux migrations, ni aux fichiers de secrets ou d'environnement. Ne modifie ni package.json ni le fichier de verrouillage. Lance les tests cibles existants qui concernent ta fiche, s'il y en a (par exemple pnpm exec vitest run <fichier de test>). Pas de commit : laisse les modifications dans l'arbre de travail."
           set +e
-          sudo -u essai -H --preserve-env=ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_MODEL,ANTHROPIC_DEFAULT_OPUS_MODEL,ANTHROPIC_DEFAULT_SONNET_MODEL,ANTHROPIC_DEFAULT_HAIKU_MODEL,ANTHROPIC_SMALL_FAST_MODEL,CLAUDE_CODE_SUBAGENT_MODEL,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,CLAUDE_CODE_ATTRIBUTION_HEADER env "PATH=$PATH" claude -p "$RAPPEL
+          sudo -u essai -H --preserve-env=ANTHROPIC_BASE_URL,ANTHROPIC_AUTH_TOKEN,ANTHROPIC_MODEL,ANTHROPIC_DEFAULT_OPUS_MODEL,ANTHROPIC_DEFAULT_SONNET_MODEL,ANTHROPIC_SMALL_FAST_MODEL,CLAUDE_CODE_SUBAGENT_MODEL,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC,CLAUDE_CODE_ATTRIBUTION_HEADER env "PATH=$PATH" claude -p "$RAPPEL
 
           FICHE :
           $FICHE" \
@@ -153,7 +152,7 @@ jobs:
           CODE=$?
           sudo pkill -KILL -u essai || true; sudo chown -R runner: "$GITHUB_WORKSPACE"
           set -e
-          tail -c 2000 "$RUNNER_TEMP/essai/essai-$NOM.err" || true
+          # La sortie d erreur du modele n est pas affichee : les journaux de ce depot sont publics.
           [ "$CODE" -eq 0 ] || { echo "::error::claude s'est termine avec le code $CODE"; exit 1; }
 
       - name: Produire le correctif
