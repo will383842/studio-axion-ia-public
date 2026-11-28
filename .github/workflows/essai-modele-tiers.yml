@@ -1,7 +1,10 @@
-# ESSAI D'UN MODELE DE CODE TIERS (Kimi ou DeepSeek) : fait coder UNE fiche par Claude Code sans interface, puis ouvre une PR.
+# ESSAI D'UN MODELE DE CODE TIERS (Kimi ou DeepSeek) : fait coder UNE fiche par Claude Code sans interface, puis pousse une branche d'essai.
 # But : comparer qualite et cout sur une fiche bornee. Declenchement manuel seulement.
-# NE JAMAIS FUSIONNER SANS RELECTURE OPUS (la PR est un brouillon d'essai, jamais fusionnee automatiquement).
-# Secrets requis : KIMI_API_KEY et/ou DEEPSEEK_API_KEY. Aucun secret ni variable Anthropic dans ce workflow.
+# NE JAMAIS FUSIONNER SANS RELECTURE OPUS. Secrets requis : KIMI_API_KEY et/ou DEEPSEEK_API_KEY. Aucun secret Anthropic.
+# Le job 1 (coder) est NON FIABLE PAR CONCEPTION : le modele tiers peut y executer du code et y lire sa propre cle.
+# Un PLAFOND DE DEPENSE BAS est donc obligatoire sur le compte du fournisseur. Le job 1 n'a aucun droit d'ecriture ;
+# le job 2 (publier), sur une machine neuve, verifie tout puis pousse la branche. La PR est ouverte ensuite par le pilote
+# (la commande est donnee dans le resume du run), car le reglage « Actions peut creer des PR » reste desactive.
 name: essai-modele-tiers
 
 on:
@@ -23,32 +26,38 @@ on:
         type: string
         default: ""
       nom:
-        description: "Identifiant court de la fiche (lettres, chiffres, tirets), sert a nommer la branche"
+        description: "Identifiant court de la fiche (minuscules, chiffres, tirets), sert a nommer la branche"
         required: true
         type: string
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
-  group: essai-modele-tiers-${{ inputs.nom }}
+  group: essai-modele-tiers-${{ inputs.fournisseur }}-${{ inputs.nom }}
   cancel-in-progress: false
 
 jobs:
-  essai:
+  coder:
+    name: coder (non fiable)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
     steps:
       - name: Valider les entrees et le secret du fournisseur
+        id: valider
         env:
           FOURNISSEUR: ${{ inputs.fournisseur }}
           NOM: ${{ inputs.nom }}
+          MODELE_SAISI: ${{ inputs.modele }}
           SECRET_KIMI: ${{ secrets.KIMI_API_KEY }}
           SECRET_DEEPSEEK: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
-          if ! printf '%s' "$NOM" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$'; then
-            echo "::error::Entree nom invalide : 1 a 40 caracteres, lettres, chiffres, point, tiret, souligne."; exit 1
+          if ! [[ "$NOM" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]]; then
+            echo "::error::Entree nom invalide : 1 a 40 caracteres, minuscules, chiffres et tirets."; exit 1
+          fi
+          if [ -n "$MODELE_SAISI" ] && ! [[ "$MODELE_SAISI" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}(\[[0-9a-z]{1,8}\])?$ ]]; then
+            echo "::error::Entree modele invalide."; exit 1
           fi
           case "$FOURNISSEUR" in
             kimi)     [ -n "$SECRET_KIMI" ]     || { echo "::error::Le secret KIMI_API_KEY est vide ou absent : ajoute-le dans les secrets du depot."; exit 1; } ;;
@@ -56,15 +65,10 @@ jobs:
             *) echo "::error::Fournisseur inconnu : $FOURNISSEUR"; exit 1 ;;
           esac
 
-      - name: Refuser toute variable ou secret Anthropic
-        run: |
-          if [ -n "${ANTHROPIC_API_KEY:-}" ] || [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-            echo "::error::ANTHROPIC_API_KEY ou CLAUDE_CODE_OAUTH_TOKEN est defini : interdit dans cet essai."; exit 1
-          fi
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -97,6 +101,9 @@ jobs:
                 "Read(**/*secret*)",
                 "Read(**/*.pem)",
                 "Read(**/*.key)",
+                "Read(./.git/**)",
+                "Edit(./.git/**)",
+                "Write(./.git/**)",
                 "Bash(curl:*)",
                 "Bash(wget:*)"
               ]
@@ -113,12 +120,14 @@ jobs:
           CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
           CLAUDE_CODE_ATTRIBUTION_HEADER: "0"
         run: |
+          unset ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN
           # Toutes les variables de modele = le modele choisi (sinon echecs silencieux, voir la doc du fournisseur).
           export ANTHROPIC_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELE"
           export CLAUDE_CODE_SUBAGENT_MODEL="$MODELE"
+          mkdir -p "$RUNNER_TEMP/essai"
           RAPPEL="CONSIGNES FIXES : travaille sur la fiche ci-dessous seulement. Ne touche jamais a .github/, aux Dockerfile*, aux migrations, ni aux fichiers de secrets ou d'environnement. Ne modifie ni package.json ni le fichier de verrouillage. Lance les tests cibles existants qui concernent ta fiche, s'il y en a (par exemple pnpm exec vitest run <fichier de test>). Pas de commit : laisse les modifications dans l'arbre de travail."
           set +e
           claude -p "$RAPPEL
@@ -128,20 +137,67 @@ jobs:
             --output-format json \
             --settings "$RUNNER_TEMP/reglages-essai.json" \
             --permission-mode acceptEdits \
-            --allowedTools "Read" "Edit" "Write" "Glob" "Grep" "Bash(npm:*)" "Bash(pnpm exec vitest:*)" "Bash(node:*)" "Bash(git status:*)" "Bash(git diff:*)" \
-            > "$RUNNER_TEMP/essai-$NOM.json" 2> "$RUNNER_TEMP/essai-$NOM.err"
+            --allowedTools "Read" "Edit" "Write" "Glob" "Grep" "Bash(pnpm exec vitest run:*)" "Bash(git status)" "Bash(git diff:*)" \
+            --disallowedTools "WebFetch" "WebSearch" "Bash(node:*)" "Bash(npm:*)" "Bash(npx:*)" "Bash(git commit:*)" "Bash(git push:*)" "Bash(git config:*)" \
+            > "$RUNNER_TEMP/essai/essai-$NOM.json" 2> "$RUNNER_TEMP/essai/essai-$NOM.err"
           CODE=$?
           set -e
-          tail -c 2000 "$RUNNER_TEMP/essai-$NOM.err" || true
+          tail -c 2000 "$RUNNER_TEMP/essai/essai-$NOM.err" || true
           [ "$CODE" -eq 0 ] || { echo "::error::claude s'est termine avec le code $CODE"; exit 1; }
 
-      - name: Sauver la sortie JSON en artefact
-        if: always()
+      - name: Produire le correctif
+        env:
+          NOM: ${{ inputs.nom }}
+        run: |
+          git add -A
+          git diff --cached --binary --full-index --no-renames "$GITHUB_SHA" > "$RUNNER_TEMP/essai/essai-$NOM.patch"
+
+      - name: Sauver le correctif et la sortie JSON en artefact
+        if: always() && steps.valider.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: essai-${{ inputs.nom }}
-          path: ${{ runner.temp }}/essai-${{ inputs.nom }}.json
+          name: essai-${{ inputs.fournisseur }}-${{ inputs.nom }}
+          path: |
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.json
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.patch
           if-no-files-found: warn
+
+  publier:
+    name: publier (confiance)
+    needs: coder
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Valider les entrees
+        env:
+          FOURNISSEUR: ${{ inputs.fournisseur }}
+          NOM: ${{ inputs.nom }}
+          MODELE_SAISI: ${{ inputs.modele }}
+        run: |
+          [[ "$NOM" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] || { echo "::error::Entree nom invalide."; exit 1; }
+          if [ -n "$MODELE_SAISI" ] && ! [[ "$MODELE_SAISI" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}(\[[0-9a-z]{1,8}\])?$ ]]; then
+            echo "::error::Entree modele invalide."; exit 1
+          fi
+          case "$FOURNISSEUR" in kimi|deepseek) ;; *) echo "::error::Fournisseur inconnu."; exit 1 ;; esac
+          if [ -n "$MODELE_SAISI" ]; then MODELE="$MODELE_SAISI"
+          elif [ "$FOURNISSEUR" = "kimi" ]; then MODELE='kimi-k3[1m]'
+          else MODELE='deepseek-flash'; fi
+          printf 'MODELE=%s\n' "$MODELE" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: essai-${{ inputs.fournisseur }}-${{ inputs.nom }}
+          path: ${{ runner.temp }}/essai
 
       - name: Verifier le modele reellement utilise
         env:
@@ -149,50 +205,57 @@ jobs:
         run: |
           node -e '
             const fs = require("fs");
-            const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai-" + process.env.NOM + ".json", "utf8"));
-            const sortie = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
-            if (sortie.is_error) { console.error("::error::La sortie signale une erreur : " + String(sortie.result).slice(0, 300)); process.exit(1); }
-            const noms = Object.keys(sortie.modelUsage || {});
+            const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
+            const s = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
+            if (s.is_error || s.subtype !== "success") { console.error("::error::Sortie en erreur ou non terminee (subtype=" + s.subtype + ")."); process.exit(1); }
+            const noms = Object.keys(s.modelUsage || {});
             console.log("Modeles utilises : " + JSON.stringify(noms));
-            const norme = s => s.replace(/\[[^\]]*\]$/, "").toLowerCase();
-            const attendu = norme(process.env.MODELE);
-            if (noms.length === 0) { console.error("::error::modelUsage absent : modele reel non verifiable."); process.exit(1); }
+            if (noms.length === 0) { console.error("::error::modelUsage vide : modele reel non verifiable."); process.exit(1); }
             const claude = noms.filter(n => /^claude-/i.test(n));
             if (claude.length) { console.error("::error::Repli silencieux sur un modele Claude : " + claude.join(", ")); process.exit(1); }
-            if (!noms.some(n => norme(n) === attendu)) { console.error("::error::Modele attendu absent (" + process.env.MODELE + ") parmi " + noms.join(", ")); process.exit(1); }
+            const norme = x => x.replace(/\[[^\]]*\]$/, "").toLowerCase();
+            if (!noms.some(n => norme(n) === norme(process.env.MODELE))) { console.error("::error::Modele attendu absent (" + process.env.MODELE + ") parmi " + noms.join(", ")); process.exit(1); }
           '
+
+      - name: Appliquer le correctif
+        env:
+          NOM: ${{ inputs.nom }}
+        run: git apply --index --binary "$RUNNER_TEMP/essai/essai-$NOM.patch"
 
       - name: Garde des chemins interdits
         run: |
-          git add -A
-          git diff --cached --name-only > "$RUNNER_TEMP/touches.txt"
+          if git diff --cached --no-renames --raw | awk '{print $2}' | grep -Eq '^(120000|160000)$'; then
+            echo "::error::Lien symbolique ou sous-module dans le correctif."; exit 1
+          fi
+          git -c core.quotePath=false diff --cached --no-renames --name-only > "$RUNNER_TEMP/touches.txt"
           if [ ! -s "$RUNNER_TEMP/touches.txt" ]; then echo "::error::Diff vide : rien n'a ete code."; exit 1; fi
+          if grep -q '^"' "$RUNNER_TEMP/touches.txt"; then echo "::error::Nom de fichier entre guillemets (caracteres speciaux)."; exit 1; fi
           echo "Fichiers touches :"; cat "$RUNNER_TEMP/touches.txt"
-          # Chemins interdits : CI, conteneurs, migrations, base, secrets, gardes et pilotage du depot,
-          # deploiement, consignes d'agents, dependances, et tout ce qui touche au paiement, a la facturation,
-          # a l'authentification, aux licences ou aux connexions externes (Zernio, Google Drive, reglages).
-          INTERDIT='^(\.github/|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|AGENTS\.md$|CLAUDE\.md$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential'
+          # Chemins interdits (insensible a la casse) : CI, conteneurs, migrations, base, secrets, configuration d'outils et de depot,
+          # gardes et pilotage, deploiement, consignes d'agents, dependances, paiement, facturation, authentification, licences,
+          # connexions externes, et la zone interdite de outils/gardes/zone-interdite.mjs (zernio, parcours, mots, guide-reseau).
+          INTERDIT='^(\.github/|\.claude/|\.mcp\.json$|\.npmrc$|Dockerfile|docker-compose|deploiement/|pilotage/|outils/gardes/|outils/licences/|outils/zernio/|outils/demo-m5/cles\.ts$|scripts/echecs-connus\.json$|src/briques/options-payantes/|src/components/options-payantes/|src/app/connexion/|src/app/api/|src/services/migrations/|src/components/migration/|src/app/\(studio\)/reglages/|src/components/reglages/|src/components/google-drive/|src/briques/droits/|src/fournisseurs/.*zernio|src/services/parcours-|src/services/mots-|src/domaine/guide-reseau/|src/components/mots/|src/app/\(studio\)/mots/|tests/zernio/|docs/zernio/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)|(^|/)\.git[^/]*|(^|/)(AGENTS|CLAUDE)\.md$|(^|/)(next|vitest|eslint|postcss|playwright[^/.]*)\.config\.[^/]*$|(^|/)tsconfig[^/]*\.json$|parcours-conversation\.ts$|(^|/)(migrations|prisma)/|(^|/)\.env|secret|\.pem$|\.key$|(^|/)Dockerfile[^/]*$|(^|/)docker-compose[^/]*$|paiement|payment|facturation|billing|invoice|stripe|authent|auth\.|(^|/)auth/|licence|credential'
           if grep -Eiq "$INTERDIT" "$RUNNER_TEMP/touches.txt"; then
             echo "::error::Fichier(s) interdit(s) touche(s) :"; grep -Ei "$INTERDIT" "$RUNNER_TEMP/touches.txt"; exit 1
           fi
 
-      - name: Commit, push et PR (jamais de fusion)
+      - name: Commit et push de la branche (sans PR, sans fusion)
         env:
-          GH_TOKEN: ${{ github.token }}
           FOURNISSEUR: ${{ inputs.fournisseur }}
           NOM: ${{ inputs.nom }}
           FICHE: ${{ inputs.fiche }}
         run: |
           BRANCHE="essai/$FOURNISSEUR/$NOM"
+          if git ls-remote --exit-code --heads origin "$BRANCHE" >/dev/null 2>&1; then
+            echo "::error::La branche $BRANCHE existe deja : choisis un autre nom."; exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCHE"
           git commit -m "essai($FOURNISSEUR): $NOM"
-          git push origin "$BRANCHE"
-          gh label create essai-modele-tiers --color BFD4F2 --description "Essai d'un modele de code tiers, jamais fusionner sans relecture Opus" 2>/dev/null || true
+          git push origin "HEAD:refs/heads/$BRANCHE"
           node -e '
             const fs = require("fs");
-            const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai-" + process.env.NOM + ".json", "utf8"));
+            const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
             const s = Array.isArray(j) ? (j.find(x => x.type === "result") || {}) : j;
             const u = s.usage || {};
             const corps = [
@@ -209,9 +272,23 @@ jobs:
               "",
               process.env.FICHE.split("\n").map(l => "> " + l).join("\n"),
               "",
-              "Sortie JSON complete : artefact essai-" + process.env.NOM + " du run " + process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID
+              "Sortie JSON complete : artefact essai-" + process.env.FOURNISSEUR + "-" + process.env.NOM + " du run " + process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID
             ].join("\n");
             fs.writeFileSync(process.env.RUNNER_TEMP + "/corps-pr.md", corps);
           '
-          gh pr create --base master --head "$BRANCHE" --label essai-modele-tiers \
-            --title "[essai $FOURNISSEUR] $NOM" --body-file "$RUNNER_TEMP/corps-pr.md"
+          {
+            echo "## Branche poussee : $BRANCHE"
+            echo
+            echo "Le pilote ouvre la PR (une PR ouverte par ce workflow ne lancerait pas la CI) :"
+            echo
+            echo '```'
+            echo "gh pr create --repo $GITHUB_REPOSITORY --base master --head $BRANCHE --label essai-modele-tiers --title \"[essai $FOURNISSEUR] $NOM\" --body-file corps-pr.md"
+            echo '```'
+            echo
+            echo "Le label essai-modele-tiers doit exister (a creer une fois a la main). Corps de PR a enregistrer dans corps-pr.md :"
+            echo
+            echo '~~~markdown'
+            cat "$RUNNER_TEMP/corps-pr.md"
+            echo
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
