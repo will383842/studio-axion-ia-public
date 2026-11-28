@@ -10,16 +10,13 @@ import { motsInterditsEnvoiZernio } from "./mots-interdits-envoi";
 import { pageInterdite } from "./zernio-pages-interdites";
 import { ErreurZernio } from "./zernio-erreurs";
 import { lienDuSite } from "./liens-du-site";
+import { ALT_MAX_PINTEREST, DESCRIPTION_EPINGLE_MAX, LIEN_EPINGLE_MAX, TITRE_EPINGLE_MAX } from "./epingle-limites";
+export { ALT_MAX_PINTEREST, DESCRIPTION_EPINGLE_MAX, LIEN_EPINGLE_MAX, TITRE_EPINGLE_MAX };
 import { PROMOTION_MARGE_MIN_MS, type CorpsPostZernio, type MediaItemZernio, type PlateformePostZernio } from "./zernio-client";
 import { DESCRIPTION_YOUTUBE_OCTETS_MAX, SHORT_DUREE_MAX_SEC, SHORT_FORMATS, titreYoutubeDepuisStudio, type ReglagesYoutube } from "./zernio-youtube";
 
 export const FUSEAU_STUDIO = "Europe/Paris";
 export const ALT_MAX = 125;
-/** Texte alternatif sur Pinterest SEULEMENT (ADR-0015 D10) : 500 signes. Les autres réseaux restent à `ALT_MAX`. */
-export const ALT_MAX_PINTEREST = 500;
-export const TITRE_EPINGLE_MAX = 100;
-export const DESCRIPTION_EPINGLE_MAX = 800;
-export const LIEN_EPINGLE_MAX = 2000;
 export const TITRE_DOCUMENT_MAX = 60;
 export const DOCUMENT_TAILLE_MAX = 100 * 1024 * 1024;
 /**

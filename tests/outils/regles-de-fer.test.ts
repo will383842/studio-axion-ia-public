@@ -171,6 +171,18 @@ describe("liste d'exceptions", () => {
   it("la liste du nom du fondateur est VIDE", () => {
     expect(Object.keys(EXCEPTIONS["nom-fondateur"] ?? {})).toEqual([]);
   });
+  it("robot crédits B : exceptions bornées (3 nettoyages, 1 poussée) et un 4e rm -rf ou un 2e git push reste rouge", () => {
+    const wf = ".github/workflows/claude-credit-api.yml";
+    expect(EXCEPTIONS.purge[wf]).toBe(3);
+    expect(EXCEPTIONS.push[wf]).toBe(1);
+    const rm = "  sudo rm -rf \"$X\"\n";
+    const push = "  git push -q origin a:a\n";
+    const d = (contenu: string) =>
+      (controler([{ chemin: wf, contenu }], { exceptions: EXCEPTIONS }) as { defauts: { regle: string }[] }).defauts.map((x) => x.regle);
+    expect(d(rm.repeat(3) + push)).not.toContain("exception-depassee");
+    expect(d(rm.repeat(4) + push)).toContain("exception-depassee");
+    expect(d(rm.repeat(3) + push.repeat(2))).toContain("exception-depassee");
+  });
   it("chaque règle est nommée", () => {
     expect(REGLES).toEqual(["montant", "workflow-externe", "haiku", "purge", "date-buffer", "push", "nom-fondateur"]);
   });

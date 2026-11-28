@@ -4,7 +4,8 @@ import type { ContenuBibliotheque, FiltresContenus as Filtres } from "@/domaine/
 import { estIdReseau } from "@/domaine/reseaux-video";
 import { STATUTS_COMMUNS, TYPES_CONTENU, libelleStatutCommun, type StatutCommun, type TypeContenu } from "@/domaine/taxonomie-contenu";
 import { nomCourtFormat, trouverFormat } from "@/formats";
-import { listerReseaux, obtenirReseau } from "@/reseaux";
+import { listerReseaux } from "@/reseaux";
+import { nomDuReseau } from "@/reseaux/hors-video";
 
 /**
  * Filtres de l'écran /contenus : famille (Tout, Vidéos, Infographies, Carrousels), format (vidéos seulement, formats non réservés), réseau, étape. Tout est dans l'adresse (liens, aucun état caché) :
@@ -86,7 +87,7 @@ export function compterContenus(contenus: readonly ContenuBibliotheque[]): Compt
 /** Couleur de la famille (jeton --fam-*) : l'image se range avec les infographies. */
 const POINT_FAMILLE: Readonly<Record<TypeContenu, string>> = { video: "bg-fam-video", carrousel: "bg-fam-carrousel", image: "bg-fam-infographie" };
 
-export const libelleReseauContenu = (cle: CleClassement): string => (cle === NON_PRECISE ? "Non précisé" : obtenirReseau(cle).nom);
+export const libelleReseauContenu = (cle: CleClassement): string => (cle === NON_PRECISE ? "Non précisé" : nomDuReseau(cle));
 
 const Nombre = ({ n }: { n: number }) => <span className="text-[11px] tabular-nums opacity-70">{n}</span>;
 

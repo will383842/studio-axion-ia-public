@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { estReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
+import { estReseauVisuelEnvoi, type ReseauVisuelEnvoi } from "@/domaine/reseaux-visuel-envoi";
 import { Bouton } from "@/components/ui/Bouton";
 import { ConteneurPage } from "@/components/ui/ConteneurPage";
 import { PastilleReseau } from "@/components/ui/PastilleStatut";
@@ -48,7 +48,7 @@ export default async function PageFicheCarrousel({ params, searchParams }: { par
   }
   const erreur = phraseDuCode(sp.erreur);
   // Légendes enregistrées par réseau (lecture seule) ; le bloc ne se montre que pour un carrousel validé ou programmé.
-  const legendes: Partial<Record<"linkedin" | "instagram" | "facebook", LegendeStockee>> = {};
+  const legendes: Partial<Record<ReseauVisuelEnvoi, LegendeStockee>> = {};
   const reseauxPrepares = (fiche.reseaux ?? []).filter(estReseauVisuelEnvoi);
   if (fiche.statut === "valide" || fiche.statut === "programme") {
     const deps = dependancesCarrousels();

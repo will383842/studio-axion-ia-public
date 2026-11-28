@@ -1,5 +1,5 @@
 /** RAP-3 · « Retirer du calendrier » sur une rapatriée : geste LOCAL (pose retireeLe), jamais d'effacement, jamais d'appel au diffuseur. */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockHeaders, mockNavigation } from "../helpers/next-mocks";
 import { creerFauxClientZernio } from "./aides/faux-zernio";
 
@@ -9,6 +9,9 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined, revalidateTag: (
 const exiger = vi.fn(async () => ({}));
 vi.mock("@/services/auth", () => ({ exigerSession: exiger, sessionApi: vi.fn(async () => ({})) }));
 
+// Horloge figée AVANT le chargement de la démo : ses publications sont « maintenant + N jours », donc relatives.
+// Sans cela, la fenêtre fixe de décembre finit par contenir l'une d'elles et le test casse avec le calendrier.
+vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-20T10:00:00.000Z") });
 const { depots, reinitialiserDepots } = await import("@/donnees/memoire");
 const { retirerRapatrieeAction } = await import("@/app/(studio)/calendrier/actions/retirer-rapatriee");
 const { injecterClientZernio } = await import("@/services/zernio");
@@ -16,7 +19,12 @@ const { injecterClientZernio } = await import("@/services/zernio");
 const base = { id: "zr_p1_c1", reseau: "instagram", statut: "programmee", via: "zernio", idExterne: "p1", etatEnvoi: "envoye", date: "2026-12-25T08:30:00.000Z", texte: "Texte fictif", creeLe: "2026-11-20T10:00:00.000Z", modifieLe: "2026-11-20T10:00:00.000Z", rapatrieeLe: "2026-11-20T10:00:00.000Z", origineDiffuseur: "import-buffer", mediaDiffuseur: { type: "aucun", nombre: 0 } };
 let appels: string[];
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-20T10:00:00.000Z") });
   reinitialiserDepots();
   exiger.mockClear();
   appels = [];

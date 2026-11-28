@@ -57,6 +57,9 @@ import { trouverFormat } from "@/formats";
 import { SurLeSite } from "@/components/reglages/SurLeSite";
 import { lireReglagesSite } from "@/services/site-videos";
 import { CarteYoutubeShorts } from "@/components/reglages/CarteYoutubeShorts";
+import { CartePinterest } from "@/components/reglages/CartePinterest";
+import { resumeCartePinterest } from "@/components/reglages/pinterest-logique";
+import { vuePinterestZernio } from "@/services/pinterest-zernio";
 import { DefautsDosage } from "@/components/dosage-motion/DefautsDosage";
 import { definirDefautDosageAction } from "./actions-dosage-motion";
 import { lireDefautsDosage } from "@/services/dosage-motion-defauts";
@@ -155,6 +158,7 @@ export default async function PageReglages() {
   const [interrupteursEcriture, videoLongueActive] = await Promise.all([lireInterrupteursEcriture(), lireVideoLongueActif()]);
   const autonomieUsine = await vueAutonomieUsine();
   const youtube = await vueYoutubeZernio();
+  const pinterest = await vuePinterestZernio();
   const infos = aPropos();
   const tauxUsdEur = tauxValide(await lireParametre<number>("taux.usdEur", TAUX_USD_EUR_PAR_DEFAUT));
   // X3-10b-c : éteint (réglage absent) = une seule lecture de réglage, aucune carte.
@@ -299,6 +303,12 @@ export default async function PageReglages() {
           <Apparition index={5}>
             <CartePliante id="youtube-shorts" icone="video" titre="YouTube Shorts" resume={resumeCarteYoutube(youtube.actif)}>
               <CarteYoutubeShorts vue={youtube} />
+            </CartePliante>
+          </Apparition>
+          {/* Pinterest : fermé par défaut (zernio.pinterest_actif), lu en base ; le domaine du site est en lecture seule. */}
+          <Apparition index={5}>
+            <CartePliante id="pinterest" icone="image" titre="Pinterest" resume={resumeCartePinterest(pinterest.actif)}>
+              <CartePinterest vue={pinterest} />
             </CartePliante>
           </Apparition>
           {/* Vidéos sur le site (lot S1) : un interrupteur par type de vidéo, tous éteints. */}

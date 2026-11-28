@@ -43,8 +43,8 @@ describe("S4.2 signature", () => {
 
   it("un corps vide se signe avec le sha256 de la chaîne vide", () => {
     expect(sha256Hex("")).toBe("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
-    const e = signerAppel({ secret: SECRET, methode: "GET", chemin: "/api/interne/videos/reglages", corps: "", horodatageSec: 1760781600, nonce: NONCE });
-    expect(e["x-axion-signature"]).toBe(`v1=${createHmac("sha256", SECRET).update(`v1\n1760781600\n${NONCE}\nGET\n/api/interne/videos/reglages\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`).digest("hex")}`);
+    const e = signerAppel({ secret: SECRET, methode: "GET", chemin: "/api/interne/reglages-publics", corps: "", horodatageSec: 1760781600, nonce: NONCE });
+    expect(e["x-axion-signature"]).toBe(`v1=${createHmac("sha256", SECRET).update(`v1\n1760781600\n${NONCE}\nGET\n/api/interne/reglages-publics\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`).digest("hex")}`);
   });
 
   it("le corps modifié d'un octet, ou n'importe quel autre élément, change la signature", () => {
