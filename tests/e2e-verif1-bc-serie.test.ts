@@ -67,6 +67,7 @@ const boucle = await import("@/services/boucle");
 const { ecrireParametre } = await import("@/services/_commun");
 const { creerLecteurAnthropic } = await import("@/fournisseurs/credits/suivis");
 const { ROLES_ECRITURE } = await import("@/generateur/roles");
+const { ROLES_CHAINE_COURTE, ROLES_CHAINE_COURTE_HORS_RECETTE } = await import("@/generateur/chaine-courte");
 const { RESEAUX_DECLINAISON } = await import("@/reseaux/codes");
 const { ideesParLigne } = await import("@/domaine/serie-idees");
 const { lancerSerieAction } = await import("@/app/(studio)/ecrire/serie/actions");
@@ -81,7 +82,7 @@ const mots = (t: string) => t.split(/\s+/).filter(Boolean);
 /** Faux Claude : reconnaît le rôle par sa consigne et répond par la sortie de sa simulation ; `panne` le coupe. */
 const claude = { appels: 0, panne: false };
 function fauxClaude() {
-  const roles = Object.values(ROLES_ECRITURE) as DefinitionRole[];
+  const roles = [...Object.values(ROLES_ECRITURE), ...Object.values(ROLES_CHAINE_COURTE), ...Object.values(ROLES_CHAINE_COURTE_HORS_RECETTE)] as DefinitionRole[];
   return (async (_u: string | URL | Request, init?: RequestInit) => {
     const corps = JSON.parse(String(init?.body ?? "{}")) as { system: { text: string }[]; messages: { content: string }[] };
     const role = roles.find((r) => corps.system.at(-1)!.text.startsWith(r.consigne.trim()))!;
@@ -275,7 +276,8 @@ describe("C · « Écrire ces N idées » → N scripts (Claude, chemin payant r
     // L'appel sans réponse (1 seul : arrêt dès la 1re panne, garde-fous du 15/10) compté à son pire cas.
     expect(g0.etapes.filter((e) => e.appelId && !e.termineLe)).toHaveLength(1);
     const fantomes = gc.depenseGenerationUsd(g0);
-    expect(fantomes).toBeGreaterThan(0.25);
+    // Plancher recalé : le pire cas d'un appel de la chaîne courte (angle) vaut ~0,20 $ depuis master (il était > 0,25 avec l'ancien rôle).
+    expect(fantomes).toBeGreaterThan(0.15);
     await reprendreAvecAccord(panne);
     vi.setSystemTime(Date.now() + 61_000);
     await bg.tourBoucleGeneration();
@@ -352,12 +354,13 @@ describe("C · « Écrire ces N idées » → N scripts (Claude, chemin payant r
   });
 
   // INTÉGRATION FINALE : l'ancien constat (« … mais avec l'épisode 2 ») décrivait le défaut corrigé ci-dessus.
-  it("constat : l'idée hors domaine est « partie » (« À compléter » au suivi), sans numéro de sujet ni épisode", async () => {
+  it("constat : l'idée hors domaine n'est pas « partie » : « a-completer » (« À compléter » au suivi), sans numéro de sujet ni épisode", async () => {
     const s = await series.creerSerie("Les tableurs");
     const idees = [IDEES[0], "Comment contester un PV de stationnement", IDEES[1]];
     const plan = await serie.planSerie(3);
     const { serie: lancee } = await serie.lancerSerie(idees.map((texte) => ({ texte })), { ...REGLAGES, serieId: s.id }, "serie-bc-episodes", plan.totalPartant.centimes, plan.partiront);
-    expect(lancee.elements.map((e) => e.sort)).toEqual(["parti", "parti", "parti"]);
+    expect(lancee.elements.map((e) => e.sort)).toEqual(["parti", "a-completer", "parti"]);
+    expect(lancee.elements[1]).toMatchObject({ manque: "HORS_DOMAINE", scriptMaitreId: expect.any(String) });
     for (let i = 0; i < 3; i++) await bg.tourBoucleGeneration();
     const sujets = await Promise.all(lancee.elements.map((e) => depots().scriptsMaitres.obtenir(e.scriptMaitreId!)));
     expect(sujets.map((m) => [m!.numero === undefined, m!.episodeSerie, m!.manque?.type])).toEqual([
