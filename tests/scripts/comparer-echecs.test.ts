@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 // @ts-expect-error module .mjs sans types
-import { extraireEchecs, comparer, compterLances, rapport, selectionnerTests } from "../../scripts/comparer-echecs.mjs";
+import { extraireEchecs, comparer, compterLances, fichiersSautes, rapport, selectionnerTests } from "../../scripts/comparer-echecs.mjs";
 
-const rapportVitest = (fichiers: Record<string, [string, "passed" | "failed"][]>) => ({
+const rapportVitest = (fichiers: Record<string, [string, "passed" | "failed" | "skipped"][]>) => ({
   testResults: Object.entries(fichiers).map(([name, cas]) => ({
     name: `/depot/${name}`,
     status: cas.some(([, s]) => s === "failed") ? "failed" : "passed",
@@ -108,5 +108,27 @@ describe("workflow tests-nouveau", () => {
       encoding: "utf8",
     });
     expect(sortie.trim()).toBe("");
+  });
+
+  it("un fichier dont les 12 cas sont sautés n'est pas vert et n'est pas compté comme lancé", () => {
+    const r = rapportVitest({ "tests/image-video/variete/apparition.test.ts": Array.from({ length: 12 }, (_, i) => [`cas ${i}`, "skipped"] as [string, "skipped"]) });
+    const res = comparer(r, { echecs: [] });
+    expect(compterLances(r)).toBe(0);
+    expect(fichiersSautes(r)).toEqual(["tests/image-video/variete/apparition.test.ts"]);
+    expect(res.ok).toBe(false);
+    expect(rapport(res)).toContain("ROUGE : fichier sauté, aucun test n'a tourné : tests/image-video/variete/apparition.test.ts");
+  });
+
+  it("un fichier sauté parmi des fichiers lancés reste rouge ; un cas sauté dans un fichier lancé reste vert", () => {
+    const mixte = rapportVitest({ "tests/a.test.ts": [["un", "passed"]], "tests/b.test.ts": [["x", "skipped"]] });
+    expect(comparer(mixte, { echecs: [] }).ok).toBe(false);
+    const partiel = rapportVitest({ "tests/a.test.ts": [["un", "passed"], ["deux", "skipped"]] });
+    expect(compterLances(partiel)).toBe(1);
+    expect(comparer(partiel, { echecs: [] }).ok).toBe(true);
+  });
+
+  it("un fichier sans aucun cas (rien déclaré) n'est pas « sauté » : seul un cas sauté l'est", () => {
+    const vide = rapportVitest({ "tests/a.test.ts": [["un", "passed"]], "tests/vide.test.ts": [] });
+    expect(fichiersSautes(vide)).toEqual([]);
   });
 });

@@ -1,15 +1,15 @@
 /**
  * Variété « Image → vidéo » · lot APP-MAT · axe 6, APPARITION des cartes du schéma (APP-B feutre, APP-C fantôme qui
  * s'allume, APP-D cartes qui tombent ; APP-A = référence). Seul le dessin change : invariants de la ligne de temps
- * tenus sur les 6 cartes ; sans variété, `Toile`/`Noeud` rendent EXACTEMENT le HTML d'avant le lot (empreinte figée
- * avant toute modification). Rendu statique par `react-dom/server` de `studio-rendu` (un seul React).
+ * tenus sur les 6 cartes ; sans variété, `Toile`/`Noeud` rendent EXACTEMENT le HTML de référence (empreinte recalée sur master au 27/11, cf.
+ * `EMPREINTE_TOILE_REFERENCE`). Rendu statique par `react-dom/server` de `studio-rendu` (un seul React).
  * Rouge sans le lot : recette APP-C → aucune carte éteinte (fantôme) au début de la toile.
  */
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe as decrire, expect, it, vi } from "vitest";
 import type { CodeVariante, RecetteVarieteIV } from "@/briques/schema-motion/variete";
 import type { CarteImage } from "@/domaine/image-video/carte";
 import { RESEAUX_IV } from "@/domaine/image-video/plafonds";
@@ -26,7 +26,24 @@ import { Toile } from "../../../studio-rendu/compositions/image-video/Toile";
 import { ContexteVariete } from "../../../studio-rendu/compositions/image-video/variete/ContexteVariete";
 import { invariantsVarieteIV } from "./invariants";
 
-const exiger = createRequire(join(process.cwd(), "studio-rendu/package.json"));
+/**
+ * Dépendances de `studio-rendu` (hors espace de travail pnpm). Les jobs CI « tests des fichiers touchés » et « tests des nouveaux
+ * fichiers de test » ne les installent pas (seuls tests-cibles et gv-tests-moteurs le font) : sans elles, `remotion` est introuvable et le
+ * FICHIER ne se charge pas. On le rend alors chargeable (stub inerte) et la suite est sautée ; avec les dépendances, rien ne change.
+ */
+const DEPS_RENDU = existsSync(join(process.cwd(), "studio-rendu/node_modules/remotion/package.json"));
+vi.mock("remotion", async () => {
+  if (existsSync(join(process.cwd(), "studio-rendu/node_modules/remotion/package.json"))) {
+    const exiger = createRequire(join(process.cwd(), "studio-rendu/package.json"));
+    return await import(/* @vite-ignore */ exiger.resolve("remotion"));
+  }
+  return new Proxy({ __esModule: true }, { get: (cible, nom) => (nom === "then" ? undefined : nom in cible ? (cible as Record<string | symbol, unknown>)[nom] : () => null) });
+});
+// Seules les suites qui RENDENT la toile (HTML) ont besoin de remotion ; les autres (moteur, déterminisme) tournent toujours, pour que le fichier ne soit jamais entièrement sauté.
+const describe = decrire;
+const describeRendu = decrire.skipIf(!DEPS_RENDU);
+
+const exiger = createRequire(join(process.cwd(), DEPS_RENDU ? "studio-rendu/package.json" : "package.json"));
 const { createElement } = exiger("react") as typeof import("react");
 const { renderToStaticMarkup } = exiger("react-dom/server") as typeof import("react-dom/server");
 
@@ -57,12 +74,19 @@ function rendreToile(b: BlocToile, t: number, avecVariete = true): string {
 }
 
 /**
- * Empreinte du HTML de `Toile` SANS variété (6 cartes, 1re version, toutes les toiles, un instant tous les 0,25 s), figée AVANT le lot.
+ * Empreinte du HTML de `Toile` SANS variété (6 cartes, 1re version, toutes les toiles, un instant tous les 0,25 s), recalée sur master au 27/11 (ff1dbf99…).
  * Caméra (17/10, bloc entier sur son mot) : seule la toile b06 de la carte F change (la caméra ne quitte plus n09
  * avant son mot : n08 surgit 0,31 s et n10 0,17 s après leur mot, décalage existant ≤ 0,6 s ; trajectoire et bruitage
  * de caméra suivent).
+ * MAJ 25/11 (FIX-ROUGES-APPARITION-v21t, voulue, à relire) : l'ancienne valeur 09542bc8… n'était plus reproductible (même sur 55d99567, la
+ * version du 23/10, elle n'est pas retrouvée) ; remplacée par la valeur calculée sur master, identique sur deux `npm ci` à froid. Changements voulus
+ * depuis le 23/10 : 2ba329dd #30 tempo de la voix ; 5b4efdf3 #42 4:5 (empreintes 9:16 recalculées) ; 4b27b662 #120 blocs déjà vus ;
+ * 34a4203d #130 jamais un bloc coupé ; 083d531e #241 charte Manrope ; 4e9445f7 #280 correctif de charte.
+ * MAJ 27/11 : 3ffc05c6… était l'empreinte de master au 25/11 ; les fusions de master suivantes (fond, rail, téléphone vidéo) ont changé le HTML de la toile ;
+ * valeur recalculée sur la fusion courante (master seul donne la même, ff1dbf99…).
+ * L'invariant testé reste : sans variété et APP-A + MAT-A donnent la MÊME empreinte.
  */
-const EMPREINTE_TOILE_REFERENCE = "09542bc8cbf0158882df2a00343389dbc0aab6690c8b609cbc89522f86bfb2ab";
+const EMPREINTE_TOILE_REFERENCE = "ff1dbf99264cf312a1d6791daac5bad74dc120ef61c398492e30726c78fe719f";
 
 function empreinteToiles(variete?: RecetteVarieteIV): string {
   const h = createHash("sha256");
@@ -79,8 +103,8 @@ function empreinteToiles(variete?: RecetteVarieteIV): string {
   return h.digest("hex");
 }
 
-describe("APP · référence inchangée", () => {
-  it("sans variété : le HTML de la toile est identique à celui d'avant le lot", () => {
+describeRendu("APP · référence inchangée", () => {
+  it("sans variété : le HTML de la toile est celui de master au 27/11 (ff1dbf99…)", () => {
     expect(empreinteToiles()).toBe(EMPREINTE_TOILE_REFERENCE);
   }, 30_000);
 
@@ -126,7 +150,7 @@ describe("APP · moteur", () => {
   });
 });
 
-describe("APP · dessin", () => {
+describeRendu("APP · dessin", () => {
   const ligneC = (code: CodeVariante) => mettreEnSceneIV({ ...entrees("C")[0], variete: recette(code) }).ligne;
 
   it("APP-C (rouge sans le lot) : au début de la toile, toutes les cartes sont là, éteintes et sans texte ; chacune s'allume à son mot", () => {

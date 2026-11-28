@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Compare un rapport vitest (--reporter=json) à scripts/echecs-connus.json.
-// Rouge (code 1) si un échec n'est pas dans la liste, ou si aucun test n'a été lancé.
+// Rouge (code 1) si un échec n'est pas dans la liste, ou si aucun test n'a été lancé, ou si un fichier est entièrement sauté.
 // Usage : node scripts/comparer-echecs.mjs <rapport.json> [echecs-connus.json]
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -38,10 +38,23 @@ export function selectionnerTests(chemins) {
 
 export function compterLances(rapportVitest) {
   verifierRapport(rapportVitest);
+  // Un cas sauté n'a rien vérifié : il n'est pas « lancé ».
   return rapportVitest.testResults.reduce(
-    (n, f) => n + (Array.isArray(f.assertionResults) ? f.assertionResults.length : 0),
+    (n, f) =>
+      n + (Array.isArray(f.assertionResults) ? f.assertionResults.filter((c) => c.status === "passed" || c.status === "failed").length : 0),
     0,
   );
+}
+
+// Fichiers dont AUCUN cas n'a tourné (tous sautés) : un vert qui ne regarde rien.
+export function fichiersSautes(rapportVitest) {
+  verifierRapport(rapportVitest);
+  return rapportVitest.testResults
+    .filter((f) => {
+      const cas = Array.isArray(f.assertionResults) ? f.assertionResults : [];
+      return cas.length > 0 && !cas.some((c) => c.status === "passed" || c.status === "failed");
+    })
+    .map((f) => relatif(f.name));
 }
 
 export function comparer(rapportVitest, connus) {
@@ -56,12 +69,14 @@ export function comparer(rapportVitest, connus) {
   // « corrigé » seulement si le fichier a tourné et que le cas est passé : un fichier non lancé n'est pas jugé.
   const fichiersLances = new Set(rapportVitest.testResults.map((f) => relatif(f.name)));
   const corriges = connus.echecs.filter((e) => fichiersLances.has(e.fichier) && !vus.has(cle(e)));
-  return { ok: nouveaux.length === 0 && lances > 0, lances, nouveaux, connus: connusVus, corriges };
+  const sautes = fichiersSautes(rapportVitest);
+  return { ok: nouveaux.length === 0 && lances > 0 && sautes.length === 0, lances, sautes, nouveaux, connus: connusVus, corriges };
 }
 
 export function rapport(res) {
   const l = [`${res.lances} tests lancés`];
   if (res.lances === 0) l.push("ROUGE : aucun test lancé.");
+  for (const f of res.sautes) l.push(`ROUGE : fichier sauté, aucun test n'a tourné : ${f}`);
   for (const e of res.nouveaux) l.push(`ROUGE : échec absent de echecs-connus.json : ${e.fichier} › ${e.nom}`);
   for (const e of res.connus) l.push(`connu : ${e.fichier} › ${e.nom}`);
   for (const e of res.corriges) l.push(`corrigé (à retirer de la liste) : ${e.fichier} › ${e.nom}`);
