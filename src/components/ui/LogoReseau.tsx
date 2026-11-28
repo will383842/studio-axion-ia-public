@@ -1,7 +1,7 @@
 import { ETATS_RESEAU_GENERATEUR, type SigneCase } from "@/domaine/libelles";
 import type { IdReseau } from "@/domaine/types";
 import { cn } from "@/lib/cn";
-import { obtenirReseau } from "@/reseaux";
+import { definitionAffichage } from "@/reseaux/hors-video";
 import { Icone } from "./Icone";
 
 export type EtatLogoReseau = keyof typeof ETATS_RESEAU_GENERATEUR;
@@ -46,7 +46,7 @@ export function LogoReseau({
   lettres?: string;
   className?: string;
 }) {
-  const r = obtenirReseau(reseau);
+  const r = definitionAffichage(reseau);
   const dims = cn(taille === "sm" && "size-7 rounded-lg text-[10px]", taille === "md" && "size-9 text-xs", taille === "lg" && "size-11 text-sm");
   const marque = lettres ? (
     <span aria-hidden className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-texte px-0.5 font-texte text-[9px] font-bold leading-none text-fond">

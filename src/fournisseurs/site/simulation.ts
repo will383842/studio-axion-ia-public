@@ -4,9 +4,11 @@
  * Ses adresses sont en `.invalid` : impossibles à joindre par erreur. Aucun octet ne quitte le processus.
  */
 import { VERSION_CONTRAT, type CorpsPasseport } from "@/domaine/site-videos/contrat";
-import { CHEMIN_REGLAGES, CHEMIN_VIDEOS, fournisseurSiteDepuisTransport } from "./fournisseur";
+import { CHEMIN_REGLAGES, CHEMIN_RETRAIT, CHEMIN_VIDEOS, fournisseurSiteDepuisTransport } from "./fournisseur";
 import { ENTETE_HORODATAGE, ENTETE_NONCE, ENTETE_SIGNATURE, MEMOIRE_NONCE_MS, TOLERANCE_HORODATAGE_SEC, signatureValide } from "./signature";
 import type { FournisseurSite, OptionsObjetPublic, RequeteSignee, ReponseSite, StockagePublic } from "./types";
+
+const MOTIFS: readonly string[] = ["obsolete", "erreur", "demande_tiers", "autre"];
 
 export const ADRESSE_SITE_FACTICE = "https://site-factice.invalid";
 
@@ -86,15 +88,15 @@ export function creerSiteFactice(options: { secret: string; maintenant?: () => n
     try {
       c = JSON.parse(corpsTexte) as Partial<CorpsPasseport>;
     } catch {
-      return rep(422, { erreurs: ["corps illisible"] });
+      return rep(422, { ok: false, erreur: "json_invalide" });
     }
     const erreurs = erreursDuCorps(c);
-    if (erreurs.length) return rep(422, { erreurs });
+    if (erreurs.length) return rep(422, { ok: false, erreur: "schema_invalide", champs: erreurs });
     const corps = c as CorpsPasseport;
     const existante = pages.get(corps.idStudio);
     const maintenantIso = new Date(maintenant()).toISOString();
     if (existante) {
-      if (corps.versionPasseport < existante.version) return rep(409, { erreur: "version plus ancienne que celle du site" });
+      if (corps.versionPasseport < existante.version) return rep(409, { ok: false, erreur: "version_perimee" });
       const inchange = corps.versionPasseport === existante.version && existante.statut === "publiee";
       if (!inchange) {
         existante.statut = "publiee";
@@ -102,19 +104,20 @@ export function creerSiteFactice(options: { secret: string; maintenant?: () => n
         existante.version = corps.versionPasseport;
         existante.corps = corps;
       }
-      return rep(200, { statut: "publiee", slug: existante.slug, url: `${adresse}/fr/videos/${existante.slug}`, versionPasseport: existante.version, inchange });
+      return rep(200, { ok: true, statut: "publiee", slug: existante.slug, url: `${adresse}/fr/videos/${existante.slug}`, version: existante.version, rejeu: inchange });
     }
     // Le slug n'est fixé qu'à la PREMIÈRE publication.
     const slug = adresseUnique(corps.slugPropose, corps.idStudio);
     pages.set(corps.idStudio, { idStudio: corps.idStudio, slug, version: corps.versionPasseport, statut: "publiee", cree: maintenantIso, modifieLe: maintenantIso, corps });
-    return rep(200, { statut: "publiee", slug, url: `${adresse}/fr/videos/${slug}`, versionPasseport: corps.versionPasseport, inchange: false });
+    return rep(201, { ok: true, statut: "publiee", slug, url: `${adresse}/fr/videos/${slug}`, version: corps.versionPasseport, rejeu: false });
   }
 
   function retirer(idStudio: string): ReponseSite {
     const page = pages.get(idStudio);
-    if (!page) return rep(404, { erreur: "vidéo inconnue" });
+    if (!page) return rep(404, { ok: false, erreur: "video_inconnue" });
+    const rejeu = page.statut === "retiree";
     page.statut = "retiree";
-    return rep(200, { statut: "retiree" });
+    return rep(200, { ok: true, statut: "retiree", slug: page.slug, rejeu });
   }
 
   const site: SiteFactice = {
@@ -132,15 +135,22 @@ export function creerSiteFactice(options: { secret: string; maintenant?: () => n
       if (refus) return refus;
       if (r.methode === "GET" && r.chemin === CHEMIN_REGLAGES) {
         site.appels.reglages++;
-        return rep(200, { versionContrat: VERSION_CONTRAT, ...reglages });
+        return rep(200, { schemaVersion: VERSION_CONTRAT, luLe: new Date(maintenant()).toISOString(), ...reglages });
       }
       if (r.methode === "POST" && r.chemin === CHEMIN_VIDEOS) {
         site.appels.publier++;
         return publier(r.corps);
       }
-      if (r.methode === "DELETE" && r.chemin.startsWith(`${CHEMIN_VIDEOS}/`)) {
+      if (r.methode === "DELETE" && r.chemin === CHEMIN_RETRAIT) {
         site.appels.retirer++;
-        return retirer(decodeURIComponent(r.chemin.slice(CHEMIN_VIDEOS.length + 1)));
+        let c: { schemaVersion?: unknown; studioVideoId?: unknown; motif?: unknown };
+        try {
+          c = JSON.parse(r.corps) as typeof c;
+        } catch {
+          return rep(422, { ok: false, erreur: "json_invalide" });
+        }
+        if (c.schemaVersion !== 1 || typeof c.studioVideoId !== "string" || !c.studioVideoId || !MOTIFS.includes(c.motif as string)) return rep(422, { ok: false, erreur: "schema_invalide", champs: ["schemaVersion", "studioVideoId", "motif"] });
+        return retirer(c.studioVideoId);
       }
       return rep(404, { erreur: "point d'accès inconnu" });
     },
@@ -203,7 +213,7 @@ export const fournisseurSiteSimulation: FournisseurSite = {
   capacites: { asynchrone: false, accordExige: false },
   lireReglages: () => creerFournisseurSiteSimulation(siteFacticeCourant()).lireReglages(),
   publier: (corps) => creerFournisseurSiteSimulation(siteFacticeCourant()).publier(corps),
-  retirer: (id) => creerFournisseurSiteSimulation(siteFacticeCourant()).retirer(id),
+  retirer: (id, motif) => creerFournisseurSiteSimulation(siteFacticeCourant()).retirer(id, motif),
 };
 
 /* ------------------------------------------------------------------ */

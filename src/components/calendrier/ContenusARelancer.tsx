@@ -1,5 +1,5 @@
 import type { LigneARelancer } from "@/services/contenus-a-relancer";
-import { obtenirReseau } from "@/reseaux";
+import { nomDuReseau } from "@/reseaux/hors-video";
 
 /** Libellés fixes de l'écran (vouvoiement, mots simples, aucun prix). */
 export const LIBELLES_A_RELANCER = {
@@ -49,7 +49,7 @@ export function ContenusARelancer({ lignes, comptes, action }: ProprietesContenu
         return (
           <li key={l.publicationId} className="px-4 py-3 text-sm">
             <p className="font-medium text-texte">
-              {obtenirReseau(l.reseau).nom} · {quand(l.date)}
+              {nomDuReseau(l.reseau)} · {quand(l.date)}
             </p>
             <p className="mt-1 text-texte">{l.debutTexte}</p>
             <p className="text-texte-doux">{l.raison}</p>

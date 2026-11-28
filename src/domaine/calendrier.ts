@@ -4,7 +4,7 @@
  * déjà pour le même média, le même réseau et le même jour de Paris (la publication fait foi).
  */
 
-export type FamilleEntree = "video" | "carrousel";
+export type FamilleEntree = "video" | "carrousel" | "epingle";
 export type OrigineEntree = "publication" | "creneau";
 
 export interface EntreeCalendrier {
@@ -28,6 +28,7 @@ export interface EntreeCalendrier {
 export function lienMedia(famille: FamilleEntree, id: string | null | undefined): string | null {
   const v = (id ?? "").trim();
   if (!v || v === "undefined" || v === "null") return null;
+  // « epingle » : la fiche du visuel, comme le carrousel (une épingle est un visuel image).
   const racine = famille === "video" ? "/videos/" : "/visuels/";
   return racine + encodeURIComponent(v);
 }

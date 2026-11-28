@@ -109,8 +109,8 @@ export type NatureLien = (typeof NATURES_LIEN)[number];
 export const ACTIVITES_LIEN = ["clients", "apporteurs", "formateurs"] as const;
 export type ActiviteLien = (typeof ACTIVITES_LIEN)[number];
 export const PAGES_LIEN = ["/fr/appel", "/fr/guide-ia", "/fr/diagnostic"] as const;
-// Pinterest volontairement absent : ses mesures (enregistrements, clics) arrivent en PR 8.
-const RESEAUX_LIEN = ["linkedin", "instagram", "facebook", "tiktok", "youtube", "youtube-shorts"] as const;
+// Pinterest : lien suivi d'un post (utm_source=pinterest), comme les autres réseaux ; pas de message privé (RESEAUX_MESSAGE).
+const RESEAUX_LIEN = ["linkedin", "instagram", "facebook", "tiktok", "pinterest", "youtube", "youtube-shorts"] as const;
 const RESEAUX_MESSAGE = ["facebook", "instagram", "linkedin"] as const;
 const LONGUEUR_MAX_LIEN = 60;
 const CODE_VERSION = /^[0-9]{4,6}-[A-Z]{2,3}-[A-Z]{2,3}(-[A-Z0-9]{1,8})*$/;

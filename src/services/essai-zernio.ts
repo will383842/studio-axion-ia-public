@@ -22,7 +22,7 @@ import { estCompteParDefaut } from "@/domaine/plan-editorial/compte-par-defaut";
 export const PARAM_ESSAI_BROUILLON = "zernio.essai_brouillon";
 export const DUREE_MAX_ESSAI_MS = 24 * 60 * 60 * 1000;
 export const FENETRE_NETTOYAGE_MS = 24 * 60 * 60 * 1000;
-const NOMS_ESSAI = RESEAUX_VISUEL_ENVOI.map((r) => ({ linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook" })[r]);
+const NOMS_ESSAI = RESEAUX_VISUEL_ENVOI.map((r) => ({ linkedin: "LinkedIn", instagram: "Instagram", facebook: "Facebook", pinterest: "Pinterest" })[r]);
 const JOUR_MS = 24 * 60 * 60 * 1000;
 
 export type GesteEssai = "brouillon" | "deplacement" | "retrait";

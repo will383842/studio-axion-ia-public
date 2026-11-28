@@ -1039,7 +1039,7 @@ export function creerClientZernio(options: OptionsClientZernio): ClientZernio {
     if (avant.metadata?.studioCle !== d.cleJournal) return { etat: "refuse", raison: "La clé du post ne correspond pas à celle du journal." };
     // Pinterest : le tableau du brouillon relu doit être celui que le journal attend (jamais promu sur un autre tableau).
     const epingle = (Array.isArray(avant.platforms) ? avant.platforms : []).find((p) => p.platform === "pinterest");
-    if (avant.platforms.some((p) => p.platform === "pinterest")) {
+    if (epingle) {
       const lu = epingle?.platformSpecificData?.boardId;
       if (d.tableauAttendu === undefined || typeof lu !== "string" || lu !== d.tableauAttendu) return { etat: "refuse", raison: "Le tableau Pinterest du brouillon ne correspond pas à celui attendu : rien n'a été promu." };
     }

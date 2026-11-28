@@ -70,7 +70,7 @@ describe("S-13-d-v20j · tableau.preteAvecRemarques", () => {
 
   it("(c) un seul lecteur de la clé dans src/** : tableau-remarques.ts, défaut false, seul true exact allume", () => {
     const fichiers = execSync("git ls-files --cached --others --exclude-standard 'src/**/*.ts' 'src/**/*.tsx'", { encoding: "utf8" }).split("\n").filter(Boolean);
-    const lecteurs = fichiers.filter((f) => /lireParametre|l<unknown>/.test(readFileSync(f, "utf8")) && /PARAM_PRETE_AVEC_REMARQUES|tableau\.preteAvecRemarques/.test(readFileSync(f, "utf8")));
+    const lecteurs = fichiers.filter((f) => /lireParametre|l<unknown>/.test(readFileSync(f, "utf8")) && /PARAM_PRETE_AVEC_REMARQUES(?![A-Z_])|tableau\.preteAvecRemarques/.test(readFileSync(f, "utf8")));
     expect(lecteurs).toEqual(["src/services/tableau-remarques.ts"]);
     expect(readFileSync("src/services/tableau-remarques.ts", "utf8")).toMatch(/l<unknown>\(PARAM_PRETE_AVEC_REMARQUES, false\)\) === true/);
   });
