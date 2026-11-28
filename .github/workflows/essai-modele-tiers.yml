@@ -1,10 +1,10 @@
-# ESSAI D'UN MODELE DE CODE TIERS (Kimi ou DeepSeek) : fait coder UNE fiche par Claude Code sans interface, puis pousse une branche d'essai.
+# ESSAI D'UN MODELE DE CODE TIERS (Kimi ou DeepSeek) : fait coder UNE fiche par Claude Code sans interface, puis livre un correctif VALIDE en artefact.
 # But : comparer qualite et cout sur une fiche bornee. Declenchement manuel seulement.
 # NE JAMAIS FUSIONNER SANS RELECTURE OPUS. Secrets requis : KIMI_API_KEY et/ou DEEPSEEK_API_KEY. Aucun secret Anthropic.
 # Le job 1 (coder) est NON FIABLE PAR CONCEPTION : le modele tiers peut y executer du code et y lire sa propre cle.
 # Un PLAFOND DE DEPENSE BAS est donc obligatoire sur le compte du fournisseur. Le job 1 n'a aucun droit d'ecriture ;
-# le job 2 (publier), sur une machine neuve, verifie tout puis pousse la branche. La PR est ouverte ensuite par le pilote
-# (la commande est donnee dans le resume du run), car le reglage « Actions peut creer des PR » reste desactive.
+# le job 2 (verifier-correctif), sur une machine neuve et en lecture seule, verifie tout puis envoie le correctif valide
+# en artefact. Aucune ecriture depuis ce workflow : le pilote cree la branche et la PR (voir le resume du run).
 name: essai-modele-tiers
 
 on:
@@ -125,7 +125,6 @@ jobs:
           export ANTHROPIC_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODELE"
           export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODELE"
-          export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODELE"
           export CLAUDE_CODE_SUBAGENT_MODEL="$MODELE"
           mkdir -p "$RUNNER_TEMP/essai"
           RAPPEL="CONSIGNES FIXES : travaille sur la fiche ci-dessous seulement. Ne touche jamais a .github/, aux Dockerfile*, aux migrations, ni aux fichiers de secrets ou d'environnement. Ne modifie ni package.json ni le fichier de verrouillage. Lance les tests cibles existants qui concernent ta fiche, s'il y en a (par exemple pnpm exec vitest run <fichier de test>). Pas de commit : laisse les modifications dans l'arbre de travail."
@@ -138,7 +137,7 @@ jobs:
             --settings "$RUNNER_TEMP/reglages-essai.json" \
             --permission-mode acceptEdits \
             --allowedTools "Read" "Edit" "Write" "Glob" "Grep" "Bash(pnpm exec vitest run:*)" "Bash(git status)" "Bash(git diff:*)" \
-            --disallowedTools "WebFetch" "WebSearch" "Bash(node:*)" "Bash(npm:*)" "Bash(npx:*)" "Bash(git commit:*)" "Bash(git push:*)" "Bash(git config:*)" \
+            --disallowedTools "WebFetch" "WebSearch" "Bash(node:*)" "Bash(npm:*)" "Bash(npx:*)" "Bash(git commit:*)" "Bash(git config:*)" \
             > "$RUNNER_TEMP/essai/essai-$NOM.json" 2> "$RUNNER_TEMP/essai/essai-$NOM.err"
           CODE=$?
           set -e
@@ -162,13 +161,13 @@ jobs:
             ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.patch
           if-no-files-found: warn
 
-  publier:
-    name: publier (confiance)
+  verifier-correctif:
+    name: verifier le correctif (confiance, lecture seule)
     needs: coder
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Valider les entrees
         env:
@@ -239,20 +238,12 @@ jobs:
             echo "::error::Fichier(s) interdit(s) touche(s) :"; grep -Ei "$INTERDIT" "$RUNNER_TEMP/touches.txt"; exit 1
           fi
 
-      - name: Commit et push de la branche (sans PR, sans fusion)
+      - name: Resume pour le pilote et artefact du correctif valide
         env:
           FOURNISSEUR: ${{ inputs.fournisseur }}
           NOM: ${{ inputs.nom }}
           FICHE: ${{ inputs.fiche }}
         run: |
-          BRANCHE="essai/$FOURNISSEUR/$NOM"
-          if git ls-remote --exit-code --heads origin "$BRANCHE" >/dev/null 2>&1; then
-            echo "::error::La branche $BRANCHE existe deja : choisis un autre nom."; exit 1
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "essai($FOURNISSEUR): $NOM"
-          git push origin "HEAD:refs/heads/$BRANCHE"
           node -e '
             const fs = require("fs");
             const j = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/essai/essai-" + process.env.NOM + ".json", "utf8"));
@@ -272,23 +263,30 @@ jobs:
               "",
               process.env.FICHE.split("\n").map(l => "> " + l).join("\n"),
               "",
-              "Sortie JSON complete : artefact essai-" + process.env.FOURNISSEUR + "-" + process.env.NOM + " du run " + process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID
+              "Correctif valide : artefact correctif-valide-" + process.env.FOURNISSEUR + "-" + process.env.NOM + " du run " + process.env.GITHUB_SERVER_URL + "/" + process.env.GITHUB_REPOSITORY + "/actions/runs/" + process.env.GITHUB_RUN_ID
             ].join("\n");
             fs.writeFileSync(process.env.RUNNER_TEMP + "/corps-pr.md", corps);
           '
           {
-            echo "## Branche poussee : $BRANCHE"
+            echo "## Correctif valide : branche a creer par le pilote"
             echo
-            echo "Le pilote ouvre la PR (une PR ouverte par ce workflow ne lancerait pas la CI) :"
+            echo "Branche : essai/$FOURNISSEUR/$NOM"
+            echo "Titre de PR : [essai $FOURNISSEUR] $NOM"
+            echo "Artefact : correctif-valide-$FOURNISSEUR-$NOM (patch + JSON)"
             echo
-            echo '```'
-            echo "gh pr create --repo ${{ github.repository }} --base master --head $BRANCHE --label essai-modele-tiers --title \"[essai $FOURNISSEUR] $NOM\" --body-file corps-pr.md"
-            echo '```'
-            echo
-            echo "Le label essai-modele-tiers doit exister (a creer une fois a la main). Corps de PR a enregistrer dans corps-pr.md :"
+            echo "Corps de PR :"
             echo
             echo '~~~markdown'
             cat "$RUNNER_TEMP/corps-pr.md"
             echo
             echo '~~~'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Envoyer le correctif valide
+        uses: actions/upload-artifact@v4
+        with:
+          name: correctif-valide-${{ inputs.fournisseur }}-${{ inputs.nom }}
+          path: |
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.json
+            ${{ runner.temp }}/essai/essai-${{ inputs.nom }}.patch
+          if-no-files-found: error
