@@ -1,0 +1,193 @@
+# Robot Claude Code (CLI) sur un runner GitHub, payé par les crédits de l'API Claude (compte B seulement).
+# Fiche : CI-ROBOT-B. Porté depuis le workflow du dépôt du site, avec ses pièges déjà payés :
+#   - on lance la CLI directement (l'action officielle se trompe sur le solde) ;
+#   - le bac à sable de la CLI exige bubblewrap + socat et l'autorisation des espaces de noms (AppArmor) ;
+#   - GITHUB_TOKEN ne peut pas créer de PR : le robot pousse une branche, la session pilote ouvre la PR.
+# CE DÉPÔT EST PUBLIC et ses journaux d'Actions aussi. Règles de ce fichier :
+#   - la consigne est lue dans $GITHUB_EVENT_PATH, jamais via `env:` ni `${{ inputs.* }}` dans un script ;
+#   - aucune sortie de Claude (texte, diff, chemin) n'est affichée : le journal ne montre que
+#     succès/échec, coût, nombre de tours et noms (assainis) des branches poussées ;
+#   - aucun artefact n'est publié ; ne JAMAIS activer le mode debug sur ce workflow.
+# Déclenchement MANUEL seulement (workflow_dispatch), par le propriétaire du dépôt, depuis master.
+# Une seule clé : le secret ANTHROPIC_API_KEY_COMPTE_B. Absente : échec clair, aucun repli.
+# Le robot ne doit jamais pousser sur master ni main (crochet pre-push + contrôle final).
+#
+# Usage (depuis une session pilote) :
+#   gh workflow run claude-credit-api.yml -R <proprietaire>/studio-axion-ia-public --ref master \
+#     -f consigne="$(cat consigne.md)" -f modele=claude-sonnet-5-5 -f tours_max=150
+# La consigne doit nommer la branche à pousser et demander le corps de PR dans un fichier versionné
+# (par ex. .pr/<branche>.md) ; la session pilote ouvre ensuite la PR avec ce corps.
+
+name: Claude (crédit API, compte B)
+
+on:
+  workflow_dispatch:
+    inputs:
+      consigne:
+        description: "Consigne complète (texte). Doit nommer la branche à pousser. Jamais affichée dans le journal."
+        required: true
+      modele:
+        description: "Modèle"
+        type: choice
+        options: [claude-sonnet-5-5, claude-opus-5-5]
+        default: claude-sonnet-5-5
+      tours_max:
+        description: "Nombre maximal de tours"
+        type: choice
+        options: ["40", "80", "150", "250"]
+        default: "150"
+
+permissions:
+  contents: read
+
+jobs:
+  claude:
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: write
+    steps:
+      - name: Vérifier la présence de la clé du compte B (aucun repli)
+        env:
+          CLE_B_PRESENTE: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B != '' }}
+        run: |
+          if [ "$CLE_B_PRESENTE" != "true" ]; then
+            echo "::error::Secret ANTHROPIC_API_KEY_COMPTE_B absent du dépôt : à créer. Aucun autre compte n'est utilisé."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Dépendances installées AVANT Claude, hors du bac à sable (le magasin pnpm y est en lecture seule).
+      # Même commande que la CI du dépôt. Le Studio n'a pas de génération Prisma : rien d'autre à lancer.
+      - name: Installer les dépendances du projet (hors bac à sable)
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          test -x node_modules/.bin/tsc && test -x node_modules/.bin/vitest && test -x node_modules/.bin/eslint
+
+      # La consigne ne passe JAMAIS par `env:` ni par `${{ inputs.consigne }}` dans un script (journal public).
+      - name: Écrire la consigne (fichier ignoré par git, jamais affiché)
+        run: |
+          jq -r '.inputs.consigne // empty' "$GITHUB_EVENT_PATH" > .consigne-claude.md
+          echo ".consigne-claude.md" >> .git/info/exclude
+          test -s .consigne-claude.md || { echo "::error::Consigne vide."; exit 1; }
+          echo "Consigne écrite."
+
+      - name: Installer Claude Code, le bac à sable et l'identité git
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq bubblewrap socat >/dev/null
+          command -v socat >/dev/null || { echo "socat manquant"; exit 1; }
+          command -v bwrap >/dev/null || { echo "bubblewrap manquant"; exit 1; }
+          sudo sysctl -q -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
+          npm i -g --no-audit --no-fund @anthropic-ai/claude-code >/dev/null 2>&1
+          claude --version >/dev/null
+          # Identité propre à ce run : le verdict ne compte que les branches dont le commit de tête porte
+          # ce committer, daté après le départ.
+          git config user.name "robot-credit-api"
+          git config user.email "robot-credit-api-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@users.noreply.github.com"
+          git config user.email > "$RUNNER_TEMP/robot-email.txt"
+          date -u +%s > "$RUNNER_TEMP/robot-debut.txt"
+          # Crochet pre-push : refuse toute poussée vers master ou main.
+          cat > .git/hooks/pre-push <<'EOF'
+          #!/bin/sh
+          while read -r locale sha_loc distante sha_dist; do
+            case "$distante" in
+              refs/heads/master|refs/heads/main) echo "Poussée vers master ou main interdite pour le robot." >&2; exit 1 ;;
+            esac
+          done
+          exit 0
+          EOF
+          chmod +x .git/hooks/pre-push
+          git ls-remote --heads origin | sort > "$RUNNER_TEMP/branches-avant.txt"
+
+      - name: Claude (compte B)
+        id: run1
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B }}
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+          MODELE: ${{ inputs.modele }}
+          TOURS: ${{ inputs.tours_max }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Secret ANTHROPIC_API_KEY_COMPTE_B absent ou vide. Aucun repli."
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+          f="$RUNNER_TEMP/execution.json"
+          env -u GITHUB_ENV -u GITHUB_STEP_SUMMARY -u GITHUB_PATH -u GITHUB_OUTPUT timeout 4200 claude -p "Ta consigne est dans le fichier .consigne-claude.md à la racine du dépôt. Lis-le et exécute-le. Ne le committe jamais. Tu ne peux pas ouvrir de PR : pousse la branche demandée et écris le corps de PR dans le fichier versionné demandé. Ne pousse jamais sur master ni main. Ne touche pas à .github/. Les dépendances sont DÉJÀ installées : ne relance pas pnpm install (le magasin pnpm est en lecture seule) ; lance directement pnpm exec tsc --noEmit, pnpm exec eslint <fichiers>, pnpm exec vitest run <fichiers>. Si pnpm-lock.yaml doit changer, signale-le dans le corps de PR au lieu de réinstaller. Écris tout contenu en public sans prénom, prix, adresse IP ni chemin personnel." \
+            --model "$MODELE" --max-turns "$TOURS" \
+            --allowedTools Bash,Read,Edit,Write,Glob,Grep,Agent,TodoWrite \
+            --output-format json > "$RUNNER_TEMP/brut.json" 2> "$RUNNER_TEMP/err.txt" || true
+          jq -s '.' "$RUNNER_TEMP/brut.json" > "$f" 2>/dev/null || echo '[]' > "$f"
+          rm -f "$RUNNER_TEMP/brut.json" "$RUNNER_TEMP/err.txt"
+          echo "execution_file=$f" >> "$GITHUB_OUTPUT"
+          # Le dépôt est PUBLIC : on n'affiche que des nombres et un verdict, jamais le texte de la réponse
+          # ni le message d'erreur de la CLI.
+          if jq -e 'any(.[]; .type == "result" and .is_error == false)' "$f" >/dev/null 2>&1; then
+            echo "Claude : succès."
+            echo "conclusion=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Claude n'a produit aucun résultat réussi (détail volontairement non affiché : journal public)."
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"; exit 1
+          fi
+
+      - name: Bilan (nombres seulement)
+        if: always()
+        env:
+          F1: ${{ steps.run1.outputs.execution_file }}
+        run: |
+          rm -f .consigne-claude.md
+          # Le fichier vient d'une machine où Claude avait Bash : on n'en garde que des nombres revalidés.
+          num() { if [[ "$1" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then printf '%s' "$1"; else printf 0; fi; }
+          cout=0; tours=0
+          if [ -n "$F1" ] && [ -f "$F1" ]; then
+            cout=$(jq -r '[.[] | select(.type=="result") | .total_cost_usd // 0] | add // 0' "$F1" 2>/dev/null || echo 0)
+            tours=$(jq -r '[.[] | select(.type=="result") | .num_turns // 0] | add // 0' "$F1" 2>/dev/null || echo 0)
+          fi
+          {
+            echo "### Coût Claude (crédit API, compte B)"
+            echo "- $(num "$cout") \$ US, $(num "$tours") tours"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verdict (échec si Claude n'a poussé aucune branche)
+        if: always()
+        env:
+          C1: ${{ steps.run1.outputs.conclusion }}
+        run: |
+          if [ "$C1" != "success" ]; then
+            echo "::error::L'exécution de Claude a échoué."; exit 1; fi
+          git ls-remote --heads origin | sort > "$RUNNER_TEMP/branches-apres.txt"
+          candidates=$(comm -13 "$RUNNER_TEMP/branches-avant.txt" "$RUNNER_TEMP/branches-apres.txt" | awk '{print $2}' | sed 's#refs/heads/##')
+          # Aucune poussée sur master ni main, sous aucun prétexte.
+          for b in $candidates; do
+            case "$b" in master|main) echo "::error::Une branche protégée (master ou main) a changé : à examiner."; exit 1 ;; esac
+          done
+          # Le push d'une AUTRE session ne doit pas faire passer un robot qui n'a rien poussé : on ne garde
+          # que les branches dont le commit de tête a pour committer le robot de CE run, daté après son départ.
+          robot_email=$(cat "$RUNNER_TEMP/robot-email.txt" 2>/dev/null || true)
+          debut=$(cat "$RUNNER_TEMP/robot-debut.txt" 2>/dev/null || echo 0)
+          nouvelles=""
+          for b in $candidates; do
+            git fetch -q --depth=1 origin "refs/heads/$b" 2>/dev/null || continue
+            read -r ce ct < <(git log -1 --format='%ce %ct' FETCH_HEAD)
+            if [ -n "$robot_email" ] && [ "$ce" = "$robot_email" ] && [ "${ct:-0}" -ge "$debut" ]; then
+              nouvelles="$nouvelles $b"; fi
+          done
+          if [ -z "$nouvelles" ]; then
+            echo "::error::Claude a fini sans pousser aucune branche."; exit 1; fi
+          echo "Claude a terminé. Branches poussées (créées ou mises à jour) :"
+          # Les noms viennent de Claude : seuls les noms simples sont affichés.
+          for b in $nouvelles; do
+            if [[ "$b" =~ ^[A-Za-z0-9._/-]{1,80}$ ]]; then printf '  %s\n' "$b"; else printf '  <nom masqué>\n'; fi
+          done
