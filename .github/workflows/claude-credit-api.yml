@@ -155,7 +155,11 @@ jobs:
           const dir = process.argv[2];
           const retirer = new Set(['x-api-key', 'authorization', 'host', 'connection']);
           const srv = http.createServer((req, res) => {
-            if (typeof req.url !== 'string' || !req.url.startsWith('/v1/')) { res.statusCode = 403; return res.end(); }
+            // Liste blanche stricte (chemin comparé sans la chaîne de requête, qui reste permise).
+            const chemin = typeof req.url === 'string' ? req.url.split('?')[0] : '';
+            const permis = (req.method === 'POST' && (chemin === '/v1/messages' || chemin === '/v1/messages/count_tokens'))
+              || (req.method === 'GET' && chemin === '/v1/models');
+            if (!permis) { res.statusCode = 403; return res.end(); }
             const h = {};
             for (const [k, v] of Object.entries(req.headers)) if (!retirer.has(k.toLowerCase())) h[k] = v;
             h['x-api-key'] = cle;
@@ -263,8 +267,13 @@ jobs:
             n=$((n+1))
           done
           [ "$n" -ge 1 ] || { echo "::error::Claude a fini sans créer de branche robot/<nom>."; exit 1; }
-          # Tout ce que Claude a laissé (config git, hooks, .npmrc, scripts) est détruit AVANT les étapes post
-          # (checkout, pnpm) et tout outil lancé par l'utilisateur runner. Dossier recréé vide.
+
+      # Purge TOUJOURS exécutée (même si une étape précédente a échoué) : tout ce que Claude a laissé (config git,
+      # hooks, .npmrc, scripts) est détruit AVANT les étapes post (checkout, pnpm) et tout outil lancé par
+      # l'utilisateur runner. Dossier recréé vide. Les étapes suivantes n'utilisent que le dépôt de contrôle.
+      - name: Purger le dossier de travail
+        if: always()
+        run: |
           sudo pkill -9 -u robot >/dev/null 2>&1 || true
           cd "$RUNNER_TEMP"
           sudo rm -rf "$GITHUB_WORKSPACE"
@@ -324,6 +333,11 @@ jobs:
       - name: Arrêter le relais
         if: always()
         run: |
+          # Deuxième filet : même purge que ci-dessus.
+          sudo pkill -9 -u robot >/dev/null 2>&1 || true
+          cd "$RUNNER_TEMP"
+          sudo rm -rf "$GITHUB_WORKSPACE"
+          mkdir -p "$GITHUB_WORKSPACE"
           pid=$(cat "$RUNNER_TEMP/relais/pid" 2>/dev/null || true)
           if [[ "$pid" =~ ^[0-9]+$ ]]; then kill "$pid" 2>/dev/null || true; fi
           rm -rf "$RUNNER_TEMP/relais"
