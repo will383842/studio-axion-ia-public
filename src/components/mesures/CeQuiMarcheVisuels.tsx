@@ -2,19 +2,14 @@ import { Carte } from "@/components/ui/Carte";
 import { INDICATEURS, ordinal, type RangVideo } from "@/domaine/mesures-rangs";
 import { libelleIndicateur, MESURES_NON_DISPONIBLES, type ClassementReseauVisuels } from "@/domaine/mesures-visuels";
 import type { ReseauDeclinaison } from "@/domaine/types";
+import type { ReseauMesureVisuel } from "@/domaine/mesures-visuels";
+import { nomDuReseau } from "@/reseaux/hors-video";
 import type { CeQuiMarcheVisuelsDonnees, EtatsVisuels } from "@/services/mesures-visuels";
 
 /**
  * « CARROUSELS » (fiche L5-18a) : le classement des carrousels, SÉPARÉ de celui des vidéos, et une ligne des trois états.
  * Affichage seulement : rien n'est lu ni écrit ici. Écran de 390 px : une colonne, peu de texte. Aucun montant.
  */
-const NOMS_RESEAUX: Record<ReseauDeclinaison, string> = {
-  tiktok: "TikTok",
-  instagram: "Instagram",
-  "youtube-shorts": "YouTube Shorts",
-  linkedin: "LinkedIn",
-  facebook: "Facebook",
-};
 const FAMILLES: Record<string, string> = { carrousel: "Carrousel", "carrousel-continu": "Carrousel continu", infographie: "Infographie" };
 
 export const LIBELLES_VISUELS = {
@@ -31,8 +26,8 @@ export function ligneEtats(e: EtatsVisuels): string {
   return `${e.mesure} mesuré${s(e.mesure)} · ${e.pasEncore} pas encore · ${e.nonDisponible} non disponible${s(e.nonDisponible)}`;
 }
 
-function LigneRang({ r, reseau }: { r: RangVideo; reseau: ReseauDeclinaison }) {
-  const manquants = MESURES_NON_DISPONIBLES[reseau] ?? [];
+function LigneRang({ r, reseau }: { r: RangVideo; reseau: ReseauMesureVisuel }) {
+  const manquants = MESURES_NON_DISPONIBLES[reseau as ReseauDeclinaison] ?? [];
   return (
     <li className="flex items-start gap-3 p-3">
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2 font-titre text-lg tabular-nums text-texte">{r.rang}</span>
@@ -62,9 +57,9 @@ function LigneRang({ r, reseau }: { r: RangVideo; reseau: ReseauDeclinaison }) {
 
 function BlocReseau({ g }: { g: ClassementReseauVisuels }) {
   return (
-    <section aria-label={NOMS_RESEAUX[g.reseau]} className="space-y-2">
+    <section aria-label={nomDuReseau(g.reseau)} className="space-y-2">
       <h3 className="flex items-baseline gap-2 text-sm font-semibold text-texte">
-        <span className="flex-1">{NOMS_RESEAUX[g.reseau]}</span>
+        <span className="flex-1">{nomDuReseau(g.reseau)}</span>
         <span className="text-xs font-normal tabular-nums text-texte-faible">
           {g.nombre} carrousel{g.nombre > 1 ? "s" : ""}
         </span>
