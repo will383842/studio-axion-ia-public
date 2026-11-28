@@ -136,26 +136,69 @@ jobs:
           # Le dépôt appartient à robot pendant l'exécution de Claude.
           sudo chown -R robot:robot "$GITHUB_WORKSPACE"
 
+      # Relais local : la vraie clé ne vit que dans CE processus (utilisateur runner) ; robot ne reçoit qu'une
+      # fausse clé et l'adresse du relais (ANTHROPIC_BASE_URL, documenté dans les variables d'environnement de la CLI).
+      - name: Lancer le relais d'API (la vraie clé reste hors de portée du robot)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Secret ANTHROPIC_API_KEY_COMPTE_B absent ou vide. Aucun repli."; exit 1
+          fi
+          umask 077
+          r="$RUNNER_TEMP/relais"
+          mkdir -p "$r"; chmod 700 "$r"
+          cat > "$r/relais.js" <<'JS'
+          const http = require('http'), https = require('https'), fs = require('fs');
+          const cle = process.env.ANTHROPIC_API_KEY;
+          delete process.env.ANTHROPIC_API_KEY;
+          const dir = process.argv[2];
+          const retirer = new Set(['x-api-key', 'authorization', 'host', 'connection']);
+          const srv = http.createServer((req, res) => {
+            if (typeof req.url !== 'string' || !req.url.startsWith('/v1/')) { res.statusCode = 403; return res.end(); }
+            const h = {};
+            for (const [k, v] of Object.entries(req.headers)) if (!retirer.has(k.toLowerCase())) h[k] = v;
+            h['x-api-key'] = cle;
+            h['host'] = 'api.anthropic.com';
+            const up = https.request({ host: 'api.anthropic.com', port: 443, path: req.url, method: req.method, headers: h }, (r) => {
+              res.writeHead(r.statusCode, r.headers);
+              r.pipe(res);
+            });
+            up.on('error', () => { if (!res.headersSent) res.statusCode = 502; res.end(); });
+            req.on('aborted', () => up.destroy());
+            req.pipe(up);
+          });
+          srv.listen(0, '127.0.0.1', () => {
+            fs.writeFileSync(dir + '/pid', String(process.pid));
+            fs.writeFileSync(dir + '/port', String(srv.address().port));
+          });
+          JS
+          chmod 700 "$r/relais.js"
+          # Détaché de l'étape ; l'étape finale « Arrêter le relais » l'arrête (if: always()).
+          RUNNER_TRACKING_ID="" setsid nohup node "$r/relais.js" "$r" >/dev/null 2>&1 &
+          for i in $(seq 1 50); do [ -s "$r/port" ] && break; sleep 0.2; done
+          port=$(cat "$r/port" 2>/dev/null || true)
+          [[ "$port" =~ ^[0-9]{2,5}$ ]] || { echo "::error::Relais non démarré."; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'x-api-key: cle-factice-robot' -H 'anthropic-version: 2023-06-01' "http://127.0.0.1:$port/v1/models" || true)
+          if [ "$code" = "200" ]; then echo "test de santé du relais : oui"; else echo "test de santé du relais : non"; exit 1; fi
+
       - name: Claude (compte B)
         id: run1
         continue-on-error: true
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B }}
           MODELE: ${{ inputs.modele }}
           TOURS: ${{ inputs.tours_max }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::Secret ANTHROPIC_API_KEY_COMPTE_B absent ou vide. Aucun repli."
-            echo "conclusion=failure" >> "$GITHUB_OUTPUT"; exit 1
-          fi
+          port=$(cat "$RUNNER_TEMP/relais/port")
           f="$RUNNER_TEMP/execution.json"
           PROMPT="Ta consigne est dans le fichier .consigne-claude.md à la racine du dépôt. Lis-le et exécute-le. Ne le committe jamais. Tu n'as ni jeton GitHub ni accès réseau vers GitHub : COMMITE en local sur une branche dont le nom est OBLIGATOIREMENT robot/<nom> (lettres, chiffres, point, tiret, soulignement, 60 caractères au plus, sans autre barre oblique) et ne pousse rien ; un autre job pousse ta branche. Ne crée aucune autre branche, ne commite jamais sur master ni main. Écris le corps de PR dans le fichier versionné demandé. Ne touche pas à .github/. Les dépendances sont DÉJÀ installées : ne lance pas pnpm install ; lance directement pnpm exec tsc --noEmit, pnpm exec eslint <fichiers>, pnpm exec vitest run <fichiers>. Si pnpm-lock.yaml doit changer, signale-le dans le corps de PR au lieu de réinstaller. Écris tout contenu en public sans prénom, prix, adresse IP ni chemin personnel, et ne recopie jamais aucune clé ni aucun jeton."
           # Seules les variables utiles sont transmises à l'utilisateur robot ; il n'a pas sudo.
           # Les fichiers GITHUB_* du runner ne sont pas transmis.
           cd "$GITHUB_WORKSPACE"
           mail="$(git config user.email)"
-          sudo -u robot -H --preserve-env=ANTHROPIC_API_KEY \
+          sudo -u robot -H \
             env PATH="$PATH" HOME=/home/robot CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 CI=true \
+            ANTHROPIC_BASE_URL="http://127.0.0.1:$port" ANTHROPIC_API_KEY=cle-factice-robot \
             GIT_AUTHOR_NAME=robot-credit-api GIT_COMMITTER_NAME=robot-credit-api \
             GIT_AUTHOR_EMAIL="$mail" GIT_COMMITTER_EMAIL="$mail" \
             timeout 4200 claude -p "$PROMPT" \
@@ -220,22 +263,39 @@ jobs:
             n=$((n+1))
           done
           [ "$n" -ge 1 ] || { echo "::error::Claude a fini sans créer de branche robot/<nom>."; exit 1; }
+          # Tout ce que Claude a laissé (config git, hooks, .npmrc, scripts) est détruit AVANT les étapes post
+          # (checkout, pnpm) et tout outil lancé par l'utilisateur runner. Dossier recréé vide.
+          sudo pkill -9 -u robot >/dev/null 2>&1 || true
+          cd "$RUNNER_TEMP"
+          sudo rm -rf "$GITHUB_WORKSPACE"
+          mkdir -p "$GITHUB_WORKSPACE"
 
-      # Balayage de TOUS les commits (git log -p) : la clé du compte B (comparaison littérale) puis les motifs de jetons.
-      # La clé n'est présente que dans l'env de CETTE étape, qui ne lance que git log et grep sur le dépôt neuf.
+      # Balayage de TOUS les objets poussés (commits, arbres, blobs) et des messages, dans le dépôt de contrôle neuf :
+      # la clé du compte B (comparaison littérale, fichier 0600 toujours supprimé) puis les motifs de jetons.
+      # La clé n'est présente que dans l'env de CETTE étape, qui ne lance que git et grep sur le dépôt neuf.
+      # Double sécurité : la vraie clé n'est de toute façon jamais dans l'env du robot (relais local).
       - name: Balayage anti-fuite
         env:
           CLE: ${{ secrets.ANTHROPIC_API_KEY_COMPTE_B }}
         run: |
+          umask 077
           base=$(cat "$RUNNER_TEMP/base.txt")
           export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
-          printf %s "$CLE" > "$RUNNER_TEMP/k"
-          git -C "$RUNNER_TEMP/verif.git" log -p --branches='robot/*' "^$base" > "$RUNNER_TEMP/log.txt" 2>/dev/null || true
+          k="$RUNNER_TEMP/k"; ids="$RUNNER_TEMP/ids.txt"; flux="$RUNNER_TEMP/flux.bin"
+          trap 'rm -f "$k" "$ids" "$ids.t" "$flux"' EXIT
+          printf %s "$CLE" > "$k"
+          v="$RUNNER_TEMP/verif.git"
           fuite=0
-          [ -s "$RUNNER_TEMP/k" ] || fuite=1
-          grep -F -q -f "$RUNNER_TEMP/k" "$RUNNER_TEMP/log.txt" 2>/dev/null && fuite=1
-          grep -E -q 'sk-ant-|ghs_|ghp_|github_pat_' "$RUNNER_TEMP/log.txt" 2>/dev/null && fuite=1
-          rm -f "$RUNNER_TEMP/k" "$RUNNER_TEMP/log.txt"
+          [ -s "$k" ] || fuite=1
+          git -C "$v" rev-list --objects --branches='robot/*' "^$base" 2>/dev/null | cut -d' ' -f1 > "$ids" || fuite=1
+          [ -s "$ids" ] || fuite=1
+          git -C "$v" cat-file --batch-check='%(objectname) %(objecttype)' < "$ids" 2>/dev/null | awk '$2=="blob" || $2=="commit" || $2=="tree" || $2=="tag" {print $1}' > "$ids.t" || fuite=1
+          # Contenu brut de tous les objets (blobs, mais aussi commits et arbres : en-têtes, noms de fichiers).
+          git -C "$v" cat-file --batch < "$ids.t" > "$flux" 2>/dev/null || fuite=1
+          git -C "$v" log --format=%B --branches='robot/*' "^$base" >> "$flux" 2>/dev/null || fuite=1
+          [ -s "$flux" ] || fuite=1
+          if grep -a -F -q -f "$k" "$flux" 2>/dev/null; then fuite=1; fi
+          if grep -a -E -q '(sk-ant-|ghs_|ghp_|github_pat_)' "$flux" 2>/dev/null; then fuite=1; fi
           if [ "$fuite" -ne 0 ]; then
             echo "::error::FUITE DÉTECTÉE, rien n'est poussé."
             exit 1
@@ -260,6 +320,14 @@ jobs:
           path: ${{ runner.temp }}/sortie/robot.bundle
           retention-days: 1
           if-no-files-found: error
+
+      - name: Arrêter le relais
+        if: always()
+        run: |
+          pid=$(cat "$RUNNER_TEMP/relais/pid" 2>/dev/null || true)
+          if [[ "$pid" =~ ^[0-9]+$ ]]; then kill "$pid" 2>/dev/null || true; fi
+          rm -rf "$RUNNER_TEMP/relais"
+          exit 0
 
   pousser:
     needs: coder
